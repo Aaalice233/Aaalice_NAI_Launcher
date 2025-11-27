@@ -1,0 +1,76 @@
+name: nai_launcher
+description: NovelAI Universal Launcher - 跨平台第三方客户端
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.16.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # 状态管理
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # 网络请求
+  dio: ^5.4.0
+
+  # 本地存储
+  flutter_secure_storage: ^9.2.4
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # 加密库 (Blake2b + Argon2id)
+  cryptography: ^2.7.0
+
+  # ZIP 处理
+  archive: ^3.6.1
+
+  # 图片处理
+  image: ^4.1.7
+
+  # 路由
+  go_router: ^14.2.0
+
+  # UI 组件
+  flex_color_scheme: ^7.3.1
+
+  # 数据模型
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.9.0
+
+  # 工具库
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  uuid: ^4.4.0
+  intl: ^0.19.0
+  collection: ^1.18.0
+
+  # 日志
+  logger: ^2.4.0
+
+  # 窗口管理 (桌面端)
+  window_manager: ^0.3.9
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.4.0
+  freezed: ^2.5.2
+  json_serializable: ^6.8.0
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
