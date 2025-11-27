@@ -51,7 +51,7 @@ class AuthNotifier extends _$AuthNotifier {
   AuthState build() {
     // 初始化时检查已存储的认证状态
     _checkExistingAuth();
-    return const AuthState();
+    return const AuthState(status: AuthStatus.loading);
   }
 
   /// 检查已存储的认证状态

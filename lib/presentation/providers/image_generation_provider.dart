@@ -380,6 +380,33 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   void updateNSamples(int nSamples) {
     state = state.copyWith(nSamples: nSamples.clamp(1, 4));
   }
+
+  // ==================== 高级参数 ====================
+
+  /// 更新 UC 预设
+  void updateUcPreset(int ucPreset) {
+    state = state.copyWith(ucPreset: ucPreset.clamp(0, 7));
+  }
+
+  /// 更新质量标签开关
+  void updateQualityToggle(bool qualityToggle) {
+    state = state.copyWith(qualityToggle: qualityToggle);
+  }
+
+  /// 更新多样性增强 (V4+)
+  void updateVarietyPlus(bool varietyPlus) {
+    state = state.copyWith(varietyPlus: varietyPlus);
+  }
+
+  /// 更新使用坐标模式 (V4+ 多角色)
+  void updateUseCoords(bool useCoords) {
+    state = state.copyWith(useCoords: useCoords);
+  }
+
+  /// 更新添加原始图像
+  void updateAddOriginalImage(bool addOriginalImage) {
+    state = state.copyWith(addOriginalImage: addOriginalImage);
+  }
 }
 
 // ==================== 标签建议 Provider ====================

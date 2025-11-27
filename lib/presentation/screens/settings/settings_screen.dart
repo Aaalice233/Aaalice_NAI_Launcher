@@ -29,10 +29,16 @@ class SettingsScreen extends ConsumerWidget {
             leading: const CircleAvatar(
               child: Icon(Icons.person),
             ),
-            title: Text(authState.email ?? '未登录'),
-            subtitle: authState.isAuthenticated
-                ? const Text('已登录')
-                : const Text('请登录以使用全部功能'),
+            title: Text(
+              authState.isLoading
+                  ? '加载中...'
+                  : (authState.email ?? '未登录'),
+            ),
+            subtitle: authState.isLoading
+                ? const Text('正在检查登录状态')
+                : (authState.isAuthenticated
+                    ? const Text('已登录')
+                    : const Text('请登录以使用全部功能')),
             trailing: authState.isAuthenticated
                 ? TextButton(
                     onPressed: () => _showLogoutDialog(context, ref),

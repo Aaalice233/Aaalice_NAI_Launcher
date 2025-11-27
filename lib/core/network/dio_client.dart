@@ -91,6 +91,15 @@ class AuthInterceptor extends Interceptor {
 class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    // 详细记录错误信息
+    AppLogger.e(
+      'DIO Error: ${err.type.name}\n'
+      'Status: ${err.response?.statusCode}\n'
+      'URL: ${err.requestOptions.uri}\n'
+      'Response Data: ${err.response?.data}',
+      'DIO',
+    );
+
     // 统一错误处理
     final error = _mapError(err);
     handler.next(error);

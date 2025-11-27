@@ -57,8 +57,8 @@ class NAIApiService {
 
   /// 获取标签建议
   ///
-  /// [input] 当前输入的文本
-  /// [model] 模型名称（可选）
+  /// [input] 当前输入的文本（会自动提取最后一个标签进行匹配）
+  /// [model] 模型名称（可选，默认 nai-diffusion-4-full）
   ///
   /// 返回建议的标签列表
   Future<List<TagSuggestion>> suggestTags(
@@ -70,12 +70,17 @@ class NAIApiService {
     }
 
     try {
-      final response = await _dio.post(
+      // 使用 GET 请求，参数放在 query string 中
+      final queryParams = <String, dynamic>{
+        'prompt': input.trim(),
+      };
+      if (model != null) {
+        queryParams['model'] = model;
+      }
+
+      final response = await _dio.get(
         '${ApiConstants.imageBaseUrl}${ApiConstants.suggestTagsEndpoint}',
-        data: {
-          'input': input.trim(),
-          if (model != null) 'model': model,
-        },
+        queryParameters: queryParams,
       );
 
       // 解析响应
@@ -92,6 +97,23 @@ class NAIApiService {
       AppLogger.e('Tag suggestion failed: $e', 'API');
       return [];
     }
+  }
+
+  /// 根据当前提示词获取下一个标签建议
+  ///
+  /// 这会解析提示词，提取最后一个不完整的标签，并返回建议
+  Future<List<TagSuggestion>> suggestNextTag(
+    String prompt, {
+    String? model,
+  }) async {
+    // 提取最后一个标签（逗号分隔）
+    final parts = prompt.split(',');
+    if (parts.isEmpty) return [];
+
+    final lastPart = parts.last.trim();
+    if (lastPart.length < 2) return [];
+
+    return suggestTags(lastPart, model: model);
   }
 
   // ==================== 图像生成 API ====================
@@ -117,21 +139,132 @@ class NAIApiService {
           ? Random().nextInt(4294967295)
           : params.seed;
 
-      // 2. 构造基础参数
+      // 2. 构造基础参数 (参考 novelai-api Python 项目)
+      // 注意：同时设置 negative_prompt 和 uc 字段（API 需要两者）
       final requestParameters = <String, dynamic>{
         'width': params.width,
         'height': params.height,
         'steps': params.steps,
-        'cfg_scale': params.scale,
+        'scale': params.scale,
         'sampler': params.sampler,
         'seed': seed,
         'n_samples': params.nSamples,
         'negative_prompt': params.negativePrompt,
-        'smea': params.smea,
-        'smea_dyn': params.smeaDyn,
+        'uc': params.negativePrompt, // API 需要 uc 字段（与 negative_prompt 相同）
+        // V4 模型不支持 SMEA，所以对 V4 禁用
+        'sm': params.isV4Model ? false : params.smea,
+        'sm_dyn': params.isV4Model ? false : params.smeaDyn,
         'cfg_rescale': params.cfgRescale,
         'noise_schedule': params.noiseSchedule,
+        // 必需的参数（camelCase 格式）
+        'ucPreset': params.ucPreset,
+        'qualityToggle': params.qualityToggle,
+        'dynamic_thresholding': false, // decrisper
+        'controlnet_strength': 1.0,
+        'legacy': false,
+        'add_original_image': params.addOriginalImage,
+        'params_version': params.paramsVersion,
+        // 额外必需参数
+        'uncond_scale': 1.0,
+        'skip_cfg_above_sigma': null,
       };
+
+      // V4+ 模型特殊参数 (必需的 v4_prompt 和 v4_negative_prompt 结构)
+      if (params.isV4Model) {
+        // 确保使用正确的参数版本
+        requestParameters['params_version'] = 3;
+
+        // V4 必需的额外参数 (参考 novelai-python SDK)
+        requestParameters['use_coords'] = params.useCoords;
+        requestParameters['legacy_v3_extend'] = false;
+        requestParameters['legacy_uc'] = false;
+
+        // skip_cfg_above_sigma: 当 variety_plus 为 true 时设置为 19
+        requestParameters['skip_cfg_above_sigma'] =
+            params.varietyPlus ? 19 : null;
+
+        // V4 默认负向提示词 (当用户未指定时使用)
+        const defaultV4Uc = 'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]';
+        final combinedUc = params.negativePrompt.isNotEmpty
+            ? params.negativePrompt
+            : defaultV4Uc;
+
+        // 构建角色提示词列表 (char_captions 和 characterPrompts)
+        final charCaptions = <Map<String, dynamic>>[];
+        final characterPrompts = <Map<String, dynamic>>[];
+
+        for (final char in params.characters) {
+          // 计算位置坐标 (A1-E5 网格)
+          double x = 0.5, y = 0.5;
+          if (char.position != null && char.position!.length >= 2) {
+            final letter = char.position![0].toUpperCase();
+            final digit = char.position![1];
+            // X: A=0.1, B=0.3, C=0.5, D=0.7, E=0.9
+            x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
+            // Y: 1=0.1, 2=0.3, 3=0.5, 4=0.7, 5=0.9
+            y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
+            x = x.clamp(0.1, 0.9);
+            y = y.clamp(0.1, 0.9);
+          } else if (char.positionX != null && char.positionY != null) {
+            x = char.positionX!;
+            y = char.positionY!;
+          }
+
+          charCaptions.add({
+            'centers': [{'x': x, 'y': y}],
+            'char_caption': char.prompt,
+          });
+
+          characterPrompts.add({
+            'center': {'x': x, 'y': y},
+            'prompt': char.prompt,
+            'uc': char.negativePrompt,
+          });
+        }
+
+        // V4 必需的 v4_prompt 结构
+        // 注意: base_caption 应为用户的提示词！（不是 null）
+        requestParameters['v4_prompt'] = {
+          'caption': {
+            'base_caption': params.prompt, // V4 需要在这里也传入提示词
+            'char_captions': charCaptions,
+          },
+          'use_coords': params.useCoords,
+          'use_order': true,
+        };
+
+        // V4 必需的 v4_negative_prompt 结构
+        // base_caption 设置为组合后的负向提示词 (不能为空！)
+        requestParameters['v4_negative_prompt'] = {
+          'caption': {
+            'base_caption': combinedUc,
+            'char_captions': [],
+          },
+          'legacy_uc': false, // 可选，用于兼容旧版负向提示词
+        };
+
+        // 同时更新 negative_prompt 和 uc 字段
+        requestParameters['negative_prompt'] = combinedUc;
+        requestParameters['uc'] = combinedUc;
+
+        // 角色提示词数组
+        requestParameters['characterPrompts'] = characterPrompts;
+      }
+
+      // 打印请求参数以便调试
+      AppLogger.d('Request parameters: model=${params.model}, isV4=${params.isV4Model}, ucPreset=${params.ucPreset}', 'API');
+
+      // 打印完整请求体（调试用）
+      if (params.isV4Model) {
+        AppLogger.d('V4 use_coords: ${requestParameters['use_coords']}', 'API');
+        AppLogger.d('V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}', 'API');
+        AppLogger.d('V4 legacy_uc: ${requestParameters['legacy_uc']}', 'API');
+        AppLogger.d('V4 v4_prompt: ${requestParameters['v4_prompt']}', 'API');
+        AppLogger.d('V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}', 'API');
+        AppLogger.d('V4 characterPrompts: ${requestParameters['characterPrompts']}', 'API');
+        // 打印完整请求 JSON 以便与 Python SDK 对比
+        AppLogger.d('V4 FULL parameters JSON: ${jsonEncode(requestParameters)}', 'API');
+      }
 
       // 3. 根据模式添加额外参数
       String action = params.action.value;
@@ -174,24 +307,7 @@ class NAIApiService {
         'parameters': requestParameters,
       };
 
-      // 多角色支持 (仅 V4 模型)
-      if (params.characters.isNotEmpty && params.isV4Model) {
-        requestData['characters'] = params.characters.map((c) {
-          final charData = <String, dynamic>{
-            'prompt': c.prompt,
-            'negative_prompt': c.negativePrompt,
-          };
-          if (c.positionX != null && c.positionY != null) {
-            charData['position'] = {
-              'x': c.positionX,
-              'y': c.positionY,
-            };
-          }
-          return charData;
-        }).toList();
-      }
-
-      AppLogger.d('Generating image with action: $action', 'API');
+      AppLogger.d('Generating image with action: $action, model: ${params.model}', 'API');
 
       // 5. 发送请求
       final response = await _dio.post(
@@ -270,6 +386,226 @@ class NAIApiService {
       AppLogger.e('Upscale failed: $e', 'API');
       rethrow;
     }
+  }
+
+  // ==================== Vibe Transfer API ====================
+
+  /// 编码 Vibe 参考图
+  ///
+  /// [image] 参考图像数据
+  ///
+  /// 返回编码后的特征向量（base64 字符串）
+  Future<String> encodeVibe(Uint8List image) async {
+    try {
+      final response = await _dio.post(
+        '${ApiConstants.imageBaseUrl}${ApiConstants.encodeVibeEndpoint}',
+        data: {
+          'image': base64Encode(image),
+        },
+        options: Options(
+          responseType: ResponseType.json,
+        ),
+      );
+
+      // 返回编码后的特征
+      if (response.data is Map<String, dynamic>) {
+        return response.data['encoding'] as String? ?? '';
+      }
+      return '';
+    } catch (e) {
+      AppLogger.e('Encode vibe failed: $e', 'API');
+      rethrow;
+    }
+  }
+
+  // ==================== 图像增强 API ====================
+
+  /// 图像增强操作类型
+  static const String reqTypeEmotionFix = 'emotion'; // 表情修复
+  static const String reqTypeBgRemoval = 'bg-removal'; // 背景移除
+  static const String reqTypeColorize = 'colorize'; // 上色
+  static const String reqTypeDeclutter = 'declutter'; // 去杂乱
+  static const String reqTypeLineArt = 'lineart'; // 线稿提取
+  static const String reqTypeSketch = 'sketch'; // 素描化
+
+  /// 图像增强
+  ///
+  /// [image] 源图像数据
+  /// [reqType] 增强类型 (emotion, bg-removal, colorize, declutter, lineart, sketch)
+  /// [prompt] 可选的提示词（用于某些增强类型）
+  /// [defry] 强度参数 (0-5, 默认0)
+  ///
+  /// 返回增强后的图像数据
+  Future<Uint8List> augmentImage(
+    Uint8List image, {
+    required String reqType,
+    String? prompt,
+    int defry = 0,
+  }) async {
+    try {
+      final requestData = <String, dynamic>{
+        'image': base64Encode(image),
+        'req_type': reqType,
+        'defry': defry.clamp(0, 5),
+      };
+
+      if (prompt != null && prompt.isNotEmpty) {
+        requestData['prompt'] = prompt;
+      }
+
+      final response = await _dio.post(
+        '${ApiConstants.imageBaseUrl}${ApiConstants.augmentImageEndpoint}',
+        data: requestData,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            'Accept': 'application/x-zip-compressed',
+          },
+        ),
+      );
+
+      // 解压 ZIP 响应
+      final zipBytes = response.data as Uint8List;
+      final images = ZipUtils.extractAllImages(zipBytes);
+
+      if (images.isEmpty) {
+        throw Exception('No images found in augment response');
+      }
+
+      return images.first;
+    } catch (e) {
+      AppLogger.e('Augment image failed: $e', 'API');
+      rethrow;
+    }
+  }
+
+  /// 表情修复 (Director Tools)
+  ///
+  /// [image] 源图像
+  /// [prompt] 目标表情描述
+  /// [defry] 强度 (0-5)
+  Future<Uint8List> fixEmotion(
+    Uint8List image, {
+    required String prompt,
+    int defry = 0,
+  }) async {
+    return augmentImage(
+      image,
+      reqType: reqTypeEmotionFix,
+      prompt: prompt,
+      defry: defry,
+    );
+  }
+
+  /// 移除背景
+  Future<Uint8List> removeBackground(Uint8List image) async {
+    return augmentImage(image, reqType: reqTypeBgRemoval);
+  }
+
+  /// 图像上色
+  ///
+  /// [image] 灰度图像
+  /// [prompt] 上色提示词 (可选)
+  /// [defry] 强度 (0-5)
+  Future<Uint8List> colorize(
+    Uint8List image, {
+    String? prompt,
+    int defry = 0,
+  }) async {
+    return augmentImage(
+      image,
+      reqType: reqTypeColorize,
+      prompt: prompt,
+      defry: defry,
+    );
+  }
+
+  /// 去杂乱
+  Future<Uint8List> declutter(Uint8List image) async {
+    return augmentImage(image, reqType: reqTypeDeclutter);
+  }
+
+  /// 提取线稿
+  Future<Uint8List> extractLineArt(Uint8List image) async {
+    return augmentImage(image, reqType: reqTypeLineArt);
+  }
+
+  /// 素描化
+  Future<Uint8List> toSketch(Uint8List image) async {
+    return augmentImage(image, reqType: reqTypeSketch);
+  }
+
+  // ==================== 图像标注 API ====================
+
+  /// 图像标注类型
+  static const String annotateTypeWd = 'wd-tagger'; // WD Tagger
+  static const String annotateTypeCanny = 'canny'; // Canny 边缘检测
+  static const String annotateTypeDepth = 'depth'; // 深度图
+  static const String annotateTypeOpMlsd = 'mlsd'; // MLSD 线段检测
+  static const String annotateTypeOpOpenpose = 'openpose'; // 姿态检测
+  static const String annotateTypeSeg = 'seg'; // 语义分割
+
+  /// 图像标注
+  ///
+  /// [image] 源图像
+  /// [annotateType] 标注类型
+  ///
+  /// 返回标注结果（对于 wd-tagger 返回 JSON，其他返回图像）
+  Future<dynamic> annotateImage(
+    Uint8List image, {
+    required String annotateType,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '${ApiConstants.imageBaseUrl}${ApiConstants.annotateImageEndpoint}',
+        data: {
+          'image': base64Encode(image),
+          'req_type': annotateType,
+        },
+        options: Options(
+          responseType: annotateType == annotateTypeWd
+              ? ResponseType.json
+              : ResponseType.bytes,
+        ),
+      );
+
+      if (annotateType == annotateTypeWd) {
+        // WD Tagger 返回 JSON 格式的标签
+        return response.data;
+      } else {
+        // 其他类型返回图像数据
+        return response.data as Uint8List;
+      }
+    } catch (e) {
+      AppLogger.e('Annotate image failed: $e', 'API');
+      rethrow;
+    }
+  }
+
+  /// WD Tagger - 自动标签
+  ///
+  /// 返回图像的自动生成标签
+  Future<Map<String, dynamic>> getImageTags(Uint8List image) async {
+    final result = await annotateImage(image, annotateType: annotateTypeWd);
+    return result as Map<String, dynamic>;
+  }
+
+  /// 提取 Canny 边缘
+  Future<Uint8List> extractCannyEdge(Uint8List image) async {
+    final result = await annotateImage(image, annotateType: annotateTypeCanny);
+    return result as Uint8List;
+  }
+
+  /// 生成深度图
+  Future<Uint8List> generateDepthMap(Uint8List image) async {
+    final result = await annotateImage(image, annotateType: annotateTypeDepth);
+    return result as Uint8List;
+  }
+
+  /// 提取姿态
+  Future<Uint8List> extractPose(Uint8List image) async {
+    final result = await annotateImage(image, annotateType: annotateTypeOpOpenpose);
+    return result as Uint8List;
   }
 
   // ==================== 用户信息 API ====================

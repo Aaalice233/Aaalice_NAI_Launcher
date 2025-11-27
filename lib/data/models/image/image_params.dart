@@ -43,6 +43,8 @@ class VibeReference with _$VibeReference {
 /// 多角色提示词配置 (仅 V4 模型支持)
 @freezed
 class CharacterPrompt with _$CharacterPrompt {
+  const CharacterPrompt._();
+
   const factory CharacterPrompt({
     /// 角色描述提示词
     required String prompt,
@@ -55,7 +57,20 @@ class CharacterPrompt with _$CharacterPrompt {
 
     /// 角色位置 Y (0-1, 可选)
     double? positionY,
+
+    /// 角色位置 (A1-E5 网格, 可选, V4+ 使用)
+    String? position,
   }) = _CharacterPrompt;
+
+  /// 转换为 API 请求格式
+  Map<String, dynamic> toApiJson() => {
+        'prompt': prompt,
+        if (negativePrompt.isNotEmpty) 'uc': negativePrompt,
+        if (position != null) 'position': position,
+        // 如果使用旧版坐标格式
+        if (position == null && positionX != null && positionY != null)
+          'position': {'x': positionX, 'y': positionY},
+      };
 }
 
 /// 图像生成参数模型
@@ -107,6 +122,26 @@ class ImageParams with _$ImageParams {
     /// 噪声调度 (V4 模型)
     @Default('native') String noiseSchedule,
 
+    // ========== 高级参数 ==========
+
+    /// UC 预设 (0-7, 默认3=None)
+    @Default(3) int ucPreset,
+
+    /// 质量标签开关
+    @Default(true) bool qualityToggle,
+
+    /// 添加原始图像
+    @Default(true) bool addOriginalImage,
+
+    /// 参数版本 (V4+ 使用 3)
+    @Default(3) int paramsVersion,
+
+    /// 多样性增强 (V4+ 夏季更新)
+    @Default(false) bool varietyPlus,
+
+    /// 使用坐标模式 (V4+ 多角色)
+    @Default(false) bool useCoords,
+
     // ========== 生成动作 ==========
 
     /// 生成动作类型
@@ -132,7 +167,7 @@ class ImageParams with _$ImageParams {
 
     // ========== Vibe Transfer 参数 ==========
 
-    /// Vibe 参考图列表 (最多4张)
+    /// Vibe 参考图列表 (最多16张，V4+)
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<VibeReference> vibeReferences,
@@ -151,8 +186,15 @@ class ImageParams with _$ImageParams {
 
 /// ImageParams 扩展方法
 extension ImageParamsExtension on ImageParams {
-  /// 检查是否为 V4 模型
-  bool get isV4Model => model.contains('diffusion-4');
+  /// 检查是否为 V4+ 模型
+  bool get isV4Model =>
+      model.contains('diffusion-4') || model.contains('diffusion-4-5');
+
+  /// 检查是否为 V4.5 模型
+  bool get isV45Model => model.contains('diffusion-4-5');
+
+  /// 检查是否为 Inpainting 模型
+  bool get isInpaintingModel => model.contains('inpainting');
 
   /// 检查是否启用了多角色
   bool get hasCharacters => characters.isNotEmpty;
@@ -161,10 +203,14 @@ extension ImageParamsExtension on ImageParams {
   bool get hasVibeReferences => vibeReferences.isNotEmpty;
 
   /// 检查是否为 img2img 模式
-  bool get isImg2Img => action == ImageGenerationAction.img2img && sourceImage != null;
+  bool get isImg2Img =>
+      action == ImageGenerationAction.img2img && sourceImage != null;
 
   /// 检查是否为 inpainting 模式
-  bool get isInpainting => action == ImageGenerationAction.infill && sourceImage != null && maskImage != null;
+  bool get isInpainting =>
+      action == ImageGenerationAction.infill &&
+      sourceImage != null &&
+      maskImage != null;
 }
 
 /// 图像生成请求模型
