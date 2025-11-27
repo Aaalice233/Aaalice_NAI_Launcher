@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/image_generation_provider.dart';
+import '../../widgets/common/themed_scaffold.dart';
+import '../../widgets/common/themed_button.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/parameter_panel.dart';
@@ -17,23 +19,55 @@ class MobileGenerationLayout extends ConsumerStatefulWidget {
 
 class _MobileGenerationLayoutState
     extends ConsumerState<MobileGenerationLayout> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final params = ref.watch(generationParamsNotifierProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return ThemedScaffold(
+      // 使用 GlobalKey 来控制 Drawer
+      key: _scaffoldKey,
       appBar: AppBar(
         title: const Text('生成'),
         actions: [
-          // 参数设置按钮
+          // 参数设置按钮 (打开侧边抽屉)
           IconButton(
             icon: const Icon(Icons.tune),
-            onPressed: () => _showParameterSheet(context),
+            onPressed: () {
+               _scaffoldKey.currentState?.openEndDrawer();
+            },
             tooltip: '参数设置',
           ),
         ],
+      ),
+      endDrawer: Drawer(
+        width: 300,
+        child: SafeArea(
+          child: Column(
+            children: [
+               Padding(
+                 padding: const EdgeInsets.all(16.0),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     Text('生成参数', style: theme.textTheme.titleLarge),
+                     IconButton(
+                       icon: const Icon(Icons.close),
+                       onPressed: () => Navigator.pop(context),
+                     ),
+                   ],
+                 ),
+               ),
+               const Divider(),
+               const Expanded(
+                 child: ParameterPanel(),
+               ),
+            ],
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -86,7 +120,7 @@ class _MobileGenerationLayoutState
             children: [
               // 生成按钮
               Expanded(
-                child: FilledButton.icon(
+                child: ThemedButton(
                   onPressed: generationState.isGenerating
                       ? null
                       : () {
@@ -101,27 +135,24 @@ class _MobileGenerationLayoutState
                               .generate(params);
                         },
                   icon: generationState.isGenerating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? null // ThemedButton handles loading separately
                       : const Icon(Icons.auto_awesome),
+                  isLoading: generationState.isGenerating,
                   label: Text(generationState.isGenerating ? '生成中' : '生成'),
+                  style: ThemedButtonStyle.filled,
                 ),
               ),
 
               // 取消按钮
               if (generationState.isGenerating) ...[
                 const SizedBox(width: 12),
-                OutlinedButton(
+                ThemedButton(
                   onPressed: () {
                     ref.read(imageGenerationNotifierProvider.notifier).cancel();
                   },
-                  child: const Icon(Icons.stop),
+                  label: const Text('取消'), // Only icon or text? ThemedButton supports icon + label.
+                  icon: const Icon(Icons.stop),
+                  style: ThemedButtonStyle.outlined,
                 ),
               ],
             ],
@@ -130,61 +161,5 @@ class _MobileGenerationLayoutState
       ),
     );
   }
-
-  void _showParameterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                // 拖动指示器
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).dividerColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                // 标题
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '生成参数',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(),
-                // 参数面板
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: const ParameterPanel(inBottomSheet: true),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
+

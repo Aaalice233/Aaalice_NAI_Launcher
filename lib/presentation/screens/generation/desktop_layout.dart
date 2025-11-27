@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../widgets/common/themed_container.dart';
+import '../../widgets/common/themed_button.dart';
 import 'widgets/parameter_panel.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
@@ -21,7 +23,7 @@ class DesktopGenerationLayout extends ConsumerWidget {
     return Row(
       children: [
         // 左侧栏 - 参数面板
-        Container(
+        ThemedContainer(
           width: 300,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -78,7 +80,7 @@ class DesktopGenerationLayout extends ConsumerWidget {
         ),
 
         // 右侧栏 - 历史面板
-        Container(
+        ThemedContainer(
           width: 280,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
@@ -113,7 +115,7 @@ class GenerationControls extends ConsumerWidget {
         SizedBox(
           width: 200,
           height: 48,
-          child: FilledButton.icon(
+          child: ThemedButton(
             onPressed: isGenerating
                 ? null
                 : () {
@@ -127,16 +129,11 @@ class GenerationControls extends ConsumerWidget {
                         .generate(params);
                   },
             icon: isGenerating
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
+                ? null 
                 : const Icon(Icons.auto_awesome),
+            isLoading: isGenerating,
             label: Text(isGenerating ? '生成中...' : '生成'),
+            style: ThemedButtonStyle.filled,
           ),
         ),
 
@@ -144,17 +141,18 @@ class GenerationControls extends ConsumerWidget {
 
         // 取消按钮 (仅在生成中显示)
         if (isGenerating)
-          OutlinedButton.icon(
+          ThemedButton(
             onPressed: () {
               ref.read(imageGenerationNotifierProvider.notifier).cancel();
             },
             icon: const Icon(Icons.stop),
             label: const Text('取消'),
+            style: ThemedButtonStyle.outlined,
           ),
 
         // 保存按钮 (仅在有图像时显示)
         if (!isGenerating && generationState.hasImages)
-          OutlinedButton.icon(
+          ThemedButton(
             onPressed: () {
               // TODO: 实现保存功能
               ScaffoldMessenger.of(context).showSnackBar(
@@ -163,8 +161,10 @@ class GenerationControls extends ConsumerWidget {
             },
             icon: const Icon(Icons.save_alt),
             label: const Text('保存'),
+            style: ThemedButtonStyle.outlined,
           ),
       ],
     );
   }
 }
+

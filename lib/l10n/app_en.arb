@@ -25,9 +25,10 @@
   "noImagesYet": "No images generated yet",
   "theme": "Theme",
   "language": "Language",
-  "invokeStyle": "Invoke Style",
-  "discordStyle": "Discord Style",
-  "linearStyle": "Linear Style",
-  "cassetteFuturism": "Cassette Futurism",
-  "motorolaBeeper": "Motorola Beeper"
+  "defaultStyle": "Default",
+  "invokeStyle": "Invoke",
+  "discordStyle": "Discord",
+  "cyberpunkStyle": "Cyberpunk",
+  "retroTerminal": "Retro Terminal",
+  "pureLight": "Pure Light"
 }

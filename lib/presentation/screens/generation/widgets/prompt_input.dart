@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/tag/tag_suggestion.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/themed_input.dart';
+import '../../../widgets/common/themed_scaffold.dart';
 
 /// Prompt 输入组件 (带自动补全)
 class PromptInputWidget extends ConsumerStatefulWidget {
@@ -283,6 +285,15 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     _overlayEntry?.markNeedsBuild();
   }
 
+  void _openFullScreenEditor() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const _FullScreenPromptEditor(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -303,43 +314,45 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           link: _layerLink,
           child: Focus(
             onKeyEvent: _handleKeyEvent,
-            child: TextField(
+            child: ThemedInput(
               controller: _promptController,
-              focusNode: _promptFocusNode,
-              decoration: InputDecoration(
-                labelText: '提示词 (Prompt)',
-                hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
-                border: const OutlineInputBorder(),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 显示建议状态
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final state = ref.watch(tagSuggestionNotifierProvider);
-                        if (state.isLoading && _isPromptFocused) {
-                          return const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _promptController.clear();
-                        ref.read(generationParamsNotifierProvider.notifier)
-                            .updatePrompt('');
-                      },
-                    ),
-                  ],
-                ),
+              // focusNode: _promptFocusNode, // ThemedInput needs update to support FocusNode or wrap it
+              labelText: '提示词 (Prompt)',
+              hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 显示建议状态
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final state = ref.watch(tagSuggestionNotifierProvider);
+                      if (state.isLoading && _isPromptFocused) {
+                        return const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.fullscreen),
+                    tooltip: '全屏编辑',
+                    onPressed: _openFullScreenEditor,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _promptController.clear();
+                      ref.read(generationParamsNotifierProvider.notifier)
+                          .updatePrompt('');
+                    },
+                  ),
+                ],
               ),
               maxLines: 3,
               minLines: 2,
@@ -395,19 +408,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               link: _negativeLayerLink,
               child: Focus(
                 onKeyEvent: _handleKeyEvent,
-                child: TextField(
+                child: ThemedInput(
                   controller: _negativeController,
-                  focusNode: _negativeFocusNode,
-                  decoration: InputDecoration(
-                    labelText: '负向提示词 (Undesired Content)',
-                    hintText: '不想出现在图像中的内容...',
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                  ),
+                  // focusNode: _negativeFocusNode,
+                  labelText: '负向提示词 (Undesired Content)',
+                  hintText: '不想出现在图像中的内容...',
                   maxLines: 2,
                   minLines: 1,
-                  style: theme.textTheme.bodySmall,
                   onChanged: (value) {
                     ref.read(generationParamsNotifierProvider.notifier)
                         .updateNegativePrompt(value);
@@ -427,27 +434,28 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       link: _layerLink,
       child: Focus(
         onKeyEvent: _handleKeyEvent,
-        child: TextField(
+        child: ThemedInput(
           controller: _promptController,
-          focusNode: _promptFocusNode,
-          decoration: InputDecoration(
-            hintText: '输入提示词...',
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            suffixIcon: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_promptController.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      _promptController.clear();
-                      ref.read(generationParamsNotifierProvider.notifier)
-                          .updatePrompt('');
-                    },
-                  ),
-              ],
-            ),
+          // focusNode: _promptFocusNode,
+          hintText: '输入提示词...',
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.fullscreen),
+                tooltip: '全屏编辑',
+                onPressed: _openFullScreenEditor,
+              ),
+              if (_promptController.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  onPressed: () {
+                    _promptController.clear();
+                    ref.read(generationParamsNotifierProvider.notifier)
+                        .updatePrompt('');
+                  },
+                ),
+            ],
           ),
           maxLines: 2,
           minLines: 1,
@@ -455,6 +463,57 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ref.read(generationParamsNotifierProvider.notifier)
                 .updatePrompt(value);
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _FullScreenPromptEditor extends ConsumerWidget {
+  const _FullScreenPromptEditor();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final params = ref.watch(generationParamsNotifierProvider);
+    // 简单实现：直接复用 ParameterPanel 中的部分逻辑或提供大文本框
+    // 这里简化为两个大输入框
+    return ThemedScaffold(
+      appBar: AppBar(
+        title: const Text('编辑提示词'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('正向提示词', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ThemedInput(
+              controller: TextEditingController(text: params.prompt),
+              maxLines: 10,
+              minLines: 5,
+              onChanged: (value) {
+                ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
+              },
+            ),
+            const SizedBox(height: 24),
+            Text('负向提示词', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ThemedInput(
+              controller: TextEditingController(text: params.negativePrompt),
+              maxLines: 5,
+              minLines: 3,
+              onChanged: (value) {
+                ref.read(generationParamsNotifierProvider.notifier).updateNegativePrompt(value);
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -554,3 +613,4 @@ class _SuggestionTile extends StatelessWidget {
     }
   }
 }
+

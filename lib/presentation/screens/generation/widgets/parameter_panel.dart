@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/themed_input.dart';
+import '../../../widgets/common/themed_button.dart';
 import 'img2img_panel.dart';
 import 'vibe_transfer_panel.dart';
 import 'character_panel.dart';
@@ -22,7 +24,7 @@ class ParameterPanel extends ConsumerWidget {
     return ListView(
       padding: EdgeInsets.all(inBottomSheet ? 16 : 12),
       shrinkWrap: inBottomSheet,
-      physics: inBottomSheet ? const NeverScrollableScrollPhysics() : null,
+      physics: inBottomSheet ? const ClampingScrollPhysics() : null,
       children: [
         // 模型选择
         _buildSectionTitle(theme, '模型'),
@@ -146,18 +148,19 @@ class ParameterPanel extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: TextFormField(
-                initialValue: params.seed == -1 ? '' : params.seed.toString(),
-                decoration: const InputDecoration(
-                  hintText: '随机',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
+              child: ThemedInput(
+                controller: TextEditingController(text: params.seed == -1 ? '' : params.seed.toString())
+                  ..selection = TextSelection.fromPosition(
+                    TextPosition(offset: params.seed == -1 ? 0 : params.seed.toString().length),
+                  ),
+                hintText: '随机',
                 keyboardType: TextInputType.number,
                 onChanged: (value) {
                   final seed = int.tryParse(value) ?? -1;
-                  ref.read(generationParamsNotifierProvider.notifier)
-                      .updateSeed(seed);
+                  // 避免循环更新导致的光标跳动问题 (此处简化处理)
+                  if (seed != params.seed) {
+                     ref.read(generationParamsNotifierProvider.notifier).updateSeed(seed);
+                  }
                 },
               ),
             ),
@@ -272,12 +275,13 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 重置按钮
-        OutlinedButton.icon(
+        ThemedButton(
           onPressed: () {
             ref.read(generationParamsNotifierProvider.notifier).reset();
           },
           icon: const Icon(Icons.restart_alt),
           label: const Text('重置参数'),
+          style: ThemedButtonStyle.outlined,
         ),
       ],
     );

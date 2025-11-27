@@ -26,18 +26,28 @@ class SettingsScreen extends ConsumerWidget {
           // 账户信息
           _buildSectionHeader(theme, '账户'),
           ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.person),
+            leading: CircleAvatar(
+              backgroundColor: authState.isAuthenticated
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.surfaceContainerHighest,
+              child: Icon(
+                authState.isAuthenticated ? Icons.check : Icons.person,
+                color: authState.isAuthenticated
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             title: Text(
               authState.isLoading
                   ? '加载中...'
-                  : (authState.email ?? '未登录'),
+                  : (authState.isAuthenticated
+                      ? (authState.email ?? '已登录')
+                      : '未登录'),
             ),
             subtitle: authState.isLoading
                 ? const Text('正在检查登录状态')
                 : (authState.isAuthenticated
-                    ? const Text('已登录')
+                    ? Text(authState.email != null ? '已登录' : 'Token 已配置')
                     : const Text('请登录以使用全部功能')),
             trailing: authState.isAuthenticated
                 ? TextButton(

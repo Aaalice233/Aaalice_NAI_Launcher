@@ -1,43 +1,51 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'theme_extension.dart';
 
 /// 主题类型枚举
 enum AppThemeType {
-  invokeStyle,       // InvokeAI 风格 (默认)
-  discordStyle,      // Discord 风格
-  linearStyle,       // Linear 风格
-  cassetteFuturism,  // 复古未来主义
-  motorolaBeeper,    // 寻呼机风格
+  defaultStyle,     // 默认风格 (Linear 灵感，设为默认)
+  invokeStyle,      // Invoke 风格 (专业 AI 工具)
+  discordStyle,     // Discord 风格 (社交应用)
+  cyberpunkStyle,   // 赛博朋克风格 (霓虹科幻)
+  retroTerminal,    // 复古终端风格 (80年代终端)
+  pureLight,        // 纯净白风格 (极简浅色)
 }
 
 extension AppThemeTypeExtension on AppThemeType {
   String get displayName {
     switch (this) {
+      case AppThemeType.defaultStyle:
+        return '默认';
       case AppThemeType.invokeStyle:
-        return 'Invoke Style';
+        return 'Invoke';
       case AppThemeType.discordStyle:
-        return 'Discord Style';
-      case AppThemeType.linearStyle:
-        return 'Linear Style';
-      case AppThemeType.cassetteFuturism:
-        return 'Cassette Futurism';
-      case AppThemeType.motorolaBeeper:
-        return 'Motorola Beeper';
+        return 'Discord';
+      case AppThemeType.cyberpunkStyle:
+        return '赛博朋克';
+      case AppThemeType.retroTerminal:
+        return '复古终端';
+      case AppThemeType.pureLight:
+        return '纯净白';
     }
   }
 
   String get description {
     switch (this) {
+      case AppThemeType.defaultStyle:
+        return '现代极简深色，灵感源自 Linear';
       case AppThemeType.invokeStyle:
-        return '专业深色生产力工具风格';
+        return '专业 AI 工具风格';
       case AppThemeType.discordStyle:
         return '熟悉的社交应用风格';
-      case AppThemeType.linearStyle:
-        return '极简现代 SaaS 风格';
-      case AppThemeType.cassetteFuturism:
-        return '复古科幻高对比度风格';
-      case AppThemeType.motorolaBeeper:
-        return '怀旧液晶屏风格';
+      case AppThemeType.cyberpunkStyle:
+        return '霓虹科幻高对比度风格';
+      case AppThemeType.retroTerminal:
+        return '80年代终端怀旧风格';
+      case AppThemeType.pureLight:
+        return '清爽极简浅色主题';
     }
   }
 }
@@ -49,17 +57,87 @@ class AppTheme {
   /// 获取指定类型的主题
   static ThemeData getTheme(AppThemeType type, Brightness brightness) {
     switch (type) {
+      case AppThemeType.defaultStyle:
+        return _defaultStyleTheme(brightness);
       case AppThemeType.invokeStyle:
         return _invokeStyleTheme(brightness);
       case AppThemeType.discordStyle:
         return _discordStyleTheme(brightness);
-      case AppThemeType.linearStyle:
-        return _linearStyleTheme(brightness);
-      case AppThemeType.cassetteFuturism:
-        return _cassetteFuturismTheme(brightness);
-      case AppThemeType.motorolaBeeper:
-        return _motorolaBeeperTheme(brightness);
+      case AppThemeType.cyberpunkStyle:
+        return _cyberpunkStyleTheme(brightness);
+      case AppThemeType.retroTerminal:
+        return _retroTerminalTheme(brightness);
+      case AppThemeType.pureLight:
+        return _pureLightTheme(brightness);
     }
+  }
+
+  // ==================== Default Style ====================
+  // 现代极简深色风格，灵感源自 Linear 官网
+  static ThemeData _defaultStyleTheme(Brightness brightness) {
+    const primaryColor = Color(0xFF5E6AD2);
+    const secondaryColor = Color(0xFF8B5CF6);
+    const backgroundColor = Color(0xFF08090a);
+    const surfaceColor = Color(0xFF111111);
+    const cardColor = Color(0xFF1A1A1A);
+
+    return FlexThemeData.dark(
+      colors: const FlexSchemeColor(
+        primary: primaryColor,
+        primaryContainer: Color(0xFF3D4090),
+        secondary: secondaryColor,
+        secondaryContainer: Color(0xFF5B3A9E),
+        tertiary: Color(0xFFF472B6),
+        tertiaryContainer: Color(0xFF9D4A76),
+      ),
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 5,
+      appBarStyle: FlexAppBarStyle.background,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 10,
+        inputDecoratorRadius: 6.0,
+        inputDecoratorBorderWidth: 1.0,
+        cardRadius: 8.0,
+        cardElevation: 0.0,
+        elevatedButtonRadius: 6.0,
+        outlinedButtonRadius: 6.0,
+        textButtonRadius: 6.0,
+        dialogRadius: 12.0,
+        bottomSheetRadius: 12.0,
+        chipRadius: 6.0,
+      ),
+      useMaterial3: true,
+      fontFamily: GoogleFonts.inter().fontFamily,
+    ).copyWith(
+      scaffoldBackgroundColor: backgroundColor,
+      cardColor: cardColor,
+      dialogBackgroundColor: surfaceColor,
+      dividerColor: const Color(0xFF333333),
+      colorScheme: const ColorScheme.dark(
+        primary: primaryColor,
+        secondary: secondaryColor,
+        surface: surfaceColor,
+        error: Color(0xFFEF4444),
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Color(0xFFEDEDEF),
+        onError: Colors.white,
+      ),
+      extensions: [
+        AppThemeExtension(
+          navBarStyle: AppNavBarStyle.defaultCompact,
+          blurStrength: 10.0,
+          borderWidth: 1.0,
+          borderColor: Colors.white.withOpacity(0.1),
+          shadowIntensity: 0.3,
+          containerDecoration: BoxDecoration(
+            color: surfaceColor.withOpacity(0.6),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ],
+    );
   }
 
   // ==================== Invoke Style ====================
@@ -109,6 +187,11 @@ class AppTheme {
         onSurface: Colors.white,
         onError: Colors.white,
       ),
+      extensions: [
+        const AppThemeExtension(
+          navBarStyle: AppNavBarStyle.material,
+        ),
+      ],
     );
   }
 
@@ -145,6 +228,7 @@ class AppTheme {
         chipRadius: 16.0,
       ),
       useMaterial3: true,
+      fontFamily: GoogleFonts.notoSans().fontFamily, // 使用类似字体
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -159,78 +243,35 @@ class AppTheme {
         onSurface: Colors.white,
         onError: Colors.white,
       ),
+      extensions: [
+        AppThemeExtension(
+          navBarStyle: AppNavBarStyle.discordSide,
+          containerDecoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ],
     );
   }
 
-  // ==================== Linear Style ====================
-  // 极简现代 SaaS 风格
-  static ThemeData _linearStyleTheme(Brightness brightness) {
-    const primaryColor = Color(0xFF5E6AD2);
-    const backgroundColor = Color(0xFF0D0D0D);
-    const surfaceColor = Color(0xFF1A1A1A);
-    const cardColor = Color(0xFF222222);
-
-    return FlexThemeData.dark(
-      colors: const FlexSchemeColor(
-        primary: primaryColor,
-        primaryContainer: Color(0xFF3D4090),
-        secondary: Color(0xFF8B5CF6),
-        secondaryContainer: Color(0xFF5B3A9E),
-        tertiary: Color(0xFFF472B6),
-        tertiaryContainer: Color(0xFF9D4A76),
-      ),
-      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
-      blendLevel: 5,
-      appBarStyle: FlexAppBarStyle.background,
-      subThemesData: const FlexSubThemesData(
-        blendOnLevel: 10,
-        inputDecoratorRadius: 6.0,
-        inputDecoratorBorderWidth: 1.0,
-        cardRadius: 8.0,
-        cardElevation: 0.0,
-        elevatedButtonRadius: 6.0,
-        outlinedButtonRadius: 6.0,
-        textButtonRadius: 6.0,
-        dialogRadius: 12.0,
-        bottomSheetRadius: 12.0,
-        chipRadius: 6.0,
-      ),
-      useMaterial3: true,
-    ).copyWith(
-      scaffoldBackgroundColor: backgroundColor,
-      cardColor: cardColor,
-      dialogBackgroundColor: surfaceColor,
-      dividerColor: const Color(0xFF333333),
-      colorScheme: const ColorScheme.dark(
-        primary: primaryColor,
-        secondary: Color(0xFF8B5CF6),
-        surface: surfaceColor,
-        error: Color(0xFFEF4444),
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: Color(0xFFE5E5E5),
-        onError: Colors.white,
-      ),
-    );
-  }
-
-  // ==================== Cassette Futurism ====================
-  // 复古科幻高对比度风格
-  static ThemeData _cassetteFuturismTheme(Brightness brightness) {
-    const primaryColor = Color(0xFFFF6B35);
-    const secondaryColor = Color(0xFFE63946);
+  // ==================== Cyberpunk Style ====================
+  // 霓虹科幻风格，灵感源自赛博朋克 2077 / Blade Runner
+  static ThemeData _cyberpunkStyleTheme(Brightness brightness) {
+    const primaryColor = Color(0xFFFF2D95);  // 霓虹粉
+    const secondaryColor = Color(0xFF00F0FF);  // 青色
     const backgroundColor = Color(0xFF0A0A0A);
     const surfaceColor = Color(0xFF1A1A1A);
-    const cardColor = Color(0xFF242424);
+    const cardColor = Color(0xFF1A1A1A);
 
     return FlexThemeData.dark(
       colors: const FlexSchemeColor(
         primary: primaryColor,
-        primaryContainer: Color(0xFFB34A25),
+        primaryContainer: Color(0xFF99195A),
         secondary: secondaryColor,
-        secondaryContainer: Color(0xFF9E2A33),
-        tertiary: Color(0xFFFFD166),
-        tertiaryContainer: Color(0xFFB39447),
+        secondaryContainer: Color(0xFF007A82),
+        tertiary: Color(0xFFFFE500),
+        tertiaryContainer: Color(0xFF997A00),
       ),
       surfaceMode: FlexSurfaceMode.highScaffoldLowSurface,
       blendLevel: 20,
@@ -248,6 +289,7 @@ class AppTheme {
         chipRadius: 0.0,
       ),
       useMaterial3: true,
+      fontFamily: GoogleFonts.orbitron().fontFamily,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -258,18 +300,32 @@ class AppTheme {
         secondary: secondaryColor,
         surface: surfaceColor,
         error: Color(0xFFFF0000),
-        onPrimary: Colors.black,
-        onSecondary: Colors.white,
+        onPrimary: Colors.white,
+        onSecondary: Colors.black,
         onSurface: Color(0xFFFFFFFF),
         onError: Colors.white,
       ),
+      extensions: [
+        const AppThemeExtension(
+          navBarStyle: AppNavBarStyle.material,
+          enableCrtEffect: true,
+          enableGlowEffect: true,
+          enableNeonGlow: true,
+          glowColor: primaryColor,
+          borderWidth: 2.0,
+          borderColor: primaryColor,
+          containerDecoration: BoxDecoration(
+            color: cardColor,
+          ),
+        ),
+      ],
     );
   }
 
-  // ==================== Motorola Beeper ====================
-  // 怀旧液晶屏风格
-  static ThemeData _motorolaBeeperTheme(Brightness brightness) {
-    const primaryColor = Color(0xFF00FF41);  // 经典绿色液晶
+  // ==================== Retro Terminal ====================
+  // 80年代终端风格，灵感源自 Matrix / 老式终端
+  static ThemeData _retroTerminalTheme(Brightness brightness) {
+    const primaryColor = Color(0xFF00FF41);  // 磷光绿
     const secondaryColor = Color(0xFF39FF14);
     const backgroundColor = Color(0xFF0D1B0D);
     const surfaceColor = Color(0xFF142214);
@@ -300,7 +356,7 @@ class AppTheme {
         chipRadius: 2.0,
       ),
       useMaterial3: true,
-      fontFamily: 'monospace',  // 等宽字体
+      fontFamily: GoogleFonts.vt323().fontFamily,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -316,6 +372,92 @@ class AppTheme {
         onSurface: primaryColor,
         onError: Colors.white,
       ),
+      extensions: [
+        AppThemeExtension(
+          navBarStyle: AppNavBarStyle.retroBottom,
+          usePixelFont: true,
+          enableDotMatrix: true,
+          enableCrtEffect: true,
+          glowColor: primaryColor,
+          borderWidth: 1.0,
+          borderColor: primaryColor.withOpacity(0.5),
+          containerDecoration: BoxDecoration(
+            color: cardColor,
+            border: Border.all(color: primaryColor.withOpacity(0.5), width: 1),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== Pure Light ====================
+  // 极简浅色风格，灵感源自 Apple / Notion
+  static ThemeData _pureLightTheme(Brightness brightness) {
+    const primaryColor = Color(0xFF0066FF);
+    const secondaryColor = Color(0xFF00C853);
+    const backgroundColor = Color(0xFFFFFFFF);
+    const surfaceColor = Color(0xFFF5F5F5);
+    const cardColor = Color(0xFFFFFFFF);
+
+    return FlexThemeData.light(
+      colors: const FlexSchemeColor(
+        primary: primaryColor,
+        primaryContainer: Color(0xFFD1E4FF),
+        secondary: secondaryColor,
+        secondaryContainer: Color(0xFFB9F6CA),
+        tertiary: Color(0xFFFF6D00),
+        tertiaryContainer: Color(0xFFFFE0B2),
+      ),
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 5,
+      appBarStyle: FlexAppBarStyle.background,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 10,
+        inputDecoratorRadius: 10.0,
+        inputDecoratorBorderWidth: 1.0,
+        cardRadius: 12.0,
+        cardElevation: 2.0,
+        elevatedButtonRadius: 10.0,
+        outlinedButtonRadius: 10.0,
+        textButtonRadius: 10.0,
+        dialogRadius: 16.0,
+        bottomSheetRadius: 16.0,
+        chipRadius: 8.0,
+      ),
+      useMaterial3: true,
+    ).copyWith(
+      scaffoldBackgroundColor: backgroundColor,
+      cardColor: cardColor,
+      dialogBackgroundColor: surfaceColor,
+      dividerColor: const Color(0xFFE0E0E0),
+      colorScheme: const ColorScheme.light(
+        primary: primaryColor,
+        secondary: secondaryColor,
+        surface: surfaceColor,
+        error: Color(0xFFD32F2F),
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Color(0xFF1A1A1A),
+        onError: Colors.white,
+      ),
+      extensions: [
+        AppThemeExtension(
+          navBarStyle: AppNavBarStyle.material,
+          isLightTheme: true,
+          shadowIntensity: 0.5,
+          containerDecoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

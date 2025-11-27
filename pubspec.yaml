@@ -39,6 +39,7 @@ dependencies:
 
   # UI 组件
   flex_color_scheme: ^7.3.1
+  google_fonts: ^6.1.0
 
   # 数据模型
   freezed_annotation: ^2.4.1

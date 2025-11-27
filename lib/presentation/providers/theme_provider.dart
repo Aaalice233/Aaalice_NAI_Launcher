@@ -19,7 +19,7 @@ class ThemeNotifier extends _$ThemeNotifier {
       return AppThemeType.values[index];
     }
 
-    return AppThemeType.invokeStyle; // 默认主题
+    return AppThemeType.defaultStyle; // 默认主题
   }
 
   /// 设置主题
