@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../providers/image_generation_provider.dart';
+import 'upscale_dialog.dart';
 
 /// 图像预览组件
 class ImagePreviewWidget extends ConsumerWidget {
@@ -17,13 +21,14 @@ class ImagePreviewWidget extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Center(
-        child: _buildContent(context, state, theme),
+        child: _buildContent(context, ref, state, theme),
       ),
     );
   }
 
   Widget _buildContent(
     BuildContext context,
+    WidgetRef ref,
     ImageGenerationState state,
     ThemeData theme,
   ) {
@@ -39,7 +44,7 @@ class ImagePreviewWidget extends ConsumerWidget {
 
     // 有图像
     if (state.hasImages) {
-      return _buildImageView(context, state.currentImages.first, theme);
+      return _buildImageView(context, ref, state.currentImages.first, theme);
     }
 
     // 空状态
@@ -138,24 +143,220 @@ class ImagePreviewWidget extends ConsumerWidget {
 
   Widget _buildImageView(
     BuildContext context,
+    WidgetRef ref,
     Uint8List imageBytes,
     ThemeData theme,
   ) {
-    return GestureDetector(
-      onTap: () => _showFullscreenImage(context, imageBytes),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+    return Column(
+      children: [
+        // 图像显示
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _showFullscreenImage(context, imageBytes),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  imageBytes,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // 操作按钮
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            // 保存按钮
+            FilledButton.icon(
+              onPressed: () => _saveImage(context, imageBytes),
+              icon: const Icon(Icons.save_alt, size: 20),
+              label: const Text('保存'),
+            ),
+            // 分享按钮
+            OutlinedButton.icon(
+              onPressed: () => _shareImage(context, imageBytes),
+              icon: const Icon(Icons.share, size: 20),
+              label: const Text('分享'),
+            ),
+            // 放大按钮
+            OutlinedButton.icon(
+              onPressed: () => UpscaleDialog.show(context, image: imageBytes),
+              icon: const Icon(Icons.zoom_out_map, size: 20),
+              label: const Text('放大'),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+      ],
+    );
+  }
+
+  /// 获取保存目录
+  Future<Directory> _getSaveDirectory() async {
+    if (Platform.isAndroid) {
+      // Android: 保存到外部存储的 Pictures/NAI_Launcher 目录
+      final externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        // 尝试保存到 Pictures 目录
+        final picturesPath = externalDir.path.replaceFirst(
+          RegExp(r'/Android/data/[^/]+/files'),
+          '/Pictures/NAI_Launcher',
+        );
+        final picturesDir = Directory(picturesPath);
+        if (!await picturesDir.exists()) {
+          await picturesDir.create(recursive: true);
+        }
+        return picturesDir;
+      }
+    }
+
+    // 其他平台或备用: 使用文档目录
+    final docDir = await getApplicationDocumentsDirectory();
+    final saveDir = Directory('${docDir.path}/NAI_Launcher');
+    if (!await saveDir.exists()) {
+      await saveDir.create(recursive: true);
+    }
+    return saveDir;
+  }
+
+  /// 保存图片到文件
+  Future<void> _saveImage(BuildContext context, Uint8List imageBytes) async {
+    try {
+      final saveDir = await _getSaveDirectory();
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${saveDir.path}/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('图片已保存到: ${saveDir.path}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: '分享',
+              textColor: Colors.white,
+              onPressed: () => _shareFile(context, file),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// 分享文件
+  Future<void> _shareFile(BuildContext context, File file) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Generated by NAI Launcher',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('分享失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// 分享图片
+  Future<void> _shareImage(BuildContext context, Uint8List imageBytes) async {
+    try {
+      // 保存到临时目录
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(imageBytes);
+
+      // 分享
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Generated by NAI Launcher',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('分享失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showFullscreenImage(BuildContext context, Uint8List imageBytes) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullscreenImageView(imageBytes: imageBytes),
+      ),
+    );
+  }
+}
+
+/// 全屏图像查看器
+class _FullscreenImageView extends StatelessWidget {
+  final Uint8List imageBytes;
+
+  const _FullscreenImageView({required this.imageBytes});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          // 保存按钮
+          IconButton(
+            icon: const Icon(Icons.save_alt),
+            onPressed: () => _saveImage(context),
+            tooltip: '保存',
+          ),
+          // 分享按钮
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () => _shareImage(context),
+            tooltip: '分享',
+          ),
+        ],
+      ),
+      extendBodyBehindAppBar: true,
+      body: InteractiveViewer(
+        minScale: 0.5,
+        maxScale: 4.0,
+        child: Center(
           child: Image.memory(
             imageBytes,
             fit: BoxFit.contain,
@@ -165,29 +366,79 @@ class ImagePreviewWidget extends ConsumerWidget {
     );
   }
 
-  void _showFullscreenImage(BuildContext context, Uint8List imageBytes) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            iconTheme: const IconThemeData(color: Colors.white),
+  Future<Directory> _getSaveDirectory() async {
+    if (Platform.isAndroid) {
+      final externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        final picturesPath = externalDir.path.replaceFirst(
+          RegExp(r'/Android/data/[^/]+/files'),
+          '/Pictures/NAI_Launcher',
+        );
+        final picturesDir = Directory(picturesPath);
+        if (!await picturesDir.exists()) {
+          await picturesDir.create(recursive: true);
+        }
+        return picturesDir;
+      }
+    }
+
+    final docDir = await getApplicationDocumentsDirectory();
+    final saveDir = Directory('${docDir.path}/NAI_Launcher');
+    if (!await saveDir.exists()) {
+      await saveDir.create(recursive: true);
+    }
+    return saveDir;
+  }
+
+  Future<void> _saveImage(BuildContext context) async {
+    try {
+      final saveDir = await _getSaveDirectory();
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${saveDir.path}/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('图片已保存到: ${saveDir.path}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
-          extendBodyBehindAppBar: true,
-          body: InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: Center(
-              child: Image.memory(
-                imageBytes,
-                fit: BoxFit.contain,
-              ),
-            ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存失败: $e'),
+            backgroundColor: Colors.red,
           ),
-        ),
-      ),
-    );
+        );
+      }
+    }
+  }
+
+  Future<void> _shareImage(BuildContext context) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(imageBytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Generated by NAI Launcher',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('分享失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

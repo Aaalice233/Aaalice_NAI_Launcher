@@ -51,6 +51,12 @@ dependencies:
   intl: ^0.19.0
   collection: ^1.18.0
 
+  # 分享功能
+  share_plus: ^10.0.0
+
+  # 文件选择
+  file_picker: ^8.0.0
+
   # 日志
   logger: ^2.4.0
 

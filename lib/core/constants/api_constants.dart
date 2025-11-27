@@ -12,6 +12,9 @@ class ApiConstants {
   static const String loginEndpoint = '/user/login';
   static const String generateImageEndpoint = '/ai/generate-image';
   static const String userDataEndpoint = '/user/data';
+  static const String suggestTagsEndpoint = '/ai/suggest-tags';
+  static const String upscaleEndpoint = '/ai/upscale';
+  static const String userSubscriptionEndpoint = '/user/subscription';
 
   /// Access Key 生成的后缀
   static const String accessKeySuffix = 'novelai_data_access_key';

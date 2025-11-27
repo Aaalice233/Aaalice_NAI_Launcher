@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import 'img2img_panel.dart';
+import 'vibe_transfer_panel.dart';
+import 'character_panel.dart';
 
 /// 参数面板组件
 class ParameterPanel extends ConsumerWidget {
@@ -17,6 +21,8 @@ class ParameterPanel extends ConsumerWidget {
 
     return ListView(
       padding: EdgeInsets.all(inBottomSheet ? 16 : 12),
+      shrinkWrap: inBottomSheet,
+      physics: inBottomSheet ? const NeverScrollableScrollPhysics() : null,
       children: [
         // 模型选择
         _buildSectionTitle(theme, '模型'),
@@ -59,6 +65,22 @@ class ParameterPanel extends ConsumerWidget {
         ),
 
         const SizedBox(height: 16),
+
+        // 生成数量
+        _buildSectionTitle(theme, '生成数量: ${params.nSamples}'),
+        Slider(
+          value: params.nSamples.toDouble(),
+          min: 1,
+          max: 4,
+          divisions: 3,
+          label: params.nSamples.toString(),
+          onChanged: (value) {
+            ref.read(generationParamsNotifierProvider.notifier)
+                .updateNSamples(value.round());
+          },
+        ),
+
+        const SizedBox(height: 8),
 
         // 采样器
         _buildSectionTitle(theme, '采样器'),
@@ -153,6 +175,23 @@ class ParameterPanel extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
+        // ==================== 新功能面板 ====================
+
+        // 图生图面板
+        const Img2ImgPanel(),
+
+        const SizedBox(height: 8),
+
+        // Vibe Transfer 面板
+        const VibeTransferPanel(),
+
+        const SizedBox(height: 8),
+
+        // 多角色面板 (仅 V4 模型显示)
+        const CharacterPanel(),
+
+        const SizedBox(height: 16),
+
         // 高级选项
         ExpansionTile(
           title: Text(
@@ -184,6 +223,49 @@ class ParameterPanel extends ConsumerWidget {
                     .updateSmeaDyn(value);
               },
             ),
+
+            // CFG Rescale (V4 模型)
+            if (params.isV4Model) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('CFG Rescale: ${params.cfgRescale.toStringAsFixed(2)}'),
+                subtitle: Slider(
+                  value: params.cfgRescale,
+                  min: 0,
+                  max: 1,
+                  divisions: 100,
+                  onChanged: (value) {
+                    ref.read(generationParamsNotifierProvider.notifier)
+                        .updateCfgRescale(value);
+                  },
+                ),
+              ),
+            ],
+
+            // 噪声调度 (V4 模型)
+            if (params.isV4Model) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('噪声调度'),
+                trailing: DropdownButton<String>(
+                  value: params.noiseSchedule,
+                  items: const [
+                    DropdownMenuItem(value: 'native', child: Text('Native')),
+                    DropdownMenuItem(value: 'karras', child: Text('Karras')),
+                    DropdownMenuItem(value: 'exponential', child: Text('Exponential')),
+                    DropdownMenuItem(value: 'polyexponential', child: Text('Polyexponential')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      ref.read(generationParamsNotifierProvider.notifier)
+                          .updateNoiseSchedule(value);
+                    }
+                  },
+                ),
+              ),
+            ],
           ],
         ),
 

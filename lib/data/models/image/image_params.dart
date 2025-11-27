@@ -1,12 +1,69 @@
+import 'dart:typed_data';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'image_params.freezed.dart';
 part 'image_params.g.dart';
 
+/// 图像生成动作类型
+enum ImageGenerationAction {
+  generate,
+  img2img,
+  infill,
+}
+
+extension ImageGenerationActionExtension on ImageGenerationAction {
+  String get value {
+    switch (this) {
+      case ImageGenerationAction.generate:
+        return 'generate';
+      case ImageGenerationAction.img2img:
+        return 'img2img';
+      case ImageGenerationAction.infill:
+        return 'infill';
+    }
+  }
+}
+
+/// Vibe Transfer 参考图配置
+@freezed
+class VibeReference with _$VibeReference {
+  const factory VibeReference({
+    /// 参考图像数据
+    required Uint8List image,
+
+    /// 参考强度 (0-1)，越高越强烈模仿视觉线索
+    @Default(0.6) double strength,
+
+    /// 信息提取量 (0-1)，降低会减少纹理保留构图
+    @Default(1.0) double informationExtracted,
+  }) = _VibeReference;
+}
+
+/// 多角色提示词配置 (仅 V4 模型支持)
+@freezed
+class CharacterPrompt with _$CharacterPrompt {
+  const factory CharacterPrompt({
+    /// 角色描述提示词
+    required String prompt,
+
+    /// 角色负向提示词
+    @Default('') String negativePrompt,
+
+    /// 角色位置 X (0-1, 可选)
+    double? positionX,
+
+    /// 角色位置 Y (0-1, 可选)
+    double? positionY,
+  }) = _CharacterPrompt;
+}
+
 /// 图像生成参数模型
 @freezed
 class ImageParams with _$ImageParams {
   const factory ImageParams({
+    // ========== 基础参数 ==========
+
     /// 正向提示词
     @Default('') String prompt,
 
@@ -15,7 +72,7 @@ class ImageParams with _$ImageParams {
     String negativePrompt,
 
     /// 模型
-    @Default('nai-diffusion-3') String model,
+    @Default('nai-diffusion-4-full') String model,
 
     /// 图像宽度 (必须是64的倍数)
     @Default(832) int width,
@@ -49,10 +106,65 @@ class ImageParams with _$ImageParams {
 
     /// 噪声调度 (V4 模型)
     @Default('native') String noiseSchedule,
+
+    // ========== 生成动作 ==========
+
+    /// 生成动作类型
+    @Default(ImageGenerationAction.generate) ImageGenerationAction action,
+
+    // ========== img2img 参数 ==========
+
+    /// 源图像 (img2img/inpainting 使用)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    Uint8List? sourceImage,
+
+    /// 变化强度 (0-1)，越高变化越大
+    @Default(0.7) double strength,
+
+    /// 噪声量 (0-1)
+    @Default(0.0) double noise,
+
+    // ========== Inpainting 参数 ==========
+
+    /// 蒙版图像 (白色区域为修补区域)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    Uint8List? maskImage,
+
+    // ========== Vibe Transfer 参数 ==========
+
+    /// Vibe 参考图列表 (最多4张)
+    @Default([])
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<VibeReference> vibeReferences,
+
+    // ========== 多角色参数 (仅 V4 模型) ==========
+
+    /// 角色列表 (最多6个)
+    @Default([])
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<CharacterPrompt> characters,
   }) = _ImageParams;
 
   factory ImageParams.fromJson(Map<String, dynamic> json) =>
       _$ImageParamsFromJson(json);
+}
+
+/// ImageParams 扩展方法
+extension ImageParamsExtension on ImageParams {
+  /// 检查是否为 V4 模型
+  bool get isV4Model => model.contains('diffusion-4');
+
+  /// 检查是否启用了多角色
+  bool get hasCharacters => characters.isNotEmpty;
+
+  /// 检查是否启用了 Vibe Transfer
+  bool get hasVibeReferences => vibeReferences.isNotEmpty;
+
+  /// 检查是否为 img2img 模式
+  bool get isImg2Img => action == ImageGenerationAction.img2img && sourceImage != null;
+
+  /// 检查是否为 inpainting 模式
+  bool get isInpainting => action == ImageGenerationAction.infill && sourceImage != null && maskImage != null;
 }
 
 /// 图像生成请求模型
@@ -85,28 +197,18 @@ class ImageGenerationParameters with _$ImageGenerationParameters {
     @JsonKey(name: 'smea_dyn') @Default(false) bool smeaDyn,
     @JsonKey(name: 'cfg_rescale') @Default(0.0) double cfgRescale,
     @JsonKey(name: 'noise_schedule') @Default('native') String noiseSchedule,
+    // img2img 参数
+    String? image,
+    double? strength,
+    double? noise,
+    // inpainting 参数
+    String? mask,
+    // vibe transfer 参数
+    @JsonKey(name: 'reference_image_multiple') List<String>? referenceImageMultiple,
+    @JsonKey(name: 'reference_strength_multiple') List<double>? referenceStrengthMultiple,
+    @JsonKey(name: 'reference_information_extracted_multiple') List<double>? referenceInformationExtractedMultiple,
   }) = _ImageGenerationParameters;
 
   factory ImageGenerationParameters.fromJson(Map<String, dynamic> json) =>
       _$ImageGenerationParametersFromJson(json);
-}
-
-/// 图像生成动作类型
-enum ImageGenerationAction {
-  generate,
-  img2img,
-  infill,
-}
-
-extension ImageGenerationActionExtension on ImageGenerationAction {
-  String get value {
-    switch (this) {
-      case ImageGenerationAction.generate:
-        return 'generate';
-      case ImageGenerationAction.img2img:
-        return 'img2img';
-      case ImageGenerationAction.infill:
-        return 'infill';
-    }
-  }
 }
