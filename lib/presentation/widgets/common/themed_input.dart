@@ -3,6 +3,7 @@ import '../../themes/theme_extension.dart';
 
 class ThemedInput extends StatelessWidget {
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String? hintText;
   final String? labelText;
   final Widget? prefixIcon;
@@ -18,6 +19,7 @@ class ThemedInput extends StatelessWidget {
   const ThemedInput({
     super.key,
     this.controller,
+    this.focusNode,
     this.hintText,
     this.labelText,
     this.prefixIcon,
@@ -44,6 +46,7 @@ class ThemedInput extends StatelessWidget {
 
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       obscureText: obscureText,
       keyboardType: keyboardType,
       maxLines: maxLines,

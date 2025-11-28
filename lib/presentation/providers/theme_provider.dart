@@ -19,7 +19,7 @@ class ThemeNotifier extends _$ThemeNotifier {
       return AppStyle.values[index];
     }
 
-    return AppStyle.naiStyle; // 默认风格
+    return AppStyle.herdingStyle; // 默认风格 - herdi.ng 金黄深青
   }
 
   /// 设置主题

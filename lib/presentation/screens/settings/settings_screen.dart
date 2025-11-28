@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../themes/app_theme.dart';
 
@@ -15,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
     final currentTheme = ref.watch(themeNotifierProvider);
+    final currentFont = ref.watch(fontNotifierProvider);
     final currentLocale = ref.watch(localeNotifierProvider);
 
     return Scaffold(
@@ -69,27 +71,20 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _showThemeDialog(context, ref, currentTheme),
           ),
 
+          // 字体选择
+          ListTile(
+            leading: const Icon(Icons.text_fields),
+            title: const Text('字体'),
+            subtitle: Text(currentFont.displayName),
+            onTap: () => _showFontDialog(context, ref, currentFont),
+          ),
+
           // 语言选择
           ListTile(
             leading: const Icon(Icons.language),
             title: const Text('语言'),
             subtitle: Text(currentLocale.languageCode == 'zh' ? '中文' : 'English'),
             onTap: () => _showLanguageDialog(context, ref, currentLocale),
-          ),
-          const Divider(),
-
-          // 生成设置
-          _buildSectionHeader(theme, '默认参数'),
-          ListTile(
-            leading: const Icon(Icons.tune),
-            title: const Text('默认生成参数'),
-            subtitle: const Text('设置默认的模型、尺寸、步数等'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('功能开发中...')),
-              );
-            },
           ),
           const Divider(),
 
@@ -218,6 +213,150 @@ class SettingsScreen extends ConsumerWidget {
               child: const Text('取消'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showFontDialog(
+    BuildContext context,
+    WidgetRef ref,
+    FontConfig currentFont,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final allFontsAsync = ref.watch(allFontsProvider);
+
+            return AlertDialog(
+              title: const Text('选择字体'),
+              content: SizedBox(
+                width: 500,
+                height: 600,
+                child: allFontsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Center(child: Text('加载失败: $err')),
+                  data: (fontGroups) {
+                    return ListView.builder(
+                      itemCount: fontGroups.length,
+                      itemBuilder: (context, groupIndex) {
+                        final groupName = fontGroups.keys.elementAt(groupIndex);
+                        final fonts = fontGroups[groupName]!;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 分组标题
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+                              child: Text(
+                                '$groupName (${fonts.length})',
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            // 字体列表
+                            ...fonts.map((font) {
+                              final isSelected = font == currentFont;
+                              return InkWell(
+                                onTap: () {
+                                  ref.read(fontNotifierProvider.notifier).setFont(font);
+                                  Navigator.pop(dialogContext);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primaryContainer
+                                        : null,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Radio<FontConfig>(
+                                        value: font,
+                                        groupValue: currentFont,
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            ref.read(fontNotifierProvider.notifier).setFont(value);
+                                            Navigator.pop(dialogContext);
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          font.displayName,
+                                          style: TextStyle(
+                                            fontFamily: font.fontFamily.isEmpty
+                                                ? null
+                                                : font.fontFamily,
+                                            fontSize: 16,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (font.source == FontSource.google)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .secondaryContainer,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'Google',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSecondaryContainer,
+                                            ),
+                                          ),
+                                        ),
+                                      if (isSelected)
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 8),
+                                          child: Icon(
+                                            Icons.check,
+                                            color: Theme.of(context).colorScheme.primary,
+                                            size: 20,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                            if (groupIndex < fontGroups.length - 1)
+                              const Divider(height: 1),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

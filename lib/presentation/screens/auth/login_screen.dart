@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/auth/account_selector.dart';
 
 /// 登录页面
 class LoginScreen extends ConsumerStatefulWidget {
@@ -96,7 +98,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 32),
+
+                  // 已保存的账号选择器
+                  AccountSelector(
+                    onAccountSelected: (account, password) {
+                      _emailController.text = account.email;
+                      if (password != null) {
+                        _passwordController.text = password;
+                      }
+                      _rememberPassword = true;
+                      setState(() {});
+                    },
+                  ),
 
                   // 邮箱输入框
                   TextFormField(
@@ -269,11 +283,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     AppLogger.auth('Login attempt', email: email);
 
-    // 保存或清除凭据
+    // 保存或清除凭据（兼容旧的单账号存储）
     final storage = ref.read(secureStorageServiceProvider);
     if (_rememberPassword) {
       await storage.saveCredentials(email, password);
       AppLogger.auth('Credentials saved', email: email);
+
+      // 同时保存到多账号系统
+      await ref.read(accountManagerNotifierProvider.notifier).addAccount(
+        email: email,
+        password: password,
+      );
     } else {
       await storage.clearCredentials();
       AppLogger.auth('Credentials cleared');
@@ -282,5 +302,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // 执行登录
     final success = await ref.read(authNotifierProvider.notifier).login(email, password);
     AppLogger.auth('Login result', email: email, success: success);
+
+    // 登录成功后更新账号最后使用时间
+    if (success) {
+      final account = ref.read(accountManagerNotifierProvider.notifier).findByEmail(email);
+      if (account != null) {
+        await ref.read(accountManagerNotifierProvider.notifier).updateLastUsed(account.id);
+      }
+    }
   }
 }

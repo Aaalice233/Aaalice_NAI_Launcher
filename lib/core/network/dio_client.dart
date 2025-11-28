@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../presentation/providers/auth_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
 import '../utils/app_logger.dart';
@@ -78,9 +79,9 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     // Token 过期处理
     if (err.response?.statusCode == 401) {
-      // 清除认证信息
-      final storage = _ref.read(secureStorageServiceProvider);
-      await storage.clearAuth();
+      AppLogger.w('Received 401, logging out...', 'DIO');
+      // 触发登出，清除认证并更新 UI 状态
+      await _ref.read(authNotifierProvider.notifier).logout();
     }
 
     handler.next(err);

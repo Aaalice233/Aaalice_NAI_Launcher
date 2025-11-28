@@ -16,9 +16,12 @@ class StorageKeys {
   static const String settingsBox = 'settings';
   static const String historyBox = 'history';
   static const String cacheBox = 'cache';
+  static const String tagCacheBox = 'tag_cache';
+  static const String galleryBox = 'gallery';
 
   // Settings Keys
   static const String themeType = 'theme_type';
+  static const String fontFamily = 'font_family';
   static const String locale = 'locale';
   static const String defaultModel = 'default_model';
   static const String defaultSampler = 'default_sampler';
@@ -36,4 +39,12 @@ class StorageKeys {
   static const String lastSmeaDyn = 'last_smea_dyn';
   static const String lastCfgRescale = 'last_cfg_rescale';
   static const String lastNoiseSchedule = 'last_noise_schedule';
+
+  // Gallery Keys (画廊相关)
+  static const String generationHistory = 'generation_history';
+  static const String historyIndex = 'history_index';
+  static const String favoriteImages = 'favorite_images';
+
+  // Tag Cache Keys (标签缓存相关)
+  static const String tagCacheData = 'tag_cache_data';
 }

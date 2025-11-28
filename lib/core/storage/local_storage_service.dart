@@ -48,6 +48,18 @@ class LocalStorageService {
     await setSetting(StorageKeys.themeType, index);
   }
 
+  // ==================== Font ====================
+
+  /// 获取字体名称
+  String getFontFamily() {
+    return getSetting<String>(StorageKeys.fontFamily, defaultValue: 'system') ?? 'system';
+  }
+
+  /// 保存字体名称
+  Future<void> setFontFamily(String fontFamily) async {
+    await setSetting(StorageKeys.fontFamily, fontFamily);
+  }
+
   // ==================== Locale ====================
 
   /// 获取语言代码

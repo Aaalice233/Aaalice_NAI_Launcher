@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../data/models/tag/tag_suggestion.dart';
+import '../../../providers/danbooru_suggestion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/prompt_config_provider.dart';
+import '../../../router/app_router.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 
@@ -107,9 +111,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final currentTag = _getCurrentTag(text, cursorPosition);
 
     if (currentTag.length >= 2) {
-      final model = ref.read(generationParamsNotifierProvider).model;
-      ref.read(tagSuggestionNotifierProvider.notifier)
-          .fetchSuggestions(currentTag, model: model);
+      // 使用 Danbooru API 获取标签建议（带缓存）
+      ref.read(danbooruSuggestionNotifierProvider.notifier).search(currentTag);
       _showSuggestionsOverlay();
     } else {
       _hideSuggestions();
@@ -139,7 +142,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     });
 
     _removeOverlay();
-    ref.read(tagSuggestionNotifierProvider.notifier).clearSuggestions();
+    ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
   }
 
   void _removeOverlay() {
@@ -163,7 +166,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             borderRadius: BorderRadius.circular(8),
             child: Consumer(
               builder: (context, ref, _) {
-                final state = ref.watch(tagSuggestionNotifierProvider);
+                final state = ref.watch(danbooruSuggestionNotifierProvider);
 
                 if (state.isLoading) {
                   return const Padding(
@@ -250,7 +253,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (!_showSuggestions) return KeyEventResult.ignored;
 
-    final suggestions = ref.read(tagSuggestionNotifierProvider).suggestions;
+    final suggestions = ref.read(danbooruSuggestionNotifierProvider).suggestions;
     if (suggestions.isEmpty) return KeyEventResult.ignored;
 
     if (event is KeyDownEvent) {
@@ -294,6 +297,21 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
+  /// 生成随机提示词
+  void _generateRandomPrompt() {
+    final prompt = ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
+    _promptController.text = prompt;
+    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(prompt);
+
+    // 显示提示
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已生成随机提示词'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -314,52 +332,67 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           link: _layerLink,
           child: Focus(
             onKeyEvent: _handleKeyEvent,
-            child: ThemedInput(
-              controller: _promptController,
-              // focusNode: _promptFocusNode, // ThemedInput needs update to support FocusNode or wrap it
-              labelText: '提示词 (Prompt)',
-              hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 显示建议状态
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final state = ref.watch(tagSuggestionNotifierProvider);
-                      if (state.isLoading && _isPromptFocused) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.fullscreen),
-                    tooltip: '全屏编辑',
-                    onPressed: _openFullScreenEditor,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _promptController.clear();
-                      ref.read(generationParamsNotifierProvider.notifier)
-                          .updatePrompt('');
-                    },
-                  ),
-                ],
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: _isPromptFocused ? 300 : 120,
               ),
-              maxLines: 3,
-              minLines: 2,
-              onChanged: (value) {
-                ref.read(generationParamsNotifierProvider.notifier)
-                    .updatePrompt(value);
-              },
+              child: ThemedInput(
+                controller: _promptController,
+                focusNode: _promptFocusNode,
+                labelText: '提示词 (Prompt)',
+                hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 显示建议状态
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final state = ref.watch(danbooruSuggestionNotifierProvider);
+                        if (state.isLoading && _isPromptFocused) {
+                          return const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    // 随机提示词按钮
+                    GestureDetector(
+                      onLongPress: () => context.push(AppRoutes.promptConfig),
+                      child: IconButton(
+                        icon: const Icon(Icons.casino_outlined),
+                        tooltip: '随机提示词 (长按配置)',
+                        onPressed: _generateRandomPrompt,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen),
+                      tooltip: '全屏编辑',
+                      onPressed: _openFullScreenEditor,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _promptController.clear();
+                        ref.read(generationParamsNotifierProvider.notifier)
+                            .updatePrompt('');
+                      },
+                    ),
+                  ],
+                ),
+                maxLines: null,
+                minLines: _isPromptFocused ? 4 : 2,
+                keyboardType: TextInputType.multiline,
+                onChanged: (value) {
+                  ref.read(generationParamsNotifierProvider.notifier)
+                      .updatePrompt(value);
+                },
+              ),
             ),
           ),
         ),
@@ -408,17 +441,23 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               link: _negativeLayerLink,
               child: Focus(
                 onKeyEvent: _handleKeyEvent,
-                child: ThemedInput(
-                  controller: _negativeController,
-                  // focusNode: _negativeFocusNode,
-                  labelText: '负向提示词 (Undesired Content)',
-                  hintText: '不想出现在图像中的内容...',
-                  maxLines: 2,
-                  minLines: 1,
-                  onChanged: (value) {
-                    ref.read(generationParamsNotifierProvider.notifier)
-                        .updateNegativePrompt(value);
-                  },
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: _isNegativeFocused ? 200 : 80,
+                  ),
+                  child: ThemedInput(
+                    controller: _negativeController,
+                    focusNode: _negativeFocusNode,
+                    labelText: '负向提示词 (Undesired Content)',
+                    hintText: '不想出现在图像中的内容...',
+                    maxLines: null,
+                    minLines: _isNegativeFocused ? 2 : 1,
+                    keyboardType: TextInputType.multiline,
+                    onChanged: (value) {
+                      ref.read(generationParamsNotifierProvider.notifier)
+                          .updateNegativePrompt(value);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -436,7 +475,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         onKeyEvent: _handleKeyEvent,
         child: ThemedInput(
           controller: _promptController,
-          // focusNode: _promptFocusNode,
+          focusNode: _promptFocusNode,
           hintText: '输入提示词...',
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,

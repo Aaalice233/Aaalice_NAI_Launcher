@@ -7,6 +7,8 @@ import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
+import '../screens/online_gallery/online_gallery_screen.dart';
+import '../screens/prompt_config/prompt_config_screen_v2.dart';
 import '../screens/settings/settings_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 
@@ -20,7 +22,9 @@ class AppRoutes {
   static const String home = '/';
   static const String generation = '/generation';
   static const String gallery = '/gallery';
+  static const String onlineGallery = '/online-gallery';
   static const String settings = '/settings';
+  static const String promptConfig = '/prompt-config';
 }
 
 /// 应用路由 Provider
@@ -77,11 +81,18 @@ GoRouter appRouter(Ref ref) {
             builder: (context, state) => const GenerationScreen(),
           ),
 
-          // 画廊页
+          // 图库页（本地生成历史）
           GoRoute(
             path: AppRoutes.gallery,
             name: 'gallery',
             builder: (context, state) => const GalleryScreen(),
+          ),
+
+          // 画廊页（在线图站浏览）
+          GoRoute(
+            path: AppRoutes.onlineGallery,
+            name: 'onlineGallery',
+            builder: (context, state) => const OnlineGalleryScreen(),
           ),
 
           // 设置页
@@ -89,6 +100,13 @@ GoRouter appRouter(Ref ref) {
             path: AppRoutes.settings,
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
+          ),
+
+          // 随机提示词配置页
+          GoRoute(
+            path: AppRoutes.promptConfig,
+            name: 'promptConfig',
+            builder: (context, state) => const PromptConfigScreen(),
           ),
         ],
       ),

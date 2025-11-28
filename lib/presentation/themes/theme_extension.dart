@@ -63,6 +63,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   /// 是否为浅色主题
   final bool isLightTheme;
 
+  /// 强调分割条颜色 (herdi.ng 风格金黄色横条)
+  final Color? accentBarColor;
+
   const AppThemeExtension({
     this.containerDecoration,
     this.blurStrength = 0.0,
@@ -79,6 +82,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     this.glowColor,
     this.shadowIntensity = 0.0,
     this.isLightTheme = false,
+    this.accentBarColor,
   });
 
   @override
@@ -98,6 +102,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     Color? glowColor,
     double? shadowIntensity,
     bool? isLightTheme,
+    Color? accentBarColor,
   }) {
     return AppThemeExtension(
       containerDecoration: containerDecoration ?? this.containerDecoration,
@@ -115,6 +120,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       glowColor: glowColor ?? this.glowColor,
       shadowIntensity: shadowIntensity ?? this.shadowIntensity,
       isLightTheme: isLightTheme ?? this.isLightTheme,
+      accentBarColor: accentBarColor ?? this.accentBarColor,
     );
   }
 
@@ -148,6 +154,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       shadowIntensity:
           uiLerpDouble(shadowIntensity, other.shadowIntensity, t) ?? shadowIntensity,
       isLightTheme: t < 0.5 ? isLightTheme : other.isLightTheme,
+      accentBarColor: Color.lerp(accentBarColor, other.accentBarColor, t),
     );
   }
 

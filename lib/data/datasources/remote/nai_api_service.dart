@@ -78,10 +78,19 @@ class NAIApiService {
         queryParams['model'] = model;
       }
 
+      AppLogger.d('Fetching tag suggestions for: ${input.trim()}', 'API');
+
       final response = await _dio.get(
         '${ApiConstants.imageBaseUrl}${ApiConstants.suggestTagsEndpoint}',
         queryParameters: queryParams,
+        options: Options(
+          // 标签建议使用更短的超时时间 (5秒)
+          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
+        ),
       );
+
+      AppLogger.d('Tag suggestion response: ${response.statusCode}', 'API');
 
       // 解析响应
       final data = response.data;
@@ -89,9 +98,19 @@ class NAIApiService {
         final tags = (data['tags'] as List)
             .map((t) => TagSuggestion.fromJson(t as Map<String, dynamic>))
             .toList();
+        AppLogger.d('Found ${tags.length} tag suggestions', 'API');
         return tags;
       }
 
+      AppLogger.w('Tag suggestion response has no tags field: $data', 'API');
+      return [];
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionTimeout) {
+        AppLogger.w('Tag suggestion timed out', 'API');
+      } else {
+        AppLogger.e('Tag suggestion failed: ${e.message}', 'API');
+      }
       return [];
     } catch (e) {
       AppLogger.e('Tag suggestion failed: $e', 'API');

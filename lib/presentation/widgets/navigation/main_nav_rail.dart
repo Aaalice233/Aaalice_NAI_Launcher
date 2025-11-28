@@ -16,7 +16,9 @@ class MainNavRail extends ConsumerWidget {
 
     int selectedIndex = 0;
     if (location == AppRoutes.gallery) selectedIndex = 1;
-    if (location == AppRoutes.settings) selectedIndex = 2;
+    if (location == AppRoutes.promptConfig) selectedIndex = 2;
+    if (location == AppRoutes.onlineGallery) selectedIndex = 3;
+    if (location == AppRoutes.settings) selectedIndex = 5;
 
     return Container(
       width: 60,
@@ -57,20 +59,29 @@ class MainNavRail extends ConsumerWidget {
             onTap: () => context.go(AppRoutes.home),
           ),
           _NavIcon(
-            icon: Icons.image, // Gallery
+            icon: Icons.image, // Local Gallery
             label: '图库',
             isSelected: selectedIndex == 1,
             onTap: () => context.go(AppRoutes.gallery),
           ),
-          
-          // Placeholders for future features
+
+          // 在线画廊
           _NavIcon(
-            icon: Icons.cloud_download, // Danbooru placeholder
-            label: 'Danbooru (WIP)',
-            isSelected: false,
-            onTap: () {}, // TODO
-            isDisabled: true,
+            icon: Icons.photo_library, // Online Gallery
+            label: '画廊',
+            isSelected: selectedIndex == 3,
+            onTap: () => context.go(AppRoutes.onlineGallery),
           ),
+
+          // 随机配置
+          _NavIcon(
+            icon: Icons.casino, // Random prompt config
+            label: '随机配置',
+            isSelected: selectedIndex == 2,
+            onTap: () => context.go(AppRoutes.promptConfig),
+          ),
+
+          // 词库（未来功能）
           _NavIcon(
             icon: Icons.book, // Tags/Dictionary placeholder
             label: '词库 (WIP)',
@@ -95,7 +106,7 @@ class MainNavRail extends ConsumerWidget {
   }
 }
 
-class _NavIcon extends StatelessWidget {
+class _NavIcon extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
@@ -111,33 +122,80 @@ class _NavIcon extends StatelessWidget {
   });
 
   @override
+  State<_NavIcon> createState() => _NavIconState();
+}
+
+class _NavIconState extends State<_NavIcon> {
+  bool _isHovering = false;
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = isSelected
+    final color = widget.isSelected
         ? theme.colorScheme.primary
-        : (isDisabled ? theme.disabledColor : theme.iconTheme.color?.withOpacity(0.7));
+        : (widget.isDisabled ? theme.disabledColor : theme.iconTheme.color?.withOpacity(0.7));
+
+    // 计算背景色：选中状态优先，其次是 Hover 状态
+    Color backgroundColor = Colors.transparent;
+    if (widget.isSelected) {
+      backgroundColor = theme.colorScheme.primary.withOpacity(0.1);
+    } else if (_isHovering && !widget.isDisabled) {
+      backgroundColor = theme.colorScheme.surfaceContainerHighest.withOpacity(0.5);
+    }
 
     return Tooltip(
-      message: label,
+      message: widget.label,
       preferBelow: false,
-      child: InkWell(
-        onTap: isDisabled ? null : onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: 48,
-          height: 48,
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: isSelected ? theme.colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        width: 48,
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.isDisabled ? null : widget.onTap,
+            onHover: (val) {
+              if (!widget.isDisabled) {
+                setState(() => _isHovering = val);
+              }
+            },
+            onTapDown: (_) {
+              if (!widget.isDisabled) {
+                setState(() => _isPressed = true);
+              }
+            },
+            onTapUp: (_) {
+              if (!widget.isDisabled) {
+                setState(() => _isPressed = false);
+              }
+            },
+            onTapCancel: () {
+              if (!widget.isDisabled) {
+                setState(() => _isPressed = false);
+              }
+            },
             borderRadius: BorderRadius.circular(8),
-            border: isSelected 
-              ? Border.all(color: theme.colorScheme.primary.withOpacity(0.5), width: 1) 
-              : null,
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 24,
+            child: AnimatedScale(
+              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: widget.isSelected 
+                    ? Border.all(color: theme.colorScheme.primary.withOpacity(0.5), width: 1) 
+                    : null,
+                ),
+                child: Icon(
+                  widget.icon,
+                  color: color,
+                  size: 24,
+                ),
+              ),
+            ),
           ),
         ),
       ),

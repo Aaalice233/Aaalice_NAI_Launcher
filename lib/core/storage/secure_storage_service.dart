@@ -16,7 +16,9 @@ class SecureStorageService {
             encryptedSharedPreferences: true,
           ),
           lOptions: LinuxOptions(),
-          wOptions: WindowsOptions(),
+          wOptions: WindowsOptions(
+            useBackwardCompatibility: true,
+          ),
         );
 
   // ==================== Access Token ====================
@@ -134,6 +136,23 @@ class SecureStorageService {
       _storage.delete(key: StorageKeys.savedPassword),
       _storage.delete(key: StorageKeys.rememberPassword),
     ]);
+  }
+
+  // ==================== 通用存储方法 ====================
+
+  /// 写入任意 key-value
+  Future<void> write(String key, String value) async {
+    await _storage.write(key: key, value: value);
+  }
+
+  /// 读取任意 key
+  Future<String?> read(String key) async {
+    return _storage.read(key: key);
+  }
+
+  /// 删除任意 key
+  Future<void> delete(String key) async {
+    await _storage.delete(key: key);
   }
 }
 

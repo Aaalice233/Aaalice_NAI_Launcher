@@ -6,7 +6,8 @@ import 'theme_extension.dart';
 
 /// 风格类型枚举
 enum AppStyle {
-  naiStyle,         // NAI 风格 (NovelAI 官网风格) - 默认
+  herdingStyle,     // herdi.ng 风格 (金黄深青) - 默认
+  defaultStyle,     // 默认风格 (深蓝色调)
   linearStyle,      // Linear 风格 (现代极简深色)
   invokeStyle,      // Invoke 风格 (专业 AI 工具)
   discordStyle,     // Discord 风格 (社交应用)
@@ -18,8 +19,10 @@ enum AppStyle {
 extension AppStyleExtension on AppStyle {
   String get displayName {
     switch (this) {
-      case AppStyle.naiStyle:
-        return 'NAI';
+      case AppStyle.herdingStyle:
+        return 'Herding';
+      case AppStyle.defaultStyle:
+        return 'NAI 默认';
       case AppStyle.linearStyle:
         return 'Linear';
       case AppStyle.invokeStyle:
@@ -37,8 +40,10 @@ extension AppStyleExtension on AppStyle {
 
   String get description {
     switch (this) {
-      case AppStyle.naiStyle:
-        return 'NovelAI 官网经典深色风格';
+      case AppStyle.herdingStyle:
+        return '金黄与深青的现代优雅风格';
+      case AppStyle.defaultStyle:
+        return '深蓝色调深色主题';
       case AppStyle.linearStyle:
         return '现代极简深色，灵感源自 Linear';
       case AppStyle.invokeStyle:
@@ -59,94 +64,658 @@ extension AppStyleExtension on AppStyle {
 class AppTheme {
   AppTheme._();
 
+  /// 默认中文字体
+  static String? get _defaultFont => GoogleFonts.notoSansSc().fontFamily;
+
   /// 获取指定风格的主题
-  static ThemeData getTheme(AppStyle style, Brightness brightness) {
+  static ThemeData getTheme(AppStyle style, Brightness brightness, {String? fontFamily}) {
+    final font = fontFamily ?? _defaultFont;
+
+    ThemeData baseTheme;
     switch (style) {
-      case AppStyle.naiStyle:
-        return _naiStyleTheme(brightness);
+      case AppStyle.herdingStyle:
+        baseTheme = _herdingStyleTheme(brightness);
+        break;
+      case AppStyle.defaultStyle:
+        baseTheme = _defaultStyleTheme(brightness);
+        break;
       case AppStyle.linearStyle:
-        return _linearStyleTheme(brightness);
+        baseTheme = _linearStyleTheme(brightness);
+        break;
       case AppStyle.invokeStyle:
-        return _invokeStyleTheme(brightness);
+        baseTheme = _invokeStyleTheme(brightness);
+        break;
       case AppStyle.discordStyle:
-        return _discordStyleTheme(brightness);
+        baseTheme = _discordStyleTheme(brightness);
+        break;
       case AppStyle.cassetteFuturism:
-        return _cassetteFuturismTheme(brightness);
+        baseTheme = _cassetteFuturismTheme(brightness);
+        break;
       case AppStyle.motorolaFixBeeper:
-        return _motorolaFixBeeperTheme(brightness);
+        baseTheme = _motorolaFixBeeperTheme(brightness);
+        break;
       case AppStyle.pureLight:
-        return _pureLightTheme(brightness);
+        baseTheme = _pureLightTheme(brightness);
+        break;
     }
+
+    // 应用自定义字体
+    return baseTheme.copyWith(
+      textTheme: baseTheme.textTheme.apply(fontFamily: font),
+      primaryTextTheme: baseTheme.primaryTextTheme.apply(fontFamily: font),
+    );
   }
 
-  // ==================== NAI Style ====================
-  // NovelAI 官网风格
-  static ThemeData _naiStyleTheme(Brightness brightness) {
-    // NAI 官网配色 (参考)
-    // 背景色: #15151d (主背景)
-    // 侧边栏/卡片: #1c1c26
-    // 强调色: #F2F2F2 (主要文本), #3F4177 (主品牌色/按钮)
-    // 激活/高亮: #5E6AD2 (或者接近的紫色)
-    
-    const primaryColor = Color(0xFF5E6AD2); // 保持原有的紫色作为主色调，或者调整为 NAI 更准确的颜色
-    const backgroundColor = Color(0xFF15151d); // NAI 官网深色背景
-    const surfaceColor = Color(0xFF1c1c26);    // 卡片/侧边栏颜色
-    const cardColor = Color(0xFF1c1c26);
-    const accentColor = Color(0xFF3F4177);     // NAI 品牌深紫色
+  // ==================== Herding Style ====================
+  // herdi.ng 风格 - 金黄与深青的现代优雅风格
+  static ThemeData _herdingStyleTheme(Brightness brightness) {
+    // 核心配色 - 来自 herdi.ng
+    const primaryColor = Color(0xFFD4A843);      // 金黄色主色
+    const accentColor = Color(0xFF1095C1);       // 青蓝色
+    const backgroundColor = Color(0xFF11191F);   // 主背景
+    const surfaceColor = Color(0xFF141E26);      // 次级背景
+    const cardColor = Color(0xFF18232C);         // 卡片背景
+    const dividerColor = Color(0xFF1F2D38);      // 边框色
 
-    return FlexThemeData.dark(
-      colors: const FlexSchemeColor(
-        primary: primaryColor,
-        primaryContainer: accentColor,
-        secondary: Color(0xFF8B5CF6),
-        secondaryContainer: Color(0xFF5B3A9E),
-        tertiary: Color(0xFFF472B6),
-        tertiaryContainer: Color(0xFF9D4A76),
-      ),
-      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
-      blendLevel: 5,
-      appBarStyle: FlexAppBarStyle.background,
-      subThemesData: const FlexSubThemesData(
-        blendOnLevel: 10,
-        inputDecoratorRadius: 4.0,
-        inputDecoratorBorderWidth: 1.0,
-        cardRadius: 8.0,
-        cardElevation: 0.0,
-        elevatedButtonRadius: 4.0,
-        outlinedButtonRadius: 4.0,
-        textButtonRadius: 4.0,
-        dialogRadius: 8.0,
-        bottomSheetRadius: 12.0,
-        chipRadius: 4.0,
-      ),
+    // 文字色
+    const textPrimary = Color(0xFFEDF1F4);
+    const textSecondary = Color(0xFFA2AFB9);
+    const textMuted = Color(0xFF738290);
+
+    final colorScheme = const ColorScheme.dark(
+      primary: primaryColor,
+      onPrimary: Color(0xFF1A1A1A),              // 金黄按钮上的深色文字
+      primaryContainer: Color(0xFF8B7A3A),
+      onPrimaryContainer: Colors.white,
+      secondary: accentColor,
+      onSecondary: Colors.white,
+      secondaryContainer: Color(0xFF0D6E8A),
+      onSecondaryContainer: Colors.white,
+      tertiary: Color(0xFFE1E6EB),
+      onTertiary: Color(0xFF1A1A1A),
+      tertiaryContainer: Color(0xFF4A5056),
+      onTertiaryContainer: Colors.white,
+      error: Color(0xFFC62828),
+      onError: Colors.white,
+      surface: surfaceColor,
+      onSurface: textSecondary,
+      surfaceContainerLowest: backgroundColor,
+      surfaceContainerLow: backgroundColor,
+      surfaceContainer: surfaceColor,
+      surfaceContainerHigh: cardColor,
+      surfaceContainerHighest: cardColor,
+      outline: dividerColor,
+      outlineVariant: Color(0xFF24333E),
+    );
+
+    return ThemeData(
       useMaterial3: true,
-      fontFamily: GoogleFonts.inter().fontFamily,
-    ).copyWith(
+      brightness: Brightness.dark,
+      colorScheme: colorScheme,
+      fontFamily: _defaultFont,
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
       dialogBackgroundColor: surfaceColor,
-      dividerColor: const Color(0xFF2A2A35), // 稍浅的分割线
-      colorScheme: const ColorScheme.dark(
-        primary: primaryColor,
-        secondary: accentColor,
-        surface: surfaceColor,
-        error: Color(0xFFEF4444),
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: Color(0xFFEDEDEF),
-        onError: Colors.white,
+      dividerColor: dividerColor,
+      canvasColor: backgroundColor,
+
+      // AppBar - 无边框，融入背景
+      appBarTheme: const AppBarTheme(
+        backgroundColor: backgroundColor,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
+
+      // Card - 中等圆角，细边框
+      cardTheme: CardTheme(
+        color: cardColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: dividerColor, width: 1),
+        ),
+      ),
+
+      // Dialog
+      dialogTheme: DialogTheme(
+        backgroundColor: surfaceColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+
+      // 输入框 - 圆角，填充背景
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surfaceColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: dividerColor, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: dividerColor, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: primaryColor, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+
+      // 按钮 - 金黄色主按钮
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: const Color(0xFF1A1A1A),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textSecondary,
+          side: const BorderSide(color: dividerColor, width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+
+      // Divider
+      dividerTheme: const DividerThemeData(
+        color: dividerColor,
+        thickness: 1,
+      ),
+
+      // ListTile
+      listTileTheme: const ListTileThemeData(
+        iconColor: textMuted,
+        textColor: textSecondary,
+      ),
+
+      // Icon
+      iconTheme: const IconThemeData(
+        color: textMuted,
+      ),
+
+      // Chip - 圆角胶囊
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceColor,
+        side: const BorderSide(color: dividerColor, width: 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+
+      // BottomSheet
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surfaceColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+      ),
+
+      // Popup Menu
+      popupMenuTheme: PopupMenuThemeData(
+        color: surfaceColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: dividerColor, width: 1),
+        ),
+      ),
+
+      // Dropdown
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(surfaceColor),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: dividerColor, width: 1),
+            ),
+          ),
+        ),
+      ),
+
+      // Tooltip
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: dividerColor, width: 1),
+        ),
+        textStyle: const TextStyle(color: textSecondary),
+      ),
+
+      // Scrollbar
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(dividerColor),
+        radius: const Radius.circular(4),
+      ),
+
+      // Slider - 金黄色轨道
+      sliderTheme: SliderThemeData(
+        activeTrackColor: primaryColor,
+        inactiveTrackColor: dividerColor,
+        thumbColor: primaryColor,
+        overlayColor: primaryColor.withOpacity(0.2),
+      ),
+
+      // Switch - 金黄色开关
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
+          return textMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor.withOpacity(0.5);
+          }
+          return dividerColor;
+        }),
+      ),
+
+      // Radio
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return textMuted;
+        }),
+      ),
+
+      // Checkbox
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return Colors.transparent;
+        }),
+        side: const BorderSide(color: textMuted, width: 1.5),
+      ),
+
+      // SnackBar
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: cardColor,
+        contentTextStyle: const TextStyle(color: textSecondary),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+
+      // Progress Indicator
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primaryColor,
+        linearTrackColor: dividerColor,
+      ),
+
+      // Tab Bar
+      tabBarTheme: const TabBarTheme(
+        labelColor: textPrimary,
+        unselectedLabelColor: textMuted,
+        indicatorColor: primaryColor,
+      ),
+
+      // Navigation Rail
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: surfaceColor,
+        selectedIconTheme: const IconThemeData(color: primaryColor),
+        unselectedIconTheme: const IconThemeData(color: textMuted),
+        indicatorColor: primaryColor.withOpacity(0.15),
+      ),
+
+      // Drawer
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: surfaceColor,
+      ),
+
       extensions: [
         AppThemeExtension(
-          navBarStyle: AppNavBarStyle.defaultCompact, // 将适配为新的侧边栏
-          blurStrength: 0.0, // NAI 风格较少使用毛玻璃，更多是实色
+          navBarStyle: AppNavBarStyle.defaultCompact,
+          blurStrength: 0.0,
           borderWidth: 1.0,
-          borderColor: const Color(0xFF2A2A35),
-          shadowIntensity: 0.2,
+          borderColor: dividerColor,
+          shadowIntensity: 0.1,
+          accentBarColor: primaryColor,  // 金黄分割条颜色
+          containerDecoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: dividerColor, width: 1),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== Default Style ====================
+  // 默认深蓝色调主题
+  static ThemeData _defaultStyleTheme(Brightness brightness) {
+    // NAI 官网真实配色 (2024)
+    // 背景色系: #0E0F21 (主背景), #13152C (次), #191B31 (三级), #22253F (四级)
+    // 文字: #FFFFFF (主), #F5F3C2 (奶油黄标题), #9CDCFF (用户输入), #F4C7FF (编辑)
+    // 错误: #FF7878
+
+    const primaryColor = Color(0xFF5E6AD2);     // 主色紫色
+    const backgroundColor = Color(0xFF0E0F21); // 主背景 (深蓝黑)
+    const surfaceColor = Color(0xFF13152C);    // 次背景/卡片
+    const cardColor = Color(0xFF191B31);       // 三级背景
+    const dividerColor = Color(0xFF22253F);    // 四级/分割线
+    const accentYellow = Color(0xFFF5F3C2);    // 奶油黄强调色
+
+
+    // 直接构建 ThemeData，避免 FlexColorScheme 颜色混合
+    final colorScheme = const ColorScheme.dark(
+      primary: primaryColor,
+      onPrimary: Colors.white,
+      primaryContainer: Color(0xFF3D4090),
+      onPrimaryContainer: Colors.white,
+      secondary: accentYellow,
+      onSecondary: Color(0xFF1A1A1A),
+      secondaryContainer: Color(0xFF5B5A4E),
+      onSecondaryContainer: Colors.white,
+      tertiary: Color(0xFF9CDCFF),
+      onTertiary: Color(0xFF1A1A1A),
+      tertiaryContainer: Color(0xFF4A6A7A),
+      onTertiaryContainer: Colors.white,
+      error: Color(0xFFFF7878),
+      onError: Colors.white,
+      surface: surfaceColor,
+      onSurface: Colors.white,
+      surfaceContainerLowest: backgroundColor,
+      surfaceContainerLow: backgroundColor,
+      surfaceContainer: surfaceColor,
+      surfaceContainerHigh: cardColor,
+      surfaceContainerHighest: cardColor,
+      outline: dividerColor,
+      outlineVariant: Color(0xFF2A2D45),
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: colorScheme,
+      fontFamily: _defaultFont,
+      scaffoldBackgroundColor: backgroundColor,
+      cardColor: cardColor,
+      dialogBackgroundColor: surfaceColor,
+      dividerColor: dividerColor,
+      canvasColor: backgroundColor,
+
+      // AppBar
+      appBarTheme: const AppBarTheme(
+        backgroundColor: backgroundColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+
+      // Card
+      cardTheme: CardTheme(
+        color: cardColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: dividerColor, width: 1),
+        ),
+      ),
+
+      // Dialog
+      dialogTheme: DialogTheme(
+        backgroundColor: surfaceColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+
+      // Input
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: cardColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: dividerColor, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: dividerColor, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: primaryColor, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+
+      // Button
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: dividerColor, width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+
+      // Divider
+      dividerTheme: const DividerThemeData(
+        color: dividerColor,
+        thickness: 1,
+      ),
+
+      // ListTile
+      listTileTheme: const ListTileThemeData(
+        iconColor: Colors.white70,
+        textColor: Colors.white,
+      ),
+
+      // Icon
+      iconTheme: const IconThemeData(
+        color: Colors.white70,
+      ),
+
+      // Chip
+      chipTheme: ChipThemeData(
+        backgroundColor: cardColor,
+        side: const BorderSide(color: dividerColor, width: 1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+
+      // BottomSheet
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surfaceColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+      ),
+
+      // Popup Menu
+      popupMenuTheme: PopupMenuThemeData(
+        color: surfaceColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: dividerColor, width: 1),
+        ),
+      ),
+
+      // Dropdown
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(surfaceColor),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: dividerColor, width: 1),
+            ),
+          ),
+        ),
+      ),
+
+      // Tooltip
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: dividerColor, width: 1),
+        ),
+        textStyle: const TextStyle(color: Colors.white),
+      ),
+
+      // Scrollbar
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(dividerColor),
+        radius: const Radius.circular(4),
+      ),
+
+      // Slider
+      sliderTheme: SliderThemeData(
+        activeTrackColor: primaryColor,
+        inactiveTrackColor: dividerColor,
+        thumbColor: primaryColor,
+        overlayColor: primaryColor.withOpacity(0.2),
+      ),
+
+      // Switch
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return Colors.white70;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor.withOpacity(0.5);
+          }
+          return dividerColor;
+        }),
+      ),
+
+      // Radio
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return Colors.white70;
+        }),
+      ),
+
+      // Checkbox
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryColor;
+          }
+          return Colors.transparent;
+        }),
+        side: const BorderSide(color: Colors.white70, width: 1.5),
+      ),
+
+      // SnackBar
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: cardColor,
+        contentTextStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+
+      // Progress Indicator
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: primaryColor,
+        linearTrackColor: dividerColor,
+      ),
+
+      // Tab Bar
+      tabBarTheme: const TabBarTheme(
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white54,
+        indicatorColor: primaryColor,
+      ),
+
+      // Navigation Rail
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: surfaceColor,
+        selectedIconTheme: const IconThemeData(color: primaryColor),
+        unselectedIconTheme: const IconThemeData(color: Colors.white70),
+        indicatorColor: primaryColor.withOpacity(0.2),
+      ),
+
+      // Drawer
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: surfaceColor,
+      ),
+
+      extensions: [
+        AppThemeExtension(
+          navBarStyle: AppNavBarStyle.defaultCompact,
+          blurStrength: 0.0,
+          borderWidth: 1.0,
+          borderColor: dividerColor,
+          shadowIntensity: 0.1,
+          accentBarColor: accentYellow,  // 奶油黄强调色
           containerDecoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF2A2A35), width: 1),
+            border: Border.all(color: dividerColor, width: 1),
           ),
         ),
       ],
@@ -188,7 +757,7 @@ class AppTheme {
         chipRadius: 6.0,
       ),
       useMaterial3: true,
-      fontFamily: GoogleFonts.inter().fontFamily,
+      fontFamily: _defaultFont,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -211,6 +780,7 @@ class AppTheme {
           borderWidth: 1.0,
           borderColor: Colors.white.withOpacity(0.1),
           shadowIntensity: 0.3,
+          accentBarColor: primaryColor,  // 紫蓝色强调
           containerDecoration: BoxDecoration(
             color: surfaceColor.withOpacity(0.6),
             border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
@@ -254,6 +824,7 @@ class AppTheme {
         chipRadius: 8.0,
       ),
       useMaterial3: true,
+      fontFamily: _defaultFont,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -271,6 +842,7 @@ class AppTheme {
       extensions: [
         const AppThemeExtension(
           navBarStyle: AppNavBarStyle.material,
+          accentBarColor: primaryColor,  // 淡紫色强调
         ),
       ],
     );
@@ -309,7 +881,7 @@ class AppTheme {
         chipRadius: 16.0,
       ),
       useMaterial3: true,
-      fontFamily: GoogleFonts.notoSans().fontFamily, // 使用类似字体
+      fontFamily: _defaultFont,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -327,6 +899,7 @@ class AppTheme {
       extensions: [
         AppThemeExtension(
           navBarStyle: AppNavBarStyle.discordSide,
+          accentBarColor: blurple,  // Blurple 强调色
           containerDecoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(8),
@@ -372,7 +945,7 @@ class AppTheme {
         chipRadius: 8.0,
       ),
       useMaterial3: true,
-      fontFamily: GoogleFonts.exo2().fontFamily, // 几何感强
+      fontFamily: _defaultFont,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -390,13 +963,14 @@ class AppTheme {
       ),
       extensions: [
         const AppThemeExtension(
-          navBarStyle: AppNavBarStyle.material, // 后续可定制
-          interactionStyle: AppInteractionStyle.physical, // 启用物理按键交互
+          navBarStyle: AppNavBarStyle.material,
+          interactionStyle: AppInteractionStyle.physical,
           enableCrtEffect: false,
           enableGlowEffect: false,
           enableNeonGlow: false,
           borderWidth: 2.0,
           borderColor: Color(0xFF505050),
+          accentBarColor: primaryColor,  // 焦橙色强调
           containerDecoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -445,7 +1019,7 @@ class AppTheme {
         chipRadius: 0.0,
       ),
       useMaterial3: true,
-      fontFamily: GoogleFonts.vt323().fontFamily, // 保持像素字体，但后面会调整
+      fontFamily: _defaultFont,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -472,6 +1046,7 @@ class AppTheme {
           enableCrtEffect: false, // 移除 CRT
           borderWidth: 2.0,
           borderColor: primaryColor,
+          accentBarColor: primaryColor,  // 黑色强调（LCD风格）
           containerDecoration: BoxDecoration(
             color: cardColor,
             border: Border.all(color: primaryColor, width: 2),
@@ -517,6 +1092,7 @@ class AppTheme {
         chipRadius: 8.0,
       ),
       useMaterial3: true,
+      fontFamily: _defaultFont,
     ).copyWith(
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
@@ -537,6 +1113,7 @@ class AppTheme {
           navBarStyle: AppNavBarStyle.material,
           isLightTheme: true,
           shadowIntensity: 0.5,
+          accentBarColor: primaryColor,  // 蓝色强调
           containerDecoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(12),

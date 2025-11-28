@@ -16,6 +16,8 @@ void main() async {
   // 预先打开 Hive boxes (确保 LocalStorageService 可用)
   await Hive.openBox(StorageKeys.settingsBox);
   await Hive.openBox(StorageKeys.historyBox);
+  await Hive.openBox(StorageKeys.tagCacheBox);
+  await Hive.openBox(StorageKeys.galleryBox);
 
   // 桌面端窗口配置
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
