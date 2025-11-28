@@ -175,7 +175,7 @@ class _DesktopGenerationLayoutState
                 const HistoryPanel(),
                 // 折叠按钮
                 Positioned(
-                  top: 8,
+                  top: 10,
                   left: 8,
                   child: _buildCollapseButton(
                     theme,

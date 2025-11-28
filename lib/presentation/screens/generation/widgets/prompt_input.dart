@@ -126,6 +126,38 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         .updateNegativePrompt(negativeText);
   }
 
+  /// 从 Provider 同步提示词到本地状态
+  void _syncPromptFromProvider(String prompt) {
+    // 避免循环触发：只在内容不同时更新
+    if (_promptController.text != prompt) {
+      _promptController.text = prompt;
+    }
+    final newTags = NaiPromptParser.parse(prompt);
+    if (!_tagsEqual(_promptTags, newTags)) {
+      setState(() => _promptTags = newTags);
+    }
+  }
+
+  /// 从 Provider 同步负向提示词到本地状态
+  void _syncNegativeFromProvider(String negativePrompt) {
+    if (_negativeController.text != negativePrompt) {
+      _negativeController.text = negativePrompt;
+    }
+    final newTags = NaiPromptParser.parse(negativePrompt);
+    if (!_tagsEqual(_negativeTags, newTags)) {
+      setState(() => _negativeTags = newTags);
+    }
+  }
+
+  /// 比较两个标签列表是否相等
+  bool _tagsEqual(List<PromptTag> a, List<PromptTag> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].text != b[i].text || a[i].weight != b[i].weight) return false;
+    }
+    return true;
+  }
+
   void _openFullScreenEditor() {
     Navigator.push(
       context,
@@ -139,10 +171,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   void _generateRandomPrompt() {
     final prompt =
         ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
-    _promptController.text = prompt;
-    _promptTags = NaiPromptParser.parse(prompt);
+    // 只更新 Provider，ref.listen 会自动同步到本地状态
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(prompt);
-
     AppToast.success(context, '已生成随机提示词');
   }
 
@@ -157,6 +187,16 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // 监听 Provider 变化，自动同步到本地状态
+    ref.listen(generationParamsNotifierProvider, (previous, next) {
+      if (previous?.prompt != next.prompt) {
+        _syncPromptFromProvider(next.prompt);
+      }
+      if (previous?.negativePrompt != next.negativePrompt) {
+        _syncNegativeFromProvider(next.negativePrompt);
+      }
+    });
 
     if (widget.compact) {
       return _buildCompactLayout(theme);
