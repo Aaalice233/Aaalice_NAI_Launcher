@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/app_toast.dart';
 import 'upscale_dialog.dart';
 
 /// 图像预览组件
@@ -248,27 +249,11 @@ class ImagePreviewWidget extends ConsumerWidget {
       await file.writeAsBytes(imageBytes);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('图片已保存到: ${saveDir.path}'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: '分享',
-              textColor: Colors.white,
-              onPressed: () => _shareFile(context, file),
-            ),
-          ),
-        );
+        AppToast.success(context, '图片已保存到: ${saveDir.path}');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppToast.error(context, '保存失败: $e');
       }
     }
   }
@@ -282,12 +267,7 @@ class ImagePreviewWidget extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('分享失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppToast.error(context, '分享失败: $e');
       }
     }
   }
@@ -309,62 +289,123 @@ class ImagePreviewWidget extends ConsumerWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('分享失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppToast.error(context, '分享失败: $e');
       }
     }
   }
 
   void _showFullscreenImage(BuildContext context, Uint8List imageBytes) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => _FullscreenImageView(imageBytes: imageBytes),
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _FullscreenImageView(imageBytes: imageBytes);
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 200),
       ),
     );
   }
 }
 
-/// 全屏图像查看器
-class _FullscreenImageView extends StatelessWidget {
+/// 沉浸式全屏图像查看器
+class _FullscreenImageView extends StatefulWidget {
   final Uint8List imageBytes;
 
   const _FullscreenImageView({required this.imageBytes});
 
   @override
+  State<_FullscreenImageView> createState() => _FullscreenImageViewState();
+}
+
+class _FullscreenImageViewState extends State<_FullscreenImageView> {
+  final TransformationController _transformController = TransformationController();
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    Navigator.of(context).pop();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          // 保存按钮
-          IconButton(
-            icon: const Icon(Icons.save_alt),
-            onPressed: () => _saveImage(context),
-            tooltip: '保存',
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 背景 + 图像（点击关闭）
+          GestureDetector(
+            onTap: _close,
+            child: Container(
+              color: Colors.black.withOpacity(0.95),
+              child: InteractiveViewer(
+                transformationController: _transformController,
+                minScale: 0.5,
+                maxScale: 5.0,
+                child: Center(
+                  child: Image.memory(
+                    widget.imageBytes,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
           ),
-          // 分享按钮
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () => _shareImage(context),
-            tooltip: '分享',
+          
+          // 左上角返回按钮
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 8,
+            child: _buildControlButton(
+              icon: Icons.arrow_back_rounded,
+              onTap: _close,
+              tooltip: '返回',
+            ),
+          ),
+          
+          // 右上角保存按钮
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 8,
+            child: _buildControlButton(
+              icon: Icons.save_alt_rounded,
+              onTap: () => _saveImage(context),
+              tooltip: '保存',
+            ),
           ),
         ],
       ),
-      extendBodyBehindAppBar: true,
-      body: InteractiveViewer(
-        minScale: 0.5,
-        maxScale: 4.0,
-        child: Center(
-          child: Image.memory(
-            imageBytes,
-            fit: BoxFit.contain,
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ),
       ),
@@ -400,49 +441,14 @@ class _FullscreenImageView extends StatelessWidget {
       final saveDir = await _getSaveDirectory();
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(imageBytes);
+      await file.writeAsBytes(widget.imageBytes);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('图片已保存到: ${saveDir.path}'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        AppToast.success(context, '图片已保存到: ${saveDir.path}');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _shareImage(BuildContext context) async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final file = File(
-        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
-      );
-      await file.writeAsBytes(imageBytes);
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Generated by NAI Launcher',
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('分享失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppToast.error(context, '保存失败: $e');
       }
     }
   }

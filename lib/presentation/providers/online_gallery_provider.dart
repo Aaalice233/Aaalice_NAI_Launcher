@@ -14,8 +14,8 @@ part 'online_gallery_provider.g.dart';
 
 /// 画廊视图模式
 enum GalleryViewMode {
-  search,    // 搜索模式
-  popular,   // 排行榜模式
+  search, // 搜索模式
+  popular, // 排行榜模式
   favorites, // 收藏夹模式
 }
 
@@ -29,16 +29,16 @@ class OnlineGalleryState {
   final String rating;
   final int page;
   final bool hasMore;
-  
+
   /// 视图模式
   final GalleryViewMode viewMode;
-  
+
   /// 排行榜时间范围
   final PopularScale popularScale;
-  
+
   /// 排行榜日期
   final DateTime? popularDate;
-  
+
   /// 已收藏的帖子 ID 集合（用于快速查找）
   final Set<int> favoritedPostIds;
 
@@ -98,10 +98,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   @override
   OnlineGalleryState build() {
-    _dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-    ));
+    _dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
 
     // 配置 HTTP 客户端以支持系统代理和处理证书问题
     (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
@@ -125,14 +127,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 切换到搜索模式
   Future<void> switchToSearch() async {
     if (state.viewMode == GalleryViewMode.search) return;
-    state = state.copyWith(viewMode: GalleryViewMode.search, posts: [], page: 1);
+    state =
+        state.copyWith(viewMode: GalleryViewMode.search, posts: [], page: 1);
     await loadPosts(refresh: true);
   }
 
   /// 切换到排行榜模式
   Future<void> switchToPopular() async {
     if (state.viewMode == GalleryViewMode.popular) return;
-    state = state.copyWith(viewMode: GalleryViewMode.popular, posts: [], page: 1);
+    state =
+        state.copyWith(viewMode: GalleryViewMode.popular, posts: [], page: 1);
     await _loadPopularPosts(refresh: true);
   }
 
@@ -143,7 +147,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (state.viewMode == GalleryViewMode.favorites) return;
-    state = state.copyWith(viewMode: GalleryViewMode.favorites, posts: [], page: 1);
+    state =
+        state.copyWith(viewMode: GalleryViewMode.favorites, posts: [], page: 1);
     await _loadFavorites(refresh: true);
   }
 
@@ -184,7 +189,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     try {
       String? dateStr;
       if (state.popularDate != null) {
-        dateStr = '${state.popularDate!.year}-${state.popularDate!.month.toString().padLeft(2, '0')}-${state.popularDate!.day.toString().padLeft(2, '0')}';
+        dateStr =
+            '${state.popularDate!.year}-${state.popularDate!.month.toString().padLeft(2, '0')}-${state.popularDate!.day.toString().padLeft(2, '0')}';
       }
 
       final posts = await _apiService.getPopularPosts(
@@ -203,7 +209,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         page: page,
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to load popular posts: $e', e, stack, 'OnlineGallery');
+      AppLogger.e(
+          'Failed to load popular posts: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -417,7 +424,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       tags = tags.isEmpty ? 'rating:$rating' : '$tags rating:$rating';
     }
 
-    AppLogger.d('Fetching from $source: tags="$tags", page=$page', 'OnlineGallery');
+    AppLogger.d(
+        'Fetching from $source: tags="$tags", page=$page', 'OnlineGallery');
 
     final response = await _dio.get(
       '$baseUrl$endpoint',

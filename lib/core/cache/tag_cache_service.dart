@@ -4,7 +4,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/models/tag/tag_suggestion.dart';
-import '../storage/local_storage_service.dart';
 import '../utils/app_logger.dart';
 
 part 'tag_cache_service.g.dart';
@@ -88,9 +87,12 @@ class TagCacheService {
     try {
       _cacheBox = await Hive.openBox(boxName);
       await _loadFromStorage();
-      AppLogger.d('TagCacheService initialized, memory cache size: ${_memoryCache.length}', 'Cache');
+      AppLogger.d(
+          'TagCacheService initialized, memory cache size: ${_memoryCache.length}',
+          'Cache');
     } catch (e, stack) {
-      AppLogger.e('Failed to initialize TagCacheService: $e', e, stack, 'Cache');
+      AppLogger.e(
+          'Failed to initialize TagCacheService: $e', e, stack, 'Cache');
     }
   }
 

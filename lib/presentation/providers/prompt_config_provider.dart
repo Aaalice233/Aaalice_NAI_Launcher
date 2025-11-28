@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -27,7 +26,9 @@ class PromptConfigState {
     if (selectedPresetId == null) return null;
     return presets.firstWhere(
       (p) => p.id == selectedPresetId,
-      orElse: () => presets.isNotEmpty ? presets.first : DefaultPresets.createDefaultPreset(),
+      orElse: () => presets.isNotEmpty
+          ? presets.first
+          : DefaultPresets.createDefaultPreset(),
     );
   }
 

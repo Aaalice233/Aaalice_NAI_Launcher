@@ -151,7 +151,8 @@ class DanbooruApiService {
     int page = 1,
   }) async {
     try {
-      AppLogger.d('Fetching popular posts: ${scale.name}, date: $date', 'Danbooru');
+      AppLogger.d(
+          'Fetching popular posts: ${scale.name}, date: $date', 'Danbooru');
 
       final queryParams = <String, dynamic>{
         'scale': scale.name,
@@ -197,7 +198,8 @@ class DanbooruApiService {
     int limit = 40,
   }) async {
     try {
-      AppLogger.d('Fetching favorites, userId: $userId, page: $page', 'Danbooru');
+      AppLogger.d(
+          'Fetching favorites, userId: $userId, page: $page', 'Danbooru');
 
       final queryParams = <String, dynamic>{
         'page': page,
@@ -225,7 +227,8 @@ class DanbooruApiService {
 
         for (final fav in favorites) {
           if (fav is Map<String, dynamic> && fav['post'] != null) {
-            posts.add(DanbooruPost.fromJson(fav['post'] as Map<String, dynamic>));
+            posts.add(
+                DanbooruPost.fromJson(fav['post'] as Map<String, dynamic>));
           }
         }
         return posts;
@@ -366,11 +369,13 @@ class DanbooruApiService {
         ),
       );
 
-      AppLogger.d('Danbooru response status: ${response.statusCode}', 'Danbooru');
+      AppLogger.d(
+          'Danbooru response status: ${response.statusCode}', 'Danbooru');
 
       if (response.data is List) {
         final tags = (response.data as List)
-            .map((item) => DanbooruTag.fromAutocomplete(item as Map<String, dynamic>))
+            .map((item) =>
+                DanbooruTag.fromAutocomplete(item as Map<String, dynamic>))
             .toList();
         AppLogger.d('Danbooru found ${tags.length} tags', 'Danbooru');
         return tags;
@@ -579,19 +584,23 @@ class DanbooruApiService {
 /// DanbooruApiService Provider
 @Riverpod(keepAlive: true)
 DanbooruApiService danbooruApiService(DanbooruApiServiceRef ref) {
-  final dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-    sendTimeout: const Duration(seconds: 15),
-  ));
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
+    ),
+  );
 
   // 添加日志拦截器（仅在调试模式）
   assert(() {
-    dio.interceptors.add(LogInterceptor(
-      requestBody: false,
-      responseBody: false,
-      logPrint: (obj) => AppLogger.d(obj.toString(), 'Dio'),
-    ));
+    dio.interceptors.add(
+      LogInterceptor(
+        requestBody: false,
+        responseBody: false,
+        logPrint: (obj) => AppLogger.d(obj.toString(), 'Dio'),
+      ),
+    );
     return true;
   }());
 
@@ -599,11 +608,13 @@ DanbooruApiService danbooruApiService(DanbooruApiServiceRef ref) {
 
   // 监听认证状态变化
   ref.listen(danbooruAuthProvider, (previous, next) {
-    service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
+    service
+        .setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
   });
 
   // 初始化时设置认证头
-  service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
+  service
+      .setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
 
   return service;
 }

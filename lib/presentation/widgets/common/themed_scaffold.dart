@@ -57,7 +57,7 @@ class ThemedScaffold extends StatelessWidget {
                 size: Size.infinite,
               ),
             ),
-            
+
           // 简单的晕影效果 (Vignette)
           if (enableCrt)
             IgnorePointer(
@@ -90,7 +90,7 @@ class _DotMatrixPainter extends CustomPainter {
   final Color color;
   final double spacing;
 
-  _DotMatrixPainter({required this.color, this.spacing = 4.0});
+  _DotMatrixPainter({required this.color, this.spacing = 20});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -128,4 +128,3 @@ class _ScanLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

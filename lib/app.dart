@@ -36,7 +36,7 @@ class _NAILauncherAppState extends ConsumerState<NAILauncherApp> {
     // 关联 TagDataService 到 TagTranslationService
     final tagDataService = ref.read(tagDataServiceProvider);
     translationService.setTagDataService(tagDataService);
-    
+
     // 预初始化标签服务（构建搜索索引），避免首次点击输入框卡顿
     tagDataService.initialize();
   }
@@ -53,10 +53,16 @@ class _NAILauncherAppState extends ConsumerState<NAILauncherApp> {
       debugShowCheckedModeBanner: false,
 
       // 主题 (空字符串表示使用系统默认字体)
-      theme: AppTheme.getTheme(themeType, Brightness.light,
-          fontFamily: fontType.fontFamily.isEmpty ? null : fontType.fontFamily),
-      darkTheme: AppTheme.getTheme(themeType, Brightness.dark,
-          fontFamily: fontType.fontFamily.isEmpty ? null : fontType.fontFamily),
+      theme: AppTheme.getTheme(
+        themeType,
+        Brightness.light,
+        fontFamily: fontType.fontFamily.isEmpty ? null : fontType.fontFamily,
+      ),
+      darkTheme: AppTheme.getTheme(
+        themeType,
+        Brightness.dark,
+        fontFamily: fontType.fontFamily.isEmpty ? null : fontType.fontFamily,
+      ),
       themeMode: ThemeMode.dark, // 默认深色模式
 
       // 国际化

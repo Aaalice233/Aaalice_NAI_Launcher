@@ -8,11 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../autocomplete/autocomplete.dart';
-import 'prompt_tag_chip.dart';
+import 'components/batch_selection/selection_overlay.dart';
+import 'components/tag_chip/tag_chip.dart';
 
-/// 提示词标签视图组件
-/// 将提示词以可视化标签形式展示，支持拖拽排序、批量操作等
-class PromptTagView extends ConsumerStatefulWidget {
+/// 重构后的提示词标签视图组件
+/// 支持框选、拖拽排序、批量操作、内联编辑等
+class TagView extends ConsumerStatefulWidget {
   /// 当前标签列表
   final List<PromptTag> tags;
 
@@ -34,7 +35,10 @@ class PromptTagView extends ConsumerStatefulWidget {
   /// 最大高度
   final double? maxHeight;
 
-  const PromptTagView({
+  /// 是否启用框选（桌面端）
+  final bool enableBoxSelection;
+
+  const TagView({
     super.key,
     required this.tags,
     required this.onTagsChanged,
@@ -43,24 +47,58 @@ class PromptTagView extends ConsumerStatefulWidget {
     this.compact = false,
     this.emptyHint,
     this.maxHeight,
+    this.enableBoxSelection = true,
   });
 
   @override
-  ConsumerState<PromptTagView> createState() => _PromptTagViewState();
+  ConsumerState<TagView> createState() => _TagViewState();
 }
 
-class _PromptTagViewState extends ConsumerState<PromptTagView> {
+class _TagViewState extends ConsumerState<TagView> {
   bool _isAddingTag = false;
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocusNode = FocusNode();
   int? _dragTargetIndex;
+  String? _editingTagId;
+
+  // 框选相关
+  final List<GlobalKey> _tagKeys = [];
+  final BoxSelectionController _selectionController = BoxSelectionController();
+
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTagKeys();
+  }
+
+  @override
+  void didUpdateWidget(TagView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.tags.length != oldWidget.tags.length) {
+      _updateTagKeys();
+    }
+  }
+
+  void _updateTagKeys() {
+    while (_tagKeys.length < widget.tags.length) {
+      _tagKeys.add(GlobalKey());
+    }
+    while (_tagKeys.length > widget.tags.length) {
+      _tagKeys.removeLast();
+    }
+  }
 
   @override
   void dispose() {
     _addTagController.dispose();
     _addTagFocusNode.dispose();
+    _selectionController.dispose();
     super.dispose();
   }
+
+  // ========== 标签操作 ==========
 
   void _handleDeleteTag(String id) {
     final newTags = NaiPromptParser.removeTag(widget.tags, id);
@@ -94,9 +132,6 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
     widget.onTagsChanged(newTags);
   }
 
-  /// 是否为移动平台
-  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
-
   void _handleTagTap(String id) {
     final newTags = widget.tags.map((tag) {
       if (tag.id == id) {
@@ -113,6 +148,22 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
     widget.onTagsChanged(newTags);
     HapticFeedback.lightImpact();
   }
+
+  // ========== 编辑模式 ==========
+
+  void _enterEditMode(String id) {
+    setState(() {
+      _editingTagId = id;
+    });
+  }
+
+  void _exitEditMode() {
+    setState(() {
+      _editingTagId = null;
+    });
+  }
+
+  // ========== 添加标签 ==========
 
   void _startAddTag() {
     setState(() {
@@ -150,6 +201,8 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
     _addTagFocusNode.requestFocus();
   }
 
+  // ========== 批量操作 ==========
+
   void _deleteSelectedTags() {
     final newTags = widget.tags.removeSelected();
     widget.onTagsChanged(newTags);
@@ -169,29 +222,72 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
     widget.onTagsChanged(newTags);
   }
 
+  void _clearSelection() {
+    final newTags = widget.tags.toggleSelectAll(false);
+    widget.onTagsChanged(newTags);
+  }
+
+  // ========== 框选回调 ==========
+
+  List<Rect> _getTagRects() {
+    final rects = <Rect>[];
+    for (var i = 0; i < _tagKeys.length; i++) {
+      final key = _tagKeys[i];
+      final renderBox =
+          key.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        rects.add(position & renderBox.size);
+      }
+    }
+    return rects;
+  }
+
+  void _handleBoxSelection(Set<int> indices) {
+    final newTags = widget.tags.asMap().map((index, tag) {
+      final isSelected = indices.contains(index);
+      return MapEntry(index, tag.copyWith(selected: isSelected));
+    }).values.toList();
+    widget.onTagsChanged(newTags);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasSelection = widget.tags.any((t) => t.selected);
 
-    return Focus(
+    Widget content = Focus(
       autofocus: false,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent) {
+          // Ctrl+A 全选
           if (event.logicalKey == LogicalKeyboardKey.keyA &&
               HardwareKeyboard.instance.isControlPressed) {
             _selectAll();
             return KeyEventResult.handled;
           }
+          // Delete 删除选中
           if (event.logicalKey == LogicalKeyboardKey.delete && hasSelection) {
             _deleteSelectedTags();
             return KeyEventResult.handled;
           }
+          // Ctrl+D 切换启用/禁用
           if (event.logicalKey == LogicalKeyboardKey.keyD &&
               HardwareKeyboard.instance.isControlPressed &&
               hasSelection) {
             _toggleSelectedEnabled();
             return KeyEventResult.handled;
+          }
+          // Escape 清除选择/取消编辑
+          if (event.logicalKey == LogicalKeyboardKey.escape) {
+            if (_editingTagId != null) {
+              _exitEditMode();
+              return KeyEventResult.handled;
+            }
+            if (hasSelection) {
+              _clearSelection();
+              return KeyEventResult.handled;
+            }
           }
         }
         return KeyEventResult.ignored;
@@ -217,6 +313,18 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
         ),
       ),
     );
+
+    // 桌面端添加框选功能
+    if (!_isMobile && widget.enableBoxSelection && !widget.readOnly) {
+      content = BoxSelectionOverlay(
+        enabled: true,
+        getTagRects: _getTagRects,
+        onSelectionChanged: _handleBoxSelection,
+        child: content,
+      );
+    }
+
+    return content;
   }
 
   Widget _buildBatchActionBar(ThemeData theme) {
@@ -274,10 +382,7 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () {
-                final newTags = widget.tags.toggleSelectAll(false);
-                widget.onTagsChanged(newTags);
-              },
+              onTap: _clearSelection,
               borderRadius: BorderRadius.circular(20),
               child: Container(
                 padding: const EdgeInsets.all(6),
@@ -333,45 +438,18 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 渐变图标容器
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    theme.colorScheme.primary.withOpacity(0.15),
-                    theme.colorScheme.secondary.withOpacity(0.1),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.2),
-                ),
-              ),
-              child: Icon(
-                Icons.auto_awesome_outlined,
-                size: 36,
-                color: theme.colorScheme.primary.withOpacity(0.6),
-              ),
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 32,
+              color: theme.colorScheme.primary.withOpacity(0.5),
             ),
-            const SizedBox(height: 20),
-            Text(
-              '开始创作',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface.withOpacity(0.8),
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               widget.emptyHint ?? '添加标签来描述你想要的画面',
               textAlign: TextAlign.center,
@@ -380,8 +458,8 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
               ),
             ),
             if (widget.showAddButton && !widget.readOnly) ...[
-              const SizedBox(height: 24),
-              _buildPrimaryAddButton(theme),
+              const SizedBox(height: 16),
+              _buildAddTagButton(theme),
             ],
           ],
         ),
@@ -457,12 +535,17 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
   }
 
   Widget _buildDragTarget(int index, PromptTag tag, ThemeData theme) {
+    final isEditing = _editingTagId == tag.id;
+
     if (widget.readOnly) {
-      return PromptTagChip(
-        tag: tag,
-        compact: widget.compact,
-        showWeightControls: false,
-        onTap: () => _handleTagTap(tag.id),
+      return Container(
+        key: _tagKeys.length > index ? _tagKeys[index] : null,
+        child: TagChip(
+          tag: tag,
+          compact: widget.compact,
+          showControls: false,
+          onTap: () => _handleTagTap(tag.id),
+        ),
       );
     }
 
@@ -515,16 +598,23 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
                 ),
 
               // 标签卡片
-              DraggablePromptTagChip(
-                tag: tag,
-                index: index,
-                onDelete: () => _handleDeleteTag(tag.id),
-                onTap: () => _handleTagTap(tag.id),
-                onDoubleTap: () => _handleToggleEnabled(tag.id),
-                onWeightChanged: (weight) =>
-                    _handleWeightChanged(tag.id, weight),
-                onTextChanged: (text) => _handleTextChanged(tag.id, text),
-                showWeightControls: !widget.compact,
+              Container(
+                key: _tagKeys.length > index ? _tagKeys[index] : null,
+                child: DraggableTagChip(
+                  tag: tag,
+                  index: index,
+                  onDelete: () => _handleDeleteTag(tag.id),
+                  onTap: () => _handleTagTap(tag.id),
+                  onToggleEnabled: () => _handleToggleEnabled(tag.id),
+                  onWeightChanged: (weight) =>
+                      _handleWeightChanged(tag.id, weight),
+                  onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                  showControls: !widget.compact,
+                  compact: widget.compact,
+                  isEditing: isEditing,
+                  onEnterEdit: () => _enterEditMode(tag.id),
+                  onExitEdit: _exitEditMode,
+                ),
               ),
             ],
           ),
@@ -568,43 +658,62 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
   }
 
   Widget _buildAddTagButton(ThemeData theme) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _startAddTag,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: theme.colorScheme.primary.withOpacity(0.3),
-              width: 1.5,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(10),
-            color: theme.colorScheme.primary.withOpacity(0.05),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add,
-                size: 16,
-                color: theme.colorScheme.primary.withOpacity(0.8),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '添加',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.primary.withOpacity(0.8),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 按钮部分
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _startAddTag,
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  width: 1,
                 ),
+                borderRadius: BorderRadius.circular(6),
+                color: theme.colorScheme.primary.withOpacity(0.05),
               ),
-            ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add,
+                    size: 14,
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '添加',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: theme.colorScheme.primary.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
+        // 占位符（与翻译行对齐）
+        if (!widget.compact)
+          Padding(
+            padding: const EdgeInsets.only(top: 2, left: 2),
+            child: Text(
+              ' ',
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.2,
+                color: theme.colorScheme.onSurface.withOpacity(0),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -653,13 +762,11 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
                   ),
                 ),
               ),
-              // 确认按钮
               _buildMiniIconButton(
                 icon: Icons.check,
                 color: theme.colorScheme.primary,
                 onTap: _confirmAddTag,
               ),
-              // 取消按钮
               _buildMiniIconButton(
                 icon: Icons.close,
                 color: theme.colorScheme.onSurface.withOpacity(0.5),
@@ -689,73 +796,6 @@ class _PromptTagViewState extends ConsumerState<PromptTagView> {
           child: Icon(icon, size: 18, color: color),
         ),
       ),
-    );
-  }
-}
-
-/// 带标题的标签视图
-class TitledPromptTagView extends StatelessWidget {
-  final String title;
-  final List<PromptTag> tags;
-  final ValueChanged<List<PromptTag>> onTagsChanged;
-  final bool readOnly;
-  final bool showAddButton;
-  final Widget? trailing;
-
-  const TitledPromptTagView({
-    super.key,
-    required this.title,
-    required this.tags,
-    required this.onTagsChanged,
-    this.readOnly = false,
-    this.showAddButton = true,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${tags.length}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-            const Spacer(),
-            if (trailing != null) trailing!,
-          ],
-        ),
-        const SizedBox(height: 12),
-        PromptTagView(
-          tags: tags,
-          onTagsChanged: onTagsChanged,
-          readOnly: readOnly,
-          showAddButton: showAddButton,
-        ),
-      ],
     );
   }
 }

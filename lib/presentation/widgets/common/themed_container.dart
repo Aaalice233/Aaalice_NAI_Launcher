@@ -26,15 +26,15 @@ class ThemedContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final extension = theme.extension<AppThemeExtension>();
-    
+
     // 合并默认装饰和传入的装饰
-    final defaultDecoration = extension?.containerDecoration ?? 
+    final defaultDecoration = extension?.containerDecoration ??
         BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(8),
         );
-        
-    final effectiveDecoration = decoration != null 
+
+    final effectiveDecoration = decoration != null
         ? defaultDecoration.copyWith(
             color: decoration!.color,
             border: decoration!.border,
@@ -47,14 +47,16 @@ class ThemedContainer extends StatelessWidget {
 
     final double blur = extension?.blurStrength ?? 0.0;
 
-    Widget content = Container(
+    final Widget content = Container(
       width: width,
       height: height,
       padding: padding,
       margin: margin,
       decoration: effectiveDecoration.copyWith(
         // 如果启用了模糊，背景色应该由内部 Container 处理或者半透明
-        color: blur > 0 ? effectiveDecoration.color?.withOpacity(0.5) : effectiveDecoration.color,
+        color: blur > 0
+            ? effectiveDecoration.color?.withOpacity(0.5)
+            : effectiveDecoration.color,
       ),
       child: child,
     );
@@ -64,17 +66,19 @@ class ThemedContainer extends StatelessWidget {
       return Container(
         margin: margin, // Margin 需要在外部
         child: ClipRRect(
-          borderRadius: effectiveDecoration.borderRadius as BorderRadius? ?? BorderRadius.zero,
+          borderRadius: effectiveDecoration.borderRadius as BorderRadius? ??
+              BorderRadius.zero,
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
             child: Container(
-               width: width,
-               height: height,
-               padding: padding,
-               decoration: effectiveDecoration.copyWith(
-                 color: effectiveDecoration.color?.withOpacity(0.3) ?? Colors.transparent,
-               ),
-               child: child,
+              width: width,
+              height: height,
+              padding: padding,
+              decoration: effectiveDecoration.copyWith(
+                color: effectiveDecoration.color?.withOpacity(0.3) ??
+                    Colors.transparent,
+              ),
+              child: child,
             ),
           ),
         ),
@@ -84,4 +88,3 @@ class ThemedContainer extends StatelessWidget {
     return content;
   }
 }
-

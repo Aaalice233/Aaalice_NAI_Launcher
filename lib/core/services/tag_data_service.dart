@@ -226,10 +226,8 @@ class TagDataService {
     final tags = <LocalTag>[];
 
     // 跳过标题行（如果有）
-    final startIndex = lines.isNotEmpty &&
-            lines[0].toLowerCase().startsWith('tag,')
-        ? 1
-        : 0;
+    final startIndex =
+        lines.isNotEmpty && lines[0].toLowerCase().startsWith('tag,') ? 1 : 0;
 
     for (var i = startIndex; i < lines.length; i++) {
       final line = lines[i].trim();
@@ -240,9 +238,8 @@ class TagDataService {
 
         // 添加翻译
         final translation = _translationMap[tag.tag.toLowerCase()];
-        final tagWithTranslation = translation != null
-            ? tag.copyWith(translation: translation)
-            : tag;
+        final tagWithTranslation =
+            translation != null ? tag.copyWith(translation: translation) : tag;
 
         tags.add(tagWithTranslation);
       } catch (e) {
@@ -262,10 +259,12 @@ class TagDataService {
       final metaFile = File('${cacheDir.path}/tags_meta.json');
 
       await tagsFile.writeAsString(content);
-      await metaFile.writeAsString(json.encode({
-        'lastUpdate': DateTime.now().toIso8601String(),
-        'version': 1,
-      }));
+      await metaFile.writeAsString(
+        json.encode({
+          'lastUpdate': DateTime.now().toIso8601String(),
+          'version': 1,
+        }),
+      );
 
       AppLogger.d('Tags cached successfully', 'TagData');
     } catch (e) {
@@ -348,12 +347,13 @@ class TagDataService {
 /// TagDataService Provider
 @Riverpod(keepAlive: true)
 TagDataService tagDataService(TagDataServiceRef ref) {
-  final dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(minutes: 5),
-    sendTimeout: const Duration(seconds: 30),
-  ));
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(minutes: 5),
+      sendTimeout: const Duration(seconds: 30),
+    ),
+  );
 
   return TagDataService(dio);
 }
-

@@ -75,7 +75,8 @@ class _ProxyToastController implements ToastController {
 
   @override
   void updateProgress(double? progress, {String? message, String? subtitle}) {
-    _enqueue((c) => c.updateProgress(progress, message: message, subtitle: subtitle));
+    _enqueue((c) =>
+        c.updateProgress(progress, message: message, subtitle: subtitle));
   }
 
   @override
@@ -250,18 +251,22 @@ class _ToastWidgetState extends State<_ToastWidget>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _controller.forward();
 
@@ -397,18 +402,22 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _controller.forward();
 

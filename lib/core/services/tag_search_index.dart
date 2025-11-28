@@ -78,13 +78,15 @@ class TagSearchIndex {
 
     // 将标签转换为可序列化的格式
     final tagsData = tags
-        .map((t) => {
-              'tag': t.tag,
-              'category': t.category,
-              'count': t.count,
-              'alias': t.alias,
-              'translation': t.translation,
-            })
+        .map(
+          (t) => {
+            'tag': t.tag,
+            'category': t.category,
+            'count': t.count,
+            'alias': t.alias,
+            'translation': t.translation,
+          },
+        )
         .toList();
 
     await Isolate.spawn(
@@ -99,13 +101,15 @@ class TagSearchIndex {
   /// Isolate 入口点
   static void _isolateBuildIndex(_IsolateMessage message) {
     final tags = message.tagsData
-        .map((data) => LocalTag(
-              tag: data['tag'] as String,
-              category: data['category'] as int,
-              count: data['count'] as int,
-              alias: data['alias'] as String?,
-              translation: data['translation'] as String?,
-            ))
+        .map(
+          (data) => LocalTag(
+            tag: data['tag'] as String,
+            category: data['category'] as int,
+            count: data['count'] as int,
+            alias: data['alias'] as String?,
+            translation: data['translation'] as String?,
+          ),
+        )
         .toList();
 
     // 按 count 降序排序
@@ -155,34 +159,40 @@ class TagSearchIndex {
 
     // 转换为可序列化的格式
     final serializedTags = tags
-        .map((t) => {
-              'tag': t.tag,
-              'category': t.category,
-              'count': t.count,
-              'alias': t.alias,
-              'translation': t.translation,
-            })
+        .map(
+          (t) => {
+            'tag': t.tag,
+            'category': t.category,
+            'count': t.count,
+            'alias': t.alias,
+            'translation': t.translation,
+          },
+        )
         .toList();
 
-    message.sendPort.send(_IndexData(
-      sortedTags: serializedTags,
-      trieData: trieData,
-      chineseIndex: chineseIndex,
-      aliasIndex: aliasIndex,
-    ));
+    message.sendPort.send(
+      _IndexData(
+        sortedTags: serializedTags,
+        trieData: trieData,
+        chineseIndex: chineseIndex,
+        aliasIndex: aliasIndex,
+      ),
+    );
   }
 
   /// 应用索引数据
   void _applyIndexData(_IndexData data, List<LocalTag> originalTags) {
     // 重建标签列表（按排序后的顺序）
     _allTags = data.sortedTags
-        .map((d) => LocalTag(
-              tag: d['tag'] as String,
-              category: d['category'] as int,
-              count: d['count'] as int,
-              alias: d['alias'] as String?,
-              translation: d['translation'] as String?,
-            ))
+        .map(
+          (d) => LocalTag(
+            tag: d['tag'] as String,
+            category: d['category'] as int,
+            count: d['count'] as int,
+            alias: d['alias'] as String?,
+            translation: d['translation'] as String?,
+          ),
+        )
         .toList();
 
     // 重建 Trie
@@ -304,10 +314,10 @@ class TagSearchIndex {
 
     // 按相关性排序：精确匹配 > 前缀匹配 > count
     results.sort((a, b) {
-      final aExact = a.tag.toLowerCase() == prefix ||
-          (a.alias?.toLowerCase() == prefix);
-      final bExact = b.tag.toLowerCase() == prefix ||
-          (b.alias?.toLowerCase() == prefix);
+      final aExact =
+          a.tag.toLowerCase() == prefix || (a.alias?.toLowerCase() == prefix);
+      final bExact =
+          b.tag.toLowerCase() == prefix || (b.alias?.toLowerCase() == prefix);
 
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
@@ -383,14 +393,17 @@ class TagSearchIndex {
 
   /// 简单搜索（索引未就绪时使用）
   List<LocalTag> _simpleSearch(String query, int limit) {
-    final results = _allTags.where((tag) {
-      final normalizedTag = tag.tag.toLowerCase();
-      final normalizedAlias = tag.alias?.toLowerCase() ?? '';
-      return normalizedTag.startsWith(query) ||
-          normalizedTag.contains(query) ||
-          normalizedAlias.startsWith(query) ||
-          normalizedAlias.contains(query);
-    }).take(limit * 2).toList();
+    final results = _allTags
+        .where((tag) {
+          final normalizedTag = tag.tag.toLowerCase();
+          final normalizedAlias = tag.alias?.toLowerCase() ?? '';
+          return normalizedTag.startsWith(query) ||
+              normalizedTag.contains(query) ||
+              normalizedAlias.startsWith(query) ||
+              normalizedAlias.contains(query);
+        })
+        .take(limit * 2)
+        .toList();
 
     results.sort((a, b) {
       final aStartsWith = a.tag.toLowerCase().startsWith(query);
@@ -407,9 +420,12 @@ class TagSearchIndex {
 
   /// 简单中文搜索
   List<LocalTag> _simpleChineseSearch(String query, int limit) {
-    final results = _allTags.where((tag) {
-      return tag.translation?.contains(query) ?? false;
-    }).take(limit * 2).toList();
+    final results = _allTags
+        .where((tag) {
+          return tag.translation?.contains(query) ?? false;
+        })
+        .take(limit * 2)
+        .toList();
 
     results.sort((a, b) => b.count.compareTo(a.count));
 
@@ -453,4 +469,3 @@ class _IndexData {
     required this.aliasIndex,
   });
 }
-

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -71,7 +70,8 @@ class DanbooruAuth extends _$DanbooruAuth {
         await _verifyCredentials(credentials);
       }
     } catch (e, stack) {
-      AppLogger.e('Failed to load Danbooru credentials', e, stack, 'DanbooruAuth');
+      AppLogger.e(
+          'Failed to load Danbooru credentials', e, stack, 'DanbooruAuth');
     }
   }
 
@@ -162,8 +162,8 @@ class DanbooruAuth extends _$DanbooruAuth {
     final creds = state.credentials;
     if (creds == null) return null;
 
-    final encoded = base64Encode(utf8.encode('${creds.username}:${creds.apiKey}'));
+    final encoded =
+        base64Encode(utf8.encode('${creds.username}:${creds.apiKey}'));
     return 'Basic $encoded';
   }
 }
-

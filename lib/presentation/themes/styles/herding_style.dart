@@ -8,12 +8,12 @@ class HerdingStyle {
   HerdingStyle._();
 
   // 核心配色
-  static const primaryColor = Color(0xFFD4A843);      // 金黄色主色
-  static const accentColor = Color(0xFF1095C1);       // 青蓝色
-  static const backgroundColor = Color(0xFF11191F);   // 主背景
-  static const surfaceColor = Color(0xFF141E26);      // 次级背景
-  static const cardColor = Color(0xFF18232C);         // 卡片背景
-  static const dividerColor = Color(0xFF1F2D38);      // 边框色
+  static const primaryColor = Color(0xFFD4A843); // 金黄色主色
+  static const accentColor = Color(0xFF1095C1); // 青蓝色
+  static const backgroundColor = Color(0xFF11191F); // 主背景
+  static const surfaceColor = Color(0xFF141E26); // 次级背景
+  static const cardColor = Color(0xFF18232C); // 卡片背景
+  static const dividerColor = Color(0xFF1F2D38); // 边框色
 
   // 文字色
   static const textPrimary = Color(0xFFEDF1F4);
@@ -21,7 +21,7 @@ class HerdingStyle {
   static const textMuted = Color(0xFF738290);
 
   static ThemeData createTheme(Brightness brightness, String? fontFamily) {
-    final colorScheme = const ColorScheme.dark(
+    const colorScheme = ColorScheme.dark(
       primary: primaryColor,
       onPrimary: Color(0xFF1A1A1A),
       primaryContainer: Color(0xFF8B7A3A),
@@ -103,7 +103,8 @@ class HerdingStyle {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: primaryColor, width: 1),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
 
       // 按钮 - 金黄色主按钮
@@ -271,7 +272,7 @@ class HerdingStyle {
       ),
 
       // Progress Indicator
-      progressIndicatorTheme: ProgressIndicatorThemeData(
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: primaryColor,
         linearTrackColor: dividerColor,
       ),
@@ -314,4 +315,3 @@ class HerdingStyle {
     );
   }
 }
-

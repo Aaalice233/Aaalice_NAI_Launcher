@@ -110,7 +110,8 @@ class RelatedTag {
 }
 
 /// 下载进度回调
-typedef CooccurrenceDownloadCallback = void Function(double progress, String? message);
+typedef CooccurrenceDownloadCallback = void Function(
+    double progress, String? message);
 
 /// 共现标签服务
 class CooccurrenceService {
@@ -177,7 +178,7 @@ class CooccurrenceService {
       onDownloadProgress?.call(0, '正在下载共现标签数据...');
 
       final cacheFile = await _getCacheFile();
-      
+
       await _dio.download(
         '$_baseUrl/$_fileName',
         cacheFile.path,
@@ -200,7 +201,8 @@ class CooccurrenceService {
       AppLogger.i('Cooccurrence data downloaded and loaded', 'Cooccurrence');
       return true;
     } catch (e, stack) {
-      AppLogger.e('Failed to download cooccurrence data', e, stack, 'Cooccurrence');
+      AppLogger.e(
+          'Failed to download cooccurrence data', e, stack, 'Cooccurrence');
       return false;
     } finally {
       _isDownloading = false;
@@ -278,12 +280,13 @@ class CooccurrenceService {
 /// CooccurrenceService Provider
 @Riverpod(keepAlive: true)
 CooccurrenceService cooccurrenceService(CooccurrenceServiceRef ref) {
-  final dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(minutes: 10),
-    sendTimeout: const Duration(seconds: 30),
-  ));
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(minutes: 10),
+      sendTimeout: const Duration(seconds: 30),
+    ),
+  );
 
   return CooccurrenceService(dio);
 }
-

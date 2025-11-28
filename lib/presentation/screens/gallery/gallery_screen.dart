@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -153,7 +152,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(galleryNotifierProvider.notifier).setSearchQuery(null);
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .setSearchQuery(null);
                   },
                 )
               : null,
@@ -188,7 +189,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               ref.read(galleryNotifierProvider.notifier).toggleFavoritesOnly();
             },
             avatar: Icon(
-              state.filter.favoritesOnly ? Icons.favorite : Icons.favorite_border,
+              state.filter.favoritesOnly
+                  ? Icons.favorite
+                  : Icons.favorite_border,
               size: 18,
             ),
           ),
@@ -233,7 +236,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                 value: GallerySortOrder.favoritesFirst,
                 child: Row(
                   children: [
-                    if (state.filter.sortOrder == GallerySortOrder.favoritesFirst)
+                    if (state.filter.sortOrder ==
+                        GallerySortOrder.favoritesFirst)
                       const Icon(Icons.check, size: 18)
                     else
                       const SizedBox(width: 18),
@@ -317,19 +321,27 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               isSelectionMode: state.isSelectionMode,
               onTap: () {
                 if (state.isSelectionMode) {
-                  ref.read(galleryNotifierProvider.notifier).toggleSelection(record.id);
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .toggleSelection(record.id);
                 } else {
                   _showFullscreen(context, record);
                 }
               },
               onLongPress: () {
                 if (!state.isSelectionMode) {
-                  ref.read(galleryNotifierProvider.notifier).enterSelectionMode();
-                  ref.read(galleryNotifierProvider.notifier).toggleSelection(record.id);
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .enterSelectionMode();
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .toggleSelection(record.id);
                 }
               },
               onFavoriteToggle: () {
-                ref.read(galleryNotifierProvider.notifier).toggleFavorite(record.id);
+                ref
+                    .read(galleryNotifierProvider.notifier)
+                    .toggleFavorite(record.id);
               },
             );
           },
@@ -360,13 +372,16 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           Text('已选择 ${state.selectedCount} 张'),
           const Spacer(),
           TextButton.icon(
-            onPressed: state.hasSelection ? () => _exportSelected(context, state) : null,
+            onPressed: state.hasSelection
+                ? () => _exportSelected(context, state)
+                : null,
             icon: const Icon(Icons.download),
             label: const Text('导出'),
           ),
           const SizedBox(width: 8),
           TextButton.icon(
-            onPressed: state.hasSelection ? () => _deleteSelected(context) : null,
+            onPressed:
+                state.hasSelection ? () => _deleteSelected(context) : null,
             icon: const Icon(Icons.delete),
             label: const Text('删除'),
             style: TextButton.styleFrom(
@@ -584,7 +599,9 @@ class _GalleryTile extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          record.isFavorite ? Icons.favorite : Icons.favorite_border,
+                          record.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
                           color: record.isFavorite ? Colors.red : Colors.white,
                           size: 18,
                         ),
@@ -710,7 +727,9 @@ class _FullscreenViewer extends ConsumerWidget {
               color: record.isFavorite ? Colors.red : Colors.white,
             ),
             onPressed: () {
-              ref.read(galleryNotifierProvider.notifier).toggleFavorite(record.id);
+              ref
+                  .read(galleryNotifierProvider.notifier)
+                  .toggleFavorite(record.id);
             },
             tooltip: '收藏',
           ),
@@ -790,7 +809,8 @@ class _FullscreenViewer extends ConsumerWidget {
                   _buildMetadataRow('分辨率', record.resolution),
                   _buildMetadataRow('步数', record.params.steps.toString()),
                   _buildMetadataRow('采样器', record.params.sampler),
-                  _buildMetadataRow('CFG Scale', record.params.scale.toString()),
+                  _buildMetadataRow(
+                      'CFG Scale', record.params.scale.toString()),
                   _buildMetadataRow('Seed', record.params.seed.toString()),
                   _buildMetadataRow('SMEA', record.params.smea ? '开启' : '关闭'),
                   _buildMetadataRow('生成时间', record.createdAt.toString()),
@@ -873,7 +893,9 @@ class _FullscreenViewer extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () {
-                ref.read(galleryNotifierProvider.notifier).deleteRecord(record.id);
+                ref
+                    .read(galleryNotifierProvider.notifier)
+                    .deleteRecord(record.id);
                 Navigator.pop(context); // 关闭对话框
                 Navigator.pop(context); // 返回画廊
               },

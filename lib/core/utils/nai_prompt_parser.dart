@@ -40,11 +40,16 @@ class NaiPromptParser {
       final char = prompt[i];
 
       // 跟踪括号深度
-      if (char == '{') braceDepth++;
-      else if (char == '}') braceDepth--;
-      else if (char == '[') bracketDepth++;
-      else if (char == ']') bracketDepth--;
-      else if (char == '(') parenDepth++;
+      if (char == '{') {
+        braceDepth++;
+      } else if (char == '}')
+        braceDepth--;
+      else if (char == '[')
+        bracketDepth++;
+      else if (char == ']')
+        bracketDepth--;
+      else if (char == '(')
+        parenDepth++;
       else if (char == ')') parenDepth--;
 
       // 检测双竖线语法 ||
@@ -56,7 +61,11 @@ class NaiPromptParser {
       }
 
       // 在顶层遇到逗号时分割
-      if (char == ',' && braceDepth == 0 && bracketDepth == 0 && parenDepth == 0 && !inPipe) {
+      if (char == ',' &&
+          braceDepth == 0 &&
+          bracketDepth == 0 &&
+          parenDepth == 0 &&
+          !inPipe) {
         final segment = buffer.toString().trim();
         if (segment.isNotEmpty) {
           segments.add(segment);
@@ -106,7 +115,8 @@ class NaiPromptParser {
     var processedText = text;
 
     // 1. 先处理 NAI 数值权重语法: weight::text::
-    final naiWeightMatch = RegExp(r'^(-?\d+\.?\d*)::(.+?)(?:::)?$').firstMatch(text);
+    final naiWeightMatch =
+        RegExp(r'^(-?\d+\.?\d*)::(.+?)(?:::)?$').firstMatch(text);
     if (naiWeightMatch != null) {
       final weightValue = double.tryParse(naiWeightMatch.group(1)!);
       if (weightValue != null) {
@@ -152,21 +162,26 @@ class NaiPromptParser {
     }
 
     // 计算有效的括号层数（取开闭括号的最小值）
-    final effectiveBraces = braceCount < closeBraceCount ? braceCount : closeBraceCount;
-    final effectiveBrackets = bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
+    final effectiveBraces =
+        braceCount < closeBraceCount ? braceCount : closeBraceCount;
+    final effectiveBrackets =
+        bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
 
     // 计算权重
     if (effectiveBraces > 0) {
       weight = 1.0 + (effectiveBraces * weightStep);
       // 移除括号
-      processedText = processedText.substring(effectiveBraces, processedText.length - effectiveBraces);
+      processedText = processedText.substring(
+          effectiveBraces, processedText.length - effectiveBraces);
     } else if (effectiveBrackets > 0) {
       weight = 1.0 - (effectiveBrackets * weightStep);
       // 移除括号
-      processedText = processedText.substring(effectiveBrackets, processedText.length - effectiveBrackets);
+      processedText = processedText.substring(
+          effectiveBrackets, processedText.length - effectiveBrackets);
     }
 
-    return _WeightResult(processedText.trim(), weight.clamp(PromptTag.minWeight, PromptTag.maxWeight));
+    return _WeightResult(processedText.trim(),
+        weight.clamp(PromptTag.minWeight, PromptTag.maxWeight));
   }
 
   /// 将标签列表转换回提示词文本
@@ -179,7 +194,8 @@ class NaiPromptParser {
   }
 
   /// 在指定位置插入新标签
-  static List<PromptTag> insertTag(List<PromptTag> tags, int index, String text) {
+  static List<PromptTag> insertTag(
+      List<PromptTag> tags, int index, String text) {
     final newTag = PromptTag.create(text: text.trim());
     final result = List<PromptTag>.from(tags);
     if (index < 0 || index > result.length) {
@@ -191,7 +207,8 @@ class NaiPromptParser {
   }
 
   /// 移动标签位置
-  static List<PromptTag> moveTag(List<PromptTag> tags, int oldIndex, int newIndex) {
+  static List<PromptTag> moveTag(
+      List<PromptTag> tags, int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= tags.length) return tags;
     if (newIndex < 0 || newIndex >= tags.length) return tags;
     if (oldIndex == newIndex) return tags;
@@ -203,7 +220,8 @@ class NaiPromptParser {
   }
 
   /// 更新标签
-  static List<PromptTag> updateTag(List<PromptTag> tags, String id, PromptTag newTag) {
+  static List<PromptTag> updateTag(
+      List<PromptTag> tags, String id, PromptTag newTag) {
     return tags.map((tag) => tag.id == id ? newTag : tag).toList();
   }
 
@@ -219,12 +237,16 @@ class NaiPromptParser {
 
   /// 增加标签权重
   static List<PromptTag> increaseTagWeight(List<PromptTag> tags, String id) {
-    return tags.map((tag) => tag.id == id ? tag.increaseWeight() : tag).toList();
+    return tags
+        .map((tag) => tag.id == id ? tag.increaseWeight() : tag)
+        .toList();
   }
 
   /// 减少标签权重
   static List<PromptTag> decreaseTagWeight(List<PromptTag> tags, String id) {
-    return tags.map((tag) => tag.id == id ? tag.decreaseWeight() : tag).toList();
+    return tags
+        .map((tag) => tag.id == id ? tag.decreaseWeight() : tag)
+        .toList();
   }
 }
 
@@ -235,4 +257,3 @@ class _WeightResult {
 
   _WeightResult(this.text, this.weight);
 }
-

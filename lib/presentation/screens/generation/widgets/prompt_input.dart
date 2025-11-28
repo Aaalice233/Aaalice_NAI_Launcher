@@ -8,9 +8,10 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
-import '../../../widgets/prompt/prompt_tag_view.dart';
+import '../../../widgets/prompt/tag_view.dart';
 
 /// 视图模式
 enum PromptViewMode {
@@ -34,7 +35,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   final _promptFocusNode = FocusNode();
   final _negativeFocusNode = FocusNode();
 
-  bool _showNegative = false;
   bool _isPromptFocused = false;
   bool _isNegativeFocused = false;
 
@@ -42,6 +42,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   PromptViewMode _viewMode = PromptViewMode.text;
   List<PromptTag> _promptTags = [];
   List<PromptTag> _negativeTags = [];
+
+  // 正面/负面切换
+  bool _isNegativeMode = false;
 
   @override
   void initState() {
@@ -107,7 +110,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     });
     // 同步到 provider
     final promptText = NaiPromptParser.toPromptString(tags);
-    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(promptText);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updatePrompt(promptText);
   }
 
   void _onNegativeTagsChanged(List<PromptTag> tags) {
@@ -138,12 +143,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     _promptTags = NaiPromptParser.parse(prompt);
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(prompt);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已生成随机提示词'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    AppToast.success(context, '已生成随机提示词');
   }
 
   void _clearPrompt() {
@@ -169,36 +169,212 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 视图切换标签栏
-        _buildViewModeToggle(theme),
+        // 顶栏：正面/负面切换 + 操作按钮
+        _buildTopBar(theme),
 
         const SizedBox(height: 8),
 
-        // 正向提示词区域
-        _viewMode == PromptViewMode.text
-            ? _buildTextPromptInput(theme)
-            : _buildTagPromptView(theme),
-
-        const SizedBox(height: 8),
-
-        // 展开/折叠负向提示词 + 操作按钮
-        _buildActionBar(theme),
-
-        // 负向提示词 (可折叠)
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 200),
-          crossFadeState:
-              _showNegative ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-          firstChild: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: _viewMode == PromptViewMode.text
-                ? _buildTextNegativeInput(theme)
-                : _buildTagNegativeView(theme),
-          ),
-          secondChild: const SizedBox.shrink(),
+        // 提示词编辑区域
+        Expanded(
+          child: _isNegativeMode
+              ? (_viewMode == PromptViewMode.text
+                  ? _buildTextNegativeInput(theme)
+                  : _buildTagNegativeView(theme))
+              : (_viewMode == PromptViewMode.text
+                  ? _buildTextPromptInput(theme)
+                  : _buildTagPromptView(theme)),
         ),
       ],
     );
+  }
+
+  Widget _buildTopBar(ThemeData theme) {
+    final promptCount = _viewMode == PromptViewMode.tags
+        ? _promptTags.length
+        : _promptController.text
+            .split(',')
+            .where((s) => s.trim().isNotEmpty)
+            .length;
+    final negativeCount = _viewMode == PromptViewMode.tags
+        ? _negativeTags.length
+        : _negativeController.text
+            .split(',')
+            .where((s) => s.trim().isNotEmpty)
+            .length;
+
+    return Row(
+      children: [
+        // 正面/负面切换标签
+        _buildPromptTypeSwitch(theme, promptCount, negativeCount),
+
+        const Spacer(),
+
+        // 标签数量显示
+        if (_viewMode == PromptViewMode.tags)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              '${_isNegativeMode ? negativeCount : promptCount} 个标签',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+
+        // 视图模式切换
+        _buildViewModeSwitch(theme),
+
+        const SizedBox(width: 4),
+
+        // 随机按钮
+        GestureDetector(
+          onLongPress: () => context.push(AppRoutes.promptConfig),
+          child: IconButton(
+            icon: Icon(
+              Icons.casino_outlined,
+              size: 20,
+              color: theme.colorScheme.primary,
+            ),
+            tooltip: '随机提示词 (长按配置)',
+            onPressed: _generateRandomPrompt,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+
+        // 全屏按钮
+        IconButton(
+          icon: Icon(
+            Icons.fullscreen,
+            size: 20,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+          tooltip: '全屏编辑',
+          onPressed: _openFullScreenEditor,
+          visualDensity: VisualDensity.compact,
+        ),
+
+        // 清空按钮
+        IconButton(
+          icon: Icon(
+            Icons.clear,
+            size: 20,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+          tooltip: '清空',
+          onPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPromptTypeSwitch(
+      ThemeData theme, int promptCount, int negativeCount) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 正面提示词
+          _buildPromptTypeTab(
+            theme,
+            label: '正面',
+            count: promptCount,
+            isSelected: !_isNegativeMode,
+            onTap: () => setState(() => _isNegativeMode = false),
+          ),
+          const SizedBox(width: 2),
+          // 负面提示词
+          _buildPromptTypeTab(
+            theme,
+            label: '负面',
+            count: negativeCount,
+            isSelected: _isNegativeMode,
+            isNegative: true,
+            onTap: () => setState(() => _isNegativeMode = true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPromptTypeTab(
+    ThemeData theme, {
+    required String label,
+    required int count,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool isNegative = false,
+  }) {
+    final color =
+        isNegative ? theme.colorScheme.error : theme.colorScheme.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: isSelected
+              ? Border.all(color: color.withOpacity(0.3), width: 1)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected
+                    ? color
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? color.withOpacity(0.2)
+                      : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? color
+                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _clearNegative() {
+    _negativeController.clear();
+    setState(() {
+      _negativeTags = [];
+    });
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateNegativePrompt('');
   }
 
   Widget _buildViewModeToggle(ThemeData theme) {
@@ -316,42 +492,32 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildTextPromptInput(ThemeData theme) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: _isPromptFocused ? 300 : 120,
+    return AutocompleteTextField(
+      controller: _promptController,
+      focusNode: _promptFocusNode,
+      config: const AutocompleteConfig(
+        maxSuggestions: 20,
+        showTranslation: true,
+        showCategory: true,
+        showCount: true,
+        autoInsertComma: true,
       ),
-      child: AutocompleteTextField(
-        controller: _promptController,
-        focusNode: _promptFocusNode,
-        config: const AutocompleteConfig(
-          maxSuggestions: 20,
-          showTranslation: true,
-          showCategory: true,
-          showCount: true,
-          autoInsertComma: true,
+      decoration: InputDecoration(
+        hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        decoration: InputDecoration(
-          labelText: '提示词 (Prompt)',
-          hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        maxLines: null,
-        minLines: _isPromptFocused ? 4 : 2,
-        onChanged: (value) {
-          ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
-        },
       ),
+      maxLines: null,
+      expands: true,
+      onChanged: (value) {
+        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
+      },
     );
   }
 
   Widget _buildTagPromptView(ThemeData theme) {
     return Container(
-      constraints: const BoxConstraints(
-        minHeight: 100,
-        maxHeight: 220,
-      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -366,53 +532,42 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           color: theme.colorScheme.outline.withOpacity(0.15),
         ),
       ),
-      child: PromptTagView(
+      child: TagView(
         tags: _promptTags,
         onTagsChanged: _onPromptTagsChanged,
         emptyHint: '添加标签来描述你想要的画面',
-        maxHeight: 220,
       ),
     );
   }
 
   Widget _buildTextNegativeInput(ThemeData theme) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: _isNegativeFocused ? 200 : 80,
+    return AutocompleteTextField(
+      controller: _negativeController,
+      focusNode: _negativeFocusNode,
+      config: const AutocompleteConfig(
+        maxSuggestions: 15,
+        showTranslation: true,
+        showCategory: false,
+        autoInsertComma: true,
       ),
-      child: AutocompleteTextField(
-        controller: _negativeController,
-        focusNode: _negativeFocusNode,
-        config: const AutocompleteConfig(
-          maxSuggestions: 15,
-          showTranslation: true,
-          showCategory: false,
-          autoInsertComma: true,
+      decoration: InputDecoration(
+        hintText: '不想出现在图像中的内容...',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        decoration: InputDecoration(
-          labelText: '负向提示词 (Undesired Content)',
-          hintText: '不想出现在图像中的内容...',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        maxLines: null,
-        minLines: _isNegativeFocused ? 2 : 1,
-        onChanged: (value) {
-          ref
-              .read(generationParamsNotifierProvider.notifier)
-              .updateNegativePrompt(value);
-        },
       ),
+      maxLines: null,
+      expands: true,
+      onChanged: (value) {
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNegativePrompt(value);
+      },
     );
   }
 
   Widget _buildTagNegativeView(ThemeData theme) {
     return Container(
-      constraints: const BoxConstraints(
-        minHeight: 60,
-        maxHeight: 150,
-      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -427,117 +582,78 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           color: theme.colorScheme.error.withOpacity(0.1),
         ),
       ),
-      child: PromptTagView(
+      child: TagView(
         tags: _negativeTags,
         onTagsChanged: _onNegativeTagsChanged,
         emptyHint: '添加不想出现的元素',
-        maxHeight: 150,
         compact: true,
       ),
     );
   }
 
-  Widget _buildActionBar(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          // 左侧：负向提示词折叠按钮
-          InkWell(
-            onTap: () {
-              setState(() {
-                _showNegative = !_showNegative;
-              });
-            },
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _showNegative
-                        ? Icons.keyboard_arrow_down
-                        : Icons.keyboard_arrow_right,
-                    size: 20,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '负向提示词',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                  if (_negativeTags.isNotEmpty || _negativeController.text.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(left: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        _viewMode == PromptViewMode.tags
-                            ? '${_negativeTags.length}'
-                            : '${_negativeController.text.split(',').where((s) => s.trim().isNotEmpty).length}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.colorScheme.onSecondaryContainer,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+  /// 小巧的视图模式切换开关
+  Widget _buildViewModeSwitch(ThemeData theme) {
+    final isTagMode = _viewMode == PromptViewMode.tags;
+
+    return Tooltip(
+      message: isTagMode ? '切换到文本模式' : '切换到标签模式',
+      child: GestureDetector(
+        onTap: _toggleViewMode,
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.15),
             ),
           ),
-          const Spacer(),
-          // 右侧：操作按钮
-          // 显示标签数量
-          if (_viewMode == PromptViewMode.tags && _promptTags.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '${_promptTags.length} 个标签',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 文本模式图标
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: !isTagMode
+                      ? theme.colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  Icons.text_fields_rounded,
+                  size: 14,
+                  color: !isTagMode
+                      ? Colors.white
+                      : theme.colorScheme.onSurface.withOpacity(0.5),
                 ),
               ),
-            ),
-          GestureDetector(
-            onLongPress: () => context.push(AppRoutes.promptConfig),
-            child: IconButton(
-              icon: Icon(
-                Icons.casino_outlined,
-                size: 20,
-                color: theme.colorScheme.primary,
+              const SizedBox(width: 2),
+              // 标签模式图标
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: isTagMode
+                      ? theme.colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 14,
+                  color: isTagMode
+                      ? Colors.white
+                      : theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
               ),
-              tooltip: '随机提示词 (长按配置)',
-              onPressed: _generateRandomPrompt,
-              visualDensity: VisualDensity.compact,
-            ),
+            ],
           ),
-          IconButton(
-            icon: Icon(
-              Icons.fullscreen,
-              size: 20,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-            tooltip: '全屏编辑',
-            onPressed: _openFullScreenEditor,
-            visualDensity: VisualDensity.compact,
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.clear,
-              size: 20,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-            tooltip: '清空',
-            onPressed: _clearPrompt,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -622,7 +738,8 @@ class _FullScreenPromptEditorState
         _viewMode = PromptViewMode.tags;
       } else {
         _promptController.text = NaiPromptParser.toPromptString(_promptTags);
-        _negativeController.text = NaiPromptParser.toPromptString(_negativeTags);
+        _negativeController.text =
+            NaiPromptParser.toPromptString(_negativeTags);
         _viewMode = PromptViewMode.text;
       }
     });
@@ -701,7 +818,7 @@ class _FullScreenPromptEditorState
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: PromptTagView(
+                    child: TagView(
                       tags: _promptTags,
                       onTagsChanged: (tags) {
                         setState(() => _promptTags = tags);
@@ -757,14 +874,15 @@ class _FullScreenPromptEditorState
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: PromptTagView(
+                    child: TagView(
                       tags: _negativeTags,
                       onTagsChanged: (tags) {
                         setState(() => _negativeTags = tags);
                         ref
                             .read(generationParamsNotifierProvider.notifier)
                             .updateNegativePrompt(
-                                NaiPromptParser.toPromptString(tags));
+                              NaiPromptParser.toPromptString(tags),
+                            );
                       },
                     ),
                   ),

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -23,7 +22,8 @@ class AccountManagerState {
 
   /// 默认账号
   SavedAccount? get defaultAccount {
-    return accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+    return accounts.where((a) => a.isDefault).firstOrNull ??
+        accounts.firstOrNull;
   }
 
   AccountManagerState copyWith({

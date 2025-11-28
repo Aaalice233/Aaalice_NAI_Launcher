@@ -154,9 +154,8 @@ class NAIApiService {
 
     try {
       // 1. 处理种子
-      final seed = params.seed == -1
-          ? Random().nextInt(4294967295)
-          : params.seed;
+      final seed =
+          params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
       // 2. 构造基础参数 (参考 novelai-api Python 项目)
       // 注意：同时设置 negative_prompt 和 uc 字段（API 需要两者）
@@ -203,7 +202,8 @@ class NAIApiService {
             params.varietyPlus ? 19 : null;
 
         // V4 默认负向提示词 (当用户未指定时使用)
-        const defaultV4Uc = 'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]';
+        const defaultV4Uc =
+            'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]';
         final combinedUc = params.negativePrompt.isNotEmpty
             ? params.negativePrompt
             : defaultV4Uc;
@@ -230,7 +230,9 @@ class NAIApiService {
           }
 
           charCaptions.add({
-            'centers': [{'x': x, 'y': y}],
+            'centers': [
+              {'x': x, 'y': y}
+            ],
             'char_caption': char.prompt,
           });
 
@@ -271,22 +273,31 @@ class NAIApiService {
       }
 
       // 打印请求参数以便调试
-      AppLogger.d('Request parameters: model=${params.model}, isV4=${params.isV4Model}, ucPreset=${params.ucPreset}', 'API');
+      AppLogger.d(
+          'Request parameters: model=${params.model}, isV4=${params.isV4Model}, ucPreset=${params.ucPreset}',
+          'API');
 
       // 打印完整请求体（调试用）
       if (params.isV4Model) {
         AppLogger.d('V4 use_coords: ${requestParameters['use_coords']}', 'API');
-        AppLogger.d('V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}', 'API');
+        AppLogger.d(
+            'V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}',
+            'API');
         AppLogger.d('V4 legacy_uc: ${requestParameters['legacy_uc']}', 'API');
         AppLogger.d('V4 v4_prompt: ${requestParameters['v4_prompt']}', 'API');
-        AppLogger.d('V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}', 'API');
-        AppLogger.d('V4 characterPrompts: ${requestParameters['characterPrompts']}', 'API');
+        AppLogger.d(
+            'V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}',
+            'API');
+        AppLogger.d(
+            'V4 characterPrompts: ${requestParameters['characterPrompts']}',
+            'API');
         // 打印完整请求 JSON 以便与 Python SDK 对比
-        AppLogger.d('V4 FULL parameters JSON: ${jsonEncode(requestParameters)}', 'API');
+        AppLogger.d(
+            'V4 FULL parameters JSON: ${jsonEncode(requestParameters)}', 'API');
       }
 
       // 3. 根据模式添加额外参数
-      String action = params.action.value;
+      final String action = params.action.value;
 
       // img2img 模式
       if (params.action == ImageGenerationAction.img2img &&
@@ -306,16 +317,12 @@ class NAIApiService {
 
       // Vibe Transfer
       if (params.vibeReferences.isNotEmpty) {
-        requestParameters['reference_image_multiple'] = params.vibeReferences
-            .map((v) => base64Encode(v.image))
-            .toList();
-        requestParameters['reference_strength_multiple'] = params.vibeReferences
-            .map((v) => v.strength)
-            .toList();
+        requestParameters['reference_image_multiple'] =
+            params.vibeReferences.map((v) => base64Encode(v.image)).toList();
+        requestParameters['reference_strength_multiple'] =
+            params.vibeReferences.map((v) => v.strength).toList();
         requestParameters['reference_information_extracted_multiple'] =
-            params.vibeReferences
-                .map((v) => v.informationExtracted)
-                .toList();
+            params.vibeReferences.map((v) => v.informationExtracted).toList();
       }
 
       // 4. 构造请求数据
@@ -326,7 +333,9 @@ class NAIApiService {
         'parameters': requestParameters,
       };
 
-      AppLogger.d('Generating image with action: $action, model: ${params.model}', 'API');
+      AppLogger.d(
+          'Generating image with action: $action, model: ${params.model}',
+          'API');
 
       // 5. 发送请求
       final response = await _dio.post(
@@ -623,7 +632,8 @@ class NAIApiService {
 
   /// 提取姿态
   Future<Uint8List> extractPose(Uint8List image) async {
-    final result = await annotateImage(image, annotateType: annotateTypeOpOpenpose);
+    final result =
+        await annotateImage(image, annotateType: annotateTypeOpOpenpose);
     return result as Uint8List;
   }
 

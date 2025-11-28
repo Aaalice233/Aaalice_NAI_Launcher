@@ -7,10 +7,10 @@ import '../theme_extension.dart';
 class MotorolaBeeperStyle {
   MotorolaBeeperStyle._();
 
-  static const primaryColor = Color(0xFF212121);    // 近乎黑色的文字色
+  static const primaryColor = Color(0xFF212121); // 近乎黑色的文字色
   static const secondaryColor = Color(0xFF455A64); // 深灰蓝
   static const backgroundColor = Color(0xFF8FA38F); // 典型 LCD 背景色
-  static const surfaceColor = Color(0xFF809680);    // 稍深一点
+  static const surfaceColor = Color(0xFF809680); // 稍深一点
   static const cardColor = Color(0xFF809680);
 
   static ThemeData createTheme(Brightness brightness, String? fontFamily) {
@@ -54,8 +54,6 @@ class MotorolaBeeperStyle {
         onSecondary: Colors.white,
         onSurface: primaryColor,
         onError: Colors.white,
-        background: backgroundColor,
-        onBackground: primaryColor,
       ),
       extensions: [
         AppThemeExtension(
@@ -77,4 +75,3 @@ class MotorolaBeeperStyle {
     );
   }
 }
-

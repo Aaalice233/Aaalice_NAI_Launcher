@@ -150,8 +150,8 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
 
   void _addCharacter() {
     ref.read(generationParamsNotifierProvider.notifier).addCharacter(
-      const CharacterPrompt(prompt: ''),
-    );
+          const CharacterPrompt(prompt: ''),
+        );
   }
 
   void _removeCharacter(int index) {
@@ -159,7 +159,8 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
   }
 
   void _updateCharacter(int index, CharacterPrompt character) {
-    ref.read(generationParamsNotifierProvider.notifier)
+    ref
+        .read(generationParamsNotifierProvider.notifier)
         .updateCharacter(index, character);
   }
 
@@ -257,12 +258,11 @@ class _CharacterItemState extends State<_CharacterItem> {
                 const Spacer(),
                 IconButton(
                   icon: Icon(
-                    _showAdvanced
-                        ? Icons.expand_less
-                        : Icons.expand_more,
+                    _showAdvanced ? Icons.expand_less : Icons.expand_more,
                     size: 20,
                   ),
-                  onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
+                  onPressed: () =>
+                      setState(() => _showAdvanced = !_showAdvanced),
                   tooltip: '高级选项',
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
@@ -301,12 +301,14 @@ class _CharacterItemState extends State<_CharacterItem> {
                   minLines: 1,
                   style: theme.textTheme.bodySmall,
                   onChanged: (value) {
-                    widget.onUpdate(CharacterPrompt(
-                      prompt: value,
-                      negativePrompt: widget.character.negativePrompt,
-                      positionX: widget.character.positionX,
-                      positionY: widget.character.positionY,
-                    ));
+                    widget.onUpdate(
+                      CharacterPrompt(
+                        prompt: value,
+                        negativePrompt: widget.character.negativePrompt,
+                        positionX: widget.character.positionX,
+                        positionY: widget.character.positionY,
+                      ),
+                    );
                   },
                 ),
 
@@ -340,12 +342,14 @@ class _CharacterItemState extends State<_CharacterItem> {
                           minLines: 1,
                           style: theme.textTheme.bodySmall,
                           onChanged: (value) {
-                            widget.onUpdate(CharacterPrompt(
-                              prompt: widget.character.prompt,
-                              negativePrompt: value,
-                              positionX: widget.character.positionX,
-                              positionY: widget.character.positionY,
-                            ));
+                            widget.onUpdate(
+                              CharacterPrompt(
+                                prompt: widget.character.prompt,
+                                negativePrompt: value,
+                                positionX: widget.character.positionX,
+                                positionY: widget.character.positionY,
+                              ),
+                            );
                           },
                         ),
 
@@ -367,20 +371,26 @@ class _CharacterItemState extends State<_CharacterItem> {
                                 label: 'X',
                                 value: widget.character.positionX,
                                 onChanged: (value) {
-                                  widget.onUpdate(CharacterPrompt(
-                                    prompt: widget.character.prompt,
-                                    negativePrompt: widget.character.negativePrompt,
-                                    positionX: value,
-                                    positionY: widget.character.positionY,
-                                  ));
+                                  widget.onUpdate(
+                                    CharacterPrompt(
+                                      prompt: widget.character.prompt,
+                                      negativePrompt:
+                                          widget.character.negativePrompt,
+                                      positionX: value,
+                                      positionY: widget.character.positionY,
+                                    ),
+                                  );
                                 },
                                 onClear: () {
-                                  widget.onUpdate(CharacterPrompt(
-                                    prompt: widget.character.prompt,
-                                    negativePrompt: widget.character.negativePrompt,
-                                    positionX: null,
-                                    positionY: widget.character.positionY,
-                                  ));
+                                  widget.onUpdate(
+                                    CharacterPrompt(
+                                      prompt: widget.character.prompt,
+                                      negativePrompt:
+                                          widget.character.negativePrompt,
+                                      positionX: null,
+                                      positionY: widget.character.positionY,
+                                    ),
+                                  );
                                 },
                               ),
                             ),
@@ -390,20 +400,26 @@ class _CharacterItemState extends State<_CharacterItem> {
                                 label: 'Y',
                                 value: widget.character.positionY,
                                 onChanged: (value) {
-                                  widget.onUpdate(CharacterPrompt(
-                                    prompt: widget.character.prompt,
-                                    negativePrompt: widget.character.negativePrompt,
-                                    positionX: widget.character.positionX,
-                                    positionY: value,
-                                  ));
+                                  widget.onUpdate(
+                                    CharacterPrompt(
+                                      prompt: widget.character.prompt,
+                                      negativePrompt:
+                                          widget.character.negativePrompt,
+                                      positionX: widget.character.positionX,
+                                      positionY: value,
+                                    ),
+                                  );
                                 },
                                 onClear: () {
-                                  widget.onUpdate(CharacterPrompt(
-                                    prompt: widget.character.prompt,
-                                    negativePrompt: widget.character.negativePrompt,
-                                    positionX: widget.character.positionX,
-                                    positionY: null,
-                                  ));
+                                  widget.onUpdate(
+                                    CharacterPrompt(
+                                      prompt: widget.character.prompt,
+                                      negativePrompt:
+                                          widget.character.negativePrompt,
+                                      positionX: widget.character.positionX,
+                                      positionY: null,
+                                    ),
+                                  );
                                 },
                               ),
                             ),

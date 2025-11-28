@@ -185,7 +185,9 @@ Future<List<FontConfig>> systemFontList(Ref ref) async {
 
   // 按名称排序
   fontConfigs.sort(
-      (a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+    (a, b) =>
+        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+  );
 
   return fontConfigs;
 }

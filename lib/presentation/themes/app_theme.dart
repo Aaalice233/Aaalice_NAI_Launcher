@@ -75,10 +75,28 @@ class AppTheme {
       AppStyle.pureLight => PureLightStyle.createTheme(brightness, font),
     };
 
-    // 应用自定义字体
+    // 应用自定义字体和统一的 Tooltip 样式
     return baseTheme.copyWith(
       textTheme: baseTheme.textTheme.apply(fontFamily: font),
       primaryTextTheme: baseTheme.primaryTextTheme.apply(fontFamily: font),
+      // 统一的紧凑 Tooltip 样式
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: baseTheme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: baseTheme.dividerColor,
+            width: 1,
+          ),
+        ),
+        textStyle: TextStyle(
+          color: baseTheme.colorScheme.onSurface.withOpacity(0.8),
+          fontSize: 12,
+          fontFamily: font,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        waitDuration: const Duration(milliseconds: 500),
+      ),
     );
   }
 }

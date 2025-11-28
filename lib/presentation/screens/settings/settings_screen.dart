@@ -83,7 +83,8 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.language),
             title: const Text('语言'),
-            subtitle: Text(currentLocale.languageCode == 'zh' ? '中文' : 'English'),
+            subtitle:
+                Text(currentLocale.languageCode == 'zh' ? '中文' : 'English'),
             onTap: () => _showLanguageDialog(context, ref, currentLocale),
           ),
           const Divider(),
@@ -116,10 +117,10 @@ class SettingsScreen extends ConsumerWidget {
 
           // 关于
           _buildSectionHeader(theme, '关于'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('NAI Launcher'),
-            subtitle: const Text('版本 1.0.0'),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('NAI Launcher'),
+            subtitle: Text('版本 1.0.0'),
           ),
           ListTile(
             leading: const Icon(Icons.code),
@@ -236,7 +237,8 @@ class SettingsScreen extends ConsumerWidget {
                 width: 500,
                 height: 600,
                 child: allFontsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Center(child: Text('加载失败: $err')),
                   data: (fontGroups) {
                     return ListView.builder(
@@ -253,10 +255,14 @@ class SettingsScreen extends ConsumerWidget {
                               padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
                               child: Text(
                                 '$groupName (${fonts.length})',
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
                             ),
                             // 字体列表
@@ -264,7 +270,9 @@ class SettingsScreen extends ConsumerWidget {
                               final isSelected = font == currentFont;
                               return InkWell(
                                 onTap: () {
-                                  ref.read(fontNotifierProvider.notifier).setFont(font);
+                                  ref
+                                      .read(fontNotifierProvider.notifier)
+                                      .setFont(font);
                                   Navigator.pop(dialogContext);
                                 },
                                 child: Container(
@@ -274,7 +282,9 @@ class SettingsScreen extends ConsumerWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? Theme.of(context).colorScheme.primaryContainer
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
                                         : null,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -285,7 +295,10 @@ class SettingsScreen extends ConsumerWidget {
                                         groupValue: currentFont,
                                         onChanged: (value) {
                                           if (value != null) {
-                                            ref.read(fontNotifierProvider.notifier).setFont(value);
+                                            ref
+                                                .read(fontNotifierProvider
+                                                    .notifier)
+                                                .setFont(value);
                                             Navigator.pop(dialogContext);
                                           }
                                         },
@@ -314,7 +327,8 @@ class SettingsScreen extends ConsumerWidget {
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .secondaryContainer,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                           child: Text(
                                             'Google',
@@ -328,10 +342,13 @@ class SettingsScreen extends ConsumerWidget {
                                         ),
                                       if (isSelected)
                                         Padding(
-                                          padding: const EdgeInsets.only(left: 8),
+                                          padding:
+                                              const EdgeInsets.only(left: 8),
                                           child: Icon(
                                             Icons.check,
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
                                             size: 20,
                                           ),
                                         ),

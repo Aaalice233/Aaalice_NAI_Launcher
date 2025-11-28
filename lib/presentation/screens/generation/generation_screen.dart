@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/image_generation_provider.dart';
 import 'desktop_layout.dart';
 import 'mobile_layout.dart';
 

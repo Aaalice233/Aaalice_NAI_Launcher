@@ -28,6 +28,9 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
   /// 最小行数
   final int? minLines;
 
+  /// 是否扩展填满可用空间
+  final bool expands;
+
   /// 文本样式
   final TextStyle? style;
 
@@ -50,6 +53,7 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
     this.decoration,
     this.maxLines,
     this.minLines,
+    this.expands = false,
     this.style,
     this.onChanged,
     this.onSubmitted,
@@ -78,6 +82,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_onFocusChanged);
+    // 设置键盘事件拦截器
+    _focusNode.onKeyEvent = _handleKeyEvent;
     widget.controller.addListener(_onTextChanged);
   }
 
@@ -349,19 +355,21 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     _hideSuggestions();
   }
 
-  void _handleKeyEvent(KeyEvent event) {
-    if (!_showSuggestions) return;
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (!_showSuggestions) return KeyEventResult.ignored;
 
     final suggestions = _autocompleteController?.suggestions ?? [];
-    if (suggestions.isEmpty) return;
+    if (suggestions.isEmpty) return KeyEventResult.ignored;
 
-    if (event is KeyDownEvent) {
+    // 处理 KeyDownEvent 和 KeyRepeatEvent（长按）
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         setState(() {
           _selectedIndex = (_selectedIndex + 1) % suggestions.length;
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();
+        return KeyEventResult.handled; // 阻止事件传递到 TextField
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
           _selectedIndex = _selectedIndex <= 0
@@ -370,15 +378,21 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();
+        return KeyEventResult.handled; // 阻止事件传递到 TextField
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.tab) {
-        if (_selectedIndex >= 0 && _selectedIndex < suggestions.length) {
+        if (event is KeyDownEvent && _selectedIndex >= 0 && _selectedIndex < suggestions.length) {
           _selectSuggestion(suggestions[_selectedIndex]);
         }
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-        _hideSuggestions();
+        if (event is KeyDownEvent) {
+          _hideSuggestions();
+        }
+        return KeyEventResult.handled;
       }
     }
+    return KeyEventResult.ignored;
   }
 
   void _scrollToSelected() {
@@ -407,18 +421,16 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   Widget build(BuildContext context) {
     return CompositedTransformTarget(
       link: _layerLink,
-      child: KeyboardListener(
-        focusNode: FocusNode(),
-        onKeyEvent: _handleKeyEvent,
-        child: TextField(
-          controller: widget.controller,
-          focusNode: _focusNode,
-          decoration: widget.decoration,
-          maxLines: widget.maxLines,
-          minLines: widget.minLines,
-          style: widget.style,
-          onSubmitted: widget.onSubmitted,
-        ),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        decoration: widget.decoration,
+        maxLines: widget.expands ? null : widget.maxLines,
+        minLines: widget.expands ? null : widget.minLines,
+        expands: widget.expands,
+        textAlignVertical: widget.expands ? TextAlignVertical.top : null,
+        style: widget.style,
+        onSubmitted: widget.onSubmitted,
       ),
     );
   }

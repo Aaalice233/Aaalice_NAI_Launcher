@@ -3,7 +3,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/storage/secure_storage_service.dart';
 import '../../data/datasources/remote/nai_api_service.dart';
-import '../../data/models/auth/auth_token.dart';
 
 part 'auth_provider.g.dart';
 

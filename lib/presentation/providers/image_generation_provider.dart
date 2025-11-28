@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/storage/local_storage_service.dart';
@@ -328,14 +327,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 更新 Vibe 参考图配置
-  void updateVibeReference(int index, {double? strength, double? informationExtracted}) {
+  void updateVibeReference(int index,
+      {double? strength, double? informationExtracted}) {
     if (index < 0 || index >= state.vibeReferences.length) return;
     final newList = [...state.vibeReferences];
     final current = newList[index];
     newList[index] = VibeReference(
       image: current.image,
       strength: strength ?? current.strength,
-      informationExtracted: informationExtracted ?? current.informationExtracted,
+      informationExtracted:
+          informationExtracted ?? current.informationExtracted,
     );
     state = state.copyWith(vibeReferences: newList);
   }

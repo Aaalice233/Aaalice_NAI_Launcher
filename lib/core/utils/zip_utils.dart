@@ -36,7 +36,9 @@ class ZipUtils {
       for (final file in archive.files) {
         if (file.isFile) {
           final name = file.name.toLowerCase();
-          if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+          if (name.endsWith('.png') ||
+              name.endsWith('.jpg') ||
+              name.endsWith('.jpeg')) {
             images.add(Uint8List.fromList(file.content as List<int>));
           }
         }
@@ -49,7 +51,8 @@ class ZipUtils {
   }
 
   /// 从 ZIP 中提取图片及其文件名
-  static List<({String name, Uint8List data})> extractImagesWithNames(Uint8List zipBytes) {
+  static List<({String name, Uint8List data})> extractImagesWithNames(
+      Uint8List zipBytes) {
     final results = <({String name, Uint8List data})>[];
 
     try {
@@ -58,11 +61,15 @@ class ZipUtils {
       for (final file in archive.files) {
         if (file.isFile) {
           final name = file.name.toLowerCase();
-          if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
-            results.add((
-              name: file.name,
-              data: Uint8List.fromList(file.content as List<int>),
-            ));
+          if (name.endsWith('.png') ||
+              name.endsWith('.jpg') ||
+              name.endsWith('.jpeg')) {
+            results.add(
+              (
+                name: file.name,
+                data: Uint8List.fromList(file.content as List<int>),
+              ),
+            );
           }
         }
       }
