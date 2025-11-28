@@ -6,11 +6,113 @@ enum ToastType {
   error,
   warning,
   info,
+  progress,
+}
+
+/// Toast 控制器接口，用于控制持久化 Toast（如进度条）
+abstract class ToastController {
+  /// 更新进度
+  /// [progress] 0.0-1.0，null 表示不确定进度
+  void updateProgress(double? progress, {String? message, String? subtitle});
+
+  /// 完成，变为 success 并自动消失
+  void complete({String? message});
+
+  /// 失败，变为 error 并自动消失
+  void fail({String? message});
+
+  /// 直接关闭
+  void dismiss();
+}
+
+/// 真实的 Toast 控制器实现
+class _RealToastController implements ToastController {
+  final _ProgressToastWidgetState _state;
+
+  _RealToastController._(this._state);
+
+  @override
+  void updateProgress(double? progress, {String? message, String? subtitle}) {
+    _state._updateProgress(progress, message: message, subtitle: subtitle);
+  }
+
+  @override
+  void complete({String? message}) {
+    _state._complete(message: message);
+  }
+
+  @override
+  void fail({String? message}) {
+    _state._fail(message: message);
+  }
+
+  @override
+  void dismiss() {
+    _state._dismiss();
+  }
+}
+
+/// 代理控制器，允许在真实控制器创建前就返回
+class _ProxyToastController implements ToastController {
+  ToastController? _real;
+  final List<void Function(ToastController)> _pendingCalls = [];
+
+  void _setReal(ToastController real) {
+    _real = real;
+    for (final call in _pendingCalls) {
+      call(real);
+    }
+    _pendingCalls.clear();
+  }
+
+  void _enqueue(void Function(ToastController) call) {
+    if (_real != null) {
+      call(_real!);
+    } else {
+      _pendingCalls.add(call);
+    }
+  }
+
+  @override
+  void updateProgress(double? progress, {String? message, String? subtitle}) {
+    _enqueue((c) => c.updateProgress(progress, message: message, subtitle: subtitle));
+  }
+
+  @override
+  void complete({String? message}) {
+    _enqueue((c) => c.complete(message: message));
+  }
+
+  @override
+  void fail({String? message}) {
+    _enqueue((c) => c.fail(message: message));
+  }
+
+  @override
+  void dismiss() {
+    _enqueue((c) => c.dismiss());
+  }
+}
+
+/// 空操作控制器，当没有 Overlay 时使用
+class _NoOpToastController implements ToastController {
+  @override
+  void updateProgress(double? progress, {String? message, String? subtitle}) {}
+
+  @override
+  void complete({String? message}) {}
+
+  @override
+  void fail({String? message}) {}
+
+  @override
+  void dismiss() {}
 }
 
 /// 全局 Toast 通知服务
 class AppToast {
   static OverlayEntry? _currentEntry;
+  static OverlayEntry? _progressEntry;
   static final List<_ToastData> _queue = [];
   static bool _isShowing = false;
 
@@ -32,6 +134,45 @@ class AppToast {
   /// 显示信息通知
   static void info(BuildContext context, String message) {
     _show(context, message, ToastType.info);
+  }
+
+  /// 显示持久化进度 Toast
+  /// 返回 ToastController 用于更新进度或关闭
+  /// [progress] 0.0-1.0，null 表示不确定进度
+  static ToastController showProgress(
+    BuildContext context,
+    String message, {
+    double? progress,
+    String? subtitle,
+  }) {
+    // 如果已有进度 Toast，先移除
+    _progressEntry?.remove();
+    _progressEntry = null;
+
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      // 如果没有 Overlay，返回一个空操作的控制器
+      return _NoOpToastController();
+    }
+
+    // 创建一个同步可用的控制器
+    final proxyController = _ProxyToastController();
+
+    _progressEntry = OverlayEntry(
+      builder: (context) => _ProgressToastWidget(
+        initialMessage: message,
+        initialProgress: progress,
+        initialSubtitle: subtitle,
+        onControllerCreated: (c) => proxyController._setReal(c),
+        onDismiss: () {
+          _progressEntry?.remove();
+          _progressEntry = null;
+        },
+      ),
+    );
+
+    overlay.insert(_progressEntry!);
+    return proxyController;
   }
 
   static void _show(BuildContext context, String message, ToastType type) {
@@ -76,6 +217,7 @@ class _ToastData {
   });
 }
 
+/// 普通 Toast Widget
 class _ToastWidget extends StatefulWidget {
   final String message;
   final ToastType type;
@@ -143,7 +285,7 @@ class _ToastWidgetState extends State<_ToastWidget>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (icon, color) = _getTypeStyle(theme);
+    final (icon, color) = _getTypeStyle(theme, widget.type);
 
     return Positioned(
       top: 16,
@@ -206,17 +348,258 @@ class _ToastWidgetState extends State<_ToastWidget>
       ),
     );
   }
+}
 
-  (IconData, Color) _getTypeStyle(ThemeData theme) {
-    switch (widget.type) {
-      case ToastType.success:
-        return (Icons.check_circle_outline, const Color(0xFF4CAF50));
-      case ToastType.error:
-        return (Icons.error_outline, theme.colorScheme.error);
-      case ToastType.warning:
-        return (Icons.warning_amber_outlined, const Color(0xFFFF9800));
-      case ToastType.info:
-        return (Icons.info_outline, theme.colorScheme.primary);
-    }
+/// 进度 Toast Widget（持久化，需要手动关闭）
+class _ProgressToastWidget extends StatefulWidget {
+  final String initialMessage;
+  final double? initialProgress;
+  final String? initialSubtitle;
+  final void Function(ToastController) onControllerCreated;
+  final VoidCallback onDismiss;
+
+  const _ProgressToastWidget({
+    required this.initialMessage,
+    required this.initialProgress,
+    required this.initialSubtitle,
+    required this.onControllerCreated,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_ProgressToastWidget> createState() => _ProgressToastWidgetState();
+}
+
+class _ProgressToastWidgetState extends State<_ProgressToastWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
+
+  late String _message;
+  double? _progress;
+  String? _subtitle;
+  ToastType _type = ToastType.progress;
+  bool _autoClose = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _message = widget.initialMessage;
+    _progress = widget.initialProgress;
+    _subtitle = widget.initialSubtitle;
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    ));
+
+    _controller.forward();
+
+    // 创建控制器
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onControllerCreated(_RealToastController._(this));
+    });
+  }
+
+  void _updateProgress(double? progress, {String? message, String? subtitle}) {
+    if (!mounted) return;
+    setState(() {
+      _progress = progress;
+      if (message != null) _message = message;
+      if (subtitle != null) _subtitle = subtitle;
+    });
+  }
+
+  void _complete({String? message}) {
+    if (!mounted) return;
+    setState(() {
+      _type = ToastType.success;
+      _progress = 1.0;
+      if (message != null) _message = message;
+      _autoClose = true;
+    });
+    Future.delayed(const Duration(seconds: 2), _dismiss);
+  }
+
+  void _fail({String? message}) {
+    if (!mounted) return;
+    setState(() {
+      _type = ToastType.error;
+      if (message != null) _message = message;
+      _autoClose = true;
+    });
+    Future.delayed(const Duration(seconds: 3), _dismiss);
+  }
+
+  void _dismiss() {
+    if (!mounted) return;
+    _controller.reverse().then((_) {
+      if (mounted) widget.onDismiss();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (icon, color) = _getTypeStyle(theme, _type);
+
+    return Positioned(
+      bottom: 16,
+      right: 16,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 360, minWidth: 240),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: color.withOpacity(0.5),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_type == ToastType.progress)
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: _progress != null
+                              ? CircularProgressIndicator(
+                                  value: _progress,
+                                  strokeWidth: 2,
+                                  color: color,
+                                )
+                              : CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: color,
+                                ),
+                        )
+                      else
+                        Icon(icon, color: color, size: 20),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                          _message,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (!_autoClose) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: _dismiss,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (_subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: Text(
+                        _subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_type == ToastType.progress && _progress != null) ...[
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _progress,
+                        backgroundColor: color.withOpacity(0.2),
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                        minHeight: 4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${(_progress! * 100).toInt()}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 获取类型对应的图标和颜色
+(IconData, Color) _getTypeStyle(ThemeData theme, ToastType type) {
+  switch (type) {
+    case ToastType.success:
+      return (Icons.check_circle_outline, const Color(0xFF4CAF50));
+    case ToastType.error:
+      return (Icons.error_outline, theme.colorScheme.error);
+    case ToastType.warning:
+      return (Icons.warning_amber_outlined, const Color(0xFFFF9800));
+    case ToastType.info:
+      return (Icons.info_outline, theme.colorScheme.primary);
+    case ToastType.progress:
+      return (Icons.hourglass_empty, theme.colorScheme.primary);
   }
 }

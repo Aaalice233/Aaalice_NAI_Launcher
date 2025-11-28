@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../data/models/gallery/generation_record.dart';
 import '../../providers/gallery_provider.dart';
+import '../../widgets/autocomplete/autocomplete.dart';
 
 /// 画廊页面
 class GalleryScreen extends ConsumerStatefulWidget {
@@ -134,10 +135,18 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: TextField(
+      child: AutocompleteTextField(
         controller: _searchController,
+        config: const AutocompleteConfig(
+          maxSuggestions: 15,
+          showTranslation: true,
+          showCategory: true,
+          showCount: true,
+          autoInsertComma: false, // 搜索不需要自动逗号
+          minQueryLength: 2,
+        ),
         decoration: InputDecoration(
-          hintText: '搜索提示词...',
+          hintText: '搜索提示词... (支持中英文标签)',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(

@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/services/tag_translation_service.dart';
 
 /// 标签芯片组件
 ///
-/// 显示带颜色的标签，支持点击
-class TagChip extends StatefulWidget {
+/// 显示带颜色的标签，支持点击和自动翻译
+class TagChip extends ConsumerStatefulWidget {
   final String tag;
   final Color? color;
   final VoidCallback? onTap;
   final String? translation;
+  final bool autoTranslate;
+  final int? category;
 
   const TagChip({
     super.key,
@@ -15,20 +20,55 @@ class TagChip extends StatefulWidget {
     this.color,
     this.onTap,
     this.translation,
+    this.autoTranslate = true,
+    this.category,
   });
 
   @override
-  State<TagChip> createState() => _TagChipState();
+  ConsumerState<TagChip> createState() => _TagChipState();
 }
 
-class _TagChipState extends State<TagChip> {
+class _TagChipState extends ConsumerState<TagChip> {
   bool _isHovering = false;
+  String? _autoTranslation;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoTranslate && widget.translation == null) {
+      _fetchTranslation();
+    }
+  }
+
+  @override
+  void didUpdateWidget(TagChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tag != widget.tag && widget.autoTranslate && widget.translation == null) {
+      _fetchTranslation();
+    }
+  }
+
+  void _fetchTranslation() {
+    final translationService = ref.read(tagTranslationServiceProvider);
+    final isCharacter = widget.category == 4;
+    _autoTranslation = translationService.translate(
+      widget.tag,
+      isCharacter: isCharacter,
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final displayText = widget.tag.replaceAll('_', ' ');
-    final chipColor = widget.color ?? theme.colorScheme.primary;
+    final chipColor = widget.color ?? 
+        (widget.category != null 
+            ? TagColors.fromCategory(widget.category!) 
+            : theme.colorScheme.primary);
+    final translationText = widget.translation ?? _autoTranslation;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -58,10 +98,10 @@ class _TagChipState extends State<TagChip> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (widget.translation != null) ...[
+              if (translationText != null) ...[
                 const SizedBox(width: 4),
                 Text(
-                  widget.translation!,
+                  translationText,
                   style: TextStyle(
                     fontSize: 10,
                     color: theme.colorScheme.onSurfaceVariant,
@@ -73,6 +113,46 @@ class _TagChipState extends State<TagChip> {
         ),
       ),
     );
+  }
+}
+
+/// 带 Tooltip 的标签芯片
+class TagChipWithTooltip extends StatelessWidget {
+  final String tag;
+  final Color? color;
+  final VoidCallback? onTap;
+  final String? translation;
+  final int? category;
+  final String? tooltipMessage;
+
+  const TagChipWithTooltip({
+    super.key,
+    required this.tag,
+    this.color,
+    this.onTap,
+    this.translation,
+    this.category,
+    this.tooltipMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final chip = TagChip(
+      tag: tag,
+      color: color,
+      onTap: onTap,
+      translation: translation,
+      category: category,
+    );
+
+    if (tooltipMessage != null) {
+      return Tooltip(
+        message: tooltipMessage!,
+        child: chip,
+      );
+    }
+
+    return chip;
   }
 }
 
@@ -104,5 +184,20 @@ class TagColors {
         return general;
     }
   }
-}
 
+  /// 根据分类名称获取颜色
+  static Color fromCategoryName(String categoryName) {
+    switch (categoryName.toLowerCase()) {
+      case 'artist':
+        return artist;
+      case 'copyright':
+        return copyright;
+      case 'character':
+        return character;
+      case 'meta':
+        return meta;
+      default:
+        return general;
+    }
+  }
+}

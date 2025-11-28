@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/download_progress_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
@@ -122,10 +123,46 @@ GoRouter appRouter(Ref ref) {
 }
 
 /// 主布局 Shell - 包含导航
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerStatefulWidget {
   final Widget child;
 
   const MainShell({super.key, required this.child});
+
+  @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 在 Overlay 可用后初始化下载服务
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeDownloadServices();
+    });
+  }
+
+  void _initializeDownloadServices() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    // 现在 Overlay 已经准备好了，可以安全地初始化下载服务
+    final downloadNotifier = ref.read(downloadProgressNotifierProvider.notifier);
+    
+    if (mounted) {
+      downloadNotifier.setContext(context);
+    }
+
+    // 后台初始化标签数据
+    await downloadNotifier.initializeTagData();
+    
+    // 下载共现标签数据（100MB）
+    if (mounted) {
+      downloadNotifier.downloadCooccurrenceData();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,11 +170,11 @@ class MainShell extends StatelessWidget {
       builder: (context, constraints) {
         // 桌面端：使用侧边导航
         if (constraints.maxWidth >= 800) {
-          return DesktopShell(child: child);
+          return DesktopShell(child: widget.child);
         }
 
         // 移动端：使用底部导航
-        return MobileShell(child: child);
+        return MobileShell(child: widget.child);
       },
     );
   }
