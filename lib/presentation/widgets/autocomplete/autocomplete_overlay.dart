@@ -12,6 +12,7 @@ class AutocompleteOverlay extends StatelessWidget {
   final AutocompleteConfig config;
   final bool isLoading;
   final ScrollController? scrollController;
+  final String languageCode;
 
   const AutocompleteOverlay({
     super.key,
@@ -21,6 +22,7 @@ class AutocompleteOverlay extends StatelessWidget {
     required this.config,
     this.isLoading = false,
     this.scrollController,
+    this.languageCode = 'zh',
   });
 
   @override
@@ -74,6 +76,7 @@ class AutocompleteOverlay extends StatelessWidget {
                       isSelected: index == selectedIndex,
                       onTap: () => onSelect(tag),
                       config: config,
+                      languageCode: languageCode,
                     );
                   },
                 ),

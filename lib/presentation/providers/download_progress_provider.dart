@@ -110,19 +110,28 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
     if (tagService.isInitialized) return;
 
-    // 添加下载任务
-    _addTask('tags', '标签数据');
+    bool isDownloading = false;
 
-    // 设置下载进度回调
+    // 设置下载进度回调（只有真正下载时才会被调用）
     tagService.onDownloadProgress = (fileName, progress, message) {
+      if (!isDownloading) {
+        // 第一次回调，说明需要下载，添加任务
+        isDownloading = true;
+        _addTask('tags', '标签数据');
+      }
       _updateTaskProgress('tags', progress, message: message);
     };
 
     try {
       await tagService.initialize();
-      _completeTask('tags');
+      // 只有真正下载了才显示完成提示
+      if (isDownloading) {
+        _completeTask('tags');
+      }
     } catch (e) {
-      _failTask('tags', e.toString());
+      if (isDownloading) {
+        _failTask('tags', e.toString());
+      }
     }
   }
 
@@ -133,6 +142,13 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     if (cooccurrenceService.isLoaded) return true;
     if (cooccurrenceService.isDownloading) return false;
 
+    // 先尝试从缓存加载
+    final cacheLoaded = await cooccurrenceService.initialize();
+    if (cacheLoaded) {
+      return true; // 缓存已存在，无需下载
+    }
+
+    // 缓存不存在，需要下载
     // 添加下载任务
     _addTask('cooccurrence', '共现标签数据');
 

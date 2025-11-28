@@ -187,35 +187,20 @@ class ParameterPanel extends ConsumerWidget {
         // 种子
         _buildSectionTitle(theme, '种子'),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: ThemedInput(
-                controller: TextEditingController(text: params.seed == -1 ? '' : params.seed.toString())
-                  ..selection = TextSelection.fromPosition(
-                    TextPosition(offset: params.seed == -1 ? 0 : params.seed.toString().length),
-                  ),
-                hintText: '随机',
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  final seed = int.tryParse(value) ?? -1;
-                  // 避免循环更新导致的光标跳动问题 (此处简化处理)
-                  if (seed != params.seed) {
-                     ref.read(generationParamsNotifierProvider.notifier).updateSeed(seed);
-                  }
-                },
-              ),
+        ThemedInput(
+          controller: TextEditingController(text: params.seed == -1 ? '' : params.seed.toString())
+            ..selection = TextSelection.fromPosition(
+              TextPosition(offset: params.seed == -1 ? 0 : params.seed.toString().length),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: () {
-                ref.read(generationParamsNotifierProvider.notifier)
-                    .randomizeSeed();
-              },
-              icon: const Icon(Icons.casino),
-              tooltip: '随机种子',
-            ),
-          ],
+          hintText: '随机',
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            // 清空输入框时自动变成随机 (-1)
+            final seed = value.isEmpty ? -1 : (int.tryParse(value) ?? -1);
+            if (seed != params.seed) {
+               ref.read(generationParamsNotifierProvider.notifier).updateSeed(seed);
+            }
+          },
         ),
 
         const SizedBox(height: 16),

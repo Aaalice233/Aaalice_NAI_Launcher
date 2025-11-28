@@ -318,7 +318,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Flexible(
                     child: Text(
                       widget.message,
@@ -517,7 +517,7 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                         )
                       else
                         Icon(icon, color: color, size: 20),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Flexible(
                         child: Text(
                           _message,
@@ -592,14 +592,14 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
 (IconData, Color) _getTypeStyle(ThemeData theme, ToastType type) {
   switch (type) {
     case ToastType.success:
-      return (Icons.check_circle_outline, const Color(0xFF4CAF50));
+      return (Icons.check_circle_rounded, const Color(0xFF4CAF50));
     case ToastType.error:
-      return (Icons.error_outline, theme.colorScheme.error);
+      return (Icons.cancel_rounded, const Color(0xFFE53935));
     case ToastType.warning:
-      return (Icons.warning_amber_outlined, const Color(0xFFFF9800));
+      return (Icons.warning_rounded, const Color(0xFFFF9800));
     case ToastType.info:
-      return (Icons.info_outline, theme.colorScheme.primary);
+      return (Icons.info_rounded, const Color(0xFF2196F3));
     case ToastType.progress:
-      return (Icons.hourglass_empty, theme.colorScheme.primary);
+      return (Icons.hourglass_empty_rounded, theme.colorScheme.primary);
   }
 }

@@ -36,6 +36,9 @@ class _NAILauncherAppState extends ConsumerState<NAILauncherApp> {
     // 关联 TagDataService 到 TagTranslationService
     final tagDataService = ref.read(tagDataServiceProvider);
     translationService.setTagDataService(tagDataService);
+    
+    // 预初始化标签服务（构建搜索索引），避免首次点击输入框卡顿
+    tagDataService.initialize();
   }
 
   @override

@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/tag_data_service.dart';
+import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../data/models/tag/local_tag.dart';
+import '../../providers/locale_provider.dart';
+import '../common/app_toast.dart';
 import 'autocomplete_controller.dart';
 import 'autocomplete_overlay.dart';
 
@@ -61,7 +64,8 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
 
 class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   late FocusNode _focusNode;
-  late AutocompleteController _autocompleteController;
+  AutocompleteController? _autocompleteController;
+  bool _controllerInitialized = false;
 
   bool _showSuggestions = false;
   int _selectedIndex = -1;
@@ -80,7 +84,11 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _initAutocompleteController();
+    // 只初始化一次
+    if (!_controllerInitialized) {
+      _initAutocompleteController();
+      _controllerInitialized = true;
+    }
   }
 
   void _initAutocompleteController() {
@@ -91,7 +99,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
       maxSuggestions: widget.config.maxSuggestions,
       minQueryLength: widget.config.minQueryLength,
     );
-    _autocompleteController.addListener(_onSuggestionsChanged);
+    _autocompleteController!.addListener(_onSuggestionsChanged);
   }
 
   @override
@@ -99,8 +107,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     _removeOverlay();
     _focusNode.removeListener(_onFocusChanged);
     widget.controller.removeListener(_onTextChanged);
-    _autocompleteController.removeListener(_onSuggestionsChanged);
-    _autocompleteController.dispose();
+    _autocompleteController?.removeListener(_onSuggestionsChanged);
+    _autocompleteController?.dispose();
     _scrollController.dispose();
     if (widget.focusNode == null) {
       _focusNode.dispose();
@@ -111,6 +119,24 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
       _hideSuggestions();
+      // 失焦时格式化提示词（NAI 格式：下划线、补齐括号等）
+      _formatOnBlur();
+    }
+  }
+
+  /// 失焦时格式化提示词
+  void _formatOnBlur() {
+    final text = widget.controller.text;
+    if (text.isEmpty) return;
+
+    final formatted = NaiPromptFormatter.format(text);
+    if (formatted != text) {
+      widget.controller.text = formatted;
+      widget.onChanged?.call(formatted);
+      // 显示简短的格式化提示
+      if (mounted) {
+        AppToast.info(context, '已格式化');
+      }
     }
   }
 
@@ -124,18 +150,18 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     final currentTag = _getCurrentTag(text, cursorPosition);
 
     if (currentTag.isNotEmpty) {
-      _autocompleteController.search(currentTag);
+      _autocompleteController?.search(currentTag);
     } else {
-      _autocompleteController.clear();
+      _autocompleteController?.clear();
     }
 
     widget.onChanged?.call(text);
   }
 
   void _onSuggestionsChanged() {
-    if (_autocompleteController.hasSuggestions) {
+    if (_autocompleteController?.hasSuggestions ?? false) {
       _showSuggestionsOverlay();
-    } else if (!_autocompleteController.isLoading) {
+    } else if (!(_autocompleteController?.isLoading ?? false)) {
       _hideSuggestions();
     }
     setState(() {});
@@ -227,7 +253,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     });
 
     _removeOverlay();
-    _autocompleteController.clear();
+    _autocompleteController?.clear();
   }
 
   void _removeOverlay() {
@@ -238,6 +264,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   OverlayEntry _createOverlayEntry() {
     final renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
+    final locale = ref.read(localeNotifierProvider);
 
     return OverlayEntry(
       builder: (context) {
@@ -248,12 +275,13 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
             showWhenUnlinked: false,
             offset: Offset(0, size.height + 4),
             child: AutocompleteOverlay(
-              suggestions: _autocompleteController.suggestions,
+              suggestions: _autocompleteController?.suggestions ?? [],
               selectedIndex: _selectedIndex,
               onSelect: _selectSuggestion,
               config: widget.config,
-              isLoading: _autocompleteController.isLoading,
+              isLoading: _autocompleteController?.isLoading ?? false,
               scrollController: _scrollController,
+              languageCode: locale.languageCode,
             ),
           ),
         );
@@ -297,11 +325,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     final prefix = text.substring(0, tagStart);
     final suffix = text.substring(tagEnd);
 
-    // 格式化标签名
-    var tagName = suggestion.tag;
-    if (widget.config.replaceUnderscoreWithSpace) {
-      tagName = tagName.replaceAll('_', ' ');
-    }
+    // NAI 语法：保留下划线，不替换为空格
+    final tagName = suggestion.tag;
 
     // 添加前导空格（如果前面有内容）
     final needsLeadingSpace = prefix.isNotEmpty && !prefix.endsWith(' ');
@@ -327,7 +352,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   void _handleKeyEvent(KeyEvent event) {
     if (!_showSuggestions) return;
 
-    final suggestions = _autocompleteController.suggestions;
+    final suggestions = _autocompleteController?.suggestions ?? [];
     if (suggestions.isEmpty) return;
 
     if (event is KeyDownEvent) {

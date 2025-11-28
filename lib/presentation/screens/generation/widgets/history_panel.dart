@@ -6,52 +6,93 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/image_generation_provider.dart';
 
 /// 历史面板组件
-class HistoryPanel extends ConsumerWidget {
+class HistoryPanel extends ConsumerStatefulWidget {
   const HistoryPanel({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HistoryPanel> createState() => _HistoryPanelState();
+}
+
+class _HistoryPanelState extends ConsumerState<HistoryPanel> {
+  bool _isExpanded = true;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 标题栏
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '历史记录',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+        // 标题栏（可点击折叠）
+        InkWell(
+          onTap: () {
+            setState(() {
+              _isExpanded = !_isExpanded;
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(
+                  _isExpanded 
+                      ? Icons.keyboard_arrow_down 
+                      : Icons.keyboard_arrow_right,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
-              ),
-              if (state.history.isNotEmpty)
-                TextButton.icon(
-                  onPressed: () {
-                    _showClearDialog(context, ref);
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('清除'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                const SizedBox(width: 4),
+                Text(
+                  '历史记录',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-            ],
+                if (state.history.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${state.history.length}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                if (state.history.isNotEmpty && _isExpanded)
+                  TextButton.icon(
+                    onPressed: () {
+                      _showClearDialog(context, ref);
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('清除'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         const Divider(height: 1),
 
-        // 历史列表
-        Expanded(
-          child: state.history.isEmpty
-              ? _buildEmptyState(theme)
-              : _buildHistoryGrid(state.history),
-        ),
+        // 历史列表（可折叠）
+        if (_isExpanded)
+          Expanded(
+            child: state.history.isEmpty
+                ? _buildEmptyState(theme)
+                : _buildHistoryGrid(state.history),
+          )
+        else
+          const SizedBox.shrink(),
       ],
     );
   }

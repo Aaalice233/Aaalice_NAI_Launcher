@@ -18,10 +18,15 @@ class ImagePreviewWidget extends ConsumerWidget {
     final state = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: _buildContent(context, ref, state, theme),
+    // 使用 GestureDetector 吸收整个区域的点击事件，避免 Windows 系统提示音
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {}, // 空回调，仅吸收点击
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: _buildContent(context, ref, state, theme),
+        ),
       ),
     );
   }
