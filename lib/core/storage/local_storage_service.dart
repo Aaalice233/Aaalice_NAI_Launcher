@@ -38,7 +38,7 @@ class LocalStorageService {
 
   // ==================== Theme ====================
 
-  /// 获取主题类型索引
+  /// 获取风格类型索引
   int getThemeIndex() {
     return getSetting<int>(StorageKeys.themeType, defaultValue: 0) ?? 0;
   }

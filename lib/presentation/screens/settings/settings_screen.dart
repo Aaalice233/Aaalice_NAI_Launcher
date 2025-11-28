@@ -64,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
           // 主题选择
           ListTile(
             leading: const Icon(Icons.palette_outlined),
-            title: const Text('主题'),
+            title: const Text('风格'),
             subtitle: Text(currentTheme.displayName),
             onTap: () => _showThemeDialog(context, ref, currentTheme),
           ),
@@ -185,22 +185,22 @@ class SettingsScreen extends ConsumerWidget {
   void _showThemeDialog(
     BuildContext context,
     WidgetRef ref,
-    AppThemeType currentTheme,
+    AppStyle currentTheme,
   ) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('选择主题'),
+          title: const Text('选择风格'),
           content: SizedBox(
             width: 300,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: AppThemeType.values.map((type) {
-                return RadioListTile<AppThemeType>(
-                  title: Text(type.displayName),
-                  subtitle: Text(type.description),
-                  value: type,
+              children: AppStyle.values.map((style) {
+                return RadioListTile<AppStyle>(
+                  title: Text(style.displayName),
+                  subtitle: Text(style.description),
+                  value: style,
                   groupValue: currentTheme,
                   onChanged: (value) {
                     if (value != null) {

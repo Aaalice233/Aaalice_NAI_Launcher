@@ -36,9 +36,12 @@ class ThemedInput extends StatelessWidget {
     final theme = Theme.of(context);
     final extension = theme.extension<AppThemeExtension>();
     
-    // 根据主题调整 InputBorder
-    // 虽然 Theme 已经定义了 inputDecorationTheme，但在某些特殊风格 (如 Linear) 可能需要局部调整
+    // 某些风格下的特殊处理
+    final isDigital = extension?.interactionStyle == AppInteractionStyle.digital;
     
+    // 对于 Linear 风格 (blurStrength > 0)，我们使用特殊的填充和背景
+    final isBlurry = extension?.blurStrength != null && extension!.blurStrength > 0;
+
     return TextField(
       controller: controller,
       obscureText: obscureText,
@@ -48,21 +51,27 @@ class ThemedInput extends StatelessWidget {
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       autofocus: autofocus,
-      style: extension?.usePixelFont == true 
-          ? const TextStyle(fontFamily: 'monospace', letterSpacing: 1.0) 
+      // 移除硬编码的 monospace，让全局 Theme 的 fontFamily 生效 (例如 VT323)
+      // 但如果是 Digital 风格，我们可以增加字间距以模拟 LCD
+      style: isDigital 
+          ? const TextStyle(letterSpacing: 2.0, fontWeight: FontWeight.bold) 
           : null,
+      cursorColor: theme.colorScheme.primary,
       decoration: InputDecoration(
         hintText: hintText,
         labelText: labelText,
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
-        // Linear 风格下可能需要更细的边框，或者无背景
-        filled: extension?.blurStrength != null && extension!.blurStrength > 0 ? true : null,
-        fillColor: extension?.blurStrength != null && extension!.blurStrength > 0 
+        // Linear 风格特殊背景
+        filled: isBlurry ? true : null,
+        fillColor: isBlurry 
             ? theme.colorScheme.surface.withOpacity(0.3) 
+            : null,
+        // Digital 风格特殊 Hint 样式
+        hintStyle: isDigital 
+            ? TextStyle(color: theme.colorScheme.primary.withOpacity(0.5), letterSpacing: 1.0)
             : null,
       ),
     );
   }
 }
-

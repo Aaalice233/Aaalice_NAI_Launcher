@@ -8,6 +8,13 @@ enum AppNavBarStyle {
   defaultCompact, // 默认风格紧凑导航 (原 linearCompact)
 }
 
+/// 交互风格枚举
+enum AppInteractionStyle {
+  material, // 标准 Material 交互 (水波纹等)
+  physical, // 物理按键 (位移反馈，无水波纹)
+  digital, // 数字瞬变 (无过渡，反色/实心)
+}
+
 /// 应用主题扩展
 /// 用于定义标准 ThemeData 之外的样式属性
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
@@ -22,6 +29,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
 
   /// 导航栏样式
   final AppNavBarStyle navBarStyle;
+
+  /// 交互风格
+  final AppInteractionStyle interactionStyle;
 
   /// 主要按钮样式
   final ButtonStyle? primaryButtonStyle;
@@ -58,6 +68,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     this.blurStrength = 0.0,
     this.usePixelFont = false,
     this.navBarStyle = AppNavBarStyle.material,
+    this.interactionStyle = AppInteractionStyle.material,
     this.primaryButtonStyle,
     this.borderColor,
     this.borderWidth = 0.0,
@@ -76,6 +87,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     double? blurStrength,
     bool? usePixelFont,
     AppNavBarStyle? navBarStyle,
+    AppInteractionStyle? interactionStyle,
     ButtonStyle? primaryButtonStyle,
     Color? borderColor,
     double? borderWidth,
@@ -92,6 +104,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       blurStrength: blurStrength ?? this.blurStrength,
       usePixelFont: usePixelFont ?? this.usePixelFont,
       navBarStyle: navBarStyle ?? this.navBarStyle,
+      interactionStyle: interactionStyle ?? this.interactionStyle,
       primaryButtonStyle: primaryButtonStyle ?? this.primaryButtonStyle,
       borderColor: borderColor ?? this.borderColor,
       borderWidth: borderWidth ?? this.borderWidth,
@@ -121,6 +134,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
           uiLerpDouble(blurStrength, other.blurStrength, t) ?? blurStrength,
       usePixelFont: t < 0.5 ? usePixelFont : other.usePixelFont,
       navBarStyle: t < 0.5 ? navBarStyle : other.navBarStyle,
+      interactionStyle: t < 0.5 ? interactionStyle : other.interactionStyle,
       primaryButtonStyle:
           ButtonStyle.lerp(primaryButtonStyle, other.primaryButtonStyle, t),
       borderColor: Color.lerp(borderColor, other.borderColor, t),
@@ -145,4 +159,3 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     return a + (b - a) * t;
   }
 }
-

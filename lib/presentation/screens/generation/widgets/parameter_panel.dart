@@ -9,23 +9,65 @@ import '../../../widgets/common/themed_button.dart';
 import 'img2img_panel.dart';
 import 'vibe_transfer_panel.dart';
 import 'character_panel.dart';
+import 'prompt_input.dart';
 
 /// 参数面板组件
 class ParameterPanel extends ConsumerWidget {
   final bool inBottomSheet;
+  final bool showInput;
 
-  const ParameterPanel({super.key, this.inBottomSheet = false});
+  const ParameterPanel({
+    super.key, 
+    this.inBottomSheet = false,
+    this.showInput = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final params = ref.watch(generationParamsNotifierProvider);
+    final generationState = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
+    final isGenerating = generationState.isGenerating;
 
     return ListView(
       padding: EdgeInsets.all(inBottomSheet ? 16 : 12),
       shrinkWrap: inBottomSheet,
       physics: inBottomSheet ? const ClampingScrollPhysics() : null,
       children: [
+        // 提示词输入 (仅当 showInput 为 true 时显示)
+        if (showInput) ...[
+          const PromptInputWidget(compact: false),
+          const SizedBox(height: 16),
+          
+          // 生成按钮
+          SizedBox(
+            height: 48,
+            child: ThemedButton(
+              onPressed: isGenerating
+                  ? () => ref.read(imageGenerationNotifierProvider.notifier).cancel()
+                  : () {
+                      if (params.prompt.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('请输入提示词')),
+                        );
+                        return;
+                      }
+                      ref.read(imageGenerationNotifierProvider.notifier)
+                          .generate(params);
+                    },
+              icon: isGenerating
+                  ? const Icon(Icons.stop)
+                  : const Icon(Icons.auto_awesome),
+              isLoading: isGenerating && false, // 不要显示加载圈，直接变 Cancel
+              label: Text(isGenerating ? '取消生成' : '生成图像'),
+              style: isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+        ],
+
         // 模型选择
         _buildSectionTitle(theme, '模型'),
         const SizedBox(height: 8),
@@ -321,24 +363,38 @@ class _SizeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _presets.map((preset) {
-        final isSelected = width == preset.$1 && height == preset.$2;
-        return ChoiceChip(
-          label: Text(
+    // 找到当前选中的预设值
+    final currentValue = _presets.firstWhere(
+      (p) => p.$1 == width && p.$2 == height,
+      orElse: () => _presets.first,
+    );
+    final currentKey = '${currentValue.$1}x${currentValue.$2}';
+
+    return DropdownButtonFormField<String>(
+      value: currentKey,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      items: _presets.map((preset) {
+        final key = '${preset.$1}x${preset.$2}';
+        return DropdownMenuItem(
+          value: key,
+          child: Text(
             preset.$3,
-            style: const TextStyle(fontSize: 11),
+            style: const TextStyle(fontSize: 13),
           ),
-          selected: isSelected,
-          onSelected: (selected) {
-            if (selected) {
-              onChanged(preset.$1, preset.$2);
-            }
-          },
         );
       }).toList(),
+      onChanged: (value) {
+        if (value != null) {
+          final preset = _presets.firstWhere(
+            (p) => '${p.$1}x${p.$2}' == value,
+          );
+          onChanged(preset.$1, preset.$2);
+        }
+      },
     );
   }
 }

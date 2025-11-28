@@ -10,31 +10,31 @@ part 'theme_provider.g.dart';
 @riverpod
 class ThemeNotifier extends _$ThemeNotifier {
   @override
-  AppThemeType build() {
+  AppStyle build() {
     // 从本地存储加载主题
     final storage = ref.read(localStorageServiceProvider);
     final index = storage.getThemeIndex();
 
-    if (index >= 0 && index < AppThemeType.values.length) {
-      return AppThemeType.values[index];
+    if (index >= 0 && index < AppStyle.values.length) {
+      return AppStyle.values[index];
     }
 
-    return AppThemeType.defaultStyle; // 默认主题
+    return AppStyle.naiStyle; // 默认风格
   }
 
   /// 设置主题
-  Future<void> setTheme(AppThemeType type) async {
-    state = type;
+  Future<void> setTheme(AppStyle style) async {
+    state = style;
 
     // 保存到本地存储
     final storage = ref.read(localStorageServiceProvider);
-    await storage.setThemeIndex(type.index);
+    await storage.setThemeIndex(style.index);
   }
 
   /// 切换到下一个主题
   Future<void> nextTheme() async {
     final currentIndex = state.index;
-    final nextIndex = (currentIndex + 1) % AppThemeType.values.length;
-    await setTheme(AppThemeType.values[nextIndex]);
+    final nextIndex = (currentIndex + 1) % AppStyle.values.length;
+    await setTheme(AppStyle.values[nextIndex]);
   }
 }

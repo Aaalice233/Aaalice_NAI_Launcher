@@ -8,6 +8,7 @@ import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../widgets/navigation/main_nav_rail.dart';
 
 part 'app_router.g.dart';
 
@@ -136,56 +137,13 @@ class DesktopShell extends StatelessWidget {
       body: Row(
         children: [
           // 侧边导航栏
-          NavigationRail(
-            selectedIndex: _getSelectedIndex(context),
-            onDestinationSelected: (index) => _onNavigate(context, index),
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.auto_awesome_outlined),
-                selectedIcon: Icon(Icons.auto_awesome),
-                label: Text('生成'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.photo_library_outlined),
-                selectedIcon: Icon(Icons.photo_library),
-                label: Text('画廊'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: Text('设置'),
-              ),
-            ],
-          ),
-          const VerticalDivider(thickness: 1, width: 1),
+          const MainNavRail(),
 
           // 主内容区
           Expanded(child: child),
         ],
       ),
     );
-  }
-
-  int _getSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    if (location == AppRoutes.gallery) return 1;
-    if (location == AppRoutes.settings) return 2;
-    return 0;
-  }
-
-  void _onNavigate(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go(AppRoutes.home);
-        break;
-      case 1:
-        context.go(AppRoutes.gallery);
-        break;
-      case 2:
-        context.go(AppRoutes.settings);
-        break;
-    }
   }
 }
 
