@@ -38,23 +38,34 @@ class DanbooruPost with _$DanbooruPost {
 
   /// 获取预览图 URL
   String get previewUrl {
+    // 优先使用 API 返回的预览图 URL
     if (previewFileUrl != null && previewFileUrl!.isNotEmpty) {
       return previewFileUrl!;
     }
-    // Danbooru 预览图 URL 格式
-    return 'https://cdn.donmai.us/preview/$md5.jpg';
+    // 如果有 md5，构建 CDN URL
+    if (md5.isNotEmpty) {
+      return 'https://cdn.donmai.us/preview/$md5.jpg';
+    }
+    // 最后尝试使用原始文件 URL
+    return fileUrl ?? '';
   }
 
   /// 获取示例图 URL（较大尺寸）
   String? get sampleUrl {
+    // 优先使用 API 返回的大图 URL
     if (largeFileUrl != null && largeFileUrl!.isNotEmpty) {
       return largeFileUrl;
     }
-    if (hasLarge) {
+    // 如果有大图且有 md5，构建 CDN URL
+    if (hasLarge && md5.isNotEmpty) {
       return 'https://cdn.donmai.us/sample/$md5.jpg';
     }
+    // 最后返回原始文件 URL
     return fileUrl;
   }
+
+  /// 是否有有效的预览图
+  bool get hasValidPreview => previewUrl.isNotEmpty;
 
   /// 获取所有标签列表
   List<String> get tags {
@@ -88,4 +99,22 @@ class DanbooruPost with _$DanbooruPost {
 
   /// 获取帖子页面 URL
   String get postUrl => 'https://danbooru.donmai.us/posts/$id';
+
+  /// 是否为视频
+  bool get isVideo => const ['mp4', 'webm', 'zip'].contains(fileExt.toLowerCase());
+
+  /// 是否为动图
+  bool get isAnimated => fileExt.toLowerCase() == 'gif' || 
+      tagStringMeta.contains('animated') ||
+      tagStringMeta.contains('video');
+
+  /// 是否为静态图片
+  bool get isImage => !isVideo && !isAnimated;
+
+  /// 媒体类型标识
+  String? get mediaTypeLabel {
+    if (isVideo) return 'VIDEO';
+    if (isAnimated) return 'GIF';
+    return null;
+  }
 }

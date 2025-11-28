@@ -6,9 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
+import '../../data/services/danbooru_auth_service.dart';
 
 part 'online_gallery_provider.g.dart';
+
+/// 画廊视图模式
+enum GalleryViewMode {
+  search,    // 搜索模式
+  popular,   // 排行榜模式
+  favorites, // 收藏夹模式
+}
 
 /// 在线画廊状态
 class OnlineGalleryState {
@@ -20,6 +29,18 @@ class OnlineGalleryState {
   final String rating;
   final int page;
   final bool hasMore;
+  
+  /// 视图模式
+  final GalleryViewMode viewMode;
+  
+  /// 排行榜时间范围
+  final PopularScale popularScale;
+  
+  /// 排行榜日期
+  final DateTime? popularDate;
+  
+  /// 已收藏的帖子 ID 集合（用于快速查找）
+  final Set<int> favoritedPostIds;
 
   const OnlineGalleryState({
     this.posts = const [],
@@ -30,6 +51,10 @@ class OnlineGalleryState {
     this.rating = 'all',
     this.page = 1,
     this.hasMore = true,
+    this.viewMode = GalleryViewMode.search,
+    this.popularScale = PopularScale.day,
+    this.popularDate,
+    this.favoritedPostIds = const {},
   });
 
   OnlineGalleryState copyWith({
@@ -41,16 +66,26 @@ class OnlineGalleryState {
     String? rating,
     int? page,
     bool? hasMore,
+    GalleryViewMode? viewMode,
+    PopularScale? popularScale,
+    DateTime? popularDate,
+    Set<int>? favoritedPostIds,
+    bool clearError = false,
+    bool clearPopularDate = false,
   }) {
     return OnlineGalleryState(
       posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      error: clearError ? null : (error ?? this.error),
       searchQuery: searchQuery ?? this.searchQuery,
       source: source ?? this.source,
       rating: rating ?? this.rating,
       page: page ?? this.page,
       hasMore: hasMore ?? this.hasMore,
+      viewMode: viewMode ?? this.viewMode,
+      popularScale: popularScale ?? this.popularScale,
+      popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
+      favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
     );
   }
 }
@@ -71,9 +106,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     // 配置 HTTP 客户端以支持系统代理和处理证书问题
     (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
       final client = HttpClient();
-      // 使用系统代理
       client.findProxy = HttpClient.findProxyFromEnvironment;
-      // 允许自签名证书（用于调试，生产环境应移除）
       client.badCertificateCallback = (cert, host, port) => true;
       return client;
     };
@@ -81,15 +114,225 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     return const OnlineGalleryState();
   }
 
-  /// 加载帖子
+  /// 获取 API 服务
+  DanbooruApiService get _apiService => ref.read(danbooruApiServiceProvider);
+
+  /// 获取认证状态
+  DanbooruAuthState get _authState => ref.read(danbooruAuthProvider);
+
+  // ==================== 视图模式切换 ====================
+
+  /// 切换到搜索模式
+  Future<void> switchToSearch() async {
+    if (state.viewMode == GalleryViewMode.search) return;
+    state = state.copyWith(viewMode: GalleryViewMode.search, posts: [], page: 1);
+    await loadPosts(refresh: true);
+  }
+
+  /// 切换到排行榜模式
+  Future<void> switchToPopular() async {
+    if (state.viewMode == GalleryViewMode.popular) return;
+    state = state.copyWith(viewMode: GalleryViewMode.popular, posts: [], page: 1);
+    await _loadPopularPosts(refresh: true);
+  }
+
+  /// 切换到收藏夹模式
+  Future<void> switchToFavorites() async {
+    if (!_authState.isLoggedIn) {
+      state = state.copyWith(error: '请先登录 Danbooru 账号');
+      return;
+    }
+    if (state.viewMode == GalleryViewMode.favorites) return;
+    state = state.copyWith(viewMode: GalleryViewMode.favorites, posts: [], page: 1);
+    await _loadFavorites(refresh: true);
+  }
+
+  // ==================== 排行榜功能 ====================
+
+  /// 设置排行榜时间范围
+  Future<void> setPopularScale(PopularScale scale) async {
+    if (state.popularScale == scale) return;
+    state = state.copyWith(popularScale: scale);
+    if (state.viewMode == GalleryViewMode.popular) {
+      await _loadPopularPosts(refresh: true);
+    }
+  }
+
+  /// 设置排行榜日期
+  Future<void> setPopularDate(DateTime? date) async {
+    state = state.copyWith(
+      popularDate: date,
+      clearPopularDate: date == null,
+    );
+    if (state.viewMode == GalleryViewMode.popular) {
+      await _loadPopularPosts(refresh: true);
+    }
+  }
+
+  /// 加载排行榜帖子
+  Future<void> _loadPopularPosts({bool refresh = false}) async {
+    if (state.isLoading) return;
+
+    final page = refresh ? 1 : state.page;
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      page: page,
+      posts: refresh ? [] : state.posts,
+    );
+
+    try {
+      String? dateStr;
+      if (state.popularDate != null) {
+        dateStr = '${state.popularDate!.year}-${state.popularDate!.month.toString().padLeft(2, '0')}-${state.popularDate!.day.toString().padLeft(2, '0')}';
+      }
+
+      final posts = await _apiService.getPopularPosts(
+        scale: state.popularScale,
+        date: dateStr,
+        page: page,
+      );
+
+      // 过滤评级
+      final filteredPosts = _filterByRating(posts);
+
+      state = state.copyWith(
+        posts: refresh ? filteredPosts : [...state.posts, ...filteredPosts],
+        isLoading: false,
+        hasMore: posts.length >= 20, // 排行榜每页较少
+        page: page,
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to load popular posts: $e', e, stack, 'OnlineGallery');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  // ==================== 收藏夹功能 ====================
+
+  /// 加载收藏夹
+  Future<void> _loadFavorites({bool refresh = false}) async {
+    if (state.isLoading) return;
+
+    final authState = _authState;
+    if (!authState.isLoggedIn || authState.user == null) {
+      state = state.copyWith(error: '请先登录 Danbooru 账号');
+      return;
+    }
+
+    final page = refresh ? 1 : state.page;
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      page: page,
+      posts: refresh ? [] : state.posts,
+    );
+
+    try {
+      final posts = await _apiService.getFavorites(
+        userId: authState.user!.id,
+        page: page,
+        limit: _pageSize,
+      );
+
+      // 更新收藏状态
+      final favoritedIds = {...state.favoritedPostIds};
+      for (final post in posts) {
+        favoritedIds.add(post.id);
+      }
+
+      state = state.copyWith(
+        posts: refresh ? posts : [...state.posts, ...posts],
+        isLoading: false,
+        hasMore: posts.length >= _pageSize,
+        page: page,
+        favoritedPostIds: favoritedIds,
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to load favorites: $e', e, stack, 'OnlineGallery');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// 添加收藏
+  Future<bool> addFavorite(int postId) async {
+    if (!_authState.isLoggedIn) return false;
+
+    final success = await _apiService.addFavorite(postId);
+    if (success) {
+      state = state.copyWith(
+        favoritedPostIds: {...state.favoritedPostIds, postId},
+      );
+    }
+    return success;
+  }
+
+  /// 移除收藏
+  Future<bool> removeFavorite(int postId) async {
+    if (!_authState.isLoggedIn) return false;
+
+    final success = await _apiService.removeFavorite(postId);
+    if (success) {
+      final newIds = {...state.favoritedPostIds};
+      newIds.remove(postId);
+      state = state.copyWith(favoritedPostIds: newIds);
+
+      // 如果在收藏夹视图中，从列表中移除
+      if (state.viewMode == GalleryViewMode.favorites) {
+        state = state.copyWith(
+          posts: state.posts.where((p) => p.id != postId).toList(),
+        );
+      }
+    }
+    return success;
+  }
+
+  /// 切换收藏状态
+  Future<bool> toggleFavorite(int postId) async {
+    if (state.favoritedPostIds.contains(postId)) {
+      return await removeFavorite(postId);
+    } else {
+      return await addFavorite(postId);
+    }
+  }
+
+  /// 检查是否已收藏
+  bool isFavorited(int postId) {
+    return state.favoritedPostIds.contains(postId);
+  }
+
+  // ==================== 通用功能 ====================
+
+  /// 加载帖子（根据当前模式）
   Future<void> loadPosts({bool refresh = false}) async {
+    switch (state.viewMode) {
+      case GalleryViewMode.search:
+        await _loadSearchPosts(refresh: refresh);
+        break;
+      case GalleryViewMode.popular:
+        await _loadPopularPosts(refresh: refresh);
+        break;
+      case GalleryViewMode.favorites:
+        await _loadFavorites(refresh: refresh);
+        break;
+    }
+  }
+
+  /// 加载搜索帖子
+  Future<void> _loadSearchPosts({bool refresh = false}) async {
     if (state.isLoading) return;
 
     final page = refresh ? 1 : state.page;
 
     state = state.copyWith(
       isLoading: true,
-      error: null,
+      clearError: true,
       page: page,
       posts: refresh ? [] : state.posts,
     );
@@ -120,7 +363,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 加载更多
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore) return;
-
     state = state.copyWith(page: state.page + 1);
     await loadPosts();
   }
@@ -132,7 +374,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 搜索
   Future<void> search(String query) async {
-    state = state.copyWith(searchQuery: query.trim());
+    state = state.copyWith(
+      searchQuery: query.trim(),
+      viewMode: GalleryViewMode.search,
+    );
     await loadPosts(refresh: true);
   }
 
@@ -148,6 +393,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (state.rating == rating) return;
     state = state.copyWith(rating: rating);
     await loadPosts(refresh: true);
+  }
+
+  /// 根据评级过滤帖子
+  List<DanbooruPost> _filterByRating(List<DanbooruPost> posts) {
+    if (state.rating == 'all') return posts;
+    return posts.where((p) => p.rating == state.rating).toList();
   }
 
   /// 从 API 获取帖子

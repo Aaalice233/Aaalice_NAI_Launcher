@@ -24,6 +24,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.3
 
   # 加密库 (Blake2b + Argon2id)
   cryptography: ^2.7.0
@@ -84,3 +85,4 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/translations/

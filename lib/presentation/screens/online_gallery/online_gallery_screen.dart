@@ -3,14 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../providers/online_gallery_provider.dart';
+import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../../data/services/danbooru_auth_service.dart';
+import '../../../data/services/tag_translation_service.dart';
+import '../../providers/online_gallery_provider.dart';
+import '../../widgets/danbooru_login_dialog.dart';
+import '../../widgets/tag_chip.dart';
 
 /// 在线画廊页面
-///
-/// 支持浏览 Danbooru 等图片网站
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
   const OnlineGalleryScreen({super.key});
 
@@ -26,7 +30,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // 初始加载
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(onlineGalleryNotifierProvider.notifier).loadPosts();
     });
@@ -50,14 +53,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(onlineGalleryNotifierProvider);
+    final authState = ref.watch(danbooruAuthProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
-          // 顶部搜索栏
-          _buildSearchBar(theme, state),
-
+          // 顶部工具栏
+          _buildToolbar(theme, state, authState),
           // 图片网格
           Expanded(
             child: _buildContent(theme, state),
@@ -67,111 +70,303 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
     );
   }
 
-  Widget _buildSearchBar(ThemeData theme, OnlineGalleryState state) {
+  Widget _buildToolbar(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // 数据源切换 - 使用分段按钮
-          _SourceSelector(
-            selected: state.source,
-            onChanged: (source) {
-              ref.read(onlineGalleryNotifierProvider.notifier).setSource(source);
+          // 第一行：模式切换 + 搜索框 + 用户
+          Row(
+            children: [
+              // 模式切换（紧凑设计）
+              _buildModeSelector(theme, state, authState),
+              const SizedBox(width: 16),
+              // 搜索框
+              if (state.viewMode == GalleryViewMode.search)
+                Expanded(child: _buildSearchField(theme))
+              else
+                const Spacer(),
+              const SizedBox(width: 12),
+              // 筛选和操作
+              _buildFilterAndActions(theme, state, authState),
+            ],
+          ),
+          // 第二行：排行榜选项（仅排行榜模式）
+          if (state.viewMode == GalleryViewMode.popular) ...[
+            const SizedBox(height: 8),
+            _buildPopularOptions(theme, state),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeSelector(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ModeButton(
+            icon: Icons.search,
+            label: '搜索',
+            isSelected: state.viewMode == GalleryViewMode.search,
+            onTap: () => ref.read(onlineGalleryNotifierProvider.notifier).switchToSearch(),
+            isFirst: true,
+          ),
+          _ModeButton(
+            icon: Icons.local_fire_department,
+            label: '热门',
+            isSelected: state.viewMode == GalleryViewMode.popular,
+            onTap: () => ref.read(onlineGalleryNotifierProvider.notifier).switchToPopular(),
+          ),
+          _ModeButton(
+            icon: Icons.favorite,
+            label: '收藏',
+            isSelected: state.viewMode == GalleryViewMode.favorites,
+            onTap: () {
+              if (!authState.isLoggedIn) {
+                _showLoginDialog(context);
+                return;
+              }
+              ref.read(onlineGalleryNotifierProvider.notifier).switchToFavorites();
             },
-          ),
-          const SizedBox(width: 16),
-
-          // 搜索框 - 更简洁
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: theme.textTheme.bodyMedium,
-                decoration: InputDecoration(
-                  hintText: '搜索标签...',
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    size: 20,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(
-                            Icons.close,
-                            size: 18,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            ref.read(onlineGalleryNotifierProvider.notifier).search('');
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                onSubmitted: (value) {
-                  ref.read(onlineGalleryNotifierProvider.notifier).search(value);
-                },
-                onChanged: (value) => setState(() {}),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // 评级筛选
-          _RatingFilter(
-            selected: state.rating,
-            onChanged: (rating) {
-              ref.read(onlineGalleryNotifierProvider.notifier).setRating(rating);
-            },
-          ),
-          const SizedBox(width: 4),
-
-          // 刷新按钮
-          IconButton(
-            onPressed: state.isLoading
-                ? null
-                : () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
-            icon: state.isLoading
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.primary,
-                    ),
-                  )
-                : const Icon(Icons.refresh, size: 22),
-            tooltip: '刷新',
-            style: IconButton.styleFrom(
-              foregroundColor: theme.colorScheme.onSurfaceVariant,
-            ),
+            isLast: true,
+            showBadge: !authState.isLoggedIn,
           ),
         ],
       ),
     );
   }
 
+  Widget _buildSearchField(ThemeData theme) {
+    return Container(
+      height: 36,
+      constraints: const BoxConstraints(maxWidth: 400),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: '搜索标签...',
+          hintStyle: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(onlineGalleryNotifierProvider.notifier).search('');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          isDense: true,
+        ),
+        onSubmitted: (value) {
+          ref.read(onlineGalleryNotifierProvider.notifier).search(value);
+        },
+        onChanged: (value) => setState(() {}),
+      ),
+    );
+  }
+
+  Widget _buildFilterAndActions(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 数据源切换（仅搜索模式）
+        if (state.viewMode == GalleryViewMode.search) ...[
+          _SourceDropdown(
+            selected: state.source,
+            onChanged: (source) {
+              ref.read(onlineGalleryNotifierProvider.notifier).setSource(source);
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+        // 评级筛选
+        _RatingDropdown(
+          selected: state.rating,
+          onChanged: (rating) {
+            ref.read(onlineGalleryNotifierProvider.notifier).setRating(rating);
+          },
+        ),
+        const SizedBox(width: 8),
+        // 刷新
+        IconButton(
+          onPressed: state.isLoading
+              ? null
+              : () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
+          icon: state.isLoading
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
+                )
+              : const Icon(Icons.refresh, size: 20),
+          tooltip: '刷新',
+          style: IconButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+            padding: const EdgeInsets.all(8),
+          ),
+        ),
+        // 用户
+        _buildUserButton(theme, authState),
+      ],
+    );
+  }
+
+  Widget _buildUserButton(ThemeData theme, DanbooruAuthState authState) {
+    if (authState.isLoggedIn) {
+      return PopupMenuButton<String>(
+        onSelected: (value) {
+          if (value == 'logout') {
+            ref.read(danbooruAuthProvider.notifier).logout();
+          }
+        },
+        offset: const Offset(0, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        itemBuilder: (context) => [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(authState.credentials?.username ?? '', style: theme.textTheme.titleSmall),
+                if (authState.user != null)
+                  Text(
+                    authState.user!.levelName,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [Icon(Icons.logout, size: 18), SizedBox(width: 8), Text('退出登录')],
+            ),
+          ),
+        ],
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.person, size: 18, color: theme.colorScheme.onPrimaryContainer),
+        ),
+      );
+    }
+
+    return IconButton(
+      onPressed: () => _showLoginDialog(context),
+      icon: const Icon(Icons.login, size: 20),
+      tooltip: '登录',
+      style: IconButton.styleFrom(
+        foregroundColor: theme.colorScheme.onSurfaceVariant,
+        padding: const EdgeInsets.all(8),
+      ),
+    );
+  }
+
+  Widget _buildPopularOptions(ThemeData theme, OnlineGalleryState state) {
+    return Row(
+      children: [
+        // 时间范围
+        SegmentedButton<PopularScale>(
+          segments: const [
+            ButtonSegment(value: PopularScale.day, label: Text('日榜')),
+            ButtonSegment(value: PopularScale.week, label: Text('周榜')),
+            ButtonSegment(value: PopularScale.month, label: Text('月榜')),
+          ],
+          selected: {state.popularScale},
+          onSelectionChanged: (selected) {
+            ref.read(onlineGalleryNotifierProvider.notifier).setPopularScale(selected.first);
+          },
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(width: 12),
+        // 日期
+        OutlinedButton.icon(
+          onPressed: () => _selectDate(context, state),
+          icon: const Icon(Icons.calendar_today, size: 14),
+          label: Text(
+            state.popularDate != null
+                ? DateFormat('yyyy-MM-dd').format(state.popularDate!)
+                : '今天',
+            style: const TextStyle(fontSize: 13),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        if (state.popularDate != null) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: () => ref.read(onlineGalleryNotifierProvider.notifier).setPopularDate(null),
+            icon: const Icon(Icons.close, size: 16),
+            tooltip: '清除',
+            style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
+          ),
+        ],
+        const Spacer(),
+        // 计数
+        Text(
+          '${state.posts.length} 张',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectDate(BuildContext context, OnlineGalleryState state) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: state.popularDate ?? now,
+      firstDate: DateTime(2005),
+      lastDate: now,
+    );
+    if (picked != null) {
+      ref.read(onlineGalleryNotifierProvider.notifier).setPopularDate(picked);
+    }
+  }
+
+  void _showLoginDialog(BuildContext context) {
+    showDialog(context: context, builder: (context) => const DanbooruLoginDialog());
+  }
+
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
     if (state.isLoading && state.posts.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (state.error != null && state.posts.isEmpty) {
@@ -179,24 +374,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+            const SizedBox(height: 12),
+            Text('加载失败', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(state.error!, style: theme.textTheme.bodySmall, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            Text(
-              '加载失败',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              state.error!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh, size: 18),
               label: const Text('重试'),
             ),
           ],
@@ -210,39 +396,30 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.image_not_supported_outlined,
-              size: 64,
-              color: theme.colorScheme.onSurfaceVariant,
+              state.viewMode == GalleryViewMode.favorites ? Icons.favorite_border : Icons.image_not_supported_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
-              '没有找到图片',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '尝试修改搜索条件',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              state.viewMode == GalleryViewMode.favorites ? '收藏夹为空' : '没有找到图片',
+              style: theme.textTheme.titleMedium,
             ),
           ],
         ),
       );
     }
 
-    // 计算列数：根据屏幕宽度动态调整
-    final screenWidth = MediaQuery.of(context).size.width - 60; // 减去侧边栏宽度
-    final columnCount = (screenWidth / 220).floor().clamp(2, 8);
-    // 计算每个 item 的宽度
-    final itemWidth = (screenWidth - 32 - (columnCount - 1) * 8) / columnCount;
+    final screenWidth = MediaQuery.of(context).size.width - 60;
+    final columnCount = (screenWidth / 200).floor().clamp(2, 8);
+    final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
 
     return MasonryGridView.count(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       crossAxisCount: columnCount,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
       itemCount: state.posts.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= state.posts.length) {
@@ -255,13 +432,24 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         }
 
         final post = state.posts[index];
+        final isFavorited = state.favoritedPostIds.contains(post.id);
+
         return _PostCard(
           post: post,
           itemWidth: itemWidth,
+          isFavorited: isFavorited,
           onTap: () => _showPostDetail(context, post),
           onTagTap: (tag) {
             _searchController.text = tag;
             ref.read(onlineGalleryNotifierProvider.notifier).search(tag);
+          },
+          onFavoriteToggle: () {
+            final authState = ref.read(danbooruAuthProvider);
+            if (!authState.isLoggedIn) {
+              _showLoginDialog(context);
+              return;
+            }
+            ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(post.id);
           },
         );
       },
@@ -281,65 +469,107 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
       ),
     );
   }
+}
 
-  String _getSourceName(String source) {
-    switch (source) {
-      case 'danbooru':
-        return 'Danbooru';
-      case 'safebooru':
-        return 'Safebooru';
-      case 'gelbooru':
-        return 'Gelbooru';
-      default:
-        return source;
-    }
-  }
+/// 模式切换按钮
+class _ModeButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final bool isFirst;
+  final bool isLast;
+  final bool showBadge;
 
-  String _getRatingName(String rating) {
-    switch (rating) {
-      case 'all':
-        return '全部';
-      case 'g':
-        return 'General';
-      case 's':
-        return 'Sensitive';
-      case 'q':
-        return 'Questionable';
-      case 'e':
-        return 'Explicit';
-      default:
-        return rating;
-    }
-  }
+  const _ModeButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.isFirst = false,
+    this.isLast = false,
+    this.showBadge = false,
+  });
 
-  Color _getRatingColor(String rating) {
-    switch (rating) {
-      case 'g':
-        return Colors.green;
-      case 's':
-        return Colors.yellow.shade700;
-      case 'q':
-        return Colors.orange;
-      case 'e':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  @override
+  State<_ModeButton> createState() => _ModeButtonState();
+}
+
+class _ModeButtonState extends State<_ModeButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? theme.colorScheme.primary
+                : (_isHovering ? theme.colorScheme.surfaceContainerHighest : Colors.transparent),
+            borderRadius: BorderRadius.horizontal(
+              left: widget.isFirst ? const Radius.circular(8) : Radius.zero,
+              right: widget.isLast ? const Radius.circular(8) : Radius.zero,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 18,
+                color: widget.isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: widget.isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (widget.showBadge)
+                Container(
+                  margin: const EdgeInsets.only(left: 4),
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.error,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-/// 图片卡片
+/// 图片卡片（带悬浮预览）
 class _PostCard extends StatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
+  final bool isFavorited;
   final VoidCallback onTap;
   final Function(String) onTagTap;
+  final VoidCallback onFavoriteToggle;
 
   const _PostCard({
     required this.post,
     required this.itemWidth,
+    required this.isFavorited,
     required this.onTap,
     required this.onTagTap,
+    required this.onFavoriteToggle,
   });
 
   @override
@@ -348,130 +578,177 @@ class _PostCard extends StatefulWidget {
 
 class _PostCardState extends State<_PostCard> {
   bool _isHovering = false;
+  OverlayEntry? _overlayEntry;
+  final _layerLink = LayerLink();
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    super.dispose();
+  }
+
+  void _showOverlay() {
+    if (_overlayEntry != null) return;
+    
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    final screenSize = MediaQuery.of(context).size;
+    
+    // 计算预览卡片位置（在鼠标右侧或左侧）
+    final bool showOnRight = position.dx < screenSize.width / 2;
+    
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: showOnRight ? position.dx + renderBox.size.width + 12 : null,
+        right: showOnRight ? null : screenSize.width - position.dx + 12,
+        top: (position.dy - 50).clamp(20, screenSize.height - 400),
+        child: _HoverPreviewCard(post: widget.post),
+      ),
+    );
+    
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // 根据传入的宽度和原始宽高比计算高度
     double itemHeight;
     if (widget.post.width > 0 && widget.post.height > 0) {
-      // 使用真实宽高比计算
       itemHeight = widget.itemWidth * (widget.post.height / widget.post.width);
-      // 限制最大高度，避免超长图片
-      itemHeight = itemHeight.clamp(100.0, widget.itemWidth * 2.5);
+      itemHeight = itemHeight.clamp(80.0, widget.itemWidth * 2.5);
     } else {
-      // 默认正方形
       itemHeight = widget.itemWidth;
     }
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: itemHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: _isHovering
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      spreadRadius: 1,
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: MouseRegion(
+        onEnter: (_) {
+          setState(() => _isHovering = true);
+          // 延迟显示预览卡片，避免快速滑过时频繁创建
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (_isHovering && mounted) _showOverlay();
+          });
+        },
+        onExit: (_) {
+          setState(() => _isHovering = false);
+          _removeOverlay();
+        },
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            height: itemHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: _isHovering
+                  ? [BoxShadow(color: theme.colorScheme.primary.withOpacity(0.4), blurRadius: 12, spreadRadius: 1)]
+                  : [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 图片/视频预览
+                  CachedNetworkImage(
+                    imageUrl: widget.post.previewUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     ),
-                  ]
-                : null,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // 图片
-                CachedNetworkImage(
-                  imageUrl: widget.post.previewUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    errorWidget: (context, url, error) => Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Icon(Icons.broken_image, color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ),
-                  errorWidget: (context, url, error) => Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.broken_image,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-
-                // 悬停时显示信息
-                if (_isHovering)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.8),
-                            Colors.transparent,
+                  // 媒体类型标识
+                  if (widget.post.mediaTypeLabel != null)
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: widget.post.isVideo ? Colors.purple : Colors.blue,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(widget.post.isVideo ? Icons.play_circle_fill : Icons.gif_box, size: 10, color: Colors.white),
+                            const SizedBox(width: 2),
+                            Text(widget.post.mediaTypeLabel!, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${widget.post.width}x${widget.post.height}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          ),
-                          if (widget.post.score > 0)
-                            Text(
-                              'Score: ${widget.post.score}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                              ),
-                            ),
-                        ],
-                      ),
                     ),
-                  ),
-
                 // 评级标签
                 Positioned(
                   top: 4,
                   right: 4,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _getRatingColor(widget.post.rating).withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      widget.post.rating.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    decoration: BoxDecoration(color: _getRatingColor(widget.post.rating), borderRadius: BorderRadius.circular(3)),
+                    child: Text(widget.post.rating.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                // 收藏按钮（始终显示在悬浮时）
+                if (_isHovering)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: GestureDetector(
+                      onTap: widget.onFavoriteToggle,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          widget.isFavorited ? Icons.favorite : Icons.favorite_border,
+                          color: widget.isFavorited ? Colors.red : Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                // 简单的底部渐变信息（始终显示）
+                Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(6, 16, 6, 4),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.arrow_upward, size: 10, color: Colors.white70),
+                          Text('${widget.post.score}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.favorite, size: 10, color: Colors.white70),
+                          Text('${widget.post.favCount}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -481,160 +758,481 @@ class _PostCardState extends State<_PostCard> {
 
   Color _getRatingColor(String rating) {
     switch (rating) {
-      case 'g':
-        return Colors.green;
-      case 's':
-        return Colors.yellow.shade700;
-      case 'q':
-        return Colors.orange;
-      case 'e':
-        return Colors.red;
-      default:
-        return Colors.grey;
+      case 'g': return Colors.green;
+      case 's': return Colors.amber.shade700;
+      case 'q': return Colors.orange;
+      case 'e': return Colors.red;
+      default: return Colors.grey;
     }
   }
 }
 
-/// 图片详情对话框
-class _PostDetailDialog extends StatelessWidget {
+/// 悬浮预览卡片（显示高清图和详细信息）
+class _HoverPreviewCard extends ConsumerWidget {
   final DanbooruPost post;
-  final Function(String) onTagTap;
 
-  const _PostDetailDialog({
-    required this.post,
-    required this.onTagTap,
-  });
+  const _HoverPreviewCard({required this.post});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final translationService = ref.watch(tagTranslationServiceProvider);
+    
+    // 计算预览图尺寸，保持宽高比
+    const maxWidth = 320.0;
+    const maxHeight = 360.0;
+    double previewWidth = maxWidth;
+    double previewHeight = maxWidth;
+    
+    if (post.width > 0 && post.height > 0) {
+      final aspectRatio = post.width / post.height;
+      if (aspectRatio > 1) {
+        previewWidth = maxWidth;
+        previewHeight = maxWidth / aspectRatio;
+      } else {
+        previewHeight = maxHeight.clamp(0, maxWidth / aspectRatio);
+        previewWidth = previewHeight * aspectRatio;
+      }
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: maxWidth,
+        constraints: const BoxConstraints(maxHeight: 500),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, spreadRadius: 2),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 高清预览图
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: SizedBox(
+                width: maxWidth,
+                height: previewHeight.clamp(150, maxHeight),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: post.sampleUrl ?? post.largeFileUrl ?? post.previewUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (context, url, error) => CachedNetworkImage(
+                        imageUrl: post.previewUrl,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    // 媒体类型标识
+                    if (post.isVideo || post.isAnimated)
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+                          child: Icon(post.isVideo ? Icons.play_arrow : Icons.gif, color: Colors.white, size: 32),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // 信息区域
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 统计信息
+                    Row(
+                      children: [
+                        _StatItem(icon: Icons.photo_size_select_actual, value: '${post.width}×${post.height}'),
+                        const SizedBox(width: 12),
+                        _StatItem(icon: Icons.thumb_up, value: '${post.score}'),
+                        const SizedBox(width: 12),
+                        _StatItem(icon: Icons.favorite, value: '${post.favCount}'),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getRatingColor(post.rating),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(post.rating.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // 艺术家
+                    if (post.artistTags.isNotEmpty) ...[
+                      _TagRow(
+                        icon: Icons.brush,
+                        color: const Color(0xFFFF8A8A),
+                        tags: post.artistTags.take(3).toList(),
+                        translationService: translationService,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    // 角色
+                    if (post.characterTags.isNotEmpty) ...[
+                      _TagRow(
+                        icon: Icons.person,
+                        color: const Color(0xFF8AFF8A),
+                        tags: post.characterTags.take(4).toList(),
+                        translationService: translationService,
+                        isCharacter: true,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    // 作品
+                    if (post.copyrightTags.isNotEmpty) ...[
+                      _TagRow(
+                        icon: Icons.movie,
+                        color: const Color(0xFFCC8AFF),
+                        tags: post.copyrightTags.take(2).toList(),
+                        translationService: translationService,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getRatingColor(String rating) {
+    switch (rating) {
+      case 'g': return Colors.green;
+      case 's': return Colors.amber.shade700;
+      case 'q': return Colors.orange;
+      case 'e': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String value;
+
+  const _StatItem({required this.icon, required this.value});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 3),
+        Text(value, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+      ],
+    );
+  }
+}
+
+class _TagRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final List<String> tags;
+  final TagTranslationService translationService;
+  final bool isCharacter;
+
+  const _TagRow({
+    required this.icon,
+    required this.color,
+    required this.tags,
+    required this.translationService,
+    this.isCharacter = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 2,
+            children: tags.map((tag) {
+              final translation = translationService.translate(tag, isCharacter: isCharacter);
+              final displayText = tag.replaceAll('_', ' ');
+              return Text(
+                translation != null ? '$displayText ($translation)' : displayText,
+                style: TextStyle(fontSize: 11, color: color),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 数据源下拉
+class _SourceDropdown extends StatelessWidget {
+  final String selected;
+  final Function(String) onChanged;
+
+  const _SourceDropdown({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sources = {'danbooru': 'Danbooru', 'safebooru': 'Safebooru', 'gelbooru': 'Gelbooru'};
+
+    return PopupMenuButton<String>(
+      onSelected: onChanged,
+      offset: const Offset(0, 36),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      itemBuilder: (context) => sources.entries.map((e) {
+        final isSelected = selected == e.key;
+        return PopupMenuItem<String>(
+          value: e.key,
+          child: Row(
+            children: [
+              Text(e.value, style: TextStyle(fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+              if (isSelected) ...[const Spacer(), Icon(Icons.check, size: 16, color: theme.colorScheme.primary)],
+            ],
+          ),
+        );
+      }).toList(),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(sources[selected] ?? selected, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 评级下拉
+class _RatingDropdown extends StatelessWidget {
+  final String selected;
+  final Function(String) onChanged;
+
+  const _RatingDropdown({required this.selected, required this.onChanged});
+
+  static const _ratings = [
+    ('all', '全部', null),
+    ('g', 'G', Colors.green),
+    ('s', 'S', Colors.amber),
+    ('q', 'Q', Colors.orange),
+    ('e', 'E', Colors.red),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = _ratings.firstWhere((r) => r.$1 == selected, orElse: () => _ratings[0]);
+
+    return PopupMenuButton<String>(
+      onSelected: onChanged,
+      offset: const Offset(0, 36),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      itemBuilder: (context) => _ratings.map((r) {
+        final isSelected = selected == r.$1;
+        return PopupMenuItem<String>(
+          value: r.$1,
+          child: Row(
+            children: [
+              if (r.$3 != null) Container(width: 8, height: 8, decoration: BoxDecoration(color: r.$3, shape: BoxShape.circle)),
+              if (r.$3 != null) const SizedBox(width: 8),
+              Text(r.$2, style: TextStyle(fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+              if (isSelected) ...[const Spacer(), Icon(Icons.check, size: 16, color: theme.colorScheme.primary)],
+            ],
+          ),
+        );
+      }).toList(),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (current.$3 != null) ...[
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: current.$3, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+            ],
+            Text(current.$2, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 帖子详情对话框
+class _PostDetailDialog extends ConsumerWidget {
+  final DanbooruPost post;
+  final Function(String) onTagTap;
+
+  const _PostDetailDialog({required this.post, required this.onTagTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final screenSize = MediaQuery.of(context).size;
+    final authState = ref.watch(danbooruAuthProvider);
+    final galleryState = ref.watch(onlineGalleryNotifierProvider);
+    final isFavorited = galleryState.favoritedPostIds.contains(post.id);
 
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        constraints: BoxConstraints(
-          maxWidth: screenSize.width * 0.9,
-          maxHeight: screenSize.height * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
+        constraints: BoxConstraints(maxWidth: screenSize.width * 0.9, maxHeight: screenSize.height * 0.9),
+        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12)),
         child: Row(
           children: [
-            // 图片区域
+            // 媒体区域
             Expanded(
               flex: 3,
               child: ClipRRect(
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(16),
-                ),
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
                 child: Container(
                   color: Colors.black,
-                  child: InteractiveViewer(
-                    child: CachedNetworkImage(
-                      imageUrl: post.sampleUrl ?? post.fileUrl ?? post.previewUrl,
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      InteractiveViewer(
+                        child: CachedNetworkImage(
+                          imageUrl: post.sampleUrl ?? post.fileUrl ?? post.previewUrl,
+                          fit: BoxFit.contain,
+                          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                          errorWidget: (context, url, error) => const Center(child: Icon(Icons.error, color: Colors.white)),
+                        ),
                       ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Icon(Icons.error, color: Colors.white),
-                      ),
-                    ),
+                      // 媒体类型标识
+                      if (post.isVideo || post.isAnimated)
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              post.isVideo ? Icons.play_arrow : Icons.gif,
+                              color: Colors.white,
+                              size: 48,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-
             // 信息面板
             Container(
               width: 300,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: theme.dividerColor),
-                ),
-              ),
+              decoration: BoxDecoration(border: Border(left: BorderSide(color: theme.dividerColor))),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 标题栏
                   Row(
                     children: [
-                      Text(
-                        'Post #${post.id}',
-                        style: theme.textTheme.titleLarge,
-                      ),
+                      Text('Post #${post.id}', style: theme.textTheme.titleMedium),
                       const Spacer(),
                       IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          if (!authState.isLoggedIn) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先登录')));
+                            return;
+                          }
+                          ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(post.id);
+                        },
+                        icon: Icon(isFavorited ? Icons.favorite : Icons.favorite_border, color: isFavorited ? Colors.red : null),
+                        iconSize: 20,
                       ),
+                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close), iconSize: 20),
                     ],
                   ),
                   const Divider(),
-
-                  // 基本信息
-                  _InfoRow(label: '尺寸', value: '${post.width}x${post.height}'),
+                  // 信息
+                  _InfoRow(label: '尺寸', value: '${post.width}×${post.height}'),
                   _InfoRow(label: '评分', value: '${post.score}'),
+                  _InfoRow(label: '收藏', value: '${post.favCount}'),
                   _InfoRow(label: '评级', value: post.rating.toUpperCase()),
-                  if (post.source.isNotEmpty)
-                    _InfoRow(label: '来源', value: post.source, isUrl: true),
-                  const SizedBox(height: 16),
-
+                  if (post.mediaTypeLabel != null) _InfoRow(label: '类型', value: post.mediaTypeLabel!),
+                  const SizedBox(height: 12),
                   // 标签
-                  Text(
-                    '标签',
-                    style: theme.textTheme.titleMedium,
-                  ),
+                  Text('标签', style: theme.textTheme.titleSmall),
                   const SizedBox(height: 8),
                   Expanded(
                     child: SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: post.tags.map((tag) {
-                          return ActionChip(
-                            label: Text(
-                              tag,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            onPressed: () => onTagTap(tag),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          );
-                        }).toList(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (post.artistTags.isNotEmpty)
+                            _TagSection(title: '艺术家', tags: post.artistTags, color: const Color(0xFFFF8A8A), onTagTap: onTagTap),
+                          if (post.characterTags.isNotEmpty)
+                            _TagSection(title: '角色', tags: post.characterTags, color: const Color(0xFF8AFF8A), onTagTap: onTagTap, isCharacter: true),
+                          if (post.copyrightTags.isNotEmpty)
+                            _TagSection(title: '作品', tags: post.copyrightTags, color: const Color(0xFFCC8AFF), onTagTap: onTagTap),
+                          if (post.generalTags.isNotEmpty)
+                            _TagSection(title: '通用', tags: post.generalTags, color: const Color(0xFF8AC8FF), onTagTap: onTagTap),
+                        ],
                       ),
                     ),
                   ),
-
                   const Divider(),
-
-                  // 操作按钮
+                  // 操作
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(
-                              text: post.tags.join(', '),
-                            ));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('标签已复制')),
-                            );
+                            Clipboard.setData(ClipboardData(text: post.tags.join(', ')));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制')));
                           },
-                          icon: const Icon(Icons.copy, size: 18),
+                          icon: const Icon(Icons.copy, size: 16),
                           label: const Text('复制标签'),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () => _openInBrowser(post.postUrl),
-                          icon: const Icon(Icons.open_in_new, size: 18),
-                          label: const Text('打开原页'),
+                          onPressed: () async {
+                            final uri = Uri.parse(post.postUrl);
+                            if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          },
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('打开'),
                         ),
                       ),
                     ],
@@ -647,264 +1245,65 @@ class _PostDetailDialog extends StatelessWidget {
       ),
     );
   }
-
-  Future<void> _openInBrowser(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
 }
 
-/// 信息行
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  final bool isUrl;
 
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.isUrl = false,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 60,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: isUrl
-                ? GestureDetector(
-                    onTap: () async {
-                      final uri = Uri.parse(value);
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                    child: Text(
-                      value,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        decoration: TextDecoration.underline,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  )
-                : Text(
-                    value,
-                    style: theme.textTheme.bodySmall,
-                  ),
-          ),
+          SizedBox(width: 50, child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
+          Expanded(child: Text(value, style: theme.textTheme.bodySmall)),
         ],
       ),
     );
   }
 }
 
-/// 数据源选择器 - 使用分段按钮风格
-class _SourceSelector extends StatelessWidget {
-  final String selected;
-  final Function(String) onChanged;
+class _TagSection extends ConsumerWidget {
+  final String title;
+  final List<String> tags;
+  final Color color;
+  final Function(String) onTagTap;
+  final bool isCharacter;
 
-  const _SourceSelector({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  static const _sources = [
-    ('danbooru', 'Danbooru'),
-    ('safebooru', 'Safebooru'),
-    ('gelbooru', 'Gelbooru'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: _sources.map((source) {
-          final isSelected = selected == source.$1;
-          return _SourceChip(
-            label: source.$2,
-            isSelected: isSelected,
-            onTap: () => onChanged(source.$1),
-            isFirst: source == _sources.first,
-            isLast: source == _sources.last,
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _SourceChip extends StatefulWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final bool isFirst;
-  final bool isLast;
-
-  const _SourceChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    required this.isFirst,
-    required this.isLast,
+  const _TagSection({
+    required this.title,
+    required this.tags,
+    required this.color,
+    required this.onTagTap,
+    this.isCharacter = false,
   });
 
   @override
-  State<_SourceChip> createState() => _SourceChipState();
-}
-
-class _SourceChipState extends State<_SourceChip> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final translationService = ref.watch(tagTranslationServiceProvider);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? theme.colorScheme.primary
-                : (_isHovering ? theme.colorScheme.surfaceContainerHighest : Colors.transparent),
-            borderRadius: BorderRadius.horizontal(
-              left: widget.isFirst ? const Radius.circular(8) : Radius.zero,
-              right: widget.isLast ? const Radius.circular(8) : Radius.zero,
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: tags.map((tag) {
+              final translation = translationService.translate(tag, isCharacter: isCharacter);
+              return TagChip(tag: tag, color: color, translation: translation, onTap: () => onTagTap(tag));
+            }).toList(),
           ),
-          child: Center(
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: widget.isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 评级筛选器 - 下拉菜单风格
-class _RatingFilter extends StatelessWidget {
-  final String selected;
-  final Function(String) onChanged;
-
-  const _RatingFilter({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  static const _ratings = [
-    ('all', '全部', Icons.filter_list, null),
-    ('g', 'General', Icons.check_circle, Colors.green),
-    ('s', 'Sensitive', Icons.warning, Colors.amber),
-    ('q', 'Questionable', Icons.help, Colors.orange),
-    ('e', 'Explicit', Icons.block, Colors.red),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final currentRating = _ratings.firstWhere((r) => r.$1 == selected, orElse: () => _ratings[0]);
-
-    return PopupMenuButton<String>(
-      onSelected: onChanged,
-      offset: const Offset(0, 40),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      itemBuilder: (context) => _ratings.map((rating) {
-        final isSelected = selected == rating.$1;
-        return PopupMenuItem<String>(
-          value: rating.$1,
-          child: Row(
-            children: [
-              Icon(
-                rating.$3,
-                size: 18,
-                color: rating.$4 ?? theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                rating.$2,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? theme.colorScheme.primary : null,
-                ),
-              ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
-            ],
-          ),
-        );
-      }).toList(),
-      child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              currentRating.$3,
-              size: 18,
-              color: currentRating.$4 ?? theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              currentRating.$2,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

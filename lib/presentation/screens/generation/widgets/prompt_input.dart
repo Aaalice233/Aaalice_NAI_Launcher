@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../data/models/tag/tag_suggestion.dart';
 import '../../../providers/danbooru_suggestion_provider.dart';
-import '../../../providers/image_generation_provider.dart';
+import '../../../providers/image_generation_provider.dart' hide TagSuggestionState;
 import '../../../providers/prompt_config_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../widgets/common/themed_input.dart';
@@ -49,6 +49,25 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     _negativeFocusNode.addListener(_onNegativeFocusChanged);
     _promptController.addListener(_onPromptTextChanged);
     _negativeController.addListener(_onNegativeTextChanged);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 监听建议状态变化，当加载完成但没有结果时自动隐藏
+    ref.listen<TagSuggestionState>(danbooruSuggestionNotifierProvider, (previous, next) {
+      if (_showSuggestions && !next.isLoading && next.suggestions.isEmpty && previous?.isLoading == true) {
+        // 加载完成但没有结果，隐藏 overlay
+        _hideSuggestions();
+      }
+    });
+
+    final theme = Theme.of(context);
+
+    if (widget.compact) {
+      return _buildCompactLayout(theme);
+    }
+
+    return _buildFullLayout(theme);
   }
 
   @override
@@ -168,6 +187,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               builder: (context, ref, _) {
                 final state = ref.watch(danbooruSuggestionNotifierProvider);
 
+                // 正在加载，显示 loading indicator
                 if (state.isLoading) {
                   return const Padding(
                     padding: EdgeInsets.all(16),
@@ -181,6 +201,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                   );
                 }
 
+                // 没有建议时不显示任何内容（overlay 仍存在但不可见）
                 if (state.suggestions.isEmpty) {
                   return const SizedBox.shrink();
                 }
@@ -310,17 +331,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         duration: Duration(seconds: 1),
       ),
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (widget.compact) {
-      return _buildCompactLayout(theme);
-    }
-
-    return _buildFullLayout(theme);
   }
 
   Widget _buildFullLayout(ThemeData theme) {

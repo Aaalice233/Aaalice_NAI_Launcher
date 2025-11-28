@@ -47,14 +47,16 @@ enum DanbooruCategory {
 }
 
 /// Danbooru API 返回的标签数据模型
-/// API 端点: GET https://danbooru.donmai.us/tags/autocomplete.json
+/// API 端点: 
+///   - GET https://danbooru.donmai.us/autocomplete.json (自动补全)
+///   - GET https://danbooru.donmai.us/tags.json (标签搜索)
 @freezed
 class DanbooruTag with _$DanbooruTag {
   const DanbooruTag._();
 
   const factory DanbooruTag({
-    /// 标签 ID
-    required int id,
+    /// 标签 ID (autocomplete 端点可能没有)
+    @Default(0) int id,
 
     /// 标签名称 (如 "blue_eyes", "1girl")
     required String name,
@@ -71,6 +73,19 @@ class DanbooruTag with _$DanbooruTag {
 
   factory DanbooruTag.fromJson(Map<String, dynamic> json) =>
       _$DanbooruTagFromJson(json);
+
+  /// 从 autocomplete 端点响应创建
+  /// autocomplete 端点返回格式: 
+  /// { "type": "tag", "label": "1girl", "value": "1girl", "category": 0, "post_count": 123 }
+  factory DanbooruTag.fromAutocomplete(Map<String, dynamic> json) {
+    return DanbooruTag(
+      id: json['id'] as int? ?? 0,
+      name: (json['value'] as String?) ?? (json['label'] as String?) ?? (json['name'] as String?) ?? '',
+      postCount: json['post_count'] as int? ?? 0,
+      category: json['category'] as int? ?? 0,
+      antecedentName: json['antecedent'] as String?,
+    );
+  }
 
   /// 转换为应用内的 TagSuggestion 模型
   TagSuggestion toTagSuggestion() {
