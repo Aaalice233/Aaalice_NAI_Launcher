@@ -304,7 +304,89 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           onPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
           visualDensity: VisualDensity.compact,
         ),
+        
+        // 设置按钮
+        _buildSettingsButton(theme),
       ],
+    );
+  }
+
+  Widget _buildSettingsButton(ThemeData theme) {
+    final addQualityTags = ref.watch(qualityTagsSettingsProvider);
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
+    
+    return PopupMenuButton<String>(
+      icon: Icon(
+        Icons.settings,
+        size: 20,
+        color: theme.colorScheme.onSurface.withOpacity(0.6),
+      ),
+      tooltip: '提示词设置',
+      offset: const Offset(0, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'quality_tags',
+          child: Row(
+            children: [
+              Icon(
+                addQualityTags ? Icons.check_box : Icons.check_box_outline_blank,
+                size: 20,
+                color: addQualityTags ? theme.colorScheme.primary : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('添加质量标签'),
+                    Text(
+                      '自动添加提升画质的标签',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'autocomplete',
+          child: Row(
+            children: [
+              Icon(
+                enableAutocomplete ? Icons.check_box : Icons.check_box_outline_blank,
+                size: 20,
+                color: enableAutocomplete ? theme.colorScheme.primary : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('智能补全'),
+                    Text(
+                      '输入时显示标签建议',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'quality_tags') {
+          ref.read(qualityTagsSettingsProvider.notifier).toggle();
+        } else if (value == 'autocomplete') {
+          ref.read(autocompleteSettingsProvider.notifier).toggle();
+        }
+      },
     );
   }
 
@@ -532,9 +614,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildTextPromptInput(ThemeData theme) {
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     return AutocompleteTextField(
       controller: _promptController,
       focusNode: _promptFocusNode,
+      enableAutocomplete: enableAutocomplete,
       config: const AutocompleteConfig(
         maxSuggestions: 20,
         showTranslation: true,
@@ -543,7 +627,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         autoInsertComma: true,
       ),
       decoration: InputDecoration(
-        hintText: '描述你想要生成的图像... (输入2个字符后显示标签建议)',
+        hintText: enableAutocomplete 
+            ? '描述你想要生成的图像... (输入2个字符后显示标签建议)'
+            : '描述你想要生成的图像...',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -581,9 +667,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildTextNegativeInput(ThemeData theme) {
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     return AutocompleteTextField(
       controller: _negativeController,
       focusNode: _negativeFocusNode,
+      enableAutocomplete: enableAutocomplete,
       config: const AutocompleteConfig(
         maxSuggestions: 15,
         showTranslation: true,

@@ -212,3 +212,51 @@ class CharacterPositions {
   static const String right = 'E3';
   static const String center = 'C3';
 }
+
+/// 质量标签 (Quality Tags)
+/// 根据 NAI 官方文档，不同模型使用不同的质量标签来提升生成效果
+class QualityTags {
+  QualityTags._();
+
+  /// 各模型的质量标签映射
+  static const Map<String, String> modelQualityTags = {
+    // V4.5 系列 (添加到末尾)
+    ImageModels.animeDiffusionV45Full: 
+        'location, very aesthetic, masterpiece, no text',
+    ImageModels.animeDiffusionV45Curated: 
+        'location, masterpiece, no text, -0.8::feet::, rating:general',
+    
+    // V4 系列 (添加到末尾)
+    ImageModels.animeDiffusionV4Full: 
+        'no text, best quality, very aesthetic, absurdres',
+    ImageModels.animeDiffusionV4Curated: 
+        'rating:general, amazing quality, very aesthetic, absurdres',
+    
+    // V3 系列 (添加到末尾)
+    ImageModels.animeDiffusionV3: 
+        'best quality, amazing quality, very aesthetic, absurdres',
+    ImageModels.furryDiffusionV3: 
+        '{best quality}, {amazing quality}',
+  };
+
+  /// 获取指定模型的质量标签
+  static String? getQualityTags(String model) {
+    return modelQualityTags[model];
+  }
+
+  /// 将质量标签应用到提示词
+  /// V3+ 模型添加到末尾，V2 及更早模型添加到开头
+  static String applyQualityTags(String prompt, String model) {
+    final tags = getQualityTags(model);
+    if (tags == null || tags.isEmpty) return prompt;
+    
+    final trimmedPrompt = prompt.trim();
+    if (trimmedPrompt.isEmpty) return tags;
+    
+    // V3+ 模型：标签添加到末尾
+    if (trimmedPrompt.endsWith(',')) {
+      return '$trimmedPrompt $tags';
+    }
+    return '$trimmedPrompt, $tags';
+  }
+}

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/datasources/remote/nai_api_service.dart';
 import '../../data/models/image/image_params.dart';
@@ -73,9 +74,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     try {
       final apiService = ref.read(naiApiServiceProvider);
+      
+      // 应用质量标签（如果开启）
+      final addQualityTags = ref.read(qualityTagsSettingsProvider);
+      ImageParams finalParams = params;
+      if (addQualityTags) {
+        final enhancedPrompt = QualityTags.applyQualityTags(
+          params.prompt,
+          params.model,
+        );
+        finalParams = params.copyWith(prompt: enhancedPrompt);
+      }
 
       final images = await apiService.generateImageCancellable(
-        params,
+        finalParams,
         onProgress: (received, total) {
           if (total > 0) {
             state = state.copyWith(progress: received / total);
@@ -570,5 +582,51 @@ class UpscaleNotifier extends _$UpscaleNotifier {
   /// 清除结果
   void clear() {
     state = const UpscaleState();
+  }
+}
+
+/// 质量标签设置 Notifier
+@Riverpod(keepAlive: true)
+class QualityTagsSettings extends _$QualityTagsSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() {
+    return _storage.getAddQualityTags();
+  }
+
+  /// 切换质量标签开关
+  void toggle() {
+    state = !state;
+    _storage.setAddQualityTags(state);
+  }
+
+  /// 设置质量标签开关
+  void set(bool value) {
+    state = value;
+    _storage.setAddQualityTags(value);
+  }
+}
+
+/// 自动补全设置 Notifier
+@Riverpod(keepAlive: true)
+class AutocompleteSettings extends _$AutocompleteSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() {
+    return _storage.getEnableAutocomplete();
+  }
+
+  /// 切换自动补全开关
+  void toggle() {
+    state = !state;
+    _storage.setEnableAutocomplete(state);
+  }
+
+  /// 设置自动补全开关
+  void set(bool value) {
+    state = value;
+    _storage.setEnableAutocomplete(value);
   }
 }

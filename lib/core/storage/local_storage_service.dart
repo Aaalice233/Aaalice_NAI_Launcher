@@ -158,6 +158,30 @@ class LocalStorageService {
     await setSetting(StorageKeys.autoSaveImages, value);
   }
 
+  // ==================== Quality Tags ====================
+
+  /// 获取是否添加质量标签 (默认开启)
+  bool getAddQualityTags() {
+    return getSetting<bool>(StorageKeys.addQualityTags, defaultValue: true) ?? true;
+  }
+
+  /// 保存是否添加质量标签
+  Future<void> setAddQualityTags(bool value) async {
+    await setSetting(StorageKeys.addQualityTags, value);
+  }
+
+  // ==================== Autocomplete ====================
+
+  /// 获取是否启用自动补全 (默认开启)
+  bool getEnableAutocomplete() {
+    return getSetting<bool>(StorageKeys.enableAutocomplete, defaultValue: true) ?? true;
+  }
+
+  /// 保存是否启用自动补全
+  Future<void> setEnableAutocomplete(bool value) async {
+    await setSetting(StorageKeys.enableAutocomplete, value);
+  }
+
   // ==================== Last Generation Params ====================
 
   /// 获取上次的正向提示词

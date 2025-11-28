@@ -275,11 +275,11 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     return OverlayEntry(
       builder: (context) {
         return Positioned(
-          width: size.width.clamp(200.0, 400.0),
+          width: size.width.clamp(280.0, 400.0),
           child: CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
-            offset: Offset(0, size.height + 4),
+            offset: Offset(0, size.height + 4), // 显示在文本框正下方
             child: AutocompleteOverlay(
               suggestions: _autocompleteController?.suggestions ?? [],
               selectedIndex: _selectedIndex,

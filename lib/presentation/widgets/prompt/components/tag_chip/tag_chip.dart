@@ -163,8 +163,9 @@ class _TagChipState extends ConsumerState<TagChip>
     _scaleController.reverse();
 
     _menuShowTimer?.cancel();
+    // 立即隐藏菜单，避免多个菜单同时显示
     _menuHideTimer = Timer(
-      const Duration(milliseconds: 200),
+      const Duration(milliseconds: 50),
       () {
         if (mounted && !_isHovering) {
           setState(() => _showMenu = false);
