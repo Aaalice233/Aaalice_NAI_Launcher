@@ -293,16 +293,44 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           visualDensity: VisualDensity.compact,
         ),
 
-        // 清空按钮
-        IconButton(
+        // 清空按钮（带确认）
+        PopupMenuButton<bool>(
           icon: Icon(
             Icons.clear,
             size: 20,
             color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
           tooltip: '清空',
-          onPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
-          visualDensity: VisualDensity.compact,
+          offset: const Offset(40, 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          itemBuilder: (context) => [
+            PopupMenuItem<bool>(
+              value: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.delete_outline, 
+                    size: 18, 
+                    color: theme.colorScheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '确认清空${_isNegativeMode ? "负面提示词" : "提示词"}',
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          onSelected: (value) {
+            if (value) {
+              if (_isNegativeMode) {
+                _clearNegative();
+              } else {
+                _clearPrompt();
+              }
+            }
+          },
         ),
         
         // 设置按钮

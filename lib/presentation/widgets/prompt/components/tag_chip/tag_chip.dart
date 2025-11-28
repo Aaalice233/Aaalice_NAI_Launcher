@@ -336,16 +336,9 @@ class _TagChipState extends ConsumerState<TagChip>
           ),
           // 删除按钮（常驻显示，在标签内部）
           if (widget.onDelete != null && !widget.compact)
-            GestureDetector(
-              onTap: widget.onDelete,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Icon(
-                  Icons.close,
-                  size: 12,
-                  color: theme.colorScheme.onSurface.withOpacity(0.4),
-                ),
-              ),
+            _DeleteButton(
+              onTap: widget.onDelete!,
+              theme: theme,
             ),
         ],
       ),
@@ -517,6 +510,56 @@ class DraggableTagChip extends StatelessWidget {
         isEditing: isEditing,
         onEnterEdit: onEnterEdit,
         onExitEdit: onExitEdit,
+      ),
+    );
+  }
+}
+
+/// 带 hover 效果的删除按钮
+class _DeleteButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  const _DeleteButton({
+    required this.onTap,
+    required this.theme,
+  });
+
+  @override
+  State<_DeleteButton> createState() => _DeleteButtonState();
+}
+
+class _DeleteButtonState extends State<_DeleteButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.only(left: 6),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _isHovering 
+                  ? widget.theme.colorScheme.error.withOpacity(0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(
+              Icons.close,
+              size: 12,
+              color: _isHovering
+                  ? widget.theme.colorScheme.error
+                  : widget.theme.colorScheme.onSurface.withOpacity(0.4),
+            ),
+          ),
+        ),
       ),
     );
   }

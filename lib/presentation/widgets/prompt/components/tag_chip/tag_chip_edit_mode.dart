@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../providers/image_generation_provider.dart';
+import '../../../autocomplete/autocomplete.dart';
 import '../../core/prompt_tag_config.dart';
 
 /// 标签内联编辑组件
 /// 双击标签时显示，支持直接编辑标签文本
-class TagChipEditMode extends StatefulWidget {
+class TagChipEditMode extends ConsumerStatefulWidget {
   /// 初始文本
   final String initialText;
 
@@ -39,10 +42,10 @@ class TagChipEditMode extends StatefulWidget {
   });
 
   @override
-  State<TagChipEditMode> createState() => _TagChipEditModeState();
+  ConsumerState<TagChipEditMode> createState() => _TagChipEditModeState();
 }
 
-class _TagChipEditModeState extends State<TagChipEditMode> {
+class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   bool _hasChanges = false;
@@ -112,6 +115,7 @@ class _TagChipEditModeState extends State<TagChipEditMode> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = widget.compact;
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
 
     return KeyboardListener(
       focusNode: FocusNode(),
@@ -128,9 +132,15 @@ class _TagChipEditModeState extends State<TagChipEditMode> {
           maxWidth: TagChipSizes.editInputMaxWidth,
         ),
         child: IntrinsicWidth(
-          child: TextField(
+          child: AutocompleteTextField(
             controller: _controller,
             focusNode: _focusNode,
+            enableAutocomplete: enableAutocomplete,
+            config: const AutocompleteConfig(
+              maxSuggestions: 10,
+              showTranslation: true,
+              autoInsertComma: false,
+            ),
             style: TextStyle(
               fontSize: compact
                   ? TagChipSizes.compactFontSize
@@ -142,7 +152,7 @@ class _TagChipEditModeState extends State<TagChipEditMode> {
               isDense: true,
               contentPadding: EdgeInsets.symmetric(
                 horizontal: TagChipSizes.editInputPadding,
-                vertical: compact ? 4 : 6,
+                vertical: compact ? 8 : 10,
               ),
               filled: true,
               fillColor: widget.backgroundColor ??
@@ -182,7 +192,6 @@ class _TagChipEditModeState extends State<TagChipEditMode> {
               ),
             ),
             onSubmitted: (_) => _commitEdit(),
-            textInputAction: TextInputAction.done,
           ),
         ),
       ),

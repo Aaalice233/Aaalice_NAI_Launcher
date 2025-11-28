@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
+import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
@@ -307,7 +308,9 @@ class _TagViewState extends ConsumerState<TagView> {
             Flexible(
               child: widget.tags.isEmpty && !_isAddingTag
                   ? _buildEmptyState(theme)
-                  : _buildTagsArea(theme),
+                  : widget.tags.isEmpty && _isAddingTag
+                      ? Center(child: _buildAddTagInput(theme))
+                      : _buildTagsArea(theme),
             ),
           ],
         ),
@@ -718,6 +721,7 @@ class _TagViewState extends ConsumerState<TagView> {
   }
 
   Widget _buildAddTagInput(ThemeData theme) {
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: BackdropFilter(
@@ -734,32 +738,31 @@ class _TagViewState extends ConsumerState<TagView> {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Flexible(
-                child: SizedBox(
-                  height: 34,
-                  child: AutocompleteTextField(
-                    controller: _addTagController,
-                    focusNode: _addTagFocusNode,
-                    config: const AutocompleteConfig(
-                      maxSuggestions: 10,
-                      showTranslation: true,
-                      autoInsertComma: false,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '输入标签...',
-                      hintStyle: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
-                      ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: InputBorder.none,
-                      isDense: true,
-                    ),
-                    style: const TextStyle(fontSize: 13),
-                    onSubmitted: (_) => _confirmAddTag(),
+                child: AutocompleteTextField(
+                  controller: _addTagController,
+                  focusNode: _addTagFocusNode,
+                  enableAutocomplete: enableAutocomplete,
+                  config: const AutocompleteConfig(
+                    maxSuggestions: 10,
+                    showTranslation: true,
+                    autoInsertComma: false,
                   ),
+                  decoration: InputDecoration(
+                    hintText: '输入标签...',
+                    hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                  onSubmitted: (_) => _confirmAddTag(),
                 ),
               ),
               _buildMiniIconButton(

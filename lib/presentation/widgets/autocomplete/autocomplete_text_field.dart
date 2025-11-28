@@ -356,20 +356,23 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    // 补全菜单未显示时，不阻止任何键
     if (!_showSuggestions) return KeyEventResult.ignored;
 
     final suggestions = _autocompleteController?.suggestions ?? [];
+    // 没有建议时，不阻止任何键
     if (suggestions.isEmpty) return KeyEventResult.ignored;
 
-    // 处理 KeyDownEvent 和 KeyRepeatEvent（长按）
+    // 只处理 KeyDownEvent 和 KeyRepeatEvent（长按）
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      // 只阻止上下方向键（用于选择菜单项）
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         setState(() {
           _selectedIndex = (_selectedIndex + 1) % suggestions.length;
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();
-        return KeyEventResult.handled; // 阻止事件传递到 TextField
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
           _selectedIndex = _selectedIndex <= 0
@@ -378,13 +381,15 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();
-        return KeyEventResult.handled; // 阻止事件传递到 TextField
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.tab) {
         if (event is KeyDownEvent && _selectedIndex >= 0 && _selectedIndex < suggestions.length) {
           _selectSuggestion(suggestions[_selectedIndex]);
+          return KeyEventResult.handled;
         }
-        return KeyEventResult.handled;
+        // 没有选中项时，不阻止 Enter/Tab，让它们正常工作
+        return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
         if (event is KeyDownEvent) {
           _hideSuggestions();
@@ -392,6 +397,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         return KeyEventResult.handled;
       }
     }
+    // 左右方向键及其他键不阻止，让光标正常移动
     return KeyEventResult.ignored;
   }
 

@@ -112,10 +112,10 @@ class _NoOpToastController implements ToastController {
 
 /// 全局 Toast 通知服务
 class AppToast {
-  static OverlayEntry? _currentEntry;
   static OverlayEntry? _progressEntry;
-  static final List<_ToastData> _queue = [];
-  static bool _isShowing = false;
+  static final List<_ActiveToast> _activeToasts = [];
+  static const double _toastHeight = 56.0;
+  static const double _toastSpacing = 8.0;
 
   /// 显示成功通知
   static void success(BuildContext context, String message) {
@@ -177,33 +177,49 @@ class AppToast {
   }
 
   static void _show(BuildContext context, String message, ToastType type) {
-    _queue.add(_ToastData(context: context, message: message, type: type));
-    _processQueue();
-  }
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
 
-  static void _processQueue() {
-    if (_isShowing || _queue.isEmpty) return;
-
-    _isShowing = true;
-    final data = _queue.removeAt(0);
-
-    final overlay = Overlay.of(data.context, rootOverlay: true);
-    _currentEntry = OverlayEntry(
-      builder: (context) => _ToastWidget(
-        message: data.message,
-        type: data.type,
-        onDismiss: () {
-          _currentEntry?.remove();
-          _currentEntry = null;
-          _isShowing = false;
-          // 处理队列中的下一个
-          Future.delayed(const Duration(milliseconds: 100), _processQueue);
-        },
-      ),
+    // 计算新 toast 的位置索引
+    final index = _activeToasts.length;
+    
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) {
+        // 找到当前 toast 的索引
+        final currentIndex = _activeToasts.indexWhere((t) => t.entry == entry);
+        final topOffset = 16.0 + (currentIndex >= 0 ? currentIndex : index) * (_toastHeight + _toastSpacing);
+        
+        return _ToastWidget(
+          message: message,
+          type: type,
+          topOffset: topOffset,
+          onDismiss: () {
+            entry.remove();
+            _activeToasts.removeWhere((t) => t.entry == entry);
+            // 更新其他 toast 的位置
+            _updateToastPositions();
+          },
+        );
+      },
     );
 
-    overlay.insert(_currentEntry!);
+    _activeToasts.add(_ActiveToast(entry: entry));
+    overlay.insert(entry);
   }
+
+  static void _updateToastPositions() {
+    // 重建所有 toast 以更新位置
+    for (final toast in _activeToasts) {
+      toast.entry.markNeedsBuild();
+    }
+  }
+}
+
+class _ActiveToast {
+  final OverlayEntry entry;
+  
+  _ActiveToast({required this.entry});
 }
 
 class _ToastData {
@@ -223,11 +239,13 @@ class _ToastWidget extends StatefulWidget {
   final String message;
   final ToastType type;
   final VoidCallback onDismiss;
+  final double topOffset;
 
   const _ToastWidget({
     required this.message,
     required this.type,
     required this.onDismiss,
+    this.topOffset = 16,
   });
 
   @override
@@ -292,8 +310,10 @@ class _ToastWidgetState extends State<_ToastWidget>
     final theme = Theme.of(context);
     final (icon, color) = _getTypeStyle(theme, widget.type);
 
-    return Positioned(
-      top: 16,
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      top: widget.topOffset,
       right: 16,
       child: SlideTransition(
         position: _slideAnimation,
