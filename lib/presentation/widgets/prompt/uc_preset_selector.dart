@@ -169,6 +169,9 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       );
     }
 
+    // 检查预设内容是否包含 nsfw
+    final hasNsfw = presetContent.toLowerCase().contains('nsfw');
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,6 +191,27 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
             fontSize: 11,
           ),
         ),
+        // 如果包含 nsfw，显示提示信息
+        if (hasNsfw) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: theme.colorScheme.primary.withOpacity(0.3),
+              ),
+            ),
+            child: Text(
+              context.l10n.ucPreset_nsfwHint,
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -169,8 +169,10 @@ class NAIApiService {
       // 3. 构造基础参数 (对齐官网 API 请求格式)
       // 重要：官网在客户端预先填充负面提示词，而非依赖后端自动填充
       // 根据 ucPreset 值和模型获取对应的预设内容
-      final effectiveNegativePrompt = UcPresets.applyPresetByInt(
+      // 如果正面提示词包含 nsfw，则自动从负面提示词中移除 nsfw
+      final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
         params.negativePrompt,
+        params.prompt,
         params.model,
         params.ucPreset,
       );
@@ -424,8 +426,10 @@ class NAIApiService {
 
       // 3. 构造基础参数 (对齐官网 API 请求格式)
       // 重要：客户端预先填充负面提示词
-      final effectiveNegativePrompt = UcPresets.applyPresetByInt(
+      // 如果正面提示词包含 nsfw，则自动从负面提示词中移除 nsfw
+      final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
         params.negativePrompt,
+        params.prompt,
         params.model,
         params.ucPreset,
       );

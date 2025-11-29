@@ -423,4 +423,55 @@ class UcPresets {
     final presetType = getPresetTypeFromInt(ucPreset);
     return applyPreset(negativePrompt, model, presetType);
   }
+
+  /// 从字符串中移除 nsfw tag
+  /// 支持移除独立的 "nsfw" 以及带有花括号修饰的变体如 "{nsfw}", "{{nsfw}}" 等
+  static String removeNsfwTag(String prompt) {
+    if (prompt.isEmpty) return prompt;
+
+    // 正则表达式匹配 nsfw 及其变体：
+    // - 可能带有任意数量的花括号或方括号包围
+    // - 后面可能跟着逗号和空格
+    final nsfwPattern = RegExp(
+      r'[\{\[]*nsfw[\}\]]*\s*,?\s*',
+      caseSensitive: false,
+    );
+
+    var result = prompt.replaceAll(nsfwPattern, '');
+
+    // 清理可能残留的多余逗号和空格
+    result = result.replaceAll(RegExp(r',\s*,'), ','); // 双逗号变单逗号
+    result = result.replaceAll(RegExp(r'^\s*,\s*'), ''); // 开头的逗号
+    result = result.replaceAll(RegExp(r'\s*,\s*$'), ''); // 结尾的逗号
+    result = result.trim();
+
+    return result;
+  }
+
+  /// 检查正面提示词是否包含 nsfw tag
+  static bool containsNsfwTag(String prompt) {
+    final nsfwPattern = RegExp(
+      r'[\{\[]*nsfw[\}\]]*',
+      caseSensitive: false,
+    );
+    return nsfwPattern.hasMatch(prompt);
+  }
+
+  /// 根据整数 ucPreset 值应用预设到负面提示词，并根据正面提示词决定是否移除 nsfw
+  /// 如果正面提示词包含 nsfw，则自动从负面提示词中移除 nsfw
+  static String applyPresetWithNsfwCheck(
+    String negativePrompt,
+    String positivePrompt,
+    String model,
+    int ucPreset,
+  ) {
+    var effectiveNegative = applyPresetByInt(negativePrompt, model, ucPreset);
+
+    // 如果正面提示词包含 nsfw，则从负面提示词中移除 nsfw
+    if (containsNsfwTag(positivePrompt)) {
+      effectiveNegative = removeNsfwTag(effectiveNegative);
+    }
+
+    return effectiveNegative;
+  }
 }

@@ -844,6 +844,7 @@
   "ucPreset_none": "None",
   "ucPreset_disabled": "Undesired content preset disabled",
   "ucPreset_addToNegative": "Add to negative prompt:",
+  "ucPreset_nsfwHint": "💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt",
 
   "randomMode_enabledTip": "Random mode enabled\nAuto-randomize prompt after each generation",
   "randomMode_disabledTip": "Random mode\nClick to auto-randomize prompts on generation",
