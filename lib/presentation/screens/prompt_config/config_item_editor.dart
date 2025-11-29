@@ -196,8 +196,9 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
               ),
             ],
 
-            // 选取概率（仅多个-概率模式）
-            if (_selectionMode == SelectionMode.multipleProbability) ...[
+            // 选取概率（概率模式）
+            if (_selectionMode == SelectionMode.singleProbability ||
+                _selectionMode == SelectionMode.multipleProbability) ...[
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -562,6 +563,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
         return context.l10n.configEditor_singleRandom;
       case SelectionMode.singleSequential:
         return context.l10n.configEditor_singleSequential;
+      case SelectionMode.singleProbability:
+        return context.l10n.configEditor_singleProbability;
       case SelectionMode.multipleCount:
         return context.l10n.configEditor_multipleCount;
       case SelectionMode.multipleProbability:
@@ -577,6 +580,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
         return context.l10n.configEditor_singleRandomHint;
       case SelectionMode.singleSequential:
         return context.l10n.configEditor_singleSequentialHint;
+      case SelectionMode.singleProbability:
+        return context.l10n.configEditor_singleProbabilityHint;
       case SelectionMode.multipleCount:
         return context.l10n.configEditor_multipleCountHint;
       case SelectionMode.multipleProbability:

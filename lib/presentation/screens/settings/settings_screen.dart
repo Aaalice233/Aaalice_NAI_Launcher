@@ -438,7 +438,6 @@ class SettingsScreen extends ConsumerWidget {
         ? const DefaultPresetNames(
             presetName: '默认预设',
             character: '角色',
-            artist: '画师',
             expression: '表情',
             clothing: '服装',
             action: '动作',
@@ -450,7 +449,6 @@ class SettingsScreen extends ConsumerWidget {
         : const DefaultPresetNames(
             presetName: 'Default Preset',
             character: 'Character',
-            artist: 'Artist',
             expression: 'Expression',
             clothing: 'Clothing',
             action: 'Action',

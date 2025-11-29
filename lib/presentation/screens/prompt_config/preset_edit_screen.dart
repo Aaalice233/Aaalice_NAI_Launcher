@@ -490,6 +490,9 @@ class _ConfigCard extends StatelessWidget {
         return context.l10n.config_singleRandom;
       case SelectionMode.singleSequential:
         return context.l10n.config_singleSequential;
+      case SelectionMode.singleProbability:
+        return context.l10n.configEditor_probabilityPercent(
+            ((config.selectProbability ?? 0.5) * 100).toInt());
       case SelectionMode.multipleCount:
         return context.l10n.configEditor_randomCount(config.selectCount ?? 1);
       case SelectionMode.multipleProbability:

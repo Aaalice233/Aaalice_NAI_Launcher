@@ -43,7 +43,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     return DefaultPresetNames(
       presetName: l10n.defaultPreset_name,
       character: l10n.defaultPreset_character,
-      artist: l10n.defaultPreset_artist,
       expression: l10n.defaultPreset_expression,
       clothing: l10n.defaultPreset_clothing,
       action: l10n.defaultPreset_action,
@@ -710,6 +709,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         return context.l10n.preset_random;
       case SelectionMode.singleSequential:
         return context.l10n.preset_sequential;
+      case SelectionMode.singleProbability:
+        return context.l10n.preset_probability;
       case SelectionMode.multipleCount:
         return context.l10n.preset_multiple;
       case SelectionMode.multipleProbability:
@@ -999,7 +1000,8 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
               },
             ),
           ],
-          if (_selectionMode == SelectionMode.multipleProbability) ...[
+          if (_selectionMode == SelectionMode.singleProbability ||
+              _selectionMode == SelectionMode.multipleProbability) ...[
             const SizedBox(height: 16),
             _buildSliderRow(
               label: context.l10n.config_selectProbability,
@@ -1208,6 +1210,8 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
         return context.l10n.config_singleRandom;
       case SelectionMode.singleSequential:
         return context.l10n.config_singleSequential;
+      case SelectionMode.singleProbability:
+        return context.l10n.configEditor_singleProbability;
       case SelectionMode.multipleCount:
         return context.l10n.config_multipleCount;
       case SelectionMode.multipleProbability:

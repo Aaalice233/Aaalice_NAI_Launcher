@@ -9,16 +9,46 @@ import 'package:path_provider/path_provider.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/selectable_image_card.dart';
 import 'upscale_dialog.dart';
 
 /// 图像预览组件
-class ImagePreviewWidget extends ConsumerWidget {
+class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ImagePreviewWidget> createState() => _ImagePreviewWidgetState();
+}
+
+class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
+  Set<int> _selectedIndices = {};
+  int _lastImageCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
+
+    // 当图片数量变化时，自动全选新增的图片
+    if (state.currentImages.length > _lastImageCount) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          // 全选所有图片
+          _selectedIndices = Set.from(
+            List.generate(state.currentImages.length, (i) => i),
+          );
+          _lastImageCount = state.currentImages.length;
+        });
+      });
+    } else if (state.currentImages.isEmpty && _lastImageCount > 0) {
+      // 清空时重置
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedIndices = {};
+          _lastImageCount = 0;
+        });
+      });
+    }
 
     // 使用 GestureDetector 吸收整个区域的点击事件，避免 Windows 系统提示音
     return GestureDetector(
@@ -39,31 +69,224 @@ class ImagePreviewWidget extends ConsumerWidget {
     ImageGenerationState state,
     ThemeData theme,
   ) {
-    // 生成中状态
-    if (state.isGenerating) {
-      final params = ref.watch(generationParamsNotifierProvider);
-      return _buildGeneratingState(
-        theme,
-        state.progress,
-        state.currentImage,
-        state.totalImages,
-        params.width,
-        params.height,
-      );
-    }
-
     // 错误状态
     if (state.status == GenerationStatus.error) {
       return _buildErrorState(theme, state.errorMessage, context);
     }
 
-    // 有图像
+    // 单抽生成中：居中显示生成卡片
+    if (state.isGenerating &&
+        state.totalImages == 1 &&
+        state.currentImages.isEmpty) {
+      final params = ref.watch(generationParamsNotifierProvider);
+      return _buildSingleGeneratingState(
+        context,
+        state,
+        theme,
+        params.width,
+        params.height,
+      );
+    }
+
+    // 多张图片生成中或已完成多张：显示网格视图
+    if (state.isGenerating || state.currentImages.length > 1) {
+      final params = ref.watch(generationParamsNotifierProvider);
+      return _buildMultiImageView(
+        context,
+        ref,
+        state,
+        theme,
+        params.width,
+        params.height,
+      );
+    }
+
+    // 单张图片完成
     if (state.hasImages) {
       return _buildImageView(context, ref, state.currentImages.first, theme);
     }
 
     // 空状态
     return _buildEmptyState(theme, context);
+  }
+
+  /// 单抽生成中的居中显示
+  Widget _buildSingleGeneratingState(
+    BuildContext context,
+    ImageGenerationState state,
+    ThemeData theme,
+    int imageWidth,
+    int imageHeight,
+  ) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: 400 * imageHeight / imageWidth,
+        ),
+        child: _GeneratingImageCard(
+          currentImage: state.currentImage,
+          totalImages: state.totalImages,
+          progress: state.progress,
+          imageWidth: imageWidth,
+          imageHeight: imageHeight,
+          theme: theme,
+        ),
+      ),
+    );
+  }
+
+  /// 构建多图网格视图（包含生成中的卡片）
+  Widget _buildMultiImageView(
+    BuildContext context,
+    WidgetRef ref,
+    ImageGenerationState state,
+    ThemeData theme,
+    int imageWidth,
+    int imageHeight,
+  ) {
+    final images = state.currentImages;
+    final isGenerating = state.isGenerating;
+    final totalItems = isGenerating ? images.length + 1 : images.length;
+
+    return Column(
+      children: [
+        // 图片网格
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 根据容器大小计算列数
+              final crossAxisCount = constraints.maxWidth > 800
+                  ? 4
+                  : constraints.maxWidth > 500
+                      ? 3
+                      : 2;
+
+              return GridView.builder(
+                padding: const EdgeInsets.all(8),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: imageWidth / imageHeight,
+                ),
+                itemCount: totalItems,
+                itemBuilder: (context, index) {
+                  // 最后一个是生成中卡片
+                  if (isGenerating && index == images.length) {
+                    return _GeneratingImageCard(
+                      currentImage: state.currentImage,
+                      totalImages: state.totalImages,
+                      progress: state.progress,
+                      imageWidth: imageWidth,
+                      imageHeight: imageHeight,
+                      theme: theme,
+                    );
+                  }
+
+                  // 已生成的图片（使用可选择的卡片）
+                  return SelectableImageCard(
+                    imageBytes: images[index],
+                    index: index,
+                    isSelected: _selectedIndices.contains(index),
+                    onSelectionChanged: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedIndices.add(index);
+                        } else {
+                          _selectedIndices.remove(index);
+                        }
+                      });
+                    },
+                    onFullscreen: () =>
+                        _showFullscreenImage(context, images[index]),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+
+        // 底部操作栏（仅当有选中图片时显示）
+        if (_selectedIndices.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildMultiImageActions(context, ref, images, theme),
+        ],
+      ],
+    );
+  }
+
+  /// 构建多图操作栏
+  Widget _buildMultiImageActions(
+    BuildContext context,
+    WidgetRef ref,
+    List<Uint8List> images,
+    ThemeData theme,
+  ) {
+    final selectedCount = _selectedIndices.length;
+    final allSelected = selectedCount == images.length;
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        // 全选/取消全选按钮
+        OutlinedButton.icon(
+          onPressed: () {
+            setState(() {
+              if (allSelected) {
+                _selectedIndices.clear();
+              } else {
+                _selectedIndices = Set.from(
+                  List.generate(images.length, (i) => i),
+                );
+              }
+            });
+          },
+          icon: Icon(
+            allSelected ? Icons.deselect : Icons.select_all,
+            size: 20,
+          ),
+          label: Text(allSelected
+              ? context.l10n.common_deselectAll
+              : context.l10n.common_selectAll),
+        ),
+        // 保存选中按钮
+        FilledButton.icon(
+          onPressed: () => _saveSelectedImages(context, images),
+          icon: const Icon(Icons.save_alt, size: 20),
+          label: Text('${context.l10n.image_save} ($selectedCount)'),
+        ),
+      ],
+    );
+  }
+
+  /// 保存选中的图片
+  Future<void> _saveSelectedImages(
+      BuildContext context, List<Uint8List> images) async {
+    if (_selectedIndices.isEmpty) return;
+
+    try {
+      final saveDir = await _getSaveDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+      final sortedIndices = _selectedIndices.toList()..sort();
+      for (int i = 0; i < sortedIndices.length; i++) {
+        final index = sortedIndices[i];
+        final fileName = 'NAI_${timestamp}_${i + 1}.png';
+        final file = File('${saveDir.path}/$fileName');
+        await file.writeAsBytes(images[index]);
+      }
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
   }
 
   Widget _buildEmptyState(ThemeData theme, BuildContext context) {
@@ -93,54 +316,8 @@ class ImagePreviewWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildGeneratingState(
-    ThemeData theme,
-    double progress,
-    int currentImage,
-    int totalImages,
-    int imageWidth,
-    int imageHeight,
-  ) {
-    final isMultiple = totalImages > 1;
-
-    if (isMultiple) {
-      return _GeneratingImageCard(
-        currentImage: currentImage,
-        totalImages: totalImages,
-        progress: progress,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
-        theme: theme,
-      );
-    }
-
-    // 单张图片：简洁的加载状态
-    return Builder(
-      builder: (context) => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: CircularProgressIndicator(
-              value: progress > 0 ? progress : null,
-              strokeWidth: 3,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            progress > 0 ? '${(progress * 100).toInt()}%' : context.l10n.generation_generating,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(ThemeData theme, String? message, BuildContext context) {
+  Widget _buildErrorState(
+      ThemeData theme, String? message, BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -294,13 +471,13 @@ class ImagePreviewWidget extends ConsumerWidget {
         '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
       );
       await file.writeAsBytes(imageBytes);
-      
+
       // 使用 PowerShell 复制图片到剪贴板
       await Process.run('powershell', [
         '-command',
         'Set-Clipboard -Path "${file.path}"',
       ]);
-      
+
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_copiedToClipboard);
       }
@@ -339,7 +516,8 @@ class _FullscreenImageView extends StatefulWidget {
 }
 
 class _FullscreenImageViewState extends State<_FullscreenImageView> {
-  final TransformationController _transformController = TransformationController();
+  final TransformationController _transformController =
+      TransformationController();
 
   @override
   void dispose() {
@@ -376,7 +554,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
               ),
             ),
           ),
-          
+
           // 左上角返回按钮
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -387,7 +565,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
               tooltip: context.l10n.common_back,
             ),
           ),
-          
+
           // 右上角保存按钮
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,

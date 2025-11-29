@@ -16,11 +16,15 @@ enum SelectionMode {
   @JsonValue('single_sequential')
   singleSequential,
 
+  /// 单个 - 概率出现（有X%的几率随机选一个，否则不出）
+  @JsonValue('single_probability')
+  singleProbability,
+
   /// 多个 - 指定数量
   @JsonValue('multiple_count')
   multipleCount,
 
-  /// 多个 - 指定概率
+  /// 多个 - 指定概率（每个选项独立按概率判断）
   @JsonValue('multiple_probability')
   multipleProbability,
 
@@ -168,6 +172,14 @@ class PromptConfig with _$PromptConfig {
         counter[id] = (index + 1) % stringContents.length;
         return [stringContents[index % stringContents.length]];
 
+      case SelectionMode.singleProbability:
+        // 先判断是否出词，出词则随机选一个
+        final prob = (selectProbability ?? 0.5).clamp(0.0, 1.0);
+        if (random.nextDouble() < prob) {
+          return [stringContents[random.nextInt(stringContents.length)]];
+        }
+        return [];
+
       case SelectionMode.multipleCount:
         final count = (selectCount ?? 1).clamp(0, stringContents.length);
         final shuffled = List<String>.from(stringContents)..shuffle(random);
@@ -197,6 +209,14 @@ class PromptConfig with _$PromptConfig {
         final index = counter[id] ?? 0;
         counter[id] = (index + 1) % nestedConfigs.length;
         return [nestedConfigs[index % nestedConfigs.length]];
+
+      case SelectionMode.singleProbability:
+        // 先判断是否出词，出词则随机选一个
+        final prob = (selectProbability ?? 0.5).clamp(0.0, 1.0);
+        if (random.nextDouble() < prob) {
+          return [nestedConfigs[random.nextInt(nestedConfigs.length)]];
+        }
+        return [];
 
       case SelectionMode.multipleCount:
         final count = (selectCount ?? 1).clamp(0, nestedConfigs.length);

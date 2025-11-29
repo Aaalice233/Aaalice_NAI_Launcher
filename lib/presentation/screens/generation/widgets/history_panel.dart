@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/selectable_image_card.dart';
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
@@ -18,6 +19,8 @@ class HistoryPanel extends ConsumerStatefulWidget {
 }
 
 class _HistoryPanelState extends ConsumerState<HistoryPanel> {
+  final Set<int> _selectedIndices = {};
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
@@ -54,6 +57,34 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                 ),
               ],
               const Spacer(),
+              // 全选按钮
+              if (state.history.isNotEmpty)
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedIndices.length == state.history.length) {
+                        _selectedIndices.clear();
+                      } else {
+                        _selectedIndices.clear();
+                        _selectedIndices.addAll(
+                          List.generate(state.history.length, (i) => i),
+                        );
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    _selectedIndices.length == state.history.length 
+                        ? Icons.deselect 
+                        : Icons.select_all,
+                    size: 20,
+                  ),
+                  tooltip: _selectedIndices.length == state.history.length 
+                      ? context.l10n.common_deselectAll 
+                      : context.l10n.common_selectAll,
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
               if (state.history.isNotEmpty)
                 TextButton.icon(
                   onPressed: () {
@@ -75,8 +106,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         Expanded(
           child: state.history.isEmpty
               ? _buildEmptyState(theme, context)
-              : _buildHistoryGrid(state.history),
+              : _buildHistoryGrid(state.history, theme),
         ),
+        
+        // 底部操作栏（有选中时显示）
+        if (_selectedIndices.isNotEmpty)
+          _buildBottomActions(context, state.history, theme),
       ],
     );
   }
@@ -103,7 +138,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     );
   }
 
-  Widget _buildHistoryGrid(List<Uint8List> history) {
+  Widget _buildHistoryGrid(List<Uint8List> history, ThemeData theme) {
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -114,11 +149,92 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       ),
       itemCount: history.length,
       itemBuilder: (context, index) {
-        return _HistoryTile(
+        return SelectableImageCard(
           imageBytes: history[index],
           index: index,
+          showIndex: false,
+          isSelected: _selectedIndices.contains(index),
+          onSelectionChanged: (selected) {
+            setState(() {
+              if (selected) {
+                _selectedIndices.add(index);
+              } else {
+                _selectedIndices.remove(index);
+              }
+            });
+          },
+          onFullscreen: () => _showFullscreen(context, history[index]),
         );
       },
+    );
+  }
+  
+  Widget _buildBottomActions(BuildContext context, List<Uint8List> history, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor),
+        ),
+      ),
+      child: FilledButton.icon(
+        onPressed: () => _saveSelectedImages(context, history),
+        icon: const Icon(Icons.save_alt, size: 20),
+        label: Text('${context.l10n.image_save} (${_selectedIndices.length})'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(double.infinity, 44),
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _saveSelectedImages(BuildContext context, List<Uint8List> history) async {
+    if (_selectedIndices.isEmpty) return;
+    
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final saveDir = Directory('${docDir.path}/NAI_Launcher');
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+      
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final sortedIndices = _selectedIndices.toList()..sort();
+      
+      for (int i = 0; i < sortedIndices.length; i++) {
+        final index = sortedIndices[i];
+        final fileName = 'NAI_${timestamp}_${i + 1}.png';
+        final file = File('${saveDir.path}/$fileName');
+        await file.writeAsBytes(history[index]);
+      }
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        setState(() {
+          _selectedIndices.clear();
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
+  }
+  
+  void _showFullscreen(BuildContext context, Uint8List imageBytes) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _FullscreenImageView(imageBytes: imageBytes);
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
     );
   }
 
@@ -137,6 +253,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             FilledButton(
               onPressed: () {
                 ref.read(imageGenerationNotifierProvider.notifier).clearHistory();
+                setState(() {
+                  _selectedIndices.clear();
+                });
                 Navigator.pop(dialogContext);
               },
               style: FilledButton.styleFrom(
@@ -147,60 +266,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           ],
         );
       },
-    );
-  }
-}
-
-/// 历史缩略图
-class _HistoryTile extends StatelessWidget {
-  final Uint8List imageBytes;
-  final int index;
-
-  const _HistoryTile({
-    required this.imageBytes,
-    required this.index,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showFullscreen(context),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Theme.of(context).dividerColor,
-              width: 1,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(7),
-            child: Image.memory(
-              imageBytes,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showFullscreen(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black87,
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return _FullscreenImageView(imageBytes: imageBytes);
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
     );
   }
 }

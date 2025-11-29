@@ -87,6 +87,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void> generate(ImageParams params) async {
     _isCancelled = false;
     
+    // 开始生成前清空当前图片
+    state = state.copyWith(
+      currentImages: [],
+      status: GenerationStatus.generating,
+    );
+    
     // nSamples = 批次数量（请求次数）
     // batchSize = 每次请求生成的图片数量
     final batchCount = params.nSamples;
@@ -118,6 +124,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 如果只生成 1 张，直接生成
     if (batchCount == 1 && batchSize == 1) {
       await _generateSingle(baseParams, 1, 1);
+      // 单抽完成后，如果开启抽卡模式，也要随机新提示词
+      final randomMode = ref.read(randomPromptModeProvider);
+      if (randomMode) {
+        final randomPrompt = ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
+        if (randomPrompt.isNotEmpty) {
+          debugPrint('[RandomMode] Single - New prompt for next generation: $randomPrompt');
+          ref.read(generationParamsNotifierProvider.notifier).updatePrompt(randomPrompt);
+        }
+      }
       return;
     }
 
