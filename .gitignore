@@ -92,3 +92,8 @@ nul
 
 # Logs
 *.log
+
+# AI Assistant & Testing
+.serena/
+.playwright-mcp/
+.spec-workflow/
