@@ -48,7 +48,7 @@ class PromptConfigState {
 }
 
 /// 随机提示词配置管理器
-@riverpod
+@Riverpod(keepAlive: true)
 class PromptConfigNotifier extends _$PromptConfigNotifier {
   static const String _boxName = 'prompt_configs';
   static const String _presetsKey = 'presets';
@@ -104,10 +104,16 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
   /// 生成随机提示词
   String generatePrompt({int? seed}) {
-    final preset = state.selectedPreset;
-    if (preset == null) {
+    // 如果预设还没加载完成，使用默认预设
+    if (state.presets.isEmpty || state.isLoading) {
       return DefaultPresets.createDefaultPreset().generate(seed: seed);
     }
+    
+    final preset = state.selectedPreset;
+    if (preset == null) {
+      return state.presets.first.generate(seed: seed);
+    }
+    
     return preset.generate(seed: seed);
   }
 

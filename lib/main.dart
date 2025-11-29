@@ -4,8 +4,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 
-import 'app.dart';
 import 'core/constants/storage_keys.dart';
+import 'presentation/screens/splash/app_bootstrap.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +41,7 @@ void main() async {
 
   runApp(
     const ProviderScope(
-      child: NAILauncherApp(),
+      child: AppBootstrap(),
     ),
   );
 }

@@ -182,6 +182,18 @@ class LocalStorageService {
     await setSetting(StorageKeys.enableAutocomplete, value);
   }
 
+  // ==================== Auto Format ====================
+
+  /// 获取是否启用自动格式化 (默认开启)
+  bool getAutoFormatPrompt() {
+    return getSetting<bool>(StorageKeys.autoFormatPrompt, defaultValue: true) ?? true;
+  }
+
+  /// 保存是否启用自动格式化
+  Future<void> setAutoFormatPrompt(bool value) async {
+    await setSetting(StorageKeys.autoFormatPrompt, value);
+  }
+
   // ==================== Last Generation Params ====================
 
   /// 获取上次的正向提示词

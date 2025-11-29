@@ -243,6 +243,9 @@ class NaiPromptFormatter {
   static String _cleanupFormat(String prompt) {
     var result = prompt;
 
+    // 将中文逗号转换为英文逗号
+    result = result.replaceAll('，', ',');
+
     // 移除连续的下划线
     result = result.replaceAll(RegExp(r'_+'), '_');
 

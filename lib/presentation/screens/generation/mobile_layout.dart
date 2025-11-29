@@ -116,46 +116,33 @@ class _MobileGenerationLayoutState
               ),
             ),
           ),
-          child: Row(
-            children: [
-              // 生成按钮
-              Expanded(
-                child: ThemedButton(
-                  onPressed: generationState.isGenerating
-                      ? null
-                      : () {
-                          if (params.prompt.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('请输入提示词')),
-                            );
-                            return;
-                          }
-                          ref
-                              .read(imageGenerationNotifierProvider.notifier)
-                              .generate(params);
-                        },
-                  icon: generationState.isGenerating
-                      ? null // ThemedButton handles loading separately
-                      : const Icon(Icons.auto_awesome),
-                  isLoading: generationState.isGenerating,
-                  label: Text(generationState.isGenerating ? '生成中' : '生成'),
-                  style: ThemedButtonStyle.filled,
-                ),
-              ),
-
-              // 取消按钮
-              if (generationState.isGenerating) ...[
-                const SizedBox(width: 12),
-                ThemedButton(
-                  onPressed: () {
-                    ref.read(imageGenerationNotifierProvider.notifier).cancel();
-                  },
-                  label: const Text('取消'), // Only icon or text? ThemedButton supports icon + label.
-                  icon: const Icon(Icons.stop),
-                  style: ThemedButtonStyle.outlined,
-                ),
-              ],
-            ],
+          child: SizedBox(
+            width: double.infinity,
+            child: ThemedButton(
+              onPressed: generationState.isGenerating
+                  ? () {
+                      ref.read(imageGenerationNotifierProvider.notifier).cancel();
+                    }
+                  : () {
+                      if (params.prompt.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('请输入提示词')),
+                        );
+                        return;
+                      }
+                      ref
+                          .read(imageGenerationNotifierProvider.notifier)
+                          .generate(params);
+                    },
+              icon: generationState.isGenerating
+                  ? const Icon(Icons.stop)
+                  : const Icon(Icons.auto_awesome),
+              isLoading: false,
+              label: Text(generationState.isGenerating ? '取消生成' : '生成'),
+              style: generationState.isGenerating
+                  ? ThemedButtonStyle.outlined
+                  : ThemedButtonStyle.filled,
+            ),
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/image_generation_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
 import 'widgets/parameter_panel.dart';
 import 'widgets/prompt_input.dart';
@@ -175,7 +176,7 @@ class _DesktopGenerationLayoutState
                 const HistoryPanel(),
                 // 折叠按钮
                 Positioned(
-                  top: 10,
+                  top: 11,
                   left: 8,
                   child: _buildCollapseButton(
                     theme,
@@ -311,65 +312,74 @@ class _DesktopGenerationLayoutState
 }
 
 /// 生成控制按钮
-class GenerationControls extends ConsumerWidget {
+class GenerationControls extends ConsumerStatefulWidget {
   const GenerationControls({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GenerationControls> createState() => _GenerationControlsState();
+}
+
+class _GenerationControlsState extends ConsumerState<GenerationControls> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final params = ref.watch(generationParamsNotifierProvider);
     final isGenerating = generationState.isGenerating;
 
+    // 悬浮时显示取消，否则显示生成中
+    final showCancel = isGenerating && _isHovering;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 生成按钮
-        SizedBox(
-          width: 200,
-          height: 48,
-          child: ThemedButton(
-            onPressed: isGenerating
-                ? null
-                : () {
-                    if (params.prompt.isEmpty) {
-                      AppToast.warning(context, '请输入提示词');
-                      return;
+        // 生成按钮 (生成中时悬浮变取消)
+        MouseRegion(
+          onEnter: (_) => setState(() => _isHovering = true),
+          onExit: (_) => setState(() => _isHovering = false),
+          child: SizedBox(
+            width: 160,
+            height: 48,
+            child: ThemedButton(
+              onPressed: isGenerating
+                  ? () {
+                      ref.read(imageGenerationNotifierProvider.notifier).cancel();
                     }
-                    ref
-                        .read(imageGenerationNotifierProvider.notifier)
-                        .generate(params);
-                  },
-            icon: isGenerating ? null : const Icon(Icons.auto_awesome),
-            isLoading: isGenerating,
-            label: Text(isGenerating ? '生成中...' : '生成'),
-            style: ThemedButtonStyle.filled,
+                  : () {
+                      if (params.prompt.isEmpty) {
+                        AppToast.warning(context, '请输入提示词');
+                        return;
+                      }
+                      ref
+                          .read(imageGenerationNotifierProvider.notifier)
+                          .generate(params);
+                    },
+              icon: showCancel
+                  ? const Icon(Icons.stop)
+                  : (isGenerating ? null : const Icon(Icons.auto_awesome)),
+              isLoading: isGenerating && !showCancel,
+              label: Text(showCancel ? '取消' : (isGenerating 
+                  ? (generationState.totalImages > 1 
+                      ? '${generationState.currentImage}/${generationState.totalImages}' 
+                      : '生成中...') 
+                  : '生成')),
+              style: showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+            ),
           ),
         ),
-
-        const SizedBox(width: 16),
-
-        // 取消按钮 (仅在生成中显示)
-        if (isGenerating)
-          ThemedButton(
-            onPressed: () {
-              ref.read(imageGenerationNotifierProvider.notifier).cancel();
-            },
-            icon: const Icon(Icons.stop),
-            label: const Text('取消'),
-            style: ThemedButtonStyle.outlined,
-          ),
-
-        // 保存按钮 (仅在有图像时显示)
-        if (!isGenerating && generationState.hasImages)
-          ThemedButton(
-            onPressed: () {
-              // TODO: 实现保存功能
-              AppToast.info(context, '保存功能开发中...');
-            },
-            icon: const Icon(Icons.save_alt),
-            label: const Text('保存'),
-            style: ThemedButtonStyle.outlined,
-          ),
+        
+        const SizedBox(width: 12),
+        
+        // 生成数量选择器
+        DraggableNumberInput(
+          value: params.nSamples,
+          min: 1,
+          prefix: '×',
+          onChanged: (value) {
+            ref.read(generationParamsNotifierProvider.notifier).updateNSamples(value);
+          },
+        ),
       ],
     );
   }

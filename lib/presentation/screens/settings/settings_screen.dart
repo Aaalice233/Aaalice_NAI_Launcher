@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../themes/app_theme.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerWidget {
@@ -97,9 +99,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('默认'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('功能开发中...')),
-              );
+              AppToast.info(context, '功能开发中...');
             },
           ),
           SwitchListTile(
@@ -108,9 +108,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('生成后自动保存图片'),
             value: false,
             onChanged: (value) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('功能开发中...')),
-              );
+              AppToast.info(context, '功能开发中...');
             },
           ),
           const Divider(),
@@ -127,10 +125,11 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('开源项目'),
             subtitle: const Text('查看源代码和文档'),
             trailing: const Icon(Icons.open_in_new),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('即将跳转到 GitHub...')),
-              );
+            onTap: () async {
+              final uri = Uri.parse('https://github.com/Aaalice233/Aaalice_NAI_Launcher');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
             },
           ),
 

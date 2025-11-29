@@ -46,6 +46,9 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
   /// 是否启用自动补全
   final bool enableAutocomplete;
 
+  /// 是否启用自动格式化（失焦时自动格式化提示词）
+  final bool enableAutoFormat;
+
   const AutocompleteTextField({
     super.key,
     required this.controller,
@@ -59,6 +62,7 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
     this.onSubmitted,
     this.config = const AutocompleteConfig(),
     this.enableAutocomplete = true,
+    this.enableAutoFormat = true,
   });
 
   @override
@@ -132,6 +136,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
   /// 失焦时格式化提示词
   void _formatOnBlur() {
+    if (!widget.enableAutoFormat) return;
+    
     final text = widget.controller.text;
     if (text.isEmpty) return;
 
@@ -188,11 +194,11 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     // 找到光标位置前的最后一个逗号或特殊分隔符
     final textBeforeCursor = text.substring(0, cursorPosition);
     
-    // 查找最后一个分隔符（逗号、竖线等）
+    // 查找最后一个分隔符（英文逗号、中文逗号、竖线等）
     var lastSeparatorIndex = -1;
     for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
       final char = textBeforeCursor[i];
-      if (char == ',' || char == '|') {
+      if (char == ',' || char == '，' || char == '|') {
         // 检查是否是双竖线 ||
         if (char == '|' && i > 0 && textBeforeCursor[i - 1] == '|') {
           continue; // 跳过双竖线
@@ -302,11 +308,11 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     // 找到当前标签的范围
     final textBeforeCursor = text.substring(0, cursorPosition);
     
-    // 查找最后一个分隔符
+    // 查找最后一个分隔符（支持中英文逗号）
     var lastSeparatorIndex = -1;
     for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
       final char = textBeforeCursor[i];
-      if (char == ',') {
+      if (char == ',' || char == '，') {
         lastSeparatorIndex = i;
         break;
       }
@@ -314,11 +320,11 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
     final tagStart = lastSeparatorIndex + 1;
 
-    // 找到标签结束位置
+    // 找到标签结束位置（支持中英文逗号）
     var tagEnd = cursorPosition;
     for (var i = cursorPosition; i < text.length; i++) {
       final char = text[i];
-      if (char == ',') {
+      if (char == ',' || char == '，') {
         tagEnd = i;
         break;
       }

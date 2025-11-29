@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_api_service.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/tag/tag_suggestion.dart';
@@ -27,6 +29,8 @@ class ImageGenerationState {
   final List<Uint8List> history;
   final String? errorMessage;
   final double progress;
+  final int currentImage;  // 当前第几张 (1-based)
+  final int totalImages;   // 总共几张
 
   const ImageGenerationState({
     this.status = GenerationStatus.idle,
@@ -34,6 +38,8 @@ class ImageGenerationState {
     this.history = const [],
     this.errorMessage,
     this.progress = 0.0,
+    this.currentImage = 0,
+    this.totalImages = 0,
   });
 
   ImageGenerationState copyWith({
@@ -42,6 +48,8 @@ class ImageGenerationState {
     List<Uint8List>? history,
     String? errorMessage,
     double? progress,
+    int? currentImage,
+    int? totalImages,
   }) {
     return ImageGenerationState(
       status: status ?? this.status,
@@ -49,6 +57,8 @@ class ImageGenerationState {
       history: history ?? this.history,
       errorMessage: errorMessage,
       progress: progress ?? this.progress,
+      currentImage: currentImage ?? this.currentImage,
+      totalImages: totalImages ?? this.totalImages,
     );
   }
 
@@ -65,54 +75,160 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   /// 生成图像
+  /// 重试延迟策略 (毫秒)
+  static const List<int> _retryDelays = [1000, 2000, 4000];
+  static const int _maxRetries = 3;
+  
+  bool _isCancelled = false;
+
   Future<void> generate(ImageParams params) async {
+    _isCancelled = false;
+    final totalImages = params.nSamples;
+    
+    // 应用质量标签（如果开启）
+    final addQualityTags = ref.read(qualityTagsSettingsProvider);
+    ImageParams baseParams = params;
+    if (addQualityTags) {
+      final enhancedPrompt = QualityTags.applyQualityTags(
+        params.prompt,
+        params.model,
+      );
+      baseParams = params.copyWith(prompt: enhancedPrompt);
+    }
+
+    // 如果只生成 1 张，直接生成
+    if (totalImages == 1) {
+      await _generateSingle(baseParams, 1, 1);
+      return;
+    }
+
+    // 多张图片：拆分成单张请求
     state = state.copyWith(
       status: GenerationStatus.generating,
       progress: 0.0,
       errorMessage: null,
+      currentImage: 1,
+      totalImages: totalImages,
+      currentImages: [],
+    );
+
+    final allImages = <Uint8List>[];
+    final random = Random();
+
+    for (int i = 0; i < totalImages; i++) {
+      if (_isCancelled) break;
+
+      // 更新当前进度
+      state = state.copyWith(
+        currentImage: i + 1,
+        progress: i / totalImages,
+      );
+
+      // 每张使用不同的随机种子
+      final singleParams = baseParams.copyWith(
+        nSamples: 1,
+        seed: random.nextInt(4294967295),
+      );
+
+      try {
+        final images = await _generateWithRetry(singleParams);
+        if (images.isNotEmpty) {
+          allImages.addAll(images);
+          // 立即更新显示和历史
+          state = state.copyWith(
+            currentImages: List.from(allImages),
+            history: [...images, ...state.history].take(50).toList(),
+          );
+        }
+      } catch (e) {
+        if (_isCancelled || e.toString().contains('cancelled')) {
+          state = state.copyWith(
+            status: GenerationStatus.cancelled,
+            progress: 0.0,
+            currentImage: 0,
+            totalImages: 0,
+          );
+          return;
+        }
+        // 单张失败，继续下一张
+        AppLogger.e('生成第 ${i + 1} 张失败: $e');
+      }
+    }
+
+    // 完成
+    state = state.copyWith(
+      status: _isCancelled ? GenerationStatus.cancelled : GenerationStatus.completed,
+      progress: 1.0,
+      currentImage: 0,
+      totalImages: 0,
+    );
+  }
+
+  /// 带重试的生成
+  Future<List<Uint8List>> _generateWithRetry(ImageParams params) async {
+    final apiService = ref.read(naiApiServiceProvider);
+    
+    for (int retry = 0; retry <= _maxRetries; retry++) {
+      try {
+        return await apiService.generateImageCancellable(
+          params,
+          onProgress: (received, total) {
+            // 单张进度暂不更新
+          },
+        );
+      } catch (e) {
+        if (_isCancelled || e.toString().contains('cancelled')) {
+          rethrow;
+        }
+        
+        if (retry < _maxRetries) {
+          AppLogger.w('生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$_maxRetries): $e');
+          await Future.delayed(Duration(milliseconds: _retryDelays[retry]));
+        } else {
+          rethrow;
+        }
+      }
+    }
+    
+    return [];
+  }
+
+  /// 生成单张（无拆分）
+  Future<void> _generateSingle(ImageParams params, int current, int total) async {
+    state = state.copyWith(
+      status: GenerationStatus.generating,
+      progress: 0.0,
+      errorMessage: null,
+      currentImage: current,
+      totalImages: total,
     );
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final images = await _generateWithRetry(params);
 
-      // 应用质量标签（如果开启）
-      final addQualityTags = ref.read(qualityTagsSettingsProvider);
-      ImageParams finalParams = params;
-      if (addQualityTags) {
-        final enhancedPrompt = QualityTags.applyQualityTags(
-          params.prompt,
-          params.model,
-        );
-        finalParams = params.copyWith(prompt: enhancedPrompt);
-      }
-
-      final images = await apiService.generateImageCancellable(
-        finalParams,
-        onProgress: (received, total) {
-          if (total > 0) {
-            state = state.copyWith(progress: received / total);
-          }
-        },
-      );
-
-      // 更新状态
       state = state.copyWith(
         status: GenerationStatus.completed,
         currentImages: images,
         history: [...images, ...state.history].take(50).toList(),
         progress: 1.0,
+        currentImage: 0,
+        totalImages: 0,
       );
     } catch (e) {
-      if (e.toString().contains('cancelled')) {
+      if (_isCancelled || e.toString().contains('cancelled')) {
         state = state.copyWith(
           status: GenerationStatus.cancelled,
           progress: 0.0,
+          currentImage: 0,
+          totalImages: 0,
         );
       } else {
         state = state.copyWith(
           status: GenerationStatus.error,
           errorMessage: e.toString(),
           progress: 0.0,
+          currentImage: 0,
+          totalImages: 0,
         );
       }
     }
@@ -120,12 +236,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   /// 取消生成
   void cancel() {
+    _isCancelled = true;
     final apiService = ref.read(naiApiServiceProvider);
     apiService.cancelGeneration();
 
     state = state.copyWith(
       status: GenerationStatus.cancelled,
       progress: 0.0,
+      currentImage: 0,
+      totalImages: 0,
     );
   }
 
@@ -394,7 +513,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 更新生成数量
   void updateNSamples(int nSamples) {
-    state = state.copyWith(nSamples: nSamples.clamp(1, 4));
+    state = state.copyWith(nSamples: nSamples < 1 ? 1 : nSamples);
   }
 
   // ==================== 高级参数 ====================
@@ -631,5 +750,28 @@ class AutocompleteSettings extends _$AutocompleteSettings {
   void set(bool value) {
     state = value;
     _storage.setEnableAutocomplete(value);
+  }
+}
+
+/// 自动格式化设置 Notifier
+@Riverpod(keepAlive: true)
+class AutoFormatPromptSettings extends _$AutoFormatPromptSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() {
+    return _storage.getAutoFormatPrompt();
+  }
+
+  /// 切换自动格式化开关
+  void toggle() {
+    state = !state;
+    _storage.setAutoFormatPrompt(state);
+  }
+
+  /// 设置自动格式化开关
+  void set(bool value) {
+    state = value;
+    _storage.setAutoFormatPrompt(value);
   }
 }

@@ -115,8 +115,6 @@ class _NoOpToastController implements ToastController {
 class AppToast {
   static OverlayEntry? _progressEntry;
   static final List<_ActiveToast> _activeToasts = [];
-  static const double _toastHeight = 56.0;
-  static const double _toastSpacing = 8.0;
 
   /// 显示成功通知
   static void success(BuildContext context, String message) {
@@ -181,81 +179,63 @@ class AppToast {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
 
-    // 计算新 toast 的位置索引
-    final index = _activeToasts.length;
-
+    final id = DateTime.now().millisecondsSinceEpoch;
+    
     late OverlayEntry entry;
+    late _ActiveToast activeToast;
+    
     entry = OverlayEntry(
       builder: (context) {
-        // 找到当前 toast 的索引
-        final currentIndex = _activeToasts.indexWhere((t) => t.entry == entry);
-        final topOffset = 16.0 +
-            (currentIndex >= 0 ? currentIndex : index) *
-                (_toastHeight + _toastSpacing);
-
-        return _ToastWidget(
+        return _SingleToastWidget(
+          key: ValueKey(id),
           message: message,
           type: type,
-          topOffset: topOffset,
+          index: _activeToasts.indexOf(activeToast),
           onDismiss: () {
             entry.remove();
-            _activeToasts.removeWhere((t) => t.entry == entry);
+            _activeToasts.remove(activeToast);
             // 更新其他 toast 的位置
-            _updateToastPositions();
+            for (final toast in _activeToasts) {
+              toast.entry.markNeedsBuild();
+            }
           },
         );
       },
     );
-
-    _activeToasts.add(_ActiveToast(entry: entry));
+    
+    activeToast = _ActiveToast(id: id, entry: entry);
+    _activeToasts.add(activeToast);
     overlay.insert(entry);
-  }
-
-  static void _updateToastPositions() {
-    // 重建所有 toast 以更新位置
-    for (final toast in _activeToasts) {
-      toast.entry.markNeedsBuild();
-    }
   }
 }
 
 class _ActiveToast {
+  final int id;
   final OverlayEntry entry;
-
-  _ActiveToast({required this.entry});
+  
+  _ActiveToast({required this.id, required this.entry});
 }
 
-class _ToastData {
-  final BuildContext context;
-  final String message;
-  final ToastType type;
-
-  _ToastData({
-    required this.context,
-    required this.message,
-    required this.type,
-  });
-}
-
-/// 普通 Toast Widget
-class _ToastWidget extends StatefulWidget {
+/// 单个 Toast Widget
+class _SingleToastWidget extends StatefulWidget {
   final String message;
   final ToastType type;
   final VoidCallback onDismiss;
-  final double topOffset;
+  final int index;
 
-  const _ToastWidget({
+  const _SingleToastWidget({
+    super.key,
     required this.message,
     required this.type,
     required this.onDismiss,
-    this.topOffset = 16,
+    required this.index,
   });
 
   @override
-  State<_ToastWidget> createState() => _ToastWidgetState();
+  State<_SingleToastWidget> createState() => _SingleToastWidgetState();
 }
 
-class _ToastWidgetState extends State<_ToastWidget>
+class _SingleToastWidgetState extends State<_SingleToastWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
@@ -312,11 +292,10 @@ class _ToastWidgetState extends State<_ToastWidget>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final (icon, color) = _getTypeStyle(theme, widget.type);
+    final topOffset = 16.0 + (widget.index >= 0 ? widget.index : 0) * 64.0;
 
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      top: widget.topOffset,
+    return Positioned(
+      top: topOffset,
       right: 16,
       child: SlideTransition(
         position: _slideAnimation,
@@ -325,7 +304,7 @@ class _ToastWidgetState extends State<_ToastWidget>
           child: Material(
             color: Colors.transparent,
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 360, minWidth: 200),
+              constraints: const BoxConstraints(maxWidth: 360),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHigh,

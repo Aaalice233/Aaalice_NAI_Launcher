@@ -11,6 +11,7 @@ import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
+import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/tag_view.dart';
 
 /// 视图模式
@@ -173,7 +174,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
     // 只更新 Provider，ref.listen 会自动同步到本地状态
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(prompt);
-    AppToast.success(context, '已生成随机提示词');
   }
 
   void _clearPrompt() {
@@ -242,29 +242,31 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             .where((s) => s.trim().isNotEmpty)
             .length;
 
+    // 获取质量词设置和模型
+    final addQualityTags = ref.watch(qualityTagsSettingsProvider);
+    final model = ref.watch(generationParamsNotifierProvider).model;
+
     return Row(
       children: [
         // 正面/负面切换标签
         _buildPromptTypeSwitch(theme, promptCount, negativeCount),
 
-        const Spacer(),
+        const SizedBox(width: 12),
 
-        // 标签数量显示
-        if (_viewMode == PromptViewMode.tags)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text(
-              '${_isNegativeMode ? negativeCount : promptCount} 个标签',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ),
+        // 质量词提示
+        QualityTagsHint(
+          enabled: addQualityTags,
+          model: model,
+          onTap: () {
+            ref.read(qualityTagsSettingsProvider.notifier).toggle();
+          },
+        ),
+
+        // 使用 Expanded 填充剩余空间，让右侧按钮紧贴右边
+        const Expanded(child: SizedBox()),
 
         // 视图模式切换
         _buildViewModeSwitch(theme),
-
-        const SizedBox(width: 4),
 
         // 随机按钮
         GestureDetector(
@@ -341,8 +343,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildSettingsButton(ThemeData theme) {
-    final addQualityTags = ref.watch(qualityTagsSettingsProvider);
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
+    final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
 
     return PopupMenuButton<String>(
       icon: Icon(
@@ -354,35 +356,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'quality_tags',
-          child: Row(
-            children: [
-              Icon(
-                addQualityTags
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: addQualityTags ? theme.colorScheme.primary : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('添加质量标签'),
-                    Text(
-                      '自动添加提升画质的标签',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
         PopupMenuItem<String>(
           value: 'autocomplete',
           child: Row(
@@ -412,12 +385,41 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'auto_format',
+          child: Row(
+            children: [
+              Icon(
+                enableAutoFormat
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
+                size: 20,
+                color: enableAutoFormat ? theme.colorScheme.primary : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('自动格式化'),
+                    Text(
+                      '中文逗号转英文、补齐括号等',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
       onSelected: (value) {
-        if (value == 'quality_tags') {
-          ref.read(qualityTagsSettingsProvider.notifier).toggle();
-        } else if (value == 'autocomplete') {
+        if (value == 'autocomplete') {
           ref.read(autocompleteSettingsProvider.notifier).toggle();
+        } else if (value == 'auto_format') {
+          ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
         }
       },
     );
@@ -428,36 +430,29 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     int promptCount,
     int negativeCount,
   ) {
-    return Container(
-      height: 32,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 正面提示词
-          _buildPromptTypeTab(
-            theme,
-            label: '正面',
-            count: promptCount,
-            isSelected: !_isNegativeMode,
-            onTap: () => setState(() => _isNegativeMode = false),
-          ),
-          const SizedBox(width: 2),
-          // 负面提示词
-          _buildPromptTypeTab(
-            theme,
-            label: '负面',
-            count: negativeCount,
-            isSelected: _isNegativeMode,
-            isNegative: true,
-            onTap: () => setState(() => _isNegativeMode = true),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 正面提示词按钮
+        _PromptTypeButton(
+          icon: Icons.auto_awesome,
+          label: '正面',
+          count: promptCount,
+          isSelected: !_isNegativeMode,
+          color: theme.colorScheme.primary,
+          onTap: () => setState(() => _isNegativeMode = false),
+        ),
+        const SizedBox(width: 8),
+        // 负面提示词按钮
+        _PromptTypeButton(
+          icon: Icons.block,
+          label: '负面',
+          count: negativeCount,
+          isSelected: _isNegativeMode,
+          color: theme.colorScheme.error,
+          onTap: () => setState(() => _isNegativeMode = true),
+        ),
+      ],
     );
   }
 
@@ -651,10 +646,12 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   Widget _buildTextPromptInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
+    final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     return AutocompleteTextField(
       controller: _promptController,
       focusNode: _promptFocusNode,
       enableAutocomplete: enableAutocomplete,
+      enableAutoFormat: enableAutoFormat,
       config: const AutocompleteConfig(
         maxSuggestions: 20,
         showTranslation: true,
@@ -704,10 +701,12 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   Widget _buildTextNegativeInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
+    final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     return AutocompleteTextField(
       controller: _negativeController,
       focusNode: _negativeFocusNode,
       enableAutocomplete: enableAutocomplete,
+      enableAutoFormat: enableAutoFormat,
       config: const AutocompleteConfig(
         maxSuggestions: 15,
         showTranslation: true,
@@ -1051,6 +1050,181 @@ class _FullScreenPromptEditorState
                     ),
                   ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 提示词类型切换按钮
+class _PromptTypeButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final int count;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _PromptTypeButton({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  State<_PromptTypeButton> createState() => _PromptTypeButtonState();
+}
+
+class _PromptTypeButtonState extends State<_PromptTypeButton>
+    with SingleTickerProviderStateMixin {
+  bool _isHovering = false;
+  late AnimationController _animController;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: (_) => _animController.forward(),
+        onTapUp: (_) {
+          _animController.reverse();
+          widget.onTap();
+        },
+        onTapCancel: () => _animController.reverse(),
+        child: AnimatedBuilder(
+          animation: _scaleAnim,
+          builder: (context, child) => Transform.scale(
+            scale: _scaleAnim.value,
+            child: child,
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              // 选中时使用渐变背景
+              gradient: widget.isSelected
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        widget.color.withOpacity(0.2),
+                        widget.color.withOpacity(0.1),
+                      ],
+                    )
+                  : null,
+              color: widget.isSelected
+                  ? null
+                  : (_isHovering
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : theme.colorScheme.surfaceContainerHigh),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: widget.isSelected
+                    ? widget.color.withOpacity(0.5)
+                    : (_isHovering
+                        ? theme.colorScheme.outline.withOpacity(0.3)
+                        : Colors.transparent),
+                width: widget.isSelected ? 1.5 : 1,
+              ),
+              boxShadow: widget.isSelected
+                  ? [
+                      BoxShadow(
+                        color: widget.color.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 图标
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: widget.isSelected
+                        ? widget.color.withOpacity(0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    widget.icon,
+                    size: 16,
+                    color: widget.isSelected
+                        ? widget.color
+                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 文字
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                        widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: widget.isSelected
+                        ? widget.color
+                        : theme.colorScheme.onSurface.withOpacity(0.7),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                // 数量徽章
+                if (widget.count > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: widget.isSelected
+                          ? widget.color.withOpacity(0.2)
+                          : theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.count.toString(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: widget.isSelected
+                            ? widget.color
+                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

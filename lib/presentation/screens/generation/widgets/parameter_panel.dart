@@ -110,22 +110,6 @@ class ParameterPanel extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // 生成数量
-        _buildSectionTitle(theme, '生成数量: ${params.nSamples}'),
-        Slider(
-          value: params.nSamples.toDouble(),
-          min: 1,
-          max: 4,
-          divisions: 3,
-          label: params.nSamples.toString(),
-          onChanged: (value) {
-            ref.read(generationParamsNotifierProvider.notifier)
-                .updateNSamples(value.round());
-          },
-        ),
-
-        const SizedBox(height: 8),
-
         // 采样器
         _buildSectionTitle(theme, '采样器'),
         const SizedBox(height: 8),

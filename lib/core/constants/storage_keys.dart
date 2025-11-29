@@ -33,6 +33,7 @@ class StorageKeys {
   static const String autoSaveImages = 'auto_save_images';
   static const String addQualityTags = 'add_quality_tags';
   static const String enableAutocomplete = 'enable_autocomplete';
+  static const String autoFormatPrompt = 'auto_format_prompt';
 
   // Last Generation Params Keys (持久化上次使用的参数)
   static const String lastPrompt = 'last_prompt';
