@@ -74,7 +74,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     try {
       final apiService = ref.read(naiApiServiceProvider);
-      
+
       // 应用质量标签（如果开启）
       final addQualityTags = ref.read(qualityTagsSettingsProvider);
       ImageParams finalParams = params;
@@ -339,8 +339,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 更新 Vibe 参考图配置
-  void updateVibeReference(int index,
-      {double? strength, double? informationExtracted}) {
+  void updateVibeReference(
+    int index, {
+    double? strength,
+    double? informationExtracted,
+  }) {
     if (index < 0 || index >= state.vibeReferences.length) return;
     final newList = [...state.vibeReferences];
     final current = newList[index];

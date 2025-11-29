@@ -309,8 +309,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.delete_outline, 
-                    size: 18, 
+                  Icon(
+                    Icons.delete_outline,
+                    size: 18,
                     color: theme.colorScheme.error,
                   ),
                   const SizedBox(width: 8),
@@ -332,7 +333,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             }
           },
         ),
-        
+
         // 设置按钮
         _buildSettingsButton(theme),
       ],
@@ -342,7 +343,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildSettingsButton(ThemeData theme) {
     final addQualityTags = ref.watch(qualityTagsSettingsProvider);
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
-    
+
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.settings,
@@ -358,7 +359,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           child: Row(
             children: [
               Icon(
-                addQualityTags ? Icons.check_box : Icons.check_box_outline_blank,
+                addQualityTags
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
                 size: 20,
                 color: addQualityTags ? theme.colorScheme.primary : null,
               ),
@@ -385,7 +388,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           child: Row(
             children: [
               Icon(
-                enableAutocomplete ? Icons.check_box : Icons.check_box_outline_blank,
+                enableAutocomplete
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
                 size: 20,
                 color: enableAutocomplete ? theme.colorScheme.primary : null,
               ),
@@ -419,7 +424,10 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildPromptTypeSwitch(
-      ThemeData theme, int promptCount, int negativeCount) {
+    ThemeData theme,
+    int promptCount,
+    int negativeCount,
+  ) {
     return Container(
       height: 32,
       padding: const EdgeInsets.all(3),
@@ -655,7 +663,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         autoInsertComma: true,
       ),
       decoration: InputDecoration(
-        hintText: enableAutocomplete 
+        hintText: enableAutocomplete
             ? '描述你想要生成的图像... (输入2个字符后显示标签建议)'
             : '描述你想要生成的图像...',
         border: OutlineInputBorder(

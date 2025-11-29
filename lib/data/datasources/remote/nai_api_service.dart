@@ -231,7 +231,7 @@ class NAIApiService {
 
           charCaptions.add({
             'centers': [
-              {'x': x, 'y': y}
+              {'x': x, 'y': y},
             ],
             'char_caption': char.prompt,
           });
@@ -274,26 +274,32 @@ class NAIApiService {
 
       // 打印请求参数以便调试
       AppLogger.d(
-          'Request parameters: model=${params.model}, isV4=${params.isV4Model}, ucPreset=${params.ucPreset}',
-          'API');
+        'Request parameters: model=${params.model}, isV4=${params.isV4Model}, ucPreset=${params.ucPreset}',
+        'API',
+      );
 
       // 打印完整请求体（调试用）
       if (params.isV4Model) {
         AppLogger.d('V4 use_coords: ${requestParameters['use_coords']}', 'API');
         AppLogger.d(
-            'V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}',
-            'API');
+          'V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}',
+          'API',
+        );
         AppLogger.d('V4 legacy_uc: ${requestParameters['legacy_uc']}', 'API');
         AppLogger.d('V4 v4_prompt: ${requestParameters['v4_prompt']}', 'API');
         AppLogger.d(
-            'V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}',
-            'API');
+          'V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}',
+          'API',
+        );
         AppLogger.d(
-            'V4 characterPrompts: ${requestParameters['characterPrompts']}',
-            'API');
+          'V4 characterPrompts: ${requestParameters['characterPrompts']}',
+          'API',
+        );
         // 打印完整请求 JSON 以便与 Python SDK 对比
         AppLogger.d(
-            'V4 FULL parameters JSON: ${jsonEncode(requestParameters)}', 'API');
+          'V4 FULL parameters JSON: ${jsonEncode(requestParameters)}',
+          'API',
+        );
       }
 
       // 3. 根据模式添加额外参数
@@ -334,8 +340,9 @@ class NAIApiService {
       };
 
       AppLogger.d(
-          'Generating image with action: $action, model: ${params.model}',
-          'API');
+        'Generating image with action: $action, model: ${params.model}',
+        'API',
+      );
 
       // 5. 发送请求
       final response = await _dio.post(

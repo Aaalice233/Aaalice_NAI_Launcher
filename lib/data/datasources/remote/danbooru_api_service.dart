@@ -152,7 +152,9 @@ class DanbooruApiService {
   }) async {
     try {
       AppLogger.d(
-          'Fetching popular posts: ${scale.name}, date: $date', 'Danbooru');
+        'Fetching popular posts: ${scale.name}, date: $date',
+        'Danbooru',
+      );
 
       final queryParams = <String, dynamic>{
         'scale': scale.name,
@@ -199,7 +201,9 @@ class DanbooruApiService {
   }) async {
     try {
       AppLogger.d(
-          'Fetching favorites, userId: $userId, page: $page', 'Danbooru');
+        'Fetching favorites, userId: $userId, page: $page',
+        'Danbooru',
+      );
 
       final queryParams = <String, dynamic>{
         'page': page,
@@ -228,7 +232,8 @@ class DanbooruApiService {
         for (final fav in favorites) {
           if (fav is Map<String, dynamic> && fav['post'] != null) {
             posts.add(
-                DanbooruPost.fromJson(fav['post'] as Map<String, dynamic>));
+              DanbooruPost.fromJson(fav['post'] as Map<String, dynamic>),
+            );
           }
         }
         return posts;
@@ -370,12 +375,16 @@ class DanbooruApiService {
       );
 
       AppLogger.d(
-          'Danbooru response status: ${response.statusCode}', 'Danbooru');
+        'Danbooru response status: ${response.statusCode}',
+        'Danbooru',
+      );
 
       if (response.data is List) {
         final tags = (response.data as List)
-            .map((item) =>
-                DanbooruTag.fromAutocomplete(item as Map<String, dynamic>))
+            .map(
+              (item) =>
+                  DanbooruTag.fromAutocomplete(item as Map<String, dynamic>),
+            )
             .toList();
         AppLogger.d('Danbooru found ${tags.length} tags', 'Danbooru');
         return tags;

@@ -111,7 +111,9 @@ class RelatedTag {
 
 /// 下载进度回调
 typedef CooccurrenceDownloadCallback = void Function(
-    double progress, String? message);
+  double progress,
+  String? message,
+);
 
 /// 共现标签服务
 class CooccurrenceService {
@@ -202,7 +204,11 @@ class CooccurrenceService {
       return true;
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to download cooccurrence data', e, stack, 'Cooccurrence');
+        'Failed to download cooccurrence data',
+        e,
+        stack,
+        'Cooccurrence',
+      );
       return false;
     } finally {
       _isDownloading = false;

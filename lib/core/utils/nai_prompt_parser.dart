@@ -172,16 +172,22 @@ class NaiPromptParser {
       weight = 1.0 + (effectiveBraces * weightStep);
       // 移除括号
       processedText = processedText.substring(
-          effectiveBraces, processedText.length - effectiveBraces);
+        effectiveBraces,
+        processedText.length - effectiveBraces,
+      );
     } else if (effectiveBrackets > 0) {
       weight = 1.0 - (effectiveBrackets * weightStep);
       // 移除括号
       processedText = processedText.substring(
-          effectiveBrackets, processedText.length - effectiveBrackets);
+        effectiveBrackets,
+        processedText.length - effectiveBrackets,
+      );
     }
 
-    return _WeightResult(processedText.trim(),
-        weight.clamp(PromptTag.minWeight, PromptTag.maxWeight));
+    return _WeightResult(
+      processedText.trim(),
+      weight.clamp(PromptTag.minWeight, PromptTag.maxWeight),
+    );
   }
 
   /// 将标签列表转换回提示词文本
@@ -195,7 +201,10 @@ class NaiPromptParser {
 
   /// 在指定位置插入新标签
   static List<PromptTag> insertTag(
-      List<PromptTag> tags, int index, String text) {
+    List<PromptTag> tags,
+    int index,
+    String text,
+  ) {
     final newTag = PromptTag.create(text: text.trim());
     final result = List<PromptTag>.from(tags);
     if (index < 0 || index > result.length) {
@@ -208,7 +217,10 @@ class NaiPromptParser {
 
   /// 移动标签位置
   static List<PromptTag> moveTag(
-      List<PromptTag> tags, int oldIndex, int newIndex) {
+    List<PromptTag> tags,
+    int oldIndex,
+    int newIndex,
+  ) {
     if (oldIndex < 0 || oldIndex >= tags.length) return tags;
     if (newIndex < 0 || newIndex >= tags.length) return tags;
     if (oldIndex == newIndex) return tags;
@@ -221,7 +233,10 @@ class NaiPromptParser {
 
   /// 更新标签
   static List<PromptTag> updateTag(
-      List<PromptTag> tags, String id, PromptTag newTag) {
+    List<PromptTag> tags,
+    String id,
+    PromptTag newTag,
+  ) {
     return tags.map((tag) => tag.id == id ? newTag : tag).toList();
   }
 

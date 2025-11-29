@@ -90,7 +90,7 @@ class _DotMatrixPainter extends CustomPainter {
   final Color color;
   final double spacing;
 
-  _DotMatrixPainter({required this.color, this.spacing = 20});
+  _DotMatrixPainter({required this.color, this.spacing = 4});
 
   @override
   void paint(Canvas canvas, Size size) {

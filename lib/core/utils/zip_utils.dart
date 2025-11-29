@@ -52,7 +52,8 @@ class ZipUtils {
 
   /// 从 ZIP 中提取图片及其文件名
   static List<({String name, Uint8List data})> extractImagesWithNames(
-      Uint8List zipBytes) {
+    Uint8List zipBytes,
+  ) {
     final results = <({String name, Uint8List data})>[];
 
     try {

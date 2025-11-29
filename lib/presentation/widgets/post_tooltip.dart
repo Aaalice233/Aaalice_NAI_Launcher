@@ -45,7 +45,9 @@ class PostTooltip extends ConsumerWidget {
   }
 
   TextSpan _buildTooltipContent(
-      BuildContext context, TagTranslationService translationService) {
+    BuildContext context,
+    TagTranslationService translationService,
+  ) {
     final List<InlineSpan> spans = [];
 
     // 基本信息

@@ -296,8 +296,9 @@ class SettingsScreen extends ConsumerWidget {
                                         onChanged: (value) {
                                           if (value != null) {
                                             ref
-                                                .read(fontNotifierProvider
-                                                    .notifier)
+                                                .read(
+                                                  fontNotifierProvider.notifier,
+                                                )
                                                 .setFont(value);
                                             Navigator.pop(dialogContext);
                                           }

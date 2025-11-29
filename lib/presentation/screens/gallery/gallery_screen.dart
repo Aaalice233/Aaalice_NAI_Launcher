@@ -810,7 +810,9 @@ class _FullscreenViewer extends ConsumerWidget {
                   _buildMetadataRow('步数', record.params.steps.toString()),
                   _buildMetadataRow('采样器', record.params.sampler),
                   _buildMetadataRow(
-                      'CFG Scale', record.params.scale.toString()),
+                    'CFG Scale',
+                    record.params.scale.toString(),
+                  ),
                   _buildMetadataRow('Seed', record.params.seed.toString()),
                   _buildMetadataRow('SMEA', record.params.smea ? '开启' : '关闭'),
                   _buildMetadataRow('生成时间', record.createdAt.toString()),

@@ -8,7 +8,6 @@ import 'presentation/router/app_router.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/locale_provider.dart';
-import 'presentation/providers/download_progress_provider.dart';
 import 'presentation/themes/app_theme.dart';
 
 class NAILauncherApp extends ConsumerStatefulWidget {

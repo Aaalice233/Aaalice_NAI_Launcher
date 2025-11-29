@@ -71,7 +71,11 @@ class DanbooruAuth extends _$DanbooruAuth {
       }
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to load Danbooru credentials', e, stack, 'DanbooruAuth');
+        'Failed to load Danbooru credentials',
+        e,
+        stack,
+        'DanbooruAuth',
+      );
     }
   }
 

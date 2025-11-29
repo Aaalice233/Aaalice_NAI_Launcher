@@ -255,8 +255,10 @@ class _DesktopGenerationLayoutState
     );
   }
 
-  Widget _buildResizeHandle(ThemeData theme,
-      {required void Function(double) onDrag}) {
+  Widget _buildResizeHandle(
+    ThemeData theme, {
+    required void Function(double) onDrag,
+  }) {
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(

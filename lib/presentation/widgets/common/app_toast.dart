@@ -75,8 +75,9 @@ class _ProxyToastController implements ToastController {
 
   @override
   void updateProgress(double? progress, {String? message, String? subtitle}) {
-    _enqueue((c) =>
-        c.updateProgress(progress, message: message, subtitle: subtitle));
+    _enqueue(
+      (c) => c.updateProgress(progress, message: message, subtitle: subtitle),
+    );
   }
 
   @override
@@ -182,14 +183,16 @@ class AppToast {
 
     // 计算新 toast 的位置索引
     final index = _activeToasts.length;
-    
+
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) {
         // 找到当前 toast 的索引
         final currentIndex = _activeToasts.indexWhere((t) => t.entry == entry);
-        final topOffset = 16.0 + (currentIndex >= 0 ? currentIndex : index) * (_toastHeight + _toastSpacing);
-        
+        final topOffset = 16.0 +
+            (currentIndex >= 0 ? currentIndex : index) *
+                (_toastHeight + _toastSpacing);
+
         return _ToastWidget(
           message: message,
           type: type,
@@ -218,7 +221,7 @@ class AppToast {
 
 class _ActiveToast {
   final OverlayEntry entry;
-  
+
   _ActiveToast({required this.entry});
 }
 

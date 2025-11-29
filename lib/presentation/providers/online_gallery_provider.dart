@@ -210,7 +210,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to load popular posts: $e', e, stack, 'OnlineGallery');
+        'Failed to load popular posts: $e',
+        e,
+        stack,
+        'OnlineGallery',
+      );
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -425,7 +429,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     AppLogger.d(
-        'Fetching from $source: tags="$tags", page=$page', 'OnlineGallery');
+      'Fetching from $source: tags="$tags", page=$page',
+      'OnlineGallery',
+    );
 
     final response = await _dio.get(
       '$baseUrl$endpoint',

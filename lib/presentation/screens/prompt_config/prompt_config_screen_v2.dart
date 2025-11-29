@@ -131,8 +131,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   Widget _buildPresetMenu(ThemeData theme) {
     return PopupMenuButton<String>(
-      icon: Icon(Icons.more_horiz,
-          size: 20, color: theme.colorScheme.onSurfaceVariant),
+      icon: Icon(
+        Icons.more_horiz,
+        size: 20,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
       padding: EdgeInsets.zero,
       tooltip: '更多操作',
       onSelected: _handlePresetMenuAction,
@@ -150,9 +153,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         children: [
           Icon(Icons.folder_open, size: 48, color: theme.colorScheme.outline),
           const SizedBox(height: 12),
-          Text('暂无预设',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.outline)),
+          Text(
+            '暂无预设',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.outline),
+          ),
           const SizedBox(height: 16),
           TextButton(
             onPressed: () => ref
@@ -166,7 +171,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   Widget _buildPresetItem(
-      RandomPromptPreset preset, PromptConfigState state, ThemeData theme) {
+    RandomPromptPreset preset,
+    PromptConfigState state,
+    ThemeData theme,
+  ) {
     final isSelected = preset.id == _selectedPresetId;
     final isActive = preset.id == state.selectedPresetId;
 
@@ -221,8 +229,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 ),
                 // 右键菜单
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert,
-                      size: 18, color: theme.colorScheme.outline),
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 18,
+                    color: theme.colorScheme.outline,
+                  ),
                   padding: EdgeInsets.zero,
                   onSelected: (action) =>
                       _handlePresetItemAction(preset, action),
@@ -237,8 +248,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     const PopupMenuDivider(),
                     PopupMenuItem(
                       value: 'delete',
-                      child: Text('删除',
-                          style: TextStyle(color: theme.colorScheme.error)),
+                      child: Text(
+                        '删除',
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
                     ),
                   ],
                 ),
@@ -265,12 +278,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.layers_outlined,
-                    size: 20, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.layers_outlined,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
-                Text('配置组',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  '配置组',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
                 const Spacer(),
                 if (preset != null)
                   IconButton(
@@ -296,7 +314,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 style: theme.textTheme.bodyMedium,
                 onChanged: (_) => _markChanged(),
@@ -349,9 +368,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         children: [
           Icon(Icons.playlist_add, size: 48, color: theme.colorScheme.outline),
           const SizedBox(height: 12),
-          Text('还没有配置组',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.outline)),
+          Text(
+            '还没有配置组',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.outline),
+          ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _addConfig,
@@ -384,8 +405,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 // 拖拽手柄
                 ReorderableDragStartListener(
                   index: index,
-                  child: const Icon(Icons.drag_indicator,
-                      size: 20, color: Colors.white54),
+                  child: const Icon(
+                    Icons.drag_indicator,
+                    size: 20,
+                    color: Colors.white54,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 // 启用开关
@@ -430,9 +454,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 ),
                 // 删除按钮
                 IconButton(
-                  icon: Icon(Icons.close,
-                      size: 18,
-                      color: theme.colorScheme.error.withOpacity(0.7)),
+                  icon: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: theme.colorScheme.error.withOpacity(0.7),
+                  ),
                   onPressed: () => _deleteConfig(index),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -458,9 +484,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.touch_app,
-                        size: 64,
-                        color: theme.colorScheme.outline.withOpacity(0.5)),
+                    Icon(
+                      Icons.touch_app,
+                      size: 64,
+                      color: theme.colorScheme.outline.withOpacity(0.5),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       '选择一个配置组进行编辑',
@@ -680,7 +708,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         content: const Text('有未保存的更改，确定要放弃吗？'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
@@ -702,7 +732,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         content: Text('确定要删除 "${preset.name}" 吗？'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
@@ -719,7 +751,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
               AppToast.success(context, '已删除');
             },
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('删除'),
           ),
         ],
@@ -746,7 +779,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
           FilledButton(
             onPressed: () async {
               try {
@@ -776,7 +811,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         content: const Text('确定要恢复默认预设吗？所有自定义配置将被删除。'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
@@ -884,9 +921,11 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
             children: [
               Icon(Icons.edit_note, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
-              Text('编辑配置组',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                '编辑配置组',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -1033,14 +1072,18 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.preview,
-                      size: 16, color: theme.colorScheme.outline),
+                  Icon(
+                    Icons.preview,
+                    size: 16,
+                    color: theme.colorScheme.outline,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     '预览: ${_getBracketPreview()}',
                     style: TextStyle(
-                        fontFamily: 'monospace',
-                        color: theme.colorScheme.onSurface),
+                      fontFamily: 'monospace',
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
                 ],
               ),

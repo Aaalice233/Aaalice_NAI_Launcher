@@ -99,8 +99,11 @@ class ThemedButton extends StatelessWidget {
     return buttonWidget;
   }
 
-  Color _getLoadingColor(ThemeData theme, ThemedButtonStyle style,
-      AppInteractionStyle interaction) {
+  Color _getLoadingColor(
+    ThemeData theme,
+    ThemedButtonStyle style,
+    AppInteractionStyle interaction,
+  ) {
     if (style == ThemedButtonStyle.filled) {
       return theme.colorScheme.onPrimary;
     }

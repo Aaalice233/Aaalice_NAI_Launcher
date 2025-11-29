@@ -88,11 +88,16 @@ class TagCacheService {
       _cacheBox = await Hive.openBox(boxName);
       await _loadFromStorage();
       AppLogger.d(
-          'TagCacheService initialized, memory cache size: ${_memoryCache.length}',
-          'Cache');
+        'TagCacheService initialized, memory cache size: ${_memoryCache.length}',
+        'Cache',
+      );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to initialize TagCacheService: $e', e, stack, 'Cache');
+        'Failed to initialize TagCacheService: $e',
+        e,
+        stack,
+        'Cache',
+      );
     }
   }
 
