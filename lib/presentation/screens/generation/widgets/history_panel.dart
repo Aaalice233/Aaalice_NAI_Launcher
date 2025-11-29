@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 
@@ -31,7 +32,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           child: Row(
             children: [
               Text(
-                '历史记录',
+                context.l10n.generation_historyRecord,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -59,7 +60,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     _showClearDialog(context, ref);
                   },
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('清除'),
+                  label: Text(context.l10n.common_clear),
                   style: TextButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -73,14 +74,14 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         // 历史列表
         Expanded(
           child: state.history.isEmpty
-              ? _buildEmptyState(theme)
+              ? _buildEmptyState(theme, context)
               : _buildHistoryGrid(state.history),
         ),
       ],
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(ThemeData theme, BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -92,7 +93,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           ),
           const SizedBox(height: 12),
           Text(
-            '暂无历史记录',
+            context.l10n.generation_noHistory,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
@@ -124,24 +125,24 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   void _showClearDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('清除历史记录'),
-          content: const Text('确定要清除所有历史记录吗？此操作不可撤销。'),
+          title: Text(context.l10n.generation_clearHistory),
+          content: Text(context.l10n.generation_clearHistoryConfirm),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
                 ref.read(imageGenerationNotifierProvider.notifier).clearHistory();
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
               ),
-              child: const Text('清除'),
+              child: Text(context.l10n.common_clear),
             ),
           ],
         );
@@ -260,7 +261,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
             child: _buildControlButton(
               icon: Icons.arrow_back_rounded,
               onTap: _close,
-              tooltip: '返回',
+              tooltip: context.l10n.common_back,
             ),
           ),
           
@@ -271,7 +272,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
             child: _buildControlButton(
               icon: Icons.save_alt_rounded,
               onTap: () => _saveImage(context),
-              tooltip: '保存',
+              tooltip: context.l10n.image_save,
             ),
           ),
         ],
@@ -318,11 +319,11 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
       await file.writeAsBytes(widget.imageBytes);
 
       if (context.mounted) {
-        AppToast.success(context, '图片已保存到: ${saveDir.path}');
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '保存失败: $e');
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
   }

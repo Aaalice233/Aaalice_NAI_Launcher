@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import '../../widgets/common/themed_button.dart';
@@ -31,7 +33,7 @@ class _MobileGenerationLayoutState
       // 使用 GlobalKey 来控制 Drawer
       key: _scaffoldKey,
       appBar: AppBar(
-        title: const Text('生成'),
+        title: Text(context.l10n.generation_title),
         actions: [
           // 参数设置按钮 (打开侧边抽屉)
           IconButton(
@@ -39,7 +41,7 @@ class _MobileGenerationLayoutState
             onPressed: () {
                _scaffoldKey.currentState?.openEndDrawer();
             },
-            tooltip: '参数设置',
+            tooltip: context.l10n.generation_paramsSettings,
           ),
         ],
       ),
@@ -53,7 +55,7 @@ class _MobileGenerationLayoutState
                  child: Row(
                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                    children: [
-                     Text('生成参数', style: theme.textTheme.titleLarge),
+                     Text(context.l10n.generation_paramsSettings, style: theme.textTheme.titleLarge),
                      IconButton(
                        icon: const Icon(Icons.close),
                        onPressed: () => Navigator.pop(context),
@@ -94,7 +96,7 @@ class _MobileGenerationLayoutState
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '生成中... ${(generationState.progress * 100).toInt()}%',
+                    context.l10n.generation_progress((generationState.progress * 100).toInt().toString()),
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
@@ -116,37 +118,98 @@ class _MobileGenerationLayoutState
               ),
             ),
           ),
-          child: SizedBox(
-            width: double.infinity,
-            child: ThemedButton(
-              onPressed: generationState.isGenerating
-                  ? () {
-                      ref.read(imageGenerationNotifierProvider.notifier).cancel();
-                    }
-                  : () {
-                      if (params.prompt.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('请输入提示词')),
-                        );
-                        return;
-                      }
-                      ref
-                          .read(imageGenerationNotifierProvider.notifier)
-                          .generate(params);
-                    },
-              icon: generationState.isGenerating
-                  ? const Icon(Icons.stop)
-                  : const Icon(Icons.auto_awesome),
-              isLoading: false,
-              label: Text(generationState.isGenerating ? '取消生成' : '生成'),
-              style: generationState.isGenerating
-                  ? ThemedButtonStyle.outlined
-                  : ThemedButtonStyle.filled,
+          child: Row(
+            children: [
+              // 抽卡模式开关
+              _MobileRandomModeToggle(
+                enabled: ref.watch(randomPromptModeProvider),
+              ),
+              const SizedBox(width: 12),
+              // 生成按钮
+              Expanded(
+                child: ThemedButton(
+                  onPressed: generationState.isGenerating
+                      ? () {
+                          ref.read(imageGenerationNotifierProvider.notifier).cancel();
+                        }
+                      : () {
+                          _handleGenerate(context, ref, params);
+                        },
+                  icon: generationState.isGenerating
+                      ? const Icon(Icons.stop)
+                      : const Icon(Icons.auto_awesome),
+                  isLoading: false,
+                  label: Text(generationState.isGenerating ? context.l10n.generation_cancelGeneration : context.l10n.generation_generate),
+                  style: generationState.isGenerating
+                      ? ThemedButtonStyle.outlined
+                      : ThemedButtonStyle.filled,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleGenerate(BuildContext context, WidgetRef ref, ImageParams params) {
+    if (params.prompt.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.generation_pleaseInputPrompt)),
+      );
+      return;
+    }
+    
+    // 生成（抽卡模式逻辑在 generate 方法内部处理）
+    ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+  }
+}
+
+/// 移动端抽卡模式开关
+class _MobileRandomModeToggle extends ConsumerWidget {
+  final bool enabled;
+  
+  const _MobileRandomModeToggle({required this.enabled});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    
+    return Tooltip(
+      message: enabled 
+          ? context.l10n.randomMode_enabledTip
+          : context.l10n.randomMode_disabledTip,
+      child: GestureDetector(
+        onTap: () {
+          ref.read(randomPromptModeProvider.notifier).toggle();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: enabled
+                ? theme.colorScheme.primary.withOpacity(0.15)
+                : theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: enabled
+                  ? theme.colorScheme.primary.withOpacity(0.5)
+                  : theme.colorScheme.outline.withOpacity(0.3),
+              width: enabled ? 1.5 : 1,
             ),
+          ),
+          child: Icon(
+            Icons.casino_outlined,
+            size: 22,
+            color: enabled
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurface.withOpacity(0.5),
           ),
         ),
       ),
     );
   }
 }
+
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../tag_chip.dart';
 
@@ -173,7 +174,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                           ? '${'{'*bracketLayers}...${'}'*bracketLayers}'
                           : bracketLayers < 0
                               ? '${'['*(-bracketLayers)}...${'['*(-bracketLayers)}'
-                              : '无括号',
+                              : context.l10n.weight_noBrackets,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.outline,
                         fontFamily: 'monospace',
@@ -273,7 +274,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                           Navigator.pop(context);
                         },
                         icon: const Icon(Icons.delete_outline),
-                        label: const Text('删除'),
+                        label: Text(context.l10n.tag_delete),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: theme.colorScheme.error,
                           side: BorderSide(color: theme.colorScheme.error),
@@ -286,7 +287,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                     child: OutlinedButton.icon(
                       onPressed: _resetWeight,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('重置'),
+                      label: Text(context.l10n.weight_reset),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -295,7 +296,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                     child: FilledButton.icon(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.check),
-                      label: const Text('完成'),
+                      label: Text(context.l10n.weight_done),
                     ),
                   ),
                 ],
@@ -395,25 +396,25 @@ class _TagEditDialogState extends State<TagEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('编辑标签'),
+      title: Text(context.l10n.weight_editTag),
       content: TextField(
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(
-          labelText: '标签名称',
-          hintText: '输入标签名称...',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: context.l10n.weight_tagName,
+          hintText: context.l10n.weight_tagNameHint,
+          border: const OutlineInputBorder(),
         ),
         onSubmitted: (_) => _confirm(),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.common_cancel),
         ),
         FilledButton(
           onPressed: _confirm,
-          child: const Text('确认'),
+          child: Text(context.l10n.common_confirm),
         ),
       ],
     );

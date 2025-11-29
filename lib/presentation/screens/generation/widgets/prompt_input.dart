@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -13,6 +14,7 @@ import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/tag_view.dart';
+import '../../../widgets/prompt/uc_preset_selector.dart';
 
 /// 视图模式
 enum PromptViewMode {
@@ -251,7 +253,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         // 正面/负面切换标签
         _buildPromptTypeSwitch(theme, promptCount, negativeCount),
 
-        const SizedBox(width: 12),
+        // 使用 Expanded 填充剩余空间
+        const Expanded(child: SizedBox()),
 
         // 质量词提示
         QualityTagsHint(
@@ -262,8 +265,12 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           },
         ),
 
-        // 使用 Expanded 填充剩余空间，让右侧按钮紧贴右边
-        const Expanded(child: SizedBox()),
+        const SizedBox(width: 6),
+
+        // UC 预设选择器
+        UcPresetSelector(model: model),
+
+        const SizedBox(width: 8),
 
         // 视图模式切换
         _buildViewModeSwitch(theme),
@@ -277,7 +284,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               size: 20,
               color: theme.colorScheme.primary,
             ),
-            tooltip: '随机提示词 (长按配置)',
+            tooltip: context.l10n.tooltip_randomPrompt,
             onPressed: _generateRandomPrompt,
             visualDensity: VisualDensity.compact,
           ),
@@ -290,7 +297,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             size: 20,
             color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
-          tooltip: '全屏编辑',
+          tooltip: context.l10n.tooltip_fullscreenEdit,
           onPressed: _openFullScreenEditor,
           visualDensity: VisualDensity.compact,
         ),
@@ -302,7 +309,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             size: 20,
             color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
-          tooltip: '清空',
+          tooltip: context.l10n.tooltip_clear,
           offset: const Offset(40, 40),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           itemBuilder: (context) => [
@@ -318,7 +325,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '确认清空${_isNegativeMode ? "负面提示词" : "提示词"}',
+                    context.l10n.prompt_clearConfirm(_isNegativeMode ? context.l10n.prompt_negativePrompt : context.l10n.prompt_positivePrompt),
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ],
@@ -352,7 +359,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         size: 20,
         color: theme.colorScheme.onSurface.withOpacity(0.6),
       ),
-      tooltip: '提示词设置',
+      tooltip: context.l10n.tooltip_promptSettings,
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       itemBuilder: (context) => [
@@ -372,9 +379,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('智能补全'),
+                    Text(context.l10n.prompt_smartAutocomplete),
                     Text(
-                      '输入时显示标签建议',
+                      context.l10n.prompt_smartAutocompleteSubtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -401,9 +408,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('自动格式化'),
+                    Text(context.l10n.prompt_autoFormat),
                     Text(
-                      '中文逗号转英文、补齐括号等',
+                      context.l10n.prompt_autoFormatSubtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -436,7 +443,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         // 正面提示词按钮
         _PromptTypeButton(
           icon: Icons.auto_awesome,
-          label: '正面',
+          label: context.l10n.prompt_positive,
           count: promptCount,
           isSelected: !_isNegativeMode,
           color: theme.colorScheme.primary,
@@ -446,7 +453,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         // 负面提示词按钮
         _PromptTypeButton(
           icon: Icons.block,
-          label: '负面',
+          label: context.l10n.prompt_negative,
           count: negativeCount,
           isSelected: _isNegativeMode,
           color: theme.colorScheme.error,
@@ -580,7 +587,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                 child: _buildViewModeButton(
                   theme,
                   icon: Icons.text_fields_rounded,
-                  label: '文本',
+                  label: context.l10n.prompt_textMode,
                   isSelected: _viewMode == PromptViewMode.text,
                   onTap: () {
                     if (_viewMode != PromptViewMode.text) _toggleViewMode();
@@ -591,7 +598,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                 child: _buildViewModeButton(
                   theme,
                   icon: Icons.auto_awesome_rounded,
-                  label: '标签',
+                  label: context.l10n.prompt_tagMode,
                   isSelected: _viewMode == PromptViewMode.tags,
                   onTap: () {
                     if (_viewMode != PromptViewMode.tags) _toggleViewMode();
@@ -661,8 +668,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: InputDecoration(
         hintText: enableAutocomplete
-            ? '描述你想要生成的图像... (输入2个字符后显示标签建议)'
-            : '描述你想要生成的图像...',
+            ? context.l10n.prompt_describeImageWithHint
+            : context.l10n.prompt_describeImage,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -694,7 +701,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       child: TagView(
         tags: _promptTags,
         onTagsChanged: _onPromptTagsChanged,
-        emptyHint: '添加标签来描述你想要的画面',
+        emptyHint: context.l10n.prompt_addTagsHint,
       ),
     );
   }
@@ -714,7 +721,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         autoInsertComma: true,
       ),
       decoration: InputDecoration(
-        hintText: '不想出现在图像中的内容...',
+        hintText: context.l10n.prompt_unwantedContent,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -748,7 +755,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       child: TagView(
         tags: _negativeTags,
         onTagsChanged: _onNegativeTagsChanged,
-        emptyHint: '添加不想出现的元素',
+        emptyHint: context.l10n.prompt_addUnwantedHint,
         compact: true,
       ),
     );
@@ -759,7 +766,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final isTagMode = _viewMode == PromptViewMode.tags;
 
     return Tooltip(
-      message: isTagMode ? '切换到文本模式' : '切换到标签模式',
+      message: isTagMode ? context.l10n.prompt_switchToTextView : context.l10n.prompt_switchToTagView,
       child: GestureDetector(
         onTap: _toggleViewMode,
         child: Container(
@@ -831,7 +838,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         autoInsertComma: true,
       ),
       decoration: InputDecoration(
-        hintText: '输入提示词...',
+        hintText: context.l10n.prompt_inputPrompt,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -840,7 +847,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           children: [
             IconButton(
               icon: const Icon(Icons.fullscreen),
-              tooltip: '全屏编辑',
+              tooltip: context.l10n.tooltip_fullscreenEdit,
               onPressed: _openFullScreenEditor,
             ),
             if (_promptController.text.isNotEmpty)
@@ -914,7 +921,7 @@ class _FullScreenPromptEditorState
 
     return ThemedScaffold(
       appBar: AppBar(
-        title: const Text('编辑提示词'),
+        title: Text(context.l10n.prompt_editPrompt),
         actions: [
           // 视图切换按钮
           IconButton(
@@ -923,7 +930,7 @@ class _FullScreenPromptEditorState
                   ? Icons.label_outline
                   : Icons.text_fields,
             ),
-            tooltip: _viewMode == PromptViewMode.text ? '切换到标签视图' : '切换到文本视图',
+            tooltip: _viewMode == PromptViewMode.text ? context.l10n.prompt_switchToTagView : context.l10n.prompt_switchToTextView,
             onPressed: _toggleViewMode,
           ),
           IconButton(
@@ -940,11 +947,11 @@ class _FullScreenPromptEditorState
             // 正向提示词
             Row(
               children: [
-                Text('正向提示词', style: theme.textTheme.titleMedium),
+                Text(context.l10n.prompt_positivePrompt, style: theme.textTheme.titleMedium),
                 const SizedBox(width: 8),
                 if (_viewMode == PromptViewMode.tags)
                   Text(
-                    '${_promptTags.length} 个标签',
+                    context.l10n.prompt_tags(_promptTags.length.toString()),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
                     ),
@@ -965,7 +972,7 @@ class _FullScreenPromptEditorState
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      hintText: '输入提示词...',
+                      hintText: context.l10n.prompt_inputPrompt,
                     ),
                     onChanged: (value) {
                       ref
@@ -997,11 +1004,11 @@ class _FullScreenPromptEditorState
             // 负向提示词
             Row(
               children: [
-                Text('负向提示词', style: theme.textTheme.titleMedium),
+                Text(context.l10n.prompt_negativePrompt, style: theme.textTheme.titleMedium),
                 const SizedBox(width: 8),
                 if (_viewMode == PromptViewMode.tags)
                   Text(
-                    '${_negativeTags.length} 个标签',
+                    context.l10n.prompt_tags(_negativeTags.length.toString()),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
                     ),
@@ -1021,7 +1028,7 @@ class _FullScreenPromptEditorState
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      hintText: '输入负向提示词...',
+                      hintText: context.l10n.prompt_inputNegativePrompt,
                     ),
                     onChanged: (value) {
                       ref

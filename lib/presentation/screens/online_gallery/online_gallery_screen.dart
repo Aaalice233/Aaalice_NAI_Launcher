@@ -6,6 +6,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/services/danbooru_auth_service.dart';
@@ -118,20 +119,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         children: [
           _ModeButton(
             icon: Icons.search,
-            label: '搜索',
+            label: context.l10n.onlineGallery_search,
             isSelected: state.viewMode == GalleryViewMode.search,
             onTap: () => ref.read(onlineGalleryNotifierProvider.notifier).switchToSearch(),
             isFirst: true,
           ),
           _ModeButton(
             icon: Icons.local_fire_department,
-            label: '热门',
+            label: context.l10n.onlineGallery_popular,
             isSelected: state.viewMode == GalleryViewMode.popular,
             onTap: () => ref.read(onlineGalleryNotifierProvider.notifier).switchToPopular(),
           ),
           _ModeButton(
             icon: Icons.favorite,
-            label: '收藏',
+            label: context.l10n.onlineGallery_favorites,
             isSelected: state.viewMode == GalleryViewMode.favorites,
             onTap: () {
               if (!authState.isLoggedIn) {
@@ -160,7 +161,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         controller: _searchController,
         style: theme.textTheme.bodyMedium,
         decoration: InputDecoration(
-          hintText: '搜索标签...',
+          hintText: context.l10n.onlineGallery_searchTags,
           hintStyle: TextStyle(
             color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
             fontSize: 13,
@@ -225,7 +226,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
                 )
               : const Icon(Icons.refresh, size: 20),
-          tooltip: '刷新',
+          tooltip: context.l10n.onlineGallery_refresh,
           style: IconButton.styleFrom(
             foregroundColor: theme.colorScheme.onSurfaceVariant,
             padding: const EdgeInsets.all(8),
@@ -263,10 +264,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
             ),
           ),
           const PopupMenuDivider(),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'logout',
             child: Row(
-              children: [Icon(Icons.logout, size: 18), SizedBox(width: 8), Text('退出登录')],
+              children: [const Icon(Icons.logout, size: 18), const SizedBox(width: 8), Text(context.l10n.onlineGallery_logout)],
             ),
           ),
         ],
@@ -285,7 +286,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
     return IconButton(
       onPressed: () => _showLoginDialog(context),
       icon: const Icon(Icons.login, size: 20),
-      tooltip: '登录',
+      tooltip: context.l10n.onlineGallery_login,
       style: IconButton.styleFrom(
         foregroundColor: theme.colorScheme.onSurfaceVariant,
         padding: const EdgeInsets.all(8),
@@ -298,10 +299,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
       children: [
         // 时间范围
         SegmentedButton<PopularScale>(
-          segments: const [
-            ButtonSegment(value: PopularScale.day, label: Text('日榜')),
-            ButtonSegment(value: PopularScale.week, label: Text('周榜')),
-            ButtonSegment(value: PopularScale.month, label: Text('月榜')),
+          segments: [
+            ButtonSegment(value: PopularScale.day, label: Text(context.l10n.onlineGallery_dayRank)),
+            ButtonSegment(value: PopularScale.week, label: Text(context.l10n.onlineGallery_weekRank)),
+            ButtonSegment(value: PopularScale.month, label: Text(context.l10n.onlineGallery_monthRank)),
           ],
           selected: {state.popularScale},
           onSelectionChanged: (selected) {
@@ -320,7 +321,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           label: Text(
             state.popularDate != null
                 ? DateFormat('yyyy-MM-dd').format(state.popularDate!)
-                : '今天',
+                : context.l10n.onlineGallery_today,
             style: const TextStyle(fontSize: 13),
           ),
           style: OutlinedButton.styleFrom(
@@ -333,14 +334,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           IconButton(
             onPressed: () => ref.read(onlineGalleryNotifierProvider.notifier).setPopularDate(null),
             icon: const Icon(Icons.close, size: 16),
-            tooltip: '清除',
+            tooltip: context.l10n.onlineGallery_clear,
             style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
           ),
         ],
         const Spacer(),
         // 计数
         Text(
-          '${state.posts.length} 张',
+          context.l10n.onlineGallery_imageCount(state.posts.length.toString()),
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
@@ -376,14 +377,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 12),
-            Text('加载失败', style: theme.textTheme.titleMedium),
+            Text(context.l10n.onlineGallery_loadFailed, style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(state.error!, style: theme.textTheme.bodySmall, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('重试'),
+              label: Text(context.l10n.common_retry),
             ),
           ],
         ),
@@ -402,7 +403,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              state.viewMode == GalleryViewMode.favorites ? '收藏夹为空' : '没有找到图片',
+              state.viewMode == GalleryViewMode.favorites ? context.l10n.onlineGallery_favoritesEmpty : context.l10n.onlineGallery_noResults,
               style: theme.textTheme.titleMedium,
             ),
           ],
@@ -781,17 +782,14 @@ class _HoverPreviewCard extends ConsumerWidget {
     // 计算预览图尺寸，保持宽高比
     const maxWidth = 320.0;
     const maxHeight = 360.0;
-    double previewWidth = maxWidth;
     double previewHeight = maxWidth;
     
     if (post.width > 0 && post.height > 0) {
       final aspectRatio = post.width / post.height;
       if (aspectRatio > 1) {
-        previewWidth = maxWidth;
         previewHeight = maxWidth / aspectRatio;
       } else {
         previewHeight = maxHeight.clamp(0, maxWidth / aspectRatio);
-        previewWidth = previewHeight * aspectRatio;
       }
     }
 
@@ -1039,8 +1037,8 @@ class _RatingDropdown extends StatelessWidget {
 
   const _RatingDropdown({required this.selected, required this.onChanged});
 
-  static const _ratings = [
-    ('all', '全部', null),
+  List<(String, String, Color?)> _getRatings(BuildContext context) => [
+    ('all', context.l10n.onlineGallery_all, null),
     ('g', 'G', Colors.green),
     ('s', 'S', Colors.amber),
     ('q', 'Q', Colors.orange),
@@ -1050,13 +1048,14 @@ class _RatingDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final current = _ratings.firstWhere((r) => r.$1 == selected, orElse: () => _ratings[0]);
+    final ratings = _getRatings(context);
+    final current = ratings.firstWhere((r) => r.$1 == selected, orElse: () => ratings[0]);
 
     return PopupMenuButton<String>(
       onSelected: onChanged,
       offset: const Offset(0, 36),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      itemBuilder: (context) => _ratings.map((r) {
+      itemBuilder: (menuContext) => ratings.map((r) {
         final isSelected = selected == r.$1;
         return PopupMenuItem<String>(
           value: r.$1,
@@ -1171,7 +1170,7 @@ class _PostDetailDialog extends ConsumerWidget {
                       IconButton(
                         onPressed: () {
                           if (!authState.isLoggedIn) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先登录')));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.onlineGallery_pleaseLogin)));
                             return;
                           }
                           ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(post.id);
@@ -1184,14 +1183,14 @@ class _PostDetailDialog extends ConsumerWidget {
                   ),
                   const Divider(),
                   // 信息
-                  _InfoRow(label: '尺寸', value: '${post.width}×${post.height}'),
-                  _InfoRow(label: '评分', value: '${post.score}'),
-                  _InfoRow(label: '收藏', value: '${post.favCount}'),
-                  _InfoRow(label: '评级', value: post.rating.toUpperCase()),
-                  if (post.mediaTypeLabel != null) _InfoRow(label: '类型', value: post.mediaTypeLabel!),
+                  _InfoRow(label: context.l10n.onlineGallery_size, value: '${post.width}×${post.height}'),
+                  _InfoRow(label: context.l10n.onlineGallery_score, value: '${post.score}'),
+                  _InfoRow(label: context.l10n.onlineGallery_favCount, value: '${post.favCount}'),
+                  _InfoRow(label: context.l10n.onlineGallery_rating, value: post.rating.toUpperCase()),
+                  if (post.mediaTypeLabel != null) _InfoRow(label: context.l10n.onlineGallery_type, value: post.mediaTypeLabel!),
                   const SizedBox(height: 12),
                   // 标签
-                  Text('标签', style: theme.textTheme.titleSmall),
+                  Text(context.l10n.onlineGallery_tags, style: theme.textTheme.titleSmall),
                   const SizedBox(height: 8),
                   Expanded(
                     child: SingleChildScrollView(
@@ -1199,13 +1198,13 @@ class _PostDetailDialog extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (post.artistTags.isNotEmpty)
-                            _TagSection(title: '艺术家', tags: post.artistTags, color: const Color(0xFFFF8A8A), onTagTap: onTagTap),
+                            _TagSection(title: context.l10n.onlineGallery_artists, tags: post.artistTags, color: const Color(0xFFFF8A8A), onTagTap: onTagTap),
                           if (post.characterTags.isNotEmpty)
-                            _TagSection(title: '角色', tags: post.characterTags, color: const Color(0xFF8AFF8A), onTagTap: onTagTap, isCharacter: true),
+                            _TagSection(title: context.l10n.onlineGallery_characters, tags: post.characterTags, color: const Color(0xFF8AFF8A), onTagTap: onTagTap, isCharacter: true),
                           if (post.copyrightTags.isNotEmpty)
-                            _TagSection(title: '作品', tags: post.copyrightTags, color: const Color(0xFFCC8AFF), onTagTap: onTagTap),
+                            _TagSection(title: context.l10n.onlineGallery_copyrights, tags: post.copyrightTags, color: const Color(0xFFCC8AFF), onTagTap: onTagTap),
                           if (post.generalTags.isNotEmpty)
-                            _TagSection(title: '通用', tags: post.generalTags, color: const Color(0xFF8AC8FF), onTagTap: onTagTap),
+                            _TagSection(title: context.l10n.onlineGallery_general, tags: post.generalTags, color: const Color(0xFF8AC8FF), onTagTap: onTagTap),
                         ],
                       ),
                     ),
@@ -1218,10 +1217,10 @@ class _PostDetailDialog extends ConsumerWidget {
                         child: OutlinedButton.icon(
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: post.tags.join(', ')));
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制')));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.onlineGallery_copied)));
                           },
                           icon: const Icon(Icons.copy, size: 16),
-                          label: const Text('复制标签'),
+                          label: Text(context.l10n.onlineGallery_copyTags),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1232,7 +1231,7 @@ class _PostDetailDialog extends ConsumerWidget {
                             if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
                           },
                           icon: const Icon(Icons.open_in_new, size: 16),
-                          label: const Text('打开'),
+                          label: Text(context.l10n.onlineGallery_open),
                         ),
                       ),
                     ],

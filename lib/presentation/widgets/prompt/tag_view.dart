@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../providers/image_generation_provider.dart';
@@ -358,7 +359,7 @@ class _TagViewState extends ConsumerState<TagView> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '已选 $selectedCount',
+              context.l10n.tag_selected(selectedCount),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -369,14 +370,14 @@ class _TagViewState extends ConsumerState<TagView> {
           const Spacer(),
           _buildActionButton(
             icon: hasEnabledSelected ? Icons.visibility_off : Icons.visibility,
-            label: hasEnabledSelected ? '禁用' : '启用',
+            label: hasEnabledSelected ? context.l10n.tag_disable : context.l10n.tag_enable,
             onTap: _toggleSelectedEnabled,
             theme: theme,
           ),
           const SizedBox(width: 8),
           _buildActionButton(
             icon: Icons.delete_outline,
-            label: '删除',
+            label: context.l10n.tag_delete,
             onTap: _deleteSelectedTags,
             theme: theme,
             isDestructive: true,
@@ -454,7 +455,7 @@ class _TagViewState extends ConsumerState<TagView> {
             ),
             const SizedBox(height: 12),
             Text(
-              widget.emptyHint ?? '添加标签来描述你想要的画面',
+              widget.emptyHint ?? context.l10n.tag_emptyHint,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.5),
@@ -499,14 +500,14 @@ class _TagViewState extends ConsumerState<TagView> {
             children: [
               const Icon(Icons.add, size: 18, color: Colors.white),
               const SizedBox(width: 8),
-              Text(
-                '添加标签',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.95),
-                ),
-              ),
+                  Text(
+                    context.l10n.tag_addTag,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withOpacity(0.95),
+                    ),
+                  ),
             ],
           ),
         ),
@@ -691,7 +692,7 @@ class _TagViewState extends ConsumerState<TagView> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '添加',
+                    context.l10n.tag_add,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -751,7 +752,7 @@ class _TagViewState extends ConsumerState<TagView> {
                     autoInsertComma: false,
                   ),
                   decoration: InputDecoration(
-                    hintText: '输入标签...',
+                    hintText: context.l10n.tag_inputHint,
                     hintStyle: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.onSurface.withOpacity(0.4),

@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 
 /// 图片放大对话框
@@ -72,7 +73,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '图片放大',
+                    context.l10n.upscale_title,
                     style: theme.textTheme.titleLarge,
                   ),
                   const Spacer(),
@@ -133,7 +134,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
                       ref.read(upscaleNotifierProvider.notifier).clear();
                       Navigator.of(context).pop();
                     },
-                    child: const Text('关闭'),
+                    child: Text(context.l10n.upscale_close),
                   ),
                   const SizedBox(width: 8),
                   if (_sourceImage != null &&
@@ -141,7 +142,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
                     FilledButton.icon(
                       onPressed: _startUpscale,
                       icon: const Icon(Icons.auto_fix_high, size: 18),
-                      label: const Text('开始放大'),
+                      label: Text(context.l10n.upscale_start),
                     ),
                 ],
               ),
@@ -158,7 +159,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '源图像',
+            context.l10n.upscale_sourceImage,
             style: theme.textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
@@ -182,13 +183,13 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
                     _SmallIconButton(
                       icon: Icons.refresh,
                       onPressed: _pickImage,
-                      tooltip: '更换图片',
+                      tooltip: context.l10n.tooltip_changeImage,
                     ),
                     const SizedBox(width: 4),
                     _SmallIconButton(
                       icon: Icons.close,
                       onPressed: () => setState(() => _sourceImage = null),
-                      tooltip: '移除图片',
+                      tooltip: context.l10n.tooltip_removeImage,
                     ),
                   ],
                 ),
@@ -221,7 +222,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
               ),
               const SizedBox(height: 8),
               Text(
-                '点击选择要放大的图片',
+                context.l10n.upscale_clickToSelect,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withOpacity(0.4),
                 ),
@@ -238,7 +239,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '放大倍数',
+          context.l10n.upscale_scale,
           style: theme.textTheme.titleSmall,
         ),
         const SizedBox(height: 8),
@@ -265,8 +266,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
         const SizedBox(height: 8),
         Text(
           _scale == 2
-              ? '将图像放大到原来的2倍 (推荐)'
-              : '将图像放大到原来的4倍 (消耗更多 Anlas)',
+              ? context.l10n.upscale_2xHint
+              : context.l10n.upscale_4xHint,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
@@ -287,7 +288,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
           Text(
-            '正在放大图片...',
+            context.l10n.upscale_processing,
             style: theme.textTheme.bodyMedium,
           ),
           if (state.progress > 0) ...[
@@ -317,7 +318,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
             ),
             const SizedBox(width: 8),
             Text(
-              '放大完成',
+              context.l10n.upscale_complete,
               style: theme.textTheme.titleSmall?.copyWith(
                 color: theme.colorScheme.primary,
               ),
@@ -341,13 +342,13 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
             OutlinedButton.icon(
               onPressed: () => _saveResult(result),
               icon: const Icon(Icons.save, size: 18),
-              label: const Text('保存'),
+              label: Text(context.l10n.upscale_save),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: () => _shareResult(result),
               icon: const Icon(Icons.share, size: 18),
-              label: const Text('分享'),
+              label: Text(context.l10n.upscale_share),
             ),
           ],
         ),
@@ -371,7 +372,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              error ?? '放大失败',
+              error ?? context.l10n.upscale_failed,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.error,
               ),
@@ -410,7 +411,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败: $e')),
+          SnackBar(content: Text(context.l10n.upscale_selectFailed(e.toString()))),
         );
       }
     }
@@ -434,13 +435,13 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已保存到: ${file.path}')),
+          SnackBar(content: Text(context.l10n.upscale_savedTo(file.path))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
+          SnackBar(content: Text(context.l10n.upscale_saveFailed(e.toString()))),
         );
       }
     }
@@ -457,7 +458,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('分享失败: $e')),
+          SnackBar(content: Text(context.l10n.upscale_shareFailed(e.toString()))),
         );
       }
     }

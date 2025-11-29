@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 
 /// 配置项编辑器
@@ -43,7 +44,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
     _selectionMode = widget.config.selectionMode;
     _contentType = widget.config.contentType;
     _selectCount = widget.config.selectCount ?? 1;
-    _selectProbability = widget.config.selectProbability ?? 0.5;
+    _selectProbability = (widget.config.selectProbability ?? 0.5).clamp(0.1, 1.0);
     _bracketMin = widget.config.bracketMin;
     _bracketMax = widget.config.bracketMax;
     _shuffle = widget.config.shuffle;
@@ -77,12 +78,12 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isNew ? '新建配置组' : '编辑配置组'),
+          title: Text(widget.isNew ? context.l10n.configEditor_newConfigGroup : context.l10n.configEditor_editConfigGroup),
           actions: [
             TextButton.icon(
               onPressed: _saveConfig,
               icon: const Icon(Icons.check),
-              label: const Text('保存'),
+              label: Text(context.l10n.common_save),
             ),
           ],
         ),
@@ -92,10 +93,10 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             // 配置名称
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: '配置名称',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.label_outline),
+              decoration: InputDecoration(
+                labelText: context.l10n.configEditor_configName,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.label_outline),
               ),
               onChanged: (_) => _markChanged(),
             ),
@@ -103,8 +104,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
 
             // 启用开关
             SwitchListTile(
-              title: const Text('启用此配置'),
-              subtitle: const Text('禁用后不会参与生成'),
+              title: Text(context.l10n.configEditor_enableConfig),
+              subtitle: Text(context.l10n.configEditor_enableConfigHint),
               value: _enabled,
               onChanged: (value) {
                 setState(() {
@@ -116,19 +117,19 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             const Divider(height: 32),
 
             // 内容类型
-            _buildSectionHeader(theme, '内容类型'),
+            _buildSectionHeader(theme, context.l10n.configEditor_contentType),
             const SizedBox(height: 8),
             SegmentedButton<ContentType>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: ContentType.string,
-                  label: Text('标签列表'),
-                  icon: Icon(Icons.list),
+                  label: Text(context.l10n.configEditor_tagList),
+                  icon: const Icon(Icons.list),
                 ),
                 ButtonSegment(
                   value: ContentType.nested,
-                  label: Text('嵌套配置'),
-                  icon: Icon(Icons.account_tree),
+                  label: Text(context.l10n.configEditor_nestedConfig),
+                  icon: const Icon(Icons.account_tree),
                 ),
               ],
               selected: {_contentType},
@@ -142,7 +143,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             const SizedBox(height: 24),
 
             // 选取方式
-            _buildSectionHeader(theme, '选取方式'),
+            _buildSectionHeader(theme, context.l10n.configEditor_selectionMode),
             const SizedBox(height: 8),
             ...SelectionMode.values.map((mode) {
               return RadioListTile<SelectionMode>(
@@ -166,7 +167,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Text('选取数量：'),
+                  Text(context.l10n.configEditor_selectCount),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Slider(
@@ -200,7 +201,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Text('选取概率：'),
+                  Text(context.l10n.configEditor_selectProbability),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Slider(
@@ -233,8 +234,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             if (_selectionMode == SelectionMode.multipleProbability ||
                 _selectionMode == SelectionMode.all)
               SwitchListTile(
-                title: const Text('打乱顺序'),
-                subtitle: const Text('随机排列选中的内容'),
+                title: Text(context.l10n.configEditor_shuffleOrder),
+                subtitle: Text(context.l10n.configEditor_shuffleOrderHint),
                 value: _shuffle,
                 onChanged: (value) {
                   setState(() {
@@ -247,10 +248,10 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             const Divider(height: 32),
 
             // 权重括号
-            _buildSectionHeader(theme, '权重括号'),
+            _buildSectionHeader(theme, context.l10n.configEditor_weightBrackets),
             const SizedBox(height: 8),
             Text(
-              '括号用于增加权重，每层 {} 增加约 5% 权重',
+              context.l10n.configEditor_weightBracketsHint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
@@ -262,7 +263,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('最少括号: $_bracketMin'),
+                      Text(context.l10n.configEditor_minBrackets(_bracketMin)),
                       Slider(
                         value: _bracketMin.toDouble(),
                         min: 0,
@@ -286,7 +287,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('最多括号: $_bracketMax'),
+                      Text(context.l10n.configEditor_maxBrackets(_bracketMax)),
                       Slider(
                         value: _bracketMax.toDouble(),
                         min: 0,
@@ -315,7 +316,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('效果预览：', style: theme.textTheme.labelSmall),
+                      Text(context.l10n.configEditor_effectPreview, style: theme.textTheme.labelSmall),
                       const SizedBox(height: 4),
                       Text(
                         _getBracketPreview(),
@@ -331,7 +332,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             const Divider(height: 32),
 
             // 内容编辑
-            _buildSectionHeader(theme, '内容'),
+            _buildSectionHeader(theme, context.l10n.configEditor_content),
             const SizedBox(height: 8),
             if (_contentType == ContentType.string)
               _buildStringContentsEditor(theme)
@@ -361,7 +362,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '每行一个标签，当前 $lineCount 项',
+          context.l10n.configEditor_tagCountHint(lineCount),
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
@@ -372,7 +373,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
           maxLines: 15,
           minLines: 5,
           decoration: const InputDecoration(
-            hintText: '输入标签，每行一个...\n例如：\n1girl\nbeautiful eyes\nlong hair',
+            hintText: 'Enter tags, one per line...\ne.g.:\n1girl\nbeautiful eyes\nlong hair',
             border: OutlineInputBorder(),
           ),
           style: const TextStyle(fontFamily: 'monospace'),
@@ -387,19 +388,19 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             OutlinedButton.icon(
               onPressed: _formatContents,
               icon: const Icon(Icons.auto_fix_high, size: 18),
-              label: const Text('格式化'),
+              label: Text(context.l10n.configEditor_format),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: _sortContents,
               icon: const Icon(Icons.sort_by_alpha, size: 18),
-              label: const Text('排序'),
+              label: Text(context.l10n.configEditor_sort),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: _removeDuplicates,
               icon: const Icon(Icons.filter_list, size: 18),
-              label: const Text('去重'),
+              label: Text(context.l10n.configEditor_dedupe),
             ),
           ],
         ),
@@ -412,7 +413,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '嵌套配置可以创建复杂的分层随机逻辑',
+          context.l10n.configEditor_nestedConfigHint,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
@@ -432,7 +433,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '还没有嵌套配置',
+                      context.l10n.configEditor_noNestedConfig,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -451,8 +452,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                 title: Text(nested.name),
                 subtitle: Text(
                   nested.contentType == ContentType.string
-                      ? '${nested.stringContents.length} 项'
-                      : '${nested.nestedConfigs.length} 个子配置',
+                      ? context.l10n.configEditor_itemCount(nested.stringContents.length)
+                      : context.l10n.configEditor_subConfigCount(nested.nestedConfigs.length),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -477,7 +478,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
           child: OutlinedButton.icon(
             onPressed: _addNestedConfig,
             icon: const Icon(Icons.add),
-            label: const Text('添加嵌套配置'),
+            label: Text(context.l10n.configEditor_addNestedConfig),
           ),
         ),
       ],
@@ -520,7 +521,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
   }
 
   void _addNestedConfig() async {
-    final newConfig = PromptConfig.create(name: '子配置');
+    final newConfig = PromptConfig.create(name: context.l10n.configEditor_subConfig);
     final result = await Navigator.of(context).push<PromptConfig>(
       MaterialPageRoute(
         builder: (context) => ConfigItemEditor(config: newConfig, isNew: true),
@@ -558,30 +559,30 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
   String _getSelectionModeName(SelectionMode mode) {
     switch (mode) {
       case SelectionMode.singleRandom:
-        return '单个 - 随机';
+        return context.l10n.configEditor_singleRandom;
       case SelectionMode.singleSequential:
-        return '单个 - 顺序';
+        return context.l10n.configEditor_singleSequential;
       case SelectionMode.multipleCount:
-        return '多个 - 指定数量';
+        return context.l10n.configEditor_multipleCount;
       case SelectionMode.multipleProbability:
-        return '多个 - 指定概率';
+        return context.l10n.configEditor_multipleProbability;
       case SelectionMode.all:
-        return '全部';
+        return context.l10n.configEditor_selectAll;
     }
   }
 
   String _getSelectionModeDescription(SelectionMode mode) {
     switch (mode) {
       case SelectionMode.singleRandom:
-        return '每次随机选择一项';
+        return context.l10n.configEditor_singleRandomHint;
       case SelectionMode.singleSequential:
-        return '按顺序循环选择一项';
+        return context.l10n.configEditor_singleSequentialHint;
       case SelectionMode.multipleCount:
-        return '随机选择指定数量的项';
+        return context.l10n.configEditor_multipleCountHint;
       case SelectionMode.multipleProbability:
-        return '每项按概率独立选择';
+        return context.l10n.configEditor_multipleProbabilityHint;
       case SelectionMode.all:
-        return '选择所有项';
+        return context.l10n.configEditor_selectAllHint;
     }
   }
 
@@ -592,13 +593,13 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
       final closeBrackets = '}' * i;
       examples.add('${brackets}tag$closeBrackets');
     }
-    return examples.join(' 或 ');
+    return examples.join(context.l10n.configEditor_or);
   }
 
   void _saveConfig() {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入配置名称')),
+        SnackBar(content: Text(context.l10n.configEditor_enterConfigName)),
       );
       return;
     }
@@ -629,21 +630,21 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
   void _showUnsavedChangesDialog() {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
-          title: const Text('未保存的更改'),
-          content: const Text('有未保存的更改，确定要放弃吗？'),
+          title: Text(context.l10n.config_unsavedChanges),
+          content: Text(context.l10n.config_unsavedChangesContent),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('继续编辑'),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.configEditor_continueEditing),
             ),
             FilledButton(
               onPressed: () {
+                Navigator.pop(ctx);
                 Navigator.pop(context);
-                Navigator.pop(this.context);
               },
-              child: const Text('放弃更改'),
+              child: Text(context.l10n.configEditor_discardChanges),
             ),
           ],
         );

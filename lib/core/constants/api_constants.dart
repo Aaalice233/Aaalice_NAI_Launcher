@@ -260,3 +260,134 @@ class QualityTags {
     return '$trimmedPrompt, $tags';
   }
 }
+
+/// 负面提示词预设 (Undesired Content Presets)
+/// 根据 NAI 官方文档 https://docs.novelai.net/en/image/undesiredcontent
+enum UcPresetType {
+  heavy,      // 重度过滤
+  light,      // 轻度过滤
+  furryFocus, // Furry 聚焦
+  humanFocus, // 人物聚焦（额外排除解剖问题）
+  none,       // 不添加预设
+}
+
+class UcPresets {
+  UcPresets._();
+
+  /// V4.5 Full 预设
+  static const Map<UcPresetType, String> v45FullPresets = {
+    UcPresetType.heavy: 
+        'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
+    UcPresetType.light: 
+        'lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page',
+    UcPresetType.furryFocus: 
+        '{worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic',
+    UcPresetType.humanFocus: 
+        'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy',
+    UcPresetType.none: '',
+  };
+
+  /// V4.5 Curated 预设
+  static const Map<UcPresetType, String> v45CuratedPresets = {
+    UcPresetType.heavy: 
+        'blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page',
+    UcPresetType.light: 
+        'blurry, lowres, upscaled, artistic error, scan artifacts, jpeg artifacts, logo, too many watermarks, negative space, blank page',
+    UcPresetType.furryFocus: 
+        '{worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic',
+    UcPresetType.humanFocus: 
+        'blurry, lowres, upscaled, artistic error, film grain, scan artifacts, bad anatomy, bad hands, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, @_@, mismatched pupils, glowing eyes, negative space, blank page',
+    UcPresetType.none: '',
+  };
+
+  /// V4 Full 预设
+  static const Map<UcPresetType, String> v4FullPresets = {
+    UcPresetType.heavy: 
+        'blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, logo, too many watermarks',
+    UcPresetType.light: 
+        'blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing',
+    UcPresetType.furryFocus: 
+        '{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast',
+    UcPresetType.humanFocus: 
+        'blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, logo, too many watermarks, bad anatomy, bad hands',
+    UcPresetType.none: '',
+  };
+
+  /// V4 Curated 预设
+  static const Map<UcPresetType, String> v4CuratedPresets = {
+    UcPresetType.heavy: 
+        'blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, multiple views, gigantic breasts',
+    UcPresetType.light: 
+        'blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing, logo, dated, signature',
+    UcPresetType.furryFocus: 
+        '{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast',
+    UcPresetType.humanFocus: 
+        'blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, multiple views, gigantic breasts, bad anatomy, bad hands',
+    UcPresetType.none: '',
+  };
+
+  /// V3 预设
+  static const Map<UcPresetType, String> v3Presets = {
+    UcPresetType.heavy: 
+        'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]',
+    UcPresetType.light: 
+        'lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing',
+    UcPresetType.furryFocus: 
+        '{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast',
+    UcPresetType.humanFocus: 
+        'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes',
+    UcPresetType.none: '',
+  };
+
+  /// Furry V3 预设
+  static const Map<UcPresetType, String> furryV3Presets = {
+    UcPresetType.heavy: 
+        '{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast',
+    UcPresetType.light: 
+        '{worst quality}, guide lines, unfinished, bad, url, tall image, widescreen, compression artifacts, unknown text',
+    UcPresetType.furryFocus: 
+        '{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast',
+    UcPresetType.humanFocus: 
+        '{{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast',
+    UcPresetType.none: '',
+  };
+
+  /// 根据模型获取对应的预设映射
+  static Map<UcPresetType, String> getPresetsForModel(String model) {
+    switch (model) {
+      case ImageModels.animeDiffusionV45Full:
+        return v45FullPresets;
+      case ImageModels.animeDiffusionV45Curated:
+        return v45CuratedPresets;
+      case ImageModels.animeDiffusionV4Full:
+        return v4FullPresets;
+      case ImageModels.animeDiffusionV4Curated:
+        return v4CuratedPresets;
+      case ImageModels.furryDiffusionV3:
+        return furryV3Presets;
+      case ImageModels.animeDiffusionV3:
+      default:
+        return v3Presets;
+    }
+  }
+
+  /// 获取指定模型和预设类型的负面提示词
+  static String getPresetContent(String model, UcPresetType type) {
+    final presets = getPresetsForModel(model);
+    return presets[type] ?? '';
+  }
+
+  /// 将预设应用到负面提示词
+  static String applyPreset(String negativePrompt, String model, UcPresetType type) {
+    if (type == UcPresetType.none) return negativePrompt;
+    
+    final presetContent = getPresetContent(model, type);
+    if (presetContent.isEmpty) return negativePrompt;
+    
+    final trimmedNegative = negativePrompt.trim();
+    if (trimmedNegative.isEmpty) return presetContent;
+    
+    // 预设内容添加到用户负面提示词前面
+    return '$presetContent, $trimmedNegative';
+  }
+}

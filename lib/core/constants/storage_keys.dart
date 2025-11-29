@@ -32,6 +32,9 @@ class StorageKeys {
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
   static const String addQualityTags = 'add_quality_tags';
+  static const String ucPresetType = 'uc_preset_type';
+  static const String randomPromptMode = 'random_prompt_mode';
+  static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';
   static const String autoFormatPrompt = 'auto_format_prompt';
 

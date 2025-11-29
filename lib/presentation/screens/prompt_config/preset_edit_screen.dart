@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../providers/prompt_config_provider.dart';
 import 'config_item_editor.dart';
@@ -57,13 +58,15 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isNew ? '新建预设' : '编辑预设'),
+          title: Text(widget.isNew
+              ? context.l10n.presetEdit_newPreset
+              : context.l10n.presetEdit_editPreset),
           actions: [
             if (_hasChanges || widget.isNew)
               TextButton.icon(
                 onPressed: _savePreset,
                 icon: const Icon(Icons.check),
-                label: const Text('保存'),
+                label: Text(context.l10n.common_save),
               ),
           ],
         ),
@@ -75,12 +78,12 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
               child: TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: '预设名称',
+                  labelText: context.l10n.presetEdit_presetName,
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.label_outline),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.preview),
-                    tooltip: '预览生成',
+                    tooltip: context.l10n.tooltip_previewGenerate,
                     onPressed: _previewGenerate,
                   ),
                 ),
@@ -94,7 +97,7 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '配置组 (${_configs.length})',
+                    context.l10n.presetEdit_configGroups(_configs.length),
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -104,12 +107,12 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.help_outline, size: 20),
-                        tooltip: '帮助',
+                        tooltip: context.l10n.tooltip_help,
                         onPressed: _showHelpDialog,
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline),
-                        tooltip: '添加配置组',
+                        tooltip: context.l10n.tooltip_addConfigGroup,
                         onPressed: _addConfig,
                       ),
                     ],
@@ -164,12 +167,12 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            '还没有配置组',
+            context.l10n.presetEdit_noConfigGroups,
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            '点击右上角 + 添加配置组',
+            context.l10n.presetEdit_addConfigGroupHint,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -178,7 +181,7 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
           OutlinedButton.icon(
             onPressed: _addConfig,
             icon: const Icon(Icons.add),
-            label: const Text('添加配置组'),
+            label: Text(context.l10n.presetEdit_addConfigGroup),
           ),
         ],
       ),
@@ -186,7 +189,8 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
   }
 
   void _addConfig() async {
-    final newConfig = PromptConfig.create(name: '新配置组');
+    final newConfig =
+        PromptConfig.create(name: context.l10n.presetEdit_newConfigGroup);
     final result = await Navigator.of(context).push<PromptConfig>(
       MaterialPageRoute(
         builder: (context) => ConfigItemEditor(config: newConfig, isNew: true),
@@ -233,7 +237,7 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
   void _savePreset() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入预设名称')),
+        SnackBar(content: Text(context.l10n.presetEdit_enterPresetName)),
       );
       return;
     }
@@ -253,7 +257,7 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('保存成功')),
+        SnackBar(content: Text(context.l10n.presetEdit_saveSuccess)),
       );
       Navigator.of(context).pop();
     }
@@ -267,27 +271,27 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
     final result = tempPreset.generate();
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
-          title: const Text('预览生成结果'),
+          title: Text(context.l10n.presetEdit_previewTitle),
           content: SizedBox(
             width: 400,
             child: SelectableText(
-              result.isEmpty ? '(空结果，请检查配置)' : result,
-              style: Theme.of(context).textTheme.bodyMedium,
+              result.isEmpty ? context.l10n.presetEdit_emptyResult : result,
+              style: Theme.of(ctx).textTheme.bodyMedium,
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('关闭'),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.common_close),
             ),
             FilledButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(ctx);
                 _previewGenerate(); // 重新生成
               },
-              child: const Text('重新生成'),
+              child: Text(context.l10n.presetEdit_regenerate),
             ),
           ],
         );
@@ -298,21 +302,21 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
   void _showUnsavedChangesDialog() {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
-          title: const Text('未保存的更改'),
-          content: const Text('有未保存的更改，确定要放弃吗？'),
+          title: Text(context.l10n.config_unsavedChanges),
+          content: Text(context.l10n.config_unsavedChangesContent),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('继续编辑'),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.configEditor_continueEditing),
             ),
             FilledButton(
               onPressed: () {
+                Navigator.pop(ctx);
                 Navigator.pop(context);
-                Navigator.pop(this.context);
               },
-              child: const Text('放弃更改'),
+              child: Text(context.l10n.configEditor_discardChanges),
             ),
           ],
         );
@@ -323,44 +327,48 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
   void _showHelpDialog() {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
-          title: const Text('帮助'),
-          content: const SizedBox(
+          title: Text(context.l10n.presetEdit_helpTitle),
+          content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('配置组说明', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
-                  Text('每个配置组会按顺序生成内容，最终结果由逗号连接。'),
-                  SizedBox(height: 16),
-                  Text('选取方式', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
-                  Text('• 单个-随机：随机选择一项'),
-                  Text('• 单个-顺序：按顺序循环选择'),
-                  Text('• 多个-数量：随机选择指定数量'),
-                  Text('• 多个-概率：每项按概率独立选择'),
-                  Text('• 全部：选择所有项'),
-                  SizedBox(height: 16),
-                  Text('权重括号', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
-                  Text('括号 {} 用于增加权重，括号越多权重越高。'),
-                  Text('例如：{tag} 是 1.05 倍权重，{{tag}} 是 1.1 倍。'),
-                  SizedBox(height: 16),
-                  Text('嵌套配置', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
-                  Text('配置可以嵌套，用于创建复杂的分层随机逻辑。'),
+                  Text(context.l10n.presetEdit_helpConfigGroup,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.presetEdit_helpConfigGroupContent),
+                  const SizedBox(height: 16),
+                  Text(context.l10n.presetEdit_helpSelectionMode,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.presetEdit_helpSingleRandom),
+                  Text(context.l10n.presetEdit_helpSingleSequential),
+                  Text(context.l10n.presetEdit_helpMultipleCount),
+                  Text(context.l10n.presetEdit_helpMultipleProbability),
+                  Text(context.l10n.presetEdit_helpAll),
+                  const SizedBox(height: 16),
+                  Text(context.l10n.presetEdit_helpWeightBrackets,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.presetEdit_helpWeightBracketsContent),
+                  Text(context.l10n.presetEdit_helpWeightBracketsExample),
+                  const SizedBox(height: 16),
+                  Text(context.l10n.presetEdit_helpNestedConfig,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.presetEdit_helpNestedConfigContent),
                 ],
               ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('知道了'),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.presetEdit_gotIt),
             ),
           ],
         );
@@ -392,6 +400,7 @@ class _ConfigCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onEdit,
         borderRadius: BorderRadius.circular(12),
@@ -426,7 +435,7 @@ class _ConfigCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _getConfigDescription(),
+                        _getConfigDescription(context),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
@@ -448,43 +457,46 @@ class _ConfigCard extends StatelessWidget {
     );
   }
 
-  String _getConfigDescription() {
+  String _getConfigDescription(BuildContext context) {
     final parts = <String>[];
 
     // 内容类型和数量
     if (config.contentType == ContentType.string) {
-      parts.add('${config.stringContents.length} 项标签');
+      parts.add(context.l10n.presetEdit_tagCount(config.stringContents.length));
     } else {
-      parts.add('${config.nestedConfigs.length} 个子配置');
+      parts.add(context.l10n
+          .configEditor_subConfigCount(config.nestedConfigs.length));
     }
 
     // 选取方式
-    parts.add(_getSelectionModeText());
+    parts.add(_getSelectionModeText(context));
 
     // 括号权重
     if (config.bracketMin > 0 || config.bracketMax > 0) {
       if (config.bracketMin == config.bracketMax) {
-        parts.add('${config.bracketMin} 层括号');
+        parts.add(context.l10n.presetEdit_bracketLayers(config.bracketMin));
       } else {
-        parts.add('${config.bracketMin}-${config.bracketMax} 层括号');
+        parts.add(context.l10n
+            .presetEdit_bracketRange(config.bracketMin, config.bracketMax));
       }
     }
 
     return parts.join(' · ');
   }
 
-  String _getSelectionModeText() {
+  String _getSelectionModeText(BuildContext context) {
     switch (config.selectionMode) {
       case SelectionMode.singleRandom:
-        return '随机单选';
+        return context.l10n.config_singleRandom;
       case SelectionMode.singleSequential:
-        return '顺序单选';
+        return context.l10n.config_singleSequential;
       case SelectionMode.multipleCount:
-        return '随机 ${config.selectCount ?? 1} 个';
+        return context.l10n.configEditor_randomCount(config.selectCount ?? 1);
       case SelectionMode.multipleProbability:
-        return '${((config.selectProbability ?? 0.5) * 100).toInt()}% 概率';
+        return context.l10n.configEditor_probabilityPercent(
+            ((config.selectProbability ?? 0.5) * 100).toInt());
       case SelectionMode.all:
-        return '全部';
+        return context.l10n.config_all;
     }
   }
 }

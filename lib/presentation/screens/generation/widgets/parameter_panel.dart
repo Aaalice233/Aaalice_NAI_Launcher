@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/themed_input.dart';
@@ -48,7 +49,7 @@ class ParameterPanel extends ConsumerWidget {
                   : () {
                       if (params.prompt.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('请输入提示词')),
+                          SnackBar(content: Text(context.l10n.generation_pleaseInputPrompt)),
                         );
                         return;
                       }
@@ -59,7 +60,7 @@ class ParameterPanel extends ConsumerWidget {
                   ? const Icon(Icons.stop)
                   : const Icon(Icons.auto_awesome),
               isLoading: isGenerating && false, // 不要显示加载圈，直接变 Cancel
-              label: Text(isGenerating ? '取消生成' : '生成图像'),
+              label: Text(isGenerating ? context.l10n.generation_cancelGeneration : context.l10n.generation_generateImage),
               style: isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
             ),
           ),
@@ -69,7 +70,7 @@ class ParameterPanel extends ConsumerWidget {
         ],
 
         // 模型选择
-        _buildSectionTitle(theme, '模型'),
+        _buildSectionTitle(theme, context.l10n.generation_model),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: params.model,
@@ -97,7 +98,7 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 尺寸设置
-        _buildSectionTitle(theme, '图像尺寸'),
+        _buildSectionTitle(theme, context.l10n.generation_imageSize),
         const SizedBox(height: 8),
         _SizeSelector(
           width: params.width,
@@ -111,7 +112,7 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 采样器
-        _buildSectionTitle(theme, '采样器'),
+        _buildSectionTitle(theme, context.l10n.generation_sampler),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: params.sampler,
@@ -139,7 +140,7 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 步数
-        _buildSectionTitle(theme, '步数: ${params.steps}'),
+        _buildSectionTitle(theme, context.l10n.generation_steps(params.steps.toString())),
         Slider(
           value: params.steps.toDouble(),
           min: 1,
@@ -153,7 +154,7 @@ class ParameterPanel extends ConsumerWidget {
         ),
 
         // CFG Scale
-        _buildSectionTitle(theme, 'CFG Scale: ${params.scale.toStringAsFixed(1)}'),
+        _buildSectionTitle(theme, context.l10n.generation_cfgScale(params.scale.toStringAsFixed(1))),
         Slider(
           value: params.scale,
           min: 1,
@@ -169,14 +170,14 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 种子
-        _buildSectionTitle(theme, '种子'),
+        _buildSectionTitle(theme, context.l10n.generation_seed),
         const SizedBox(height: 8),
         ThemedInput(
           controller: TextEditingController(text: params.seed == -1 ? '' : params.seed.toString())
             ..selection = TextSelection.fromPosition(
               TextPosition(offset: params.seed == -1 ? 0 : params.seed.toString().length),
             ),
-          hintText: '随机',
+          hintText: context.l10n.generation_seedRandom,
           keyboardType: TextInputType.number,
           onChanged: (value) {
             // 清空输入框时自动变成随机 (-1)
@@ -209,15 +210,15 @@ class ParameterPanel extends ConsumerWidget {
         // 高级选项
         ExpansionTile(
           title: Text(
-            '高级选项',
+            context.l10n.generation_advancedOptions,
             style: theme.textTheme.titleSmall,
           ),
           tilePadding: EdgeInsets.zero,
           children: [
             // SMEA
             SwitchListTile(
-              title: const Text('SMEA'),
-              subtitle: const Text('改善大图像的生成质量'),
+              title: Text(context.l10n.generation_smea),
+              subtitle: Text(context.l10n.generation_smeaSubtitle),
               value: params.smea,
               contentPadding: EdgeInsets.zero,
               onChanged: (value) {
@@ -228,8 +229,8 @@ class ParameterPanel extends ConsumerWidget {
 
             // SMEA DYN
             SwitchListTile(
-              title: const Text('SMEA DYN'),
-              subtitle: const Text('SMEA 动态变体'),
+              title: Text(context.l10n.generation_smeaDyn),
+              subtitle: Text(context.l10n.generation_smeaDynSubtitle),
               value: params.smeaDyn,
               contentPadding: EdgeInsets.zero,
               onChanged: (value) {
@@ -243,7 +244,7 @@ class ParameterPanel extends ConsumerWidget {
               const SizedBox(height: 8),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text('CFG Rescale: ${params.cfgRescale.toStringAsFixed(2)}'),
+                title: Text(context.l10n.generation_cfgRescale(params.cfgRescale.toStringAsFixed(2))),
                 subtitle: Slider(
                   value: params.cfgRescale,
                   min: 0,
@@ -262,7 +263,7 @@ class ParameterPanel extends ConsumerWidget {
               const SizedBox(height: 8),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('噪声调度'),
+                title: Text(context.l10n.generation_noiseSchedule),
                 trailing: DropdownButton<String>(
                   value: params.noiseSchedule,
                   items: const [
@@ -291,7 +292,7 @@ class ParameterPanel extends ConsumerWidget {
             ref.read(generationParamsNotifierProvider.notifier).reset();
           },
           icon: const Icon(Icons.restart_alt),
-          label: const Text('重置参数'),
+          label: Text(context.l10n.generation_resetParams),
           style: ThemedButtonStyle.outlined,
         ),
       ],
@@ -320,22 +321,26 @@ class _SizeSelector extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _presets = [
-    (832, 1216, '竖屏 (832×1216)'),
-    (1216, 832, '横屏 (1216×832)'),
-    (1024, 1024, '方形 (1024×1024)'),
-    (640, 640, '小方形 (640×640)'),
-    (1472, 1472, '大方形 (1472×1472)'),
-    (1088, 1920, '竖长 (1088×1920)'),
-    (1920, 1088, '横长 (1920×1088)'),
-  ];
+  List<(int, int, String)> _getPresets(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      (832, 1216, l10n.generation_sizePortrait('832', '1216')),
+      (1216, 832, l10n.generation_sizeLandscape('1216', '832')),
+      (1024, 1024, l10n.generation_sizeSquare('1024', '1024')),
+      (640, 640, l10n.generation_sizeSmallSquare('640', '640')),
+      (1472, 1472, l10n.generation_sizeLargeSquare('1472', '1472')),
+      (1088, 1920, l10n.generation_sizeTallPortrait('1088', '1920')),
+      (1920, 1088, l10n.generation_sizeWideLandscape('1920', '1088')),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final presets = _getPresets(context);
     // 找到当前选中的预设值
-    final currentValue = _presets.firstWhere(
+    final currentValue = presets.firstWhere(
       (p) => p.$1 == width && p.$2 == height,
-      orElse: () => _presets.first,
+      orElse: () => presets.first,
     );
     final currentKey = '${currentValue.$1}x${currentValue.$2}';
 
@@ -346,7 +351,7 @@ class _SizeSelector extends StatelessWidget {
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      items: _presets.map((preset) {
+      items: presets.map((preset) {
         final key = '${preset.$1}x${preset.$2}';
         return DropdownMenuItem(
           value: key,
@@ -358,7 +363,7 @@ class _SizeSelector extends StatelessWidget {
       }).toList(),
       onChanged: (value) {
         if (value != null) {
-          final preset = _presets.firstWhere(
+          final preset = presets.firstWhere(
             (p) => '${p.$1}x${p.$2}' == value,
           );
           onChanged(preset.$1, preset.$2);

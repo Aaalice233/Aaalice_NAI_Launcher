@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
@@ -190,7 +191,7 @@ class _TagChipState extends ConsumerState<TagChip>
       onDelete: widget.onDelete,
       onCopy: () {
         Clipboard.setData(ClipboardData(text: widget.tag.toSyntaxString()));
-        AppToast.success(context, '已复制到剪贴板');
+        AppToast.success(context, context.l10n.tag_copiedToClipboard);
       },
     );
   }
@@ -412,7 +413,7 @@ class _TagChipState extends ConsumerState<TagChip>
               Clipboard.setData(
                 ClipboardData(text: widget.tag.toSyntaxString()),
               );
-              AppToast.success(context, '已复制到剪贴板');
+              AppToast.success(context, context.l10n.tag_copiedToClipboard);
             },
           ),
         ),

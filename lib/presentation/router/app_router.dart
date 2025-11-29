@@ -9,7 +9,7 @@ import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
 import '../screens/online_gallery/online_gallery_screen.dart';
-import '../screens/prompt_config/prompt_config_screen_v2.dart';
+import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 

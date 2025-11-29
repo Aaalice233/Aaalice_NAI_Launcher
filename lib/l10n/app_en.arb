@@ -1,33 +1,927 @@
 {
   "@@locale": "en",
+
   "appTitle": "NAI Launcher",
-  "login": "Login",
-  "email": "Email",
-  "password": "Password",
-  "loginButton": "Sign In",
-  "logout": "Logout",
-  "generate": "Generate",
-  "cancel": "Cancel",
-  "save": "Save",
-  "settings": "Settings",
-  "gallery": "Gallery",
-  "prompt": "Prompt",
-  "negativePrompt": "Negative Prompt",
-  "model": "Model",
-  "width": "Width",
-  "height": "Height",
-  "steps": "Steps",
-  "scale": "CFG Scale",
-  "sampler": "Sampler",
-  "seed": "Seed",
-  "randomSeed": "Random",
-  "generating": "Generating...",
-  "noImagesYet": "No images generated yet",
-  "theme": "Theme",
-  "language": "Language",
-  "invokeStyle": "Invoke",
-  "discordStyle": "Discord",
-  "cyberpunkStyle": "Cyberpunk",
-  "retroTerminal": "Retro Terminal",
-  "pureLight": "Pure Light"
+  "appSubtitle": "NovelAI Third-party Client",
+
+  "common_cancel": "Cancel",
+  "common_confirm": "Confirm",
+  "common_save": "Save",
+  "common_delete": "Delete",
+  "common_edit": "Edit",
+  "common_close": "Close",
+  "common_back": "Back",
+  "common_clear": "Clear",
+  "common_copy": "Copy",
+  "common_export": "Export",
+  "common_import": "Import",
+  "common_loading": "Loading...",
+  "common_error": "Error",
+  "common_success": "Success",
+  "common_retry": "Retry",
+  "common_more": "More",
+  "common_select": "Select",
+  "common_reset": "Reset",
+  "common_search": "Search",
+  "common_featureInDev": "Feature in development...",
+
+  "nav_canvas": "Canvas",
+  "nav_gallery": "Gallery",
+  "nav_onlineGallery": "Online Gallery",
+  "nav_randomConfig": "Random Config",
+  "nav_dictionary": "Dictionary (WIP)",
+  "nav_settings": "Settings",
+  "nav_discordCommunity": "Discord Community",
+
+  "auth_login": "Login",
+  "auth_logout": "Logout",
+  "auth_email": "Email",
+  "auth_emailHint": "Enter your NovelAI account email",
+  "auth_password": "Password",
+  "auth_passwordHint": "Enter password",
+  "auth_loginButton": "Sign In",
+  "auth_loginFailed": "Login failed",
+  "auth_rememberPassword": "Remember password",
+  "auth_loginTip": "Sign in with your NovelAI account\nAll data is stored locally only",
+  "auth_checkingStatus": "Checking login status",
+  "auth_loggedIn": "Logged in",
+  "auth_tokenConfigured": "Token configured",
+  "auth_notLoggedIn": "Not logged in",
+  "auth_pleaseLogin": "Please login to use all features",
+  "auth_logoutConfirmTitle": "Logout",
+  "auth_logoutConfirmContent": "Are you sure you want to logout?",
+  "auth_emailRequired": "Please enter email",
+  "auth_emailInvalid": "Please enter a valid email address",
+  "auth_passwordRequired": "Please enter password",
+
+  "settings_title": "Settings",
+  "settings_account": "Account",
+  "settings_appearance": "Appearance",
+  "settings_style": "Style",
+  "settings_font": "Font",
+  "settings_language": "Language",
+  "settings_languageChinese": "中文",
+  "settings_languageEnglish": "English",
+  "settings_selectStyle": "Select Style",
+  "settings_selectFont": "Select Font",
+  "settings_selectLanguage": "Select Language",
+  "settings_loadFailed": "Load failed: {error}",
+  "@settings_loadFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settings_storage": "Storage",
+  "settings_imageSavePath": "Image Save Location",
+  "settings_default": "Default",
+  "settings_autoSave": "Auto Save",
+  "settings_autoSaveSubtitle": "Automatically save images after generation",
+  "settings_about": "About",
+  "settings_version": "Version {version}",
+  "@settings_version": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "settings_openSource": "Open Source",
+  "settings_openSourceSubtitle": "View source code and documentation",
+
+  "generation_title": "Generate",
+  "generation_generate": "Generate",
+  "generation_cancel": "Cancel",
+  "generation_generating": "Generating...",
+  "generation_cancelGeneration": "Cancel Generation",
+  "generation_generateImage": "Generate Image",
+  "generation_pleaseInputPrompt": "Please enter prompt",
+  "generation_emptyPromptHint": "Enter prompt and click generate",
+  "generation_imageWillShowHere": "Image will be displayed here",
+  "generation_generationFailed": "Generation failed",
+  "generation_progress": "Generating... {progress}%",
+  "@generation_progress": {
+    "placeholders": {
+      "progress": {}
+    }
+  },
+  "generation_params": "Parameters",
+  "generation_paramsSettings": "Parameter Settings",
+  "generation_history": "History",
+  "generation_historyRecord": "History Records",
+  "generation_noHistory": "No history records",
+  "generation_clearHistory": "Clear History",
+  "generation_clearHistoryConfirm": "Are you sure you want to clear all history records? This action cannot be undone.",
+  "generation_model": "Model",
+  "generation_imageSize": "Image Size",
+  "generation_sampler": "Sampler",
+  "generation_steps": "Steps: {steps}",
+  "@generation_steps": {
+    "placeholders": {
+      "steps": {}
+    }
+  },
+  "generation_cfgScale": "CFG Scale: {scale}",
+  "@generation_cfgScale": {
+    "placeholders": {
+      "scale": {}
+    }
+  },
+  "generation_seed": "Seed",
+  "generation_seedRandom": "Random",
+  "generation_advancedOptions": "Advanced Options",
+  "generation_smea": "SMEA",
+  "generation_smeaSubtitle": "Improve generation quality for large images",
+  "generation_smeaDyn": "SMEA DYN",
+  "generation_smeaDynSubtitle": "SMEA dynamic variant",
+  "generation_cfgRescale": "CFG Rescale: {value}",
+  "@generation_cfgRescale": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "generation_noiseSchedule": "Noise Schedule",
+  "generation_resetParams": "Reset Parameters",
+  "generation_sizePortrait": "Portrait ({width}×{height})",
+  "@generation_sizePortrait": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "generation_sizeLandscape": "Landscape ({width}×{height})",
+  "@generation_sizeLandscape": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "generation_sizeSquare": "Square ({width}×{height})",
+  "@generation_sizeSquare": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "generation_sizeSmallSquare": "Small Square ({width}×{height})",
+  "@generation_sizeSmallSquare": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "generation_sizeLargeSquare": "Large Square ({width}×{height})",
+  "@generation_sizeLargeSquare": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "generation_sizeTallPortrait": "Tall Portrait ({width}×{height})",
+  "@generation_sizeTallPortrait": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "generation_sizeWideLandscape": "Wide Landscape ({width}×{height})",
+  "@generation_sizeWideLandscape": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+
+  "prompt_positive": "Positive",
+  "prompt_negative": "Negative",
+  "prompt_positivePrompt": "Positive Prompt",
+  "prompt_negativePrompt": "Negative Prompt",
+  "prompt_tags": "{count} tags",
+  "@prompt_tags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "prompt_editPrompt": "Edit Prompt",
+  "prompt_inputPrompt": "Enter prompt...",
+  "prompt_inputNegativePrompt": "Enter negative prompt...",
+  "prompt_describeImage": "Describe the image you want to generate...",
+  "prompt_describeImageWithHint": "Describe the image you want to generate... (Tag suggestions appear after 2 characters)",
+  "prompt_unwantedContent": "Content you don't want in the image...",
+  "prompt_addTagsHint": "Add tags to describe your desired image",
+  "prompt_addUnwantedHint": "Add unwanted elements",
+  "prompt_fullscreenEdit": "Fullscreen Edit",
+  "prompt_randomPrompt": "Random Prompt (long press to configure)",
+  "prompt_clearConfirm": "Confirm clear {type}",
+  "@prompt_clearConfirm": {
+    "placeholders": {
+      "type": {}
+    }
+  },
+  "prompt_promptSettings": "Prompt Settings",
+  "prompt_smartAutocomplete": "Smart Autocomplete",
+  "prompt_smartAutocompleteSubtitle": "Show tag suggestions while typing",
+  "prompt_autoFormat": "Auto Format",
+  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-close brackets, etc.",
+  "prompt_textMode": "Text",
+  "prompt_tagMode": "Tags",
+  "prompt_switchToTagView": "Switch to Tag View",
+  "prompt_switchToTextView": "Switch to Text View",
+
+  "image_save": "Save",
+  "image_copy": "Copy",
+  "image_upscale": "Upscale",
+  "image_imageSaved": "Image saved to: {path}",
+  "@image_imageSaved": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "image_saveFailed": "Save failed: {error}",
+  "@image_saveFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "image_copiedToClipboard": "Copied to clipboard",
+  "image_copyFailed": "Copy failed: {error}",
+  "@image_copyFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+
+  "gallery_title": "Gallery",
+  "gallery_selected": "Selected {count} items",
+  "@gallery_selected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "gallery_clearAll": "Clear All",
+  "gallery_clearGallery": "Clear Gallery",
+  "gallery_favorite": "Favorite",
+  "gallery_sortNewest": "Newest First",
+  "gallery_sortOldest": "Oldest First",
+  "gallery_sortFavorite": "Favorites First",
+  "gallery_selectedCount": "Selected {count} images",
+  "@gallery_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "config_title": "Random Prompt Configuration",
+  "config_presets": "Presets",
+  "config_configGroups": "Config Groups",
+  "config_presetName": "Preset Name",
+  "config_noPresets": "No presets",
+  "config_restoreDefaults": "Restore Defaults",
+  "config_newPreset": "New Preset",
+  "config_selectPreset": "Select a preset",
+  "config_noConfigGroups": "No config groups yet",
+  "config_addConfigGroup": "Add Config Group",
+  "config_saveChanges": "Save Changes",
+  "config_configGroupCount": "{count} config groups",
+  "@config_configGroupCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "config_setAsCurrent": "Set as Current",
+  "config_duplicate": "Duplicate",
+  "config_importConfig": "Import Config",
+  "config_selectConfigToEdit": "Select a config group to edit",
+  "config_editConfigGroup": "Edit Config Group",
+  "config_configName": "Config Name",
+  "config_selectionMode": "Selection Mode",
+  "config_singleRandom": "Random Single",
+  "config_singleSequential": "Sequential Single",
+  "config_multipleCount": "Specified Count",
+  "config_multipleProbability": "By Probability",
+  "config_all": "All",
+  "config_selectCount": "Select Count",
+  "config_selectProbability": "Select Probability",
+  "config_shuffleOrder": "Shuffle Order",
+  "config_shuffleOrderSubtitle": "Randomly arrange selected content",
+  "config_weightBrackets": "Weight Brackets",
+  "config_weightBracketsHint": "Each curly bracket pair increases weight by ~5%",
+  "config_min": "Min",
+  "config_max": "Max",
+  "config_preview": "Preview: {preview}",
+  "@config_preview": {
+    "placeholders": {
+      "preview": {}
+    }
+  },
+  "config_tagContent": "Tag Content",
+  "config_tagContentHint": "One tag per line, currently {count} items",
+  "@config_tagContentHint": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "config_format": "Format",
+  "config_sort": "Sort",
+  "config_inputTags": "Enter tags, one per line...\nFor example:\n1girl\nbeautiful eyes\nlong hair",
+  "config_unsavedChanges": "Unsaved Changes",
+  "config_unsavedChangesContent": "You have unsaved changes. Are you sure you want to discard them?",
+  "config_discard": "Discard",
+  "config_deletePreset": "Delete Preset",
+  "config_deletePresetConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@config_deletePresetConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "config_pasteJsonConfig": "Paste JSON config...",
+  "config_importSuccess": "Import successful",
+  "config_importFailed": "Import failed: {error}",
+  "@config_importFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "config_restoreDefaultsConfirm": "Are you sure you want to restore default presets? All custom configurations will be deleted.",
+  "config_restored": "Restored to defaults",
+  "config_copiedToClipboard": "Copied to clipboard",
+  "config_setAsCurrentSuccess": "Set as current preset",
+  "config_duplicatedPreset": "Preset duplicated",
+  "config_deletedSuccess": "Deleted",
+  "config_saveSuccess": "Saved successfully",
+  "config_newPresetCreated": "New preset created",
+  "config_itemCount": "{count} items",
+  "@config_itemCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "config_subConfigCount": "{count} sub-configs",
+  "@config_subConfigCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "config_random": "Random",
+  "config_sequential": "Sequential",
+  "config_multiple": "Multiple",
+  "config_probability": "Probability",
+  "config_moreActions": "More actions",
+
+  "img2img_title": "Img2Img",
+  "img2img_enabled": "Enabled",
+  "img2img_sourceImage": "Source Image",
+  "img2img_selectImage": "Select Image",
+  "img2img_clickToSelectImage": "Click to select image",
+  "img2img_strength": "Strength",
+  "img2img_strengthHint": "Higher values create greater difference from original",
+  "img2img_noise": "Noise",
+  "img2img_noiseHint": "Add extra noise for more variation",
+  "img2img_clearSettings": "Clear Img2Img Settings",
+  "img2img_changeImage": "Change Image",
+  "img2img_removeImage": "Remove Image",
+  "img2img_selectFailed": "Failed to select image: {error}",
+  "@img2img_selectFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+
+  "vibe_title": "Vibe Transfer",
+  "vibe_hint": "Add reference images to transfer visual style (max 4)",
+  "vibe_addReference": "Add Reference",
+  "vibe_clearAll": "Clear All",
+  "vibe_referenceNumber": "Reference #{index}",
+  "@vibe_referenceNumber": {
+    "placeholders": {
+      "index": {}
+    }
+  },
+  "vibe_referenceStrength": "Ref Strength",
+  "vibe_infoExtraction": "Info Extraction",
+  "vibe_adjustParams": "Adjust Parameters",
+  "vibe_remove": "Remove",
+  "vibe_sliderHint": "Strength: Higher mimics visual cues\nInfo Extraction: Lower reduces texture, preserves composition",
+  "vibe_strengthInfo": "Strength: {value} | Info Extraction: {infoValue}",
+  "@vibe_strengthInfo": {
+    "placeholders": {
+      "value": {},
+      "infoValue": {}
+    }
+  },
+
+  "character_title": "Multi-Character (V4 Only)",
+  "character_hint": "Define independent prompts and positions for each character (max 6)",
+  "character_addCharacter": "Add Character",
+  "character_clearAll": "Clear All Characters",
+  "character_number": "Character {index}",
+  "@character_number": {
+    "placeholders": {
+      "index": {}
+    }
+  },
+  "character_advancedOptions": "Advanced Options",
+  "character_removeCharacter": "Remove Character",
+  "character_description": "Character Description",
+  "character_descriptionHint": "Describe this character's features...",
+  "character_negativeOptional": "Negative Prompt (Optional)",
+  "character_negativeHint": "Features you don't want on this character...",
+  "character_positionOptional": "Character Position (Optional)",
+  "character_positionHint": "Position (0-1), specifies approximate position in image",
+  "character_auto": "Auto",
+  "character_clearPosition": "Clear Position",
+
+  "gallery_empty": "Gallery is empty",
+  "gallery_emptyHint": "Generated images will appear here",
+  "gallery_searchHint": "Search prompts... (supports tags)",
+  "gallery_imageCount": "{count} images",
+  "@gallery_imageCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "gallery_exportSuccess": "Exported {count} images to {path}",
+  "@gallery_exportSuccess": {
+    "placeholders": {
+      "count": {},
+      "path": {}
+    }
+  },
+  "gallery_savedTo": "Saved to {path}",
+  "@gallery_savedTo": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "gallery_saveFailed": "Save failed",
+  "gallery_deleteImage": "Delete Image",
+  "gallery_deleteImageConfirm": "Are you sure you want to delete this image?",
+  "gallery_generationParams": "Generation Parameters",
+  "gallery_metaModel": "Model",
+  "gallery_metaResolution": "Resolution",
+  "gallery_metaSteps": "Steps",
+  "gallery_metaSampler": "Sampler",
+  "gallery_metaCfgScale": "CFG Scale",
+  "gallery_metaSeed": "Seed",
+  "gallery_metaSmea": "SMEA",
+  "gallery_metaSmeaOn": "On",
+  "gallery_metaSmeaOff": "Off",
+  "gallery_metaGenerationTime": "Generation Time",
+  "gallery_metaFileSize": "File Size",
+  "gallery_positivePrompt": "Positive Prompt",
+  "gallery_negativePrompt": "Negative Prompt",
+
+  "preset_noPresets": "No presets",
+  "preset_restoreDefault": "Restore Default",
+  "preset_configGroupCount": "{count} config groups",
+  "@preset_configGroupCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "preset_setAsCurrent": "Set as Current",
+  "preset_duplicate": "Duplicate",
+  "preset_export": "Export",
+  "preset_delete": "Delete",
+  "preset_noConfigGroups": "No config groups yet",
+  "preset_addConfigGroup": "Add Config Group",
+  "preset_selectPreset": "Select a preset",
+  "preset_selectConfigToEdit": "Select a config group to edit",
+  "preset_editConfigGroup": "Edit Config Group",
+  "preset_configName": "Config Name",
+  "preset_presetName": "Preset Name",
+  "preset_selectionMode": "Selection Mode",
+  "preset_randomSingle": "Random Single",
+  "preset_sequentialSingle": "Sequential Single",
+  "preset_specifiedCount": "Specified Count",
+  "preset_byProbability": "By Probability",
+  "preset_all": "All",
+  "preset_selectCount": "Select Count",
+  "preset_selectProbability": "Select Probability",
+  "preset_shuffleOrder": "Shuffle Order",
+  "preset_shuffleOrderHint": "Randomly arrange selected content",
+  "preset_weightBrackets": "Weight Brackets",
+  "preset_weightBracketsHint": "Each curly bracket increases weight by ~5%",
+  "preset_min": "Min",
+  "preset_max": "Max",
+  "preset_preview": "Preview: {preview}",
+  "@preset_preview": {
+    "placeholders": {
+      "preview": {}
+    }
+  },
+  "preset_tagContent": "Tag Content",
+  "preset_tagContentHint": "One tag per line, currently {count} items",
+  "@preset_tagContentHint": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "preset_format": "Format",
+  "preset_sort": "Sort",
+  "preset_inputHint": "Enter tags, one per line...\nFor example:\n1girl\nbeautiful eyes\nlong hair",
+  "preset_unsavedChanges": "Unsaved Changes",
+  "preset_unsavedChangesConfirm": "There are unsaved changes. Discard?",
+  "preset_discard": "Discard",
+  "preset_deletePreset": "Delete Preset",
+  "preset_deletePresetConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@preset_deletePresetConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "preset_importConfig": "Import Config",
+  "preset_pasteJson": "Paste JSON config...",
+  "preset_importSuccess": "Import successful",
+  "preset_importFailed": "Import failed: {error}",
+  "@preset_importFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "preset_restoreDefaultConfirm": "Restore default presets? All custom configs will be deleted.",
+  "preset_restored": "Restored to defaults",
+  "preset_copiedToClipboard": "Copied to clipboard",
+  "preset_setAsCurrentSuccess": "Set as current preset",
+  "preset_duplicated": "Preset duplicated",
+  "preset_deleted": "Deleted",
+  "preset_saveSuccess": "Saved successfully",
+  "preset_newPresetCreated": "New preset created",
+  "preset_itemCount": "{count} items",
+  "@preset_itemCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "preset_subConfigCount": "{count} sub-configs",
+  "@preset_subConfigCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "preset_random": "Random",
+  "preset_sequential": "Sequential",
+  "preset_multiple": "Multiple",
+  "preset_probability": "Probability",
+  "preset_moreActions": "More Actions",
+
+  "onlineGallery_search": "Search",
+  "onlineGallery_popular": "Popular",
+  "onlineGallery_favorites": "Favorites",
+  "onlineGallery_searchTags": "Search tags...",
+  "onlineGallery_refresh": "Refresh",
+  "onlineGallery_login": "Login",
+  "onlineGallery_logout": "Logout",
+  "onlineGallery_dayRank": "Day",
+  "onlineGallery_weekRank": "Week",
+  "onlineGallery_monthRank": "Month",
+  "onlineGallery_today": "Today",
+  "onlineGallery_imageCount": "{count} images",
+  "@onlineGallery_imageCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "onlineGallery_loadFailed": "Load failed",
+  "onlineGallery_favoritesEmpty": "Favorites is empty",
+  "onlineGallery_noResults": "No images found",
+  "onlineGallery_pleaseLogin": "Please login first",
+  "onlineGallery_size": "Size",
+  "onlineGallery_score": "Score",
+  "onlineGallery_favCount": "Favorites",
+  "onlineGallery_rating": "Rating",
+  "onlineGallery_type": "Type",
+  "onlineGallery_tags": "Tags",
+  "onlineGallery_artists": "Artists",
+  "onlineGallery_characters": "Characters",
+  "onlineGallery_copyrights": "Copyrights",
+  "onlineGallery_general": "General",
+  "onlineGallery_copied": "Copied",
+  "onlineGallery_copyTags": "Copy Tags",
+  "onlineGallery_open": "Open",
+  "onlineGallery_all": "All",
+  "onlineGallery_clear": "Clear",
+
+  "tooltip_randomPrompt": "Random Prompt (long press to configure)",
+  "tooltip_fullscreenEdit": "Fullscreen Edit",
+  "tooltip_clear": "Clear",
+  "tooltip_promptSettings": "Prompt Settings",
+  "tooltip_decreaseWeight": "Decrease Weight [-5%]",
+  "tooltip_increaseWeight": "Increase Weight [+5%]",
+  "tooltip_edit": "Edit",
+  "tooltip_copy": "Copy",
+  "tooltip_delete": "Delete",
+  "tooltip_changeImage": "Change Image",
+  "tooltip_removeImage": "Remove Image",
+  "tooltip_previewGenerate": "Preview Generate",
+  "tooltip_help": "Help",
+  "tooltip_addConfigGroup": "Add Config Group",
+  "tooltip_enable": "Enable",
+  "tooltip_disable": "Disable",
+  "tooltip_resetWeight": "Click to reset to 100%",
+
+  "upscale_title": "Image Upscale",
+  "upscale_close": "Close",
+  "upscale_start": "Start Upscale",
+  "upscale_sourceImage": "Source Image",
+  "upscale_clickToSelect": "Click to select image to upscale",
+  "upscale_scale": "Scale Factor",
+  "upscale_2xHint": "Upscale to 2x original size (recommended)",
+  "upscale_4xHint": "Upscale to 4x original size (costs more Anlas)",
+  "upscale_processing": "Upscaling image...",
+  "upscale_complete": "Upscale Complete",
+  "upscale_save": "Save",
+  "upscale_share": "Share",
+  "upscale_failed": "Upscale failed",
+  "upscale_selectFailed": "Failed to select image: {error}",
+  "@upscale_selectFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "upscale_savedTo": "Saved to: {path}",
+  "@upscale_savedTo": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "upscale_saveFailed": "Save failed: {error}",
+  "@upscale_saveFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "upscale_shareFailed": "Share failed: {error}",
+  "@upscale_shareFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+
+  "danbooru_loginTitle": "Login Danbooru",
+  "danbooru_loginHint": "Login with username and API Key to use favorites",
+  "danbooru_username": "Username",
+  "danbooru_usernameHint": "Enter Danbooru username",
+  "danbooru_usernameRequired": "Please enter username",
+  "danbooru_apiKeyHint": "Enter API Key",
+  "danbooru_apiKeyRequired": "Please enter API Key",
+  "danbooru_howToGetApiKey": "How to get API Key?",
+  "danbooru_loginSuccess": "Login successful",
+
+  "weight_title": "Weight",
+  "weight_reset": "Reset",
+  "weight_done": "Done",
+  "weight_noBrackets": "No brackets",
+  "weight_editTag": "Edit Tag",
+  "weight_tagName": "Tag Name",
+  "weight_tagNameHint": "Enter tag name...",
+
+  "tag_selected": "Selected {count}",
+  "@tag_selected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_enable": "Enable",
+  "tag_disable": "Disable",
+  "tag_delete": "Delete",
+  "tag_addTag": "Add Tag",
+  "tag_add": "Add",
+  "tag_inputHint": "Enter tag...",
+  "tag_copiedToClipboard": "Copied to clipboard",
+  "tag_emptyHint": "Add tags to describe your desired image",
+
+  "tagCategory_artist": "Artist",
+  "tagCategory_copyright": "Copyright",
+  "tagCategory_character": "Character",
+  "tagCategory_meta": "Meta",
+  "tagCategory_general": "General",
+
+  "configEditor_newConfigGroup": "New Config Group",
+  "configEditor_editConfigGroup": "Edit Config Group",
+  "configEditor_configName": "Config Name",
+  "configEditor_enableConfig": "Enable this config",
+  "configEditor_enableConfigHint": "Disabled configs won't participate in generation",
+  "configEditor_contentType": "Content Type",
+  "configEditor_tagList": "Tag List",
+  "configEditor_nestedConfig": "Nested Config",
+  "configEditor_selectionMode": "Selection Mode",
+  "configEditor_selectCount": "Select Count:",
+  "configEditor_selectProbability": "Select Probability:",
+  "configEditor_shuffleOrder": "Shuffle Order",
+  "configEditor_shuffleOrderHint": "Randomly arrange selected content",
+  "configEditor_weightBrackets": "Weight Brackets",
+  "configEditor_weightBracketsHint": "Brackets increase weight, each curly bracket adds ~5%",
+  "configEditor_minBrackets": "Min Brackets: {count}",
+  "@configEditor_minBrackets": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "configEditor_maxBrackets": "Max Brackets: {count}",
+  "@configEditor_maxBrackets": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "configEditor_effectPreview": "Effect Preview:",
+  "configEditor_content": "Content",
+  "configEditor_tagCountHint": "One tag per line, currently {count} items",
+  "@configEditor_tagCountHint": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "configEditor_format": "Format",
+  "configEditor_sort": "Sort",
+  "configEditor_dedupe": "Dedupe",
+  "configEditor_nestedConfigHint": "Nested configs create complex layered random logic",
+  "configEditor_noNestedConfig": "No nested configs yet",
+  "configEditor_itemCount": "{count} items",
+  "@configEditor_itemCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "configEditor_subConfigCount": "{count} sub-configs",
+  "@configEditor_subConfigCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "configEditor_addNestedConfig": "Add Nested Config",
+  "configEditor_subConfig": "Sub-config",
+  "configEditor_singleRandom": "Single - Random",
+  "configEditor_singleSequential": "Single - Sequential",
+  "configEditor_multipleCount": "Multiple - Count",
+  "configEditor_multipleProbability": "Multiple - Probability",
+  "configEditor_selectAll": "All",
+  "configEditor_singleRandomHint": "Randomly select one item each time",
+  "configEditor_singleSequentialHint": "Cycle through items in order",
+  "configEditor_multipleCountHint": "Randomly select specified number of items",
+  "configEditor_multipleProbabilityHint": "Each item selected by probability",
+  "configEditor_selectAllHint": "Select all items",
+  "configEditor_or": " or ",
+  "configEditor_enterConfigName": "Please enter config name",
+  "configEditor_continueEditing": "Continue Editing",
+  "configEditor_discardChanges": "Discard Changes",
+  "configEditor_randomCount": "Random {count}",
+  "@configEditor_randomCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "configEditor_probabilityPercent": "{percent}% probability",
+  "@configEditor_probabilityPercent": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+
+  "presetEdit_newPreset": "New Preset",
+  "presetEdit_editPreset": "Edit Preset",
+  "presetEdit_presetName": "Preset Name",
+  "presetEdit_configGroups": "Config Groups ({count})",
+  "@presetEdit_configGroups": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "presetEdit_noConfigGroups": "No config groups yet",
+  "presetEdit_addConfigGroupHint": "Click + in top right to add config group",
+  "presetEdit_addConfigGroup": "Add Config Group",
+  "presetEdit_newConfigGroup": "New Config Group",
+  "presetEdit_enterPresetName": "Please enter preset name",
+  "presetEdit_saveSuccess": "Saved successfully",
+  "presetEdit_previewTitle": "Preview Generation Result",
+  "presetEdit_emptyResult": "(Empty result, please check config)",
+  "presetEdit_regenerate": "Regenerate",
+  "presetEdit_helpTitle": "Help",
+  "presetEdit_helpConfigGroup": "Config Group Description",
+  "presetEdit_helpConfigGroupContent": "Each config group generates content in order, final result is joined by commas.",
+  "presetEdit_helpSelectionMode": "Selection Mode",
+  "presetEdit_helpSingleRandom": "• Single-Random: Randomly select one item",
+  "presetEdit_helpSingleSequential": "• Single-Sequential: Cycle through in order",
+  "presetEdit_helpMultipleCount": "• Multiple-Count: Randomly select specified count",
+  "presetEdit_helpMultipleProbability": "• Multiple-Probability: Each item selected independently by probability",
+  "presetEdit_helpAll": "• All: Select all items",
+  "presetEdit_helpWeightBrackets": "Weight Brackets",
+  "presetEdit_helpWeightBracketsContent": "Curly brackets increase weight, more brackets = higher weight.",
+  "presetEdit_helpWeightBracketsExample": "Example: one bracket is 1.05x weight, two brackets is 1.1x.",
+  "presetEdit_helpNestedConfig": "Nested Config",
+  "presetEdit_helpNestedConfigContent": "Configs can be nested for complex layered random logic.",
+  "presetEdit_gotIt": "Got it",
+  "presetEdit_tagCount": "{count} tags",
+  "@presetEdit_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "presetEdit_bracketLayers": "{count} bracket layers",
+  "@presetEdit_bracketLayers": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "presetEdit_bracketRange": "{min}-{max} bracket layers",
+  "@presetEdit_bracketRange": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+
+  "qualityTags_label": "Quality",
+  "qualityTags_disabled": "Quality tags disabled\nClick to enable",
+  "qualityTags_addToEnd": "Add to prompt end:",
+
+  "ucPreset_label": "UC Preset",
+  "ucPreset_heavy": "Heavy",
+  "ucPreset_light": "Light",
+  "ucPreset_furryFocus": "Furry",
+  "ucPreset_humanFocus": "Human",
+  "ucPreset_none": "None",
+  "ucPreset_disabled": "Undesired content preset disabled",
+  "ucPreset_addToNegative": "Add to negative prompt:",
+
+  "randomMode_enabledTip": "Random mode enabled\nAuto-randomize prompt after each generation",
+  "randomMode_disabledTip": "Random mode\nClick to auto-randomize prompts on generation",
+
+  "batchSize_title": "Batch Size",
+  "batchSize_tooltip": "{count} images per request",
+  "@batchSize_tooltip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchSize_description": "Number of images per API request",
+  "batchSize_formula": "Total images = {batchCount} × {batchSize} = {total}",
+  "@batchSize_formula": {
+    "placeholders": {
+      "batchCount": {"type": "int"},
+      "batchSize": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "batchSize_hint": "Larger batch = fewer requests, but longer wait per request",
+  "batchSize_costWarning": "⚠️ Batch size > 1 costs extra Anlas",
+
+  "font_systemDefault": "System Default",
+  "font_sourceHanSans": "Source Han Sans",
+  "font_sourceHanSerif": "Source Han Serif",
+  "font_sourceHanSansHK": "Source Han Sans HK",
+  "font_sourceHanMono": "Source Han Mono",
+  "font_zcoolXiaowei": "ZCOOL Xiaowei",
+  "font_zcoolKuaile": "ZCOOL Kuaile",
+  "font_mashan": "Ma Shan Zheng",
+  "font_longcang": "Long Cang",
+  "font_liujian": "Liu Jian Mao Cao",
+  "font_zhimang": "Zhi Mang Xing",
+  "font_codeFont": "Code Font",
+  "font_modernNarrow": "Modern Narrow",
+  "font_classicSerif": "Classic Serif",
+  "font_sciFi": "Sci-Fi",
+  "font_techStyle": "Tech Style",
+  "font_systemFonts": "System Fonts",
+
+  "download_tagsData": "Tags Data",
+  "download_cooccurrenceData": "Co-occurrence Tags Data",
+  "download_failed": "Download failed",
+  "download_downloading": "Downloading {name}",
+  "@download_downloading": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "download_complete": "{name} download complete",
+  "@download_complete": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "download_downloadFailed": "{name} download failed",
+  "@download_downloadFailed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
+  "warmup_preparing": "Preparing...",
+  "warmup_complete": "Complete",
+  "warmup_loadingTranslation": "Loading translation data...",
+  "warmup_initTagSystem": "Initializing tag system...",
+  "warmup_loadingPromptConfig": "Loading prompt config...",
+
+  "copyName": " (Copy)",
+
+  "defaultPreset_name": "Default Preset",
+  "defaultPreset_quality": "Quality",
+  "defaultPreset_character": "Character",
+  "defaultPreset_artist": "Artist",
+  "defaultPreset_expression": "Expression",
+  "defaultPreset_clothing": "Clothing",
+  "defaultPreset_action": "Action",
+  "defaultPreset_background": "Background",
+  "defaultPreset_shot": "Shot",
+  "defaultPreset_composition": "Composition",
+  "defaultPreset_specialStyle": "Special Style"
 }

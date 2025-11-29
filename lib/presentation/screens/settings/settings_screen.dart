@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/prompt/default_presets.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/prompt_config_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -23,12 +26,12 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('设置'),
+        title: Text(context.l10n.settings_title),
       ),
       body: ListView(
         children: [
           // 账户信息
-          _buildSectionHeader(theme, '账户'),
+          _buildSectionHeader(theme, context.l10n.settings_account),
           ListTile(
             leading: CircleAvatar(
               backgroundColor: authState.isAuthenticated
@@ -43,32 +46,32 @@ class SettingsScreen extends ConsumerWidget {
             ),
             title: Text(
               authState.isLoading
-                  ? '加载中...'
+                  ? context.l10n.common_loading
                   : (authState.isAuthenticated
-                      ? (authState.email ?? '已登录')
-                      : '未登录'),
+                      ? (authState.email ?? context.l10n.auth_loggedIn)
+                      : context.l10n.auth_notLoggedIn),
             ),
             subtitle: authState.isLoading
-                ? const Text('正在检查登录状态')
+                ? Text(context.l10n.auth_checkingStatus)
                 : (authState.isAuthenticated
-                    ? Text(authState.email != null ? '已登录' : 'Token 已配置')
-                    : const Text('请登录以使用全部功能')),
+                    ? Text(authState.email != null ? context.l10n.auth_loggedIn : context.l10n.auth_tokenConfigured)
+                    : Text(context.l10n.auth_pleaseLogin)),
             trailing: authState.isAuthenticated
                 ? TextButton(
                     onPressed: () => _showLogoutDialog(context, ref),
-                    child: const Text('退出'),
+                    child: Text(context.l10n.auth_logout),
                   )
                 : null,
           ),
           const Divider(),
 
           // 外观设置
-          _buildSectionHeader(theme, '外观'),
+          _buildSectionHeader(theme, context.l10n.settings_appearance),
 
           // 主题选择
           ListTile(
             leading: const Icon(Icons.palette_outlined),
-            title: const Text('风格'),
+            title: Text(context.l10n.settings_style),
             subtitle: Text(currentTheme.displayName),
             onTap: () => _showThemeDialog(context, ref, currentTheme),
           ),
@@ -76,7 +79,7 @@ class SettingsScreen extends ConsumerWidget {
           // 字体选择
           ListTile(
             leading: const Icon(Icons.text_fields),
-            title: const Text('字体'),
+            title: Text(context.l10n.settings_font),
             subtitle: Text(currentFont.displayName),
             onTap: () => _showFontDialog(context, ref, currentFont),
           ),
@@ -84,46 +87,46 @@ class SettingsScreen extends ConsumerWidget {
           // 语言选择
           ListTile(
             leading: const Icon(Icons.language),
-            title: const Text('语言'),
+            title: Text(context.l10n.settings_language),
             subtitle:
-                Text(currentLocale.languageCode == 'zh' ? '中文' : 'English'),
+                Text(currentLocale.languageCode == 'zh' ? context.l10n.settings_languageChinese : context.l10n.settings_languageEnglish),
             onTap: () => _showLanguageDialog(context, ref, currentLocale),
           ),
           const Divider(),
 
           // 存储设置
-          _buildSectionHeader(theme, '存储'),
+          _buildSectionHeader(theme, context.l10n.settings_storage),
           ListTile(
             leading: const Icon(Icons.folder_outlined),
-            title: const Text('图片保存位置'),
-            subtitle: const Text('默认'),
+            title: Text(context.l10n.settings_imageSavePath),
+            subtitle: Text(context.l10n.settings_default),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              AppToast.info(context, '功能开发中...');
+              AppToast.info(context, context.l10n.common_featureInDev);
             },
           ),
           SwitchListTile(
             secondary: const Icon(Icons.save_outlined),
-            title: const Text('自动保存'),
-            subtitle: const Text('生成后自动保存图片'),
+            title: Text(context.l10n.settings_autoSave),
+            subtitle: Text(context.l10n.settings_autoSaveSubtitle),
             value: false,
             onChanged: (value) {
-              AppToast.info(context, '功能开发中...');
+              AppToast.info(context, context.l10n.common_featureInDev);
             },
           ),
           const Divider(),
 
           // 关于
-          _buildSectionHeader(theme, '关于'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('NAI Launcher'),
-            subtitle: Text('版本 1.0.0'),
+          _buildSectionHeader(theme, context.l10n.settings_about),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(context.l10n.appTitle),
+            subtitle: Text(context.l10n.settings_version('1.0.0')),
           ),
           ListTile(
             leading: const Icon(Icons.code),
-            title: const Text('开源项目'),
-            subtitle: const Text('查看源代码和文档'),
+            title: Text(context.l10n.settings_openSource),
+            subtitle: Text(context.l10n.settings_openSourceSubtitle),
             trailing: const Icon(Icons.open_in_new),
             onTap: () async {
               final uri = Uri.parse('https://github.com/Aaalice233/Aaalice_NAI_Launcher');
@@ -155,21 +158,21 @@ class SettingsScreen extends ConsumerWidget {
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('退出登录'),
-          content: const Text('确定要退出登录吗？'),
+          title: Text(context.l10n.auth_logoutConfirmTitle),
+          content: Text(context.l10n.auth_logoutConfirmContent),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
                 ref.read(authNotifierProvider.notifier).logout();
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
-              child: const Text('退出'),
+              child: Text(context.l10n.auth_logout),
             ),
           ],
         );
@@ -184,9 +187,9 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('选择风格'),
+          title: Text(context.l10n.settings_selectStyle),
           content: SizedBox(
             width: 300,
             child: Column(
@@ -200,7 +203,7 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (value) {
                     if (value != null) {
                       ref.read(themeNotifierProvider.notifier).setTheme(value);
-                      Navigator.pop(context);
+                      Navigator.pop(dialogContext);
                     }
                   },
                 );
@@ -209,8 +212,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
           ],
         );
@@ -227,18 +230,18 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return Consumer(
-          builder: (context, ref, child) {
+          builder: (consumerContext, ref, child) {
             final allFontsAsync = ref.watch(allFontsProvider);
 
             return AlertDialog(
-              title: const Text('选择字体'),
+              title: Text(context.l10n.settings_selectFont),
               content: SizedBox(
                 width: 500,
                 height: 600,
                 child: allFontsAsync.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('加载失败: $err')),
+                  error: (err, stack) => Center(child: Text(context.l10n.settings_loadFailed(err.toString()))),
                   data: (fontGroups) {
                     return ListView.builder(
                       itemCount: fontGroups.length,
@@ -369,7 +372,7 @@ class SettingsScreen extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('取消'),
+                  child: Text(context.l10n.common_cancel),
                 ),
               ],
             );
@@ -386,31 +389,33 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('选择语言'),
+          title: Text(context.l10n.settings_selectLanguage),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               RadioListTile<String>(
-                title: const Text('中文'),
+                title: Text(context.l10n.settings_languageChinese),
                 value: 'zh',
                 groupValue: currentLocale.languageCode,
                 onChanged: (value) {
                   if (value != null) {
                     ref.read(localeNotifierProvider.notifier).setLocale(value);
-                    Navigator.pop(context);
+                    _updateDefaultPresetLocalization(ref, value);
+                    Navigator.pop(dialogContext);
                   }
                 },
               ),
               RadioListTile<String>(
-                title: const Text('English'),
+                title: Text(context.l10n.settings_languageEnglish),
                 value: 'en',
                 groupValue: currentLocale.languageCode,
                 onChanged: (value) {
                   if (value != null) {
                     ref.read(localeNotifierProvider.notifier).setLocale(value);
-                    Navigator.pop(context);
+                    _updateDefaultPresetLocalization(ref, value);
+                    Navigator.pop(dialogContext);
                   }
                 },
               ),
@@ -418,12 +423,43 @@ class SettingsScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
           ],
         );
       },
     );
+  }
+
+  /// 更新默认预设的本地化名称
+  void _updateDefaultPresetLocalization(WidgetRef ref, String languageCode) {
+    final names = languageCode == 'zh'
+        ? const DefaultPresetNames(
+            presetName: '默认预设',
+            character: '角色',
+            artist: '画师',
+            expression: '表情',
+            clothing: '服装',
+            action: '动作',
+            background: '背景',
+            shot: '镜头',
+            composition: '构图',
+            specialStyle: '特殊风格',
+          )
+        : const DefaultPresetNames(
+            presetName: 'Default Preset',
+            character: 'Character',
+            artist: 'Artist',
+            expression: 'Expression',
+            clothing: 'Clothing',
+            action: 'Action',
+            background: 'Background',
+            shot: 'Shot',
+            composition: 'Composition',
+            specialStyle: 'Special Style',
+          );
+
+    ref.read(promptConfigNotifierProvider.notifier).updateDefaultPresetLocalization(names);
   }
 }

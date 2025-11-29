@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/utils/localization_extension.dart';
 import '../../data/services/danbooru_auth_service.dart';
 
 /// Danbooru 登录对话框
@@ -41,7 +42,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
     if (success && mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('登录成功')),
+        SnackBar(content: Text(context.l10n.danbooru_loginSuccess)),
       );
     }
   }
@@ -66,12 +67,12 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 children: [
                   Icon(Icons.login, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
-                  Text('登录 Danbooru', style: theme.textTheme.titleLarge),
+                  Text(context.l10n.danbooru_loginTitle, style: theme.textTheme.titleLarge),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                '使用用户名和 API Key 登录以使用收藏夹功能',
+                context.l10n.danbooru_loginHint,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -81,14 +82,14 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
               // 用户名输入
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: '用户名',
-                  hintText: '输入 Danbooru 用户名',
-                  prefixIcon: Icon(Icons.person),
+                decoration: InputDecoration(
+                  labelText: context.l10n.danbooru_username,
+                  hintText: context.l10n.danbooru_usernameHint,
+                  prefixIcon: const Icon(Icons.person),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return '请输入用户名';
+                    return context.l10n.danbooru_usernameRequired;
                   }
                   return null;
                 },
@@ -101,7 +102,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 obscureText: _obscureApiKey,
                 decoration: InputDecoration(
                   labelText: 'API Key',
-                  hintText: '输入 API Key',
+                  hintText: context.l10n.danbooru_apiKeyHint,
                   prefixIcon: const Icon(Icons.key),
                   suffixIcon: IconButton(
                     icon: Icon(_obscureApiKey ? Icons.visibility : Icons.visibility_off),
@@ -110,7 +111,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return '请输入 API Key';
+                    return context.l10n.danbooru_apiKeyRequired;
                   }
                   return null;
                 },
@@ -121,7 +122,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
               InkWell(
                 onTap: () => _openApiKeyPage(),
                 child: Text(
-                  '如何获取 API Key?',
+                  context.l10n.danbooru_howToGetApiKey,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
                     decoration: TextDecoration.underline,
@@ -161,7 +162,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 children: [
                   TextButton(
                     onPressed: _isLoading ? null : () => Navigator.pop(context),
-                    child: const Text('取消'),
+                    child: Text(context.l10n.common_cancel),
                   ),
                   const SizedBox(width: 12),
                   FilledButton(
@@ -172,7 +173,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('登录'),
+                        : Text(context.l10n.auth_login),
                   ),
                 ],
               ),

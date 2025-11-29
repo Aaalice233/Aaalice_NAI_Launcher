@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 
@@ -28,12 +29,14 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
     }
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 标题栏
           InkWell(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -48,7 +51,7 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '多角色 (V4 专属)',
+                      context.l10n.character_title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: hasCharacters ? theme.colorScheme.primary : null,
                       ),
@@ -98,7 +101,7 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
 
                   // 说明文字
                   Text(
-                    '为每个角色定义独立的提示词和位置（最多6个角色）',
+                    context.l10n.character_hint,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -123,7 +126,7 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
                     OutlinedButton.icon(
                       onPressed: _addCharacter,
                       icon: const Icon(Icons.person_add, size: 18),
-                      label: const Text('添加角色'),
+                      label: Text(context.l10n.character_addCharacter),
                     ),
 
                   // 清除全部按钮
@@ -132,7 +135,7 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
                     TextButton.icon(
                       onPressed: _clearAllCharacters,
                       icon: const Icon(Icons.clear_all, size: 18),
-                      label: const Text('清除全部角色'),
+                      label: Text(context.l10n.character_clearAll),
                       style: TextButton.styleFrom(
                         foregroundColor: theme.colorScheme.error,
                       ),
@@ -252,7 +255,7 @@ class _CharacterItemState extends State<_CharacterItem> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '角色 ${widget.index + 1}',
+                  context.l10n.character_number(widget.index + 1),
                   style: theme.textTheme.titleSmall,
                 ),
                 const Spacer(),
@@ -263,7 +266,7 @@ class _CharacterItemState extends State<_CharacterItem> {
                   ),
                   onPressed: () =>
                       setState(() => _showAdvanced = !_showAdvanced),
-                  tooltip: '高级选项',
+                  tooltip: context.l10n.character_advancedOptions,
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
                 ),
@@ -271,7 +274,7 @@ class _CharacterItemState extends State<_CharacterItem> {
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
                   onPressed: widget.onRemove,
-                  tooltip: '移除角色',
+                  tooltip: context.l10n.character_removeCharacter,
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
                 ),
@@ -288,11 +291,11 @@ class _CharacterItemState extends State<_CharacterItem> {
                 // 角色提示词
                 TextField(
                   controller: _promptController,
-                  decoration: const InputDecoration(
-                    labelText: '角色描述',
-                    hintText: '描述这个角色的特征...',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
+                  decoration: InputDecoration(
+                    labelText: context.l10n.character_description,
+                    hintText: context.l10n.character_descriptionHint,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 8,
                     ),
@@ -327,8 +330,8 @@ class _CharacterItemState extends State<_CharacterItem> {
                         TextField(
                           controller: _negativeController,
                           decoration: InputDecoration(
-                            labelText: '负向提示词 (可选)',
-                            hintText: '不想出现在这个角色上的特征...',
+                            labelText: context.l10n.character_negativeOptional,
+                            hintText: context.l10n.character_negativeHint,
                             border: const OutlineInputBorder(),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -357,7 +360,7 @@ class _CharacterItemState extends State<_CharacterItem> {
 
                         // 位置设置
                         Text(
-                          '角色位置 (可选)',
+                          context.l10n.character_positionOptional,
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
@@ -428,7 +431,7 @@ class _CharacterItemState extends State<_CharacterItem> {
 
                         const SizedBox(height: 8),
                         Text(
-                          '位置坐标 (0-1)，用于指定角色在画面中的大致位置',
+                          context.l10n.character_positionHint,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.onSurface.withOpacity(0.5),
                           ),
@@ -484,10 +487,12 @@ class _PositionSlider extends StatelessWidget {
                 ),
               )
             else
-              Text(
-                '自动',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+              Builder(
+                builder: (context) => Text(
+                  context.l10n.character_auto,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
                 ),
               ),
           ],
@@ -504,12 +509,14 @@ class _PositionSlider extends StatelessWidget {
               ),
             ),
             if (hasValue)
-              IconButton(
-                icon: const Icon(Icons.clear, size: 16),
-                onPressed: onClear,
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(4),
-                tooltip: '清除位置',
+              Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.clear, size: 16),
+                  onPressed: onClear,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                  tooltip: context.l10n.character_clearPosition,
+                ),
               ),
           ],
         ),

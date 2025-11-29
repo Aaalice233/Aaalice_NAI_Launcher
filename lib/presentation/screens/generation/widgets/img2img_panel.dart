@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 
@@ -27,12 +28,14 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final isImg2ImgMode = params.action == ImageGenerationAction.img2img;
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 标题栏
           InkWell(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -47,7 +50,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '图生图 (Img2Img)',
+                      context.l10n.img2img_title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: isImg2ImgMode
                             ? theme.colorScheme.primary
@@ -66,7 +69,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '已启用',
+                        context.l10n.img2img_enabled,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onPrimaryContainer,
                         ),
@@ -112,7 +115,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                     OutlinedButton.icon(
                       onPressed: _clearImg2Img,
                       icon: const Icon(Icons.clear, size: 18),
-                      label: const Text('清除图生图设置'),
+                      label: Text(context.l10n.img2img_clearSettings),
                     ),
                   ],
                 ],
@@ -134,7 +137,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         Row(
           children: [
             Text(
-              '源图像',
+              context.l10n.img2img_sourceImage,
               style: theme.textTheme.bodyMedium,
             ),
             const Spacer(),
@@ -142,7 +145,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               TextButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.add_photo_alternate, size: 18),
-                label: const Text('选择图片'),
+                label: Text(context.l10n.img2img_selectImage),
               ),
           ],
         ),
@@ -170,13 +173,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                     _IconButton(
                       icon: Icons.refresh,
                       onPressed: _pickImage,
-                      tooltip: '更换图片',
+                      tooltip: context.l10n.img2img_changeImage,
                     ),
                     const SizedBox(width: 4),
                     _IconButton(
                       icon: Icons.close,
                       onPressed: _removeSourceImage,
-                      tooltip: '移除图片',
+                      tooltip: context.l10n.img2img_removeImage,
                     ),
                   ],
                 ),
@@ -208,7 +211,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '点击选择图片',
+                      context.l10n.img2img_clickToSelectImage,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.4),
                       ),
@@ -229,7 +232,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         Row(
           children: [
             Text(
-              '变化强度',
+              context.l10n.img2img_strength,
               style: theme.textTheme.bodyMedium,
             ),
             const Spacer(),
@@ -253,7 +256,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           },
         ),
         Text(
-          '值越高，生成的图像与原图差异越大',
+          context.l10n.img2img_strengthHint,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withOpacity(0.5),
           ),
@@ -269,7 +272,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         Row(
           children: [
             Text(
-              '噪声量',
+              context.l10n.img2img_noise,
               style: theme.textTheme.bodyMedium,
             ),
             const Spacer(),
@@ -293,7 +296,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           },
         ),
         Text(
-          '添加额外噪声以增加变化',
+          context.l10n.img2img_noiseHint,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withOpacity(0.5),
           ),
@@ -329,7 +332,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败: $e')),
+          SnackBar(content: Text(context.l10n.img2img_selectFailed(e.toString()))),
         );
       }
     }

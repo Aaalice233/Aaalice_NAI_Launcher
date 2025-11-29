@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
 import '../../core/prompt_tag_config.dart';
@@ -110,7 +111,7 @@ class _WeightControlSection extends StatelessWidget {
         // 减少权重按钮
         _MenuIconButton(
           icon: Icons.remove,
-          tooltip: '减少权重 [-5%]',
+          tooltip: context.l10n.tooltip_decreaseWeight,
           color: PromptTagColors.weightDecrease,
           onTap: () {
             final newWeight = (tag.weight - PromptTag.weightStep)
@@ -130,7 +131,7 @@ class _WeightControlSection extends StatelessWidget {
             }
           },
           child: Tooltip(
-            message: '点击重置为100%',
+            message: context.l10n.tooltip_resetWeight,
             child: Container(
               constraints: const BoxConstraints(minWidth: 42),
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -155,7 +156,7 @@ class _WeightControlSection extends StatelessWidget {
         // 增加权重按钮
         _MenuIconButton(
           icon: Icons.add,
-          tooltip: '增加权重 [+5%]',
+          tooltip: context.l10n.tooltip_increaseWeight,
           color: PromptTagColors.weightIncrease,
           onTap: () {
             final newWeight = (tag.weight + PromptTag.weightStep)
@@ -197,7 +198,7 @@ class _ActionButtonsSection extends StatelessWidget {
           icon: tag.enabled
               ? Icons.visibility_off_outlined
               : Icons.visibility_outlined,
-          tooltip: tag.enabled ? '禁用' : '启用',
+          tooltip: tag.enabled ? context.l10n.tooltip_disable : context.l10n.tooltip_enable,
           color: theme.colorScheme.onSurface.withOpacity(0.7),
           onTap: () {
             onToggleEnabled?.call();
@@ -209,7 +210,7 @@ class _ActionButtonsSection extends StatelessWidget {
         if (onEdit != null)
           _MenuIconButton(
             icon: Icons.edit_outlined,
-            tooltip: '编辑',
+            tooltip: context.l10n.tooltip_edit,
             color: theme.colorScheme.onSurface.withOpacity(0.7),
             onTap: () {
               onEdit?.call();
@@ -221,7 +222,7 @@ class _ActionButtonsSection extends StatelessWidget {
         if (onCopy != null)
           _MenuIconButton(
             icon: Icons.copy_outlined,
-            tooltip: '复制',
+            tooltip: context.l10n.tooltip_copy,
             color: theme.colorScheme.onSurface.withOpacity(0.7),
             onTap: () {
               onCopy?.call();
@@ -232,7 +233,7 @@ class _ActionButtonsSection extends StatelessWidget {
         // 删除
         _MenuIconButton(
           icon: Icons.close,
-          tooltip: '删除',
+          tooltip: context.l10n.tooltip_delete,
           color: const Color(0xFFFF3B30),
           onTap: () {
             onDelete?.call();
@@ -267,8 +268,6 @@ class _MenuIconButtonState extends State<_MenuIconButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),

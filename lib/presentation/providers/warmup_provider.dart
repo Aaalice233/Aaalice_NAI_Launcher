@@ -57,7 +57,7 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
   void _registerTasks() {
     // 1. 加载标签翻译服务
     _warmupService.registerTask(WarmupTask(
-      name: '加载翻译数据...',
+      name: 'warmup_loadingTranslation',
       weight: 2,
       task: () async {
         final translationService = _ref.read(tagTranslationServiceProvider);
@@ -67,7 +67,7 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
 
     // 2. 初始化标签数据服务（构建搜索索引）
     _warmupService.registerTask(WarmupTask(
-      name: '初始化标签系统...',
+      name: 'warmup_initTagSystem',
       weight: 5,
       task: () async {
         final translationService = _ref.read(tagTranslationServiceProvider);
@@ -83,7 +83,7 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
 
     // 3. 加载随机提示词配置
     _warmupService.registerTask(WarmupTask(
-      name: '加载提示词配置...',
+      name: 'warmup_loadingPromptConfig',
       weight: 1,
       task: () async {
         // 触发 provider 初始化并等待加载完成

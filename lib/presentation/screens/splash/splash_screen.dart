@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/app_warmup_service.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/warmup_provider.dart';
 
 /// 启动画面
@@ -187,7 +188,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 
+  /// 翻译任务 key 为本地化文本
+  String _translateTaskKey(BuildContext context, String taskKey) {
+    final l10n = context.l10n;
+    switch (taskKey) {
+      case 'warmup_preparing':
+        return l10n.warmup_preparing;
+      case 'warmup_complete':
+        return l10n.warmup_complete;
+      case 'warmup_loadingTranslation':
+        return l10n.warmup_loadingTranslation;
+      case 'warmup_initTagSystem':
+        return l10n.warmup_initTagSystem;
+      case 'warmup_loadingPromptConfig':
+        return l10n.warmup_loadingPromptConfig;
+      default:
+        return taskKey;
+    }
+  }
+
   Widget _buildProgressSection(ThemeData theme, Color primaryColor, WarmupProgress progress) {
+    final translatedTask = _translateTaskKey(context, progress.currentTask);
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Column(
@@ -201,7 +223,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: Text(
-              progress.currentTask,
+              translatedTask,
               key: ValueKey(progress.currentTask),
               style: TextStyle(
                 fontSize: 13,

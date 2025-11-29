@@ -41,12 +41,12 @@ class WarmupProgress {
 
   factory WarmupProgress.initial() => const WarmupProgress(
         progress: 0.0,
-        currentTask: '准备中...',
+        currentTask: 'warmup_preparing',
       );
 
   factory WarmupProgress.complete() => const WarmupProgress(
         progress: 1.0,
-        currentTask: '完成',
+        currentTask: 'warmup_complete',
         isComplete: true,
       );
 

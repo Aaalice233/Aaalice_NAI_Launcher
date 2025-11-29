@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/draggable_number_input.dart';
@@ -9,6 +11,7 @@ import 'widgets/parameter_panel.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/history_panel.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 /// 桌面端三栏布局
 class DesktopGenerationLayout extends ConsumerStatefulWidget {
@@ -151,7 +154,7 @@ class _DesktopGenerationLayoutState
           : _buildCollapsedPanel(
               theme,
               icon: Icons.tune,
-              label: '参数',
+              label: context.l10n.generation_params,
               onTap: () => setState(() => _leftPanelExpanded = true),
             ),
     );
@@ -189,7 +192,7 @@ class _DesktopGenerationLayoutState
           : _buildCollapsedPanel(
               theme,
               icon: Icons.history,
-              label: '历史',
+              label: context.l10n.generation_history,
               onTap: () => setState(() => _rightPanelExpanded = true),
             ),
     );
@@ -331,9 +334,16 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     // 悬浮时显示取消，否则显示生成中
     final showCancel = isGenerating && _isHovering;
 
+    final randomMode = ref.watch(randomPromptModeProvider);
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // 抽卡模式开关
+        _RandomModeToggle(enabled: randomMode),
+        
+        const SizedBox(width: 8),
+        
         // 生成按钮 (生成中时悬浮变取消)
         MouseRegion(
           onEnter: (_) => setState(() => _isHovering = true),
@@ -347,23 +357,17 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                       ref.read(imageGenerationNotifierProvider.notifier).cancel();
                     }
                   : () {
-                      if (params.prompt.isEmpty) {
-                        AppToast.warning(context, '请输入提示词');
-                        return;
-                      }
-                      ref
-                          .read(imageGenerationNotifierProvider.notifier)
-                          .generate(params);
+                      _handleGenerate(context, ref, params, randomMode);
                     },
               icon: showCancel
                   ? const Icon(Icons.stop)
                   : (isGenerating ? null : const Icon(Icons.auto_awesome)),
               isLoading: isGenerating && !showCancel,
-              label: Text(showCancel ? '取消' : (isGenerating 
+              label: Text(showCancel ? context.l10n.generation_cancel : (isGenerating 
                   ? (generationState.totalImages > 1 
                       ? '${generationState.currentImage}/${generationState.totalImages}' 
-                      : '生成中...') 
-                  : '生成')),
+                      : context.l10n.generation_generating) 
+                  : context.l10n.generation_generate)),
               style: showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
             ),
           ),
@@ -380,7 +384,295 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             ref.read(generationParamsNotifierProvider.notifier).updateNSamples(value);
           },
         ),
+        
+        const SizedBox(width: 4),
+        
+        // 批量设置按钮
+        _BatchSettingsButton(),
       ],
+    );
+  }
+
+  void _handleGenerate(BuildContext context, WidgetRef ref, ImageParams params, bool randomMode) {
+    if (params.prompt.isEmpty) {
+      AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
+      return;
+    }
+    
+    // 生成（抽卡模式逻辑在 generate 方法内部处理）
+    ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+  }
+}
+
+/// 抽卡模式开关
+class _RandomModeToggle extends ConsumerStatefulWidget {
+  final bool enabled;
+  
+  const _RandomModeToggle({required this.enabled});
+
+  @override
+  ConsumerState<_RandomModeToggle> createState() => _RandomModeToggleState();
+}
+
+class _RandomModeToggleState extends ConsumerState<_RandomModeToggle> 
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _rotateAnimation;
+  bool _isHovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _rotateAnimation = Tween<double>(begin: 0, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_RandomModeToggle oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.enabled && !oldWidget.enabled) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: Tooltip(
+        message: widget.enabled 
+            ? context.l10n.randomMode_enabledTip
+            : context.l10n.randomMode_disabledTip,
+        preferBelow: true,
+        child: GestureDetector(
+          onTap: () {
+            ref.read(randomPromptModeProvider.notifier).toggle();
+            if (!widget.enabled) {
+              _controller.forward(from: 0);
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: widget.enabled
+                  ? (_isHovering 
+                      ? theme.colorScheme.primary.withOpacity(0.25)
+                      : theme.colorScheme.primary.withOpacity(0.15))
+                  : (_isHovering 
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.transparent),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: widget.enabled
+                    ? theme.colorScheme.primary.withOpacity(0.5)
+                    : theme.colorScheme.outline.withOpacity(0.3),
+                width: widget.enabled ? 1.5 : 1,
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: _rotateAnimation,
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle: _rotateAnimation.value * 3.14159,
+                  child: child,
+                );
+              },
+              child: Icon(
+                Icons.casino_outlined,
+                size: 20,
+                color: widget.enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 批量设置按钮（批次大小）
+class _BatchSettingsButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final batchSize = ref.watch(imagesPerRequestProvider);
+    final batchCount = ref.watch(generationParamsNotifierProvider).nSamples;
+    final l10n = AppLocalizations.of(context)!;
+    
+    return IconButton(
+      tooltip: l10n.batchSize_tooltip(batchSize),
+      icon: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          '$batchSize',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+      onPressed: () => _showBatchSettingsDialog(context, ref, theme, l10n, batchSize, batchCount),
+    );
+  }
+  
+  void _showBatchSettingsDialog(
+    BuildContext context, 
+    WidgetRef ref, 
+    ThemeData theme, 
+    AppLocalizations l10n,
+    int currentBatchSize,
+    int batchCount,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final totalImages = batchCount * currentBatchSize;
+            
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.burst_mode, color: theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(l10n.batchSize_title),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.batchSize_description,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // 批次大小选择
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      for (int i = 1; i <= 4; i++)
+                        _buildBatchOption(theme, i, currentBatchSize, () {
+                          ref.read(imagesPerRequestProvider.notifier).set(i);
+                          setState(() => currentBatchSize = i);
+                        }),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  
+                  // 计算公式
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.batchSize_formula(batchCount, currentBatchSize, totalImages),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.batchSize_hint,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                  if (currentBatchSize > 1) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.batchSize_costWarning,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(l10n.common_close),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  Widget _buildBatchOption(ThemeData theme, int value, int current, VoidCallback onTap) {
+    final isSelected = value == current;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? theme.colorScheme.primary 
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+                ? theme.colorScheme.primary 
+                : theme.colorScheme.outline.withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isSelected 
+                  ? theme.colorScheme.onPrimary 
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

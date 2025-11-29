@@ -170,6 +170,40 @@ class LocalStorageService {
     await setSetting(StorageKeys.addQualityTags, value);
   }
 
+  // ==================== UC Preset ====================
+
+  /// 获取 UC 预设类型 (默认 0 = Heavy)
+  int getUcPresetType() {
+    return getSetting<int>(StorageKeys.ucPresetType, defaultValue: 0) ?? 0;
+  }
+
+  /// 保存 UC 预设类型
+  Future<void> setUcPresetType(int value) async {
+    await setSetting(StorageKeys.ucPresetType, value);
+  }
+
+  // ==================== Random Prompt Mode ====================
+
+  /// 获取抽卡模式 (默认关闭)
+  bool getRandomPromptMode() {
+    return getSetting<bool>(StorageKeys.randomPromptMode, defaultValue: false) ?? false;
+  }
+
+  /// 保存抽卡模式
+  Future<void> setRandomPromptMode(bool value) async {
+    await setSetting(StorageKeys.randomPromptMode, value);
+  }
+
+  /// 获取每次请求生成的图片数量 (默认1，最大4)
+  int getImagesPerRequest() {
+    return getSetting<int>(StorageKeys.imagesPerRequest, defaultValue: 1) ?? 1;
+  }
+
+  /// 保存每次请求生成的图片数量
+  Future<void> setImagesPerRequest(int value) async {
+    await setSetting(StorageKeys.imagesPerRequest, value.clamp(1, 4));
+  }
+
   // ==================== Autocomplete ====================
 
   /// 获取是否启用自动补全 (默认开启)

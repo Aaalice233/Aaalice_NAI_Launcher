@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
 import '../../providers/gallery_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
@@ -67,7 +68,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ref.read(galleryNotifierProvider.notifier).exitSelectionMode();
           },
         ),
-        title: Text('已选择 ${state.selectedCount} 项'),
+        title: Text(context.l10n.gallery_selected(state.selectedCount.toString())),
         actions: [
           IconButton(
             icon: const Icon(Icons.select_all),
@@ -78,14 +79,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                 ref.read(galleryNotifierProvider.notifier).selectAll();
               }
             },
-            tooltip: '全选',
+            tooltip: context.l10n.common_select,
           ),
         ],
       );
     }
 
     return AppBar(
-      title: const Text('画廊'),
+      title: Text(context.l10n.gallery_title),
       actions: [
         IconButton(
           icon: Icon(_showSearchBar ? Icons.search_off : Icons.search),
@@ -98,26 +99,26 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               }
             });
           },
-          tooltip: '搜索',
+          tooltip: context.l10n.common_search,
         ),
         if (state.records.isNotEmpty)
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) => _handleMenuAction(value, context),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
+            itemBuilder: (menuContext) => [
+              PopupMenuItem(
                 value: 'select',
                 child: ListTile(
-                  leading: Icon(Icons.check_box_outlined),
-                  title: Text('选择'),
+                  leading: const Icon(Icons.check_box_outlined),
+                  title: Text(context.l10n.common_select),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'clear',
                 child: ListTile(
-                  leading: Icon(Icons.delete_sweep),
-                  title: Text('清除所有'),
+                  leading: const Icon(Icons.delete_sweep),
+                  title: Text(context.l10n.gallery_clearAll),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -145,7 +146,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           minQueryLength: 2,
         ),
         decoration: InputDecoration(
-          hintText: '搜索提示词... (支持中英文标签)',
+          hintText: context.l10n.gallery_searchHint,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
@@ -183,7 +184,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
         children: [
           // 收藏筛选
           FilterChip(
-            label: const Text('收藏'),
+            label: Text(context.l10n.gallery_favorite),
             selected: state.filter.favoritesOnly,
             onSelected: (selected) {
               ref.read(galleryNotifierProvider.notifier).toggleFavoritesOnly();
@@ -202,10 +203,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               ref.read(galleryNotifierProvider.notifier).setSortOrder(order);
             },
             child: Chip(
-              label: Text(_getSortOrderLabel(state.filter.sortOrder)),
+              label: Text(_getSortOrderLabel(state.filter.sortOrder, context)),
               avatar: const Icon(Icons.sort, size: 18),
             ),
-            itemBuilder: (context) => [
+            itemBuilder: (menuContext) => [
               PopupMenuItem(
                 value: GallerySortOrder.newestFirst,
                 child: Row(
@@ -215,7 +216,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     else
                       const SizedBox(width: 18),
                     const SizedBox(width: 8),
-                    const Text('最新优先'),
+                    Text(context.l10n.gallery_sortNewest),
                   ],
                 ),
               ),
@@ -228,7 +229,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     else
                       const SizedBox(width: 18),
                     const SizedBox(width: 8),
-                    const Text('最旧优先'),
+                    Text(context.l10n.gallery_sortOldest),
                   ],
                 ),
               ),
@@ -242,7 +243,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     else
                       const SizedBox(width: 18),
                     const SizedBox(width: 8),
-                    const Text('收藏优先'),
+                    Text(context.l10n.gallery_sortFavorite),
                   ],
                 ),
               ),
@@ -251,7 +252,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           const Spacer(),
           // 记录数量
           Text(
-            '${state.records.length} 张',
+            context.l10n.gallery_imageCount(state.records.length.toString()),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -273,14 +274,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            '画廊为空',
+            context.l10n.gallery_empty,
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '生成的图像将显示在这里',
+            context.l10n.gallery_emptyHint,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.3),
             ),
@@ -369,21 +370,21 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       ),
       child: Row(
         children: [
-          Text('已选择 ${state.selectedCount} 张'),
+          Text(context.l10n.gallery_selectedCount(state.selectedCount.toString())),
           const Spacer(),
           TextButton.icon(
             onPressed: state.hasSelection
                 ? () => _exportSelected(context, state)
                 : null,
             icon: const Icon(Icons.download),
-            label: const Text('导出'),
+            label: Text(context.l10n.common_export),
           ),
           const SizedBox(width: 8),
           TextButton.icon(
             onPressed:
                 state.hasSelection ? () => _deleteSelected(context) : null,
             icon: const Icon(Icons.delete),
-            label: const Text('删除'),
+            label: Text(context.l10n.common_delete),
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.error,
             ),
@@ -393,14 +394,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     );
   }
 
-  String _getSortOrderLabel(GallerySortOrder order) {
+  String _getSortOrderLabel(GallerySortOrder order, BuildContext context) {
     switch (order) {
       case GallerySortOrder.newestFirst:
-        return '最新';
+        return context.l10n.gallery_sortNewest;
       case GallerySortOrder.oldestFirst:
-        return '最旧';
+        return context.l10n.gallery_sortOldest;
       case GallerySortOrder.favoritesFirst:
-        return '收藏';
+        return context.l10n.gallery_sortFavorite;
     }
   }
 
@@ -418,24 +419,24 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   void _showClearDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('清除画廊'),
-          content: const Text('确定要清除所有图像吗？此操作不可撤销。'),
+          title: Text(context.l10n.gallery_clearGallery),
+          content: Text(context.l10n.generation_clearHistoryConfirm),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
                 ref.read(galleryNotifierProvider.notifier).clearAll();
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
               ),
-              child: const Text('清除'),
+              child: Text(context.l10n.common_clear),
             ),
           ],
         );
@@ -447,24 +448,24 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final count = ref.read(galleryNotifierProvider).selectedCount;
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('删除图像'),
-          content: Text('确定要删除选中的 $count 张图像吗？'),
+          title: Text(context.l10n.common_delete),
+          content: Text(context.l10n.gallery_selectedCount(count.toString())),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
                 ref.read(galleryNotifierProvider.notifier).deleteSelected();
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
               ),
-              child: const Text('删除'),
+              child: Text(context.l10n.common_delete),
             ),
           ],
         );
@@ -487,7 +488,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已导出 $successCount 张图像到 $result')),
+        SnackBar(content: Text(context.l10n.gallery_exportSuccess(successCount.toString(), result))),
       );
       notifier.exitSelectionMode();
     }
@@ -712,8 +713,6 @@ class _FullscreenViewer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -731,22 +730,22 @@ class _FullscreenViewer extends ConsumerWidget {
                   .read(galleryNotifierProvider.notifier)
                   .toggleFavorite(record.id);
             },
-            tooltip: '收藏',
+            tooltip: context.l10n.gallery_favorite,
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () => _showMetadata(context),
-            tooltip: '元数据',
+            tooltip: context.l10n.common_more,
           ),
           IconButton(
             icon: const Icon(Icons.save_alt),
             onPressed: () => _saveImage(context, ref),
-            tooltip: '保存',
+            tooltip: context.l10n.common_save,
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: () => _deleteImage(context, ref),
-            tooltip: '删除',
+            tooltip: context.l10n.common_delete,
           ),
         ],
       ),
@@ -800,35 +799,35 @@ class _FullscreenViewer extends ConsumerWidget {
               child: ListView(
                 controller: scrollController,
                 children: [
-                  const Text(
-                    '生成参数',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    context.l10n.gallery_generationParams,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  _buildMetadataRow('模型', record.params.model),
-                  _buildMetadataRow('分辨率', record.resolution),
-                  _buildMetadataRow('步数', record.params.steps.toString()),
-                  _buildMetadataRow('采样器', record.params.sampler),
+                  _buildMetadataRow(context.l10n.gallery_metaModel, record.params.model),
+                  _buildMetadataRow(context.l10n.gallery_metaResolution, record.resolution),
+                  _buildMetadataRow(context.l10n.gallery_metaSteps, record.params.steps.toString()),
+                  _buildMetadataRow(context.l10n.gallery_metaSampler, record.params.sampler),
                   _buildMetadataRow(
-                    'CFG Scale',
+                    context.l10n.gallery_metaCfgScale,
                     record.params.scale.toString(),
                   ),
-                  _buildMetadataRow('Seed', record.params.seed.toString()),
-                  _buildMetadataRow('SMEA', record.params.smea ? '开启' : '关闭'),
-                  _buildMetadataRow('生成时间', record.createdAt.toString()),
-                  _buildMetadataRow('文件大小', record.formattedFileSize),
+                  _buildMetadataRow(context.l10n.gallery_metaSeed, record.params.seed.toString()),
+                  _buildMetadataRow(context.l10n.gallery_metaSmea, record.params.smea ? context.l10n.gallery_metaSmeaOn : context.l10n.gallery_metaSmeaOff),
+                  _buildMetadataRow(context.l10n.gallery_metaGenerationTime, record.createdAt.toString()),
+                  _buildMetadataRow(context.l10n.gallery_metaFileSize, record.formattedFileSize),
                   const SizedBox(height: 16),
-                  const Text(
-                    '正向提示词',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  Text(
+                    context.l10n.gallery_positivePrompt,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   SelectableText(record.params.prompt),
                   if (record.params.negativePrompt.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    const Text(
-                      '负向提示词',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    Text(
+                      context.l10n.gallery_negativePrompt,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     SelectableText(record.params.negativePrompt),
@@ -875,7 +874,7 @@ class _FullscreenViewer extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(path != null ? '已保存到 $path' : '保存失败'),
+          content: Text(path != null ? context.l10n.gallery_savedTo(path) : context.l10n.gallery_saveFailed),
         ),
       );
     }
@@ -884,27 +883,27 @@ class _FullscreenViewer extends ConsumerWidget {
   void _deleteImage(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('删除图像'),
-          content: const Text('确定要删除这张图像吗？'),
+          title: Text(context.l10n.gallery_deleteImage),
+          content: Text(context.l10n.gallery_deleteImageConfirm),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
                 ref
                     .read(galleryNotifierProvider.notifier)
                     .deleteRecord(record.id);
-                Navigator.pop(context); // 关闭对话框
+                Navigator.pop(dialogContext); // 关闭对话框
                 Navigator.pop(context); // 返回画廊
               },
               style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
+                backgroundColor: Theme.of(dialogContext).colorScheme.error,
               ),
-              child: const Text('删除'),
+              child: Text(context.l10n.common_delete),
             ),
           ],
         );

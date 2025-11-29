@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 
@@ -26,12 +27,14 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
     final hasVibes = params.vibeReferences.isNotEmpty;
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 标题栏
           InkWell(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -46,7 +49,7 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Vibe Transfer',
+                      context.l10n.vibe_title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: hasVibes ? theme.colorScheme.primary : null,
                       ),
@@ -96,7 +99,7 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
 
                   // 说明文字
                   Text(
-                    '添加参考图片来迁移其视觉风格和氛围（最多4张）',
+                    context.l10n.vibe_hint,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -124,7 +127,7 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
                     OutlinedButton.icon(
                       onPressed: _addVibe,
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('添加参考图'),
+                      label: Text(context.l10n.vibe_addReference),
                     ),
 
                   // 清除全部按钮
@@ -133,7 +136,7 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
                     TextButton.icon(
                       onPressed: _clearAllVibes,
                       icon: const Icon(Icons.clear_all, size: 18),
-                      label: const Text('清除全部'),
+                      label: Text(context.l10n.vibe_clearAll),
                       style: TextButton.styleFrom(
                         foregroundColor: theme.colorScheme.error,
                       ),
@@ -174,7 +177,7 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败: $e')),
+          SnackBar(content: Text(context.l10n.img2img_selectFailed(e.toString()))),
         );
       }
     }
@@ -261,13 +264,15 @@ class _VibeReferenceItemState extends State<_VibeReferenceItem> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '参考图 #${widget.index + 1}',
+                      context.l10n.vibe_referenceNumber(widget.index + 1),
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '强度: ${widget.vibe.strength.toStringAsFixed(2)} | '
-                      '信息提取: ${widget.vibe.informationExtracted.toStringAsFixed(2)}',
+                      context.l10n.vibe_strengthInfo(
+                        widget.vibe.strength.toStringAsFixed(2),
+                        widget.vibe.informationExtracted.toStringAsFixed(2),
+                      ),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
@@ -283,12 +288,12 @@ class _VibeReferenceItemState extends State<_VibeReferenceItem> {
                   size: 20,
                 ),
                 onPressed: () => setState(() => _showSliders = !_showSliders),
-                tooltip: '调整参数',
+                tooltip: context.l10n.vibe_adjustParams,
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
                 onPressed: widget.onRemove,
-                tooltip: '移除',
+                tooltip: context.l10n.vibe_remove,
               ),
             ],
           ),
@@ -309,7 +314,7 @@ class _VibeReferenceItemState extends State<_VibeReferenceItem> {
                       SizedBox(
                         width: 80,
                         child: Text(
-                          '参考强度',
+                          context.l10n.vibe_referenceStrength,
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
@@ -339,7 +344,7 @@ class _VibeReferenceItemState extends State<_VibeReferenceItem> {
                       SizedBox(
                         width: 80,
                         child: Text(
-                          '信息提取',
+                          context.l10n.vibe_infoExtraction,
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
@@ -365,7 +370,7 @@ class _VibeReferenceItemState extends State<_VibeReferenceItem> {
 
                   // 说明
                   Text(
-                    '强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图',
+                    context.l10n.vibe_sliderHint,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/localization_extension.dart';
 
 /// 质量词提示组件
 /// 显示当前开启的质量词会添加什么内容
@@ -39,10 +40,27 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: Tooltip(
-        richMessage: _buildTooltipContent(theme, qualityTags),
-        preferBelow: false,
+        richMessage: WidgetSpan(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: _buildTooltipWidget(theme, qualityTags),
+          ),
+        ),
+        preferBelow: true,
         verticalOffset: 20,
         waitDuration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(12),
         child: GestureDetector(
           onTap: widget.onTap,
           child: AnimatedContainer(
@@ -77,7 +95,7 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Quality',
+                  context.l10n.qualityTags_label,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight:
@@ -103,10 +121,10 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
     );
   }
 
-  TextSpan _buildTooltipContent(ThemeData theme, String qualityTags) {
+  Widget _buildTooltipWidget(ThemeData theme, String qualityTags) {
     if (!widget.enabled) {
-      return TextSpan(
-        text: '质量标签已关闭\n点击开启',
+      return Text(
+        context.l10n.qualityTags_disabled,
         style: TextStyle(
           color: theme.colorScheme.onSurface,
           fontSize: 12,
@@ -114,21 +132,23 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
       );
     }
 
-    return TextSpan(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextSpan(
-          text: '添加到提示词末尾:\n',
+        Text(
+          context.l10n.qualityTags_addToEnd,
           style: TextStyle(
             color: theme.colorScheme.onSurface.withOpacity(0.7),
             fontSize: 11,
           ),
         ),
-        TextSpan(
-          text: ', $qualityTags',
+        const SizedBox(height: 4),
+        Text(
+          ', $qualityTags',
           style: TextStyle(
             color: theme.colorScheme.primary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontSize: 11,
           ),
         ),
       ],

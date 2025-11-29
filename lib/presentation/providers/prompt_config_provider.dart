@@ -189,8 +189,8 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
   }
 
   /// 重置为默认预设
-  Future<void> resetToDefaults() async {
-    final presets = DefaultPresets.allDefaults;
+  Future<void> resetToDefaults([DefaultPresetNames? names]) async {
+    final presets = [DefaultPresets.createDefaultPreset(names)];
     await _savePresets(presets);
     await _box?.put(_selectedKey, presets.first.id);
     state = PromptConfigState(
@@ -198,5 +198,34 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
       selectedPresetId: presets.first.id,
       isLoading: false,
     );
+  }
+
+  /// 更新默认预设的本地化名称
+  /// 当语言切换时调用此方法
+  Future<void> updateDefaultPresetLocalization(DefaultPresetNames names) async {
+    final newPresets = state.presets.map((preset) {
+      if (preset.isDefault) {
+        // 更新默认预设名称和配置组名称
+        final defaultPreset = DefaultPresets.createDefaultPreset(names);
+        final updatedConfigs = preset.configs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final config = entry.value;
+          // 如果索引在默认配置范围内，使用默认配置的名称
+          if (index < defaultPreset.configs.length) {
+            return config.copyWith(name: defaultPreset.configs[index].name);
+          }
+          return config;
+        }).toList();
+        
+        return preset.copyWith(
+          name: names.presetName,
+          configs: updatedConfigs,
+        );
+      }
+      return preset;
+    }).toList();
+
+    await _savePresets(newPresets);
+    state = state.copyWith(presets: newPresets);
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth/account_selector.dart';
@@ -84,7 +85,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'NAI Launcher',
+                    context.l10n.appTitle,
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -92,7 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'NovelAI 第三方客户端',
+                    context.l10n.appSubtitle,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -115,21 +116,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // 邮箱输入框
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: '邮箱',
-                      hintText: '请输入 NovelAI 账户邮箱',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.auth_email,
+                      hintText: context.l10n.auth_emailHint,
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     enabled: !_isLoadingCredentials,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '请输入邮箱';
+                        return context.l10n.auth_emailRequired;
                       }
                       if (!value.contains('@')) {
-                        return '请输入有效的邮箱地址';
+                        return context.l10n.auth_emailInvalid;
                       }
                       return null;
                     },
@@ -140,8 +141,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
-                      labelText: '密码',
-                      hintText: '请输入密码',
+                      labelText: context.l10n.auth_password,
+                      hintText: context.l10n.auth_passwordHint,
                       prefixIcon: const Icon(Icons.lock_outlined),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -163,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onFieldSubmitted: (_) => _handleLogin(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '请输入密码';
+                        return context.l10n.auth_passwordRequired;
                       }
                       return null;
                     },
@@ -192,7 +193,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 });
                               },
                         child: Text(
-                          '记住密码',
+                          context.l10n.auth_rememberPassword,
                           style: theme.textTheme.bodyMedium,
                         ),
                       ),
@@ -221,7 +222,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              authState.errorMessage ?? '登录失败',
+                              authState.errorMessage ?? context.l10n.auth_loginFailed,
                               style: TextStyle(
                                 color: theme.colorScheme.error,
                                 fontSize: 14,
@@ -251,16 +252,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
-                            '登录',
-                            style: TextStyle(fontSize: 16),
+                        : Text(
+                            context.l10n.auth_loginButton,
+                            style: const TextStyle(fontSize: 16),
                           ),
                   ),
                   const SizedBox(height: 24),
 
                   // 提示信息
                   Text(
-                    '使用你的 NovelAI 账户登录\n所有数据仅存储在本地设备',
+                    context.l10n.auth_loginTip,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),

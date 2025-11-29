@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import 'presentation/router/app_router.dart';
 import 'presentation/providers/theme_provider.dart';
@@ -39,15 +39,8 @@ class NAILauncherApp extends ConsumerWidget {
 
       // 国际化
       locale: locale,
-      supportedLocales: const [
-        Locale('en'),
-        Locale('zh'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
 
       // 路由
       routerConfig: router,

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'upscale_dialog.dart';
@@ -53,7 +54,7 @@ class ImagePreviewWidget extends ConsumerWidget {
 
     // 错误状态
     if (state.status == GenerationStatus.error) {
-      return _buildErrorState(theme, state.errorMessage);
+      return _buildErrorState(theme, state.errorMessage, context);
     }
 
     // 有图像
@@ -62,10 +63,10 @@ class ImagePreviewWidget extends ConsumerWidget {
     }
 
     // 空状态
-    return _buildEmptyState(theme);
+    return _buildEmptyState(theme, context);
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(ThemeData theme, BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -76,14 +77,14 @@ class ImagePreviewWidget extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          '输入提示词并点击生成',
+          context.l10n.generation_emptyPromptHint,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurface.withOpacity(0.4),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          '图像将在这里显示',
+          context.l10n.generation_imageWillShowHere,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withOpacity(0.3),
           ),
@@ -114,30 +115,32 @@ class ImagePreviewWidget extends ConsumerWidget {
     }
 
     // 单张图片：简洁的加载状态
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 48,
-          height: 48,
-          child: CircularProgressIndicator(
-            value: progress > 0 ? progress : null,
-            strokeWidth: 3,
-            color: theme.colorScheme.primary,
+    return Builder(
+      builder: (context) => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              value: progress > 0 ? progress : null,
+              strokeWidth: 3,
+              color: theme.colorScheme.primary,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          progress > 0 ? '${(progress * 100).toInt()}%' : '生成中...',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          const SizedBox(height: 16),
+          Text(
+            progress > 0 ? '${(progress * 100).toInt()}%' : context.l10n.generation_generating,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildErrorState(ThemeData theme, String? message) {
+  Widget _buildErrorState(ThemeData theme, String? message, BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -148,7 +151,7 @@ class ImagePreviewWidget extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          '生成失败',
+          context.l10n.generation_generationFailed,
           style: theme.textTheme.titleMedium?.copyWith(
             color: theme.colorScheme.error,
           ),
@@ -215,19 +218,19 @@ class ImagePreviewWidget extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () => _saveImage(context, imageBytes),
               icon: const Icon(Icons.save_alt, size: 20),
-              label: const Text('保存'),
+              label: Text(context.l10n.image_save),
             ),
             // 复制按钮
             OutlinedButton.icon(
               onPressed: () => _copyImage(context, imageBytes),
               icon: const Icon(Icons.copy, size: 20),
-              label: const Text('复制'),
+              label: Text(context.l10n.image_copy),
             ),
             // 放大按钮
             OutlinedButton.icon(
               onPressed: () => UpscaleDialog.show(context, image: imageBytes),
               icon: const Icon(Icons.zoom_out_map, size: 20),
-              label: const Text('放大'),
+              label: Text(context.l10n.image_upscale),
             ),
           ],
         ),
@@ -272,11 +275,11 @@ class ImagePreviewWidget extends ConsumerWidget {
       await file.writeAsBytes(imageBytes);
 
       if (context.mounted) {
-        AppToast.success(context, '图片已保存到: ${saveDir.path}');
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '保存失败: $e');
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
   }
@@ -299,11 +302,11 @@ class ImagePreviewWidget extends ConsumerWidget {
       ]);
       
       if (context.mounted) {
-        AppToast.success(context, '已复制到剪贴板');
+        AppToast.success(context, context.l10n.image_copiedToClipboard);
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '复制失败: $e');
+        AppToast.error(context, context.l10n.image_copyFailed(e.toString()));
       }
     }
   }
@@ -381,7 +384,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
             child: _buildControlButton(
               icon: Icons.arrow_back_rounded,
               onTap: _close,
-              tooltip: '返回',
+              tooltip: context.l10n.common_back,
             ),
           ),
           
@@ -392,7 +395,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
             child: _buildControlButton(
               icon: Icons.save_alt_rounded,
               onTap: () => _saveImage(context),
-              tooltip: '保存',
+              tooltip: context.l10n.image_save,
             ),
           ),
         ],
@@ -458,11 +461,11 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
       await file.writeAsBytes(widget.imageBytes);
 
       if (context.mounted) {
-        AppToast.success(context, '图片已保存到: ${saveDir.path}');
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '保存失败: $e');
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
   }

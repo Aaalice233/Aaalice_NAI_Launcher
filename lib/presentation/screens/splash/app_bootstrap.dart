@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../app.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/warmup_provider.dart';
 import 'splash_screen.dart';
 
@@ -39,9 +41,14 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
     }
 
     // SplashScreen 需要 MaterialApp 提供基础上下文
+    final locale = ref.watch(localeNotifierProvider);
+    
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: const SplashScreen(key: ValueKey('splash')),
     );
   }

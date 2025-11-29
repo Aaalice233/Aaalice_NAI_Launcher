@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../router/app_router.dart';
 
 class MainNavRail extends ConsumerWidget {
@@ -53,13 +54,13 @@ class MainNavRail extends ConsumerWidget {
           // Navigation Items
           _NavIcon(
             icon: Icons.brush, // Canvas/Edit
-            label: '画布',
+            label: context.l10n.nav_canvas,
             isSelected: selectedIndex == 0,
             onTap: () => context.go(AppRoutes.home),
           ),
           _NavIcon(
             icon: Icons.image, // Local Gallery
-            label: '图库',
+            label: context.l10n.nav_gallery,
             isSelected: selectedIndex == 1,
             onTap: () => context.go(AppRoutes.gallery),
           ),
@@ -67,7 +68,7 @@ class MainNavRail extends ConsumerWidget {
           // 在线画廊
           _NavIcon(
             icon: Icons.photo_library, // Online Gallery
-            label: '画廊',
+            label: context.l10n.nav_onlineGallery,
             isSelected: selectedIndex == 3,
             onTap: () => context.go(AppRoutes.onlineGallery),
           ),
@@ -75,7 +76,7 @@ class MainNavRail extends ConsumerWidget {
           // 随机配置
           _NavIcon(
             icon: Icons.casino, // Random prompt config
-            label: '随机配置',
+            label: context.l10n.nav_randomConfig,
             isSelected: selectedIndex == 2,
             onTap: () => context.go(AppRoutes.promptConfig),
           ),
@@ -83,7 +84,7 @@ class MainNavRail extends ConsumerWidget {
           // 词库（未来功能）
           _NavIcon(
             icon: Icons.book, // Tags/Dictionary placeholder
-            label: '词库 (WIP)',
+            label: context.l10n.nav_dictionary,
             isSelected: false,
             onTap: () {}, // TODO
             isDisabled: true,
@@ -94,20 +95,20 @@ class MainNavRail extends ConsumerWidget {
           // Discord 社群
           _ExternalLinkIcon(
             icon: Icons.discord,
-            label: 'Discord 社群',
+            label: context.l10n.nav_discordCommunity,
             color: const Color(0xFF5865F2), // Discord 紫色
             url: 'https://discord.gg/R48n6GwXzD',
           ),
           
           // GitHub 仓库
-          _GitHubIcon(
+          const _GitHubIcon(
             url: 'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
           ),
           
           // Bottom Settings
           _NavIcon(
             icon: Icons.settings,
-            label: '设置',
+            label: context.l10n.nav_settings,
             isSelected: selectedIndex == 5,
             onTap: () => context.go(AppRoutes.settings),
           ),

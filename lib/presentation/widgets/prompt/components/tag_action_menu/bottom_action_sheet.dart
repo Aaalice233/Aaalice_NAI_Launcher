@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
 
@@ -219,11 +220,11 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
 
   String _getCategoryName() {
     return switch (widget.tag.category) {
-      1 => '艺术家',
-      3 => '版权',
-      4 => '角色',
-      5 => '元数据',
-      _ => '通用',
+      1 => context.l10n.tagCategory_artist,
+      3 => context.l10n.tagCategory_copyright,
+      4 => context.l10n.tagCategory_character,
+      5 => context.l10n.tagCategory_meta,
+      _ => context.l10n.tagCategory_general,
     };
   }
 
@@ -240,7 +241,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '权重',
+                context.l10n.weight_title,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -291,7 +292,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '重置',
+                          context.l10n.weight_reset,
                           style: TextStyle(
                             fontSize: 12,
                             color: theme.colorScheme.onSurface.withOpacity(0.6),
@@ -384,7 +385,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
               icon: widget.tag.enabled
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              label: widget.tag.enabled ? '禁用' : '启用',
+              label: widget.tag.enabled ? context.l10n.tag_disable : context.l10n.tag_enable,
               onTap: () {
                 widget.onToggleEnabled?.call();
                 Navigator.pop(context);
@@ -397,7 +398,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
             Expanded(
               child: _ActionButton(
                 icon: Icons.edit_outlined,
-                label: '编辑',
+                label: context.l10n.tooltip_edit,
                 onTap: () {
                   Navigator.pop(context);
                   widget.onEdit?.call();
@@ -411,7 +412,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
             Expanded(
               child: _ActionButton(
                 icon: Icons.copy_outlined,
-                label: '复制',
+                label: context.l10n.tooltip_copy,
                 onTap: () {
                   widget.onCopy?.call();
                   Navigator.pop(context);
@@ -424,7 +425,7 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
           Expanded(
             child: _ActionButton(
               icon: Icons.delete_outline,
-              label: '删除',
+              label: context.l10n.tag_delete,
               isDestructive: true,
               onTap: () {
                 widget.onDelete?.call();
