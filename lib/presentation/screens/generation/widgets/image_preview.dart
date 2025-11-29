@@ -131,6 +131,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           imageWidth: imageWidth,
           imageHeight: imageHeight,
           theme: theme,
+          streamPreview: state.streamPreview,
         ),
       ),
     );
@@ -181,6 +182,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                       imageWidth: imageWidth,
                       imageHeight: imageHeight,
                       theme: theme,
+                      streamPreview: state.streamPreview,
                     );
                   }
 
@@ -649,7 +651,7 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
   }
 }
 
-/// 生成中的图像卡片组件 - 专业简洁设计
+/// 生成中的图像卡片组件 - 支持流式预览
 class _GeneratingImageCard extends StatefulWidget {
   final int currentImage;
   final int totalImages;
@@ -657,6 +659,8 @@ class _GeneratingImageCard extends StatefulWidget {
   final int imageWidth;
   final int imageHeight;
   final ThemeData theme;
+  /// 流式预览图像（渐进式生成中显示）
+  final Uint8List? streamPreview;
 
   const _GeneratingImageCard({
     required this.currentImage,
@@ -665,6 +669,7 @@ class _GeneratingImageCard extends StatefulWidget {
     required this.imageWidth,
     required this.imageHeight,
     required this.theme,
+    this.streamPreview,
   });
 
   @override
@@ -699,11 +704,12 @@ class _GeneratingImageCardState extends State<_GeneratingImageCard>
   Widget build(BuildContext context) {
     final primaryColor = widget.theme.colorScheme.primary;
     final surfaceColor = widget.theme.colorScheme.surface;
+    final hasPreview = widget.streamPreview != null && widget.streamPreview!.isNotEmpty;
 
     // 计算卡片尺寸（基于图像比例，限制最大尺寸）
     final aspectRatio = widget.imageWidth / widget.imageHeight;
-    const maxHeight = 200.0;
-    const maxWidth = 200.0;
+    const maxHeight = 400.0;
+    const maxWidth = 400.0;
 
     double cardWidth, cardHeight;
     if (aspectRatio > 1) {
@@ -716,6 +722,132 @@ class _GeneratingImageCardState extends State<_GeneratingImageCard>
       cardWidth = maxHeight * aspectRatio;
     }
 
+    // 如果有流式预览，显示预览图像
+    if (hasPreview) {
+      return _buildPreviewCard(cardWidth, cardHeight, primaryColor, surfaceColor);
+    }
+
+    // 否则显示原来的加载动画
+    return _buildLoadingCard(cardWidth, cardHeight, primaryColor, surfaceColor);
+  }
+
+  /// 构建带预览图像的卡片
+  Widget _buildPreviewCard(
+    double cardWidth,
+    double cardHeight,
+    Color primaryColor,
+    Color surfaceColor,
+  ) {
+    return AnimatedBuilder(
+      animation: _glowAnimation,
+      builder: (context, child) {
+        return Container(
+          width: cardWidth,
+          height: cardHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withOpacity(_glowAnimation.value),
+                blurRadius: 40,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 流式预览图像
+            Image.memory(
+              widget.streamPreview!,
+              fit: BoxFit.cover,
+              gaplessPlayback: true, // 平滑过渡，避免闪烁
+            ),
+            // 半透明遮罩 + 进度指示
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.4),
+                  ],
+                ),
+              ),
+            ),
+            // 底部进度信息
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: Row(
+                children: [
+                  // 进度环
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      value: widget.progress > 0 ? widget.progress : null,
+                      strokeWidth: 2,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 进度文字
+                  Text(
+                    '${widget.currentImage}/${widget.totalImages}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // 百分比
+                  if (widget.progress > 0)
+                    Text(
+                      '${(widget.progress * 100).toInt()}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建加载动画卡片（无预览时）
+  Widget _buildLoadingCard(
+    double cardWidth,
+    double cardHeight,
+    Color primaryColor,
+    Color surfaceColor,
+  ) {
     return AnimatedBuilder(
       animation: _glowAnimation,
       builder: (context, child) {

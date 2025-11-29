@@ -82,9 +82,8 @@ class ImageParams with _$ImageParams {
     /// 正向提示词
     @Default('') String prompt,
 
-    /// 负向提示词
-    @Default('lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry')
-    String negativePrompt,
+    /// 负向提示词 (空字符串让后端根据 ucPreset 自动填充)
+    @Default('') String negativePrompt,
 
     /// 模型
     @Default('nai-diffusion-4-full') String model,
@@ -119,13 +118,13 @@ class ImageParams with _$ImageParams {
     /// CFG Rescale (V4 模型)
     @Default(0.0) double cfgRescale,
 
-    /// 噪声调度 (V4 模型)
-    @Default('native') String noiseSchedule,
+    /// 噪声调度 (V4+ 模型默认 karras，V3 默认 native)
+    @Default('karras') String noiseSchedule,
 
     // ========== 高级参数 ==========
 
-    /// UC 预设 (0-7, 默认3=None)
-    @Default(3) int ucPreset,
+    /// UC 预设 (0=Heavy, 1=Light, 2=Human Focus, 3=None)
+    @Default(0) int ucPreset,
 
     /// 质量标签开关
     @Default(true) bool qualityToggle,

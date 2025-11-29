@@ -258,29 +258,32 @@ class ParameterPanel extends ConsumerWidget {
               ),
             ],
 
-            // 噪声调度 (V4 模型)
-            if (params.isV4Model) ...[
-              const SizedBox(height: 8),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.generation_noiseSchedule),
-                trailing: DropdownButton<String>(
-                  value: params.noiseSchedule,
-                  items: const [
-                    DropdownMenuItem(value: 'native', child: Text('Native')),
-                    DropdownMenuItem(value: 'karras', child: Text('Karras')),
-                    DropdownMenuItem(value: 'exponential', child: Text('Exponential')),
-                    DropdownMenuItem(value: 'polyexponential', child: Text('Polyexponential')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      ref.read(generationParamsNotifierProvider.notifier)
-                          .updateNoiseSchedule(value);
-                    }
-                  },
-                ),
+            // 噪声调度 (V4+ 模型: Karras/Exponential/Polyexponential, V3: 多一个 Native 选项)
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.generation_noiseSchedule),
+              trailing: DropdownButton<String>(
+                // V4/V4.5 模型不支持 native，如果当前值是 native 则显示 karras
+                value: params.isV4Model && params.noiseSchedule == 'native'
+                    ? 'karras'
+                    : params.noiseSchedule,
+                items: [
+                  // V3 模型多一个 Native 选项
+                  if (!params.isV4Model)
+                    const DropdownMenuItem(value: 'native', child: Text('Native')),
+                  const DropdownMenuItem(value: 'karras', child: Text('Karras')),
+                  const DropdownMenuItem(value: 'exponential', child: Text('Exponential')),
+                  const DropdownMenuItem(value: 'polyexponential', child: Text('Polyexponential')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(generationParamsNotifierProvider.notifier)
+                        .updateNoiseSchedule(value);
+                  }
+                },
               ),
-            ],
+            ),
           ],
         ),
 

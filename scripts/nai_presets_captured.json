@@ -1,0 +1,111 @@
+{
+  "capturedAt": "2025-01-29",
+  "models": {
+    "nai-diffusion-4-5-full": {
+      "displayName": "NAI Diffusion V4.5 Full",
+      "qualityTags": "very aesthetic, masterpiece, no text",
+      "ucPresets": {
+        "Heavy": {
+          "ucPreset": 0,
+          "negative_prompt": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page"
+        },
+        "Light": {
+          "ucPreset": 1,
+          "negative_prompt": "nsfw, lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page"
+        },
+        "Furry Focus": {
+          "ucPreset": 2,
+          "negative_prompt": "nsfw, {worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic"
+        },
+        "Human Focus": {
+          "ucPreset": 3,
+          "negative_prompt": "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy"
+        },
+        "None": {
+          "ucPreset": 4,
+          "negative_prompt": ""
+        }
+      }
+    },
+    "nai-diffusion-4-5-curated": {
+      "displayName": "NAI Diffusion V4.5 Curated",
+      "qualityTags": "very aesthetic, masterpiece, no text, -0.8::feet::, rating:general",
+      "ucPresets": {
+        "Heavy": {
+          "ucPreset": 0,
+          "negative_prompt": "blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page"
+        },
+        "Light": {
+          "ucPreset": 1,
+          "negative_prompt": "blurry, lowres, upscaled, artistic error, scan artifacts, jpeg artifacts, logo, too many watermarks, negative space, blank page"
+        },
+        "Human Focus": {
+          "ucPreset": 2,
+          "negative_prompt": "blurry, lowres, upscaled, artistic error, film grain, scan artifacts, bad anatomy, bad hands, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, @_@, mismatched pupils, glowing eyes, negative space, blank page"
+        },
+        "None": {
+          "ucPreset": 3,
+          "negative_prompt": ""
+        }
+      }
+    },
+    "nai-diffusion-4-full": {
+      "displayName": "NAI Diffusion V4 Full",
+      "qualityTags": "no text, best quality, very aesthetic, absurdres",
+      "ucPresets": {
+        "Heavy": {
+          "ucPreset": 0,
+          "negative_prompt": "nsfw, blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, logo, too many watermarks, white blank page, blank page"
+        },
+        "Light": {
+          "ucPreset": 1,
+          "negative_prompt": "nsfw, blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing, white blank page, blank page"
+        },
+        "None": {
+          "ucPreset": 2,
+          "negative_prompt": ""
+        }
+      }
+    },
+    "nai-diffusion-4-curated-preview": {
+      "displayName": "NAI Diffusion V4 Curated",
+      "qualityTags": "rating:general, best quality, very aesthetic, absurdres",
+      "ucPresets": {
+        "Heavy": {
+          "ucPreset": 0,
+          "negative_prompt": "blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, multiple views, gigantic breasts, white blank page, blank page"
+        },
+        "Light": {
+          "ucPreset": 1,
+          "negative_prompt": "blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing, logo, dated, signature, white blank page, blank page"
+        },
+        "None": {
+          "ucPreset": 2,
+          "negative_prompt": ""
+        }
+      }
+    },
+    "nai-diffusion-3": {
+      "displayName": "NAI Diffusion Anime V3",
+      "qualityTags": "best quality, amazing quality, very aesthetic, absurdres",
+      "ucPresets": {
+        "Heavy": {
+          "ucPreset": 0,
+          "negative_prompt": "nsfw, lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]"
+        },
+        "Light": {
+          "ucPreset": 1,
+          "negative_prompt": "nsfw, lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing"
+        },
+        "Human Focus": {
+          "ucPreset": 2,
+          "negative_prompt": "nsfw, lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes"
+        },
+        "None": {
+          "ucPreset": 3,
+          "negative_prompt": "lowres"
+        }
+      }
+    }
+  }
+}

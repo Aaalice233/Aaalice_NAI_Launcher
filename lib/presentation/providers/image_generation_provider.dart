@@ -11,6 +11,7 @@ import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_api_service.dart';
 import '../../data/models/image/image_params.dart';
+import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 import 'prompt_config_provider.dart';
 
@@ -35,6 +36,9 @@ class ImageGenerationState {
   final int currentImage; // 当前第几张 (1-based)
   final int totalImages; // 总共几张
 
+  /// 流式预览图像（渐进式生成过程中的预览）
+  final Uint8List? streamPreview;
+
   const ImageGenerationState({
     this.status = GenerationStatus.idle,
     this.currentImages = const [],
@@ -43,6 +47,7 @@ class ImageGenerationState {
     this.progress = 0.0,
     this.currentImage = 0,
     this.totalImages = 0,
+    this.streamPreview,
   });
 
   ImageGenerationState copyWith({
@@ -53,6 +58,8 @@ class ImageGenerationState {
     double? progress,
     int? currentImage,
     int? totalImages,
+    Uint8List? streamPreview,
+    bool clearStreamPreview = false,
   }) {
     return ImageGenerationState(
       status: status ?? this.status,
@@ -62,11 +69,15 @@ class ImageGenerationState {
       progress: progress ?? this.progress,
       currentImage: currentImage ?? this.currentImage,
       totalImages: totalImages ?? this.totalImages,
+      streamPreview: clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
     );
   }
 
   bool get isGenerating => status == GenerationStatus.generating;
   bool get hasImages => currentImages.isNotEmpty;
+
+  /// 是否有流式预览图像
+  bool get hasStreamPreview => streamPreview != null && streamPreview!.isNotEmpty;
 }
 
 /// 图像生成状态 Notifier
@@ -99,27 +110,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final batchSize = ref.read(imagesPerRequestProvider);
     final totalImages = batchCount * batchSize;
 
-    // 应用质量标签（如果开启）
+    // 读取 UI 设置，转换为 API 参数
+    // 质量标签：由 API 的 qualityToggle 参数控制，后端自动添加
     final addQualityTags = ref.read(qualityTagsSettingsProvider);
-    ImageParams baseParams = params;
-    if (addQualityTags) {
-      final enhancedPrompt = QualityTags.applyQualityTags(
-        params.prompt,
-        params.model,
-      );
-      baseParams = baseParams.copyWith(prompt: enhancedPrompt);
-    }
 
-    // 应用 UC 预设
+    // UC 预设：由 API 的 ucPreset 参数控制，后端自动填充负向提示词
+    // UcPresetType.heavy -> 0, light -> 1, humanFocus -> 2, none -> 3
     final ucPresetType = ref.read(ucPresetSettingsProvider);
-    if (ucPresetType != UcPresetType.none) {
-      final enhancedNegative = UcPresets.applyPreset(
-        baseParams.negativePrompt,
-        baseParams.model,
-        ucPresetType,
-      );
-      baseParams = baseParams.copyWith(negativePrompt: enhancedNegative);
-    }
+    final ucPresetValue = ucPresetType.index; // enum index 正好对应 API 值
+
+    // 将设置应用到参数（不在客户端修改提示词内容，让后端处理）
+    ImageParams baseParams = params.copyWith(
+      qualityToggle: addQualityTags,
+      ucPreset: ucPresetValue,
+    );
 
     // 如果只生成 1 张，直接生成
     if (batchCount == 1 && batchSize == 1) {
@@ -189,12 +193,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
               debugPrint('[RandomMode] Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt');
               // 更新 UI 中的提示词
               ref.read(generationParamsNotifierProvider.notifier).updatePrompt(randomPrompt);
-              // 更新下一批次使用的参数（需要重新应用质量标签）
-              var newPrompt = randomPrompt;
-              if (addQualityTags) {
-                newPrompt = QualityTags.applyQualityTags(randomPrompt, params.model);
-              }
-              currentParams = currentParams.copyWith(prompt: newPrompt);
+              // 更新下一批次使用的参数（质量标签由后端通过 qualityToggle 自动添加）
+              currentParams = currentParams.copyWith(prompt: randomPrompt);
             }
           }
         } else {
@@ -266,7 +266,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     return [];
   }
 
-  /// 生成单张（无拆分）
+  /// 生成单张（使用流式 API 支持渐进式预览）
   Future<void> _generateSingle(
       ImageParams params, int current, int total) async {
     state = state.copyWith(
@@ -275,19 +275,76 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       errorMessage: null,
       currentImage: current,
       totalImages: total,
+      clearStreamPreview: true,
     );
 
     try {
-      final images = await _generateWithRetry(params);
+      final apiService = ref.read(naiApiServiceProvider);
+      final stream = apiService.generateImageStream(params);
 
-      state = state.copyWith(
-        status: GenerationStatus.completed,
-        currentImages: images,
-        history: [...images, ...state.history].take(50).toList(),
-        progress: 1.0,
-        currentImage: 0,
-        totalImages: 0,
-      );
+      Uint8List? finalImage;
+
+      await for (final chunk in stream) {
+        if (_isCancelled) {
+          state = state.copyWith(
+            status: GenerationStatus.cancelled,
+            progress: 0.0,
+            currentImage: 0,
+            totalImages: 0,
+            clearStreamPreview: true,
+          );
+          return;
+        }
+
+        if (chunk.hasError) {
+          state = state.copyWith(
+            status: GenerationStatus.error,
+            errorMessage: chunk.error,
+            progress: 0.0,
+            currentImage: 0,
+            totalImages: 0,
+            clearStreamPreview: true,
+          );
+          return;
+        }
+
+        if (chunk.hasPreview) {
+          // 更新流式预览
+          state = state.copyWith(
+            progress: chunk.progress,
+            streamPreview: chunk.previewImage,
+          );
+        }
+
+        if (chunk.isComplete && chunk.hasFinalImage) {
+          finalImage = chunk.finalImage;
+        }
+      }
+
+      if (finalImage != null) {
+        state = state.copyWith(
+          status: GenerationStatus.completed,
+          currentImages: [finalImage],
+          history: [finalImage, ...state.history].take(50).toList(),
+          progress: 1.0,
+          currentImage: 0,
+          totalImages: 0,
+          clearStreamPreview: true,
+        );
+      } else {
+        // 流式 API 未返回图像，回退到非流式 API
+        AppLogger.w('Stream API returned no image, falling back to non-stream API', 'Generation');
+        final images = await _generateWithRetry(params);
+        state = state.copyWith(
+          status: GenerationStatus.completed,
+          currentImages: images,
+          history: [...images, ...state.history].take(50).toList(),
+          progress: 1.0,
+          currentImage: 0,
+          totalImages: 0,
+          clearStreamPreview: true,
+        );
+      }
     } catch (e) {
       if (_isCancelled || e.toString().contains('cancelled')) {
         state = state.copyWith(
@@ -295,6 +352,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           progress: 0.0,
           currentImage: 0,
           totalImages: 0,
+          clearStreamPreview: true,
         );
       } else {
         state = state.copyWith(
@@ -303,6 +361,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           progress: 0.0,
           currentImage: 0,
           totalImages: 0,
+          clearStreamPreview: true,
         );
       }
     }

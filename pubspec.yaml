@@ -32,6 +32,9 @@ dependencies:
   # ZIP 处理
   archive: ^3.6.1
 
+  # MessagePack 解码（流式 API 响应）
+  msgpack_dart: ^1.0.1
+
   # 图片处理
   image: ^4.1.7
 

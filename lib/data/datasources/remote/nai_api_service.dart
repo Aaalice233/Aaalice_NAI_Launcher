@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
@@ -13,6 +15,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/zip_utils.dart';
 import '../../models/auth/auth_token.dart';
 import '../../models/image/image_params.dart';
+import '../../models/image/image_stream_chunk.dart';
 import '../../models/tag/tag_suggestion.dart';
 
 part 'nai_api_service.g.dart';
@@ -157,56 +160,69 @@ class NAIApiService {
       final seed =
           params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
-      // 2. 构造基础参数 (参考 novelai-api Python 项目)
-      // 注意：同时设置 negative_prompt 和 uc 字段（API 需要两者）
+      // 2. 处理提示词：如果 qualityToggle 为 true，在客户端添加质量标签
+      // 重要：官网是在客户端添加质量标签，而非后端自动添加
+      final effectivePrompt = params.qualityToggle
+          ? QualityTags.applyQualityTags(params.prompt, params.model)
+          : params.prompt;
+
+      // 3. 构造基础参数 (对齐官网 API 请求格式)
+      // 重要：官网在客户端预先填充负面提示词，而非依赖后端自动填充
+      // 根据 ucPreset 值和模型获取对应的预设内容
+      final effectiveNegativePrompt = UcPresets.applyPresetByInt(
+        params.negativePrompt,
+        params.model,
+        params.ucPreset,
+      );
+
       final requestParameters = <String, dynamic>{
+        'params_version': params.paramsVersion,
         'width': params.width,
         'height': params.height,
-        'steps': params.steps,
         'scale': params.scale,
         'sampler': params.sampler,
-        'seed': seed,
+        'steps': params.steps,
         'n_samples': params.nSamples,
-        'negative_prompt': params.negativePrompt,
-        'uc': params.negativePrompt, // API 需要 uc 字段（与 negative_prompt 相同）
-        // V4 模型不支持 SMEA，所以对 V4 禁用
-        'sm': params.isV4Model ? false : params.smea,
-        'sm_dyn': params.isV4Model ? false : params.smeaDyn,
-        'cfg_rescale': params.cfgRescale,
-        'noise_schedule': params.noiseSchedule,
-        // 必需的参数（camelCase 格式）
         'ucPreset': params.ucPreset,
         'qualityToggle': params.qualityToggle,
-        'dynamic_thresholding': false, // decrisper
-        'controlnet_strength': 1.0,
+        'autoSmea': false,
+        'dynamic_thresholding': false,
+        'controlnet_strength': 1,
         'legacy': false,
         'add_original_image': params.addOriginalImage,
-        'params_version': params.paramsVersion,
-        // 额外必需参数
-        'uncond_scale': 1.0,
-        'skip_cfg_above_sigma': null,
+        'cfg_rescale': params.cfgRescale,
+        'noise_schedule': params.isV4Model
+            ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
+            : params.noiseSchedule,
+        'skip_cfg_above_sigma': params.varietyPlus ? 19 : null,
+        'normalize_reference_strength_multiple': true,
+        'inpaintImg2ImgStrength': 1,
+        'seed': seed,
+        'negative_prompt': effectiveNegativePrompt,
+        'deliberate_euler_ancestral_bug': false,
+        'prefer_brownian': true,
       };
+
+      // V3 模型特有的 SMEA 参数（V4+ 不需要）
+      if (!params.isV4Model) {
+        requestParameters['sm'] = params.smea;
+        requestParameters['sm_dyn'] = params.smeaDyn;
+        // V3 模型使用 uc 字段
+        requestParameters['uc'] = effectiveNegativePrompt;
+      }
 
       // V4+ 模型特殊参数 (必需的 v4_prompt 和 v4_negative_prompt 结构)
       if (params.isV4Model) {
         // 确保使用正确的参数版本
         requestParameters['params_version'] = 3;
 
-        // V4 必需的额外参数 (参考 novelai-python SDK)
+        // V4 必需的额外参数 (对齐官网格式)
         requestParameters['use_coords'] = params.useCoords;
         requestParameters['legacy_v3_extend'] = false;
         requestParameters['legacy_uc'] = false;
 
-        // skip_cfg_above_sigma: 当 variety_plus 为 true 时设置为 19
-        requestParameters['skip_cfg_above_sigma'] =
-            params.varietyPlus ? 19 : null;
-
-        // V4 默认负向提示词 (当用户未指定时使用)
-        const defaultV4Uc =
-            'lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]';
-        final combinedUc = params.negativePrompt.isNotEmpty
-            ? params.negativePrompt
-            : defaultV4Uc;
+        // 使用客户端预先填充的负面提示词（包含预设内容）
+        final userNegativePrompt = effectiveNegativePrompt;
 
         // 构建角色提示词列表 (char_captions 和 characterPrompts)
         final charCaptions = <Map<String, dynamic>>[];
@@ -243,30 +259,25 @@ class NAIApiService {
           });
         }
 
-        // V4 必需的 v4_prompt 结构
-        // 注意: base_caption 应为用户的提示词！（不是 null）
+        // V4 必需的 v4_prompt 结构 (对齐官网格式)
         requestParameters['v4_prompt'] = {
           'caption': {
-            'base_caption': params.prompt, // V4 需要在这里也传入提示词
+            'base_caption': effectivePrompt,
             'char_captions': charCaptions,
           },
           'use_coords': params.useCoords,
           'use_order': true,
         };
 
-        // V4 必需的 v4_negative_prompt 结构
-        // base_caption 设置为组合后的负向提示词 (不能为空！)
+        // V4 必需的 v4_negative_prompt 结构 (对齐官网格式)
+        // base_caption: 客户端预先填充的负面提示词（包含预设内容）
         requestParameters['v4_negative_prompt'] = {
           'caption': {
-            'base_caption': combinedUc,
+            'base_caption': userNegativePrompt,
             'char_captions': [],
           },
-          'legacy_uc': false, // 可选，用于兼容旧版负向提示词
+          'legacy_uc': false,
         };
-
-        // 同时更新 negative_prompt 和 uc 字段
-        requestParameters['negative_prompt'] = combinedUc;
-        requestParameters['uc'] = combinedUc;
 
         // 角色提示词数组
         requestParameters['characterPrompts'] = characterPrompts;
@@ -275,6 +286,10 @@ class NAIApiService {
       // 打印请求参数以便调试
       AppLogger.d(
         'Request parameters: model=${params.model}, isV4=${params.isV4Model}, ucPreset=${params.ucPreset}',
+        'API',
+      );
+      AppLogger.d(
+        'Effective negative_prompt: $effectiveNegativePrompt',
         'API',
       );
 
@@ -333,7 +348,7 @@ class NAIApiService {
 
       // 4. 构造请求数据
       final requestData = <String, dynamic>{
-        'input': params.prompt,
+        'input': effectivePrompt,
         'model': params.model,
         'action': action,
         'parameters': requestParameters,
@@ -384,6 +399,371 @@ class NAIApiService {
   void cancelGeneration() {
     _currentCancelToken?.cancel('User cancelled');
     _currentCancelToken = null;
+  }
+
+  // ==================== 流式图像生成 API ====================
+
+  /// 流式生成图像（支持渐进式预览）
+  ///
+  /// [params] 图像生成参数
+  ///
+  /// 返回 ImageStreamChunk 流，包含渐进式预览和最终图像
+  Stream<ImageStreamChunk> generateImageStream(ImageParams params) async* {
+    _currentCancelToken = CancelToken();
+
+    try {
+      // 1. 处理种子
+      final seed =
+          params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
+
+      // 2. 处理提示词：如果 qualityToggle 为 true，在客户端添加质量标签
+      // 重要：官网是在客户端添加质量标签，而非后端自动添加
+      final effectivePrompt = params.qualityToggle
+          ? QualityTags.applyQualityTags(params.prompt, params.model)
+          : params.prompt;
+
+      // 3. 构造基础参数 (对齐官网 API 请求格式)
+      // 重要：客户端预先填充负面提示词
+      final effectiveNegativePrompt = UcPresets.applyPresetByInt(
+        params.negativePrompt,
+        params.model,
+        params.ucPreset,
+      );
+
+      final requestParameters = <String, dynamic>{
+        'params_version': params.paramsVersion,
+        'width': params.width,
+        'height': params.height,
+        'scale': params.scale,
+        'sampler': params.sampler,
+        'steps': params.steps,
+        'n_samples': params.nSamples,
+        'ucPreset': params.ucPreset,
+        'qualityToggle': params.qualityToggle,
+        'autoSmea': false,
+        'dynamic_thresholding': false,
+        'controlnet_strength': 1,
+        'legacy': false,
+        'add_original_image': params.addOriginalImage,
+        'cfg_rescale': params.cfgRescale,
+        'noise_schedule': params.isV4Model
+            ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
+            : params.noiseSchedule,
+        'skip_cfg_above_sigma': params.varietyPlus ? 19 : null,
+        'normalize_reference_strength_multiple': true,
+        'inpaintImg2ImgStrength': 1,
+        'seed': seed,
+        'negative_prompt': effectiveNegativePrompt,
+        'deliberate_euler_ancestral_bug': false,
+        'prefer_brownian': true,
+        // 流式特有参数
+        'stream': 'msgpack',
+      };
+
+      // V3 模型特有的 SMEA 参数（V4+ 不需要）
+      if (!params.isV4Model) {
+        requestParameters['sm'] = params.smea;
+        requestParameters['sm_dyn'] = params.smeaDyn;
+        // V3 模型使用 uc 字段
+        requestParameters['uc'] = effectiveNegativePrompt;
+      }
+
+      // V4+ 模型特殊参数
+      if (params.isV4Model) {
+        requestParameters['params_version'] = 3;
+        requestParameters['use_coords'] = params.useCoords;
+        requestParameters['legacy_v3_extend'] = false;
+        requestParameters['legacy_uc'] = false;
+
+        // 使用客户端预先填充的负面提示词（包含预设内容）
+        final userNegativePrompt = effectiveNegativePrompt;
+        final charCaptions = <Map<String, dynamic>>[];
+        final characterPrompts = <Map<String, dynamic>>[];
+
+        for (final char in params.characters) {
+          double x = 0.5, y = 0.5;
+          if (char.position != null && char.position!.length >= 2) {
+            final letter = char.position![0].toUpperCase();
+            final digit = char.position![1];
+            x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
+            y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
+            x = x.clamp(0.1, 0.9);
+            y = y.clamp(0.1, 0.9);
+          } else if (char.positionX != null && char.positionY != null) {
+            x = char.positionX!;
+            y = char.positionY!;
+          }
+
+          charCaptions.add({
+            'centers': [{'x': x, 'y': y}],
+            'char_caption': char.prompt,
+          });
+
+          characterPrompts.add({
+            'center': {'x': x, 'y': y},
+            'prompt': char.prompt,
+            'uc': char.negativePrompt,
+          });
+        }
+
+        requestParameters['v4_prompt'] = {
+          'caption': {
+            'base_caption': effectivePrompt,
+            'char_captions': charCaptions,
+          },
+          'use_coords': params.useCoords,
+          'use_order': true,
+        };
+
+        requestParameters['v4_negative_prompt'] = {
+          'caption': {
+            'base_caption': userNegativePrompt,
+            'char_captions': [],
+          },
+          'legacy_uc': false,
+        };
+
+        requestParameters['characterPrompts'] = characterPrompts;
+      }
+
+      // img2img 模式
+      if (params.action == ImageGenerationAction.img2img &&
+          params.sourceImage != null) {
+        requestParameters['image'] = base64Encode(params.sourceImage!);
+        requestParameters['strength'] = params.strength;
+        requestParameters['noise'] = params.noise;
+      }
+
+      // inpainting 模式
+      if (params.action == ImageGenerationAction.infill &&
+          params.sourceImage != null &&
+          params.maskImage != null) {
+        requestParameters['image'] = base64Encode(params.sourceImage!);
+        requestParameters['mask'] = base64Encode(params.maskImage!);
+      }
+
+      // Vibe Transfer
+      if (params.vibeReferences.isNotEmpty) {
+        requestParameters['reference_image_multiple'] =
+            params.vibeReferences.map((v) => base64Encode(v.image)).toList();
+        requestParameters['reference_strength_multiple'] =
+            params.vibeReferences.map((v) => v.strength).toList();
+        requestParameters['reference_information_extracted_multiple'] =
+            params.vibeReferences.map((v) => v.informationExtracted).toList();
+      }
+
+      // 构造请求数据（对齐官网格式）
+      final requestData = <String, dynamic>{
+        'input': effectivePrompt,
+        'model': params.model,
+        'action': params.action.value,
+        'parameters': requestParameters,
+        'use_new_shared_trial': true,
+      };
+
+      // ========== 详细调试日志 ==========
+      AppLogger.d('========== STREAM REQUEST DEBUG ==========', 'API');
+      AppLogger.d('input (正面提示词+质量标签): $effectivePrompt', 'API');
+      AppLogger.d('model: ${params.model}', 'API');
+      AppLogger.d('action: ${params.action.value}', 'API');
+      AppLogger.d('seed: $seed', 'API');
+      AppLogger.d('steps: ${params.steps}', 'API');
+      AppLogger.d('ucPreset: ${params.ucPreset}', 'API');
+      AppLogger.d('negative_prompt: $effectiveNegativePrompt', 'API');
+      if (params.isV4Model) {
+        AppLogger.d('v4_prompt: ${jsonEncode(requestParameters['v4_prompt'])}', 'API');
+        AppLogger.d('v4_negative_prompt: ${jsonEncode(requestParameters['v4_negative_prompt'])}', 'API');
+      }
+      // 打印完整请求 JSON（用于对比官网）
+      AppLogger.d('FULL REQUEST JSON: ${jsonEncode(requestData)}', 'API');
+      AppLogger.d('==========================================', 'API');
+
+      // 3. 发送流式请求
+      final response = await _dio.post<ResponseBody>(
+        '${ApiConstants.imageBaseUrl}${ApiConstants.generateImageStreamEndpoint}',
+        data: requestData,
+        cancelToken: _currentCancelToken,
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: {
+            'Accept': 'application/x-msgpack',
+          },
+        ),
+      );
+
+      // 4. 解析 MessagePack 流
+      // NovelAI 流式格式：[4字节长度前缀(big-endian)] + [MessagePack数据]
+      final responseStream = response.data!.stream;
+      final buffer = <int>[];
+      int messageCount = 0;
+      Uint8List? latestPreview;
+      int totalSteps = params.steps;
+
+      await for (final chunk in responseStream) {
+        if (_currentCancelToken?.isCancelled ?? false) {
+          yield ImageStreamChunk.error('Cancelled');
+          return;
+        }
+
+        buffer.addAll(chunk);
+
+        // 尝试解析完整的消息（带长度前缀）
+        while (buffer.length >= 4) {
+          // 读取 4 字节长度前缀 (big-endian)
+          final msgLength = (buffer[0] << 24) |
+              (buffer[1] << 16) |
+              (buffer[2] << 8) |
+              buffer[3];
+
+          // 检查是否收到完整消息
+          if (buffer.length < 4 + msgLength) {
+            // 数据不完整，等待更多数据
+            break;
+          }
+
+          // 提取 MessagePack 数据
+          final msgBytes = Uint8List.fromList(buffer.sublist(4, 4 + msgLength));
+          buffer.removeRange(0, 4 + msgLength);
+
+          try {
+            final decoded = msgpack.deserialize(msgBytes);
+            messageCount++;
+
+            if (decoded is Map) {
+              // 转换 key 为字符串（msgpack 可能返回动态类型）
+              final Map<String, dynamic> msg = {};
+              decoded.forEach((key, value) {
+                msg[key.toString()] = value;
+              });
+
+              // NovelAI 流式消息格式:
+              // {event_type, samp_ix, step_ix, gen_id, sigma, image}
+              final eventType = msg['event_type'];
+              final stepIx = msg['step_ix'] as int?;
+              final imageData = msg['image'];
+
+              // 提取图像数据
+              Uint8List? imageBytes;
+              if (imageData is Uint8List) {
+                imageBytes = imageData;
+              } else if (imageData is List<int>) {
+                imageBytes = Uint8List.fromList(imageData);
+              } else if (imageData is String && imageData.isNotEmpty) {
+                try {
+                  imageBytes = Uint8List.fromList(base64Decode(imageData));
+                } catch (_) {}
+              }
+
+              if (imageBytes != null && imageBytes.isNotEmpty) {
+                latestPreview = imageBytes;
+                final currentStep = (stepIx ?? messageCount) + 1;
+                final progress = currentStep / totalSteps;
+                AppLogger.d('Stream preview: step $currentStep/$totalSteps, ${imageBytes.length} bytes', 'Stream');
+                yield ImageStreamChunk.progress(
+                  progress: progress.clamp(0.0, 0.99),
+                  currentStep: currentStep,
+                  totalSteps: totalSteps,
+                  previewImage: imageBytes,
+                );
+              }
+
+              // 检查错误
+              if (msg.containsKey('error')) {
+                AppLogger.e('Stream error: ${msg['error']}', 'Stream');
+                yield ImageStreamChunk.error(msg['error'].toString());
+                return;
+              }
+            }
+          } catch (e) {
+            AppLogger.w('Stream msg parse error: $e', 'Stream');
+          }
+        }
+      }
+
+      // 流结束后检查最终数据
+      AppLogger.d('Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount', 'Stream');
+
+      // 流结束但没有收到完成消息，尝试从 buffer 解析最终结果
+      if (buffer.isNotEmpty) {
+        try {
+          final bytes = Uint8List.fromList(buffer);
+
+          // 检查是否为 ZIP 格式（非流式回退）
+          if (bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
+            // ZIP 文件头 "PK"
+            AppLogger.d('Stream fallback: parsing as ZIP', 'Stream');
+            final images = ZipUtils.extractAllImages(bytes);
+            if (images.isNotEmpty) {
+              yield ImageStreamChunk.complete(images.first);
+              return;
+            }
+          }
+
+          // 尝试作为带长度前缀的 MessagePack 解析
+          if (bytes.length >= 4) {
+            final msgLength = (bytes[0] << 24) |
+                (bytes[1] << 16) |
+                (bytes[2] << 8) |
+                bytes[3];
+            if (bytes.length >= 4 + msgLength) {
+              final msgBytes = bytes.sublist(4, 4 + msgLength);
+              final decoded = msgpack.deserialize(msgBytes);
+              if (decoded is Map) {
+                final Map<String, dynamic> msg = {};
+                decoded.forEach((key, value) {
+                  msg[key.toString()] = value;
+                });
+                if (msg.containsKey('data')) {
+                  final data = msg['data'];
+                  if (data is Uint8List) {
+                    yield ImageStreamChunk.complete(data);
+                    return;
+                  } else if (data is List<int>) {
+                    yield ImageStreamChunk.complete(Uint8List.fromList(data));
+                    return;
+                  } else if (data is String) {
+                    yield ImageStreamChunk.complete(
+                        Uint8List.fromList(base64Decode(data)));
+                    return;
+                  }
+                }
+              }
+            }
+          }
+
+          // 如果有最新预览，将其作为最终结果（兜底）
+          if (latestPreview != null) {
+            AppLogger.d('Stream fallback: using latest preview as final', 'Stream');
+            yield ImageStreamChunk.complete(latestPreview!);
+          } else {
+            yield ImageStreamChunk.error('No image received from stream');
+          }
+        } catch (e) {
+          AppLogger.e('Failed to parse final stream data: $e', 'Stream');
+          if (latestPreview != null) {
+            yield ImageStreamChunk.complete(latestPreview!);
+          } else {
+            yield ImageStreamChunk.error('Failed to parse response');
+          }
+        }
+      } else if (latestPreview != null) {
+        // buffer 为空但有预览，使用最后的预览作为最终结果
+        AppLogger.d('Stream complete: using latest preview', 'Stream');
+        yield ImageStreamChunk.complete(latestPreview!);
+      }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        yield ImageStreamChunk.error('Cancelled');
+      } else {
+        AppLogger.e('Stream generation failed: ${e.message}', 'API');
+        yield ImageStreamChunk.error(e.message ?? 'Unknown error');
+      }
+    } catch (e) {
+      AppLogger.e('Stream generation failed: $e', 'API');
+      yield ImageStreamChunk.error(e.toString());
+    } finally {
+      _currentCancelToken = null;
+    }
   }
 
   // ==================== 图片放大 API ====================
