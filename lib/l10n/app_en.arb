@@ -15,6 +15,7 @@
   "common_back": "Back",
   "common_clear": "Clear",
   "common_copy": "Copy",
+  "common_copied": "Copied",
   "common_export": "Export",
   "common_import": "Import",
   "common_loading": "Loading...",
@@ -133,6 +134,7 @@
   "generation_smeaSubtitle": "Improve generation quality for large images",
   "generation_smeaDyn": "SMEA DYN",
   "generation_smeaDynSubtitle": "SMEA dynamic variant",
+  "generation_smeaDescription": "High resolution samplers will automatically be used above a certain image size",
   "generation_cfgRescale": "CFG Rescale: {value}",
   "@generation_cfgRescale": {
     "placeholders": {
@@ -222,6 +224,8 @@
   "prompt_smartAutocompleteSubtitle": "Show tag suggestions while typing",
   "prompt_autoFormat": "Auto Format",
   "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-close brackets, etc.",
+  "prompt_highlightEmphasis": "Highlight Emphasis",
+  "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_textMode": "Text",
   "prompt_tagMode": "Tags",
   "prompt_switchToTagView": "Switch to Tag View",
@@ -927,5 +931,17 @@
   "defaultPreset_background": "Background",
   "defaultPreset_shot": "Shot",
   "defaultPreset_composition": "Composition",
-  "defaultPreset_specialStyle": "Special Style"
+  "defaultPreset_specialStyle": "Special Style",
+
+  "resolution_groupNormal": "NORMAL",
+  "resolution_groupLarge": "LARGE",
+  "resolution_groupWallpaper": "WALLPAPER",
+  "resolution_groupSmall": "SMALL",
+  "resolution_groupCustom": "CUSTOM",
+  "resolution_typePortrait": "Portrait",
+  "resolution_typeLandscape": "Landscape",
+  "resolution_typeSquare": "Square",
+  "resolution_typeCustom": "Custom",
+  "resolution_width": "Width",
+  "resolution_height": "Height"
 }

@@ -4,6 +4,16 @@ import 'package:uuid/uuid.dart';
 part 'prompt_tag.freezed.dart';
 part 'prompt_tag.g.dart';
 
+/// 权重语法类型
+enum WeightSyntaxType {
+  /// 无权重修饰 (weight = 1.0)
+  none,
+  /// 括号语法: {content}, [content]
+  bracket,
+  /// 数值语法: weight::content::
+  numeric,
+}
+
 /// 提示词标签数据模型
 /// 用于可视化标签管理
 @freezed
@@ -35,6 +45,9 @@ class PromptTag with _$PromptTag {
 
     /// 原始语法文本（包含括号等，用于还原）
     String? rawSyntax,
+
+    /// 权重语法类型（用于保持原始格式）
+    @Default(WeightSyntaxType.none) WeightSyntaxType syntaxType,
   }) = _PromptTag;
 
   factory PromptTag.fromJson(Map<String, dynamic> json) =>
@@ -47,6 +60,7 @@ class PromptTag with _$PromptTag {
     int category = 0,
     String? translation,
     String? rawSyntax,
+    WeightSyntaxType syntaxType = WeightSyntaxType.none,
   }) {
     return PromptTag(
       id: const Uuid().v4(),
@@ -55,6 +69,7 @@ class PromptTag with _$PromptTag {
       category: category,
       translation: translation,
       rawSyntax: rawSyntax,
+      syntaxType: syntaxType,
     );
   }
 
@@ -85,22 +100,42 @@ class PromptTag with _$PromptTag {
   }
 
   /// 生成带权重语法的文本
+  /// 根据 syntaxType 选择输出格式：
+  /// - numeric: weight::content::
+  /// - bracket: {{{content}}} 或 [[[content]]]
+  /// - none: 纯文本
   String toSyntaxString() {
     if (!enabled) return '';
 
-    final layers = bracketLayers;
-    if (layers == 0) return text;
+    // 权重为 1.0 时，直接返回文本
+    if ((weight - 1.0).abs() < 0.001) return text;
 
-    if (layers > 0) {
-      // 增强：{{{text}}}
-      final brackets = '{' * layers;
-      final closeBrackets = '}' * layers;
-      return '$brackets$text$closeBrackets';
-    } else {
-      // 减弱：[[[text]]]
-      final brackets = '[' * (-layers);
-      final closeBrackets = ']' * (-layers);
-      return '$brackets$text$closeBrackets';
+    // 根据语法类型选择输出格式
+    switch (syntaxType) {
+      case WeightSyntaxType.numeric:
+        // 数值语法: weight::content::
+        final weightStr = weight == weight.truncateToDouble()
+            ? weight.toInt().toString()
+            : weight.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+        return '$weightStr::$text::';
+
+      case WeightSyntaxType.bracket:
+      case WeightSyntaxType.none:
+        // 括号语法: {{{content}}} 或 [[[content]]]
+        final layers = bracketLayers;
+        if (layers == 0) return text;
+
+        if (layers > 0) {
+          // 增强：{{{text}}}
+          final brackets = '{' * layers;
+          final closeBrackets = '}' * layers;
+          return '$brackets$text$closeBrackets';
+        } else {
+          // 减弱：[[[text]]]
+          final brackets = '[' * (-layers);
+          final closeBrackets = ']' * (-layers);
+          return '$brackets$text$closeBrackets';
+        }
     }
   }
 

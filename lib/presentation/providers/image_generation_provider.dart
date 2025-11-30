@@ -14,6 +14,7 @@ import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 import 'prompt_config_provider.dart';
+import 'subscription_provider.dart';
 
 part 'image_generation_provider.g.dart';
 
@@ -234,6 +235,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       currentImage: 0,
       totalImages: 0,
     );
+
+    // 生成完成后刷新 Anlas 余额
+    ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
   }
 
   /// 带重试的生成
@@ -484,13 +488,18 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(seed: -1);
   }
 
-  /// 更新 SMEA
+  /// 更新 SMEA Auto (V3 模型)
+  void updateSmeaAuto(bool smeaAuto) {
+    state = state.copyWith(smeaAuto: smeaAuto);
+  }
+
+  /// 更新 SMEA (V3 模型)
   void updateSmea(bool smea) {
     state = state.copyWith(smea: smea);
     _storage.setLastSmea(smea);
   }
 
-  /// 更新 SMEA DYN
+  /// 更新 SMEA DYN (V3 模型)
   void updateSmeaDyn(bool smeaDyn) {
     state = state.copyWith(smeaDyn: smeaDyn);
     _storage.setLastSmeaDyn(smeaDyn);
@@ -664,6 +673,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 更新多样性增强 (V4+)
   void updateVarietyPlus(bool varietyPlus) {
     state = state.copyWith(varietyPlus: varietyPlus);
+  }
+
+  /// 更新 Decrisp (V3 模型)
+  void updateDecrisp(bool decrisp) {
+    state = state.copyWith(decrisp: decrisp);
   }
 
   /// 更新使用坐标模式 (V4+ 多角色)
@@ -906,6 +920,29 @@ class AutoFormatPromptSettings extends _$AutoFormatPromptSettings {
   void set(bool value) {
     state = value;
     _storage.setAutoFormatPrompt(value);
+  }
+}
+
+/// 高亮强调设置 Notifier
+@Riverpod(keepAlive: true)
+class HighlightEmphasisSettings extends _$HighlightEmphasisSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() {
+    return _storage.getHighlightEmphasis();
+  }
+
+  /// 切换高亮强调开关
+  void toggle() {
+    state = !state;
+    _storage.setHighlightEmphasis(state);
+  }
+
+  /// 设置高亮强调开关
+  void set(bool value) {
+    state = value;
+    _storage.setHighlightEmphasis(value);
   }
 }
 

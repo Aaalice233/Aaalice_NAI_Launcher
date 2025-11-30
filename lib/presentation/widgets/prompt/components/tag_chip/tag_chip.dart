@@ -224,14 +224,32 @@ class _TagChipState extends ConsumerState<TagChip>
   /// 生成带权重语法的显示文本
   String get _displayText {
     final name = widget.tag.displayName;
-    final layers = widget.tag.bracketLayers;
+    final weight = widget.tag.weight;
+    final syntaxType = widget.tag.syntaxType;
 
-    if (layers > 0) {
-      return '${'{' * layers}$name${'}' * layers}';
-    } else if (layers < 0) {
-      return '${'[' * (-layers)}$name${']' * (-layers)}';
+    // 权重为 1.0 时，直接显示名称
+    if ((weight - 1.0).abs() < 0.001) return name;
+
+    // 根据语法类型选择显示格式
+    switch (syntaxType) {
+      case WeightSyntaxType.numeric:
+        // 数值语法: 显示 weight::name::
+        final weightStr = weight == weight.truncateToDouble()
+            ? weight.toInt().toString()
+            : weight.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+        return '$weightStr::$name::';
+
+      case WeightSyntaxType.bracket:
+      case WeightSyntaxType.none:
+        // 括号语法: 显示 {{{name}}} 或 [[[name]]]
+        final layers = widget.tag.bracketLayers;
+        if (layers > 0) {
+          return '${'{' * layers}$name${'}' * layers}';
+        } else if (layers < 0) {
+          return '${'[' * (-layers)}$name${']' * (-layers)}';
+        }
+        return name;
     }
-    return name;
   }
 
   @override

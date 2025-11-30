@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import '../../widgets/common/themed_button.dart';
 import 'widgets/prompt_input.dart';
@@ -120,29 +122,20 @@ class _MobileGenerationLayoutState
           ),
           child: Row(
             children: [
+              // Anlas 余额显示
+              const AnlasBalanceChip(compact: true),
+              const SizedBox(width: 8),
               // 抽卡模式开关
               _MobileRandomModeToggle(
                 enabled: ref.watch(randomPromptModeProvider),
               ),
-              const SizedBox(width: 12),
-              // 生成按钮
+              const SizedBox(width: 8),
+              // 生成按钮（集成价格徽章）
               Expanded(
-                child: ThemedButton(
-                  onPressed: generationState.isGenerating
-                      ? () {
-                          ref.read(imageGenerationNotifierProvider.notifier).cancel();
-                        }
-                      : () {
-                          _handleGenerate(context, ref, params);
-                        },
-                  icon: generationState.isGenerating
-                      ? const Icon(Icons.stop)
-                      : const Icon(Icons.auto_awesome),
-                  isLoading: false,
-                  label: Text(generationState.isGenerating ? context.l10n.generation_cancelGeneration : context.l10n.generation_generate),
-                  style: generationState.isGenerating
-                      ? ThemedButtonStyle.outlined
-                      : ThemedButtonStyle.filled,
+                child: _MobileGenerateButton(
+                  isGenerating: generationState.isGenerating,
+                  onGenerate: () => _handleGenerate(context, ref, params),
+                  onCancel: () => ref.read(imageGenerationNotifierProvider.notifier).cancel(),
                 ),
               ),
             ],
@@ -168,15 +161,15 @@ class _MobileGenerationLayoutState
 /// 移动端抽卡模式开关
 class _MobileRandomModeToggle extends ConsumerWidget {
   final bool enabled;
-  
+
   const _MobileRandomModeToggle({required this.enabled});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    
+
     return Tooltip(
-      message: enabled 
+      message: enabled
           ? context.l10n.randomMode_enabledTip
           : context.l10n.randomMode_disabledTip,
       child: GestureDetector(
@@ -208,6 +201,75 @@ class _MobileRandomModeToggle extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 移动端生成按钮（集成价格徽章）
+class _MobileGenerateButton extends ConsumerWidget {
+  final bool isGenerating;
+  final VoidCallback onGenerate;
+  final VoidCallback onCancel;
+
+  const _MobileGenerateButton({
+    required this.isGenerating,
+    required this.onGenerate,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final cost = ref.watch(estimatedCostProvider);
+    final isFree = ref.watch(isFreeGenerationProvider);
+    final isInsufficient = ref.watch(isBalanceInsufficientProvider);
+
+    // 价格徽章颜色
+    Color badgeColor;
+    Color badgeTextColor;
+    if (isFree) {
+      badgeColor = Colors.green;
+      badgeTextColor = Colors.white;
+    } else if (isInsufficient) {
+      badgeColor = theme.colorScheme.error;
+      badgeTextColor = Colors.white;
+    } else {
+      badgeColor = theme.colorScheme.primaryContainer;
+      badgeTextColor = theme.colorScheme.onPrimaryContainer;
+    }
+
+    return ThemedButton(
+      onPressed: isGenerating ? onCancel : onGenerate,
+      icon: isGenerating ? const Icon(Icons.stop) : const Icon(Icons.auto_awesome),
+      isLoading: false,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(isGenerating
+              ? context.l10n.generation_cancelGeneration
+              : context.l10n.generation_generate),
+          // 价格徽章（仅在非生成状态且非免费时显示）
+          if (!isGenerating && !isFree) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: badgeColor.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$cost',
+                style: TextStyle(
+                  color: badgeTextColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      style: isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
     );
   }
 }

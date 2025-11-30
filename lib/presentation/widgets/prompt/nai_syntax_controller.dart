@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 /// NAI 语法高亮控制器
 /// 继承 TextEditingController，重写 buildTextSpan 实现语法着色
 class NaiSyntaxController extends TextEditingController {
-  NaiSyntaxController({super.text});
+  /// 是否启用高亮
+  bool highlightEnabled;
+
+  NaiSyntaxController({super.text, this.highlightEnabled = true});
 
   @override
   TextSpan buildTextSpan({
@@ -11,10 +14,14 @@ class NaiSyntaxController extends TextEditingController {
     TextStyle? style,
     required bool withComposing,
   }) {
-    final theme = Theme.of(context);
     final baseStyle = style ?? const TextStyle();
 
-    // 定义语法颜色（基于主题）
+    // 如果禁用高亮，直接返回普通文本
+    if (!highlightEnabled) {
+      return TextSpan(text: text, style: baseStyle);
+    }
+
+    final theme = Theme.of(context);
     final colors = NaiSyntaxColors.fromTheme(theme);
 
     // 解析并高亮文本
@@ -23,7 +30,7 @@ class NaiSyntaxController extends TextEditingController {
     return TextSpan(style: baseStyle, children: spans);
   }
 
-  /// 解析文本并生成带颜色的 TextSpan 列表
+  /// 解析文本并生成带背景色的 TextSpan 列表
   List<TextSpan> _parseAndHighlight(
     String text,
     TextStyle baseStyle,
@@ -32,24 +39,62 @@ class NaiSyntaxController extends TextEditingController {
     if (text.isEmpty) return [];
 
     final spans = <TextSpan>[];
-    final patterns = _buildPatterns();
-
-    int currentIndex = 0;
-
-    // 找出所有匹配项并排序
     final matches = <_SyntaxMatch>[];
 
-    for (final entry in patterns.entries) {
-      for (final match in entry.key.allMatches(text)) {
-        matches.add(
-          _SyntaxMatch(
-            start: match.start,
-            end: match.end,
-            text: match.group(0)!,
-            type: entry.value,
-          ),
-        );
-      }
+    // 匹配多层花括号 {}, {{}}, {{{}}}, ...
+    final bracePattern = RegExp(r'\{+[^{}]+\}+');
+    for (final match in bracePattern.allMatches(text)) {
+      final matchText = match.group(0)!;
+      final depth = _countLeadingChar(matchText, '{').clamp(1, 5);
+      matches.add(_SyntaxMatch(
+        start: match.start,
+        end: match.end,
+        text: matchText,
+        type: _SyntaxType.brace,
+        depth: depth,
+      ));
+    }
+
+    // 匹配多层方括号 [], [[]], ...
+    final bracketPattern = RegExp(r'\[+[^\[\]]+\]+');
+    for (final match in bracketPattern.allMatches(text)) {
+      final matchText = match.group(0)!;
+      final depth = _countLeadingChar(matchText, '[').clamp(1, 5);
+      matches.add(_SyntaxMatch(
+        start: match.start,
+        end: match.end,
+        text: matchText,
+        type: _SyntaxType.bracket,
+        depth: depth,
+      ));
+    }
+
+    // 匹配权重语法 数字::内容::
+    // 拆分为: (数字::内容) + (::)
+    final weightPattern = RegExp(r'(-?\d+\.?\d*)::([^:]+)::');
+    for (final match in weightPattern.allMatches(text)) {
+      final weightStr = match.group(1)!;
+      final content = match.group(2)!;
+      final weight = double.tryParse(weightStr) ?? 1.0;
+
+      // 主体部分: 数字::内容
+      final mainPart = '$weightStr::$content';
+      matches.add(_SyntaxMatch(
+        start: match.start,
+        end: match.start + mainPart.length,
+        text: mainPart,
+        type: _SyntaxType.weightMain,
+        weight: weight,
+      ));
+
+      // 结尾部分: ::
+      matches.add(_SyntaxMatch(
+        start: match.end - 2,
+        end: match.end,
+        text: '::',
+        type: _SyntaxType.weightTrailing,
+        weight: weight,
+      ));
     }
 
     // 按起始位置排序
@@ -66,101 +111,59 @@ class NaiSyntaxController extends TextEditingController {
     }
 
     // 构建 TextSpan 列表
+    int currentIndex = 0;
     for (final match in filteredMatches) {
       // 添加匹配前的普通文本
       if (match.start > currentIndex) {
-        spans.add(
-          TextSpan(
-            text: text.substring(currentIndex, match.start),
-            style: baseStyle,
-          ),
-        );
+        spans.add(TextSpan(
+          text: text.substring(currentIndex, match.start),
+          style: baseStyle.copyWith(height: 1.35),
+        ));
       }
 
-      // 添加高亮文本
-      spans.add(
-        TextSpan(
-          text: match.text,
-          style: baseStyle.copyWith(
-            color: colors.getColor(match.type),
-            fontWeight: _getFontWeight(match.type),
-          ),
+      // 添加带背景色的高亮文本
+      spans.add(TextSpan(
+        text: match.text,
+        style: baseStyle.copyWith(
+          backgroundColor: colors.getBackgroundColor(match),
+          height: 1.35, // 增加行高，使高亮行之间有间隙
         ),
-      );
+      ));
 
       currentIndex = match.end;
     }
 
     // 添加剩余的普通文本
     if (currentIndex < text.length) {
-      spans.add(
-        TextSpan(
-          text: text.substring(currentIndex),
-          style: baseStyle,
-        ),
-      );
+      spans.add(TextSpan(
+        text: text.substring(currentIndex),
+        style: baseStyle.copyWith(height: 1.35),
+      ));
     }
 
-    return spans.isEmpty ? [TextSpan(text: text, style: baseStyle)] : spans;
+    return spans.isEmpty ? [TextSpan(text: text, style: baseStyle.copyWith(height: 1.35))] : spans;
   }
 
-  /// 构建正则表达式模式
-  Map<RegExp, _SyntaxType> _buildPatterns() {
-    return {
-      // 负权重 -数字::内容:: (优先匹配)
-      RegExp(r'-\d+\.?\d*::[^:]+::'): _SyntaxType.negativeWeight,
-
-      // 正权重 数字::内容::
-      RegExp(r'\d+\.?\d*::[^:]+::'): _SyntaxType.positiveWeight,
-
-      // 双花括号 {{内容}}
-      RegExp(r'\{\{[^{}]+\}\}'): _SyntaxType.doubleBrace,
-
-      // 单花括号 {内容}
-      RegExp(r'\{[^{}]+\}'): _SyntaxType.singleBrace,
-
-      // 双方括号 [[内容]]
-      RegExp(r'\[\[[^\[\]]+\]\]'): _SyntaxType.doubleBracket,
-
-      // 单方括号 [内容]
-      RegExp(r'\[[^\[\]]+\]'): _SyntaxType.singleBracket,
-
-      // 角色分隔符 |
-      RegExp(r'\|'): _SyntaxType.separator,
-
-      // 艺术家标签 artist:xxx
-      RegExp(r'artist:[a-zA-Z0-9_\-]+'): _SyntaxType.artist,
-
-      // 年份标签 year xxxx
-      RegExp(r'year\s+\d{4}'): _SyntaxType.year,
-    };
-  }
-
-  /// 获取字体粗细
-  FontWeight? _getFontWeight(_SyntaxType type) {
-    switch (type) {
-      case _SyntaxType.doubleBrace:
-      case _SyntaxType.negativeWeight:
-        return FontWeight.w600;
-      case _SyntaxType.separator:
-        return FontWeight.w700;
-      default:
-        return null;
+  /// 统计开头连续字符数量
+  int _countLeadingChar(String text, String char) {
+    int count = 0;
+    for (int i = 0; i < text.length; i++) {
+      if (text[i] == char) {
+        count++;
+      } else {
+        break;
+      }
     }
+    return count;
   }
 }
 
 /// 语法类型
 enum _SyntaxType {
-  doubleBrace, // {{}}
-  singleBrace, // {}
-  doubleBracket, // [[]]
-  singleBracket, // []
-  positiveWeight, // 1.5::tag::
-  negativeWeight, // -1::tag::
-  separator, // |
-  artist, // artist:xxx
-  year, // year xxxx
+  brace,          // {} 花括号
+  bracket,        // [] 方括号
+  weightMain,     // 权重主体 (数字::内容)
+  weightTrailing, // 权重结尾 (::)
 }
 
 /// 语法匹配结果
@@ -169,95 +172,152 @@ class _SyntaxMatch {
   final int end;
   final String text;
   final _SyntaxType type;
+  final int depth;      // 括号深度 (1-5)
+  final double weight;  // 权重值
 
   _SyntaxMatch({
     required this.start,
     required this.end,
     required this.text,
     required this.type,
+    this.depth = 1,
+    this.weight = 1.0,
   });
 }
 
-/// NAI 语法颜色配置
+/// NAI 语法背景色配置
 class NaiSyntaxColors {
-  final Color doubleBrace; // 双花括号 - 橙色/琥珀
-  final Color singleBrace; // 单花括号 - 黄色
-  final Color doubleBracket; // 双方括号 - 靛蓝
-  final Color singleBracket; // 单方括号 - 蓝色
-  final Color positiveWeight; // 正权重 - 紫色
-  final Color negativeWeight; // 负权重 - 红色
-  final Color separator; // 分隔符 - 青色
-  final Color artist; // 艺术家 - 绿色
-  final Color year; // 年份 - 灰色
+  /// 花括号背景色（按深度递增，1-5层）
+  final List<Color> braceBackgrounds;
+
+  /// 方括号背景色（按深度递增，1-5层）
+  final List<Color> bracketBackgrounds;
+
+  /// 正权重主体色
+  final Color positiveWeightMainBg;
+
+  /// 正权重结尾色（绿色强调）
+  final Color positiveWeightTrailingBg;
+
+  /// 负权重主体色
+  final Color negativeWeightMainBg;
+
+  /// 负权重结尾色
+  final Color negativeWeightTrailingBg;
 
   const NaiSyntaxColors({
-    required this.doubleBrace,
-    required this.singleBrace,
-    required this.doubleBracket,
-    required this.singleBracket,
-    required this.positiveWeight,
-    required this.negativeWeight,
-    required this.separator,
-    required this.artist,
-    required this.year,
+    required this.braceBackgrounds,
+    required this.bracketBackgrounds,
+    required this.positiveWeightMainBg,
+    required this.positiveWeightTrailingBg,
+    required this.negativeWeightMainBg,
+    required this.negativeWeightTrailingBg,
   });
 
-  /// 从主题创建颜色配置
+  /// 从主题创建颜色配置（参考官网样式）
+  /// 官网配色：权重 > 1 橙色系，权重 < 1 蓝色系
   factory NaiSyntaxColors.fromTheme(ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
 
-    return NaiSyntaxColors(
-      doubleBrace: isDark
-          ? const Color(0xFFFFB74D) // 琥珀色
-          : const Color(0xFFFF9800),
-      singleBrace: isDark
-          ? const Color(0xFFFFE082) // 浅黄色
-          : const Color(0xFFFFC107),
-      doubleBracket: isDark
-          ? const Color(0xFF7986CB) // 靛蓝色
-          : const Color(0xFF3F51B5),
-      singleBracket: isDark
-          ? const Color(0xFF64B5F6) // 蓝色
-          : const Color(0xFF2196F3),
-      positiveWeight: isDark
-          ? const Color(0xFFBA68C8) // 紫色
-          : const Color(0xFF9C27B0),
-      negativeWeight: isDark
-          ? const Color(0xFFEF5350) // 红色
-          : const Color(0xFFF44336),
-      separator: isDark
-          ? const Color(0xFF4DD0E1) // 青色
-          : const Color(0xFF00BCD4),
-      artist: isDark
-          ? const Color(0xFF81C784) // 绿色
-          : const Color(0xFF4CAF50),
-      year: isDark
-          ? const Color(0xFF90A4AE) // 灰色
-          : const Color(0xFF607D8B),
-    );
+    if (isDark) {
+      // 深色主题
+      return const NaiSyntaxColors(
+        // 花括号 {} - 橙色系（增强，深度递增）
+        braceBackgrounds: [
+          Color(0x40FF9800), // 1层
+          Color(0x55FF9800), // 2层
+          Color(0x70FF9800), // 3层
+          Color(0x85FF9800), // 4层
+          Color(0xA0FF9800), // 5层
+        ],
+        // 方括号 [] - 蓝色系（减弱，深度递增）
+        bracketBackgrounds: [
+          Color(0x402196F3), // 1层
+          Color(0x552196F3), // 2层
+          Color(0x702196F3), // 3层
+          Color(0x852196F3), // 4层
+          Color(0xA02196F3), // 5层
+        ],
+        // 数值权重 > 1 - 橙色系
+        positiveWeightMainBg: Color(0x50FF9800),
+        positiveWeightTrailingBg: Color(0x60FF9800),
+        // 数值权重 < 1 - 蓝色系
+        negativeWeightMainBg: Color(0x502196F3),
+        negativeWeightTrailingBg: Color(0x602196F3),
+      );
+    } else {
+      // 浅色主题
+      return const NaiSyntaxColors(
+        // 花括号 {} - 橙色系（增强，深度递增）
+        braceBackgrounds: [
+          Color(0x40FF9800), // 1层
+          Color(0x55FF9800), // 2层
+          Color(0x70FF9800), // 3层
+          Color(0x85FF9800), // 4层
+          Color(0xA0FF9800), // 5层
+        ],
+        // 方括号 [] - 蓝色系（减弱，深度递增）
+        bracketBackgrounds: [
+          Color(0x402196F3), // 1层
+          Color(0x552196F3), // 2层
+          Color(0x702196F3), // 3层
+          Color(0x852196F3), // 4层
+          Color(0xA02196F3), // 5层
+        ],
+        // 数值权重 > 1 - 橙色系
+        positiveWeightMainBg: Color(0x55FF9800),
+        positiveWeightTrailingBg: Color(0x65FF9800),
+        // 数值权重 < 1 - 蓝色系
+        negativeWeightMainBg: Color(0x552196F3),
+        negativeWeightTrailingBg: Color(0x652196F3),
+      );
+    }
   }
 
-  /// 根据语法类型获取颜色
-  Color getColor(_SyntaxType type) {
-    switch (type) {
-      case _SyntaxType.doubleBrace:
-        return doubleBrace;
-      case _SyntaxType.singleBrace:
-        return singleBrace;
-      case _SyntaxType.doubleBracket:
-        return doubleBracket;
-      case _SyntaxType.singleBracket:
-        return singleBracket;
-      case _SyntaxType.positiveWeight:
-        return positiveWeight;
-      case _SyntaxType.negativeWeight:
-        return negativeWeight;
-      case _SyntaxType.separator:
-        return separator;
-      case _SyntaxType.artist:
-        return artist;
-      case _SyntaxType.year:
-        return year;
+  /// 根据权重值计算颜色亮度
+  /// 权重越大/越小，颜色越亮
+  /// weight > 1: 值越大越亮（从暗棕色到亮橙色）
+  /// weight < 1: 值越小越亮（从深蓝色到亮蓝色）
+  double _getWeightBrightness(double weight) {
+    if (weight >= 1.0) {
+      // 权重 1-10 映射到亮度 0.15-0.55（默认很暗）
+      final normalized = ((weight - 1.0) / 9.0).clamp(0.0, 1.0);
+      return 0.15 + normalized * 0.4;
+    } else {
+      // 权重 0.1-1 映射到亮度 0.15-0.55（越小越亮）
+      final normalized = ((1.0 - weight) / 0.9).clamp(0.0, 1.0);
+      return 0.15 + normalized * 0.4;
+    }
+  }
+
+  /// 根据权重生成动态颜色
+  /// 橙色系用于 weight > 1，蓝色系用于 weight < 1
+  Color _getWeightColor(double weight) {
+    final brightness = _getWeightBrightness(weight);
+
+    if (weight > 1.0) {
+      // 暗橙/棕色系：HSL(30, 80%, brightness)
+      return HSLColor.fromAHSL(0.5, 30, 0.8, brightness).toColor();
+    } else if (weight < 1.0) {
+      // 深蓝色系：HSL(220, 70%, brightness)
+      return HSLColor.fromAHSL(0.5, 220, 0.7, brightness).toColor();
+    } else {
+      return Colors.transparent;
+    }
+  }
+
+  /// 根据匹配获取背景色
+  Color getBackgroundColor(_SyntaxMatch match) {
+    switch (match.type) {
+      case _SyntaxType.brace:
+        final index = (match.depth - 1).clamp(0, braceBackgrounds.length - 1);
+        return braceBackgrounds[index];
+      case _SyntaxType.bracket:
+        final index = (match.depth - 1).clamp(0, bracketBackgrounds.length - 1);
+        return bracketBackgrounds[index];
+      case _SyntaxType.weightMain:
+      case _SyntaxType.weightTrailing:
+        return _getWeightColor(match.weight);
     }
   }
 }

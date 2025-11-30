@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
@@ -179,7 +181,7 @@ class _DesktopGenerationLayoutState
                 const HistoryPanel(),
                 // 折叠按钮
                 Positioned(
-                  top: 11,
+                  top: 14,
                   left: 8,
                   child: _buildCollapseButton(
                     theme,
@@ -339,43 +341,32 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Anlas 余额显示（移到抽卡按钮左边）
+        const AnlasBalanceChip(),
+
+        const SizedBox(width: 8),
+
         // 抽卡模式开关
         _RandomModeToggle(enabled: randomMode),
-        
-        const SizedBox(width: 8),
-        
-        // 生成按钮 (生成中时悬浮变取消)
+
+        const SizedBox(width: 12),
+
+        // 生成按钮 (包含价格徽章)
         MouseRegion(
           onEnter: (_) => setState(() => _isHovering = true),
           onExit: (_) => setState(() => _isHovering = false),
-          child: SizedBox(
-            width: 160,
-            height: 48,
-            child: ThemedButton(
-              onPressed: isGenerating
-                  ? () {
-                      ref.read(imageGenerationNotifierProvider.notifier).cancel();
-                    }
-                  : () {
-                      _handleGenerate(context, ref, params, randomMode);
-                    },
-              icon: showCancel
-                  ? const Icon(Icons.stop)
-                  : (isGenerating ? null : const Icon(Icons.auto_awesome)),
-              isLoading: isGenerating && !showCancel,
-              label: Text(showCancel ? context.l10n.generation_cancel : (isGenerating 
-                  ? (generationState.totalImages > 1 
-                      ? '${generationState.currentImage}/${generationState.totalImages}' 
-                      : context.l10n.generation_generating) 
-                  : context.l10n.generation_generate)),
-              style: showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
-            ),
+          child: _GenerateButtonWithCost(
+            isGenerating: isGenerating,
+            showCancel: showCancel,
+            generationState: generationState,
+            onGenerate: () => _handleGenerate(context, ref, params, randomMode),
+            onCancel: () => ref.read(imageGenerationNotifierProvider.notifier).cancel(),
           ),
         ),
-        
+
         const SizedBox(width: 12),
-        
-        // 生成数量选择器
+
+        // 生成数量选择器（移到按钮右边）
         DraggableNumberInput(
           value: params.nSamples,
           min: 1,
@@ -384,9 +375,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             ref.read(generationParamsNotifierProvider.notifier).updateNSamples(value);
           },
         ),
-        
-        const SizedBox(width: 4),
-        
+
+        const SizedBox(width: 8),
+
         // 批量设置按钮
         _BatchSettingsButton(),
       ],
@@ -666,12 +657,94 @@ class _BatchSettingsButton extends ConsumerWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isSelected 
-                  ? theme.colorScheme.onPrimary 
+              color: isSelected
+                  ? theme.colorScheme.onPrimary
                   : theme.colorScheme.onSurface,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 集成价格徽章的生成按钮
+class _GenerateButtonWithCost extends ConsumerWidget {
+  final bool isGenerating;
+  final bool showCancel;
+  final ImageGenerationState generationState;
+  final VoidCallback onGenerate;
+  final VoidCallback onCancel;
+
+  const _GenerateButtonWithCost({
+    required this.isGenerating,
+    required this.showCancel,
+    required this.generationState,
+    required this.onGenerate,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final cost = ref.watch(estimatedCostProvider);
+    final isFree = ref.watch(isFreeGenerationProvider);
+    final isInsufficient = ref.watch(isBalanceInsufficientProvider);
+
+    // 价格徽章颜色
+    Color badgeColor;
+    Color badgeTextColor;
+    if (isFree) {
+      badgeColor = Colors.green;
+      badgeTextColor = Colors.white;
+    } else if (isInsufficient) {
+      badgeColor = theme.colorScheme.error;
+      badgeTextColor = Colors.white;
+    } else {
+      badgeColor = theme.colorScheme.primaryContainer;
+      badgeTextColor = theme.colorScheme.onPrimaryContainer;
+    }
+
+    return SizedBox(
+      height: 48,
+      child: ThemedButton(
+        onPressed: isGenerating ? onCancel : onGenerate,
+        icon: showCancel
+            ? const Icon(Icons.stop)
+            : (isGenerating ? null : const Icon(Icons.auto_awesome)),
+        isLoading: isGenerating && !showCancel,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(showCancel
+                ? context.l10n.generation_cancel
+                : (isGenerating
+                    ? (generationState.totalImages > 1
+                        ? '${generationState.currentImage}/${generationState.totalImages}'
+                        : context.l10n.generation_generating)
+                    : context.l10n.generation_generate)),
+            // 价格徽章（仅在非生成状态且非免费时显示）
+            if (!isGenerating && !isFree) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeColor.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$cost',
+                  style: TextStyle(
+                    color: badgeTextColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        style: showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
       ),
     );
   }

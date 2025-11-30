@@ -90,13 +90,11 @@ class NaiPromptParser {
     if (segment.isEmpty) return null;
 
     var text = segment;
-    var weight = 1.0;
     final rawSyntax = segment;
 
     // 解析权重语法
     final weightResult = _extractWeight(text);
     text = weightResult.text;
-    weight = weightResult.weight;
 
     // 清理文本
     text = text.trim();
@@ -104,8 +102,9 @@ class NaiPromptParser {
 
     return PromptTag.create(
       text: text,
-      weight: weight,
+      weight: weightResult.weight,
       rawSyntax: rawSyntax,
+      syntaxType: weightResult.syntaxType,
     );
   }
 
@@ -113,6 +112,7 @@ class NaiPromptParser {
   static _WeightResult _extractWeight(String text) {
     var weight = 1.0;
     var processedText = text;
+    var syntaxType = WeightSyntaxType.none;
 
     // 1. 先处理 NAI 数值权重语法: weight::text::
     final naiWeightMatch =
@@ -122,7 +122,7 @@ class NaiPromptParser {
       if (weightValue != null) {
         weight = weightValue;
         processedText = naiWeightMatch.group(2)!.trim();
-        return _WeightResult(processedText, weight);
+        return _WeightResult(processedText, weight, WeightSyntaxType.numeric);
       }
     }
 
@@ -170,6 +170,7 @@ class NaiPromptParser {
     // 计算权重
     if (effectiveBraces > 0) {
       weight = 1.0 + (effectiveBraces * weightStep);
+      syntaxType = WeightSyntaxType.bracket;
       // 移除括号
       processedText = processedText.substring(
         effectiveBraces,
@@ -177,6 +178,7 @@ class NaiPromptParser {
       );
     } else if (effectiveBrackets > 0) {
       weight = 1.0 - (effectiveBrackets * weightStep);
+      syntaxType = WeightSyntaxType.bracket;
       // 移除括号
       processedText = processedText.substring(
         effectiveBrackets,
@@ -187,6 +189,7 @@ class NaiPromptParser {
     return _WeightResult(
       processedText.trim(),
       weight.clamp(PromptTag.minWeight, PromptTag.maxWeight),
+      syntaxType,
     );
   }
 
@@ -269,6 +272,7 @@ class NaiPromptParser {
 class _WeightResult {
   final String text;
   final double weight;
+  final WeightSyntaxType syntaxType;
 
-  _WeightResult(this.text, this.weight);
+  _WeightResult(this.text, this.weight, this.syntaxType);
 }

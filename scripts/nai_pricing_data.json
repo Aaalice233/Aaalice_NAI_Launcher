@@ -1,0 +1,144 @@
+{
+  "capturedAt": "2025-01-30",
+  "version": "1.2",
+  "notes": "Captured from NovelAI official website via browser automation. All V3/V4/V4.5 models use the same pricing formula.",
+  "opusFreeConditions": {
+    "maxSteps": 28,
+    "maxResolution": 1048576,
+    "maxSamples": 1,
+    "description": "Opus subscribers get 1 free image per generation when all conditions are met"
+  },
+  "modelVerification": {
+    "testConditions": {
+      "resolution": "832x1216",
+      "pixels": 1011712,
+      "steps": 28,
+      "nSamples": 4,
+      "smea": false,
+      "isOpus": true
+    },
+    "results": {
+      "nai-diffusion-4-5-full": {"cost": 60, "perImageCost": 20, "verified": true},
+      "nai-diffusion-4-5-curated": {"cost": 60, "perImageCost": 20, "verified": true},
+      "nai-diffusion-4-full": {"cost": 60, "perImageCost": 20, "verified": true},
+      "nai-diffusion-4-curated": {"cost": 60, "perImageCost": 20, "verified": true},
+      "nai-diffusion-3": {"cost": 60, "perImageCost": 20, "verified": true},
+      "nai-diffusion-3-furry": {"cost": 60, "perImageCost": 20, "verified": true}
+    },
+    "conclusion": "All V3/V4/V4.5 models use identical pricing formula"
+  },
+  "capturedPrices": {
+    "model": "nai-diffusion-4-5-full",
+    "steps": 28,
+    "smea": false,
+    "isOpus": true,
+    "data": [
+      {
+        "resolution": "512x768",
+        "pixels": 393216,
+        "nSamples": 1,
+        "cost": 0,
+        "perImageCost": 8,
+        "note": "Opus free (under 1M pixels)"
+      },
+      {
+        "resolution": "512x768",
+        "pixels": 393216,
+        "nSamples": 6,
+        "cost": 40,
+        "perImageCost": 8,
+        "note": "5 paid images × 8 Anlas"
+      },
+      {
+        "resolution": "832x1216",
+        "pixels": 1011712,
+        "nSamples": 1,
+        "cost": 0,
+        "perImageCost": 20,
+        "note": "Opus free (under 1M pixels)"
+      },
+      {
+        "resolution": "832x1216",
+        "pixels": 1011712,
+        "nSamples": 2,
+        "cost": 20,
+        "perImageCost": 20,
+        "note": "1 free + 1 paid"
+      },
+      {
+        "resolution": "832x1216",
+        "pixels": 1011712,
+        "nSamples": 3,
+        "cost": 40,
+        "perImageCost": 20,
+        "note": "1 free + 2 paid"
+      },
+      {
+        "resolution": "832x1216",
+        "pixels": 1011712,
+        "nSamples": 4,
+        "cost": 60,
+        "perImageCost": 20,
+        "note": "1 free + 3 paid"
+      },
+      {
+        "resolution": "832x1216",
+        "pixels": 1011712,
+        "steps": 23,
+        "nSamples": 4,
+        "cost": 51,
+        "perImageCost": 17,
+        "note": "Lower steps = lower cost"
+      },
+      {
+        "resolution": "1024x1536",
+        "pixels": 1572864,
+        "nSamples": 1,
+        "cost": 30,
+        "perImageCost": 30,
+        "note": "Over 1M pixels - no Opus free"
+      },
+      {
+        "resolution": "1024x1536",
+        "pixels": 1572864,
+        "nSamples": 3,
+        "cost": 90,
+        "perImageCost": 30,
+        "note": "3 × 30 Anlas"
+      },
+      {
+        "resolution": "1088x1920",
+        "pixels": 2088960,
+        "nSamples": 1,
+        "cost": 40,
+        "perImageCost": 40,
+        "note": "Wallpaper size"
+      }
+    ]
+  },
+  "derivedFormula": {
+    "description": "Based on captured data analysis - applies to ALL V3/V4/V4.5 models",
+    "formula": "ceil(pixels × steps × coefficient)",
+    "coefficient": 6.8e-7,
+    "note_smea": "SMEA options removed from NAI website as of 2025-01",
+    "calculation": "perImageCost = max(ceil(pixels × steps × 6.8e-7), 2)",
+    "minCost": 2,
+    "verification": [
+      {"pixels": 393216, "steps": 28, "expected": 8, "calculated": "ceil(393216 × 28 × 6.8e-7) = ceil(7.49) = 8 ✓"},
+      {"pixels": 1011712, "steps": 28, "expected": 20, "calculated": "ceil(1011712 × 28 × 6.8e-7) = ceil(19.26) = 20 ✓"},
+      {"pixels": 1011712, "steps": 23, "expected": 17, "calculated": "ceil(1011712 × 23 × 6.8e-7) = ceil(15.83) = 16 ≈ 17"},
+      {"pixels": 1572864, "steps": 28, "expected": 30, "calculated": "ceil(1572864 × 28 × 6.8e-7) = ceil(29.95) = 30 ✓"},
+      {"pixels": 2088960, "steps": 28, "expected": 40, "calculated": "ceil(2088960 × 28 × 6.8e-7) = ceil(39.77) = 40 ✓"}
+    ],
+    "note": "Coefficient 6.8e-7 provides accurate estimates for most resolutions"
+  },
+  "opusDiscount": {
+    "description": "First image is free when conditions are met",
+    "conditions": [
+      "isOpus = true",
+      "steps <= 28",
+      "pixels <= 1048576 (1024×1024)"
+    ],
+    "effect": "totalCost = perImageCost × max(nSamples - 1, 0)"
+  }
+}

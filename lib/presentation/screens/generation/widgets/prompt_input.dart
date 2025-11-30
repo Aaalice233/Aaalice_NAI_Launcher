@@ -200,6 +200,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       }
     });
 
+    // 监听高亮设置变化，更新控制器
+    final highlightEnabled = ref.watch(highlightEmphasisSettingsProvider);
+    _promptController.highlightEnabled = highlightEnabled;
+    _negativeController.highlightEnabled = highlightEnabled;
+
     if (widget.compact) {
       return _buildCompactLayout(theme);
     }
@@ -352,6 +357,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildSettingsButton(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
+    final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
 
     return PopupMenuButton<String>(
       icon: Icon(
@@ -421,12 +427,43 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'highlight',
+          child: Row(
+            children: [
+              Icon(
+                enableHighlight
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
+                size: 20,
+                color: enableHighlight ? theme.colorScheme.primary : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.prompt_highlightEmphasis),
+                    Text(
+                      context.l10n.prompt_highlightEmphasisSubtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
       onSelected: (value) {
         if (value == 'autocomplete') {
           ref.read(autocompleteSettingsProvider.notifier).toggle();
         } else if (value == 'auto_format') {
           ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
+        } else if (value == 'highlight') {
+          ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
         }
       },
     );
@@ -918,6 +955,11 @@ class _FullScreenPromptEditorState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // 监听高亮设置变化，更新控制器
+    final highlightEnabled = ref.watch(highlightEmphasisSettingsProvider);
+    _promptController.highlightEnabled = highlightEnabled;
+    _negativeController.highlightEnabled = highlightEnabled;
 
     return ThemedScaffold(
       appBar: AppBar(

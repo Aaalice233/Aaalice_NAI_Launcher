@@ -29,6 +29,7 @@ class StorageKeys {
   static const String defaultScale = 'default_scale';
   static const String defaultWidth = 'default_width';
   static const String defaultHeight = 'default_height';
+  static const String selectedResolutionPresetId = 'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
   static const String addQualityTags = 'add_quality_tags';
@@ -37,6 +38,7 @@ class StorageKeys {
   static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';
   static const String autoFormatPrompt = 'auto_format_prompt';
+  static const String highlightEmphasis = 'highlight_emphasis';
 
   // Last Generation Params Keys (持久化上次使用的参数)
   static const String lastPrompt = 'last_prompt';

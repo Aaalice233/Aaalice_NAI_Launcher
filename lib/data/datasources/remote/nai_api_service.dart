@@ -188,7 +188,7 @@ class NAIApiService {
         'ucPreset': params.ucPreset,
         'qualityToggle': params.qualityToggle,
         'autoSmea': false,
-        'dynamic_thresholding': false,
+        'dynamic_thresholding': params.isV3Model && params.decrisp,
         'controlnet_strength': 1,
         'legacy': false,
         'add_original_image': params.addOriginalImage,
@@ -196,7 +196,10 @@ class NAIApiService {
         'noise_schedule': params.isV4Model
             ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
             : params.noiseSchedule,
-        'skip_cfg_above_sigma': params.varietyPlus ? 19 : null,
+        // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
+        'skip_cfg_above_sigma': params.varietyPlus
+            ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
+            : null,
         'normalize_reference_strength_multiple': true,
         'inpaintImg2ImgStrength': 1,
         'seed': seed,
@@ -207,8 +210,18 @@ class NAIApiService {
 
       // V3 模型特有的 SMEA 参数（V4+ 不需要）
       if (!params.isV4Model) {
-        requestParameters['sm'] = params.smea;
-        requestParameters['sm_dyn'] = params.smeaDyn;
+        // SMEA Auto 逻辑：分辨率 > 1024x1024 时自动启用
+        final resolution = params.width * params.height;
+        final autoSmea = resolution > 1024 * 1024;
+
+        // 如果 Auto 开启，根据分辨率自动决定；否则使用用户设置
+        // DDIM 采样器不支持 SMEA
+        final isDdim = params.sampler.contains('ddim');
+        final effectiveSmea = isDdim ? false : (params.smeaAuto ? autoSmea : params.smea);
+        final effectiveSmeaDyn = isDdim ? false : (params.smeaAuto ? false : params.smeaDyn);
+
+        requestParameters['sm'] = effectiveSmea;
+        requestParameters['sm_dyn'] = effectiveSmeaDyn;
         // V3 模型使用 uc 字段
         requestParameters['uc'] = effectiveNegativePrompt;
       }
@@ -445,7 +458,7 @@ class NAIApiService {
         'ucPreset': params.ucPreset,
         'qualityToggle': params.qualityToggle,
         'autoSmea': false,
-        'dynamic_thresholding': false,
+        'dynamic_thresholding': params.isV3Model && params.decrisp,
         'controlnet_strength': 1,
         'legacy': false,
         'add_original_image': params.addOriginalImage,
@@ -453,7 +466,10 @@ class NAIApiService {
         'noise_schedule': params.isV4Model
             ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
             : params.noiseSchedule,
-        'skip_cfg_above_sigma': params.varietyPlus ? 19 : null,
+        // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
+        'skip_cfg_above_sigma': params.varietyPlus
+            ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
+            : null,
         'normalize_reference_strength_multiple': true,
         'inpaintImg2ImgStrength': 1,
         'seed': seed,
@@ -466,8 +482,18 @@ class NAIApiService {
 
       // V3 模型特有的 SMEA 参数（V4+ 不需要）
       if (!params.isV4Model) {
-        requestParameters['sm'] = params.smea;
-        requestParameters['sm_dyn'] = params.smeaDyn;
+        // SMEA Auto 逻辑：分辨率 > 1024x1024 时自动启用
+        final resolution = params.width * params.height;
+        final autoSmea = resolution > 1024 * 1024;
+
+        // 如果 Auto 开启，根据分辨率自动决定；否则使用用户设置
+        // DDIM 采样器不支持 SMEA
+        final isDdim = params.sampler.contains('ddim');
+        final effectiveSmea = isDdim ? false : (params.smeaAuto ? autoSmea : params.smea);
+        final effectiveSmeaDyn = isDdim ? false : (params.smeaAuto ? false : params.smeaDyn);
+
+        requestParameters['sm'] = effectiveSmea;
+        requestParameters['sm_dyn'] = effectiveSmeaDyn;
         // V3 模型使用 uc 字段
         requestParameters['uc'] = effectiveNegativePrompt;
       }

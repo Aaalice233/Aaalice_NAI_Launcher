@@ -109,10 +109,13 @@ class ImageParams with _$ImageParams {
     /// 生成数量
     @Default(1) int nSamples,
 
-    /// SMEA 优化
+    /// SMEA Auto (V3 模型，自动根据分辨率启用 SMEA)
+    @Default(true) bool smeaAuto,
+
+    /// SMEA 优化 (V3 模型)
     @Default(false) bool smea,
 
-    /// SMEA DYN 变体
+    /// SMEA DYN 变体 (V3 模型)
     @Default(false) bool smeaDyn,
 
     /// CFG Rescale (V4 模型)
@@ -137,6 +140,9 @@ class ImageParams with _$ImageParams {
 
     /// 多样性增强 (V4+ 夏季更新)
     @Default(false) bool varietyPlus,
+
+    /// Decrisp 动态阈值 (V3 模型)
+    @Default(false) bool decrisp,
 
     /// 使用坐标模式 (V4+ 多角色)
     @Default(false) bool useCoords,
@@ -185,6 +191,10 @@ class ImageParams with _$ImageParams {
 
 /// ImageParams 扩展方法
 extension ImageParamsExtension on ImageParams {
+  /// 检查是否为 V3 模型
+  bool get isV3Model =>
+      model.contains('diffusion-3') && !model.contains('diffusion-4');
+
   /// 检查是否为 V4+ 模型
   bool get isV4Model =>
       model.contains('diffusion-4') || model.contains('diffusion-4-5');

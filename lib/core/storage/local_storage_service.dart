@@ -136,6 +136,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.defaultHeight, height);
   }
 
+  /// 获取选中的分辨率预设 ID
+  String? getSelectedResolutionPresetId() {
+    return getSetting<String>(StorageKeys.selectedResolutionPresetId);
+  }
+
+  /// 保存选中的分辨率预设 ID
+  Future<void> setSelectedResolutionPresetId(String? presetId) async {
+    if (presetId != null) {
+      await setSetting(StorageKeys.selectedResolutionPresetId, presetId);
+    } else {
+      await deleteSetting(StorageKeys.selectedResolutionPresetId);
+    }
+  }
+
   // ==================== Image Save ====================
 
   /// 获取图片保存路径
@@ -226,6 +240,16 @@ class LocalStorageService {
   /// 保存是否启用自动格式化
   Future<void> setAutoFormatPrompt(bool value) async {
     await setSetting(StorageKeys.autoFormatPrompt, value);
+  }
+
+  /// 获取是否启用高亮强调 (默认开启)
+  bool getHighlightEmphasis() {
+    return getSetting<bool>(StorageKeys.highlightEmphasis, defaultValue: true) ?? true;
+  }
+
+  /// 保存是否启用高亮强调
+  Future<void> setHighlightEmphasis(bool value) async {
+    await setSetting(StorageKeys.highlightEmphasis, value);
   }
 
   // ==================== Last Generation Params ====================

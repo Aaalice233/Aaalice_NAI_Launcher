@@ -15,6 +15,7 @@
   "common_back": "返回",
   "common_clear": "清除",
   "common_copy": "复制",
+  "common_copied": "已复制",
   "common_export": "导出",
   "common_import": "导入",
   "common_loading": "加载中...",
@@ -108,6 +109,7 @@
   "generation_smeaSubtitle": "改善大图像的生成质量",
   "generation_smeaDyn": "SMEA DYN",
   "generation_smeaDynSubtitle": "SMEA 动态变体",
+  "generation_smeaDescription": "高分辨率采样器会在超过一定图像尺寸时自动使用",
   "generation_cfgRescale": "CFG Rescale: {value}",
   "generation_noiseSchedule": "噪声调度",
   "generation_resetParams": "重置参数",
@@ -140,6 +142,8 @@
   "prompt_smartAutocompleteSubtitle": "输入时显示标签建议",
   "prompt_autoFormat": "自动格式化",
   "prompt_autoFormatSubtitle": "中文逗号转英文、补齐括号等",
+  "prompt_highlightEmphasis": "高亮强调",
+  "prompt_highlightEmphasisSubtitle": "括号和权重语法高亮显示",
   "prompt_textMode": "文本",
   "prompt_tagMode": "标签",
   "prompt_switchToTagView": "切换到标签视图",
@@ -612,5 +616,17 @@
   "defaultPreset_background": "背景",
   "defaultPreset_shot": "镜头",
   "defaultPreset_composition": "构图",
-  "defaultPreset_specialStyle": "特殊风格"
+  "defaultPreset_specialStyle": "特殊风格",
+
+  "resolution_groupNormal": "常规",
+  "resolution_groupLarge": "大尺寸",
+  "resolution_groupWallpaper": "壁纸",
+  "resolution_groupSmall": "小尺寸",
+  "resolution_groupCustom": "自定义",
+  "resolution_typePortrait": "竖屏",
+  "resolution_typeLandscape": "横屏",
+  "resolution_typeSquare": "方形",
+  "resolution_typeCustom": "自定义",
+  "resolution_width": "宽度",
+  "resolution_height": "高度"
 }
