@@ -10,7 +10,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
 import 'img2img_panel.dart';
-import 'vibe_transfer_panel.dart';
+import 'unified_reference_panel.dart';
 import 'character_panel.dart';
 import 'prompt_input.dart';
 
@@ -303,8 +303,8 @@ class ParameterPanel extends ConsumerWidget {
 
         const SizedBox(height: 8),
 
-        // Vibe Transfer 面板
-        const VibeTransferPanel(),
+        // 统一参考面板 (风格迁移 / 角色参考 二选一)
+        const UnifiedReferencePanel(),
 
         const SizedBox(height: 8),
 

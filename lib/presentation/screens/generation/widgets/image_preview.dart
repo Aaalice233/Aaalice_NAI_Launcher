@@ -320,6 +320,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
   Widget _buildErrorState(
       ThemeData theme, String? message, BuildContext context) {
+    // 解析错误代码和详情
+    final (errorTitle, errorHint) = _parseApiError(message, context);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -330,17 +333,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         ),
         const SizedBox(height: 16),
         Text(
-          context.l10n.generation_generationFailed,
+          errorTitle,
           style: theme.textTheme.titleMedium?.copyWith(
             color: theme.colorScheme.error,
           ),
         ),
-        if (message != null) ...[
+        if (errorHint != null) ...[
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              message,
+              errorHint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
@@ -350,6 +353,76 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         ],
       ],
     );
+  }
+
+  /// 解析 API 错误代码，返回 (标题, 提示)
+  (String, String?) _parseApiError(String? message, BuildContext context) {
+    if (message == null || message.isEmpty) {
+      return (context.l10n.generation_generationFailed, null);
+    }
+
+    // 取消操作
+    if (message == 'Cancelled') {
+      return (context.l10n.generation_cancelGeneration, null);
+    }
+
+    // 解析错误代码格式: "ERROR_CODE|详情"
+    final parts = message.split('|');
+    final errorCode = parts[0];
+    final details = parts.length > 1 ? parts[1] : null;
+
+    switch (errorCode) {
+      case 'API_ERROR_429':
+        return (
+          context.l10n.api_error_429,
+          context.l10n.api_error_429_hint,
+        );
+      case 'API_ERROR_401':
+        return (
+          context.l10n.api_error_401,
+          context.l10n.api_error_401_hint,
+        );
+      case 'API_ERROR_402':
+        return (
+          context.l10n.api_error_402,
+          context.l10n.api_error_402_hint,
+        );
+      case 'API_ERROR_400':
+        return (
+          '${context.l10n.common_error} (400)',
+          details,
+        );
+      case 'API_ERROR_500':
+        return (
+          context.l10n.api_error_500,
+          context.l10n.api_error_500_hint,
+        );
+      case 'API_ERROR_503':
+        return (
+          context.l10n.api_error_503,
+          context.l10n.api_error_503_hint,
+        );
+      case 'API_ERROR_TIMEOUT':
+        return (
+          context.l10n.api_error_timeout,
+          context.l10n.api_error_timeout_hint,
+        );
+      case 'API_ERROR_NETWORK':
+        return (
+          context.l10n.api_error_network,
+          context.l10n.api_error_network_hint,
+        );
+      default:
+        // 未知错误或其他 HTTP 错误
+        if (errorCode.startsWith('API_ERROR_HTTP_')) {
+          final code = errorCode.replaceFirst('API_ERROR_HTTP_', '');
+          return (
+            '${context.l10n.common_error} (HTTP $code)',
+            details,
+          );
+        }
+        return (context.l10n.generation_generationFailed, message);
+    }
   }
 
   Widget _buildImageView(

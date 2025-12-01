@@ -57,6 +57,48 @@
   "auth_emailInvalid": "请输入有效的邮箱地址",
   "auth_passwordRequired": "请输入密码",
 
+  "auth_tokenLogin": "API Token 登录",
+  "auth_tokenHint": "请输入您的 Persistent API Token",
+  "auth_tokenRequired": "请输入 Token",
+  "auth_tokenInvalid": "Token 格式无效，应以 pst- 开头",
+  "auth_nicknameOptional": "昵称（可选）",
+  "auth_nicknameHint": "为此账号设置一个便于识别的名称",
+  "auth_saveAccount": "保存此账号",
+  "auth_validateAndLogin": "验证并登录",
+  "auth_tokenGuide": "从 NovelAI 账户设置获取 Token",
+  "auth_savedAccounts": "已保存的账号",
+  "auth_addAccount": "添加账号",
+  "auth_manageAccounts": "管理",
+  "auth_moreAccounts": "还有 {count} 个账号",
+  "auth_orAddNewAccount": "或添加新账号",
+  "auth_tokenNotFound": "未找到此账号的 Token",
+  "auth_switchAccount": "切换账号",
+  "auth_currentAccount": "当前账号",
+  "auth_selectAccount": "选择账号",
+  "auth_deleteAccount": "删除账号",
+  "auth_deleteAccountConfirm": "确定要删除账号 \"{name}\" 吗？此操作不可撤销。",
+  "@auth_deleteAccountConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_cannotDeleteCurrent": "无法删除当前登录的账号",
+  "auth_changeAvatar": "更换头像",
+  "auth_removeAvatar": "移除头像",
+  "auth_selectFromGallery": "从相册选择",
+  "auth_takePhoto": "拍摄照片",
+  "auth_quickLogin": "一键登录",
+  "auth_nicknameRequired": "请输入昵称",
+  "auth_createdAt": "创建于 {date}",
+  "@auth_createdAt": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+
+  "common_paste": "粘贴",
+  "common_default": "默认",
+
   "settings_title": "设置",
   "settings_account": "账户",
   "settings_appearance": "外观",
@@ -229,7 +271,7 @@
   "config_probability": "概率",
   "config_moreActions": "更多操作",
 
-  "img2img_title": "图生图 (Img2Img)",
+  "img2img_title": "图生图",
   "img2img_enabled": "已启用",
   "img2img_sourceImage": "源图像",
   "img2img_selectImage": "选择图片",
@@ -243,7 +285,7 @@
   "img2img_removeImage": "移除图片",
   "img2img_selectFailed": "选择图片失败: {error}",
 
-  "vibe_title": "Vibe Transfer",
+  "vibe_title": "风格迁移",
   "vibe_hint": "添加参考图片来迁移其视觉风格和氛围（最多4张）",
   "vibe_addReference": "添加参考图",
   "vibe_clearAll": "清除全部",
@@ -254,6 +296,31 @@
   "vibe_remove": "移除",
   "vibe_sliderHint": "强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图",
   "vibe_strengthInfo": "强度: {value} | 信息提取: {infoValue}",
+
+  "characterRef_title": "角色参考",
+  "characterRef_hint": "上传角色参考图来保持角色一致性（最多4张，仅 V4+ 模型支持）",
+  "characterRef_v4Only": "角色参考仅支持 V4+ 模型，请切换模型后使用",
+  "characterRef_addReference": "添加参考图",
+  "characterRef_clearAll": "清除全部",
+  "characterRef_referenceNumber": "参考图 #{index}",
+  "characterRef_description": "角色描述",
+  "characterRef_descriptionHint": "描述这个角色的特征（可选，但建议填写）...",
+  "characterRef_strengthValue": "主要强度",
+  "characterRef_secondaryStrength": "次要强度",
+  "characterRef_infoExtraction": "信息提取",
+  "characterRef_normalizeStrength": "标准化强度",
+  "characterRef_adjustParams": "调整参数",
+  "characterRef_remove": "移除",
+  "characterRef_sliderHint": "主要强度: 控制参考图的影响程度\n次要强度: 控制次要特征的影响\n信息提取: 从参考图中提取多少细节",
+  "characterRef_strengthInfo": "主强: {value} | 副强: {secondary}",
+  "characterRef_styleAware": "风格感知",
+  "characterRef_styleAwareHint": "传输角色相关的风格信息",
+  "characterRef_fidelity": "保真度",
+  "characterRef_fidelityHint": "0=旧版行为, 1=新版行为",
+
+  "unifiedRef_title": "图像参考",
+  "unifiedRef_switchTitle": "切换模式",
+  "unifiedRef_switchContent": "切换模式会清除当前已添加的参考图，确定要继续吗？",
 
   "character_title": "多角色 (V4 专属)",
   "character_hint": "为每个角色定义独立的提示词和位置（最多6个角色）",
@@ -628,5 +695,27 @@
   "resolution_typeSquare": "方形",
   "resolution_typeCustom": "自定义",
   "resolution_width": "宽度",
-  "resolution_height": "高度"
+  "resolution_height": "高度",
+
+  "api_error_429": "并发限制",
+  "api_error_429_hint": "请求过于频繁，请稍后重试（常见于合租账号）",
+  "api_error_401": "认证失败",
+  "api_error_401_hint": "Token 无效或已过期，请重新登录",
+  "api_error_402": "余额不足",
+  "api_error_402_hint": "Anlas 余额不足，请充值后重试",
+  "api_error_500": "服务器错误",
+  "api_error_500_hint": "NovelAI 服务器出现问题，请稍后重试",
+  "api_error_503": "服务不可用",
+  "api_error_503_hint": "服务器正在维护或过载，请稍后重试",
+  "api_error_timeout": "请求超时",
+  "api_error_timeout_hint": "网络连接超时，请检查网络后重试",
+  "api_error_network": "网络错误",
+  "api_error_network_hint": "无法连接到服务器，请检查网络",
+  "api_error_unknown": "未知错误",
+  "api_error_unknown_hint": "发生未知错误: {error}",
+  "@api_error_unknown_hint": {
+    "placeholders": {
+      "error": {}
+    }
+  }
 }

@@ -44,7 +44,6 @@ class AccountManagerState {
 class AccountManagerNotifier extends _$AccountManagerNotifier {
   static const String _boxName = 'accounts';
   static const String _accountsKey = 'saved_accounts';
-  static const String _passwordKeyPrefix = 'account_password_';
 
   Box? _box;
   SecureStorageService? _secureStorage;
@@ -88,52 +87,48 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
     await _box?.put(_accountsKey, json);
   }
 
-  /// 获取账号密码
-  Future<String?> getPassword(String accountId) async {
-    return _secureStorage?.getAccessToken();
+  /// 获取账号 Token
+  Future<String?> getAccountToken(String accountId) async {
+    return _secureStorage?.getAccountToken(accountId);
   }
 
-  /// 保存账号密码
-  Future<void> _savePassword(String accountId, String password) async {
+  /// 保存账号 Token
+  Future<void> _saveAccountToken(String accountId, String token) async {
     final storage = _secureStorage;
     if (storage != null) {
-      await storage.write('$_passwordKeyPrefix$accountId', password);
+      await storage.saveAccountToken(accountId, token);
     }
   }
 
-  /// 获取账号密码（通过 SecureStorage）
-  Future<String?> getAccountPassword(String accountId) async {
+  /// 删除账号 Token
+  Future<void> _deleteAccountToken(String accountId) async {
     final storage = _secureStorage;
     if (storage != null) {
-      return storage.read('$_passwordKeyPrefix$accountId');
-    }
-    return null;
-  }
-
-  /// 删除账号密码
-  Future<void> _deletePassword(String accountId) async {
-    final storage = _secureStorage;
-    if (storage != null) {
-      await storage.delete('$_passwordKeyPrefix$accountId');
+      await storage.deleteAccountToken(accountId);
     }
   }
 
   /// 添加账号
-  Future<void> addAccount({
-    required String email,
-    required String password,
-    String? nickname,
+  ///
+  /// [identifier] 账号标识符（用于内部存储）
+  /// [token] API Token
+  /// [nickname] 昵称（必填，用于显示和生成默认头像）
+  /// [setAsDefault] 是否设为默认账号
+  Future<SavedAccount> addAccount({
+    required String identifier,
+    required String token,
+    required String nickname,
     bool setAsDefault = false,
   }) async {
-    // 检查是否已存在相同邮箱的账号
-    final existingIndex = state.accounts.indexWhere((a) => a.email == email);
+    // 检查是否已存在相同标识符的账号
+    final existingIndex = state.accounts.indexWhere((a) => a.email == identifier);
     if (existingIndex >= 0) {
       // 更新已有账号
       final existing = state.accounts[existingIndex];
-      await _savePassword(existing.id, password);
+      await _saveAccountToken(existing.id, token);
 
       final updated = existing.copyWith(
-        nickname: nickname ?? existing.nickname,
+        nickname: nickname,
         lastUsedAt: DateTime.now(),
       );
 
@@ -153,18 +148,18 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
       await _saveAccounts(newAccounts);
       state = state.copyWith(accounts: newAccounts);
-      return;
+      return newAccounts[existingIndex];
     }
 
     // 创建新账号
     final newAccount = SavedAccount.create(
-      email: email,
+      email: identifier,
       nickname: nickname,
       isDefault: setAsDefault || state.accounts.isEmpty,
     );
 
-    // 保存密码
-    await _savePassword(newAccount.id, password);
+    // 保存 Token
+    await _saveAccountToken(newAccount.id, token);
 
     // 更新账号列表
     var newAccounts = [...state.accounts, newAccount];
@@ -179,12 +174,13 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
     await _saveAccounts(newAccounts);
     state = state.copyWith(accounts: newAccounts);
+    return newAccount;
   }
 
   /// 删除账号
   Future<void> removeAccount(String accountId) async {
-    // 删除密码
-    await _deletePassword(accountId);
+    // 删除 Token
+    await _deleteAccountToken(accountId);
 
     // 更新账号列表
     final newAccounts = state.accounts.where((a) => a.id != accountId).toList();

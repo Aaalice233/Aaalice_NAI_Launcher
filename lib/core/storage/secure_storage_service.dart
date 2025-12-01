@@ -7,8 +7,12 @@ import '../constants/storage_keys.dart';
 part 'secure_storage_service.g.dart';
 
 /// 安全存储服务 - 存储敏感数据（Token、密码等）
+/// 使用内存缓存 + 持久化存储双重保障
 class SecureStorageService {
   final FlutterSecureStorage _storage;
+
+  /// 内存缓存 - 解决 Windows 上 secure storage 写入后立即读取为 null 的问题
+  static final Map<String, String> _memoryCache = {};
 
   SecureStorageService()
       : _storage = const FlutterSecureStorage(
@@ -16,21 +20,45 @@ class SecureStorageService {
             encryptedSharedPreferences: true,
           ),
           lOptions: LinuxOptions(),
-          wOptions: WindowsOptions(
-            useBackwardCompatibility: true,
-          ),
+          // Windows: 使用默认配置
+          wOptions: WindowsOptions(),
         );
 
   // ==================== Access Token ====================
 
   /// 保存 Access Token
   Future<void> saveAccessToken(String token) async {
-    await _storage.write(key: StorageKeys.accessToken, value: token);
+    // 先保存到内存缓存
+    _memoryCache[StorageKeys.accessToken] = token;
+
+    try {
+      await _storage.write(key: StorageKeys.accessToken, value: token);
+    } catch (e) {
+      print('[SecureStorage] Failed to save token to disk: $e');
+      // 内存缓存仍然有效，不影响本次会话
+    }
   }
 
   /// 获取 Access Token
   Future<String?> getAccessToken() async {
-    return _storage.read(key: StorageKeys.accessToken);
+    // 优先从内存缓存读取
+    final cached = _memoryCache[StorageKeys.accessToken];
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+
+    // 从持久化存储读取
+    try {
+      final token = await _storage.read(key: StorageKeys.accessToken);
+      if (token != null && token.isNotEmpty) {
+        // 同步到内存缓存
+        _memoryCache[StorageKeys.accessToken] = token;
+      }
+      return token;
+    } catch (e) {
+      print('[SecureStorage] Failed to read token: $e');
+      return null;
+    }
   }
 
   /// 保存 Token 过期时间
@@ -88,6 +116,9 @@ class SecureStorageService {
 
   /// 清除所有认证信息
   Future<void> clearAuth() async {
+    // 清除内存缓存
+    _memoryCache.remove(StorageKeys.accessToken);
+
     await Future.wait([
       _storage.delete(key: StorageKeys.accessToken),
       _storage.delete(key: StorageKeys.tokenExpiry),
@@ -97,45 +128,36 @@ class SecureStorageService {
 
   /// 清除所有存储数据
   Future<void> clearAll() async {
+    // 清除所有内存缓存
+    _memoryCache.clear();
+
     await _storage.deleteAll();
   }
 
-  // ==================== 记住密码功能 ====================
+  // ==================== 账号 Token 存储 ====================
 
-  /// 保存登录凭据
-  Future<void> saveCredentials(String email, String password) async {
-    await Future.wait([
-      _storage.write(key: StorageKeys.savedEmail, value: email),
-      _storage.write(key: StorageKeys.savedPassword, value: password),
-      _storage.write(key: StorageKeys.rememberPassword, value: 'true'),
-    ]);
+  /// 保存账号 Token
+  Future<void> saveAccountToken(String accountId, String token) async {
+    await _storage.write(
+      key: '${StorageKeys.accountTokenPrefix}$accountId',
+      value: token,
+    );
   }
 
-  /// 获取已保存的登录凭据
-  /// 返回 (email, password) 或 (null, null)
-  Future<(String?, String?)> getSavedCredentials() async {
-    final rememberPassword = await _storage.read(key: StorageKeys.rememberPassword);
-    if (rememberPassword != 'true') {
-      return (null, null);
-    }
-    final email = await _storage.read(key: StorageKeys.savedEmail);
-    final password = await _storage.read(key: StorageKeys.savedPassword);
-    return (email, password);
+  /// 获取账号 Token
+  Future<String?> getAccountToken(String accountId) async {
+    return _storage.read(key: '${StorageKeys.accountTokenPrefix}$accountId');
   }
 
-  /// 检查是否已保存凭据
-  Future<bool> hasCredentials() async {
-    final rememberPassword = await _storage.read(key: StorageKeys.rememberPassword);
-    return rememberPassword == 'true';
+  /// 删除账号 Token
+  Future<void> deleteAccountToken(String accountId) async {
+    await _storage.delete(key: '${StorageKeys.accountTokenPrefix}$accountId');
   }
 
-  /// 清除已保存的凭据
-  Future<void> clearCredentials() async {
-    await Future.wait([
-      _storage.delete(key: StorageKeys.savedEmail),
-      _storage.delete(key: StorageKeys.savedPassword),
-      _storage.delete(key: StorageKeys.rememberPassword),
-    ]);
+  /// 检查账号是否有 Token
+  Future<bool> hasAccountToken(String accountId) async {
+    final token = await getAccountToken(accountId);
+    return token != null && token.isNotEmpty;
   }
 
   // ==================== 通用存储方法 ====================
@@ -157,7 +179,8 @@ class SecureStorageService {
 }
 
 /// SecureStorageService Provider
-@riverpod
+/// keepAlive 确保实例在应用生命周期内保持存活
+@Riverpod(keepAlive: true)
 SecureStorageService secureStorageService(Ref ref) {
   return SecureStorageService();
 }

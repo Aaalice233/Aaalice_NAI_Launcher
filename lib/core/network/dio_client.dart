@@ -61,15 +61,23 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    // 检查请求是否已经有 Authorization header（如 validateToken 自己设置的）
+    final existingAuth = options.headers['Authorization'];
+    if (existingAuth != null && existingAuth.toString().isNotEmpty) {
+      AppLogger.d('Using existing auth header', 'DIO');
+      handler.next(options);
+      return;
+    }
+
     // 获取存储的 Token
     final storage = _ref.read(secureStorageServiceProvider);
     final token = await storage.getAccessToken();
 
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
-      AppLogger.d('Added auth header, token length: ${token.length}', 'DIO');
+      AppLogger.d('Added auth header from storage, token length: ${token.length}', 'DIO');
     } else {
-      AppLogger.w('No token available for request!', 'DIO');
+      AppLogger.w('No token available for request! Token is ${token == null ? "null" : "empty"}', 'DIO');
     }
 
     handler.next(options);

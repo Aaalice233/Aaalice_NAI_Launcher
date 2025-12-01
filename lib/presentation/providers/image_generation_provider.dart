@@ -584,6 +584,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   // ==================== Vibe Transfer 参数 ====================
 
   /// 添加 Vibe 参考图
+  /// 注意：添加角色参考时会隐藏并清除 Vibe Transfer，但反过来不会
   void addVibeReference(VibeReference vibe) {
     if (state.vibeReferences.length >= 4) return; // 最多4张
     state = state.copyWith(
@@ -620,6 +621,67 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 清除所有 Vibe 参考图
   void clearVibeReferences() {
     state = state.copyWith(vibeReferences: []);
+  }
+
+  // ==================== 角色参考参数 (V4+ 模型) ====================
+
+  /// 添加角色参考图
+  /// 注意：角色参考只能1张，且和 Vibe Transfer 互斥
+  void addCharacterReference(CharacterReference ref) {
+    if (state.characterReferences.isNotEmpty) return; // 只能1张
+    state = state.copyWith(
+      characterReferences: [ref],
+      vibeReferences: [], // 清除 Vibe Transfer（互斥）
+    );
+  }
+
+  /// 移除角色参考图
+  void removeCharacterReference(int index) {
+    if (index < 0 || index >= state.characterReferences.length) return;
+    final newList = [...state.characterReferences];
+    newList.removeAt(index);
+    state = state.copyWith(characterReferences: newList);
+  }
+
+  /// 更新角色参考图配置
+  void updateCharacterReference(
+    int index, {
+    String? description,
+    double? informationExtracted,
+    double? strengthValue,
+    double? secondaryStrength,
+  }) {
+    if (index < 0 || index >= state.characterReferences.length) return;
+    final newList = [...state.characterReferences];
+    final current = newList[index];
+    newList[index] = CharacterReference(
+      image: current.image,
+      description: description ?? current.description,
+      informationExtracted: informationExtracted ?? current.informationExtracted,
+      strengthValue: strengthValue ?? current.strengthValue,
+      secondaryStrength: secondaryStrength ?? current.secondaryStrength,
+    );
+    state = state.copyWith(characterReferences: newList);
+  }
+
+  /// 清除所有角色参考图
+  void clearCharacterReferences() {
+    state = state.copyWith(characterReferences: []);
+  }
+
+  /// 更新是否标准化角色参考强度
+  void setNormalizeCharacterReferenceStrength(bool value) {
+    state = state.copyWith(normalizeCharacterReferenceStrength: value);
+  }
+
+  /// 更新角色参考 Style Aware 开关
+  void setCharacterReferenceStyleAware(bool value) {
+    state = state.copyWith(characterReferenceStyleAware: value);
+  }
+
+  /// 更新角色参考 Fidelity 值
+  void setCharacterReferenceFidelity(double value) {
+    state = state.copyWith(characterReferenceFidelity: value.clamp(0.0, 1.0));
   }
 
   // ==================== 多角色参数 (V4 模型) ====================

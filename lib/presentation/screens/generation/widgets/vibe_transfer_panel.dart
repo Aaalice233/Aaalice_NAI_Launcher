@@ -25,6 +25,12 @@ class _VibeTransferPanelState extends ConsumerState<VibeTransferPanel> {
     final theme = Theme.of(context);
     final params = ref.watch(generationParamsNotifierProvider);
     final hasVibes = params.vibeReferences.isNotEmpty;
+    final hasCharacterRefs = params.characterReferences.isNotEmpty;
+
+    // 当存在角色参考时，Vibe Transfer 不可用
+    if (hasCharacterRefs) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       clipBehavior: Clip.antiAlias,

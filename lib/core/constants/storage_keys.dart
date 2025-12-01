@@ -7,10 +7,8 @@ class StorageKeys {
   static const String tokenExpiry = 'nai_token_expiry';
   static const String userEmail = 'nai_user_email';
 
-  // 记住密码功能 (保存登录凭据)
-  static const String savedEmail = 'nai_saved_email';
-  static const String savedPassword = 'nai_saved_password';
-  static const String rememberPassword = 'nai_remember_password';
+  // Token 存储（按账号ID）
+  static const String accountTokenPrefix = 'nai_account_token_';
 
   // Hive Box Names
   static const String settingsBox = 'settings';

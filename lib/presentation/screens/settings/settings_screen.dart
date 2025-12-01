@@ -48,13 +48,13 @@ class SettingsScreen extends ConsumerWidget {
               authState.isLoading
                   ? context.l10n.common_loading
                   : (authState.isAuthenticated
-                      ? (authState.email ?? context.l10n.auth_loggedIn)
+                      ? (authState.displayName ?? context.l10n.auth_loggedIn)
                       : context.l10n.auth_notLoggedIn),
             ),
             subtitle: authState.isLoading
                 ? Text(context.l10n.auth_checkingStatus)
                 : (authState.isAuthenticated
-                    ? Text(authState.email != null ? context.l10n.auth_loggedIn : context.l10n.auth_tokenConfigured)
+                    ? Text(context.l10n.auth_tokenConfigured)
                     : Text(context.l10n.auth_pleaseLogin)),
             trailing: authState.isAuthenticated
                 ? TextButton(

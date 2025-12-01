@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -29,31 +30,37 @@ class NAIApiService {
 
   // ==================== 认证 API ====================
 
-  /// 登录获取 Access Token
-  Future<AuthToken> login(String email, String password) async {
-    // 1. 派生 Access Key
-    final accessKey = await _cryptoService.deriveAccessKey(email, password);
-    AppLogger.d('Access key length: ${accessKey.length}', 'API');
+  /// 验证 API Token 是否有效
+  ///
+  /// [token] Persistent API Token (格式: pst-xxxx)
+  ///
+  /// 返回验证结果，包含订阅信息；如果 Token 无效则抛出异常
+  Future<Map<String, dynamic>> validateToken(String token) async {
+    try {
+      // 使用临时 Dio 实例直接设置 Token（不影响全局状态）
+      final response = await _dio.get(
+        '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      AppLogger.d('Token validation successful', 'API');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('Token 无效或已过期');
+      }
+      rethrow;
+    }
+  }
 
-    // 2. 发送登录请求
-    AppLogger.d('Sending login request...', 'API');
-    final response = await _dio.post(
-      '${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}',
-      data: {'key': accessKey},
-    );
-    AppLogger.d('Login response status: ${response.statusCode}', 'API');
-
-    // 3. 解析响应
-    final accessToken = response.data['accessToken'] as String;
-    AppLogger.d('Token received, length: ${accessToken.length}', 'API');
-
-    // 4. 计算过期时间 (30天)
-    final expiresAt = DateTime.now().add(ApiConstants.tokenValidityDuration);
-
-    return AuthToken(
-      accessToken: accessToken,
-      expiresAt: expiresAt,
-    );
+  /// 检查 Token 格式是否有效
+  ///
+  /// Persistent API Token 格式: pst-xxxx
+  static bool isValidTokenFormat(String token) {
+    return token.startsWith('pst-') && token.length > 10;
   }
 
   // ==================== 标签建议 API ====================
@@ -181,7 +188,7 @@ class NAIApiService {
         'params_version': params.paramsVersion,
         'width': params.width,
         'height': params.height,
-        'scale': params.scale,
+        'scale': _toJsonNumber(params.scale),
         'sampler': params.sampler,
         'steps': params.steps,
         'n_samples': params.nSamples,
@@ -192,14 +199,10 @@ class NAIApiService {
         'controlnet_strength': 1,
         'legacy': false,
         'add_original_image': params.addOriginalImage,
-        'cfg_rescale': params.cfgRescale,
+        'cfg_rescale': _toJsonNumber(params.cfgRescale),
         'noise_schedule': params.isV4Model
             ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
             : params.noiseSchedule,
-        // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
-        'skip_cfg_above_sigma': params.varietyPlus
-            ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
-            : null,
         'normalize_reference_strength_multiple': true,
         'inpaintImg2ImgStrength': 1,
         'seed': seed,
@@ -207,6 +210,12 @@ class NAIApiService {
         'deliberate_euler_ancestral_bug': false,
         'prefer_brownian': true,
       };
+
+      // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
+      // 官网格式：启用时发送计算值，不启用时发送 null
+      requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
+          ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
+          : null;
 
       // V3 模型特有的 SMEA 参数（V4+ 不需要）
       if (!params.isV4Model) {
@@ -361,18 +370,106 @@ class NAIApiService {
             params.vibeReferences.map((v) => v.informationExtracted).toList();
       }
 
-      // 4. 构造请求数据
+      // 角色参考 (Director Reference, V4+ 专属)
+      if (params.characterReferences.isNotEmpty) {
+        requestParameters['normalize_reference_strength_multiple'] =
+            params.normalizeCharacterReferenceStrength;
+        // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
+        requestParameters['director_reference_images'] = params
+            .characterReferences
+            .map((r) => base64Encode(ensurePngFormat(r.image)))
+            .toList();
+        // base_caption: Style Aware 开启时为 "character&style"，关闭时为 "character"
+        final baseCaption = params.characterReferenceStyleAware
+            ? 'character&style'
+            : 'character';
+        requestParameters['director_reference_descriptions'] =
+            params.characterReferences.map((r) {
+          return {
+            'caption': {
+              'base_caption': baseCaption,
+              'char_captions': [],
+            },
+            'legacy_uc': false,
+          };
+        }).toList();
+        // 官方参考显示数值是整数 [1], [0]
+        requestParameters['director_reference_information_extracted'] =
+            params.characterReferences
+                .map((r) => r.informationExtracted.round())
+                .toList();
+        requestParameters['director_reference_strength_values'] =
+            params.characterReferences
+                .map((r) => r.strengthValue.round())
+                .toList();
+        // secondary_strength_values = 1 - fidelity
+        requestParameters['director_reference_secondary_strength_values'] =
+            params.characterReferences
+                .map((r) => (1.0 - params.characterReferenceFidelity).round())
+                .toList();
+      }
+
+      // 4. 构造请求数据（对齐官网格式）
       final requestData = <String, dynamic>{
         'input': effectivePrompt,
         'model': params.model,
         'action': action,
         'parameters': requestParameters,
+        'use_new_shared_trial': true,
       };
 
       AppLogger.d(
         'Generating image with action: $action, model: ${params.model}',
         'API',
       );
+
+      // ========== 详细调试日志（对比官网格式）==========
+      if (params.characterReferences.isNotEmpty) {
+        AppLogger.d('=== NON-STREAM CHARACTER REFERENCE DEBUG ===', 'API');
+        AppLogger.d('characterReferences count: ${params.characterReferences.length}', 'API');
+        AppLogger.d('isV4Model: ${params.isV4Model}', 'API');
+
+        // 调试：验证 base64 编码和 PNG 转换
+        for (int i = 0; i < params.characterReferences.length; i++) {
+          final ref = params.characterReferences[i];
+          final originalB64 = base64Encode(ref.image);
+          final pngBytes = ensurePngFormat(ref.image);
+          final pngB64 = base64Encode(pngBytes);
+          AppLogger.d('CharRef[$i] ORIGINAL: ${ref.image.length} bytes, base64: ${originalB64.length} chars', 'API');
+          AppLogger.d('CharRef[$i] ORIGINAL prefix: ${originalB64.substring(0, originalB64.length > 30 ? 30 : originalB64.length)}', 'API');
+          AppLogger.d('CharRef[$i] PNG: ${pngBytes.length} bytes, base64: ${pngB64.length} chars', 'API');
+          AppLogger.d('CharRef[$i] PNG prefix: ${pngB64.substring(0, pngB64.length > 30 ? 30 : pngB64.length)}', 'API');
+          AppLogger.d('CharRef[$i] informationExtracted: ${ref.informationExtracted} -> round: ${ref.informationExtracted.round()}', 'API');
+          AppLogger.d('CharRef[$i] strengthValue: ${ref.strengthValue} -> round: ${ref.strengthValue.round()}', 'API');
+        }
+        AppLogger.d('fidelity: ${params.characterReferenceFidelity} -> secondary: ${_toJsonNumber(1.0 - params.characterReferenceFidelity)}', 'API');
+        AppLogger.d('styleAware: ${params.characterReferenceStyleAware}', 'API');
+
+        AppLogger.d('director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}', 'API');
+        AppLogger.d('director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}', 'API');
+        AppLogger.d('director_reference_strength_values: ${requestParameters['director_reference_strength_values']}', 'API');
+        AppLogger.d('director_reference_secondary_strength_values: ${requestParameters['director_reference_secondary_strength_values']}', 'API');
+        AppLogger.d('normalize_reference_strength_multiple: ${requestParameters['normalize_reference_strength_multiple']}', 'API');
+
+        // 打印完整请求 JSON（隐藏 base64 图像数据）
+        final debugRequestData = Map<String, dynamic>.from(requestData);
+        final debugParams = Map<String, dynamic>.from(debugRequestData['parameters'] as Map<String, dynamic>);
+        // 隐藏图像 base64 数据
+        if (debugParams.containsKey('director_reference_images')) {
+          final images = debugParams['director_reference_images'] as List;
+          debugParams['director_reference_images'] = images.map((img) => '[BASE64_IMAGE_${(img as String).length}_chars]').toList();
+        }
+        if (debugParams.containsKey('reference_image_multiple')) {
+          final images = debugParams['reference_image_multiple'] as List;
+          debugParams['reference_image_multiple'] = images.map((img) => '[BASE64_IMAGE_${(img as String).length}_chars]').toList();
+        }
+        if (debugParams.containsKey('image')) {
+          debugParams['image'] = '[BASE64_IMAGE_${(debugParams['image'] as String).length}_chars]';
+        }
+        debugRequestData['parameters'] = debugParams;
+        AppLogger.d('FULL REQUEST JSON (images hidden): ${jsonEncode(debugRequestData)}', 'API');
+        AppLogger.d('==========================================', 'API');
+      }
 
       // 5. 发送请求
       final response = await _dio.post(
@@ -451,7 +548,7 @@ class NAIApiService {
         'params_version': params.paramsVersion,
         'width': params.width,
         'height': params.height,
-        'scale': params.scale,
+        'scale': _toJsonNumber(params.scale),
         'sampler': params.sampler,
         'steps': params.steps,
         'n_samples': params.nSamples,
@@ -462,14 +559,10 @@ class NAIApiService {
         'controlnet_strength': 1,
         'legacy': false,
         'add_original_image': params.addOriginalImage,
-        'cfg_rescale': params.cfgRescale,
+        'cfg_rescale': _toJsonNumber(params.cfgRescale),
         'noise_schedule': params.isV4Model
             ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
             : params.noiseSchedule,
-        // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
-        'skip_cfg_above_sigma': params.varietyPlus
-            ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
-            : null,
         'normalize_reference_strength_multiple': true,
         'inpaintImg2ImgStrength': 1,
         'seed': seed,
@@ -479,6 +572,12 @@ class NAIApiService {
         // 流式特有参数
         'stream': 'msgpack',
       };
+
+      // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
+      // 官网格式：启用时发送计算值，不启用时发送 null
+      requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
+          ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
+          : null;
 
       // V3 模型特有的 SMEA 参数（V4+ 不需要）
       if (!params.isV4Model) {
@@ -582,6 +681,66 @@ class NAIApiService {
             params.vibeReferences.map((v) => v.informationExtracted).toList();
       }
 
+      // 角色参考 (Director Reference, V4+ 专属)
+      if (params.characterReferences.isNotEmpty) {
+        AppLogger.d('=== CHARACTER REFERENCE DEBUG (STREAM) ===', 'API');
+        AppLogger.d('characterReferences count: ${params.characterReferences.length}', 'API');
+        AppLogger.d('isV4Model: ${params.isV4Model}', 'API');
+
+        // 调试：验证 base64 编码和 PNG 转换
+        for (int i = 0; i < params.characterReferences.length; i++) {
+          final ref = params.characterReferences[i];
+          final originalB64 = base64Encode(ref.image);
+          final pngBytes = ensurePngFormat(ref.image);
+          final pngB64 = base64Encode(pngBytes);
+          AppLogger.d('CharRef[$i] ORIGINAL: ${ref.image.length} bytes, base64: ${originalB64.length} chars', 'API');
+          AppLogger.d('CharRef[$i] ORIGINAL prefix: ${originalB64.substring(0, originalB64.length > 30 ? 30 : originalB64.length)}', 'API');
+          AppLogger.d('CharRef[$i] PNG: ${pngBytes.length} bytes, base64: ${pngB64.length} chars', 'API');
+          AppLogger.d('CharRef[$i] PNG prefix: ${pngB64.substring(0, pngB64.length > 30 ? 30 : pngB64.length)}', 'API');
+          AppLogger.d('CharRef[$i] informationExtracted: ${ref.informationExtracted} -> round: ${ref.informationExtracted.round()}', 'API');
+          AppLogger.d('CharRef[$i] strengthValue: ${ref.strengthValue} -> round: ${ref.strengthValue.round()}', 'API');
+        }
+        AppLogger.d('fidelity: ${params.characterReferenceFidelity} -> secondary: ${_toJsonNumber(1.0 - params.characterReferenceFidelity)}', 'API');
+        AppLogger.d('styleAware: ${params.characterReferenceStyleAware}', 'API');
+
+        requestParameters['normalize_reference_strength_multiple'] =
+            params.normalizeCharacterReferenceStrength;
+        // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
+        requestParameters['director_reference_images'] = params
+            .characterReferences
+            .map((r) => base64Encode(ensurePngFormat(r.image)))
+            .toList();
+        // base_caption: Style Aware 开启时为 "character&style"，关闭时为 "character"
+        final baseCaption = params.characterReferenceStyleAware
+            ? 'character&style'
+            : 'character';
+        requestParameters['director_reference_descriptions'] =
+            params.characterReferences.map((r) {
+          return {
+            'caption': {
+              'base_caption': baseCaption,
+              'char_captions': [],
+            },
+            'legacy_uc': false,
+          };
+        }).toList();
+        // 官方参考显示数值是整数 [1], [0]
+        requestParameters['director_reference_information_extracted'] =
+            params.characterReferences
+                .map((r) => r.informationExtracted.round())
+                .toList();
+        requestParameters['director_reference_strength_values'] =
+            params.characterReferences
+                .map((r) => r.strengthValue.round())
+                .toList();
+        // secondary_strength_values = 1 - fidelity
+        requestParameters['director_reference_secondary_strength_values'] =
+            params.characterReferences
+                .map((r) => (1.0 - params.characterReferenceFidelity).round())
+                .toList();
+        // 注意: stream 参数已在基础参数中设置，无需重复添加
+      }
+
       // 构造请求数据（对齐官网格式）
       final requestData = <String, dynamic>{
         'input': effectivePrompt,
@@ -600,12 +759,37 @@ class NAIApiService {
       AppLogger.d('steps: ${params.steps}', 'API');
       AppLogger.d('ucPreset: ${params.ucPreset}', 'API');
       AppLogger.d('negative_prompt: $effectiveNegativePrompt', 'API');
+      // 角色参考调试
+      if (params.characterReferences.isNotEmpty) {
+        AppLogger.d('=== CHARACTER REFERENCE DEBUG ===', 'API');
+        AppLogger.d('characterReferences count: ${params.characterReferences.length}', 'API');
+        AppLogger.d('director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}', 'API');
+        AppLogger.d('director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}', 'API');
+        AppLogger.d('director_reference_strength_values: ${requestParameters['director_reference_strength_values']}', 'API');
+        AppLogger.d('director_reference_secondary_strength_values: ${requestParameters['director_reference_secondary_strength_values']}', 'API');
+        AppLogger.d('normalize_reference_strength_multiple: ${requestParameters['normalize_reference_strength_multiple']}', 'API');
+      }
       if (params.isV4Model) {
         AppLogger.d('v4_prompt: ${jsonEncode(requestParameters['v4_prompt'])}', 'API');
         AppLogger.d('v4_negative_prompt: ${jsonEncode(requestParameters['v4_negative_prompt'])}', 'API');
       }
-      // 打印完整请求 JSON（用于对比官网）
-      AppLogger.d('FULL REQUEST JSON: ${jsonEncode(requestData)}', 'API');
+      // 打印完整请求 JSON（隐藏 base64 图像数据）
+      final debugRequestData = Map<String, dynamic>.from(requestData);
+      final debugParams = Map<String, dynamic>.from(debugRequestData['parameters'] as Map<String, dynamic>);
+      // 隐藏图像 base64 数据
+      if (debugParams.containsKey('director_reference_images')) {
+        final images = debugParams['director_reference_images'] as List;
+        debugParams['director_reference_images'] = images.map((img) => '[BASE64_IMAGE_${(img as String).length}_chars]').toList();
+      }
+      if (debugParams.containsKey('reference_image_multiple')) {
+        final images = debugParams['reference_image_multiple'] as List;
+        debugParams['reference_image_multiple'] = images.map((img) => '[BASE64_IMAGE_${(img as String).length}_chars]').toList();
+      }
+      if (debugParams.containsKey('image')) {
+        debugParams['image'] = '[BASE64_IMAGE_${(debugParams['image'] as String).length}_chars]';
+      }
+      debugRequestData['parameters'] = debugParams;
+      AppLogger.d('FULL REQUEST JSON (images hidden): ${jsonEncode(debugRequestData)}', 'API');
       AppLogger.d('==========================================', 'API');
 
       // 3. 发送流式请求
@@ -785,14 +969,216 @@ class NAIApiService {
       if (e.type == DioExceptionType.cancel) {
         yield ImageStreamChunk.error('Cancelled');
       } else {
-        AppLogger.e('Stream generation failed: ${e.message}', 'API');
-        yield ImageStreamChunk.error(e.message ?? 'Unknown error');
+        String errorMsg;
+        // 尝试读取流式响应的错误内容
+        if (e.response?.data is ResponseBody) {
+          try {
+            final responseBody = e.response!.data as ResponseBody;
+            final chunks = <int>[];
+            await for (final chunk in responseBody.stream) {
+              chunks.addAll(chunk);
+            }
+            final text = utf8.decode(chunks, allowMalformed: true);
+            AppLogger.e('Stream API error response: $text', 'API');
+            try {
+              final json = jsonDecode(text);
+              if (json is Map) {
+                errorMsg = 'API_ERROR_${e.response?.statusCode}|${json['message'] ?? json['error'] ?? text}';
+              } else {
+                errorMsg = 'API_ERROR_${e.response?.statusCode}|$text';
+              }
+            } catch (_) {
+              errorMsg = 'API_ERROR_${e.response?.statusCode}|$text';
+            }
+          } catch (readError) {
+            AppLogger.e('Failed to read error response: $readError', 'API');
+            errorMsg = _formatDioError(e);
+          }
+        } else {
+          errorMsg = _formatDioError(e);
+        }
+        AppLogger.e('Stream generation failed: $errorMsg', 'API');
+        yield ImageStreamChunk.error(errorMsg);
       }
     } catch (e) {
       AppLogger.e('Stream generation failed: $e', 'API');
       yield ImageStreamChunk.error(e.toString());
     } finally {
       _currentCancelToken = null;
+    }
+  }
+
+  /// 将 double 转换为 JSON 数值（整数或浮点数）
+  /// 如果是整数值（如 5.0），返回 int；否则返回 double
+  static num _toJsonNumber(double value) {
+    return value == value.truncateToDouble() ? value.toInt() : value;
+  }
+
+  /// 将图片转换为 RGB PNG 格式（NovelAI Director Reference 要求）
+  /// - 强制缩小到 512px 以内（V4 编码器只需小图）
+  /// - 确保尺寸为 64 的倍数
+  /// - 创建纯净画布剥离 EXIF/ICC 元数据
+  /// 注意：应在上传时调用此方法并缓存结果，避免每次生成都转换
+  static Uint8List ensurePngFormat(Uint8List imageBytes) {
+    // =========================================================
+    // 【魔法字符串测试】用 package:image 生成一个干净的 64x64 白色 PNG
+    // 用于排查是 JSON 结构问题还是图片编码问题
+    // =========================================================
+    AppLogger.d('Using generated 64x64 white PNG for testing', 'API');
+    final testImage = img.Image(
+      width: 64,
+      height: 64,
+      numChannels: 3,
+      backgroundColor: img.ColorRgb8(255, 255, 255),
+    );
+    // 填充白色像素
+    for (int y = 0; y < 64; y++) {
+      for (int x = 0; x < 64; x++) {
+        testImage.setPixelRgb(x, y, 255, 255, 255);
+      }
+    }
+    final testPngBytes = Uint8List.fromList(img.encodePng(testImage));
+    AppLogger.d('Test PNG size: ${testPngBytes.length} bytes', 'API');
+    return testPngBytes;
+
+    /* 注释掉原有逻辑，测试完成后恢复
+    // 解码图片
+    final originalImage = img.decodeImage(imageBytes);
+    if (originalImage == null) {
+      AppLogger.w('Failed to decode image, returning original bytes', 'API');
+      return imageBytes;
+    }
+
+    AppLogger.d(
+      'Processing image: ${originalImage.width}x${originalImage.height}, channels: ${originalImage.numChannels}',
+      'API',
+    );
+
+    // =========================================================
+    // 1. 强制缩小到 512px 以内
+    // V4 参考图编码器只需要很小的输入 (通常是 224x224 或 336x336)
+    // 发送大图除了增加报错概率，对效果没有任何帮助
+    // =========================================================
+    int targetWidth = originalImage.width;
+    int targetHeight = originalImage.height;
+    const int maxDimension = 512;
+
+    if (targetWidth > maxDimension || targetHeight > maxDimension) {
+      final double ratio = maxDimension / max(targetWidth, targetHeight);
+      targetWidth = (targetWidth * ratio).round();
+      targetHeight = (targetHeight * ratio).round();
+    }
+
+    // 确保是 64 的倍数（使用 floor 确保不会超过 512）
+    targetWidth = (targetWidth ~/ 64) * 64;
+    targetHeight = (targetHeight ~/ 64) * 64;
+
+    // 防止变成 0
+    if (targetWidth < 64) targetWidth = 64;
+    if (targetHeight < 64) targetHeight = 64;
+
+    AppLogger.d(
+      'Target size: ${targetWidth}x$targetHeight (max 512, 64x multiple)',
+      'API',
+    );
+
+    // =========================================================
+    // 2. "核弹级"清洗：创建纯净的新画布
+    // 剥离原图中所有可能导致报错的 EXIF/ICC 元数据
+    // =========================================================
+    final cleanImage = img.Image(
+      width: targetWidth,
+      height: targetHeight,
+      numChannels: 3, // 强制 RGB
+      backgroundColor: img.ColorRgb8(255, 255, 255), // 白底
+    );
+
+    // 调整原图大小
+    final resizedOriginal = img.copyResize(
+      originalImage,
+      width: targetWidth,
+      height: targetHeight,
+      interpolation: img.Interpolation.average, // 平均插值，画质更柔和
+    );
+
+    // 将原图绘制到纯净画布上（自动处理透明度混合）
+    img.compositeImage(cleanImage, resizedOriginal);
+
+    // =========================================================
+    // 3. 编码为标准 JPEG（兼容性最强）
+    // =========================================================
+    final jpgBytes = Uint8List.fromList(img.encodeJpg(cleanImage, quality: 90));
+    AppLogger.d(
+      'JPEG conversion complete: ${imageBytes.length} bytes -> ${jpgBytes.length} bytes, '
+      'size: ${targetWidth}x$targetHeight',
+      'API',
+    );
+    return jpgBytes;
+    */
+  }
+
+  /// 格式化 DioException 为错误代码（供 UI 层本地化显示）
+  /// 返回格式: "ERROR_CODE|详细信息"
+  static String _formatDioError(DioException e) {
+    final statusCode = e.response?.statusCode;
+
+    // 尝试从响应中提取错误详情
+    String? serverMessage;
+    try {
+      final data = e.response?.data;
+      if (data is Map) {
+        serverMessage = data['message']?.toString() ?? data['error']?.toString();
+      } else if (data is String && data.isNotEmpty) {
+        serverMessage = data;
+      } else if (data is List<int> || data is Uint8List) {
+        // 处理 bytes 类型的错误响应
+        final bytes = data is Uint8List ? data : Uint8List.fromList(data as List<int>);
+        final text = utf8.decode(bytes, allowMalformed: true);
+        // 尝试解析为 JSON
+        try {
+          final json = jsonDecode(text);
+          if (json is Map) {
+            serverMessage = json['message']?.toString() ?? json['error']?.toString() ?? text;
+          } else {
+            serverMessage = text;
+          }
+        } catch (_) {
+          serverMessage = text;
+        }
+      }
+    } catch (_) {}
+
+    // 根据 HTTP 状态码返回错误代码
+    switch (statusCode) {
+      case 400:
+        return 'API_ERROR_400|${serverMessage ?? "Bad request"}';
+      case 429:
+        return 'API_ERROR_429|${serverMessage ?? "Too many requests"}';
+      case 401:
+        return 'API_ERROR_401|${serverMessage ?? "Unauthorized"}';
+      case 402:
+        return 'API_ERROR_402|${serverMessage ?? "Payment required"}';
+      case 500:
+        return 'API_ERROR_500|${serverMessage ?? "Server error"}';
+      case 503:
+        return 'API_ERROR_503|${serverMessage ?? "Service unavailable"}';
+      default:
+        break;
+    }
+
+    // 根据异常类型返回错误代码
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'API_ERROR_TIMEOUT|${e.message ?? "Timeout"}';
+      case DioExceptionType.connectionError:
+        return 'API_ERROR_NETWORK|${e.message ?? "Connection error"}';
+      default:
+        if (statusCode != null) {
+          return 'API_ERROR_HTTP_$statusCode|${e.message ?? "Unknown error"}';
+        }
+        return 'API_ERROR_UNKNOWN|${e.message ?? "Unknown error"}';
     }
   }
 

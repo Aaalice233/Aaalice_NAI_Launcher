@@ -1,0 +1,633 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+
+import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/datasources/remote/nai_api_service.dart';
+import '../../../../data/models/image/image_params.dart';
+import '../../../providers/image_generation_provider.dart';
+
+/// 角色参考面板组件 (Director Reference, 仅 V4+ 模型支持)
+class CharacterReferencePanel extends ConsumerStatefulWidget {
+  const CharacterReferencePanel({super.key});
+
+  @override
+  ConsumerState<CharacterReferencePanel> createState() =>
+      _CharacterReferencePanelState();
+}
+
+class _CharacterReferencePanelState
+    extends ConsumerState<CharacterReferencePanel> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final params = ref.watch(generationParamsNotifierProvider);
+    final hasRefs = params.characterReferences.isNotEmpty;
+    final isV4Model = params.isV4Model;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 标题栏
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_pin,
+                    size: 20,
+                    color: hasRefs
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.l10n.characterRef_title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: hasRefs ? theme.colorScheme.primary : null,
+                      ),
+                    ),
+                  ),
+                  // V4+ 模型标识
+                  if (!isV4Model)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'V4+',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  if (hasRefs) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${params.characterReferences.length}/4',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 展开内容
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Divider(),
+
+                  // 非 V4 模型提示
+                  if (!isV4Model) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            size: 16,
+                            color: theme.colorScheme.error,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              context.l10n.characterRef_v4Only,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // 说明文字
+                  Text(
+                    context.l10n.characterRef_hint,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 参考图列表
+                  if (hasRefs) ...[
+                    ...List.generate(params.characterReferences.length, (index) {
+                      return _CharacterReferenceItem(
+                        index: index,
+                        reference: params.characterReferences[index],
+                        onRemove: () => _removeReference(index),
+                        onDescriptionChanged: (value) =>
+                            _updateDescription(index, value),
+                        onStrengthChanged: (value) =>
+                            _updateStrength(index, value),
+                        onSecondaryStrengthChanged: (value) =>
+                            _updateSecondaryStrength(index, value),
+                        onInfoExtractedChanged: (value) =>
+                            _updateInfoExtracted(index, value),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // 添加按钮
+                  if (params.characterReferences.length < 4)
+                    OutlinedButton.icon(
+                      onPressed: isV4Model ? _addReference : null,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(context.l10n.characterRef_addReference),
+                    ),
+
+                  // Style Aware 开关
+                  if (hasRefs) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.l10n.characterRef_styleAware,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                              Text(
+                                context.l10n.characterRef_styleAwareHint,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: params.characterReferenceStyleAware,
+                          onChanged: (value) => ref
+                              .read(generationParamsNotifierProvider.notifier)
+                              .setCharacterReferenceStyleAware(value),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  // Fidelity 滑块
+                  if (hasRefs) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${context.l10n.characterRef_fidelity}: ${params.characterReferenceFidelity.toStringAsFixed(2)}',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                              Text(
+                                context.l10n.characterRef_fidelityHint,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: params.characterReferenceFidelity,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 100,
+                      onChanged: (value) => ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .setCharacterReferenceFidelity(value),
+                    ),
+                  ],
+
+                  // 标准化强度开关
+                  if (hasRefs) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            context.l10n.characterRef_normalizeStrength,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                        Switch(
+                          value: params.normalizeCharacterReferenceStrength,
+                          onChanged: (value) => ref
+                              .read(generationParamsNotifierProvider.notifier)
+                              .setNormalizeCharacterReferenceStrength(value),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  // 清除全部按钮
+                  if (hasRefs) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _clearAllReferences,
+                      icon: const Icon(Icons.clear_all, size: 18),
+                      label: Text(context.l10n.characterRef_clearAll),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addReference() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        Uint8List? bytes;
+
+        if (file.bytes != null) {
+          bytes = file.bytes;
+        } else if (file.path != null) {
+          bytes = await File(file.path!).readAsBytes();
+        }
+
+        if (bytes != null) {
+          // 上传时转换为 PNG 格式（NovelAI Director Reference 要求）
+          // 这样生成时就不需要每次都转换了
+          final pngBytes = NAIApiService.ensurePngFormat(bytes);
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .addCharacterReference(CharacterReference(image: pngBytes));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(context.l10n.img2img_selectFailed(e.toString()))),
+        );
+      }
+    }
+  }
+
+  void _removeReference(int index) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .removeCharacterReference(index);
+  }
+
+  void _updateDescription(int index, String value) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateCharacterReference(index, description: value);
+  }
+
+  void _updateStrength(int index, double value) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateCharacterReference(index, strengthValue: value);
+  }
+
+  void _updateSecondaryStrength(int index, double value) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateCharacterReference(index, secondaryStrength: value);
+  }
+
+  void _updateInfoExtracted(int index, double value) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateCharacterReference(index, informationExtracted: value);
+  }
+
+  void _clearAllReferences() {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .clearCharacterReferences();
+  }
+}
+
+/// 单个角色参考图项
+class _CharacterReferenceItem extends StatefulWidget {
+  final int index;
+  final CharacterReference reference;
+  final VoidCallback onRemove;
+  final ValueChanged<String> onDescriptionChanged;
+  final ValueChanged<double> onStrengthChanged;
+  final ValueChanged<double> onSecondaryStrengthChanged;
+  final ValueChanged<double> onInfoExtractedChanged;
+
+  const _CharacterReferenceItem({
+    required this.index,
+    required this.reference,
+    required this.onRemove,
+    required this.onDescriptionChanged,
+    required this.onStrengthChanged,
+    required this.onSecondaryStrengthChanged,
+    required this.onInfoExtractedChanged,
+  });
+
+  @override
+  State<_CharacterReferenceItem> createState() =>
+      _CharacterReferenceItemState();
+}
+
+class _CharacterReferenceItemState extends State<_CharacterReferenceItem> {
+  bool _showSliders = false;
+  late TextEditingController _descriptionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _descriptionController =
+        TextEditingController(text: widget.reference.description);
+  }
+
+  @override
+  void didUpdateWidget(_CharacterReferenceItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reference.description != widget.reference.description) {
+      _descriptionController.text = widget.reference.description;
+    }
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.3),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // 图像预览和基本操作
+          Row(
+            children: [
+              // 预览缩略图
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(7),
+                  bottomLeft: Radius.circular(7),
+                ),
+                child: Image.memory(
+                  widget.reference.image,
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // 信息和调整
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.characterRef_referenceNumber(widget.index + 1),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      context.l10n.characterRef_strengthInfo(
+                        widget.reference.strengthValue.toStringAsFixed(2),
+                        widget.reference.secondaryStrength.toStringAsFixed(2),
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 操作按钮
+              IconButton(
+                icon: Icon(
+                  _showSliders ? Icons.tune : Icons.tune_outlined,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _showSliders = !_showSliders),
+                tooltip: context.l10n.characterRef_adjustParams,
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: widget.onRemove,
+                tooltip: context.l10n.characterRef_remove,
+              ),
+            ],
+          ),
+
+          // 可展开的滑块区域
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 150),
+            crossFadeState: _showSliders
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 角色描述输入框
+                  TextField(
+                    controller: _descriptionController,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.characterRef_description,
+                      hintText: context.l10n.characterRef_descriptionHint,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      isDense: true,
+                    ),
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 2,
+                    onChanged: widget.onDescriptionChanged,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 主要强度滑块
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          context.l10n.characterRef_strengthValue,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: widget.reference.strengthValue,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 100,
+                          onChanged: widget.onStrengthChanged,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          widget.reference.strengthValue.toStringAsFixed(2),
+                          style: theme.textTheme.bodySmall,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 次要强度滑块
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          context.l10n.characterRef_secondaryStrength,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: widget.reference.secondaryStrength,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 100,
+                          onChanged: widget.onSecondaryStrengthChanged,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          widget.reference.secondaryStrength.toStringAsFixed(2),
+                          style: theme.textTheme.bodySmall,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 信息提取滑块
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          context.l10n.characterRef_infoExtraction,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: widget.reference.informationExtracted,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 100,
+                          onChanged: widget.onInfoExtractedChanged,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          widget.reference.informationExtracted
+                              .toStringAsFixed(2),
+                          style: theme.textTheme.bodySmall,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 说明
+                  Text(
+                    context.l10n.characterRef_sliderHint,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}

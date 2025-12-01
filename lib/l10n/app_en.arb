@@ -57,6 +57,53 @@
   "auth_emailInvalid": "Please enter a valid email address",
   "auth_passwordRequired": "Please enter password",
 
+  "auth_tokenLogin": "API Token Login",
+  "auth_tokenHint": "Enter your Persistent API Token",
+  "auth_tokenRequired": "Please enter token",
+  "auth_tokenInvalid": "Invalid token format, should start with pst-",
+  "auth_nicknameOptional": "Nickname (optional)",
+  "auth_nicknameHint": "Set a recognizable name for this account",
+  "auth_saveAccount": "Save this account",
+  "auth_validateAndLogin": "Validate & Login",
+  "auth_tokenGuide": "Get Token from NovelAI settings",
+  "auth_savedAccounts": "Saved Accounts",
+  "auth_addAccount": "Add Account",
+  "auth_manageAccounts": "Manage",
+  "auth_moreAccounts": "{count} more accounts",
+  "@auth_moreAccounts": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "auth_orAddNewAccount": "or add new account",
+  "auth_tokenNotFound": "Token not found for this account",
+  "auth_switchAccount": "Switch Account",
+  "auth_currentAccount": "Current Account",
+  "auth_selectAccount": "Select Account",
+  "auth_deleteAccount": "Delete Account",
+  "auth_deleteAccountConfirm": "Are you sure you want to delete \"{name}\"? This cannot be undone.",
+  "@auth_deleteAccountConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "auth_cannotDeleteCurrent": "Cannot delete currently logged in account",
+  "auth_changeAvatar": "Change Avatar",
+  "auth_removeAvatar": "Remove Avatar",
+  "auth_selectFromGallery": "Select from Gallery",
+  "auth_takePhoto": "Take Photo",
+  "auth_quickLogin": "Quick Login",
+  "auth_nicknameRequired": "Please enter nickname",
+  "auth_createdAt": "Created at {date}",
+  "@auth_createdAt": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+
+  "common_paste": "Paste",
+  "common_default": "Default",
+
   "settings_title": "Settings",
   "settings_account": "Account",
   "settings_appearance": "Appearance",
@@ -412,6 +459,42 @@
       "infoValue": {}
     }
   },
+
+  "characterRef_title": "Character Reference",
+  "characterRef_hint": "Upload character reference images to maintain consistency (max 4, V4+ only)",
+  "characterRef_v4Only": "Character Reference only supports V4+ models, please switch models",
+  "characterRef_addReference": "Add Reference",
+  "characterRef_clearAll": "Clear All",
+  "characterRef_referenceNumber": "Reference #{index}",
+  "@characterRef_referenceNumber": {
+    "placeholders": {
+      "index": {}
+    }
+  },
+  "characterRef_description": "Character Description",
+  "characterRef_descriptionHint": "Describe this character's features (optional but recommended)...",
+  "characterRef_strengthValue": "Primary Strength",
+  "characterRef_secondaryStrength": "Secondary Strength",
+  "characterRef_infoExtraction": "Info Extraction",
+  "characterRef_normalizeStrength": "Normalize Strength",
+  "characterRef_adjustParams": "Adjust Parameters",
+  "characterRef_remove": "Remove",
+  "characterRef_sliderHint": "Primary: Controls reference influence\nSecondary: Controls secondary features\nInfo Extraction: How much detail to extract",
+  "characterRef_strengthInfo": "Primary: {value} | Secondary: {secondary}",
+  "@characterRef_strengthInfo": {
+    "placeholders": {
+      "value": {},
+      "secondary": {}
+    }
+  },
+  "characterRef_styleAware": "Style Aware",
+  "characterRef_styleAwareHint": "Transfer character relevant style information",
+  "characterRef_fidelity": "Fidelity",
+  "characterRef_fidelityHint": "0=Old version behavior, 1=New version behavior",
+
+  "unifiedRef_title": "Image Reference",
+  "unifiedRef_switchTitle": "Switch Mode",
+  "unifiedRef_switchContent": "Switching modes will clear current references. Continue?",
 
   "character_title": "Multi-Character (V4 Only)",
   "character_hint": "Define independent prompts and positions for each character (max 6)",
@@ -943,5 +1026,27 @@
   "resolution_typeSquare": "Square",
   "resolution_typeCustom": "Custom",
   "resolution_width": "Width",
-  "resolution_height": "Height"
+  "resolution_height": "Height",
+
+  "api_error_429": "Concurrency limit reached",
+  "api_error_429_hint": "Too many requests. Please wait and try again (common with shared accounts)",
+  "api_error_401": "Authentication failed",
+  "api_error_401_hint": "Token invalid or expired. Please login again",
+  "api_error_402": "Insufficient balance",
+  "api_error_402_hint": "Insufficient Anlas. Please top up and try again",
+  "api_error_500": "Server error",
+  "api_error_500_hint": "NovelAI server error. Please try again later",
+  "api_error_503": "Service unavailable",
+  "api_error_503_hint": "Server is under maintenance or overloaded. Please try again later",
+  "api_error_timeout": "Request timeout",
+  "api_error_timeout_hint": "Network timeout. Please check your connection and try again",
+  "api_error_network": "Network error",
+  "api_error_network_hint": "Cannot connect to server. Please check your network",
+  "api_error_unknown": "Unknown error",
+  "api_error_unknown_hint": "Unknown error occurred: {error}",
+  "@api_error_unknown_hint": {
+    "placeholders": {
+      "error": {}
+    }
+  }
 }

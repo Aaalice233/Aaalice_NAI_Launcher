@@ -40,6 +40,27 @@ class VibeReference with _$VibeReference {
   }) = _VibeReference;
 }
 
+/// 角色参考配置 (Director Reference, 仅 V4+ 模型支持)
+@freezed
+class CharacterReference with _$CharacterReference {
+  const factory CharacterReference({
+    /// 参考图像数据
+    required Uint8List image,
+
+    /// 角色描述 (可选，但建议填写以获得更好效果)
+    @Default('') String description,
+
+    /// 信息提取量 (0-1)，控制从参考图中提取多少细节
+    @Default(1.0) double informationExtracted,
+
+    /// 主要参考强度 (0-1)
+    @Default(1.0) double strengthValue,
+
+    /// 次要参考强度 (0-1)
+    @Default(0.0) double secondaryStrength,
+  }) = _CharacterReference;
+}
+
 /// 多角色提示词配置 (仅 V4 模型支持)
 @freezed
 class CharacterPrompt with _$CharacterPrompt {
@@ -177,6 +198,22 @@ class ImageParams with _$ImageParams {
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<VibeReference> vibeReferences,
 
+    // ========== 角色参考参数 (仅 V4+ 模型) ==========
+
+    /// 角色参考图列表 (最多4张)
+    @Default([])
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<CharacterReference> characterReferences,
+
+    /// 是否标准化多个角色参考的强度
+    @Default(true) bool normalizeCharacterReferenceStrength,
+
+    /// 角色参考 - Style Aware (传输角色相关风格信息)
+    @Default(true) bool characterReferenceStyleAware,
+
+    /// 角色参考 - Fidelity (0=旧版行为, 1=新版行为)
+    @Default(1.0) double characterReferenceFidelity,
+
     // ========== 多角色参数 (仅 V4 模型) ==========
 
     /// 角色列表 (最多6个)
@@ -210,6 +247,9 @@ extension ImageParamsExtension on ImageParams {
 
   /// 检查是否启用了 Vibe Transfer
   bool get hasVibeReferences => vibeReferences.isNotEmpty;
+
+  /// 检查是否启用了角色参考
+  bool get hasCharacterReferences => characterReferences.isNotEmpty;
 
   /// 检查是否为 img2img 模式
   bool get isImg2Img =>
