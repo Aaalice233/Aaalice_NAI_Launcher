@@ -402,10 +402,10 @@ class NAIApiService {
             params.characterReferences
                 .map((r) => r.strengthValue.round())
                 .toList();
-        // secondary_strength_values = 1 - fidelity
+        // secondary_strength_values = 1 - fidelity（必须是浮点数，不能 round）
         requestParameters['director_reference_secondary_strength_values'] =
             params.characterReferences
-                .map((r) => (1.0 - params.characterReferenceFidelity).round())
+                .map((r) => 1.0 - params.characterReferenceFidelity)
                 .toList();
       }
 
@@ -733,10 +733,10 @@ class NAIApiService {
             params.characterReferences
                 .map((r) => r.strengthValue.round())
                 .toList();
-        // secondary_strength_values = 1 - fidelity
+        // secondary_strength_values = 1 - fidelity（必须是浮点数，不能 round）
         requestParameters['director_reference_secondary_strength_values'] =
             params.characterReferences
-                .map((r) => (1.0 - params.characterReferenceFidelity).round())
+                .map((r) => 1.0 - params.characterReferenceFidelity)
                 .toList();
         // 注意: stream 参数已在基础参数中设置，无需重复添加
       }
@@ -1014,34 +1014,13 @@ class NAIApiService {
     return value == value.truncateToDouble() ? value.toInt() : value;
   }
 
-  /// 将图片转换为 RGB PNG 格式（NovelAI Director Reference 要求）
-  /// - 强制缩小到 512px 以内（V4 编码器只需小图）
-  /// - 确保尺寸为 64 的倍数
-  /// - 创建纯净画布剥离 EXIF/ICC 元数据
-  /// 注意：应在上传时调用此方法并缓存结果，避免每次生成都转换
+  /// 将图片转换为 NovelAI Director Reference 要求的格式
+  /// 根据 Reddit 帖子的正确实现：
+  /// - 缩放到三种"大"分辨率之一：(1024,1536), (1536,1024), (1472,1472)
+  /// - 选择最接近的目标尺寸（最小化未使用的填充）
+  /// - 按比例缩放图像，黑色背景居中粘贴
+  /// - 转换为 PNG 格式
   static Uint8List ensurePngFormat(Uint8List imageBytes) {
-    // =========================================================
-    // 【魔法字符串测试】用 package:image 生成一个干净的 64x64 白色 PNG
-    // 用于排查是 JSON 结构问题还是图片编码问题
-    // =========================================================
-    AppLogger.d('Using generated 64x64 white PNG for testing', 'API');
-    final testImage = img.Image(
-      width: 64,
-      height: 64,
-      numChannels: 3,
-      backgroundColor: img.ColorRgb8(255, 255, 255),
-    );
-    // 填充白色像素
-    for (int y = 0; y < 64; y++) {
-      for (int x = 0; x < 64; x++) {
-        testImage.setPixelRgb(x, y, 255, 255, 255);
-      }
-    }
-    final testPngBytes = Uint8List.fromList(img.encodePng(testImage));
-    AppLogger.d('Test PNG size: ${testPngBytes.length} bytes', 'API');
-    return testPngBytes;
-
-    /* 注释掉原有逻辑，测试完成后恢复
     // 解码图片
     final originalImage = img.decodeImage(imageBytes);
     if (originalImage == null) {
@@ -1049,72 +1028,93 @@ class NAIApiService {
       return imageBytes;
     }
 
+    final int width = originalImage.width;
+    final int height = originalImage.height;
+
     AppLogger.d(
-      'Processing image: ${originalImage.width}x${originalImage.height}, channels: ${originalImage.numChannels}',
+      'Processing character reference: ${width}x$height, channels: ${originalImage.numChannels}',
       'API',
     );
 
     // =========================================================
-    // 1. 强制缩小到 512px 以内
-    // V4 参考图编码器只需要很小的输入 (通常是 224x224 或 336x336)
-    // 发送大图除了增加报错概率，对效果没有任何帮助
+    // 1. 目标尺寸（portrait, landscape, square）
+    // 根据 Reddit 帖子，必须是这三种大分辨率之一
     // =========================================================
-    int targetWidth = originalImage.width;
-    int targetHeight = originalImage.height;
-    const int maxDimension = 512;
+    final targets = [
+      (1024, 1536), // portrait
+      (1536, 1024), // landscape
+      (1472, 1472), // square
+    ];
 
-    if (targetWidth > maxDimension || targetHeight > maxDimension) {
-      final double ratio = maxDimension / max(targetWidth, targetHeight);
-      targetWidth = (targetWidth * ratio).round();
-      targetHeight = (targetHeight * ratio).round();
+    // 计算最佳适配（最小化未使用的填充面积）
+    int fitScore(int tw, int th) {
+      final scale = min(tw / width, th / height);
+      final newW = (width * scale).toInt();
+      final newH = (height * scale).toInt();
+      final padW = tw - newW;
+      final padH = th - newH;
+      return padW * padH; // 填充面积越小越好
     }
 
-    // 确保是 64 的倍数（使用 floor 确保不会超过 512）
-    targetWidth = (targetWidth ~/ 64) * 64;
-    targetHeight = (targetHeight ~/ 64) * 64;
-
-    // 防止变成 0
-    if (targetWidth < 64) targetWidth = 64;
-    if (targetHeight < 64) targetHeight = 64;
-
-    AppLogger.d(
-      'Target size: ${targetWidth}x$targetHeight (max 512, 64x multiple)',
-      'API',
-    );
+    // 选择最佳目标尺寸
+    var bestTarget = targets.first;
+    var bestScore = fitScore(bestTarget.$1, bestTarget.$2);
+    for (final target in targets.skip(1)) {
+      final score = fitScore(target.$1, target.$2);
+      if (score < bestScore) {
+        bestScore = score;
+        bestTarget = target;
+      }
+    }
+    final targetW = bestTarget.$1;
+    final targetH = bestTarget.$2;
 
     // =========================================================
-    // 2. "核弹级"清洗：创建纯净的新画布
-    // 剥离原图中所有可能导致报错的 EXIF/ICC 元数据
+    // 2. 按比例缩放图像
     // =========================================================
-    final cleanImage = img.Image(
-      width: targetWidth,
-      height: targetHeight,
-      numChannels: 3, // 强制 RGB
-      backgroundColor: img.ColorRgb8(255, 255, 255), // 白底
-    );
-
-    // 调整原图大小
-    final resizedOriginal = img.copyResize(
+    final scale = min(targetW / width, targetH / height);
+    final newW = (width * scale).toInt();
+    final newH = (height * scale).toInt();
+    final resized = img.copyResize(
       originalImage,
-      width: targetWidth,
-      height: targetHeight,
-      interpolation: img.Interpolation.average, // 平均插值，画质更柔和
+      width: newW,
+      height: newH,
+      interpolation: img.Interpolation.cubic,
     );
 
-    // 将原图绘制到纯净画布上（自动处理透明度混合）
-    img.compositeImage(cleanImage, resizedOriginal);
+    // =========================================================
+    // 3. 创建黑色背景并居中粘贴
+    // =========================================================
+    final newImg = img.Image(
+      width: targetW,
+      height: targetH,
+      numChannels: 3,
+      backgroundColor: img.ColorRgb8(0, 0, 0), // 黑色背景
+    );
+
+    // 填充黑色像素
+    for (int y = 0; y < targetH; y++) {
+      for (int x = 0; x < targetW; x++) {
+        newImg.setPixelRgb(x, y, 0, 0, 0);
+      }
+    }
+
+    // 居中粘贴
+    final left = (targetW - newW) ~/ 2;
+    final top = (targetH - newH) ~/ 2;
+    img.compositeImage(newImg, resized, dstX: left, dstY: top);
 
     // =========================================================
-    // 3. 编码为标准 JPEG（兼容性最强）
+    // 4. 转换为 PNG（Reddit 帖子说 PNG preferred）
     // =========================================================
-    final jpgBytes = Uint8List.fromList(img.encodeJpg(cleanImage, quality: 90));
+    final pngBytes = Uint8List.fromList(img.encodePng(newImg));
     AppLogger.d(
-      'JPEG conversion complete: ${imageBytes.length} bytes -> ${jpgBytes.length} bytes, '
-      'size: ${targetWidth}x$targetHeight',
+      'Character reference processed: ${width}x$height -> ${targetW}x$targetH (centered on black), '
+      '${imageBytes.length} bytes -> ${pngBytes.length} bytes',
       'API',
     );
-    return jpgBytes;
-    */
+
+    return pngBytes;
   }
 
   /// 格式化 DioException 为错误代码（供 UI 层本地化显示）
