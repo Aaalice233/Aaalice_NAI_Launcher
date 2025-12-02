@@ -70,7 +70,7 @@ class VibeReferenceV4 with _$VibeReferenceV4 {
 
     /// Information Extracted (0-1)
     /// 仅用于原始图片模式，控制从参考图中提取多少信息
-    @Default(1.0) double infoExtracted,
+    @Default(0.7) double infoExtracted,
 
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,

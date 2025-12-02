@@ -470,6 +470,10 @@
       "cost": {"type": "int"}
     }
   },
+  "vibe_sourceType_png": "PNG",
+  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_bundle": "Bundle",
+  "vibe_sourceType_image": "Image",
 
   "characterRef_title": "Character Reference",
   "characterRef_hint": "Upload character reference images to maintain consistency (max 4, V4+ only)",

@@ -307,6 +307,10 @@
       "cost": {"type": "int"}
     }
   },
+  "vibe_sourceType_png": "PNG",
+  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_bundle": "组合包",
+  "vibe_sourceType_image": "图片",
 
   "characterRef_title": "角色参考",
   "characterRef_hint": "上传角色参考图来保持角色一致性（最多4张，仅 V4+ 模型支持）",

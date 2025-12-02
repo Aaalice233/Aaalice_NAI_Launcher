@@ -42,6 +42,9 @@ int estimatedCost(Ref ref) {
     );
   }
 
+  // 加上 Vibe 编码成本 (每张非预编码图片 2 Anlas)
+  totalCost += params.vibeEncodingCost;
+
   return totalCost;
 }
 

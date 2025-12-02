@@ -585,11 +585,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   // ==================== Vibe Transfer 参数 ====================
 
   /// 添加 Vibe 参考图
-  /// 注意：添加角色参考时会隐藏并清除 Vibe Transfer，但反过来不会
+  /// 注意：Vibe Transfer 和角色参考互斥，添加一个会清除另一个
   void addVibeReference(VibeReference vibe) {
     if (state.vibeReferences.length >= 4) return; // 最多4张
     state = state.copyWith(
       vibeReferences: [...state.vibeReferences, vibe],
+      characterReferences: [], // 互斥：清除角色参考
     );
   }
 
@@ -628,14 +629,17 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 添加 V4 Vibe 参考
   /// 支持预编码 (.naiv4vibe, PNG 带元数据) 和原始图片
+  /// 注意：Vibe Transfer 和角色参考互斥，添加一个会清除另一个
   void addVibeReferenceV4(VibeReferenceV4 vibe) {
     if (state.vibeReferencesV4.length >= 16) return; // V4 支持最多 16 张
     state = state.copyWith(
       vibeReferencesV4: [...state.vibeReferencesV4, vibe],
+      characterReferences: [], // 互斥：清除角色参考
     );
   }
 
   /// 批量添加 V4 Vibe 参考
+  /// 注意：Vibe Transfer 和角色参考互斥，添加一个会清除另一个
   void addVibeReferencesV4(List<VibeReferenceV4> vibes) {
     final remaining = 16 - state.vibeReferencesV4.length;
     if (remaining <= 0) return;
@@ -643,6 +647,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final toAdd = vibes.take(remaining).toList();
     state = state.copyWith(
       vibeReferencesV4: [...state.vibeReferencesV4, ...toAdd],
+      characterReferences: [], // 互斥：清除角色参考
     );
   }
 
@@ -683,11 +688,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   // ==================== 角色参考参数 (V4+ 模型) ====================
 
   /// 添加角色参考图
-  /// 注意：角色参考只能1张，且和 Vibe Transfer 互斥
+  /// 注意：角色参考最多4张，且和 Vibe Transfer 互斥
   void addCharacterReference(CharacterReference ref) {
-    if (state.characterReferences.isNotEmpty) return; // 只能1张
+    if (state.characterReferences.length >= 4) return; // 最多4张
     state = state.copyWith(
-      characterReferences: [ref],
+      characterReferences: [...state.characterReferences, ref],
       vibeReferences: [], // 清除 Vibe Transfer（互斥）
       vibeReferencesV4: [], // 清除 V4 Vibe Transfer（互斥）
     );

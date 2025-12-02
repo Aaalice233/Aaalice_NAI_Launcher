@@ -18,6 +18,7 @@ import '../../models/auth/auth_token.dart';
 import '../../models/image/image_params.dart';
 import '../../models/image/image_stream_chunk.dart';
 import '../../models/tag/tag_suggestion.dart';
+import '../../models/vibe/vibe_reference_v4.dart';
 
 part 'nai_api_service.g.dart';
 
@@ -160,6 +161,19 @@ class NAIApiService {
     ImageParams params, {
     void Function(int, int)? onProgress,
   }) async {
+    // 互斥校验：Vibe Transfer 和角色参考不能同时存在（防御性编程）
+    final hasVibes = params.vibeReferences.isNotEmpty ||
+        params.vibeReferencesV4.isNotEmpty;
+    if (hasVibes && params.characterReferences.isNotEmpty) {
+      throw StateError(
+        'Vibe Transfer 和角色参考不能同时使用，请在UI中切换模式后重试',
+      );
+    }
+
+    // 角色参考仅V4+模型支持，非V4模型时忽略角色参考数据
+    final effectiveCharacterRefs =
+        params.isV4Model ? params.characterReferences : <CharacterReference>[];
+
     _currentCancelToken = CancelToken();
 
     try {
@@ -360,7 +374,7 @@ class NAIApiService {
         requestParameters['mask'] = base64Encode(params.maskImage!);
       }
 
-      // Vibe Transfer
+      // Vibe Transfer (旧版)
       if (params.vibeReferences.isNotEmpty) {
         requestParameters['reference_image_multiple'] =
             params.vibeReferences.map((v) => base64Encode(v.image)).toList();
@@ -370,13 +384,79 @@ class NAIApiService {
             params.vibeReferences.map((v) => v.informationExtracted).toList();
       }
 
+      // V4 Vibe Transfer
+      // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
+      if (params.vibeReferencesV4.isNotEmpty) {
+        // 标准化强度设置
+        requestParameters['normalize_reference_strength_multiple'] =
+            params.normalizeVibeStrength;
+
+        // 分离预编码和原始图片
+        final preEncodedVibes = params.vibeReferencesV4
+            .where((v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty)
+            .toList();
+        final rawImageVibes = params.vibeReferencesV4
+            .where((v) => v.sourceType == VibeSourceType.rawImage && v.rawImageData != null)
+            .toList();
+
+        // 收集所有编码数据
+        final allEncodings = <String>[];
+        final allStrengths = <double>[];
+        final allInfoExtracted = <double>[];
+
+        // 添加预编码的 vibe
+        for (final vibe in preEncodedVibes) {
+          allEncodings.add(vibe.vibeEncoding);
+          allStrengths.add(vibe.strength);
+          allInfoExtracted.add(vibe.infoExtracted);
+        }
+
+        // 自动编码原始图片（每张消耗 2 Anlas）
+        if (rawImageVibes.isNotEmpty) {
+          AppLogger.d(
+            'V4 Vibe: Encoding ${rawImageVibes.length} raw images (2 Anlas each)...',
+            'API',
+          );
+          for (final vibe in rawImageVibes) {
+            try {
+              final encoding = await encodeVibe(
+                vibe.rawImageData!,
+                model: params.model,
+                informationExtracted: vibe.infoExtracted,
+              );
+              if (encoding.isNotEmpty) {
+                allEncodings.add(encoding);
+                allStrengths.add(vibe.strength);
+                allInfoExtracted.add(vibe.infoExtracted);
+                AppLogger.d('V4 Vibe: Encoded raw image successfully', 'API');
+              } else {
+                AppLogger.w('V4 Vibe: Failed to encode raw image (empty result)', 'API');
+              }
+            } catch (e) {
+              AppLogger.e('V4 Vibe: Failed to encode raw image: $e', 'API');
+            }
+          }
+        }
+
+        // 设置参数
+        if (allEncodings.isNotEmpty) {
+          requestParameters['reference_image_multiple'] = allEncodings;
+          requestParameters['reference_strength_multiple'] = allStrengths;
+          requestParameters['reference_information_extracted_multiple'] = allInfoExtracted;
+
+          AppLogger.d(
+            'V4 Vibe Transfer: ${preEncodedVibes.length} pre-encoded + ${rawImageVibes.length} encoded = ${allEncodings.length} total vibes',
+            'API',
+          );
+        }
+      }
+
       // 角色参考 (Director Reference, V4+ 专属)
-      if (params.characterReferences.isNotEmpty) {
+      if (effectiveCharacterRefs.isNotEmpty) {
         requestParameters['normalize_reference_strength_multiple'] =
             params.normalizeCharacterReferenceStrength;
         // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
-        requestParameters['director_reference_images'] = params
-            .characterReferences
+        requestParameters['director_reference_images'] = effectiveCharacterRefs
             .map((r) => base64Encode(ensurePngFormat(r.image)))
             .toList();
         // base_caption: Style Aware 开启时为 "character&style"，关闭时为 "character"
@@ -384,7 +464,7 @@ class NAIApiService {
             ? 'character&style'
             : 'character';
         requestParameters['director_reference_descriptions'] =
-            params.characterReferences.map((r) {
+            effectiveCharacterRefs.map((r) {
           return {
             'caption': {
               'base_caption': baseCaption,
@@ -395,16 +475,16 @@ class NAIApiService {
         }).toList();
         // 官方参考显示数值是整数 [1], [0]
         requestParameters['director_reference_information_extracted'] =
-            params.characterReferences
+            effectiveCharacterRefs
                 .map((r) => r.informationExtracted.round())
                 .toList();
         requestParameters['director_reference_strength_values'] =
-            params.characterReferences
+            effectiveCharacterRefs
                 .map((r) => r.strengthValue.round())
                 .toList();
         // secondary_strength_values = 1 - fidelity（必须是浮点数，不能 round）
         requestParameters['director_reference_secondary_strength_values'] =
-            params.characterReferences
+            effectiveCharacterRefs
                 .map((r) => 1.0 - params.characterReferenceFidelity)
                 .toList();
       }
@@ -424,14 +504,14 @@ class NAIApiService {
       );
 
       // ========== 详细调试日志（对比官网格式）==========
-      if (params.characterReferences.isNotEmpty) {
+      if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== NON-STREAM CHARACTER REFERENCE DEBUG ===', 'API');
-        AppLogger.d('characterReferences count: ${params.characterReferences.length}', 'API');
+        AppLogger.d('characterReferences count: ${effectiveCharacterRefs.length}', 'API');
         AppLogger.d('isV4Model: ${params.isV4Model}', 'API');
 
         // 调试：验证 base64 编码和 PNG 转换
-        for (int i = 0; i < params.characterReferences.length; i++) {
-          final ref = params.characterReferences[i];
+        for (int i = 0; i < effectiveCharacterRefs.length; i++) {
+          final ref = effectiveCharacterRefs[i];
           final originalB64 = base64Encode(ref.image);
           final pngBytes = ensurePngFormat(ref.image);
           final pngB64 = base64Encode(pngBytes);
@@ -521,6 +601,20 @@ class NAIApiService {
   ///
   /// 返回 ImageStreamChunk 流，包含渐进式预览和最终图像
   Stream<ImageStreamChunk> generateImageStream(ImageParams params) async* {
+    // 互斥校验：Vibe Transfer 和角色参考不能同时存在（防御性编程）
+    final hasVibes = params.vibeReferences.isNotEmpty ||
+        params.vibeReferencesV4.isNotEmpty;
+    if (hasVibes && params.characterReferences.isNotEmpty) {
+      yield ImageStreamChunk.error(
+        'Vibe Transfer 和角色参考不能同时使用，请在UI中切换模式后重试',
+      );
+      return;
+    }
+
+    // 角色参考仅V4+模型支持，非V4模型时忽略角色参考数据
+    final effectiveCharacterRefs =
+        params.isV4Model ? params.characterReferences : <CharacterReference>[];
+
     _currentCancelToken = CancelToken();
 
     try {
@@ -671,7 +765,7 @@ class NAIApiService {
         requestParameters['mask'] = base64Encode(params.maskImage!);
       }
 
-      // Vibe Transfer
+      // Vibe Transfer (旧版)
       if (params.vibeReferences.isNotEmpty) {
         requestParameters['reference_image_multiple'] =
             params.vibeReferences.map((v) => base64Encode(v.image)).toList();
@@ -681,15 +775,82 @@ class NAIApiService {
             params.vibeReferences.map((v) => v.informationExtracted).toList();
       }
 
+      // V4 Vibe Transfer
+      // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
+      if (params.vibeReferencesV4.isNotEmpty) {
+        // 标准化强度设置
+        requestParameters['normalize_reference_strength_multiple'] =
+            params.normalizeVibeStrength;
+
+        // 分离预编码和原始图片
+        final preEncodedVibes = params.vibeReferencesV4
+            .where((v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty)
+            .toList();
+        final rawImageVibes = params.vibeReferencesV4
+            .where((v) => v.sourceType == VibeSourceType.rawImage && v.rawImageData != null)
+            .toList();
+
+        // 收集所有编码数据
+        final allEncodings = <String>[];
+        final allStrengths = <double>[];
+        final allInfoExtracted = <double>[];
+
+        // 添加预编码的 vibe
+        for (final vibe in preEncodedVibes) {
+          allEncodings.add(vibe.vibeEncoding);
+          allStrengths.add(vibe.strength);
+          allInfoExtracted.add(vibe.infoExtracted);
+        }
+
+        // 自动编码原始图片（每张消耗 2 Anlas）
+        if (rawImageVibes.isNotEmpty) {
+          AppLogger.d(
+            'V4 Vibe (Stream): Encoding ${rawImageVibes.length} raw images (2 Anlas each)...',
+            'API',
+          );
+          for (final vibe in rawImageVibes) {
+            try {
+              final encoding = await encodeVibe(
+                vibe.rawImageData!,
+                model: params.model,
+                informationExtracted: vibe.infoExtracted,
+              );
+              if (encoding.isNotEmpty) {
+                allEncodings.add(encoding);
+                allStrengths.add(vibe.strength);
+                allInfoExtracted.add(vibe.infoExtracted);
+                AppLogger.d('V4 Vibe (Stream): Encoded raw image successfully', 'API');
+              } else {
+                AppLogger.w('V4 Vibe (Stream): Failed to encode raw image (empty result)', 'API');
+              }
+            } catch (e) {
+              AppLogger.e('V4 Vibe (Stream): Failed to encode raw image: $e', 'API');
+            }
+          }
+        }
+
+        // 设置参数
+        if (allEncodings.isNotEmpty) {
+          requestParameters['reference_image_multiple'] = allEncodings;
+          requestParameters['reference_strength_multiple'] = allStrengths;
+          requestParameters['reference_information_extracted_multiple'] = allInfoExtracted;
+
+          AppLogger.d(
+            'V4 Vibe Transfer (Stream): ${preEncodedVibes.length} pre-encoded + ${rawImageVibes.length} encoded = ${allEncodings.length} total vibes',
+            'API',
+          );
+        }
+      }
+
       // 角色参考 (Director Reference, V4+ 专属)
-      if (params.characterReferences.isNotEmpty) {
+      if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG (STREAM) ===', 'API');
-        AppLogger.d('characterReferences count: ${params.characterReferences.length}', 'API');
+        AppLogger.d('characterReferences count: ${effectiveCharacterRefs.length}', 'API');
         AppLogger.d('isV4Model: ${params.isV4Model}', 'API');
 
         // 调试：验证 base64 编码和 PNG 转换
-        for (int i = 0; i < params.characterReferences.length; i++) {
-          final ref = params.characterReferences[i];
+        for (int i = 0; i < effectiveCharacterRefs.length; i++) {
+          final ref = effectiveCharacterRefs[i];
           final originalB64 = base64Encode(ref.image);
           final pngBytes = ensurePngFormat(ref.image);
           final pngB64 = base64Encode(pngBytes);
@@ -706,8 +867,7 @@ class NAIApiService {
         requestParameters['normalize_reference_strength_multiple'] =
             params.normalizeCharacterReferenceStrength;
         // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
-        requestParameters['director_reference_images'] = params
-            .characterReferences
+        requestParameters['director_reference_images'] = effectiveCharacterRefs
             .map((r) => base64Encode(ensurePngFormat(r.image)))
             .toList();
         // base_caption: Style Aware 开启时为 "character&style"，关闭时为 "character"
@@ -715,7 +875,7 @@ class NAIApiService {
             ? 'character&style'
             : 'character';
         requestParameters['director_reference_descriptions'] =
-            params.characterReferences.map((r) {
+            effectiveCharacterRefs.map((r) {
           return {
             'caption': {
               'base_caption': baseCaption,
@@ -726,16 +886,16 @@ class NAIApiService {
         }).toList();
         // 官方参考显示数值是整数 [1], [0]
         requestParameters['director_reference_information_extracted'] =
-            params.characterReferences
+            effectiveCharacterRefs
                 .map((r) => r.informationExtracted.round())
                 .toList();
         requestParameters['director_reference_strength_values'] =
-            params.characterReferences
+            effectiveCharacterRefs
                 .map((r) => r.strengthValue.round())
                 .toList();
         // secondary_strength_values = 1 - fidelity（必须是浮点数，不能 round）
         requestParameters['director_reference_secondary_strength_values'] =
-            params.characterReferences
+            effectiveCharacterRefs
                 .map((r) => 1.0 - params.characterReferenceFidelity)
                 .toList();
         // 注意: stream 参数已在基础参数中设置，无需重复添加
@@ -760,9 +920,9 @@ class NAIApiService {
       AppLogger.d('ucPreset: ${params.ucPreset}', 'API');
       AppLogger.d('negative_prompt: $effectiveNegativePrompt', 'API');
       // 角色参考调试
-      if (params.characterReferences.isNotEmpty) {
+      if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG ===', 'API');
-        AppLogger.d('characterReferences count: ${params.characterReferences.length}', 'API');
+        AppLogger.d('characterReferences count: ${effectiveCharacterRefs.length}', 'API');
         AppLogger.d('director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}', 'API');
         AppLogger.d('director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}', 'API');
         AppLogger.d('director_reference_strength_values: ${requestParameters['director_reference_strength_values']}', 'API');
@@ -1224,25 +1384,31 @@ class NAIApiService {
   /// 编码 Vibe 参考图
   ///
   /// [image] 参考图像数据
+  /// [model] 模型名称（如 nai-diffusion-4-full）
+  /// [informationExtracted] 信息提取量（0-1，默认 1.0）
   ///
   /// 返回编码后的特征向量（base64 字符串）
-  Future<String> encodeVibe(Uint8List image) async {
+  Future<String> encodeVibe(
+    Uint8List image, {
+    required String model,
+    double informationExtracted = 1.0,
+  }) async {
     try {
       final response = await _dio.post(
         '${ApiConstants.imageBaseUrl}${ApiConstants.encodeVibeEndpoint}',
         data: {
           'image': base64Encode(image),
+          'model': model,
+          'informationExtracted': informationExtracted,
         },
         options: Options(
-          responseType: ResponseType.json,
+          responseType: ResponseType.bytes,
         ),
       );
 
-      // 返回编码后的特征
-      if (response.data is Map<String, dynamic>) {
-        return response.data['encoding'] as String? ?? '';
-      }
-      return '';
+      // API 返回二进制数据，需要 base64 编码
+      final bytes = response.data as Uint8List;
+      return base64Encode(bytes);
     } catch (e) {
       AppLogger.e('Encode vibe failed: $e', 'API');
       rethrow;
