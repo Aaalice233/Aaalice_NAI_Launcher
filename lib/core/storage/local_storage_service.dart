@@ -252,6 +252,18 @@ class LocalStorageService {
     await setSetting(StorageKeys.highlightEmphasis, value);
   }
 
+  // ==================== SD Syntax Auto Convert ====================
+
+  /// 获取是否启用SD语法自动转换 (默认关闭)
+  bool getSdSyntaxAutoConvert() {
+    return getSetting<bool>(StorageKeys.sdSyntaxAutoConvert, defaultValue: false) ?? false;
+  }
+
+  /// 保存是否启用SD语法自动转换
+  Future<void> setSdSyntaxAutoConvert(bool value) async {
+    await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
+  }
+
   // ==================== Last Generation Params ====================
 
   /// 获取上次的正向提示词

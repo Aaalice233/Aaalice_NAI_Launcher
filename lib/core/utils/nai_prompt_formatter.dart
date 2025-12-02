@@ -42,38 +42,9 @@ class NaiPromptFormatter {
   /// 格式化标签（将空格转为下划线，但保护特殊语法）
   static String _formatTags(String prompt) {
     final buffer = StringBuffer();
-    var inSpecialSyntax = false;
-    var braceDepth = 0;
-    var bracketDepth = 0;
-    var parenDepth = 0;
-    var inWeight = false;
 
     for (var i = 0; i < prompt.length; i++) {
       final char = prompt[i];
-
-      // 跟踪括号深度
-      if (char == '{') {
-        braceDepth++;
-        inSpecialSyntax = braceDepth > 0 || bracketDepth > 0;
-      } else if (char == '}') {
-        braceDepth--;
-        inSpecialSyntax = braceDepth > 0 || bracketDepth > 0;
-      } else if (char == '[') {
-        bracketDepth++;
-        inSpecialSyntax = braceDepth > 0 || bracketDepth > 0;
-      } else if (char == ']') {
-        bracketDepth--;
-        inSpecialSyntax = braceDepth > 0 || bracketDepth > 0;
-      } else if (char == '(') {
-        parenDepth++;
-      } else if (char == ')') {
-        parenDepth--;
-      }
-
-      // 检查是否在权重语法中
-      if (char == ':' && i + 1 < prompt.length && prompt[i + 1] == ':') {
-        inWeight = !inWeight;
-      }
 
       // 将空格转换为下划线（在标签内部，非分隔位置）
       if (char == ' ') {
@@ -102,11 +73,7 @@ class NaiPromptFormatter {
         else if (prevChar == '|' || nextChar == '|') {
           buffer.write(char);
         }
-        // 如果在权重语法中，保留
-        else if (inWeight) {
-          buffer.write(char);
-        }
-        // 其他情况，将空格转为下划线
+        // 其他情况（包括权重语法内），将空格转为下划线
         else {
           buffer.write('_');
         }
@@ -216,18 +183,11 @@ class NaiPromptFormatter {
   static String _balanceWeightColons(String prompt) {
     var result = prompt;
 
-    // 查找未闭合的 :: 权重语法
-    final weightStartPattern = RegExp(r'-?\d+\.?\d*::');
-    final matches = weightStartPattern.allMatches(result).toList();
-
-    for (final match in matches) {
-      final afterMatch = result.substring(match.end);
-      // 查找是否有闭合的 ::
-      if (!afterMatch.contains('::')) {
-        // 在末尾添加 ::
-        result += '::';
-        break; // 一次只修复一个
-      }
+    // 统计 :: 的数量，NAI V4 语法中 :: 必须成对出现 (weight::content::)
+    // 如果是奇数则在末尾添加 ::
+    final doubleColonCount = '::'.allMatches(result).length;
+    if (doubleColonCount % 2 != 0) {
+      result += '::';
     }
 
     // 检查 NAI 随机化语法 ||...||

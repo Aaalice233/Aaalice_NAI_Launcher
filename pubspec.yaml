@@ -37,6 +37,10 @@ dependencies:
 
   # 图片处理
   image: ^4.1.7
+  png_chunks_extract: ^1.0.0
+
+  # 拖拽功能
+  super_drag_and_drop: ^0.8.23
 
   # 路由
   go_router: ^14.2.0

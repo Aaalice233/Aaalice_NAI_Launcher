@@ -358,6 +358,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.watch(sdSyntaxAutoConvertSettingsProvider);
 
     return PopupMenuButton<String>(
       icon: Icon(
@@ -456,6 +457,35 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'sd_syntax_convert',
+          child: Row(
+            children: [
+              Icon(
+                enableSdSyntaxAutoConvert
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
+                size: 20,
+                color: enableSdSyntaxAutoConvert ? theme.colorScheme.primary : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.prompt_sdSyntaxAutoConvert),
+                    Text(
+                      context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
       onSelected: (value) {
         if (value == 'autocomplete') {
@@ -464,6 +494,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
         } else if (value == 'highlight') {
           ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
+        } else if (value == 'sd_syntax_convert') {
+          ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
         }
       },
     );
@@ -691,11 +723,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildTextPromptInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.watch(sdSyntaxAutoConvertSettingsProvider);
     return AutocompleteTextField(
       controller: _promptController,
       focusNode: _promptFocusNode,
       enableAutocomplete: enableAutocomplete,
       enableAutoFormat: enableAutoFormat,
+      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
       config: const AutocompleteConfig(
         maxSuggestions: 20,
         showTranslation: true,
@@ -746,11 +780,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildTextNegativeInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.watch(sdSyntaxAutoConvertSettingsProvider);
     return AutocompleteTextField(
       controller: _negativeController,
       focusNode: _negativeFocusNode,
       enableAutocomplete: enableAutocomplete,
       enableAutoFormat: enableAutoFormat,
+      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
       config: const AutocompleteConfig(
         maxSuggestions: 15,
         showTranslation: true,
@@ -1006,6 +1042,7 @@ class _FullScreenPromptEditorState
                     controller: _promptController,
                     maxLines: 10,
                     minLines: 5,
+                    enableSdSyntaxAutoConvert: ref.watch(sdSyntaxAutoConvertSettingsProvider),
                     config: const AutocompleteConfig(
                       showTranslation: true,
                       showCategory: true,
@@ -1063,6 +1100,7 @@ class _FullScreenPromptEditorState
                     controller: _negativeController,
                     maxLines: 5,
                     minLines: 3,
+                    enableSdSyntaxAutoConvert: ref.watch(sdSyntaxAutoConvertSettingsProvider),
                     config: const AutocompleteConfig(
                       showTranslation: true,
                     ),

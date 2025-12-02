@@ -273,6 +273,9 @@
   "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-close brackets, etc.",
   "prompt_highlightEmphasis": "Highlight Emphasis",
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
+  "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
+  "prompt_sdSyntaxAutoConvertSubtitle": "Convert SD weight syntax to NAI format on blur",
+  "prompt_formatted": "Formatted",
   "prompt_textMode": "Text",
   "prompt_tagMode": "Tags",
   "prompt_switchToTagView": "Switch to Tag View",
@@ -439,6 +442,7 @@
 
   "vibe_title": "Vibe Transfer",
   "vibe_hint": "Add reference images to transfer visual style (max 4)",
+  "vibe_description": "Change the image, keep the vision.",
   "vibe_addReference": "Add Reference",
   "vibe_clearAll": "Clear All",
   "vibe_referenceNumber": "Reference #{index}",
@@ -457,6 +461,13 @@
     "placeholders": {
       "value": {},
       "infoValue": {}
+    }
+  },
+  "vibe_normalize": "Normalize Reference Strength Values",
+  "vibe_encodingCost": "Encoding required. This will cost {cost} Anlas on the next generation.",
+  "@vibe_encodingCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
     }
   },
 
@@ -1048,5 +1059,23 @@
     "placeholders": {
       "error": {}
     }
-  }
+  },
+
+  "common_close": "Close",
+
+  "drop_dialogTitle": "What do you want to do with this image?",
+  "drop_hint": "Drop image here",
+  "drop_img2img": "Image2Image",
+  "drop_vibeTransfer": "Vibe Transfer",
+  "drop_characterReference": "Character Reference",
+  "drop_unsupportedFormat": "Unsupported file format",
+  "drop_addedToImg2Img": "Added to Image2Image",
+  "drop_addedToVibe": "Added to Vibe Transfer",
+  "drop_addedMultipleToVibe": "Added {count} vibe references",
+  "@drop_addedMultipleToVibe": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "drop_addedToCharacterRef": "Added to Character Reference"
 }

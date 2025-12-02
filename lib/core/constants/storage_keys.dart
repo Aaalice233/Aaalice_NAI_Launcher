@@ -37,6 +37,7 @@ class StorageKeys {
   static const String enableAutocomplete = 'enable_autocomplete';
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
+  static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';
 
   // Last Generation Params Keys (持久化上次使用的参数)
   static const String lastPrompt = 'last_prompt';

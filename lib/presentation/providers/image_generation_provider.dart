@@ -13,6 +13,7 @@ import '../../data/datasources/remote/nai_api_service.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/models/tag/tag_suggestion.dart';
+import '../../data/models/vibe/vibe_reference_v4.dart';
 import 'prompt_config_provider.dart';
 import 'subscription_provider.dart';
 
@@ -623,6 +624,62 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(vibeReferences: []);
   }
 
+  // ==================== V4 Vibe Transfer 参数 ====================
+
+  /// 添加 V4 Vibe 参考
+  /// 支持预编码 (.naiv4vibe, PNG 带元数据) 和原始图片
+  void addVibeReferenceV4(VibeReferenceV4 vibe) {
+    if (state.vibeReferencesV4.length >= 16) return; // V4 支持最多 16 张
+    state = state.copyWith(
+      vibeReferencesV4: [...state.vibeReferencesV4, vibe],
+    );
+  }
+
+  /// 批量添加 V4 Vibe 参考
+  void addVibeReferencesV4(List<VibeReferenceV4> vibes) {
+    final remaining = 16 - state.vibeReferencesV4.length;
+    if (remaining <= 0) return;
+
+    final toAdd = vibes.take(remaining).toList();
+    state = state.copyWith(
+      vibeReferencesV4: [...state.vibeReferencesV4, ...toAdd],
+    );
+  }
+
+  /// 移除 V4 Vibe 参考
+  void removeVibeReferenceV4(int index) {
+    if (index < 0 || index >= state.vibeReferencesV4.length) return;
+    final newList = [...state.vibeReferencesV4];
+    newList.removeAt(index);
+    state = state.copyWith(vibeReferencesV4: newList);
+  }
+
+  /// 更新 V4 Vibe 参考配置
+  void updateVibeReferenceV4(
+    int index, {
+    double? strength,
+    double? infoExtracted,
+  }) {
+    if (index < 0 || index >= state.vibeReferencesV4.length) return;
+    final newList = [...state.vibeReferencesV4];
+    final current = newList[index];
+    newList[index] = current.copyWith(
+      strength: strength ?? current.strength,
+      infoExtracted: infoExtracted ?? current.infoExtracted,
+    );
+    state = state.copyWith(vibeReferencesV4: newList);
+  }
+
+  /// 清除所有 V4 Vibe 参考
+  void clearVibeReferencesV4() {
+    state = state.copyWith(vibeReferencesV4: []);
+  }
+
+  /// 设置 Vibe 强度标准化开关
+  void setNormalizeVibeStrength(bool value) {
+    state = state.copyWith(normalizeVibeStrength: value);
+  }
+
   // ==================== 角色参考参数 (V4+ 模型) ====================
 
   /// 添加角色参考图
@@ -632,6 +689,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(
       characterReferences: [ref],
       vibeReferences: [], // 清除 Vibe Transfer（互斥）
+      vibeReferencesV4: [], // 清除 V4 Vibe Transfer（互斥）
     );
   }
 
@@ -1005,6 +1063,29 @@ class HighlightEmphasisSettings extends _$HighlightEmphasisSettings {
   void set(bool value) {
     state = value;
     _storage.setHighlightEmphasis(value);
+  }
+}
+
+/// SD语法自动转换设置 Notifier
+@Riverpod(keepAlive: true)
+class SdSyntaxAutoConvertSettings extends _$SdSyntaxAutoConvertSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() {
+    return _storage.getSdSyntaxAutoConvert();
+  }
+
+  /// 切换SD语法自动转换开关
+  void toggle() {
+    state = !state;
+    _storage.setSdSyntaxAutoConvert(state);
+  }
+
+  /// 设置SD语法自动转换开关
+  void set(bool value) {
+    state = value;
+    _storage.setSdSyntaxAutoConvert(value);
   }
 }
 

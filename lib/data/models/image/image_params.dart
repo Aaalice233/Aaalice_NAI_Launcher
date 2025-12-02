@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../vibe/vibe_reference_v4.dart';
+
 part 'image_params.freezed.dart';
 part 'image_params.g.dart';
 
@@ -193,10 +195,18 @@ class ImageParams with _$ImageParams {
 
     // ========== Vibe Transfer 参数 ==========
 
-    /// Vibe 参考图列表 (最多16张，V4+)
+    /// Vibe 参考图列表 (旧版，原始图片模式)
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<VibeReference> vibeReferences,
+
+    /// V4 Vibe 参考列表 (支持预编码和原始图片)
+    @Default([])
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    List<VibeReferenceV4> vibeReferencesV4,
+
+    /// 是否标准化多个 Vibe 参考的强度值
+    @Default(true) bool normalizeVibeStrength,
 
     // ========== 角色参考参数 (仅 V4+ 模型) ==========
 
@@ -245,8 +255,22 @@ extension ImageParamsExtension on ImageParams {
   /// 检查是否启用了多角色
   bool get hasCharacters => characters.isNotEmpty;
 
-  /// 检查是否启用了 Vibe Transfer
+  /// 检查是否启用了 Vibe Transfer (旧版)
   bool get hasVibeReferences => vibeReferences.isNotEmpty;
+
+  /// 检查是否启用了 V4 Vibe Transfer
+  bool get hasVibeReferencesV4 => vibeReferencesV4.isNotEmpty;
+
+  /// 检查是否有任何 Vibe 参考 (V3 或 V4)
+  bool get hasAnyVibeReferences =>
+      vibeReferences.isNotEmpty || vibeReferencesV4.isNotEmpty;
+
+  /// 计算需要编码的 Vibe 数量 (消耗 Anlas)
+  int get vibeEncodingCount =>
+      vibeReferencesV4.where((v) => !v.sourceType.isPreEncoded).length;
+
+  /// 计算 Vibe 编码成本 (每张 2 Anlas)
+  int get vibeEncodingCost => vibeEncodingCount * 2;
 
   /// 检查是否启用了角色参考
   bool get hasCharacterReferences => characterReferences.isNotEmpty;

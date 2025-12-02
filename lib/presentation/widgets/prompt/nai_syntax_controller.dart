@@ -185,139 +185,100 @@ class _SyntaxMatch {
   });
 }
 
-/// NAI 语法背景色配置
+/// NAI 语法背景色配置（参考 NovelAI 官网样式）
+///
+/// 颜色规则：
+/// - 权重 > 1（增强）：橙/红色系，偏离越大越亮
+/// - 权重 < 1（减弱）：蓝/紫色系，偏离越大越亮
+/// - 结尾 :: ：绿色，表示权重=1的基准标记
+/// - 花括号 {} ：橙色系（同增强）
+/// - 方括号 [] ：蓝色系（同减弱）
 class NaiSyntaxColors {
-  /// 花括号背景色（按深度递增，1-5层）
-  final List<Color> braceBackgrounds;
+  /// 是否为深色主题
+  final bool isDark;
 
-  /// 方括号背景色（按深度递增，1-5层）
-  final List<Color> bracketBackgrounds;
+  /// 结尾 :: 的颜色（绿色，表示权重=1基准）
+  final Color trailingColonBg;
 
-  /// 正权重主体色
-  final Color positiveWeightMainBg;
-
-  /// 正权重结尾色（绿色强调）
-  final Color positiveWeightTrailingBg;
-
-  /// 负权重主体色
-  final Color negativeWeightMainBg;
-
-  /// 负权重结尾色
-  final Color negativeWeightTrailingBg;
-
-  const NaiSyntaxColors({
-    required this.braceBackgrounds,
-    required this.bracketBackgrounds,
-    required this.positiveWeightMainBg,
-    required this.positiveWeightTrailingBg,
-    required this.negativeWeightMainBg,
-    required this.negativeWeightTrailingBg,
+  const NaiSyntaxColors._({
+    required this.isDark,
+    required this.trailingColonBg,
   });
 
-  /// 从主题创建颜色配置（参考官网样式）
-  /// 官网配色：权重 > 1 橙色系，权重 < 1 蓝色系
+  /// 从主题创建颜色配置
   factory NaiSyntaxColors.fromTheme(ThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
 
-    if (isDark) {
-      // 深色主题
-      return const NaiSyntaxColors(
-        // 花括号 {} - 橙色系（增强，深度递增）
-        braceBackgrounds: [
-          Color(0x40FF9800), // 1层
-          Color(0x55FF9800), // 2层
-          Color(0x70FF9800), // 3层
-          Color(0x85FF9800), // 4层
-          Color(0xA0FF9800), // 5层
-        ],
-        // 方括号 [] - 蓝色系（减弱，深度递增）
-        bracketBackgrounds: [
-          Color(0x402196F3), // 1层
-          Color(0x552196F3), // 2层
-          Color(0x702196F3), // 3层
-          Color(0x852196F3), // 4层
-          Color(0xA02196F3), // 5层
-        ],
-        // 数值权重 > 1 - 橙色系
-        positiveWeightMainBg: Color(0x50FF9800),
-        positiveWeightTrailingBg: Color(0x60FF9800),
-        // 数值权重 < 1 - 蓝色系
-        negativeWeightMainBg: Color(0x502196F3),
-        negativeWeightTrailingBg: Color(0x602196F3),
-      );
-    } else {
-      // 浅色主题
-      return const NaiSyntaxColors(
-        // 花括号 {} - 橙色系（增强，深度递增）
-        braceBackgrounds: [
-          Color(0x40FF9800), // 1层
-          Color(0x55FF9800), // 2层
-          Color(0x70FF9800), // 3层
-          Color(0x85FF9800), // 4层
-          Color(0xA0FF9800), // 5层
-        ],
-        // 方括号 [] - 蓝色系（减弱，深度递增）
-        bracketBackgrounds: [
-          Color(0x402196F3), // 1层
-          Color(0x552196F3), // 2层
-          Color(0x702196F3), // 3层
-          Color(0x852196F3), // 4层
-          Color(0xA02196F3), // 5层
-        ],
-        // 数值权重 > 1 - 橙色系
-        positiveWeightMainBg: Color(0x55FF9800),
-        positiveWeightTrailingBg: Color(0x65FF9800),
-        // 数值权重 < 1 - 蓝色系
-        negativeWeightMainBg: Color(0x552196F3),
-        negativeWeightTrailingBg: Color(0x652196F3),
-      );
-    }
+    return NaiSyntaxColors._(
+      isDark: isDark,
+      // 结尾 :: - 绿色 HSL(140, 60%, 40%)
+      trailingColonBg: isDark
+          ? const Color(0x5022C55E) // 深色主题：半透明绿色
+          : const Color(0x4516A34A), // 浅色主题：稍深一点的绿色
+    );
   }
 
-  /// 根据权重值计算颜色亮度
-  /// 权重越大/越小，颜色越亮
-  /// weight > 1: 值越大越亮（从暗棕色到亮橙色）
-  /// weight < 1: 值越小越亮（从深蓝色到亮蓝色）
-  double _getWeightBrightness(double weight) {
-    if (weight >= 1.0) {
-      // 权重 1-10 映射到亮度 0.15-0.55（默认很暗）
-      final normalized = ((weight - 1.0) / 9.0).clamp(0.0, 1.0);
-      return 0.15 + normalized * 0.4;
-    } else {
-      // 权重 0.1-1 映射到亮度 0.15-0.55（越小越亮）
-      final normalized = ((1.0 - weight) / 0.9).clamp(0.0, 1.0);
-      return 0.15 + normalized * 0.4;
-    }
+  /// 花括号颜色（深度1-5，线性变亮）
+  /// 橙色系：HSL(30, 80%, L)
+  Color _getBraceColor(int depth) {
+    // 深度 1 -> L=25%, 深度 5 -> L=50%
+    final lightness = 0.25 + (depth - 1) * 0.0625;
+    final alpha = isDark ? 0.55 : 0.50;
+    return HSLColor.fromAHSL(alpha, 30, 0.80, lightness.clamp(0.25, 0.50))
+        .toColor();
   }
 
-  /// 根据权重生成动态颜色
-  /// 橙色系用于 weight > 1，蓝色系用于 weight < 1
+  /// 方括号颜色（深度1-5，线性变亮）
+  /// 蓝色系：HSL(220, 70%, L)
+  Color _getBracketColor(int depth) {
+    // 深度 1 -> L=25%, 深度 5 -> L=50%
+    final lightness = 0.25 + (depth - 1) * 0.0625;
+    final alpha = isDark ? 0.55 : 0.50;
+    return HSLColor.fromAHSL(alpha, 220, 0.70, lightness.clamp(0.25, 0.50))
+        .toColor();
+  }
+
+  /// 根据权重生成动态颜色（线性变亮）
+  ///
+  /// 权重 > 1：橙/红色系 HSL(30, 80%, L)
+  /// 权重 < 1：蓝色系 HSL(220, 70%, L)
+  ///
+  /// 亮度线性映射：
+  /// - 偏离度 0 (权重=1) -> L = 25% (较暗)
+  /// - 偏离度 2 (权重=3或0.1) -> L = 55% (较亮)
   Color _getWeightColor(double weight) {
-    final brightness = _getWeightBrightness(weight);
+    // 计算偏离度（线性）
+    final deviation = (weight - 1.0).abs();
+
+    // 亮度映射：偏离度 0 -> 25%, 偏离度 2+ -> 55%
+    final lightness = (0.25 + (deviation / 2.0) * 0.30).clamp(0.25, 0.55);
+
+    // 透明度
+    final alpha = isDark ? 0.55 : 0.50;
 
     if (weight > 1.0) {
-      // 暗橙/棕色系：HSL(30, 80%, brightness)
-      return HSLColor.fromAHSL(0.5, 30, 0.8, brightness).toColor();
+      // 橙/红色系：HSL(30, 80%, L)
+      return HSLColor.fromAHSL(alpha, 30, 0.80, lightness).toColor();
     } else if (weight < 1.0) {
-      // 深蓝色系：HSL(220, 70%, brightness)
-      return HSLColor.fromAHSL(0.5, 220, 0.7, brightness).toColor();
-    } else {
-      return Colors.transparent;
+      // 蓝色系：HSL(220, 70%, L)
+      return HSLColor.fromAHSL(alpha, 220, 0.70, lightness).toColor();
     }
+
+    return Colors.transparent;
   }
 
   /// 根据匹配获取背景色
   Color getBackgroundColor(_SyntaxMatch match) {
     switch (match.type) {
       case _SyntaxType.brace:
-        final index = (match.depth - 1).clamp(0, braceBackgrounds.length - 1);
-        return braceBackgrounds[index];
+        return _getBraceColor(match.depth);
       case _SyntaxType.bracket:
-        final index = (match.depth - 1).clamp(0, bracketBackgrounds.length - 1);
-        return bracketBackgrounds[index];
+        return _getBracketColor(match.depth);
       case _SyntaxType.weightMain:
-      case _SyntaxType.weightTrailing:
         return _getWeightColor(match.weight);
+      case _SyntaxType.weightTrailing:
+        // 结尾 :: 使用绿色
+        return trailingColonBg;
     }
   }
 }

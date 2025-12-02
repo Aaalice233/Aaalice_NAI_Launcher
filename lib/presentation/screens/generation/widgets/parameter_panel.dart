@@ -10,7 +10,8 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
 import 'img2img_panel.dart';
-import 'unified_reference_panel.dart';
+import 'vibe_transfer_panel_v2.dart';
+import 'character_reference_panel.dart';
 import 'character_panel.dart';
 import 'prompt_input.dart';
 
@@ -303,8 +304,13 @@ class ParameterPanel extends ConsumerWidget {
 
         const SizedBox(height: 8),
 
-        // 统一参考面板 (风格迁移 / 角色参考 二选一)
-        const UnifiedReferencePanel(),
+        // V2 风格迁移面板 (支持预编码 Vibe 和拖拽上传)
+        const VibeTransferPanelV2(),
+
+        const SizedBox(height: 8),
+
+        // 角色参考面板 (仅 V4 模型显示)
+        const CharacterReferencePanel(),
 
         const SizedBox(height: 8),
 

@@ -186,6 +186,9 @@
   "prompt_autoFormatSubtitle": "中文逗号转英文、补齐括号等",
   "prompt_highlightEmphasis": "高亮强调",
   "prompt_highlightEmphasisSubtitle": "括号和权重语法高亮显示",
+  "prompt_sdSyntaxAutoConvert": "SD语法自动转换",
+  "prompt_sdSyntaxAutoConvertSubtitle": "失焦时将SD权重语法转换为NAI格式",
+  "prompt_formatted": "已格式化",
   "prompt_textMode": "文本",
   "prompt_tagMode": "标签",
   "prompt_switchToTagView": "切换到标签视图",
@@ -287,6 +290,7 @@
 
   "vibe_title": "风格迁移",
   "vibe_hint": "添加参考图片来迁移其视觉风格和氛围（最多4张）",
+  "vibe_description": "改变图像，保留视觉风格",
   "vibe_addReference": "添加参考图",
   "vibe_clearAll": "清除全部",
   "vibe_referenceNumber": "参考图 #{index}",
@@ -296,6 +300,13 @@
   "vibe_remove": "移除",
   "vibe_sliderHint": "强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图",
   "vibe_strengthInfo": "强度: {value} | 信息提取: {infoValue}",
+  "vibe_normalize": "标准化参考强度值",
+  "vibe_encodingCost": "需要编码。下次生成将消耗 {cost} Anlas。",
+  "@vibe_encodingCost": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
 
   "characterRef_title": "角色参考",
   "characterRef_hint": "上传角色参考图来保持角色一致性（最多4张，仅 V4+ 模型支持）",
@@ -717,5 +728,23 @@
     "placeholders": {
       "error": {}
     }
-  }
+  },
+
+  "common_close": "关闭",
+
+  "drop_dialogTitle": "如何使用这张图片？",
+  "drop_hint": "拖拽图片到这里",
+  "drop_img2img": "图生图",
+  "drop_vibeTransfer": "风格迁移",
+  "drop_characterReference": "角色参考",
+  "drop_unsupportedFormat": "不支持的文件格式",
+  "drop_addedToImg2Img": "已添加到图生图",
+  "drop_addedToVibe": "已添加到风格迁移",
+  "drop_addedMultipleToVibe": "已添加 {count} 个风格参考",
+  "@drop_addedMultipleToVibe": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "drop_addedToCharacterRef": "已添加到角色参考"
 }

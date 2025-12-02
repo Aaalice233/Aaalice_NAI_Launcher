@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/tag_data_service.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
+import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/models/tag/local_tag.dart';
 import '../../providers/locale_provider.dart';
 import '../common/app_toast.dart';
@@ -49,6 +51,9 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
   /// 是否启用自动格式化（失焦时自动格式化提示词）
   final bool enableAutoFormat;
 
+  /// 是否启用 SD 语法自动转换（失焦时将 SD 权重语法转换为 NAI 格式）
+  final bool enableSdSyntaxAutoConvert;
+
   const AutocompleteTextField({
     super.key,
     required this.controller,
@@ -63,6 +68,7 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
     this.config = const AutocompleteConfig(),
     this.enableAutocomplete = true,
     this.enableAutoFormat = true,
+    this.enableSdSyntaxAutoConvert = false,
   });
 
   @override
@@ -136,18 +142,40 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
   /// 失焦时格式化提示词
   void _formatOnBlur() {
-    if (!widget.enableAutoFormat) return;
-    
-    final text = widget.controller.text;
+    var text = widget.controller.text;
     if (text.isEmpty) return;
 
-    final formatted = NaiPromptFormatter.format(text);
-    if (formatted != text) {
-      widget.controller.text = formatted;
-      widget.onChanged?.call(formatted);
-      // 显示简短的格式化提示
-      if (mounted) {
-        AppToast.info(context, '已格式化');
+    var changed = false;
+    var messages = <String>[];
+
+    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
+    if (widget.enableSdSyntaxAutoConvert) {
+      final converted = SdToNaiConverter.convert(text);
+      if (converted != text) {
+        text = converted;
+        changed = true;
+        messages.add('SD→NAI');
+      }
+    }
+
+    // 自动格式化
+    if (widget.enableAutoFormat) {
+      final formatted = NaiPromptFormatter.format(text);
+      if (formatted != text) {
+        text = formatted;
+        changed = true;
+        if (!messages.contains('SD→NAI')) {
+          messages.add(context.l10n.prompt_formatted);
+        }
+      }
+    }
+
+    if (changed) {
+      widget.controller.text = text;
+      widget.onChanged?.call(text);
+      // 显示简短的提示
+      if (mounted && messages.isNotEmpty) {
+        AppToast.info(context, messages.join(' + '));
       }
     }
   }
@@ -185,12 +213,6 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
       return '';
     }
 
-    // 检查是否在特殊语法区域内
-    if (_isInSpecialSyntax(text, cursorPosition)) {
-      // 在特殊语法内，仍然支持标签补全
-      // 但需要找到正确的标签边界
-    }
-
     // 找到光标位置前的最后一个逗号或特殊分隔符
     final textBeforeCursor = text.substring(0, cursorPosition);
     
@@ -198,21 +220,32 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     var lastSeparatorIndex = -1;
     for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
       final char = textBeforeCursor[i];
-      if (char == ',' || char == '，' || char == '|') {
-        // 检查是否是双竖线 ||
-        if (char == '|' && i > 0 && textBeforeCursor[i - 1] == '|') {
-          continue; // 跳过双竖线
-        }
+      if (char == ',' || char == '，') {
         lastSeparatorIndex = i;
         break;
+      }
+      // 检查单竖线分隔符（跳过双竖线 ||）
+      if (char == '|') {
+        // 检查是否是双竖线的一部分
+        final isPartOfDoublePipe =
+            (i > 0 && textBeforeCursor[i - 1] == '|') ||
+            (i < textBeforeCursor.length - 1 && textBeforeCursor[i + 1] == '|');
+        if (!isPartOfDoublePipe) {
+          lastSeparatorIndex = i;
+          break;
+        }
+        // 如果是双竖线，跳过这两个字符
+        if (i > 0 && textBeforeCursor[i - 1] == '|') {
+          i--; // 跳过前一个 |
+        }
       }
     }
 
     // 获取当前标签
     var currentTag = textBeforeCursor.substring(lastSeparatorIndex + 1).trim();
 
-    // 移除可能的权重语法前缀
-    final weightMatch = RegExp(r'^-?\d+\.?\d*::').firstMatch(currentTag);
+    // 移除可能的权重语法前缀（支持 1.5:: 和 .5:: 格式）
+    final weightMatch = RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(currentTag);
     if (weightMatch != null) {
       currentTag = currentTag.substring(weightMatch.end);
     }
@@ -221,24 +254,6 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     currentTag = currentTag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
 
     return currentTag.trim();
-  }
-
-  /// 检查光标是否在特殊语法区域内
-  bool _isInSpecialSyntax(String text, int cursorPosition) {
-    // 简单检查是否在括号或特殊语法内
-    // 这里可以根据需要扩展
-    var braceCount = 0;
-    var bracketCount = 0;
-
-    for (var i = 0; i < cursorPosition && i < text.length; i++) {
-      final char = text[i];
-      if (char == '{') braceCount++;
-      if (char == '}') braceCount--;
-      if (char == '[') bracketCount++;
-      if (char == ']') bracketCount--;
-    }
-
-    return braceCount > 0 || bracketCount > 0;
   }
 
   void _showSuggestionsOverlay() {
@@ -307,8 +322,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
     // 找到当前标签的范围
     final textBeforeCursor = text.substring(0, cursorPosition);
-    
-    // 查找最后一个分隔符（支持中英文逗号）
+
+    // 查找最后一个分隔符（支持中英文逗号和单竖线，但跳过双竖线）
     var lastSeparatorIndex = -1;
     for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
       final char = textBeforeCursor[i];
@@ -316,17 +331,45 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         lastSeparatorIndex = i;
         break;
       }
+      // 检查单竖线分隔符（跳过双竖线 ||）
+      if (char == '|') {
+        final isPartOfDoublePipe =
+            (i > 0 && textBeforeCursor[i - 1] == '|') ||
+            (i < textBeforeCursor.length - 1 && textBeforeCursor[i + 1] == '|');
+        if (!isPartOfDoublePipe) {
+          lastSeparatorIndex = i;
+          break;
+        }
+        // 如果是双竖线，跳过这两个字符
+        if (i > 0 && textBeforeCursor[i - 1] == '|') {
+          i--;
+        }
+      }
     }
 
     final tagStart = lastSeparatorIndex + 1;
 
-    // 找到标签结束位置（支持中英文逗号）
+    // 找到标签结束位置（支持中英文逗号和单竖线，但跳过双竖线）
     var tagEnd = cursorPosition;
     for (var i = cursorPosition; i < text.length; i++) {
       final char = text[i];
       if (char == ',' || char == '，') {
         tagEnd = i;
         break;
+      }
+      // 检查单竖线分隔符（跳过双竖线 ||）
+      if (char == '|') {
+        final isPartOfDoublePipe =
+            (i > 0 && text[i - 1] == '|') ||
+            (i < text.length - 1 && text[i + 1] == '|');
+        if (!isPartOfDoublePipe) {
+          tagEnd = i;
+          break;
+        }
+        // 如果是双竖线，跳过这两个字符
+        if (i < text.length - 1 && text[i + 1] == '|') {
+          i++;
+        }
       }
     }
     if (tagEnd == cursorPosition) {
