@@ -2,17 +2,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../image_editor_controller.dart';
-import '../tools/tool_type.dart';
-import 'canvas_painter.dart';
+import '../core/editor_state.dart';
+import 'layer_painter.dart';
 
 /// 编辑器画布组件
+/// 处理绑制、手势和键盘交互
 class EditorCanvas extends StatefulWidget {
-  final ImageEditorController controller;
+  final EditorState state;
 
   const EditorCanvas({
     super.key,
-    required this.controller,
+    required this.state,
   });
 
   @override
@@ -21,566 +21,381 @@ class EditorCanvas extends StatefulWidget {
 
 class _EditorCanvasState extends State<EditorCanvas>
     with SingleTickerProviderStateMixin {
-  // Marching Ants 动画控制器
-  late AnimationController _marchingAntsController;
-
-  // 手势状态
+  // 键盘状态
   bool _isSpacePressed = false;
-  bool _isPanning = false;
   bool _isShiftPressed = false;
+  bool _isCtrlPressed = false;
   bool _isAltPressed = false;
+
+  // 平移状态
+  bool _isPanning = false;
   Offset? _lastPanPosition;
-  double _lastScale = 1.0;
 
-  // 选区绘制状态
-  Offset? _selectionStart;
-  Rect? _currentSelectionRect;
+  // 缩放手势的初始scale（用于双指缩放）
+  double _initialScale = 1.0;
 
-  // 是否已初始化视图
-  bool _viewInitialized = false;
+  // 光标位置
+  Offset? _cursorPosition;
+
+  // 选区动画控制器
+  late AnimationController _selectionAnimationController;
+
+  // 焦点节点
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _marchingAntsController = AnimationController(
+    _selectionAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     )..repeat();
-
-    widget.controller.addListener(_onControllerChanged);
-  }
-
-  void _onControllerChanged() {
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _marchingAntsController.dispose();
-    widget.controller.removeListener(_onControllerChanged);
+    _selectionAnimationController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // 首次渲染时，适应视口大小
-        if (!_viewInitialized && widget.controller.baseImage != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            widget.controller.fitToViewport(
-              Size(constraints.maxWidth, constraints.maxHeight),
-            );
-            _viewInitialized = true;
-          });
-        }
-
-        return Focus(
-          autofocus: true,
-          onKeyEvent: _handleKeyEvent,
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Listener(
+        onPointerSignal: _handlePointerSignal,
+        onPointerHover: _handlePointerHover,
+        child: GestureDetector(
+          onScaleStart: _handleScaleStart,
+          onScaleUpdate: _handleScaleUpdate,
+          onScaleEnd: _handleScaleEnd,
           child: MouseRegion(
             cursor: _getCursor(),
-            onHover: _handleHover,
-            onExit: (_) => setState(() => _lastPointerPosition = null),
-            child: Listener(
-              onPointerSignal: _handlePointerSignal,
-              child: GestureDetector(
-                onScaleStart: _handleScaleStart,
-                onScaleUpdate: _handleScaleUpdate,
-                onScaleEnd: _handleScaleEnd,
-                child: ClipRect(
+            onExit: (_) {
+              setState(() {
+                _cursorPosition = null;
+              });
+            },
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // 更新视口尺寸
+                widget.state.canvasController.setViewportSize(
+                  Size(constraints.maxWidth, constraints.maxHeight),
+                );
+
+                return ClipRect(
                   child: Stack(
                     children: [
-                      // 棋盘格背景
+                      // 背景
                       Positioned.fill(
-                        child: CustomPaint(
-                          painter: CheckerboardPainter(),
+                        child: Container(
+                          color: Colors.grey.shade800,
                         ),
                       ),
 
-                      // 主画布
+                      // 图层绑制
                       Positioned.fill(
                         child: CustomPaint(
-                          painter: CanvasPainter(
-                            baseImage: widget.controller.baseImage,
-                            strokes: widget.controller.imageStrokes,
-                            currentStroke: widget.controller.currentStroke,
-                            maskPath: widget.controller.maskPath,
-                            currentTool: widget.controller.currentTool,
-                            scale: widget.controller.scale,
-                            offset: widget.controller.offset,
+                          painter: LayerPainter(state: widget.state),
+                          isComplex: true,
+                          willChange: true,
+                        ),
+                      ),
+
+                      // 选区绑制
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: SelectionPainter(
+                            state: widget.state,
+                            animation: _selectionAnimationController,
                           ),
                         ),
                       ),
 
-                      // 选区预览（正在绘制的选区）
-                      if (_currentSelectionRect != null)
+                      // 光标绘制
+                      if (_cursorPosition != null)
                         Positioned.fill(
                           child: CustomPaint(
-                            painter: _SelectionPreviewPainter(
-                              rect: _currentSelectionRect!,
-                              isEllipse:
-                                  widget.controller.currentTool == ToolType.ellipseSelect,
-                              scale: widget.controller.scale,
-                              offset: widget.controller.offset,
-                              isSubtractive: _isAltPressed,
+                            painter: CursorPainter(
+                              state: widget.state,
+                              cursorPosition: _cursorPosition,
                             ),
+                            willChange: true,
                           ),
                         ),
 
-                      // 遮罩叠加层预览（半透明）- 有遮罩时始终显示
-                      if (widget.controller.maskPath != null)
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: MaskOverlayPainter(
-                              baseImage: widget.controller.baseImage,
-                              maskPath: widget.controller.maskPath,
-                              scale: widget.controller.scale,
-                              offset: widget.controller.offset,
-                            ),
-                          ),
-                        ),
-
-                      // Marching Ants 动画 - 有遮罩时始终显示
-                      if (widget.controller.maskPath != null)
-                        Positioned.fill(
-                          child: AnimatedBuilder(
-                            animation: _marchingAntsController,
-                            builder: (context, child) {
-                              return CustomPaint(
-                                painter: MarchingAntsPainter(
-                                  selectionPath: widget.controller.maskPath,
-                                  phase: _marchingAntsController.value * 8,
-                                  scale: widget.controller.scale,
-                                  offset: widget.controller.offset,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-
-                      // 笔刷大小预览（跟随鼠标）- 仅绘画工具显示
-                      if (_lastPointerPosition != null &&
-                          widget.controller.currentTool.isPaintTool)
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: _BrushCursorPainter(
-                              position: _lastPointerPosition!,
-                              brushSize: widget.controller.brushSettings.size,
-                              scale: widget.controller.scale,
-                              offset: widget.controller.offset,
-                              color: widget.controller.currentColor,
-                            ),
-                          ),
-                        ),
+                      // 拾色器预览
+                      if (widget.state.currentTool?.id == 'color_picker')
+                        _buildColorPickerOverlay(),
                     ],
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  /// 获取当前光标样式
-  MouseCursor _getCursor() {
-    if (_isSpacePressed || _isPanning) {
-      return SystemMouseCursors.grab;
-    }
-    final tool = widget.controller.currentTool;
-    if (tool == ToolType.rectSelect || tool == ToolType.ellipseSelect) {
-      return SystemMouseCursors.precise;
-    }
-    // 画笔和橡皮擦使用自定义光标（通过 BrushCursorPainter 显示）
-    return SystemMouseCursors.none;
+  /// 构建拾色器预览覆盖层
+  Widget _buildColorPickerOverlay() {
+    final tool = widget.state.currentTool;
+    if (tool == null) return const SizedBox.shrink();
+
+    final cursor = tool.buildCursor(widget.state);
+    if (cursor == null) return const SizedBox.shrink();
+
+    return cursor;
   }
 
-  // 鼠标位置（用于笔刷预览）
-  Offset? _lastPointerPosition;
+  /// 同步修饰键状态
+  /// 用于处理窗口切换后状态不同步的问题
+  void _syncModifierKeys() {
+    final keyboard = HardwareKeyboard.instance;
+    _isShiftPressed = keyboard.isShiftPressed;
+    _isCtrlPressed = keyboard.isControlPressed;
+    _isAltPressed = keyboard.isAltPressed;
+  }
 
-  /// 处理鼠标悬停
-  void _handleHover(PointerHoverEvent event) {
-    final tool = widget.controller.currentTool;
-    // 只有画笔和橡皮擦工具显示笔刷预览
-    if (tool == ToolType.brush || tool == ToolType.eraser) {
-      setState(() {
-        _lastPointerPosition = event.localPosition;
-      });
+  /// 获取光标样式
+  MouseCursor _getCursor() {
+    if (_isPanning || _isSpacePressed) {
+      return SystemMouseCursors.grab;
+    }
+
+    final tool = widget.state.currentTool;
+    if (tool == null) return SystemMouseCursors.basic;
+
+    switch (tool.id) {
+      case 'brush':
+      case 'eraser':
+        return SystemMouseCursors.none;
+      case 'rect_selection':
+      case 'ellipse_selection':
+      case 'lasso_selection':
+        return SystemMouseCursors.precise;
+      case 'color_picker':
+        return SystemMouseCursors.precise;
+      default:
+        return SystemMouseCursors.basic;
     }
   }
 
   /// 处理键盘事件
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    // 空格键：切换平移模式
+    final isDown = event is KeyDownEvent;
+    final isUp = event is KeyUpEvent;
+
+    // 同步修饰键状态（使用 HardwareKeyboard 确保状态准确）
+    // 这可以处理窗口切换后状态不同步的问题
+    _syncModifierKeys();
+
+    // 更新空格键状态
     if (event.logicalKey == LogicalKeyboardKey.space) {
-      _isSpacePressed = event is KeyDownEvent;
+      if (isDown) _isSpacePressed = true;
+      if (isUp) _isSpacePressed = false;
+      setState(() {});
       return KeyEventResult.handled;
     }
 
-    // Shift/Alt 键状态更新
+    // Shift 键
     if (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
         event.logicalKey == LogicalKeyboardKey.shiftRight) {
-      _isShiftPressed = event is KeyDownEvent;
+      if (isDown) _isShiftPressed = true;
+      if (isUp) _isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
       return KeyEventResult.handled;
     }
+
+    // Ctrl 键
+    if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+        event.logicalKey == LogicalKeyboardKey.controlRight) {
+      if (isDown) _isCtrlPressed = true;
+      if (isUp) _isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+      return KeyEventResult.handled;
+    }
+
+    // Alt 键
     if (event.logicalKey == LogicalKeyboardKey.altLeft ||
         event.logicalKey == LogicalKeyboardKey.altRight) {
-      _isAltPressed = event is KeyDownEvent;
+      if (isDown) _isAltPressed = true;
+      if (isUp) _isAltPressed = HardwareKeyboard.instance.isAltPressed;
       return KeyEventResult.handled;
     }
 
-    // 快捷键
-    if (event is KeyDownEvent) {
-      final isCtrl = HardwareKeyboard.instance.isControlPressed;
-      final isShift = HardwareKeyboard.instance.isShiftPressed;
-
-      // Escape: 取消当前操作
-      if (event.logicalKey == LogicalKeyboardKey.escape) {
-        _cancelCurrentOperation();
-        return KeyEventResult.handled;
+    // 快捷键处理
+    if (isDown && _isCtrlPressed) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.keyZ:
+          if (_isShiftPressed) {
+            widget.state.redo();
+          } else {
+            widget.state.undo();
+          }
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.keyY:
+          widget.state.redo();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.digit0:
+          widget.state.canvasController.resetTo100();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.equal:
+        case LogicalKeyboardKey.add:
+          widget.state.canvasController.zoomIn();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.minus:
+          widget.state.canvasController.zoomOut();
+          return KeyEventResult.handled;
       }
+    }
 
-      // Ctrl+Z: 撤销
-      if (isCtrl && !isShift && event.logicalKey == LogicalKeyboardKey.keyZ) {
-        widget.controller.undo();
-        return KeyEventResult.handled;
-      }
-
-      // Ctrl+Y 或 Ctrl+Shift+Z: 重做
-      if ((isCtrl && event.logicalKey == LogicalKeyboardKey.keyY) ||
-          (isCtrl && isShift && event.logicalKey == LogicalKeyboardKey.keyZ)) {
-        widget.controller.redo();
-        return KeyEventResult.handled;
-      }
-
-      // B: 画笔
-      if (event.logicalKey == LogicalKeyboardKey.keyB) {
-        widget.controller.setTool(ToolType.brush);
-        return KeyEventResult.handled;
-      }
-
-      // E: 橡皮擦
-      if (event.logicalKey == LogicalKeyboardKey.keyE) {
-        widget.controller.setTool(ToolType.eraser);
-        return KeyEventResult.handled;
-      }
-
-      // R: 矩形选框
-      if (event.logicalKey == LogicalKeyboardKey.keyR) {
-        widget.controller.setTool(ToolType.rectSelect);
-        return KeyEventResult.handled;
-      }
-
-      // O: 椭圆选框
-      if (event.logicalKey == LogicalKeyboardKey.keyO) {
-        widget.controller.setTool(ToolType.ellipseSelect);
-        return KeyEventResult.handled;
-      }
-
-      // [: 减小笔刷大小
-      if (event.logicalKey == LogicalKeyboardKey.bracketLeft) {
-        final newSize = widget.controller.brushSettings.size - 5;
-        widget.controller.setBrushSize(newSize);
-        return KeyEventResult.handled;
-      }
-
-      // ]: 增大笔刷大小
-      if (event.logicalKey == LogicalKeyboardKey.bracketRight) {
-        final newSize = widget.controller.brushSettings.size + 5;
-        widget.controller.setBrushSize(newSize);
-        return KeyEventResult.handled;
-      }
-
-      // 0: 重置缩放到 100%
-      if (event.logicalKey == LogicalKeyboardKey.digit0) {
-        widget.controller.setScale(1.0);
-        return KeyEventResult.handled;
-      }
-
-      // F: 适应屏幕
-      if (event.logicalKey == LogicalKeyboardKey.keyF) {
-        final renderBox = context.findRenderObject() as RenderBox?;
-        if (renderBox != null) {
-          widget.controller.fitToViewport(renderBox.size);
+    // 工具快捷键
+    if (isDown && !_isCtrlPressed) {
+      for (final tool in widget.state.tools) {
+        if (tool.shortcutKey == event.logicalKey) {
+          widget.state.setTool(tool);
+          return KeyEventResult.handled;
         }
-        return KeyEventResult.handled;
+      }
+
+      // 其他快捷键
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.escape:
+          widget.state.cancelStroke();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.delete:
+        case LogicalKeyboardKey.backspace:
+          if (widget.state.selectionPath != null) {
+            widget.state.clearSelection();
+          }
+          return KeyEventResult.handled;
       }
     }
 
     return KeyEventResult.ignored;
   }
 
-  /// 取消当前操作
-  void _cancelCurrentOperation() {
-    // 取消正在绘制的选区
-    if (_currentSelectionRect != null) {
-      setState(() {
-        _selectionStart = null;
-        _currentSelectionRect = null;
-      });
-    }
-    // 取消正在绘制的笔画 - 需要在 controller 中添加方法
-    widget.controller.cancelCurrentStroke();
-  }
-
-  /// 处理鼠标滚轮事件
+  /// 处理鼠标滚轮
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      // 滚轮缩放 - 向光标位置缩放
-      final oldScale = widget.controller.scale;
-      final delta = event.scrollDelta.dy > 0 ? -0.1 : 0.1;
-      final newScale = (oldScale + delta).clamp(0.1, 10.0);
-
-      if (newScale != oldScale) {
-        // 计算缩放中心点（光标位置）
-        final localPosition = event.localPosition;
-        final canvasPoint = (localPosition - widget.controller.offset) / oldScale;
-
-        // 计算新的偏移量，使缩放中心保持不变
-        final newOffset = localPosition - canvasPoint * newScale;
-
-        widget.controller.setScale(newScale);
-        widget.controller.setOffset(newOffset);
-      }
-    }
-  }
-
-  /// 处理缩放/平移开始
-  void _handleScaleStart(ScaleStartDetails details) {
-    _lastScale = widget.controller.scale;
-    _lastPanPosition = details.focalPoint;
-
-    // 判断是否为平移操作
-    if (_isSpacePressed || details.pointerCount >= 2) {
-      _isPanning = true;
-      return;
-    }
-
-    // 选区工具
-    if (_isSelectionTool()) {
-      _selectionStart = _toCanvasPoint(details.focalPoint);
-      return;
-    }
-
-    // 开始绘制
-    final canvasPoint = _toCanvasPoint(details.focalPoint);
-    widget.controller.startStroke(canvasPoint);
-  }
-
-  /// 处理缩放/平移更新
-  void _handleScaleUpdate(ScaleUpdateDetails details) {
-    // 双指缩放
-    if (details.pointerCount >= 2) {
-      final newScale = _lastScale * details.scale;
-      widget.controller.setScale(newScale);
-
-      // 同时平移
-      if (_lastPanPosition != null) {
-        final delta = details.focalPoint - _lastPanPosition!;
-        final newOffset = widget.controller.offset + delta;
-        widget.controller.setOffset(newOffset);
-        _lastPanPosition = details.focalPoint;
-      }
-      return;
-    }
-
-    // 平移
-    if (_isPanning && _lastPanPosition != null) {
-      final delta = details.focalPoint - _lastPanPosition!;
-      final newOffset = widget.controller.offset + delta;
-      widget.controller.setOffset(newOffset);
-      _lastPanPosition = details.focalPoint;
-      return;
-    }
-
-    // 选区工具
-    if (_isSelectionTool() && _selectionStart != null) {
-      final currentPoint = _toCanvasPoint(details.focalPoint);
-      setState(() {
-        _currentSelectionRect = Rect.fromPoints(_selectionStart!, currentPoint);
-      });
-      return;
-    }
-
-    // 绘制
-    final canvasPoint = _toCanvasPoint(details.focalPoint);
-    widget.controller.updateStroke(canvasPoint);
-  }
-
-  /// 处理缩放/平移结束
-  void _handleScaleEnd(ScaleEndDetails details) {
-    _isPanning = false;
-    _lastPanPosition = null;
-
-    // 完成选区
-    if (_isSelectionTool() && _currentSelectionRect != null) {
-      final isEllipse = widget.controller.currentTool == ToolType.ellipseSelect;
-      // Shift: 加法选区, Alt: 减法选区, 默认: 替换选区
-      final additive = _isShiftPressed || (!_isAltPressed && widget.controller.maskPath == null);
-      final subtractive = _isAltPressed;
-
-      if (subtractive) {
-        // Alt 按下：减法选区
-        if (isEllipse) {
-          widget.controller.addEllipseSelection(_currentSelectionRect!, additive: false);
+      if (_isCtrlPressed) {
+        // Ctrl + 滚轮 = 缩放
+        final delta = event.scrollDelta.dy;
+        if (delta < 0) {
+          widget.state.canvasController.zoomIn(focalPoint: event.localPosition);
         } else {
-          widget.controller.addRectSelection(_currentSelectionRect!, additive: false);
+          widget.state.canvasController.zoomOut(focalPoint: event.localPosition);
         }
       } else {
-        // Shift 或首次：加法选区
-        if (isEllipse) {
-          widget.controller.addEllipseSelection(_currentSelectionRect!, additive: additive);
-        } else {
-          widget.controller.addRectSelection(_currentSelectionRect!, additive: additive);
-        }
+        // 滚轮 = 平移
+        widget.state.canvasController.pan(
+          Offset(-event.scrollDelta.dx, -event.scrollDelta.dy),
+        );
       }
-      _selectionStart = null;
-      setState(() {
-        _currentSelectionRect = null;
-      });
+    }
+  }
+
+  /// 处理鼠标悬停
+  void _handlePointerHover(PointerHoverEvent event) {
+    setState(() {
+      _cursorPosition = event.localPosition;
+    });
+  }
+
+  /// 处理缩放/平移手势开始
+  void _handleScaleStart(ScaleStartDetails details) {
+    // 空格按下时进入平移模式
+    if (_isSpacePressed || details.pointerCount > 1) {
+      _isPanning = true;
+      _lastPanPosition = details.focalPoint;
+      // 保存手势开始时的缩放比例，用于计算增量缩放
+      _initialScale = widget.state.canvasController.scale;
+      setState(() {});
       return;
     }
 
-    // 完成绘制
-    widget.controller.endStroke();
+    // 更新光标位置
+    setState(() {
+      _cursorPosition = details.localFocalPoint;
+    });
+
+    // 触发工具的指针按下
+    final tool = widget.state.currentTool;
+    if (tool != null) {
+      // 将屏幕坐标转换为画布坐标
+      final canvasPosition = widget.state.canvasController.screenToCanvas(
+        details.localFocalPoint,
+      );
+      tool.onPointerDown(
+        PointerDownEvent(position: canvasPosition),
+        widget.state,
+      );
+    }
   }
 
-  /// 转换屏幕坐标到画布坐标
-  Offset _toCanvasPoint(Offset screenPoint) {
-    final renderBox = context.findRenderObject() as RenderBox;
-    final localPoint = renderBox.globalToLocal(screenPoint);
-    return (localPoint - widget.controller.offset) / widget.controller.scale;
-  }
+  /// 处理缩放/平移手势更新
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    if (_isPanning) {
+      // 平移模式
+      if (_lastPanPosition != null) {
+        final delta = details.focalPoint - _lastPanPosition!;
+        widget.state.canvasController.pan(delta);
+        _lastPanPosition = details.focalPoint;
+      }
 
-  /// 是否为选区工具
-  bool _isSelectionTool() {
-    return widget.controller.currentTool == ToolType.rectSelect ||
-        widget.controller.currentTool == ToolType.ellipseSelect;
-  }
-}
-
-/// 选区预览绘制器
-class _SelectionPreviewPainter extends CustomPainter {
-  final Rect rect;
-  final bool isEllipse;
-  final double scale;
-  final Offset offset;
-  final bool isSubtractive;
-
-  _SelectionPreviewPainter({
-    required this.rect,
-    required this.isEllipse,
-    required this.scale,
-    required this.offset,
-    this.isSubtractive = false,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.translate(offset.dx, offset.dy);
-    canvas.scale(scale);
-
-    // 填充预览（半透明）
-    final fillPaint = Paint()
-      ..color = isSubtractive
-          ? const Color(0x30FF6B6B) // 减法：红色
-          : const Color(0x306BFF6B) // 加法：绿色
-      ..style = PaintingStyle.fill;
-
-    if (isEllipse) {
-      canvas.drawOval(rect, fillPaint);
-    } else {
-      canvas.drawRect(rect, fillPaint);
+      // 双指缩放：使用初始scale乘以手势累积scale
+      if (details.pointerCount > 1 && details.scale != 1.0) {
+        final newScale = _initialScale * details.scale;
+        widget.state.canvasController.setScale(
+          newScale,
+          focalPoint: details.localFocalPoint,
+        );
+      }
+      return;
     }
 
-    // 边框
-    final strokePaint = Paint()
-      ..color = isSubtractive ? Colors.red : Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5 / scale;
+    // 更新光标位置（保持屏幕坐标用于显示）
+    setState(() {
+      _cursorPosition = details.localFocalPoint;
+    });
 
-    if (isEllipse) {
-      canvas.drawOval(rect, strokePaint);
-    } else {
-      canvas.drawRect(rect, strokePaint);
+    // 触发工具的指针移动
+    final tool = widget.state.currentTool;
+    if (tool != null) {
+      // 将屏幕坐标转换为画布坐标
+      final canvasPosition = widget.state.canvasController.screenToCanvas(
+        details.localFocalPoint,
+      );
+      tool.onPointerMove(
+        PointerMoveEvent(position: canvasPosition),
+        widget.state,
+      );
+    }
+  }
+
+  /// 处理缩放/平移手势结束
+  void _handleScaleEnd(ScaleEndDetails details) {
+    if (_isPanning) {
+      _isPanning = false;
+      _lastPanPosition = null;
+      setState(() {});
+      return;
     }
 
-    // 虚线效果
-    final dashPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0 / scale;
-
-    // 简单虚线
-    final path = isEllipse ? (Path()..addOval(rect)) : (Path()..addRect(rect));
-    canvas.drawPath(path, dashPaint);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _SelectionPreviewPainter oldDelegate) {
-    return rect != oldDelegate.rect ||
-        isEllipse != oldDelegate.isEllipse ||
-        scale != oldDelegate.scale ||
-        offset != oldDelegate.offset ||
-        isSubtractive != oldDelegate.isSubtractive;
-  }
-}
-
-/// 笔刷光标绘制器
-class _BrushCursorPainter extends CustomPainter {
-  final Offset position;
-  final double brushSize;
-  final double scale;
-  final Offset offset;
-  final Color color;
-
-  _BrushCursorPainter({
-    required this.position,
-    required this.brushSize,
-    required this.scale,
-    required this.offset,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 计算实际显示的笔刷大小
-    final displaySize = brushSize * scale;
-
-    // 外圈（白色）
-    final outerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    canvas.drawCircle(position, displaySize / 2, outerPaint);
-
-    // 内圈（黑色）
-    final innerPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    canvas.drawCircle(position, displaySize / 2 - 1, innerPaint);
-
-    // 中心点
-    final centerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(position, 2, centerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BrushCursorPainter oldDelegate) {
-    return position != oldDelegate.position ||
-        brushSize != oldDelegate.brushSize ||
-        scale != oldDelegate.scale ||
-        color != oldDelegate.color;
+    // 触发工具的指针抬起
+    final tool = widget.state.currentTool;
+    if (tool != null) {
+      // 使用最后的光标位置转换为画布坐标
+      final canvasPosition = _cursorPosition != null
+          ? widget.state.canvasController.screenToCanvas(_cursorPosition!)
+          : Offset.zero;
+      tool.onPointerUp(
+        PointerUpEvent(position: canvasPosition),
+        widget.state,
+      );
+    }
   }
 }

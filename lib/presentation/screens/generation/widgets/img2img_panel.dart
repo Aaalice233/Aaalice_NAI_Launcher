@@ -8,7 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../widgets/image_editor/image_editor_dialog.dart';
+import '../../../widgets/image_editor/image_editor_screen.dart';
 
 /// Img2Img 面板组件
 class Img2ImgPanel extends ConsumerStatefulWidget {
@@ -448,10 +448,11 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   Future<void> _openEditor(Uint8List imageBytes) async {
     final params = ref.read(generationParamsNotifierProvider);
 
-    final result = await ImageEditorDialog.show(
-      context: context,
-      imageBytes: imageBytes,
+    final result = await ImageEditorScreen.show(
+      context,
+      initialImage: imageBytes,
       existingMask: params.maskImage,
+      title: context.l10n.editor_title,
     );
 
     if (result != null && mounted) {
