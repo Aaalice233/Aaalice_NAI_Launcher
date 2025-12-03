@@ -11,6 +11,7 @@ import '../../../../data/datasources/remote/nai_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/hover_image_preview.dart';
 
 /// 参考模式类型
 enum ReferenceMode {
@@ -66,98 +67,202 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       _manualMode = null;
     }
 
+    // 判断是否显示背景（折叠且有数据时显示）
+    final showBackground = hasAnyRefs && !_isExpanded;
+
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          // 标题栏
-          InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+          // 背景图片层
+          if (showBackground)
+            Positioned.fill(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Icon(
-                    Icons.auto_fix_high,
-                    size: 20,
-                    color: hasAnyRefs
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      context.l10n.unifiedRef_title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: hasAnyRefs ? theme.colorScheme.primary : null,
+                  // 背景图
+                  _buildBackgroundImage(params, hasVibes, hasCharacterRefs),
+                  // 暗化遮罩
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.5),
+                          Colors.black.withOpacity(0.75),
+                        ],
                       ),
                     ),
                   ),
-                  if (hasAnyRefs)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                ],
+              ),
+            ),
+          // 内容层
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 标题栏
+              InkWell(
+                onTap: () => setState(() => _isExpanded = !_isExpanded),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.auto_fix_high,
+                        size: 20,
+                        color: showBackground
+                            ? Colors.white
+                            : hasAnyRefs
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        hasVibes
-                            ? '${params.vibeReferencesV4.length}/4'
-                            : '${params.characterReferences.length}/4',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          context.l10n.unifiedRef_title,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: showBackground
+                                ? Colors.white
+                                : hasAnyRefs
+                                    ? theme.colorScheme.primary
+                                    : null,
+                          ),
                         ),
                       ),
-                    ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    _isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 20,
+                      // 模式标志（有数据时显示）
+                      if (hasAnyRefs) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: showBackground
+                                ? Colors.white.withOpacity(0.2)
+                                : hasVibes
+                                    ? theme.colorScheme.tertiaryContainer
+                                    : theme.colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            hasVibes ? '风格' : '角色',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: showBackground
+                                  ? Colors.white
+                                  : hasVibes
+                                      ? theme.colorScheme.onTertiaryContainer
+                                      : theme.colorScheme.onSecondaryContainer,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: showBackground
+                                ? Colors.white.withOpacity(0.2)
+                                : theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            hasVibes
+                                ? '${params.vibeReferencesV4.length}/16'
+                                : '1/1', // 角色参考只支持1张
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: showBackground
+                                  ? Colors.white
+                                  : theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      Icon(
+                        _isExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        size: 20,
+                        color: showBackground ? Colors.white : null,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
 
-          // 展开内容
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 200),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            firstChild: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Divider(),
+              // 展开内容
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 200),
+                crossFadeState: _isExpanded
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                firstChild: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Divider(color: showBackground ? Colors.white24 : null),
 
-                  // 模式选择器 (SegmentedButton)
-                  _buildModeSelector(
-                      context, theme, currentMode, isV4Model, hasVibes, hasCharacterRefs, params),
+                      // 模式选择器 (SegmentedButton)
+                      _buildModeSelector(
+                          context, theme, currentMode, isV4Model, hasVibes, hasCharacterRefs, params, showBackground),
 
-                  const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                  // 根据模式显示对应内容
-                  if (currentMode == ReferenceMode.vibe)
-                    _buildVibeContentV4(context, theme, params)
-                  else
-                    _buildCharacterContent(context, theme, params, isV4Model),
-                ],
+                      // 根据模式显示对应内容
+                      if (currentMode == ReferenceMode.vibe)
+                        _buildVibeContentV4(context, theme, params, showBackground)
+                      else
+                        _buildCharacterContent(context, theme, params, isV4Model, showBackground),
+                    ],
+                  ),
+                ),
+                secondChild: const SizedBox.shrink(),
               ),
-            ),
-            secondChild: const SizedBox.shrink(),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  /// 构建背景图片
+  Widget _buildBackgroundImage(ImageParams params, bool hasVibes, bool hasCharacterRefs) {
+    if (hasCharacterRefs) {
+      // 角色参考：单图背景
+      return Image.memory(
+        params.characterReferences.first.image,
+        fit: BoxFit.cover,
+      );
+    } else if (hasVibes) {
+      final vibes = params.vibeReferencesV4;
+      if (vibes.length == 1) {
+        // 单张风格迁移：全屏背景
+        final imageData = vibes.first.rawImageData ?? vibes.first.thumbnail;
+        if (imageData != null) {
+          return Image.memory(imageData, fit: BoxFit.cover);
+        }
+      } else {
+        // 多张风格迁移：横向并列
+        return Row(
+          children: vibes.map((vibe) {
+            final imageData = vibe.rawImageData ?? vibe.thumbnail;
+            return Expanded(
+              child: imageData != null
+                  ? Image.memory(imageData, fit: BoxFit.cover)
+                  : const SizedBox.shrink(),
+            );
+          }).toList(),
+        );
+      }
+    }
+    return const SizedBox.shrink();
   }
 
   /// 构建模式选择器
@@ -169,6 +274,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     bool hasVibes,
     bool hasCharacterRefs,
     ImageParams params,
+    bool showBackground,
   ) {
     return SegmentedButton<ReferenceMode>(
       segments: [
@@ -274,6 +380,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     BuildContext context,
     ThemeData theme,
     ImageParams params,
+    bool showBackground,
   ) {
     final vibes = params.vibeReferencesV4;
     final hasVibes = vibes.isNotEmpty;
@@ -285,13 +392,13 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         Text(
           context.l10n.vibe_description,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 12),
 
         // Normalize 复选框
-        _buildNormalizeOption(context, theme, params),
+        _buildNormalizeOption(context, theme, params, showBackground),
         const SizedBox(height: 12),
 
         // Vibe 列表
@@ -304,17 +411,24 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               onStrengthChanged: (value) => _updateVibeStrengthV4(index, value),
               onInfoExtractedChanged: (value) =>
                   _updateVibeInfoExtractedV4(index, value),
+              showBackground: showBackground,
             );
           }),
           const SizedBox(height: 8),
         ],
 
         // 添加按钮
-        if (vibes.length < 4)
+        if (vibes.length < 16)
           OutlinedButton.icon(
             onPressed: _addVibeV4,
             icon: const Icon(Icons.add, size: 18),
             label: Text(context.l10n.vibe_addReference),
+            style: showBackground
+                ? OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white38),
+                  )
+                : null,
           ),
 
 
@@ -326,7 +440,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             icon: const Icon(Icons.clear_all, size: 18),
             label: Text(context.l10n.vibe_clearAll),
             style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
+              foregroundColor: showBackground ? Colors.red[300] : theme.colorScheme.error,
             ),
           ),
         ],
@@ -338,6 +452,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     BuildContext context,
     ThemeData theme,
     ImageParams params,
+    bool showBackground,
   ) {
     return Row(
       children: [
@@ -349,6 +464,16 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 .setNormalizeVibeStrength(value ?? true);
           },
           visualDensity: VisualDensity.compact,
+          fillColor: showBackground
+              ? WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Colors.white;
+                  }
+                  return Colors.transparent;
+                })
+              : null,
+          checkColor: showBackground ? Colors.black : null,
+          side: showBackground ? const BorderSide(color: Colors.white) : null,
         ),
         Expanded(
           child: GestureDetector(
@@ -359,7 +484,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             },
             child: Text(
               context.l10n.vibe_normalize,
-              style: theme.textTheme.bodySmall,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: showBackground ? Colors.white : null,
+              ),
             ),
           ),
         ),
@@ -446,12 +573,13 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
   // ==================== 角色参考内容 ====================
 
-  /// 构建角色参考内容（支持最多4张）
+  /// 构建角色参考内容（仅支持1张）
   Widget _buildCharacterContent(
     BuildContext context,
     ThemeData theme,
     ImageParams params,
     bool isV4Model,
+    bool showBackground,
   ) {
     final hasRefs = params.characterReferences.isNotEmpty;
 
@@ -463,7 +591,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.errorContainer.withOpacity(0.3),
+              color: showBackground
+                  ? Colors.red.withOpacity(0.3)
+                  : theme.colorScheme.errorContainer.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -471,14 +601,14 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 Icon(
                   Icons.warning_amber_rounded,
                   size: 16,
-                  color: theme.colorScheme.error,
+                  color: showBackground ? Colors.red[300] : theme.colorScheme.error,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     context.l10n.characterRef_v4Only,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.error,
+                      color: showBackground ? Colors.red[300] : theme.colorScheme.error,
                     ),
                   ),
                 ),
@@ -492,33 +622,76 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         Text(
           context.l10n.characterRef_hint,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 12),
 
-        // 参考图列表（最多4张）
+        // 参考图（仅支持1张）- 有背景时只显示操作按钮
         if (hasRefs) ...[
-          ...List.generate(params.characterReferences.length, (index) {
-            return _CharacterReferenceCard(
-              index: index,
-              reference: params.characterReferences[index],
-              onRemove: () => _removeReference(index),
-              onDescriptionChanged: (value) =>
-                  _updateCharacterDescription(index, value),
-              onStrengthChanged: (value) =>
-                  _updateCharacterStrength(index, value),
-              onSecondaryStrengthChanged: (value) =>
-                  _updateCharacterSecondaryStrength(index, value),
-              onInfoExtractedChanged: (value) =>
-                  _updateCharacterInfoExtracted(index, value),
-            );
-          }),
+          if (showBackground)
+            // 有背景时简化显示
+            Row(
+              children: [
+                Text(
+                  context.l10n.characterRef_title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                  child: InkWell(
+                    onTap: _addReference,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Tooltip(
+                      message: '替换',
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.refresh,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                  child: InkWell(
+                    onTap: () => _removeReference(0),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Tooltip(
+                      message: context.l10n.characterRef_remove,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            _CharacterReferenceCard(
+              index: 0,
+              reference: params.characterReferences.first,
+              onRemove: () => _removeReference(0),
+            ),
           const SizedBox(height: 8),
         ],
 
-        // 添加按钮（最多4张）
-        if (params.characterReferences.length < 4)
+        // 添加按钮（仅在没有参考图时显示）
+        if (!hasRefs)
           OutlinedButton.icon(
             onPressed: isV4Model ? _addReference : null,
             icon: const Icon(Icons.add, size: 18),
@@ -538,12 +711,14 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                   children: [
                     Text(
                       context.l10n.characterRef_styleAware,
-                      style: theme.textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: showBackground ? Colors.white : null,
+                      ),
                     ),
                     Text(
                       context.l10n.characterRef_styleAwareHint,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ],
@@ -554,6 +729,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 onChanged: (value) => ref
                     .read(generationParamsNotifierProvider.notifier)
                     .setCharacterReferenceStyleAware(value),
+                activeColor: showBackground ? Colors.white : null,
+                inactiveTrackColor: showBackground ? Colors.white24 : null,
               ),
             ],
           ),
@@ -568,12 +745,14 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                   children: [
                     Text(
                       '${context.l10n.characterRef_fidelity}: ${params.characterReferenceFidelity.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: showBackground ? Colors.white : null,
+                      ),
                     ),
                     Text(
                       context.l10n.characterRef_fidelityHint,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ],
@@ -581,32 +760,24 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               ),
             ],
           ),
-          Slider(
-            value: params.characterReferenceFidelity,
-            min: 0.0,
-            max: 1.0,
-            divisions: 100,
-            onChanged: (value) => ref
-                .read(generationParamsNotifierProvider.notifier)
-                .setCharacterReferenceFidelity(value),
-          ),
-
-          // 标准化强度开关
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  context.l10n.characterRef_normalizeStrength,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              Switch(
-                value: params.normalizeCharacterReferenceStrength,
-                onChanged: (value) => ref
-                    .read(generationParamsNotifierProvider.notifier)
-                    .setNormalizeCharacterReferenceStrength(value),
-              ),
-            ],
+          SliderTheme(
+            data: showBackground
+                ? SliderTheme.of(context).copyWith(
+                    activeTrackColor: Colors.white,
+                    inactiveTrackColor: Colors.white24,
+                    thumbColor: Colors.white,
+                    overlayColor: Colors.white24,
+                  )
+                : SliderTheme.of(context),
+            child: Slider(
+              value: params.characterReferenceFidelity,
+              min: 0.0,
+              max: 1.0,
+              divisions: 100,
+              onChanged: (value) => ref
+                  .read(generationParamsNotifierProvider.notifier)
+                  .setCharacterReferenceFidelity(value),
+            ),
           ),
 
           // 清除全部按钮
@@ -616,7 +787,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             icon: const Icon(Icons.clear_all, size: 18),
             label: Text(context.l10n.characterRef_clearAll),
             style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
+              foregroundColor: showBackground ? Colors.red[300] : theme.colorScheme.error,
             ),
           ),
         ],
@@ -628,30 +799,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     ref
         .read(generationParamsNotifierProvider.notifier)
         .removeCharacterReference(index);
-  }
-
-  void _updateCharacterDescription(int index, String value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, description: value);
-  }
-
-  void _updateCharacterStrength(int index, double value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, strengthValue: value);
-  }
-
-  void _updateCharacterSecondaryStrength(int index, double value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, secondaryStrength: value);
-  }
-
-  void _updateCharacterInfoExtracted(int index, double value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, informationExtracted: value);
   }
 
   Future<void> _addReference() async {
@@ -703,6 +850,7 @@ class _VibeCardV4 extends StatelessWidget {
   final VoidCallback onRemove;
   final ValueChanged<double> onStrengthChanged;
   final ValueChanged<double> onInfoExtractedChanged;
+  final bool showBackground;
 
   const _VibeCardV4({
     required this.index,
@@ -710,6 +858,7 @@ class _VibeCardV4 extends StatelessWidget {
     required this.onRemove,
     required this.onStrengthChanged,
     required this.onInfoExtractedChanged,
+    this.showBackground = false,
   });
 
   @override
@@ -784,7 +933,7 @@ class _VibeCardV4 extends StatelessWidget {
   }
 
   Widget _buildThumbnail(ThemeData theme) {
-    return ClipRRect(
+    final thumbnail = ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: Container(
         width: 64,
@@ -801,6 +950,16 @@ class _VibeCardV4 extends StatelessWidget {
             : _buildPlaceholder(theme),
       ),
     );
+
+    // 悬浮预览使用原始图片数据或缩略图
+    final previewBytes = vibe.rawImageData ?? vibe.thumbnail;
+    if (previewBytes != null) {
+      return HoverImagePreview(
+        imageBytes: previewBytes,
+        child: thumbnail,
+      );
+    }
+    return thumbnail;
   }
 
   Widget _buildPlaceholder(ThemeData theme) {
@@ -862,235 +1021,65 @@ class _VibeCardV4 extends StatelessWidget {
   }
 }
 
-/// 角色参考卡片组件
-class _CharacterReferenceCard extends StatefulWidget {
+/// 角色参考卡片组件（简化版，仅显示图片和删除按钮）
+class _CharacterReferenceCard extends StatelessWidget {
   final int index;
   final CharacterReference reference;
   final VoidCallback onRemove;
-  final ValueChanged<String> onDescriptionChanged;
-  final ValueChanged<double> onStrengthChanged;
-  final ValueChanged<double> onSecondaryStrengthChanged;
-  final ValueChanged<double> onInfoExtractedChanged;
 
   const _CharacterReferenceCard({
     required this.index,
     required this.reference,
     required this.onRemove,
-    required this.onDescriptionChanged,
-    required this.onStrengthChanged,
-    required this.onSecondaryStrengthChanged,
-    required this.onInfoExtractedChanged,
   });
-
-  @override
-  State<_CharacterReferenceCard> createState() => _CharacterReferenceCardState();
-}
-
-class _CharacterReferenceCardState extends State<_CharacterReferenceCard> {
-  bool _showSliders = false;
-  late TextEditingController _descriptionController;
-
-  @override
-  void initState() {
-    super.initState();
-    _descriptionController =
-        TextEditingController(text: widget.reference.description);
-  }
-
-  @override
-  void didUpdateWidget(_CharacterReferenceCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.reference.description != widget.reference.description) {
-      _descriptionController.text = widget.reference.description;
-    }
-  }
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         border: Border.all(
           color: theme.colorScheme.outline.withOpacity(0.3),
         ),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
+      child: Row(
         children: [
-          // 图像预览和基本操作
-          Row(
-            children: [
-              // 预览缩略图
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(7),
-                  bottomLeft: Radius.circular(7),
-                ),
-                child: Image.memory(
-                  widget.reference.image,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                ),
+          // 预览缩略图（支持悬浮放大）
+          HoverImagePreview(
+            imageBytes: reference.image,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(7),
+                bottomLeft: Radius.circular(7),
               ),
-              const SizedBox(width: 12),
-
-              // 信息
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.characterRef_referenceNumber(widget.index + 1),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      context.l10n.characterRef_strengthInfo(
-                        widget.reference.strengthValue.toStringAsFixed(2),
-                        widget.reference.secondaryStrength.toStringAsFixed(2),
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 操作按钮
-              IconButton(
-                icon: Icon(
-                  _showSliders ? Icons.tune : Icons.tune_outlined,
-                  size: 20,
-                ),
-                onPressed: () => setState(() => _showSliders = !_showSliders),
-                tooltip: context.l10n.characterRef_adjustParams,
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: widget.onRemove,
-                tooltip: context.l10n.characterRef_remove,
-              ),
-            ],
-          ),
-
-          // 可展开的滑块区域
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 150),
-            crossFadeState: _showSliders
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            firstChild: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 角色描述输入框
-                  TextField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.characterRef_description,
-                      hintText: context.l10n.characterRef_descriptionHint,
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      isDense: true,
-                    ),
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    onChanged: widget.onDescriptionChanged,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 主要强度滑块
-                  _buildSliderRow(
-                    context,
-                    theme,
-                    label: context.l10n.characterRef_strengthValue,
-                    value: widget.reference.strengthValue,
-                    onChanged: widget.onStrengthChanged,
-                  ),
-
-                  // 次要强度滑块
-                  _buildSliderRow(
-                    context,
-                    theme,
-                    label: context.l10n.characterRef_secondaryStrength,
-                    value: widget.reference.secondaryStrength,
-                    onChanged: widget.onSecondaryStrengthChanged,
-                  ),
-
-                  // 信息提取滑块
-                  _buildSliderRow(
-                    context,
-                    theme,
-                    label: context.l10n.characterRef_infoExtraction,
-                    value: widget.reference.informationExtracted,
-                    onChanged: widget.onInfoExtractedChanged,
-                  ),
-
-                  // 说明
-                  Text(
-                    context.l10n.characterRef_sliderHint,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                  ),
-                ],
+              child: Image.memory(
+                reference.image,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
               ),
             ),
-            secondChild: const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 12),
+
+          // 信息
+          Expanded(
+            child: Text(
+              context.l10n.characterRef_title,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+
+          // 删除按钮
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            onPressed: onRemove,
+            tooltip: context.l10n.characterRef_remove,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSliderRow(
-    BuildContext context,
-    ThemeData theme, {
-    required String label,
-    required double value,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall,
-          ),
-        ),
-        Expanded(
-          child: Slider(
-            value: value,
-            min: 0.0,
-            max: 1.0,
-            divisions: 100,
-            onChanged: onChanged,
-          ),
-        ),
-        SizedBox(
-          width: 40,
-          child: Text(
-            value.toStringAsFixed(2),
-            style: theme.textTheme.bodySmall,
-            textAlign: TextAlign.end,
-          ),
-        ),
-      ],
     );
   }
 }

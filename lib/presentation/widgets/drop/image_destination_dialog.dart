@@ -124,11 +124,9 @@ class ImageDestinationDialog extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // 选项按钮
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 12,
+              // 选项按钮（垂直排列）
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _DestinationButton(
                     icon: Icons.image_outlined,
@@ -136,12 +134,14 @@ class ImageDestinationDialog extends StatelessWidget {
                     onTap: () =>
                         Navigator.of(context).pop(ImageDestination.img2img),
                   ),
+                  const SizedBox(height: 12),
                   _DestinationButton(
                     icon: Icons.auto_awesome,
                     label: context.l10n.drop_vibeTransfer,
                     onTap: () =>
                         Navigator.of(context).pop(ImageDestination.vibeTransfer),
                   ),
+                  const SizedBox(height: 12),
                   _DestinationButton(
                     icon: Icons.person_outline,
                     label: context.l10n.drop_characterReference,
@@ -186,7 +186,7 @@ class _DestinationButton extends StatelessWidget {
             vertical: 12,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,

@@ -11,6 +11,7 @@ import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/image_generation_provider.dart';
+import '../common/app_toast.dart';
 import 'image_destination_dialog.dart';
 
 /// 全局拖拽处理器
@@ -214,12 +215,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     notifier.updateAction(ImageGenerationAction.img2img);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.drop_addedToImg2Img),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.success(context, context.l10n.drop_addedToImg2Img);
     }
   }
 
@@ -229,24 +225,36 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     GenerationParamsNotifier notifier,
   ) async {
     try {
+      final currentCount = notifier.state.vibeReferencesV4.length;
+      const maxCount = 16;
+
       // 解析文件，可能返回多个 vibe（bundle 情况）
       final vibes = await VibeFileParser.parseFile(fileName, bytes);
+      final addCount = vibes.length;
+
+      // 检查是否超出上限
+      if (currentCount + addCount > maxCount) {
+        if (mounted) {
+          AppToast.warning(context, '风格参考已达上限 ($maxCount 张)');
+        }
+        return;
+      }
 
       for (final vibe in vibes) {
         notifier.addVibeReferenceV4(vibe);
       }
 
       if (mounted) {
-        final message = vibes.length == 1
-            ? context.l10n.drop_addedToVibe
-            : context.l10n.drop_addedMultipleToVibe(vibes.length);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        String message;
+        if (currentCount > 0) {
+          // 追加模式
+          message = '已追加 $addCount 个风格参考';
+        } else {
+          message = vibes.length == 1
+              ? context.l10n.drop_addedToVibe
+              : context.l10n.drop_addedMultipleToVibe(vibes.length);
+        }
+        AppToast.success(context, message);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -260,28 +268,26 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     Uint8List bytes,
     GenerationParamsNotifier notifier,
   ) {
+    final hasExisting = notifier.state.characterReferences.isNotEmpty;
+
+    // 角色参考只支持 1 张，如果已有则替换
+    if (hasExisting) {
+      notifier.clearCharacterReferences();
+    }
+
     final characterRef = CharacterReference(image: bytes);
     notifier.addCharacterReference(characterRef);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.drop_addedToCharacterRef),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.success(
+        context,
+        hasExisting ? '已替换角色参考' : context.l10n.drop_addedToCharacterRef,
       );
     }
   }
 
   void _showError(String message) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppToast.error(context, message);
   }
 }

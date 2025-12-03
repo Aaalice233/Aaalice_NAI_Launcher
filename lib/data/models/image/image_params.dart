@@ -43,23 +43,15 @@ class VibeReference with _$VibeReference {
 }
 
 /// 角色参考配置 (Director Reference, 仅 V4+ 模型支持)
+/// 注：informationExtracted/strengthValue 固定为 1，secondaryStrength 由全局 fidelity 计算
 @freezed
 class CharacterReference with _$CharacterReference {
   const factory CharacterReference({
     /// 参考图像数据
     required Uint8List image,
 
-    /// 角色描述 (可选，但建议填写以获得更好效果)
+    /// 角色描述 (可选)
     @Default('') String description,
-
-    /// 信息提取量 (0-1)，控制从参考图中提取多少细节
-    @Default(1.0) double informationExtracted,
-
-    /// 主要参考强度 (0-1)
-    @Default(1.0) double strengthValue,
-
-    /// 次要参考强度 (0-1)
-    @Default(0.0) double secondaryStrength,
   }) = _CharacterReference;
 }
 
@@ -210,13 +202,10 @@ class ImageParams with _$ImageParams {
 
     // ========== 角色参考参数 (仅 V4+ 模型) ==========
 
-    /// 角色参考图列表 (最多4张)
+    /// 角色参考图列表 (最多1张)
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<CharacterReference> characterReferences,
-
-    /// 是否标准化多个角色参考的强度
-    @Default(true) bool normalizeCharacterReferenceStrength,
 
     /// 角色参考 - Style Aware (传输角色相关风格信息)
     @Default(true) bool characterReferenceStyleAware,

@@ -452,9 +452,10 @@ class NAIApiService {
       }
 
       // 角色参考 (Director Reference, V4+ 专属)
+      // 参数与官网保持一致：固定 normalize=true, information=1, strength=1
       if (effectiveCharacterRefs.isNotEmpty) {
-        requestParameters['normalize_reference_strength_multiple'] =
-            params.normalizeCharacterReferenceStrength;
+        // 固定为 true（与官网保持一致）
+        requestParameters['normalize_reference_strength_multiple'] = true;
         // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
         requestParameters['director_reference_images'] = effectiveCharacterRefs
             .map((r) => base64Encode(ensurePngFormat(r.image)))
@@ -473,19 +474,15 @@ class NAIApiService {
             'legacy_uc': false,
           };
         }).toList();
-        // 官方参考显示数值是整数 [1], [0]
+        // 固定为 1（与官网保持一致）
         requestParameters['director_reference_information_extracted'] =
-            effectiveCharacterRefs
-                .map((r) => r.informationExtracted.round())
-                .toList();
+            effectiveCharacterRefs.map((_) => 1).toList();
         requestParameters['director_reference_strength_values'] =
-            effectiveCharacterRefs
-                .map((r) => r.strengthValue.round())
-                .toList();
-        // secondary_strength_values = 1 - fidelity（必须是浮点数，不能 round）
+            effectiveCharacterRefs.map((_) => 1).toList();
+        // secondary_strength_values = 1 - fidelity（必须是浮点数）
         requestParameters['director_reference_secondary_strength_values'] =
             effectiveCharacterRefs
-                .map((r) => 1.0 - params.characterReferenceFidelity)
+                .map((_) => 1.0 - params.characterReferenceFidelity)
                 .toList();
       }
 
@@ -512,17 +509,10 @@ class NAIApiService {
         // 调试：验证 base64 编码和 PNG 转换
         for (int i = 0; i < effectiveCharacterRefs.length; i++) {
           final ref = effectiveCharacterRefs[i];
-          final originalB64 = base64Encode(ref.image);
           final pngBytes = ensurePngFormat(ref.image);
-          final pngB64 = base64Encode(pngBytes);
-          AppLogger.d('CharRef[$i] ORIGINAL: ${ref.image.length} bytes, base64: ${originalB64.length} chars', 'API');
-          AppLogger.d('CharRef[$i] ORIGINAL prefix: ${originalB64.substring(0, originalB64.length > 30 ? 30 : originalB64.length)}', 'API');
-          AppLogger.d('CharRef[$i] PNG: ${pngBytes.length} bytes, base64: ${pngB64.length} chars', 'API');
-          AppLogger.d('CharRef[$i] PNG prefix: ${pngB64.substring(0, pngB64.length > 30 ? 30 : pngB64.length)}', 'API');
-          AppLogger.d('CharRef[$i] informationExtracted: ${ref.informationExtracted} -> round: ${ref.informationExtracted.round()}', 'API');
-          AppLogger.d('CharRef[$i] strengthValue: ${ref.strengthValue} -> round: ${ref.strengthValue.round()}', 'API');
+          AppLogger.d('CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes', 'API');
         }
-        AppLogger.d('fidelity: ${params.characterReferenceFidelity} -> secondary: ${_toJsonNumber(1.0 - params.characterReferenceFidelity)}', 'API');
+        AppLogger.d('fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}', 'API');
         AppLogger.d('styleAware: ${params.characterReferenceStyleAware}', 'API');
 
         AppLogger.d('director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}', 'API');
@@ -851,21 +841,14 @@ class NAIApiService {
         // 调试：验证 base64 编码和 PNG 转换
         for (int i = 0; i < effectiveCharacterRefs.length; i++) {
           final ref = effectiveCharacterRefs[i];
-          final originalB64 = base64Encode(ref.image);
           final pngBytes = ensurePngFormat(ref.image);
-          final pngB64 = base64Encode(pngBytes);
-          AppLogger.d('CharRef[$i] ORIGINAL: ${ref.image.length} bytes, base64: ${originalB64.length} chars', 'API');
-          AppLogger.d('CharRef[$i] ORIGINAL prefix: ${originalB64.substring(0, originalB64.length > 30 ? 30 : originalB64.length)}', 'API');
-          AppLogger.d('CharRef[$i] PNG: ${pngBytes.length} bytes, base64: ${pngB64.length} chars', 'API');
-          AppLogger.d('CharRef[$i] PNG prefix: ${pngB64.substring(0, pngB64.length > 30 ? 30 : pngB64.length)}', 'API');
-          AppLogger.d('CharRef[$i] informationExtracted: ${ref.informationExtracted} -> round: ${ref.informationExtracted.round()}', 'API');
-          AppLogger.d('CharRef[$i] strengthValue: ${ref.strengthValue} -> round: ${ref.strengthValue.round()}', 'API');
+          AppLogger.d('CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes', 'API');
         }
-        AppLogger.d('fidelity: ${params.characterReferenceFidelity} -> secondary: ${_toJsonNumber(1.0 - params.characterReferenceFidelity)}', 'API');
+        AppLogger.d('fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}', 'API');
         AppLogger.d('styleAware: ${params.characterReferenceStyleAware}', 'API');
 
-        requestParameters['normalize_reference_strength_multiple'] =
-            params.normalizeCharacterReferenceStrength;
+        // 固定为 true（与官网保持一致）
+        requestParameters['normalize_reference_strength_multiple'] = true;
         // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
         requestParameters['director_reference_images'] = effectiveCharacterRefs
             .map((r) => base64Encode(ensurePngFormat(r.image)))
@@ -884,19 +867,15 @@ class NAIApiService {
             'legacy_uc': false,
           };
         }).toList();
-        // 官方参考显示数值是整数 [1], [0]
+        // 固定为 1（与官网保持一致）
         requestParameters['director_reference_information_extracted'] =
-            effectiveCharacterRefs
-                .map((r) => r.informationExtracted.round())
-                .toList();
+            effectiveCharacterRefs.map((_) => 1).toList();
         requestParameters['director_reference_strength_values'] =
-            effectiveCharacterRefs
-                .map((r) => r.strengthValue.round())
-                .toList();
-        // secondary_strength_values = 1 - fidelity（必须是浮点数，不能 round）
+            effectiveCharacterRefs.map((_) => 1).toList();
+        // secondary_strength_values = 1 - fidelity（必须是浮点数）
         requestParameters['director_reference_secondary_strength_values'] =
             effectiveCharacterRefs
-                .map((r) => 1.0 - params.characterReferenceFidelity)
+                .map((_) => 1.0 - params.characterReferenceFidelity)
                 .toList();
         // 注意: stream 参数已在基础参数中设置，无需重复添加
       }

@@ -9,6 +9,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/remote/nai_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/hover_image_preview.dart';
 
 /// 角色参考面板组件 (Director Reference, 仅 V4+ 模型支持)
 class CharacterReferencePanel extends ConsumerStatefulWidget {
@@ -90,7 +91,7 @@ class _CharacterReferencePanelState
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${params.characterReferences.length}/4',
+                        '1', // 角色参考只支持1张
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onPrimaryContainer,
                         ),
@@ -161,28 +162,18 @@ class _CharacterReferencePanelState
                   ),
                   const SizedBox(height: 12),
 
-                  // 参考图列表
+                  // 参考图（仅支持1张）
                   if (hasRefs) ...[
-                    ...List.generate(params.characterReferences.length, (index) {
-                      return _CharacterReferenceItem(
-                        index: index,
-                        reference: params.characterReferences[index],
-                        onRemove: () => _removeReference(index),
-                        onDescriptionChanged: (value) =>
-                            _updateDescription(index, value),
-                        onStrengthChanged: (value) =>
-                            _updateStrength(index, value),
-                        onSecondaryStrengthChanged: (value) =>
-                            _updateSecondaryStrength(index, value),
-                        onInfoExtractedChanged: (value) =>
-                            _updateInfoExtracted(index, value),
-                      );
-                    }),
+                    _CharacterReferenceItem(
+                      index: 0,
+                      reference: params.characterReferences.first,
+                      onRemove: () => _removeReference(0),
+                    ),
                     const SizedBox(height: 8),
                   ],
 
-                  // 添加按钮
-                  if (params.characterReferences.length < 4)
+                  // 添加按钮（仅在没有参考图时显示）
+                  if (!hasRefs)
                     OutlinedButton.icon(
                       onPressed: isV4Model ? _addReference : null,
                       icon: const Icon(Icons.add, size: 18),
@@ -256,26 +247,6 @@ class _CharacterReferencePanelState
                     ),
                   ],
 
-                  // 标准化强度开关
-                  if (hasRefs) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            context.l10n.characterRef_normalizeStrength,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ),
-                        Switch(
-                          value: params.normalizeCharacterReferenceStrength,
-                          onChanged: (value) => ref
-                              .read(generationParamsNotifierProvider.notifier)
-                              .setNormalizeCharacterReferenceStrength(value),
-                        ),
-                      ],
-                    ),
-                  ],
-
                   // 清除全部按钮
                   if (hasRefs) ...[
                     const SizedBox(height: 8),
@@ -340,30 +311,6 @@ class _CharacterReferencePanelState
         .removeCharacterReference(index);
   }
 
-  void _updateDescription(int index, String value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, description: value);
-  }
-
-  void _updateStrength(int index, double value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, strengthValue: value);
-  }
-
-  void _updateSecondaryStrength(int index, double value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, secondaryStrength: value);
-  }
-
-  void _updateInfoExtracted(int index, double value) {
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateCharacterReference(index, informationExtracted: value);
-  }
-
   void _clearAllReferences() {
     ref
         .read(generationParamsNotifierProvider.notifier)
@@ -371,260 +318,62 @@ class _CharacterReferencePanelState
   }
 }
 
-/// 单个角色参考图项
-class _CharacterReferenceItem extends StatefulWidget {
+/// 单个角色参考图项（简化版，仅显示图片和删除按钮）
+class _CharacterReferenceItem extends StatelessWidget {
   final int index;
   final CharacterReference reference;
   final VoidCallback onRemove;
-  final ValueChanged<String> onDescriptionChanged;
-  final ValueChanged<double> onStrengthChanged;
-  final ValueChanged<double> onSecondaryStrengthChanged;
-  final ValueChanged<double> onInfoExtractedChanged;
 
   const _CharacterReferenceItem({
     required this.index,
     required this.reference,
     required this.onRemove,
-    required this.onDescriptionChanged,
-    required this.onStrengthChanged,
-    required this.onSecondaryStrengthChanged,
-    required this.onInfoExtractedChanged,
   });
-
-  @override
-  State<_CharacterReferenceItem> createState() =>
-      _CharacterReferenceItemState();
-}
-
-class _CharacterReferenceItemState extends State<_CharacterReferenceItem> {
-  bool _showSliders = false;
-  late TextEditingController _descriptionController;
-
-  @override
-  void initState() {
-    super.initState();
-    _descriptionController =
-        TextEditingController(text: widget.reference.description);
-  }
-
-  @override
-  void didUpdateWidget(_CharacterReferenceItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.reference.description != widget.reference.description) {
-      _descriptionController.text = widget.reference.description;
-    }
-  }
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         border: Border.all(
           color: theme.colorScheme.outline.withOpacity(0.3),
         ),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
+      child: Row(
         children: [
-          // 图像预览和基本操作
-          Row(
-            children: [
-              // 预览缩略图
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(7),
-                  bottomLeft: Radius.circular(7),
-                ),
-                child: Image.memory(
-                  widget.reference.image,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                ),
+          // 预览缩略图（支持悬浮放大）
+          HoverImagePreview(
+            imageBytes: reference.image,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(7),
+                bottomLeft: Radius.circular(7),
               ),
-              const SizedBox(width: 12),
-
-              // 信息和调整
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.characterRef_referenceNumber(widget.index + 1),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      context.l10n.characterRef_strengthInfo(
-                        widget.reference.strengthValue.toStringAsFixed(2),
-                        widget.reference.secondaryStrength.toStringAsFixed(2),
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 操作按钮
-              IconButton(
-                icon: Icon(
-                  _showSliders ? Icons.tune : Icons.tune_outlined,
-                  size: 20,
-                ),
-                onPressed: () => setState(() => _showSliders = !_showSliders),
-                tooltip: context.l10n.characterRef_adjustParams,
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: widget.onRemove,
-                tooltip: context.l10n.characterRef_remove,
-              ),
-            ],
-          ),
-
-          // 可展开的滑块区域
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 150),
-            crossFadeState: _showSliders
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            firstChild: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 角色描述输入框
-                  TextField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.characterRef_description,
-                      hintText: context.l10n.characterRef_descriptionHint,
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      isDense: true,
-                    ),
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    onChanged: widget.onDescriptionChanged,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 主要强度滑块
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          context.l10n.characterRef_strengthValue,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                      Expanded(
-                        child: Slider(
-                          value: widget.reference.strengthValue,
-                          min: 0.0,
-                          max: 1.0,
-                          divisions: 100,
-                          onChanged: widget.onStrengthChanged,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          widget.reference.strengthValue.toStringAsFixed(2),
-                          style: theme.textTheme.bodySmall,
-                          textAlign: TextAlign.end,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // 次要强度滑块
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          context.l10n.characterRef_secondaryStrength,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                      Expanded(
-                        child: Slider(
-                          value: widget.reference.secondaryStrength,
-                          min: 0.0,
-                          max: 1.0,
-                          divisions: 100,
-                          onChanged: widget.onSecondaryStrengthChanged,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          widget.reference.secondaryStrength.toStringAsFixed(2),
-                          style: theme.textTheme.bodySmall,
-                          textAlign: TextAlign.end,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // 信息提取滑块
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          context.l10n.characterRef_infoExtraction,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                      Expanded(
-                        child: Slider(
-                          value: widget.reference.informationExtracted,
-                          min: 0.0,
-                          max: 1.0,
-                          divisions: 100,
-                          onChanged: widget.onInfoExtractedChanged,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          widget.reference.informationExtracted
-                              .toStringAsFixed(2),
-                          style: theme.textTheme.bodySmall,
-                          textAlign: TextAlign.end,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // 说明
-                  Text(
-                    context.l10n.characterRef_sliderHint,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                  ),
-                ],
+              child: Image.memory(
+                reference.image,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
               ),
             ),
-            secondChild: const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 12),
+
+          // 信息
+          Expanded(
+            child: Text(
+              context.l10n.characterRef_title,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+
+          // 删除按钮
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            onPressed: onRemove,
+            tooltip: context.l10n.characterRef_remove,
           ),
         ],
       ),

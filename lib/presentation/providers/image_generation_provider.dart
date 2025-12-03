@@ -688,9 +688,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   // ==================== 角色参考参数 (V4+ 模型) ====================
 
   /// 添加角色参考图
-  /// 注意：角色参考最多4张，且和 Vibe Transfer 互斥
+  /// 注意：角色参考最多1张，且和 Vibe Transfer 互斥
   void addCharacterReference(CharacterReference ref) {
-    if (state.characterReferences.length >= 4) return; // 最多4张
+    if (state.characterReferences.length >= 1) return; // 最多1张
     state = state.copyWith(
       characterReferences: [...state.characterReferences, ref],
       vibeReferences: [], // 清除 Vibe Transfer（互斥）
@@ -706,13 +706,10 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(characterReferences: newList);
   }
 
-  /// 更新角色参考图配置
+  /// 更新角色参考图配置（仅支持更新描述）
   void updateCharacterReference(
     int index, {
     String? description,
-    double? informationExtracted,
-    double? strengthValue,
-    double? secondaryStrength,
   }) {
     if (index < 0 || index >= state.characterReferences.length) return;
     final newList = [...state.characterReferences];
@@ -720,9 +717,6 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     newList[index] = CharacterReference(
       image: current.image,
       description: description ?? current.description,
-      informationExtracted: informationExtracted ?? current.informationExtracted,
-      strengthValue: strengthValue ?? current.strengthValue,
-      secondaryStrength: secondaryStrength ?? current.secondaryStrength,
     );
     state = state.copyWith(characterReferences: newList);
   }
@@ -730,11 +724,6 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 清除所有角色参考图
   void clearCharacterReferences() {
     state = state.copyWith(characterReferences: []);
-  }
-
-  /// 更新是否标准化角色参考强度
-  void setNormalizeCharacterReferenceStrength(bool value) {
-    state = state.copyWith(normalizeCharacterReferenceStrength: value);
   }
 
   /// 更新角色参考 Style Aware 开关

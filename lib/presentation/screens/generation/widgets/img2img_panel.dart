@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/image_editor/image_editor_dialog.dart';
 
 /// Img2Img 面板组件
 class Img2ImgPanel extends ConsumerStatefulWidget {
@@ -29,99 +30,143 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          // 标题栏
-          InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+          // 背景图片层（折叠且有图片时显示）
+          if (hasSourceImage && !_isExpanded)
+            Positioned.fill(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Icon(
-                    Icons.image,
-                    size: 20,
-                    color: isImg2ImgMode
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withOpacity(0.6),
+                  Image.memory(
+                    params.sourceImage!,
+                    fit: BoxFit.cover,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      context.l10n.img2img_title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: isImg2ImgMode
-                            ? theme.colorScheme.primary
-                            : null,
+                  // 暗化遮罩
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.5),
+                          Colors.black.withOpacity(0.75),
+                        ],
                       ),
                     ),
                   ),
-                  if (hasSourceImage)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                ],
+              ),
+            ),
+          // 内容层
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 标题栏
+              InkWell(
+                onTap: () => setState(() => _isExpanded = !_isExpanded),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.image,
+                        size: 20,
+                        color: hasSourceImage && _isExpanded
+                            ? Colors.white
+                            : isImg2ImgMode
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        context.l10n.img2img_enabled,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          context.l10n.img2img_title,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: hasSourceImage && _isExpanded
+                                ? Colors.white
+                                : isImg2ImgMode
+                                    ? theme.colorScheme.primary
+                                    : null,
+                          ),
                         ),
                       ),
-                    ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    _isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 20,
+                      if (hasSourceImage)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isExpanded
+                                ? Colors.white.withOpacity(0.2)
+                                : theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            context.l10n.img2img_enabled,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: _isExpanded
+                                  ? Colors.white
+                                  : theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        _isExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        size: 20,
+                        color: hasSourceImage && _isExpanded ? Colors.white : null,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
 
-          // 展开内容
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 200),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            firstChild: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Divider(),
+              // 展开内容
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 200),
+                crossFadeState: _isExpanded
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                firstChild: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Divider(color: hasSourceImage ? Colors.white24 : null),
 
-                  // 源图像选择
-                  _buildSourceImageSection(theme, params),
+                      // 源图像选择
+                      _buildSourceImageSection(theme, params),
 
-                  if (hasSourceImage) ...[
-                    const SizedBox(height: 16),
-                    // 强度滑块
-                    _buildStrengthSlider(theme, params),
-                    const SizedBox(height: 12),
-                    // 噪声滑块
-                    _buildNoiseSlider(theme, params),
-                    const SizedBox(height: 12),
-                    // 清除按钮
-                    OutlinedButton.icon(
-                      onPressed: _clearImg2Img,
-                      icon: const Icon(Icons.clear, size: 18),
-                      label: Text(context.l10n.img2img_clearSettings),
-                    ),
-                  ],
-                ],
+                      if (hasSourceImage) ...[
+                        const SizedBox(height: 16),
+                        // 强度滑块
+                        _buildStrengthSlider(theme, params),
+                        const SizedBox(height: 12),
+                        // 噪声滑块
+                        _buildNoiseSlider(theme, params),
+                        const SizedBox(height: 12),
+                        // 清除按钮
+                        OutlinedButton.icon(
+                          onPressed: _clearImg2Img,
+                          icon: const Icon(Icons.clear, size: 18),
+                          label: Text(context.l10n.img2img_clearSettings),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white38),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                secondChild: const SizedBox.shrink(),
               ),
-            ),
-            secondChild: const SizedBox.shrink(),
+            ],
           ),
         ],
       ),
@@ -130,97 +175,129 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
   Widget _buildSourceImageSection(ThemeData theme, ImageParams params) {
     final hasSourceImage = params.sourceImage != null;
+    final hasMask = params.maskImage != null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Text(
-              context.l10n.img2img_sourceImage,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const Spacer(),
-            if (!hasSourceImage)
-              TextButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.add_photo_alternate, size: 18),
-                label: Text(context.l10n.img2img_selectImage),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (hasSourceImage)
-          Stack(
+    if (hasSourceImage) {
+      // 有图片时：显示图片预览和操作按钮
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              // 预览图像
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.memory(
-                  params.sourceImage!,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.contain,
+              Text(
+                context.l10n.img2img_sourceImage,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
                 ),
               ),
-              // 替换/删除按钮
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _IconButton(
-                      icon: Icons.refresh,
-                      onPressed: _pickImage,
-                      tooltip: context.l10n.img2img_changeImage,
-                    ),
-                    const SizedBox(width: 4),
-                    _IconButton(
-                      icon: Icons.close,
-                      onPressed: _removeSourceImage,
-                      tooltip: context.l10n.img2img_removeImage,
-                    ),
-                  ],
-                ),
+              const Spacer(),
+              // 编辑按钮
+              _IconButton(
+                icon: Icons.edit,
+                onPressed: () => _openEditor(params.sourceImage!),
+                tooltip: context.l10n.img2img_edit,
+              ),
+              const SizedBox(width: 8),
+              _IconButton(
+                icon: Icons.refresh,
+                onPressed: _pickImage,
+                tooltip: context.l10n.img2img_changeImage,
+              ),
+              const SizedBox(width: 8),
+              _IconButton(
+                icon: Icons.close,
+                onPressed: _removeSourceImage,
+                tooltip: context.l10n.img2img_removeImage,
               ),
             ],
-          )
-        else
-          // 空状态
-          InkWell(
-            onTap: _pickImage,
+          ),
+          const SizedBox(height: 8),
+          // 图片预览
+          ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.5),
-                  style: BorderStyle.solid,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.add_photo_alternate_outlined,
-                      size: 32,
-                      color: theme.colorScheme.onSurface.withOpacity(0.4),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.l10n.img2img_clickToSelectImage,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
-                      ),
-                    ),
-                  ],
-                ),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Image.memory(
+                params.sourceImage!,
+                fit: BoxFit.contain,
               ),
             ),
           ),
+          // 状态指示器
+          if (hasMask) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check, size: 12, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        context.l10n.img2img_maskEnabled,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+    }
+
+    // 无图片时：显示选择区域
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.l10n.img2img_sourceImage,
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _pickImage,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 100,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: theme.colorScheme.outline.withOpacity(0.5),
+                style: BorderStyle.solid,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 32,
+                    color: theme.colorScheme.onSurface.withOpacity(0.4),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    context.l10n.img2img_clickToSelectImage,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -233,32 +310,42 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           children: [
             Text(
               context.l10n.img2img_strength,
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white,
+              ),
             ),
             const Spacer(),
             Text(
               params.strength.toStringAsFixed(2),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.primary,
+                color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
-        Slider(
-          value: params.strength,
-          min: 0.0,
-          max: 1.0,
-          divisions: 100,
-          onChanged: (value) {
-            ref.read(generationParamsNotifierProvider.notifier)
-                .updateStrength(value);
-          },
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: Colors.white,
+            inactiveTrackColor: Colors.white24,
+            thumbColor: Colors.white,
+            overlayColor: Colors.white24,
+          ),
+          child: Slider(
+            value: params.strength,
+            min: 0.0,
+            max: 1.0,
+            divisions: 100,
+            onChanged: (value) {
+              ref.read(generationParamsNotifierProvider.notifier)
+                  .updateStrength(value);
+            },
+          ),
         ),
         Text(
           context.l10n.img2img_strengthHint,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: Colors.white70,
           ),
         ),
       ],
@@ -273,32 +360,42 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           children: [
             Text(
               context.l10n.img2img_noise,
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white,
+              ),
             ),
             const Spacer(),
             Text(
               params.noise.toStringAsFixed(2),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.primary,
+                color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
-        Slider(
-          value: params.noise,
-          min: 0.0,
-          max: 1.0,
-          divisions: 100,
-          onChanged: (value) {
-            ref.read(generationParamsNotifierProvider.notifier)
-                .updateNoise(value);
-          },
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: Colors.white,
+            inactiveTrackColor: Colors.white24,
+            thumbColor: Colors.white,
+            overlayColor: Colors.white24,
+          ),
+          child: Slider(
+            value: params.noise,
+            min: 0.0,
+            max: 1.0,
+            divisions: 100,
+            onChanged: (value) {
+              ref.read(generationParamsNotifierProvider.notifier)
+                  .updateNoise(value);
+            },
+          ),
         ),
         Text(
           context.l10n.img2img_noiseHint,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: Colors.white70,
           ),
         ),
       ],
@@ -346,6 +443,37 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
   void _clearImg2Img() {
     ref.read(generationParamsNotifierProvider.notifier).clearImg2Img();
+  }
+
+  Future<void> _openEditor(Uint8List imageBytes) async {
+    final params = ref.read(generationParamsNotifierProvider);
+
+    final result = await ImageEditorDialog.show(
+      context: context,
+      imageBytes: imageBytes,
+      existingMask: params.maskImage,
+    );
+
+    if (result != null && mounted) {
+      final notifier = ref.read(generationParamsNotifierProvider.notifier);
+
+      // 更新涂鸦后的图像
+      if (result.hasImageChanges && result.modifiedImage != null) {
+        notifier.setSourceImage(result.modifiedImage!);
+      }
+
+      // 更新遮罩
+      if (result.hasMaskChanges) {
+        if (result.maskImage != null) {
+          notifier.setMaskImage(result.maskImage!);
+          notifier.updateAction(ImageGenerationAction.infill);
+        } else {
+          notifier.setMaskImage(null);
+          // 如果没有遮罩了，切回 img2img 模式
+          notifier.updateAction(ImageGenerationAction.img2img);
+        }
+      }
+    }
   }
 }
 
