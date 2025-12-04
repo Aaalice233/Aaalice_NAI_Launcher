@@ -1,22 +1,34 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
 import '../tools/tool_base.dart';
 import '../tools/brush_tool.dart';
 import '../tools/eraser_tool.dart';
-import '../tools/selection/rect_selection_tool.dart';
-import '../tools/selection/ellipse_selection_tool.dart';
-import '../tools/selection/lasso_selection_tool.dart';
-import '../tools/color_picker_tool.dart';
 import 'canvas_controller.dart';
+import 'color_manager.dart';
 import 'history_manager.dart';
+import 'selection_manager.dart';
+import 'stroke_manager.dart';
+import 'tool_manager.dart';
 
-/// 编辑器全局状态
-/// 管理图层、工具、画布、历史记录等所有编辑器状态
+/// 编辑器全局状态（协调器）
+/// 协调各 Manager 之间的交互，提供统一的 API 给 UI 层
 class EditorState extends ChangeNotifier {
+  // ===== 子管理器 =====
+
+  /// 工具管理器
+  final ToolManager toolManager = ToolManager();
+
+  /// 颜色管理器
+  final ColorManager colorManager = ColorManager();
+
+  /// 选区管理器
+  final SelectionManager selectionManager = SelectionManager();
+
+  /// 笔画管理器
+  final StrokeManager strokeManager = StrokeManager();
+
   /// 图层管理器
   final LayerManager layerManager = LayerManager();
 
@@ -26,250 +38,265 @@ class EditorState extends ChangeNotifier {
   /// 历史管理器
   final HistoryManager historyManager = HistoryManager();
 
-  /// 可用工具列表
-  late final List<EditorTool> _tools;
+  // ===== 通知器 =====
 
-  /// 当前工具
-  EditorTool? _currentTool;
-  EditorTool? get currentTool => _currentTool;
+  /// 渲染变化通知器（仅用于触发画布重绘）
+  /// LayerPainter 监听此通知器，而非整个 EditorState
+  final ChangeNotifier renderNotifier = ChangeNotifier();
 
-  /// 上一个工具（用于拾色器自动切回）
-  EditorTool? _previousTool;
+  /// 工具切换通知器（仅工具栏和设置面板监听）
+  /// 避免工具切换触发整个 EditorState 的监听者重建
+  final ValueNotifier<EditorTool?> toolChangeNotifier = ValueNotifier(null);
 
-  /// 前景色
-  Color _foregroundColor = const Color(0xFF000000);
-  Color get foregroundColor => _foregroundColor;
+  /// 画布尺寸通知器（仅画布尺寸相关 UI 监听）
+  final ValueNotifier<Size> canvasSizeNotifier =
+      ValueNotifier(const Size(1024, 1024));
 
-  /// 背景色
-  Color _backgroundColor = const Color(0xFFFFFFFF);
-  Color get backgroundColor => _backgroundColor;
+  // ===== 画布状态 =====
 
   /// 画布尺寸
   Size _canvasSize = const Size(1024, 1024);
   Size get canvasSize => _canvasSize;
 
-  /// 全局选区（用于Inpainting蒙版）
-  Path? _selectionPath;
-  Path? get selectionPath => _selectionPath;
-
-  /// 选区历史（用于撤销）
-  final List<Path?> _selectionHistory = [];
-  final List<Path?> _selectionRedoStack = [];
-  static const int _maxSelectionHistory = 30;
-
-  /// 当前绘制的临时笔画点
-  List<Offset> _currentStrokePoints = [];
-  List<Offset> get currentStrokePoints => _currentStrokePoints;
-
-  /// 当前选区预览（用于绘制时显示）
-  Rect? _selectionPreview;
-  Rect? get selectionPreview => _selectionPreview;
-
-  /// 套索选区临时路径
-  Path? _lassoPreviewPath;
-  Path? get lassoPreviewPath => _lassoPreviewPath;
-
-  /// 是否正在绘制
-  bool _isDrawing = false;
-  bool get isDrawing => _isDrawing;
+  // ===== 内部状态 =====
 
   /// 防止通知重入的标志
   bool _isNotifying = false;
 
-  /// 初始化
+  // ===== Alt 键状态（用于临时拾色器模式）=====
+
+  /// 获取 Alt 键是否按下（从硬件键盘状态读取）
+  bool get isAltPressed => HardwareKeyboard.instance.isAltPressed;
+
+  // ===== 代理属性（向后兼容）=====
+
+  // 快照代理
+  bool get hasValidCanvasSnapshot => layerManager.hasValidSnapshot;
+  int get canvasSnapshotVersion => layerManager.snapshotVersion;
+
+  // 工具代理
+  EditorTool? get currentTool => toolManager.currentTool;
+  List<EditorTool> get tools => toolManager.tools;
+  ValueNotifier<String?> get toolNotifier => toolManager.toolNotifier;
+
+  // 颜色代理
+  Color get foregroundColor => colorManager.foregroundColor;
+  Color get backgroundColor => colorManager.backgroundColor;
+
+  // 选区代理
+  Path? get selectionPath => selectionManager.selectionPath;
+  Rect? get selectionPreview => selectionManager.selectionPreview;
+  Path? get lassoPreviewPath => selectionManager.lassoPreviewPath;
+
+  // 笔画代理
+  List<Offset> get currentStrokePoints => strokeManager.currentStrokePoints;
+  bool get isDrawing => strokeManager.isDrawing;
+
+  // ===== 构造函数 =====
+
   EditorState() {
-    _initTools();
-    _currentTool = _tools.first;
+    _setupListeners();
+    // 同步初始工具到通知器（确保构造后立即一致）
+    toolChangeNotifier.value = toolManager.currentTool;
+  }
 
-    // 监听子管理器变化
+  void _setupListeners() {
+    // 图层变化 → 触发渲染 + UI
     layerManager.addListener(_onLayerChanged);
+
+    // 画布变换 → 触发渲染 + UI
     canvasController.addListener(_onCanvasChanged);
+
+    // 颜色变化 → 仅 UI（不触发画布重绘）
+    colorManager.addListener(_onColorChanged);
+
+    // 选区变化 → 触发渲染
+    selectionManager.addListener(_onSelectionChanged);
+
+    // 笔画变化 → 触发渲染
+    strokeManager.addListener(_onStrokeChanged);
   }
 
-  void _initTools() {
-    _tools = [
-      BrushTool(),
-      EraserTool(),
-      RectSelectionTool(),
-      EllipseSelectionTool(),
-      LassoSelectionTool(),
-      ColorPickerTool(),
-    ];
-  }
+  // ===== 代理方法：工具 =====
 
-  /// 获取所有工具
-  List<EditorTool> get tools => List.unmodifiable(_tools);
-
-  /// 设置当前工具
+  /// 切换工具 - 高性能即时切换
+  /// 使用细粒度通知器，仅通知工具相关 UI，不触发整个 EditorState 重建
   void setTool(EditorTool tool) {
-    if (_currentTool != tool) {
-      _previousTool = _currentTool;
-      _currentTool = tool;
-      notifyListeners();
-    }
+    if (toolManager.currentTool == tool) return;
+
+    // 1. 同步快速停用当前工具（不触发异步操作）
+    currentTool?.onDeactivateFast(this);
+
+    // 2. 切换工具指针
+    toolManager.setTool(tool);
+
+    // 3. 仅通知工具相关 UI（工具栏、设置面板）
+    toolChangeNotifier.value = tool;
+
+    // 4. 延迟激活新工具（下一帧执行，不阻塞切换）
+    _scheduleToolActivation(tool);
   }
 
-  /// 通过ID设置工具
+  /// 通过 ID 切换工具
   void setToolById(String toolId) {
-    final tool = _tools.firstWhere(
-      (t) => t.id == toolId,
-      orElse: () => _tools.first,
-    );
-    setTool(tool);
+    final tool = toolManager.getToolById(toolId);
+    if (tool != null) {
+      setTool(tool);
+    }
   }
 
   /// 切回上一个工具
   void switchToPreviousTool() {
-    if (_previousTool != null) {
-      final temp = _currentTool;
-      _currentTool = _previousTool;
-      _previousTool = temp;
-      notifyListeners();
+    currentTool?.onDeactivateFast(this);
+    toolManager.switchToPreviousTool();
+    final tool = currentTool;
+    if (tool != null) {
+      toolChangeNotifier.value = tool;
+      _scheduleToolActivation(tool);
     }
   }
 
-  /// 设置前景色
-  void setForegroundColor(Color color) {
-    _foregroundColor = color;
-    notifyListeners();
+  /// 延迟执行工具激活逻辑（下一帧异步执行）
+  /// 用于资源预热、缓存更新等，不阻塞工具切换
+  void _scheduleToolActivation(EditorTool tool) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 确保工具仍然是当前工具（防止快速连续切换）
+      if (toolManager.currentTool == tool) {
+        tool.onActivateDeferred(this);
+      }
+    });
   }
 
-  /// 设置背景色
-  void setBackgroundColor(Color color) {
-    _backgroundColor = color;
-    notifyListeners();
+  /// 进入临时拾色器模式（Alt 按下）
+  /// 轻量级切换：仅更新工具指针，不触发生命周期钩子
+  /// 避免 onActivate 中的异步操作（如快照更新）打断事件流
+  void enterTemporaryColorPicker() {
+    toolManager.enterTemporaryColorPicker();
+    // toolNotifier 已在 toolManager 中更新，UI 自动响应
   }
 
-  /// 交换前景色和背景色
-  void swapColors() {
-    final temp = _foregroundColor;
-    _foregroundColor = _backgroundColor;
-    _backgroundColor = temp;
-    notifyListeners();
+  /// 退出临时拾色器模式（Alt 松开）
+  /// 轻量级切换：仅更新工具指针，不触发生命周期钩子
+  void exitTemporaryColorPicker() {
+    toolManager.exitTemporaryColorPicker();
+    // toolNotifier 已在 toolManager 中更新，UI 自动响应
   }
 
-  /// 设置画布尺寸
+  // ===== 代理方法：颜色 =====
+
+  void setForegroundColor(Color color) => colorManager.setForegroundColor(color);
+  void setBackgroundColor(Color color) => colorManager.setBackgroundColor(color);
+  void swapColors() => colorManager.swapColors();
+
+  // ===== 代理方法：选区 =====
+
+  void setSelection(Path? path, {bool saveHistory = true}) =>
+      selectionManager.setSelection(path, saveHistory: saveHistory);
+  void addToSelection(Path path) => selectionManager.addToSelection(path);
+  void subtractFromSelection(Path path) =>
+      selectionManager.subtractFromSelection(path);
+  void intersectSelection(Path path) =>
+      selectionManager.intersectSelection(path);
+  void clearSelection() => selectionManager.clearSelection();
+  void invertSelection() => selectionManager.invertSelection(_canvasSize);
+  void setSelectionPreview(Rect? rect) =>
+      selectionManager.setSelectionPreview(rect);
+  void setLassoPreviewPath(Path? path) =>
+      selectionManager.setLassoPreviewPath(path);
+
+  // ===== 代理方法：笔画 =====
+
+  void startStroke(Offset point) {
+    strokeManager.startStroke(point);
+    _notifyRenderChange();
+  }
+
+  void updateStroke(Offset point) {
+    strokeManager.updateStroke(point);
+    _notifyRenderChange();
+  }
+
+  void endStroke() {
+    strokeManager.endStroke();
+    _notifyRenderChange();
+    _updateActiveLayerCacheIfNeeded();
+    // 笔画完成后异步预热快照，供拾色器使用
+    _scheduleSnapshotUpdate();
+  }
+
+  void cancelStroke() {
+    strokeManager.cancelStroke();
+    selectionManager.clearPreview();
+    _notifyRenderChange();
+  }
+
+  // ===== 画布方法 =====
+
   void setCanvasSize(Size size) {
     _canvasSize = size;
+    canvasSizeNotifier.value = size;
     notifyListeners();
   }
 
-  /// 保存选区历史
-  void _saveSelectionHistory() {
-    _selectionHistory.add(_selectionPath != null ? Path.from(_selectionPath!) : null);
-    _selectionRedoStack.clear();
-    while (_selectionHistory.length > _maxSelectionHistory) {
-      _selectionHistory.removeAt(0);
-    }
+  /// 更新画布快照（供拾色器使用）
+  Future<bool> updateCanvasSnapshot() async {
+    return await layerManager.updateSnapshotAsync(_canvasSize);
   }
 
-  /// 设置选区
-  void setSelection(Path? path, {bool saveHistory = true}) {
-    if (saveHistory) {
-      _saveSelectionHistory();
+  // ===== 笔刷方法 =====
+
+  double get brushSize {
+    final tool = toolManager.currentTool;
+    if (tool is BrushTool) {
+      return tool.settings.size;
+    } else if (tool is EraserTool) {
+      return tool.size;
     }
-    _selectionPath = path;
+    final brushTool = toolManager.tools.whereType<BrushTool>().firstOrNull;
+    return brushTool?.settings.size ?? 20.0;
+  }
+
+  void setBrushSize(double size) {
+    final tool = toolManager.currentTool;
+    if (tool is BrushTool) {
+      tool.setSize(size);
+    } else if (tool is EraserTool) {
+      tool.setSize(size);
+    }
     notifyListeners();
   }
 
-  /// 添加到选区
-  void addToSelection(Path path) {
-    _saveSelectionHistory();
-    if (_selectionPath == null) {
-      _selectionPath = path;
-    } else {
-      _selectionPath = Path.combine(PathOperation.union, _selectionPath!, path);
+  double get brushOpacity {
+    final tool = toolManager.currentTool;
+    if (tool is BrushTool) {
+      return tool.settings.opacity;
     }
-    notifyListeners();
+    return 1.0;
   }
 
-  /// 从选区减去
-  void subtractFromSelection(Path path) {
-    if (_selectionPath != null) {
-      _saveSelectionHistory();
-      _selectionPath = Path.combine(PathOperation.difference, _selectionPath!, path);
+  void setBrushOpacity(double opacity) {
+    final tool = toolManager.currentTool;
+    if (tool is BrushTool) {
+      tool.setOpacity(opacity);
       notifyListeners();
     }
   }
 
-  /// 与选区交叉
-  void intersectSelection(Path path) {
-    if (_selectionPath != null) {
-      _saveSelectionHistory();
-      _selectionPath = Path.combine(PathOperation.intersect, _selectionPath!, path);
-      notifyListeners();
-    }
+  void increaseBrushOpacity({double step = 0.1}) {
+    setBrushOpacity((brushOpacity + step).clamp(0.0, 1.0));
   }
 
-  /// 清除选区
-  void clearSelection() {
-    if (_selectionPath != null) {
-      _saveSelectionHistory();
-      _selectionPath = null;
-      notifyListeners();
-    }
+  void decreaseBrushOpacity({double step = 0.1}) {
+    setBrushOpacity((brushOpacity - step).clamp(0.0, 1.0));
   }
 
-  /// 反转选区
-  void invertSelection() {
-    if (_selectionPath != null) {
-      _saveSelectionHistory();
-      final fullRect = Path()..addRect(Rect.fromLTWH(0, 0, _canvasSize.width, _canvasSize.height));
-      _selectionPath = Path.combine(PathOperation.difference, fullRect, _selectionPath!);
-      notifyListeners();
-    }
-  }
+  // ===== 撤销/重做 =====
 
-  /// 设置选区预览
-  void setSelectionPreview(Rect? rect) {
-    _selectionPreview = rect;
-    notifyListeners();
-  }
-
-  /// 设置套索预览路径
-  void setLassoPreviewPath(Path? path) {
-    _lassoPreviewPath = path;
-    notifyListeners();
-  }
-
-  /// 开始绘制
-  void startStroke(Offset point) {
-    _isDrawing = true;
-    _currentStrokePoints = [point];
-    notifyListeners();
-  }
-
-  /// 更新绘制
-  void updateStroke(Offset point) {
-    if (_isDrawing) {
-      _currentStrokePoints.add(point);
-      notifyListeners();
-    }
-  }
-
-  /// 结束绘制
-  void endStroke() {
-    _isDrawing = false;
-    _currentStrokePoints = [];
-    notifyListeners();
-  }
-
-  /// 取消绘制
-  void cancelStroke() {
-    _isDrawing = false;
-    _currentStrokePoints = [];
-    _selectionPreview = null;
-    _lassoPreviewPath = null;
-    notifyListeners();
-  }
-
-  /// 撤销
   bool undo() {
     // 优先撤销选区
-    if (_currentTool?.isSelectionTool == true && _selectionHistory.isNotEmpty) {
-      _selectionRedoStack.add(_selectionPath != null ? Path.from(_selectionPath!) : null);
-      _selectionPath = _selectionHistory.removeLast();
-      notifyListeners();
+    if (toolManager.currentTool?.isSelectionTool == true &&
+        selectionManager.canUndoSelection) {
+      selectionManager.undoSelection();
       return true;
     }
 
@@ -281,13 +308,11 @@ class EditorState extends ChangeNotifier {
     return result;
   }
 
-  /// 重做
   bool redo() {
     // 优先重做选区
-    if (_currentTool?.isSelectionTool == true && _selectionRedoStack.isNotEmpty) {
-      _selectionHistory.add(_selectionPath != null ? Path.from(_selectionPath!) : null);
-      _selectionPath = _selectionRedoStack.removeLast();
-      notifyListeners();
+    if (toolManager.currentTool?.isSelectionTool == true &&
+        selectionManager.canRedoSelection) {
+      selectionManager.redoSelection();
       return true;
     }
 
@@ -299,31 +324,49 @@ class EditorState extends ChangeNotifier {
     return result;
   }
 
-  /// 是否可以撤销
   bool get canUndo {
-    if (_currentTool?.isSelectionTool == true) {
-      return _selectionHistory.isNotEmpty || historyManager.canUndo;
+    if (toolManager.currentTool?.isSelectionTool == true) {
+      return selectionManager.canUndoSelection || historyManager.canUndo;
     }
     return historyManager.canUndo;
   }
 
-  /// 是否可以重做
   bool get canRedo {
-    if (_currentTool?.isSelectionTool == true) {
-      return _selectionRedoStack.isNotEmpty || historyManager.canRedo;
+    if (toolManager.currentTool?.isSelectionTool == true) {
+      return selectionManager.canRedoSelection || historyManager.canRedo;
     }
     return historyManager.canRedo;
   }
 
+  // ===== 内部方法 =====
+
   void _onLayerChanged() {
+    _notifyRenderChange();
     _safeNotifyListeners();
   }
 
   void _onCanvasChanged() {
+    _notifyRenderChange();
     _safeNotifyListeners();
   }
 
-  /// 安全地通知监听器（防止重入）
+  void _onColorChanged() {
+    _safeNotifyListeners();
+  }
+
+  void _onSelectionChanged() {
+    _notifyRenderChange();
+  }
+
+  void _onStrokeChanged() {
+    // strokeManager 的变化已在代理方法中处理
+  }
+
+  void _notifyRenderChange() {
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    renderNotifier.notifyListeners();
+  }
+
   void _safeNotifyListeners() {
     if (_isNotifying) return;
     _isNotifying = true;
@@ -334,35 +377,73 @@ class EditorState extends ChangeNotifier {
     }
   }
 
-  /// 重置编辑器状态
+  /// 请求 UI 更新（供外部调用，如工具设置面板）
+  void requestUiUpdate() {
+    _safeNotifyListeners();
+  }
+
+  Future<void> _updateActiveLayerCacheIfNeeded() async {
+    final layer = layerManager.activeLayer;
+    if (layer != null && layer.shouldRasterizeNow()) {
+      await layer.rasterize(_canvasSize);
+      await layer.updateCompositeCache(_canvasSize);
+      _notifyRenderChange();
+    }
+  }
+
+  /// 延迟更新快照（下一帧异步执行）
+  /// 用于笔画完成后预热拾色器快照
+  void _scheduleSnapshotUpdate() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await layerManager.updateSnapshotAsync(_canvasSize);
+    });
+  }
+
+  // ===== 重置与初始化 =====
+
   void reset() {
     layerManager.clear();
     historyManager.clear();
-    _selectionPath = null;
-    _selectionHistory.clear();
-    _selectionRedoStack.clear();
-    _currentStrokePoints = [];
-    _isDrawing = false;
-    _selectionPreview = null;
-    _lassoPreviewPath = null;
+    colorManager.reset();
+    selectionManager.reset();
+    strokeManager.reset();
     canvasController.reset();
     notifyListeners();
   }
 
-  /// 初始化新画布
   void initNewCanvas(Size size) {
     reset();
     _canvasSize = size;
+    canvasSizeNotifier.value = size;
     layerManager.addLayer(name: '图层 1');
+    // 同步初始工具到通知器
+    toolChangeNotifier.value = toolManager.currentTool;
     notifyListeners();
   }
 
   @override
   void dispose() {
+    // 移除监听器
     layerManager.removeListener(_onLayerChanged);
     canvasController.removeListener(_onCanvasChanged);
+    colorManager.removeListener(_onColorChanged);
+    selectionManager.removeListener(_onSelectionChanged);
+    strokeManager.removeListener(_onStrokeChanged);
+
+    // 释放管理器
+    toolManager.dispose();
+    colorManager.dispose();
+    selectionManager.dispose();
+    strokeManager.dispose();
     layerManager.dispose();
     canvasController.dispose();
+    historyManager.dispose();
+
+    // 释放通知器
+    renderNotifier.dispose();
+    toolChangeNotifier.dispose();
+    canvasSizeNotifier.dispose();
+
     super.dispose();
   }
 }

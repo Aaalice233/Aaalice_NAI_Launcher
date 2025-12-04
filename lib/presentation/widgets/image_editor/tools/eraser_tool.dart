@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import 'color_picker_tool.dart';
 import 'tool_base.dart';
 
 /// 橡皮擦工具
@@ -14,10 +15,6 @@ class EraserTool extends EditorTool {
   double _hardness = 1.0;
   double get hardness => _hardness;
 
-  /// 橡皮擦模式
-  EraserMode _mode = EraserMode.normal;
-  EraserMode get mode => _mode;
-
   @override
   String get id => 'eraser';
 
@@ -25,7 +22,7 @@ class EraserTool extends EditorTool {
   String get name => '橡皮擦';
 
   @override
-  IconData get icon => Icons.auto_fix_high;
+  IconData get icon => Icons.cleaning_services;
 
   @override
   LogicalKeyboardKey get shortcutKey => LogicalKeyboardKey.keyE;
@@ -43,19 +40,20 @@ class EraserTool extends EditorTool {
     _hardness = hardness.clamp(0.0, 1.0);
   }
 
-  /// 设置模式
-  void setMode(EraserMode mode) {
-    _mode = mode;
-  }
-
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
+    // Alt 模式下不开始擦除，等待 pointerUp 取色
+    if (state.isAltPressed) return;
+
     // 坐标已由 EditorCanvas 统一转换为画布坐标
     state.startStroke(event.localPosition);
   }
 
   @override
   void onPointerMove(PointerMoveEvent event, EditorState state) {
+    // Alt 模式下不更新笔画
+    if (state.isAltPressed) return;
+
     if (state.isDrawing) {
       // 坐标已由 EditorCanvas 统一转换为画布坐标
       state.updateStroke(event.localPosition);
@@ -64,6 +62,12 @@ class EraserTool extends EditorTool {
 
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
+    // Alt 模式：取色
+    if (state.isAltPressed) {
+      _pickColorAndApply(event.localPosition, state);
+      return;
+    }
+
     if (state.isDrawing && state.currentStrokePoints.isNotEmpty) {
       final activeLayer = state.layerManager.activeLayer;
       if (activeLayer != null && !activeLayer.locked) {
@@ -87,6 +91,14 @@ class EraserTool extends EditorTool {
     state.endStroke();
   }
 
+  /// Alt 模式下取色并应用
+  Future<void> _pickColorAndApply(Offset canvasPoint, EditorState state) async {
+    final color = await ColorPickerTool.pickColorAt(canvasPoint, state);
+    if (color != null) {
+      state.setForegroundColor(color);
+    }
+  }
+
   @override
   double getCursorRadius(EditorState state) => _size / 2;
 
@@ -95,30 +107,12 @@ class EraserTool extends EditorTool {
     return _EraserSettingsPanel(
       tool: this,
       onSettingsChanged: () {
-        state.notifyListeners();
+        state.requestUiUpdate();
       },
     );
   }
 }
 
-/// 橡皮擦模式
-enum EraserMode {
-  /// 普通擦除（变为透明）
-  normal,
-  /// 擦除到背景色
-  background,
-}
-
-extension EraserModeExtension on EraserMode {
-  String get label {
-    switch (this) {
-      case EraserMode.normal:
-        return '透明';
-      case EraserMode.background:
-        return '背景色';
-    }
-  }
-}
 
 class _EraserSettingsPanel extends StatefulWidget {
   final EraserTool tool;
@@ -270,41 +264,6 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
           ),
         ),
 
-        // 模式选择
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 60,
-                child: Text('模式', style: theme.textTheme.bodySmall),
-              ),
-              Expanded(
-                child: SegmentedButton<EraserMode>(
-                  segments: EraserMode.values.map((mode) {
-                    return ButtonSegment<EraserMode>(
-                      value: mode,
-                      label: Text(mode.label),
-                    );
-                  }).toList(),
-                  selected: {widget.tool.mode},
-                  onSelectionChanged: (selected) {
-                    setState(() {
-                      widget.tool.setMode(selected.first);
-                    });
-                    widget.onSettingsChanged();
-                  },
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    textStyle: WidgetStatePropertyAll(
-                      theme.textTheme.bodySmall,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

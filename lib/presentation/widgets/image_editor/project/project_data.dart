@@ -1,8 +1,5 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui';
 
-import '../layers/layer.dart';
 import '../core/history_manager.dart';
 
 /// 项目版本号

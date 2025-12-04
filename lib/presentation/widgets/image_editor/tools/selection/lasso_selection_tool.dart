@@ -139,7 +139,7 @@ class LassoSelectionTool extends EditorTool {
     return _LassoSelectionSettingsPanel(
       tool: this,
       onSettingsChanged: () {
-        state.notifyListeners();
+        state.requestUiUpdate();
       },
       onClearSelection: () {
         state.clearSelection();

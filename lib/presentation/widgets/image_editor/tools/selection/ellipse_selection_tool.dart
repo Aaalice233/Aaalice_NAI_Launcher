@@ -100,7 +100,7 @@ class EllipseSelectionTool extends EditorTool {
     return _EllipseSelectionSettingsPanel(
       tool: this,
       onSettingsChanged: () {
-        state.notifyListeners();
+        state.requestUiUpdate();
       },
       onClearSelection: () {
         state.clearSelection();

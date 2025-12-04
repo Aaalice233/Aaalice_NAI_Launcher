@@ -22,64 +22,73 @@ class MobileToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return ListenableBuilder(
-      listenable: state,
-      builder: (context, _) {
-        return Container(
-          height: 56,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: theme.dividerColor,
-                width: 1,
-              ),
-            ),
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: theme.dividerColor,
+            width: 1,
           ),
-          child: Row(
-            children: [
-              // 撤销/重做
-              _ActionButton(
-                icon: Icons.undo,
-                enabled: state.canUndo,
-                onTap: onUndo ?? () => state.undo(),
-              ),
-              _ActionButton(
-                icon: Icons.redo,
-                enabled: state.canRedo,
-                onTap: onRedo ?? () => state.redo(),
-              ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // 撤销/重做 - 监听历史管理器
+          ListenableBuilder(
+            listenable: state.historyManager,
+            builder: (context, _) {
+              return Row(
+                children: [
+                  _ActionButton(
+                    icon: Icons.undo,
+                    enabled: state.canUndo,
+                    onTap: onUndo ?? () => state.undo(),
+                  ),
+                  _ActionButton(
+                    icon: Icons.redo,
+                    enabled: state.canRedo,
+                    onTap: onRedo ?? () => state.redo(),
+                  ),
+                ],
+              );
+            },
+          ),
 
-              const VerticalDivider(width: 1, indent: 12, endIndent: 12),
+          const VerticalDivider(width: 1, indent: 12, endIndent: 12),
 
-              // 工具列表（可滚动）
-              Expanded(
-                child: SingleChildScrollView(
+          // 工具列表 - 监听工具切换
+          Expanded(
+            child: ValueListenableBuilder<String?>(
+              valueListenable: state.toolNotifier,
+              builder: (context, currentToolId, _) {
+                return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Row(
                     children: state.tools.map((tool) {
                       return _MobileToolButton(
                         tool: tool,
-                        isSelected: state.currentTool == tool,
+                        isSelected: tool.id == currentToolId,
                         onTap: () => state.setTool(tool),
                       );
                     }).toList(),
                   ),
-                ),
-              ),
-
-              const VerticalDivider(width: 1, indent: 12, endIndent: 12),
-
-              // 图层按钮
-              _ActionButton(
-                icon: Icons.layers,
-                onTap: onLayersPressed ?? () {},
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        );
-      },
+
+          const VerticalDivider(width: 1, indent: 12, endIndent: 12),
+
+          // 图层按钮
+          _ActionButton(
+            icon: Icons.layers,
+            onTap: onLayersPressed ?? () {},
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -26,19 +25,29 @@ class _LayerPanelState extends State<LayerPanel> {
   @override
   void initState() {
     super.initState();
-    // 监听图层变化以更新缩略图
-    widget.state.layerManager.addListener(_onLayerChanged);
+    // 监听图层内容变化（用于触发缩略图更新）
+    widget.state.layerManager.addListener(_onLayerContentChanged);
+    // 初始化时立即更新缩略图
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateThumbnails();
+    });
   }
 
   @override
   void dispose() {
+    widget.state.layerManager.removeListener(_onLayerContentChanged);
     _thumbnailUpdateTimer?.cancel();
-    widget.state.layerManager.removeListener(_onLayerChanged);
     super.dispose();
   }
 
-  void _onLayerChanged() {
-    // 使用防抖机制，取消之前的计时器
+  /// 图层内容变化回调（仅 layerManager.notifyListeners 触发）
+  void _onLayerContentChanged() {
+    _scheduleThumbnailUpdate();
+  }
+
+  /// 调度缩略图更新（带防抖）
+  /// 仅在图层内容变化时调用（不在 UI 变化如锁定/重命名时调用）
+  void _scheduleThumbnailUpdate() {
     _thumbnailUpdateTimer?.cancel();
     _thumbnailUpdateTimer = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
@@ -51,20 +60,33 @@ class _LayerPanelState extends State<LayerPanel> {
     final canvasSize = widget.state.canvasSize;
     final layers = widget.state.layerManager.layers;
 
+    // 只获取需要更新的图层
+    final layersToUpdate = layers.where((layer) => layer.needsThumbnailUpdate).toList();
+
+    // 如果没有需要更新的图层，直接返回
+    if (layersToUpdate.isEmpty) return;
+
     try {
-      // 并行更新所有需要更新的缩略图
-      await Future.wait(
-        layers
-            .where((layer) => layer.needsThumbnailUpdate)
-            .map((layer) => layer.updateThumbnail(canvasSize)),
-        eagerError: false,
-      );
+      // 分批处理，每帧最多处理 2 个缩略图，避免阻塞主线程
+      const batchSize = 2;
+      for (int i = 0; i < layersToUpdate.length; i += batchSize) {
+        if (!mounted) return;
+
+        final batch = layersToUpdate.skip(i).take(batchSize);
+        await Future.wait(
+          batch.map((layer) => layer.updateThumbnail(canvasSize)),
+          eagerError: false,
+        );
+
+        // 让出主线程一帧，保持 UI 响应
+        await Future.delayed(Duration.zero);
+
+        if (mounted) {
+          setState(() {});
+        }
+      }
     } catch (e) {
       debugPrint('缩略图更新失败: $e');
-    }
-
-    if (mounted) {
-      setState(() {});
     }
   }
 
@@ -73,11 +95,15 @@ class _LayerPanelState extends State<LayerPanel> {
     final theme = Theme.of(context);
     final state = widget.state;
 
+    // 监听 layerManager（图层列表变化）和 uiUpdateNotifier（锁定/重命名等UI变化）
+    // 活动图层变化通过 ValueListenableBuilder 在每个 tile 中单独监听
     return ListenableBuilder(
-      listenable: state.layerManager,
+      listenable: Listenable.merge([
+        state.layerManager,
+        state.layerManager.uiUpdateNotifier,
+      ]),
       builder: (context, _) {
         final layers = state.layerManager.layers;
-        final activeId = state.layerManager.activeLayerId;
 
         return Container(
           decoration: BoxDecoration(
@@ -114,50 +140,58 @@ class _LayerPanelState extends State<LayerPanel> {
                       )
                     : ReorderableListView.builder(
                         buildDefaultDragHandles: false,
-                        reverse: true, // 从底到顶显示
+                        // Krita 风格：顶部图层在列表顶部
                         itemCount: layers.length,
                         onReorder: (oldIndex, newIndex) {
-                          // 因为reverse=true，需要调整索引
-                          final actualOldIndex = layers.length - 1 - oldIndex;
-                          var actualNewIndex = layers.length - 1 - newIndex;
-                          if (actualOldIndex < actualNewIndex) {
-                            actualNewIndex--;
+                          // UI索引转换为实际图层索引
+                          // UI index 0 = 顶部图层 = layers[length-1]
+                          if (oldIndex < newIndex) {
+                            newIndex -= 1;
                           }
+                          final actualOldIndex = layers.length - 1 - oldIndex;
+                          final actualNewIndex = layers.length - 1 - newIndex;
                           state.layerManager.reorderLayer(
                             actualOldIndex,
                             actualNewIndex,
                           );
                         },
                         itemBuilder: (context, index) {
-                          // 因为reverse=true，需要调整索引
+                          // UI index 0 = 顶部图层 = layers[length-1]
                           final actualIndex = layers.length - 1 - index;
                           final layer = layers[actualIndex];
-                          return _LayerTile(
+                          // 使用 layer.isActiveNotifier 单独监听活动状态
+                          // 切换活动图层时仅重建新旧活动图层的 tile（O(1)），而非所有图层（O(n)）
+                          return ValueListenableBuilder<bool>(
                             key: ValueKey(layer.id),
-                            layer: layer,
-                            isActive: layer.id == activeId,
-                            index: index,
-                            showThumbnail: true,
-                            onTap: () {
-                              state.layerManager.setActiveLayer(layer.id);
-                            },
-                            onVisibilityToggle: () {
-                              state.layerManager.toggleVisibility(layer.id);
-                            },
-                            onLockToggle: () {
-                              state.layerManager.toggleLock(layer.id);
-                            },
-                            onDelete: layers.length > 1
-                                ? () => state.layerManager.removeLayer(layer.id)
-                                : null,
-                            onDuplicate: () {
-                              state.layerManager.duplicateLayer(layer.id);
-                            },
-                            onRename: (newName) {
-                              state.layerManager.renameLayer(layer.id, newName);
-                            },
-                            onOpacityChanged: (opacity) {
-                              state.layerManager.setLayerOpacity(layer.id, opacity);
+                            valueListenable: layer.isActiveNotifier,
+                            builder: (context, isActive, _) {
+                              return _LayerTile(
+                                layer: layer,
+                                isActive: isActive,
+                                index: index,
+                                showThumbnail: true,
+                                onTap: () {
+                                  state.layerManager.setActiveLayer(layer.id);
+                                },
+                                onVisibilityToggle: () {
+                                  state.layerManager.toggleVisibility(layer.id);
+                                },
+                                onLockToggle: () {
+                                  state.layerManager.toggleLock(layer.id);
+                                },
+                                onDelete: layers.length > 1
+                                    ? () => state.layerManager.removeLayer(layer.id)
+                                    : null,
+                                onDuplicate: () {
+                                  state.layerManager.duplicateLayer(layer.id);
+                                },
+                                onRename: (newName) {
+                                  state.layerManager.renameLayer(layer.id, newName);
+                                },
+                                onOpacityChanged: (opacity) {
+                                  state.layerManager.setLayerOpacity(layer.id, opacity);
+                                },
+                              );
                             },
                           );
                         },
@@ -249,9 +283,13 @@ class _LayerTile extends StatefulWidget {
   State<_LayerTile> createState() => _LayerTileState();
 }
 
-class _LayerTileState extends State<_LayerTile> {
+class _LayerTileState extends State<_LayerTile>
+    with AutomaticKeepAliveClientMixin {
   bool _isEditing = false;
   late TextEditingController _nameController;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -276,6 +314,7 @@ class _LayerTileState extends State<_LayerTile> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 必须调用
     final theme = Theme.of(context);
 
     return ReorderableDragStartListener(
@@ -529,26 +568,29 @@ class _LayerThumbnail extends StatelessWidget {
     final theme = Theme.of(context);
     final thumbnail = layer.thumbnail;
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(
-          color: theme.dividerColor,
-          width: 1,
+    // 使用 RepaintBoundary 隔离缩略图渲染，避免父级重建时触发重绘
+    return RepaintBoundary(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          border: Border.all(
+            color: theme.dividerColor,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(4),
         ),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: thumbnail != null
-            ? RawImage(
-                image: thumbnail,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.medium,
-              )
-            : _buildPlaceholder(theme),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: thumbnail != null
+              ? RawImage(
+                  image: thumbnail,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                )
+              : _buildPlaceholder(theme),
+        ),
       ),
     );
   }

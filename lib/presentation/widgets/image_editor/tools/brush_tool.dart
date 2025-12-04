@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
+import 'color_picker_tool.dart';
 import 'tool_base.dart';
 
 /// 笔刷预设
@@ -94,6 +95,10 @@ class BrushTool extends EditorTool {
   BrushSettings _settings = const BrushSettings();
   BrushSettings get settings => _settings;
 
+  /// 当前选中的预设索引（-1 表示自定义/无选中）
+  int _selectedPresetIndex = 2; // 默认选中"标准笔刷"
+  int get selectedPresetIndex => _selectedPresetIndex;
+
   @override
   String get id => 'brush';
 
@@ -115,8 +120,14 @@ class BrushTool extends EditorTool {
   }
 
   /// 应用预设
-  void applyPreset(BrushPreset preset) {
+  void applyPreset(BrushPreset preset, int index) {
     _settings = preset.toSettings();
+    _selectedPresetIndex = index;
+  }
+
+  /// 直接设置预设索引（用于恢复持久化设置）
+  void setSelectedPresetIndex(int index) {
+    _selectedPresetIndex = index;
   }
 
   /// 设置画笔大小
@@ -136,12 +147,18 @@ class BrushTool extends EditorTool {
 
   @override
   void onPointerDown(PointerDownEvent event, EditorState state) {
+    // Alt 模式下不开始绘画，等待 pointerUp 取色
+    if (state.isAltPressed) return;
+
     // 坐标已由 EditorCanvas 统一转换为画布坐标
     state.startStroke(event.localPosition);
   }
 
   @override
   void onPointerMove(PointerMoveEvent event, EditorState state) {
+    // Alt 模式下不更新笔画
+    if (state.isAltPressed) return;
+
     if (state.isDrawing) {
       // 坐标已由 EditorCanvas 统一转换为画布坐标
       state.updateStroke(event.localPosition);
@@ -150,6 +167,12 @@ class BrushTool extends EditorTool {
 
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
+    // Alt 模式：取色
+    if (state.isAltPressed) {
+      _pickColorAndApply(event.localPosition, state);
+      return;
+    }
+
     if (state.isDrawing && state.currentStrokePoints.isNotEmpty) {
       final activeLayer = state.layerManager.activeLayer;
       if (activeLayer != null && !activeLayer.locked) {
@@ -173,6 +196,14 @@ class BrushTool extends EditorTool {
     state.endStroke();
   }
 
+  /// Alt 模式下取色并应用
+  Future<void> _pickColorAndApply(Offset canvasPoint, EditorState state) async {
+    final color = await ColorPickerTool.pickColorAt(canvasPoint, state);
+    if (color != null) {
+      state.setForegroundColor(color);
+    }
+  }
+
   @override
   double getCursorRadius(EditorState state) => _settings.size / 2;
 
@@ -182,7 +213,7 @@ class BrushTool extends EditorTool {
       tool: this,
       onSettingsChanged: () {
         // 触发刷新
-        state.notifyListeners();
+        state.requestUiUpdate();
       },
     );
   }
@@ -272,9 +303,10 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
                       padding: const EdgeInsets.only(right: 8),
                       child: _BrushPresetButton(
                         preset: preset,
+                        isSelected: widget.tool.selectedPresetIndex == index,
                         onTap: () {
                           setState(() {
-                            widget.tool.applyPreset(preset);
+                            widget.tool.applyPreset(preset, index);
                             _sizeController.text = preset.size.round().toString();
                           });
                           widget.onSettingsChanged();
@@ -336,10 +368,12 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
 /// 笔刷预设按钮
 class _BrushPresetButton extends StatelessWidget {
   final BrushPreset preset;
+  final bool isSelected;
   final VoidCallback onTap;
 
   const _BrushPresetButton({
     required this.preset,
+    required this.isSelected,
     required this.onTap,
   });
 
@@ -354,17 +388,28 @@ class _BrushPresetButton extends StatelessWidget {
         width: 56,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          border: Border.all(color: theme.dividerColor),
+          color: isSelected ? theme.colorScheme.primaryContainer : null,
+          border: Border.all(
+            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
+            width: isSelected ? 2 : 1,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(preset.icon, size: 24),
+            Icon(
+              preset.icon,
+              size: 24,
+              color: isSelected ? theme.colorScheme.primary : null,
+            ),
             const SizedBox(height: 2),
             Text(
               preset.name,
-              style: theme.textTheme.labelSmall,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: isSelected ? theme.colorScheme.primary : null,
+                fontWeight: isSelected ? FontWeight.bold : null,
+              ),
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),

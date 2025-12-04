@@ -100,7 +100,7 @@ class RectSelectionTool extends EditorTool {
     return _SelectionSettingsPanel(
       tool: this,
       onSettingsChanged: () {
-        state.notifyListeners();
+        state.requestUiUpdate();
       },
       onClearSelection: () {
         state.clearSelection();

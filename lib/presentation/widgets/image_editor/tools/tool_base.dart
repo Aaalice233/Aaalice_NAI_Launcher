@@ -36,16 +36,30 @@ abstract class EditorTool {
   /// 指针抬起
   void onPointerUp(PointerUpEvent event, EditorState state);
 
+  /// 指针悬停（用于拾色器等需要实时预览的工具）
+  void onPointerHover(PointerHoverEvent event, EditorState state) {}
+
   /// 指针取消
   void onPointerCancel(EditorState state) {
     state.cancelStroke();
   }
 
+  /// 快速停用（同步，无异步操作）
+  /// 仅清理内存中的临时状态，不触发任何异步操作
+  /// 用于实现即时工具切换
+  void onDeactivateFast(EditorState state) {}
+
+  /// 延迟激活（在下一帧异步执行）
+  /// 用于资源预热、缓存更新等耗时操作
+  /// 不会阻塞工具切换
+  void onActivateDeferred(EditorState state) {}
+
   /// 构建设置面板
   Widget buildSettingsPanel(BuildContext context, EditorState state);
 
   /// 构建光标预览
-  Widget? buildCursor(EditorState state) => null;
+  /// [screenCursorPosition] 是屏幕坐标系中的光标位置，用于定位覆盖层UI
+  Widget? buildCursor(EditorState state, {Offset? screenCursorPosition}) => null;
 
   /// 获取光标半径（用于画布显示）
   double getCursorRadius(EditorState state) => 10.0;

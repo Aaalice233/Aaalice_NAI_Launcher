@@ -3,17 +3,18 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../core/editor_state.dart';
+import '../tools/brush_tool.dart';
+import '../tools/eraser_tool.dart';
 
 /// 图层绘制器
 /// 负责绘制所有图层内容
 class LayerPainter extends CustomPainter {
   final EditorState state;
 
-  /// 缓存的棋盘格图案
-  static ui.Image? _checkerboardCache;
-  static Size? _checkerboardCacheSize;
-
-  LayerPainter({required this.state}) : super(repaint: state);
+  /// 使用 renderNotifier 而非整个 state
+  /// 这样只有在渲染相关变化时才会触发重绘
+  /// 切换活动图层等 UI 操作不会导致画布重绘
+  LayerPainter({required this.state}) : super(repaint: state.renderNotifier);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -23,8 +24,27 @@ class LayerPainter extends CustomPainter {
     // 保存状态
     canvas.save();
 
-    // 应用变换
+    // 应用基础变换（平移和缩放）
     canvas.translate(controller.offset.dx, controller.offset.dy);
+
+    // 应用旋转和镜像（以画布中心为基准）
+    final centerX = canvasSize.width * controller.scale / 2;
+    final centerY = canvasSize.height * controller.scale / 2;
+
+    if (controller.rotation != 0 || controller.isMirroredHorizontally) {
+      canvas.translate(centerX, centerY);
+
+      if (controller.rotation != 0) {
+        canvas.rotate(controller.rotation);
+      }
+
+      if (controller.isMirroredHorizontally) {
+        canvas.scale(-1.0, 1.0);
+      }
+
+      canvas.translate(-centerX, -centerY);
+    }
+
     canvas.scale(controller.scale);
 
     // 绘制画布背景（棋盘格表示透明）
@@ -63,15 +83,13 @@ class LayerPainter extends CustomPainter {
     Color color = state.foregroundColor;
     bool isEraser = false;
 
-    if (tool.id == 'brush') {
-      final brushTool = tool as dynamic;
-      size = brushTool.settings.size;
-      opacity = brushTool.settings.opacity;
-      hardness = brushTool.settings.hardness;
-    } else if (tool.id == 'eraser') {
-      final eraserTool = tool as dynamic;
-      size = eraserTool.size;
-      hardness = eraserTool.hardness;
+    if (tool is BrushTool) {
+      size = tool.settings.size;
+      opacity = tool.settings.opacity;
+      hardness = tool.settings.hardness;
+    } else if (tool is EraserTool) {
+      size = tool.size;
+      hardness = tool.hardness;
       isEraser = true;
     }
 
@@ -141,8 +159,9 @@ class LayerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant LayerPainter oldDelegate) {
-    // CustomPainter 使用 repaint: state 自动监听状态变化
-    // 所以这里不需要手动比较，repaint Listenable 会自动触发重绘
+    // repaint: renderNotifier 已经处理了渲染相关的变化监听
+    // shouldRepaint 只需处理 CustomPainter 本身的属性变化
+    // 返回 false 避免工具切换等无关操作触发不必要的重绘
     return false;
   }
 }
@@ -153,17 +172,45 @@ class SelectionPainter extends CustomPainter {
   final EditorState state;
   final Animation<double> animation;
 
+  /// 缓存的选区路径
+  static Path? _cachedPath;
+
+  /// 缓存的 PathMetrics（避免每帧重新计算）
+  static List<ui.PathMetric>? _cachedMetrics;
+
+  /// 使用 renderNotifier 和 animation 的合并监听
+  /// 只有渲染相关变化才会触发重绘
   SelectionPainter({
     required this.state,
     required this.animation,
-  }) : super(repaint: Listenable.merge([state, animation]));
+  }) : super(repaint: Listenable.merge([state.renderNotifier, animation]));
 
   @override
   void paint(Canvas canvas, Size size) {
     final controller = state.canvasController;
+    final canvasSize = state.canvasSize;
 
     canvas.save();
     canvas.translate(controller.offset.dx, controller.offset.dy);
+
+    // 应用旋转和镜像（以画布中心为基准）
+    final centerX = canvasSize.width * controller.scale / 2;
+    final centerY = canvasSize.height * controller.scale / 2;
+
+    if (controller.rotation != 0 || controller.isMirroredHorizontally) {
+      canvas.translate(centerX, centerY);
+
+      if (controller.rotation != 0) {
+        canvas.rotate(controller.rotation);
+      }
+
+      if (controller.isMirroredHorizontally) {
+        canvas.scale(-1.0, 1.0);
+      }
+
+      canvas.translate(-centerX, -centerY);
+    }
+
     canvas.scale(controller.scale);
 
     // 绘制选区预览（矩形/椭圆）
@@ -254,9 +301,16 @@ class SelectionPainter extends CustomPainter {
     _drawDashedPath(canvas, path, paint, dashOffset);
   }
 
-  /// 绘制虚线路径
+  /// 绘制虚线路径（使用缓存的 PathMetrics）
   void _drawDashedPath(Canvas canvas, Path path, Paint paint, double dashOffset) {
-    final metrics = path.computeMetrics();
+    // 检查路径是否变化，仅在变化时重新计算 metrics
+    if (_cachedPath != path) {
+      _cachedPath = path;
+      _cachedMetrics = path.computeMetrics().toList();
+    }
+
+    final metrics = _cachedMetrics;
+    if (metrics == null) return;
 
     for (final metric in metrics) {
       double distance = dashOffset % 16.0;
@@ -285,10 +339,13 @@ class SelectionPainter extends CustomPainter {
 }
 
 /// 光标绘制器
-/// 绘制画笔光标预览
+/// 绘制画笔光标预览和工具图标
 class CursorPainter extends CustomPainter {
   final EditorState state;
   final Offset? cursorPosition;
+
+  /// 缓存的图标 TextPainter
+  static final Map<int, TextPainter> _iconCache = {};
 
   CursorPainter({
     required this.state,
@@ -304,37 +361,103 @@ class CursorPainter extends CustomPainter {
     final tool = state.currentTool;
     if (tool == null) return;
 
-    // 只为绘画工具显示光标
-    if (!tool.isPaintTool) return;
-
-    final radius = tool.getCursorRadius(state);
     final scale = state.canvasController.scale;
-    final scaledRadius = radius * scale;
+    Offset iconPosition;
 
-    // 光标圆圈
+    // 绘画工具：绘制圆圈光标
+    if (tool.isPaintTool) {
+      final radius = tool.getCursorRadius(state);
+      final scaledRadius = radius * scale;
+
+      // 光标圆圈
+      canvas.drawCircle(
+        cursorPosition!,
+        scaledRadius,
+        Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
+      );
+
+      canvas.drawCircle(
+        cursorPosition!,
+        scaledRadius,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.5,
+      );
+
+      // 中心点
+      canvas.drawCircle(
+        cursorPosition!,
+        2,
+        Paint()..color = Colors.black,
+      );
+
+      // 图标位置：圆圈右下角
+      iconPosition = cursorPosition! + Offset(scaledRadius, scaledRadius);
+    } else {
+      // 非绘画工具：图标在光标右下角
+      iconPosition = cursorPosition! + const Offset(8, 8);
+    }
+
+    // 绘制工具图标
+    _drawToolIcon(canvas, iconPosition, tool.icon);
+  }
+
+  /// 获取或创建缓存的 TextPainter
+  static TextPainter _getIconPainter(IconData icon) {
+    final cacheKey = icon.codePoint;
+    if (_iconCache.containsKey(cacheKey)) {
+      return _iconCache[cacheKey]!;
+    }
+
+    const iconSize = 14.0;
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: iconSize,
+          color: Colors.white,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    _iconCache[cacheKey] = painter;
+    return painter;
+  }
+
+  /// 绘制工具图标
+  void _drawToolIcon(Canvas canvas, Offset position, IconData icon) {
+    const iconSize = 14.0;
+    const bgRadius = iconSize / 2 + 2;
+
+    // 绘制背景圆
     canvas.drawCircle(
-      cursorPosition!,
-      scaledRadius,
-      Paint()
-        ..color = Colors.black
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
+      position,
+      bgRadius,
+      Paint()..color = Colors.black.withOpacity(0.7),
     );
 
+    // 绘制白色边框
     canvas.drawCircle(
-      cursorPosition!,
-      scaledRadius,
+      position,
+      bgRadius,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.5,
+        ..strokeWidth = 1,
     );
 
-    // 中心点
-    canvas.drawCircle(
-      cursorPosition!,
-      2,
-      Paint()..color = Colors.black,
+    // 使用缓存的 TextPainter 绘制图标
+    final textPainter = _getIconPainter(icon);
+    textPainter.paint(
+      canvas,
+      position - const Offset(iconSize / 2, iconSize / 2),
     );
   }
 

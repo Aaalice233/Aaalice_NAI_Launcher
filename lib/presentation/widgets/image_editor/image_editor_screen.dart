@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import 'core/editor_state.dart';
+import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
 import 'widgets/toolbar/desktop_toolbar.dart';
 import 'widgets/toolbar/mobile_toolbar.dart';
@@ -91,7 +93,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   late EditorState _state;
   bool _isInitialized = false;
   bool _showLayerPanel = true;
-  bool _isMobileLayerSheetOpen = false;
 
   @override
   void initState() {
@@ -132,11 +133,18 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         image.height.toDouble(),
       ));
 
-      // 将图像添加为底层图层
+      // 将图像添加为底图图层
       await _state.layerManager.addLayerFromImage(
         widget.initialImage!,
         name: '底图',
       );
+
+      // 选中"图层 1"作为默认绘制图层（而非底图）
+      final layer1 = _state.layerManager.layers.firstWhere(
+        (l) => l.name == '图层 1',
+        orElse: () => _state.layerManager.layers.last,
+      );
+      _state.layerManager.setActiveLayer(layer1.id);
 
       // TODO: 加载已有蒙版 (widget.existingMask)
       // 需要将位图蒙版转换为 Path，这是一个复杂操作
@@ -176,8 +184,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   /// 桌面端布局
   Widget _buildDesktopLayout() {
-    final theme = Theme.of(context);
-
     return Scaffold(
       body: Column(
         children: [
@@ -298,13 +304,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
           const Spacer(),
 
-          // 画布尺寸按钮
+          // 画布尺寸按钮（使用细粒度监听）
           TextButton.icon(
             icon: const Icon(Icons.aspect_ratio, size: 18),
-            label: ListenableBuilder(
-              listenable: _state,
-              builder: (context, _) => Text(
-                '${_state.canvasSize.width.toInt()} x ${_state.canvasSize.height.toInt()}',
+            label: ValueListenableBuilder<Size>(
+              valueListenable: _state.canvasSizeNotifier,
+              builder: (context, size, _) => Text(
+                '${size.width.toInt()} x ${size.height.toInt()}',
               ),
             ),
             onPressed: _changeCanvasSize,
@@ -324,6 +330,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               });
             },
             tooltip: '切换面板',
+          ),
+
+          // 快捷键帮助
+          IconButton(
+            icon: const Icon(Icons.keyboard, size: 20),
+            onPressed: _showShortcutHelp,
+            tooltip: '快捷键帮助',
           ),
 
           const VerticalDivider(width: 1, indent: 8, endIndent: 8),
@@ -346,11 +359,17 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   /// 状态栏
+  /// 使用 Listenable.merge 实现细粒度监听
   Widget _buildStatusBar() {
     final theme = Theme.of(context);
 
     return ListenableBuilder(
-      listenable: _state,
+      listenable: Listenable.merge([
+        _state.canvasController,      // 缩放、旋转、镜像
+        _state.canvasSizeNotifier,    // 画布尺寸
+        _state.layerManager,          // 图层数量
+        _state.selectionManager,      // 选区状态
+      ]),
       builder: (context, _) {
         return Container(
           height: 24,
@@ -386,6 +405,37 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                   ),
                 ),
               ],
+              // 旋转角度显示
+              if (_state.canvasController.rotation != 0) ...[
+                const SizedBox(width: 16),
+                Text(
+                  '旋转: ${(_state.canvasController.rotation * 180 / 3.14159265359).round()}°',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.secondary,
+                  ),
+                ),
+              ],
+              // 镜像状态显示
+              if (_state.canvasController.isMirroredHorizontally) ...[
+                const SizedBox(width: 16),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flip,
+                      size: 14,
+                      color: theme.colorScheme.secondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '镜像',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );
@@ -394,11 +444,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   /// 工具设置面板
+  /// 使用 toolChangeNotifier 实现细粒度监听，仅在工具切换时重建
   Widget _buildToolSettingsPanel() {
-    return ListenableBuilder(
-      listenable: _state,
-      builder: (context, _) {
-        final tool = _state.currentTool;
+    return ValueListenableBuilder<EditorTool?>(
+      valueListenable: _state.toolChangeNotifier,
+      builder: (context, tool, _) {
         if (tool == null) {
           return const Center(child: Text('选择工具'));
         }
@@ -410,11 +460,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   /// 移动端工具设置
+  /// 使用 toolChangeNotifier 实现细粒度监听
   Widget _buildMobileToolSettings() {
-    return ListenableBuilder(
-      listenable: _state,
-      builder: (context, _) {
-        final tool = _state.currentTool;
+    return ValueListenableBuilder<EditorTool?>(
+      valueListenable: _state.toolChangeNotifier,
+      builder: (context, tool, _) {
         if (tool == null) return const SizedBox.shrink();
 
         return Container(
@@ -440,6 +490,117 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         builder: (context, scrollController) {
           return LayerPanel(state: _state);
         },
+      ),
+    );
+  }
+
+  /// 显示快捷键帮助
+  void _showShortcutHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.keyboard),
+            SizedBox(width: 8),
+            Text('快捷键帮助'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildShortcutSection('工具', [
+                ('B', '画笔'),
+                ('E', '橡皮擦'),
+                ('P', '拾色器'),
+              ]),
+              _buildShortcutSection('画布视图', [
+                ('1', '100% 缩放'),
+                ('2', '适应高度'),
+                ('3', '适应宽度'),
+                ('4', '向左旋转 15°'),
+                ('5', '重置旋转'),
+                ('6', '向右旋转 15°'),
+                ('M', '画布镜像'),
+                ('R', '重置视图'),
+                ('滚轮', '缩放'),
+              ]),
+              _buildShortcutSection('笔刷调整', [
+                ('[', '减小笔刷'),
+                (']', '增大笔刷'),
+                ('I', '降低透明度'),
+                ('O', '提高透明度'),
+                ('Shift + 拖动', '调整笔刷大小'),
+              ]),
+              _buildShortcutSection('颜色', [
+                ('X', '交换前景/背景色'),
+              ]),
+              _buildShortcutSection('画布操作', [
+                ('空格 + 拖动', '平移画布'),
+                ('中键拖动', '平移画布'),
+                ('Ctrl+Z', '撤销'),
+                ('Ctrl+Shift+Z', '重做'),
+                ('Ctrl+Y', '重做'),
+              ]),
+              _buildShortcutSection('选区', [
+                ('Delete', '清除选区'),
+                ('Esc', '取消操作'),
+              ]),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutSection(String title, List<(String, String)> shortcuts) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...shortcuts.map((s) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        s.$1,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(s.$2, style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              )),
+        ],
       ),
     );
   }
@@ -503,15 +664,20 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   Future<void> _exportAndClose() async {
     if (!mounted) return;
 
+    // 用于跟踪加载对话框是否已显示
+    bool loadingDialogShown = false;
+
     try {
       // 显示加载指示器
-      showDialog(
+      loadingDialogShown = true;
+      unawaited(showDialog(
         context: context,
         barrierDismissible: false,
+        useRootNavigator: true,
         builder: (context) => const Center(
           child: CircularProgressIndicator(),
         ),
-      );
+      ));
 
       // 检查是否有图像修改（检查是否有笔画或多个图层）
       final hasImageChanges = _state.historyManager.canUndo ||
@@ -540,12 +706,14 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       }
 
       // 关闭加载指示器
-      if (mounted) Navigator.pop(context);
+      if (mounted && loadingDialogShown) {
+        Navigator.of(context, rootNavigator: true).pop();
+        loadingDialogShown = false;
+      }
 
       // 返回结果
       if (mounted) {
-        Navigator.pop(
-          context,
+        Navigator.of(context).pop(
           ImageEditorResult(
             modifiedImage: modifiedImage,
             maskImage: maskImage,
@@ -556,7 +724,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       }
     } catch (e) {
       // 关闭加载指示器
-      if (mounted) Navigator.pop(context);
+      if (mounted && loadingDialogShown) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
 
       // 显示错误
       if (mounted) {

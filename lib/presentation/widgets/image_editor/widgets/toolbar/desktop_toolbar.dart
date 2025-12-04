@@ -20,83 +20,98 @@ class DesktopToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return ListenableBuilder(
-      listenable: state,
-      builder: (context, _) {
-        return Container(
-          width: 48,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              right: BorderSide(
-                color: theme.dividerColor,
-                width: 1,
-              ),
-            ),
+    return Container(
+      width: 48,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          right: BorderSide(
+            color: theme.dividerColor,
+            width: 1,
           ),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
+        ),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
 
-              // 工具按钮
-              ...state.tools.map((tool) => _ToolButton(
-                    tool: tool,
-                    isSelected: state.currentTool == tool,
-                    onTap: () => state.setTool(tool),
-                  )),
-
-              const Divider(height: 16),
-
-              // 撤销
-              _ActionButton(
-                icon: Icons.undo,
-                tooltip: '撤销 (Ctrl+Z)',
-                enabled: state.canUndo,
-                onTap: onUndo ?? () => state.undo(),
-              ),
-
-              // 重做
-              _ActionButton(
-                icon: Icons.redo,
-                tooltip: '重做 (Ctrl+Y)',
-                enabled: state.canRedo,
-                onTap: onRedo ?? () => state.redo(),
-              ),
-
-              const Spacer(),
-
-              // 缩放控制
-              _ActionButton(
-                icon: Icons.zoom_in,
-                tooltip: '放大',
-                onTap: () => state.canvasController.zoomIn(),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  '${(state.canvasController.scale * 100).round()}%',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-
-              _ActionButton(
-                icon: Icons.zoom_out,
-                tooltip: '缩小',
-                onTap: () => state.canvasController.zoomOut(),
-              ),
-
-              _ActionButton(
-                icon: Icons.fit_screen,
-                tooltip: '适应窗口',
-                onTap: () => state.canvasController.fitToViewport(state.canvasSize),
-              ),
-
-              const SizedBox(height: 8),
-            ],
+          // 工具按钮 - 监听工具切换
+          ValueListenableBuilder<String?>(
+            valueListenable: state.toolNotifier,
+            builder: (context, currentToolId, _) {
+              return Column(
+                children: state.tools.map((tool) => _ToolButton(
+                  tool: tool,
+                  isSelected: tool.id == currentToolId,
+                  onTap: () => state.setTool(tool),
+                )).toList(),
+              );
+            },
           ),
-        );
-      },
+
+          const Divider(height: 16),
+
+          // 撤销/重做 - 监听历史管理器
+          ListenableBuilder(
+            listenable: state.historyManager,
+            builder: (context, _) {
+              return Column(
+                children: [
+                  _ActionButton(
+                    icon: Icons.undo,
+                    tooltip: '撤销 (Ctrl+Z)',
+                    enabled: state.canUndo,
+                    onTap: onUndo ?? () => state.undo(),
+                  ),
+                  _ActionButton(
+                    icon: Icons.redo,
+                    tooltip: '重做 (Ctrl+Y)',
+                    enabled: state.canRedo,
+                    onTap: onRedo ?? () => state.redo(),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const Spacer(),
+
+          // 缩放控制 - 监听画布控制器
+          ListenableBuilder(
+            listenable: state.canvasController,
+            builder: (context, _) {
+              return Column(
+                children: [
+                  _ActionButton(
+                    icon: Icons.zoom_in,
+                    tooltip: '放大',
+                    onTap: () => state.canvasController.zoomIn(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      '${(state.canvasController.scale * 100).round()}%',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  _ActionButton(
+                    icon: Icons.zoom_out,
+                    tooltip: '缩小',
+                    onTap: () => state.canvasController.zoomOut(),
+                  ),
+                  _ActionButton(
+                    icon: Icons.fit_screen,
+                    tooltip: '适应窗口',
+                    onTap: () => state.canvasController.fitToViewport(state.canvasSize),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 }

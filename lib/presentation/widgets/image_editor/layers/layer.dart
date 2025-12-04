@@ -101,6 +101,10 @@ class Layer {
   /// 图层名称
   String name;
 
+  /// 活动状态通知器（仅此图层是否为活动图层）
+  /// 用于精确重建：切换图层时仅通知相关的 2 个图层，而非所有图层
+  final ValueNotifier<bool> isActiveNotifier = ValueNotifier(false);
+
   /// 是否可见
   bool visible;
 
@@ -161,6 +165,9 @@ class Layer {
 
   /// 是否正在更新合成缓存
   bool _isCompositing = false;
+
+  /// 笔画版本号（每次笔画变化时递增，用于检测竞态）
+  int _strokeGeneration = 0;
 
   Layer({
     String? id,
@@ -229,6 +236,7 @@ class Layer {
   /// 添加笔画
   void addStroke(StrokeData stroke) {
     _strokes.add(stroke);
+    _strokeGeneration++; // 递增版本号
     _lastStrokeTime = DateTime.now();
     _needsRasterize = true;
     _needsComposite = true;
@@ -240,24 +248,41 @@ class Layer {
     }
   }
 
+  /// 内部添加笔画（用于批量操作，不设置标志）
+  /// 调用者负责在批量操作结束后设置标志
+  void addStrokeInternal(StrokeData stroke) {
+    _strokes.add(stroke);
+    _strokeGeneration++; // 递增版本号
+    _needsRasterize = true;
+    _needsComposite = true;
+    _needsThumbnailUpdate = true;
+  }
+
   /// 移除最后一个笔画
+  ///
+  /// 注意：通过 _strokeGeneration 版本号机制避免与 rasterize() 的竞态条件。
   StrokeData? removeLastStroke() {
     if (_strokes.isEmpty) return null;
 
     // 在移除前检查该笔画是否已光栅化
     final wasRasterized = _rasterizedStrokeCount >= _strokes.length;
     final stroke = _strokes.removeLast();
+    _strokeGeneration++; // 递增版本号，使正在进行的光栅化失效
 
     if (wasRasterized) {
       // 需要重新光栅化所有内容
       _rasterizedStrokeCount = 0;
-      _rasterizedImage?.dispose();
-      _rasterizedImage = null;
-      _compositedCache?.dispose();
-      _compositedCache = null;
+      if (!_isRasterizing) {
+        // 只有在不光栅化时才立即清除缓存
+        // 如果正在光栅化，版本号变化会让 rasterize() 完成时不更新计数
+        _rasterizedImage?.dispose();
+        _rasterizedImage = null;
+        _compositedCache?.dispose();
+        _compositedCache = null;
+      }
     }
 
-    _needsRasterize = _strokes.isNotEmpty;
+    _needsRasterize = true; // 总是标记需要重新光栅化
     _needsComposite = true;
     _needsThumbnailUpdate = true;
     return stroke;
@@ -267,14 +292,17 @@ class Layer {
   List<StrokeData> clearStrokes() {
     final oldStrokes = List<StrokeData>.from(_strokes);
     _strokes.clear();
+    _strokeGeneration++; // 递增版本号
     _rasterizedStrokeCount = 0;
     _needsRasterize = true;
     _needsComposite = true;
     _needsThumbnailUpdate = true;
-    _rasterizedImage?.dispose();
-    _rasterizedImage = null;
-    _compositedCache?.dispose();
-    _compositedCache = null;
+    if (!_isRasterizing) {
+      _rasterizedImage?.dispose();
+      _rasterizedImage = null;
+      _compositedCache?.dispose();
+      _compositedCache = null;
+    }
     return oldStrokes;
   }
 
@@ -294,7 +322,15 @@ class Layer {
       layerPaint.blendMode = blendMode.toFlutterBlendMode();
     }
 
-    final needsLayer = opacity < 1.0 || blendMode != LayerBlendMode.normal;
+    // 检查未光栅化的笔画中是否有橡皮擦
+    // BlendMode.clear 需要在隔离的 layer 中绘制，否则会擦穿到下层
+    final hasEraserInPending = _strokes
+        .skip(_rasterizedStrokeCount)
+        .any((s) => s.isEraser);
+
+    final needsLayer = opacity < 1.0 ||
+                       blendMode != LayerBlendMode.normal ||
+                       hasEraserInPending;
     if (needsLayer) {
       canvas.saveLayer(
         Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
@@ -360,13 +396,14 @@ class Layer {
 
     final paint = Paint()
       ..color = stroke.isEraser
-          ? Colors.transparent
+          ? const Color(0xFFFFFFFF)  // 颜色无所谓，clear 模式会忽略
           : stroke.color.withOpacity(stroke.opacity)
       ..strokeWidth = stroke.size
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
+    // 橡皮擦使用 clear 模式真正擦除像素
     if (stroke.isEraser) {
       paint.blendMode = BlendMode.clear;
     }
@@ -423,43 +460,48 @@ class Layer {
 
     _isRasterizing = true;
     try {
-      // 快照当前笔画数量，避免竞态条件
+      // 快照当前状态，用于检测竞态条件
       final strokeCount = _strokes.length;
-
-      // 检查是否有橡皮擦笔画，如果有则需要完整重绘
-      bool hasEraser = false;
-      for (int i = _rasterizedStrokeCount; i < strokeCount; i++) {
-        if (_strokes[i].isEraser) {
-          hasEraser = true;
-          break;
-        }
-      }
+      final startGeneration = _strokeGeneration;
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
 
-      if (hasEraser && _rasterizedStrokeCount > 0) {
-        // 有橡皮擦时，需要使用 saveLayer 确保正确的透明度处理
-        canvas.saveLayer(
-          Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-          Paint(),
-        );
+      // 先用透明色清除整个画布，避免显示 GPU 垃圾数据
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+        Paint()
+          ..color = const Color(0x00000000)
+          ..blendMode = BlendMode.src,
+      );
 
-        // 重新绘制所有笔画
-        for (int i = 0; i < strokeCount; i++) {
-          _drawStroke(canvas, _strokes[i]);
-        }
-
-        canvas.restore();
+      if (_strokes.isEmpty) {
+        // 没有笔画时，直接返回透明画布
       } else {
-        // 无橡皮擦时，可以增量绘制
-        if (_rasterizedImage != null && _rasterizedStrokeCount > 0) {
-          canvas.drawImage(_rasterizedImage!, Offset.zero, Paint());
-        }
+        // 检查待光栅化的笔画中是否有橡皮擦
+        // BlendMode.clear 需要在已有内容上操作，所以橡皮擦需要完整重绘
+        final hasEraserInPending = _strokes
+            .skip(_rasterizedStrokeCount)
+            .any((s) => s.isEraser);
 
-        // 只绘制未光栅化的笔画
-        for (int i = _rasterizedStrokeCount; i < strokeCount; i++) {
-          _drawStroke(canvas, _strokes[i]);
+        // 如果有橡皮擦，需要完整重绘（不能增量）
+        final needsFullRedraw = hasEraserInPending || _rasterizedStrokeCount == 0;
+
+        if (needsFullRedraw) {
+          // 完整重绘所有笔画
+          for (int i = 0; i < strokeCount; i++) {
+            _drawStroke(canvas, _strokes[i]);
+          }
+        } else {
+          // 增量绘制（无橡皮擦时）
+          if (_rasterizedImage != null && _rasterizedStrokeCount > 0) {
+            canvas.drawImage(_rasterizedImage!, Offset.zero, Paint());
+          }
+
+          // 只绘制未光栅化的笔画
+          for (int i = _rasterizedStrokeCount; i < strokeCount; i++) {
+            _drawStroke(canvas, _strokes[i]);
+          }
         }
       }
 
@@ -472,9 +514,13 @@ class Layer {
       picture.dispose();
       oldImage?.dispose();
 
-      // 更新已光栅化笔画计数（使用快照值）
-      _rasterizedStrokeCount = strokeCount;
-      _needsRasterize = false;
+      // 检查版本号：如果笔画在光栅化期间被修改，不更新计数
+      // 这避免了 removeLastStroke/clearStrokes 与 rasterize 的竞态条件
+      if (_strokeGeneration == startGeneration) {
+        _rasterizedStrokeCount = strokeCount;
+        _needsRasterize = false;
+      }
+      // 如果版本号变化，保持 _needsRasterize = true，下次调用会重新光栅化
       _needsComposite = true;
     } finally {
       _isRasterizing = false;
@@ -496,6 +542,14 @@ class Layer {
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
+
+      // 先用透明色清除整个画布，避免显示 GPU 垃圾数据
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+        Paint()
+          ..color = const Color(0x00000000)
+          ..blendMode = BlendMode.src,
+      );
 
       // 绘制基础图像
       if (_baseImage != null) {
@@ -641,6 +695,9 @@ class Layer {
 
   /// 释放资源
   void dispose() {
+    // 释放通知器
+    isActiveNotifier.dispose();
+
     // 释放图像资源
     _rasterizedImage?.dispose();
     _rasterizedImage = null;
@@ -657,6 +714,7 @@ class Layer {
 
     // 重置计数器和标志
     _rasterizedStrokeCount = 0;
+    _strokeGeneration = 0;
     _needsRasterize = true;
     _needsComposite = true;
     _needsThumbnailUpdate = true;

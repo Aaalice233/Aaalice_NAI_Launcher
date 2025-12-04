@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+
 import 'editor_state.dart';
 import '../layers/layer.dart';
 
@@ -20,7 +22,7 @@ abstract class EditorAction {
 
 /// 历史管理器
 /// 使用命令模式管理撤销/重做
-class HistoryManager {
+class HistoryManager extends ChangeNotifier {
   /// 撤销栈
   final List<EditorAction> _undoStack = [];
 
@@ -52,6 +54,7 @@ class HistoryManager {
     while (_undoStack.length > maxHistorySize) {
       _undoStack.removeAt(0);
     }
+    notifyListeners();
   }
 
   /// 撤销
@@ -61,6 +64,7 @@ class HistoryManager {
     final action = _undoStack.removeLast();
     action.undo(state);
     _redoStack.add(action);
+    notifyListeners();
     return true;
   }
 
@@ -71,6 +75,7 @@ class HistoryManager {
     final action = _redoStack.removeLast();
     action.execute(state);
     _undoStack.add(action);
+    notifyListeners();
     return true;
   }
 
@@ -78,6 +83,7 @@ class HistoryManager {
   void clear() {
     _undoStack.clear();
     _redoStack.clear();
+    notifyListeners();
   }
 
   /// 获取撤销操作描述
@@ -104,6 +110,11 @@ class AddStrokeAction extends EditorAction {
 
   @override
   void undo(EditorState state) {
+    final layer = state.layerManager.getLayerById(layerId);
+    if (layer == null) {
+      debugPrint('Warning: Layer $layerId not found for undo');
+      return;
+    }
     state.layerManager.removeLastStrokeFromLayer(layerId);
   }
 
