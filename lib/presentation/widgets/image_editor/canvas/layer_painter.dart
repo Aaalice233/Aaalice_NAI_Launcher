@@ -6,6 +6,89 @@ import '../core/editor_state.dart';
 import '../tools/brush_tool.dart';
 import '../tools/eraser_tool.dart';
 
+/// 棋盘格缓存管理器
+/// 使用 ImageShader 预缓存棋盘格图案，避免每帧重复绘制
+class _CheckerboardCache {
+  static ui.Image? _image;
+  static ui.ImageShader? _shader;
+  static bool _isInitializing = false;
+
+  /// 棋盘格单元格大小
+  static const double cellSize = 16.0;
+
+  /// 棋盘格颜色
+  static final Color color1 = Colors.grey.shade300;
+  static final Color color2 = Colors.grey.shade100;
+
+  /// 获取棋盘格 Shader
+  static ui.ImageShader? get shader {
+    if (_shader != null) return _shader;
+    if (!_isInitializing) {
+      _initializeAsync();
+    }
+    return null;
+  }
+
+  /// 异步初始化棋盘格图像
+  static Future<void> _initializeAsync() async {
+    if (_isInitializing || _image != null) return;
+    _isInitializing = true;
+
+    try {
+      // 创建 2x2 单元格的图案（用于平铺）
+      const patternSize = cellSize * 2;
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+
+      final paint1 = Paint()..color = color1;
+      final paint2 = Paint()..color = color2;
+
+      // 绘制 2x2 棋盘格图案
+      // [1][2]
+      // [2][1]
+      canvas.drawRect(
+        const Rect.fromLTWH(0, 0, cellSize, cellSize),
+        paint1,
+      );
+      canvas.drawRect(
+        const Rect.fromLTWH(cellSize, 0, cellSize, cellSize),
+        paint2,
+      );
+      canvas.drawRect(
+        const Rect.fromLTWH(0, cellSize, cellSize, cellSize),
+        paint2,
+      );
+      canvas.drawRect(
+        const Rect.fromLTWH(cellSize, cellSize, cellSize, cellSize),
+        paint1,
+      );
+
+      final picture = recorder.endRecording();
+      _image = await picture.toImage(patternSize.toInt(), patternSize.toInt());
+      picture.dispose();
+
+      // 创建平铺 Shader
+      _shader = ui.ImageShader(
+        _image!,
+        ui.TileMode.repeated,
+        ui.TileMode.repeated,
+        Matrix4.identity().storage,
+      );
+    } catch (e) {
+      debugPrint('Failed to initialize checkerboard cache: $e');
+    } finally {
+      _isInitializing = false;
+    }
+  }
+
+  /// 释放缓存（通常不需要调用，除非显式清理）
+  static void dispose() {
+    _shader = null;
+    _image?.dispose();
+    _image = null;
+  }
+}
+
 /// 图层绘制器
 /// 负责绘制所有图层内容
 class LayerPainter extends CustomPainter {
@@ -55,6 +138,9 @@ class LayerPainter extends CustomPainter {
       Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
       Paint()..color = Colors.white,
     );
+
+    // 裁剪到画布范围，防止笔画超出边界
+    canvas.clipRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
 
     // 绘制所有图层
     state.layerManager.renderAll(canvas, canvasSize);
@@ -141,18 +227,31 @@ class LayerPainter extends CustomPainter {
   }
 
   /// 绘制棋盘格背景（表示透明区域）
+  /// 使用 ImageShader 缓存优化性能
   void _drawCheckerboard(Canvas canvas, Size size) {
-    const cellSize = 16.0;
-    final paint1 = Paint()..color = Colors.grey.shade300;
-    final paint2 = Paint()..color = Colors.grey.shade100;
+    final shader = _CheckerboardCache.shader;
 
-    for (double y = 0; y < size.height; y += cellSize) {
-      for (double x = 0; x < size.width; x += cellSize) {
-        final isEven = ((x ~/ cellSize) + (y ~/ cellSize)) % 2 == 0;
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, cellSize, cellSize),
-          isEven ? paint1 : paint2,
-        );
+    if (shader != null) {
+      // 使用缓存的 Shader 绘制（高性能）
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..shader = shader,
+      );
+    } else {
+      // 回退方案：Shader 未准备好时使用传统方式
+      // 仅在首帧或初始化失败时触发
+      const cellSize = _CheckerboardCache.cellSize;
+      final paint1 = Paint()..color = _CheckerboardCache.color1;
+      final paint2 = Paint()..color = _CheckerboardCache.color2;
+
+      for (double y = 0; y < size.height; y += cellSize) {
+        for (double x = 0; x < size.width; x += cellSize) {
+          final isEven = ((x ~/ cellSize) + (y ~/ cellSize)) % 2 == 0;
+          canvas.drawRect(
+            Rect.fromLTWH(x, y, cellSize, cellSize),
+            isEven ? paint1 : paint2,
+          );
+        }
       }
     }
   }
@@ -213,14 +312,9 @@ class SelectionPainter extends CustomPainter {
 
     canvas.scale(controller.scale);
 
-    // 绘制选区预览（矩形/椭圆）
-    if (state.selectionPreview != null) {
-      _drawSelectionPreview(canvas, state.selectionPreview!);
-    }
-
-    // 绘制套索预览
-    if (state.lassoPreviewPath != null) {
-      _drawLassoPreview(canvas, state.lassoPreviewPath!);
+    // 绘制预览（绘制中）
+    if (state.previewPath != null) {
+      _drawMarchingAnts(canvas, state.previewPath!);
     }
 
     // 绘制已确认的选区（蚂蚁线）
@@ -229,55 +323,6 @@ class SelectionPainter extends CustomPainter {
     }
 
     canvas.restore();
-  }
-
-  /// 绘制选区预览
-  void _drawSelectionPreview(Canvas canvas, Rect rect) {
-    final tool = state.currentTool;
-    Path path;
-
-    if (tool?.id == 'ellipse_selection') {
-      path = Path()..addOval(rect);
-    } else {
-      path = Path()..addRect(rect);
-    }
-
-    // 填充半透明
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.blue.withOpacity(0.1)
-        ..style = PaintingStyle.fill,
-    );
-
-    // 边框
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.blue
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
-  }
-
-  /// 绘制套索预览
-  void _drawLassoPreview(Canvas canvas, Path path) {
-    // 填充半透明
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.blue.withOpacity(0.1)
-        ..style = PaintingStyle.fill,
-    );
-
-    // 实线部分
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.blue
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
   }
 
   /// 绘制蚂蚁线（选区边框动画）

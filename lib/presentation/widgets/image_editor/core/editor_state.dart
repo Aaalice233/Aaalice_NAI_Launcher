@@ -85,8 +85,7 @@ class EditorState extends ChangeNotifier {
 
   // 选区代理
   Path? get selectionPath => selectionManager.selectionPath;
-  Rect? get selectionPreview => selectionManager.selectionPreview;
-  Path? get lassoPreviewPath => selectionManager.lassoPreviewPath;
+  Path? get previewPath => selectionManager.previewPath;
 
   // 笔画代理
   List<Offset> get currentStrokePoints => strokeManager.currentStrokePoints;
@@ -192,27 +191,31 @@ class EditorState extends ChangeNotifier {
 
   void setSelection(Path? path, {bool saveHistory = true}) =>
       selectionManager.setSelection(path, saveHistory: saveHistory);
-  void addToSelection(Path path) => selectionManager.addToSelection(path);
-  void subtractFromSelection(Path path) =>
-      selectionManager.subtractFromSelection(path);
-  void intersectSelection(Path path) =>
-      selectionManager.intersectSelection(path);
-  void clearSelection() => selectionManager.clearSelection();
+  void clearSelection({bool saveHistory = true}) =>
+      selectionManager.clearSelection(saveHistory: saveHistory);
   void invertSelection() => selectionManager.invertSelection(_canvasSize);
-  void setSelectionPreview(Rect? rect) =>
-      selectionManager.setSelectionPreview(rect);
-  void setLassoPreviewPath(Path? path) =>
-      selectionManager.setLassoPreviewPath(path);
+  void setPreviewPath(Path? path) => selectionManager.setPreviewPath(path);
+  void clearPreview() => selectionManager.clearPreview();
 
   // ===== 代理方法：笔画 =====
 
+  /// 将点裁剪到画布范围内
+  Offset _clampToCanvas(Offset point) {
+    return Offset(
+      point.dx.clamp(0, _canvasSize.width),
+      point.dy.clamp(0, _canvasSize.height),
+    );
+  }
+
   void startStroke(Offset point) {
-    strokeManager.startStroke(point);
+    // 将点裁剪到画布范围内，防止画布外涂抹
+    strokeManager.startStroke(_clampToCanvas(point));
     _notifyRenderChange();
   }
 
   void updateStroke(Offset point) {
-    strokeManager.updateStroke(point);
+    // 将点裁剪到画布范围内，防止画布外涂抹
+    strokeManager.updateStroke(_clampToCanvas(point));
     _notifyRenderChange();
   }
 
@@ -336,6 +339,17 @@ class EditorState extends ChangeNotifier {
       return selectionManager.canRedoSelection || historyManager.canRedo;
     }
     return historyManager.canRedo;
+  }
+
+  /// 清空当前图层（支持撤销）
+  void clearActiveLayerWithHistory() {
+    final layer = layerManager.activeLayer;
+    if (layer == null || layer.locked || layer.strokes.isEmpty) return;
+
+    historyManager.execute(
+      ClearLayerAction(layerId: layer.id),
+      this,
+    );
   }
 
   // ===== 内部方法 =====

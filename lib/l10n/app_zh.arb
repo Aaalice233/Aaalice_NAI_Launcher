@@ -95,6 +95,17 @@
       "date": {}
     }
   },
+  "auth_error_loginFailed": "登录失败: {error}",
+  "@auth_error_loginFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "auth_error_networkTimeout": "连接超时，请检查网络",
+  "auth_error_networkError": "网络连接错误",
+  "auth_error_authFailed": "认证失败",
+  "auth_error_serverError": "服务器错误",
+  "auth_error_unknown": "未知错误",
 
   "common_paste": "粘贴",
   "common_default": "默认",
@@ -289,6 +300,8 @@
   "img2img_selectFailed": "选择图片失败: {error}",
   "img2img_edit": "编辑",
   "img2img_maskEnabled": "重绘遮罩",
+  "img2img_uploadImage": "上传图片",
+  "img2img_drawSketch": "绘制草图",
 
   "editor_saveAndClose": "保存并关闭",
   "editor_closeWithoutSaving": "不保存关闭",

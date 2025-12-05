@@ -45,6 +45,11 @@ class EraserTool extends EditorTool {
     // Alt 模式下不开始擦除，等待 pointerUp 取色
     if (state.isAltPressed) return;
 
+    // 如果上一个笔画还在进行中（快速连续点击），先提交它
+    if (state.isDrawing && state.currentStrokePoints.isNotEmpty) {
+      _commitCurrentStroke(state);
+    }
+
     // 坐标已由 EditorCanvas 统一转换为画布坐标
     state.startStroke(event.localPosition);
   }
@@ -69,24 +74,31 @@ class EraserTool extends EditorTool {
     }
 
     if (state.isDrawing && state.currentStrokePoints.isNotEmpty) {
-      final activeLayer = state.layerManager.activeLayer;
-      if (activeLayer != null && !activeLayer.locked) {
-        // 创建橡皮擦笔画数据
-        final stroke = StrokeData(
-          points: List.from(state.currentStrokePoints),
-          size: _size,
-          color: Colors.transparent,
-          opacity: 1.0,
-          hardness: _hardness,
-          isEraser: true,
-        );
+      _commitCurrentStroke(state);
+    } else {
+      state.endStroke();
+    }
+  }
 
-        // 执行添加笔画操作
-        state.historyManager.execute(
-          AddStrokeAction(layerId: activeLayer.id, stroke: stroke),
-          state,
-        );
-      }
+  /// 提交当前笔画（抽取公共逻辑，供 onPointerDown 和 onPointerUp 调用）
+  void _commitCurrentStroke(EditorState state) {
+    final activeLayer = state.layerManager.activeLayer;
+    if (activeLayer != null && !activeLayer.locked) {
+      // 创建橡皮擦笔画数据
+      final stroke = StrokeData(
+        points: List.from(state.currentStrokePoints),
+        size: _size,
+        color: Colors.transparent,
+        opacity: 1.0,
+        hardness: _hardness,
+        isEraser: true,
+      );
+
+      // 执行添加笔画操作
+      state.historyManager.execute(
+        AddStrokeAction(layerId: activeLayer.id, stroke: stroke),
+        state,
+      );
     }
     state.endStroke();
   }

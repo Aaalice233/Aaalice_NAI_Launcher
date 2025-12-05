@@ -206,7 +206,7 @@ class InputHandler {
         case LogicalKeyboardKey.digit6:
           state.canvasController.rotateRight();
           return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyM:
+        case LogicalKeyboardKey.keyF:
           state.canvasController.toggleMirrorHorizontal();
           return KeyEventResult.handled;
         case LogicalKeyboardKey.keyR:
@@ -320,12 +320,25 @@ class InputHandler {
         return;
       }
     }
+
+    // 直接调用工具的 onPointerDown（使用原始指针事件，避免 GestureDetector 延迟）
+    if (gesture.isPrimaryButtonDown && !keyboard.isSpacePressed) {
+      final tool = state.currentTool;
+      if (tool != null) {
+        final canvasPosition = state.canvasController.screenToCanvas(
+          event.localPosition,
+          canvasSize: state.canvasSize,
+        );
+        tool.onPointerDown(
+          PointerDownEvent(position: canvasPosition),
+          state,
+        );
+      }
+    }
   }
 
   /// 处理指针抬起
   void handlePointerUp(PointerUpEvent event) {
-    gesture.isPrimaryButtonDown = false;
-
     // 结束中键平移
     if (gesture.isMiddleButtonPanning) {
       gesture.isMiddleButtonPanning = false;
@@ -337,7 +350,25 @@ class InputHandler {
     if (gesture.isBrushSizeMode) {
       gesture.isBrushSizeMode = false;
       gesture.brushSizeStartPosition = null;
+      gesture.isPrimaryButtonDown = false;
       onStateChanged();
+      return;
+    }
+
+    // 直接调用工具的 onPointerUp（使用原始指针事件，避免 GestureDetector 延迟）
+    if (gesture.isPrimaryButtonDown && !gesture.isPanning) {
+      final tool = state.currentTool;
+      if (tool != null) {
+        final canvasPosition = state.canvasController.screenToCanvas(
+          event.localPosition,
+          canvasSize: state.canvasSize,
+        );
+        tool.onPointerUp(
+          PointerUpEvent(position: canvasPosition),
+          state,
+        );
+      }
+      gesture.isPrimaryButtonDown = false;
     }
   }
 
@@ -369,6 +400,21 @@ class InputHandler {
     // 正常模式 - 更新光标位置
     gesture.cursorPosition = event.localPosition;
     onStateChanged();
+
+    // 直接调用工具的 onPointerMove（使用原始指针事件，避免 GestureDetector 延迟）
+    if (gesture.isPrimaryButtonDown && !gesture.isPanning && !keyboard.isSpacePressed) {
+      final tool = state.currentTool;
+      if (tool != null) {
+        final canvasPosition = state.canvasController.screenToCanvas(
+          event.localPosition,
+          canvasSize: state.canvasSize,
+        );
+        tool.onPointerMove(
+          PointerMoveEvent(position: canvasPosition),
+          state,
+        );
+      }
+    }
   }
 
   /// 处理鼠标退出
@@ -411,22 +457,7 @@ class InputHandler {
     // 更新光标位置
     gesture.cursorPosition = details.localFocalPoint;
     onStateChanged();
-
-    // 只有主按钮才触发工具的指针按下
-    if (!gesture.isPrimaryButtonDown) return;
-
-    // 触发工具的指针按下
-    final tool = state.currentTool;
-    if (tool != null) {
-      final canvasPosition = state.canvasController.screenToCanvas(
-        details.localFocalPoint,
-        canvasSize: state.canvasSize,
-      );
-      tool.onPointerDown(
-        PointerDownEvent(position: canvasPosition),
-        state,
-      );
-    }
+    // 工具事件已移至 handlePointerDown 直接处理
   }
 
   /// 处理缩放/平移手势更新
@@ -468,22 +499,7 @@ class InputHandler {
     // 更新光标位置
     gesture.cursorPosition = details.localFocalPoint;
     onStateChanged();
-
-    // 只有主按钮才触发工具的指针移动
-    if (!gesture.isPrimaryButtonDown) return;
-
-    // 触发工具的指针移动
-    final tool = state.currentTool;
-    if (tool != null) {
-      final canvasPosition = state.canvasController.screenToCanvas(
-        details.localFocalPoint,
-        canvasSize: state.canvasSize,
-      );
-      tool.onPointerMove(
-        PointerMoveEvent(position: canvasPosition),
-        state,
-      );
-    }
+    // 工具事件已移至 handlePointerMove 直接处理
   }
 
   /// 处理缩放/平移手势结束
@@ -499,27 +515,7 @@ class InputHandler {
       onStateChanged();
       return;
     }
-
-    // 只有主按钮才触发工具的指针抬起
-    if (!gesture.isPrimaryButtonDown) return;
-
-    // 触发工具的指针抬起
-    final tool = state.currentTool;
-    if (tool != null) {
-      final canvasPosition = gesture.cursorPosition != null
-          ? state.canvasController.screenToCanvas(
-              gesture.cursorPosition!,
-              canvasSize: state.canvasSize,
-            )
-          : Offset.zero;
-      tool.onPointerUp(
-        PointerUpEvent(position: canvasPosition),
-        state,
-      );
-    }
-
-    // 重置状态
-    gesture.isPrimaryButtonDown = false;
+    // 工具事件已移至 handlePointerUp 直接处理
   }
 
   /// 获取当前光标样式

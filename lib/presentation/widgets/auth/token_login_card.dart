@@ -141,39 +141,6 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
               ),
               const SizedBox(height: 16),
 
-              // 错误信息
-              if (authState.status == AuthStatus.error)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: theme.colorScheme.error.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: theme.colorScheme.error,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          authState.errorMessage ?? context.l10n.auth_loginFailed,
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
               // 登录按钮
               FilledButton.icon(
                 onPressed: authState.isLoading ? null : _handleLogin,

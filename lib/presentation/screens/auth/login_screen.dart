@@ -7,6 +7,7 @@ import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/token_login_card.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerWidget {
@@ -18,6 +19,16 @@ class LoginScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
+
+    // 监听登录错误，显示 Toast
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (next.hasError && previous?.errorCode != next.errorCode) {
+        final errorText = _getErrorText(context, next.errorCode!, next.httpStatusCode);
+        AppToast.error(context, context.l10n.auth_error_loginFailed(errorText));
+        // 清除错误状态
+        ref.read(authNotifierProvider.notifier).clearError();
+      }
+    });
 
     return Scaffold(
       body: LayoutBuilder(
@@ -339,15 +350,27 @@ class LoginScreen extends ConsumerWidget {
     WidgetRef ref,
     SavedAccount account,
   ) async {
+    // 如果已经认证（可能自动登录已完成），不执行
+    final currentAuth = ref.read(authNotifierProvider);
+    if (currentAuth.isAuthenticated) {
+      return;
+    }
+
     // 获取 Token
     final token = await ref.read(accountManagerNotifierProvider.notifier).getAccountToken(account.id);
 
+    // 检查 widget 是否仍然 mounted
+    if (!context.mounted) return;
+
     if (token == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
+      );
+      return;
+    }
+
+    // 再次检查是否已认证（在异步操作期间可能已自动登录）
+    if (ref.read(authNotifierProvider).isAuthenticated) {
       return;
     }
 
@@ -357,6 +380,9 @@ class LoginScreen extends ConsumerWidget {
       accountId: account.id,
       displayName: account.displayName,
     );
+
+    // 检查 widget 是否仍然 mounted
+    if (!context.mounted) return;
 
     // 更新最后使用时间
     ref.read(accountManagerNotifierProvider.notifier).updateLastUsed(account.id);
@@ -616,5 +642,26 @@ class LoginScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// 获取错误码对应的本地化文本
+  String _getErrorText(BuildContext context, AuthErrorCode errorCode, int? httpStatusCode) {
+    final l10n = context.l10n;
+    final statusSuffix = httpStatusCode != null ? ' ($httpStatusCode)' : '';
+
+    switch (errorCode) {
+      case AuthErrorCode.networkTimeout:
+        return l10n.auth_error_networkTimeout + statusSuffix;
+      case AuthErrorCode.networkError:
+        return l10n.auth_error_networkError + statusSuffix;
+      case AuthErrorCode.authFailed:
+        return l10n.auth_error_authFailed + statusSuffix;
+      case AuthErrorCode.tokenInvalid:
+        return l10n.auth_tokenInvalid;
+      case AuthErrorCode.serverError:
+        return l10n.auth_error_serverError + statusSuffix;
+      case AuthErrorCode.unknown:
+        return l10n.auth_error_unknown + statusSuffix;
+    }
   }
 }

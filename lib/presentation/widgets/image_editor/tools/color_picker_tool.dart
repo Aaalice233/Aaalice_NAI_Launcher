@@ -170,14 +170,20 @@ class ColorPickerTool extends EditorTool {
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
     // 松开时采样并设置颜色
+    debugPrint('[ColorPicker] onPointerUp at ${event.localPosition}');
     _sampleAndApplyColor(event.localPosition, state);
   }
 
   /// 采样并应用颜色（用于点击取色）
   Future<void> _sampleAndApplyColor(Offset canvasPoint, EditorState state) async {
+    debugPrint('[ColorPicker] _sampleAndApplyColor at $canvasPoint');
     final color = await _sampleColorAt(canvasPoint, state);
+    debugPrint('[ColorPicker] sampled color: $color');
     if (color != null) {
+      debugPrint('[ColorPicker] setting foreground color to $color');
       state.setForegroundColor(color);
+    } else {
+      debugPrint('[ColorPicker] color is null, not setting');
     }
     // 切回上一个工具
     state.switchToPreviousTool();
@@ -433,16 +439,19 @@ class ColorPickerTool extends EditorTool {
   static const int _sampleRegionSize = 33;
 
   /// 在指定画布坐标位置采样颜色
-  /// 优化：只渲染光标周围的小区域 (33x33)，而非整个画布
+  /// 所见即所得：采样所有可见图层合成后的实际显示颜色
   Future<Color?> _sampleColorAt(Offset canvasPoint, EditorState state) async {
     final canvasWidth = state.canvasSize.width.toInt();
     final canvasHeight = state.canvasSize.height.toInt();
+
+    debugPrint('[ColorPicker] _sampleColorAt: canvasPoint=$canvasPoint, canvasSize=${canvasWidth}x$canvasHeight');
 
     // 检查是否在画布范围内
     if (canvasPoint.dx < 0 ||
         canvasPoint.dy < 0 ||
         canvasPoint.dx >= canvasWidth ||
         canvasPoint.dy >= canvasHeight) {
+      debugPrint('[ColorPicker] _sampleColorAt: out of bounds');
       _magnifierPixels = null;
       return null;
     }
@@ -479,15 +488,14 @@ class ColorPickerTool extends EditorTool {
       regionHeight.toDouble(),
     ));
 
-    // 根据来源绘制
-    if (_source == ColorPickerSource.currentLayer) {
-      final activeLayer = state.layerManager.activeLayer;
-      if (activeLayer != null) {
-        activeLayer.render(canvas, state.canvasSize);
-      }
-    } else {
-      state.layerManager.renderAll(canvas, state.canvasSize);
-    }
+    // 绘制白色背景（与画布显示一致）
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, canvasWidth.toDouble(), canvasHeight.toDouble()),
+      Paint()..color = Colors.white,
+    );
+
+    // 所见即所得：始终渲染所有可见图层的合成结果
+    state.layerManager.renderAll(canvas, state.canvasSize);
 
     final picture = recorder.endRecording();
     // 只生成小区域的图像，而非整个画布

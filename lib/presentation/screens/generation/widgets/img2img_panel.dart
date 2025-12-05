@@ -256,7 +256,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       );
     }
 
-    // 无图片时：显示选择区域
+    // 无图片时：显示两个并列选项（上传图片 / 绘制草图）
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -264,39 +264,27 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           context.l10n.img2img_sourceImage,
           style: theme.textTheme.bodyMedium,
         ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickImage,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            height: 100,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.5),
-                style: BorderStyle.solid,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.add_photo_alternate_outlined,
-                    size: 32,
-                    color: theme.colorScheme.onSurface.withOpacity(0.4),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.l10n.img2img_clickToSelectImage,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.4),
-                    ),
-                  ),
-                ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // 上传图片选项
+            Expanded(
+              child: _SourceOptionCard(
+                icon: Icons.upload_file,
+                label: context.l10n.img2img_uploadImage,
+                onTap: _pickImage,
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            // 绘制草图选项
+            Expanded(
+              child: _SourceOptionCard(
+                icon: Icons.brush,
+                label: context.l10n.img2img_drawSketch,
+                onTap: _openBlankCanvas,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -476,6 +464,35 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       }
     }
   }
+
+  /// 打开空白画布进行绘制
+  Future<void> _openBlankCanvas() async {
+    final params = ref.read(generationParamsNotifierProvider);
+
+    // 获取画布尺寸（与生成参数一致）
+    final canvasSize = Size(
+      params.width.toDouble(),
+      params.height.toDouble(),
+    );
+
+    final result = await ImageEditorScreen.show(
+      context,
+      initialSize: canvasSize,
+      title: context.l10n.img2img_drawSketch,
+    );
+
+    if (result != null && result.modifiedImage != null && mounted) {
+      final notifier = ref.read(generationParamsNotifierProvider.notifier);
+      notifier.setSourceImage(result.modifiedImage!);
+      notifier.updateAction(ImageGenerationAction.img2img);
+
+      // 如果有蒙版也设置
+      if (result.maskImage != null) {
+        notifier.setMaskImage(result.maskImage!);
+        notifier.updateAction(ImageGenerationAction.infill);
+      }
+    }
+  }
 }
 
 /// 小型图标按钮
@@ -507,6 +524,77 @@ class _IconButton extends StatelessWidget {
               size: 16,
               color: Colors.white,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 源图像选项卡片
+class _SourceOptionCard extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SourceOptionCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  State<_SourceOptionCard> createState() => _SourceOptionCardState();
+}
+
+class _SourceOptionCardState extends State<_SourceOptionCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 80,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: _isHovered
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline.withOpacity(0.5),
+              width: _isHovered ? 1.5 : 1.0,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            color: _isHovered
+                ? theme.colorScheme.primary.withOpacity(0.05)
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                widget.icon,
+                size: 24,
+                color: _isHovered
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _isHovered
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
           ),
         ),
       ),

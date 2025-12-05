@@ -100,6 +100,17 @@
       "date": {}
     }
   },
+  "auth_error_loginFailed": "Login failed: {error}",
+  "@auth_error_loginFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "auth_error_networkTimeout": "Connection timeout",
+  "auth_error_networkError": "Network error",
+  "auth_error_authFailed": "Authentication failed",
+  "auth_error_serverError": "Server error",
+  "auth_error_unknown": "Unknown error",
 
   "common_paste": "Paste",
   "common_default": "Default",
@@ -441,6 +452,8 @@
   },
   "img2img_edit": "Edit",
   "img2img_maskEnabled": "Inpaint Mask",
+  "img2img_uploadImage": "Upload Image",
+  "img2img_drawSketch": "Draw Sketch",
 
   "editor_title": "Image Editor",
   "editor_done": "Done",

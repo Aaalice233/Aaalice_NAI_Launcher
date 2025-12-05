@@ -2,23 +2,20 @@ import 'package:flutter/material.dart';
 
 /// 选区管理器
 /// 负责选区的创建、修改、历史记录等操作
+/// 选区同一时间只能存在一个
 class SelectionManager extends ChangeNotifier {
-  /// 全局选区路径
+  /// 已确认的选区路径
   Path? _selectionPath;
   Path? get selectionPath => _selectionPath;
+
+  /// 绘制中的预览路径（统一用 Path）
+  Path? _previewPath;
+  Path? get previewPath => _previewPath;
 
   /// 选区历史（用于撤销）
   final List<Path?> _selectionHistory = [];
   final List<Path?> _selectionRedoStack = [];
   static const int _maxSelectionHistory = 30;
-
-  /// 当前选区预览（用于绘制时显示）
-  Rect? _selectionPreview;
-  Rect? get selectionPreview => _selectionPreview;
-
-  /// 套索选区临时路径
-  Path? _lassoPreviewPath;
-  Path? get lassoPreviewPath => _lassoPreviewPath;
 
   /// 选区变化通知器（用于仅需要监听选区变化的场景）
   final ValueNotifier<Path?> selectionNotifier = ValueNotifier(null);
@@ -42,55 +39,37 @@ class SelectionManager extends ChangeNotifier {
     }
   }
 
-  /// 设置选区
+  /// 设置预览路径（绘制中）
+  void setPreviewPath(Path? path) {
+    _previewPath = path;
+    notifyListeners();
+  }
+
+  /// 清除预览
+  void clearPreview() {
+    if (_previewPath != null) {
+      _previewPath = null;
+      notifyListeners();
+    }
+  }
+
+  /// 设置选区（确认选区，清除预览）
   void setSelection(Path? path, {bool saveHistory = true}) {
     if (saveHistory) {
       _saveHistory();
     }
     _selectionPath = path;
+    _previewPath = null; // 确认时清除预览
     selectionNotifier.value = path;
     notifyListeners();
   }
 
-  /// 添加到选区
-  void addToSelection(Path path) {
-    _saveHistory();
-    if (_selectionPath == null) {
-      _selectionPath = path;
-    } else {
-      _selectionPath =
-          Path.combine(PathOperation.union, _selectionPath!, path);
-    }
-    selectionNotifier.value = _selectionPath;
-    notifyListeners();
-  }
-
-  /// 从选区减去
-  void subtractFromSelection(Path path) {
-    if (_selectionPath != null) {
-      _saveHistory();
-      _selectionPath =
-          Path.combine(PathOperation.difference, _selectionPath!, path);
-      selectionNotifier.value = _selectionPath;
-      notifyListeners();
-    }
-  }
-
-  /// 与选区交叉
-  void intersectSelection(Path path) {
-    if (_selectionPath != null) {
-      _saveHistory();
-      _selectionPath =
-          Path.combine(PathOperation.intersect, _selectionPath!, path);
-      selectionNotifier.value = _selectionPath;
-      notifyListeners();
-    }
-  }
-
   /// 清除选区
-  void clearSelection() {
+  void clearSelection({bool saveHistory = true}) {
     if (_selectionPath != null) {
-      _saveHistory();
+      if (saveHistory) {
+        _saveHistory();
+      }
       _selectionPath = null;
       selectionNotifier.value = null;
       notifyListeners();
@@ -108,18 +87,6 @@ class SelectionManager extends ChangeNotifier {
       selectionNotifier.value = _selectionPath;
       notifyListeners();
     }
-  }
-
-  /// 设置选区预览
-  void setSelectionPreview(Rect? rect) {
-    _selectionPreview = rect;
-    notifyListeners();
-  }
-
-  /// 设置套索预览路径
-  void setLassoPreviewPath(Path? path) {
-    _lassoPreviewPath = path;
-    notifyListeners();
   }
 
   /// 撤销选区
@@ -148,20 +115,12 @@ class SelectionManager extends ChangeNotifier {
     return false;
   }
 
-  /// 清除预览
-  void clearPreview() {
-    _selectionPreview = null;
-    _lassoPreviewPath = null;
-    notifyListeners();
-  }
-
   /// 重置
   void reset() {
     _selectionPath = null;
+    _previewPath = null;
     _selectionHistory.clear();
     _selectionRedoStack.clear();
-    _selectionPreview = null;
-    _lassoPreviewPath = null;
     selectionNotifier.value = null;
     notifyListeners();
   }

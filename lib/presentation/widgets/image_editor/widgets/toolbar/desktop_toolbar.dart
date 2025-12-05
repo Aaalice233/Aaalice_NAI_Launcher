@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
 
+/// 检查是否可以清空当前图层
+bool _canClearActiveLayer(EditorState state) {
+  final layer = state.layerManager.activeLayer;
+  return layer != null && !layer.locked && layer.strokes.isNotEmpty;
+}
+
 /// 桌面端垂直工具栏
 class DesktopToolbar extends StatelessWidget {
   final EditorState state;
@@ -51,9 +57,9 @@ class DesktopToolbar extends StatelessWidget {
 
           const Divider(height: 16),
 
-          // 撤销/重做 - 监听历史管理器
+          // 撤销/重做/清空 - 监听历史管理器和图层管理器
           ListenableBuilder(
-            listenable: state.historyManager,
+            listenable: Listenable.merge([state.historyManager, state.layerManager]),
             builder: (context, _) {
               return Column(
                 children: [
@@ -68,6 +74,12 @@ class DesktopToolbar extends StatelessWidget {
                     tooltip: '重做 (Ctrl+Y)',
                     enabled: state.canRedo,
                     onTap: onRedo ?? () => state.redo(),
+                  ),
+                  _ActionButton(
+                    icon: Icons.delete_outline,
+                    tooltip: '清空图层',
+                    enabled: _canClearActiveLayer(state),
+                    onTap: () => state.clearActiveLayerWithHistory(),
                   ),
                 ],
               );
@@ -135,7 +147,7 @@ class _ToolButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Tooltip(
-        message: '${tool.name}${tool.shortcutKey != null ? ' (${_getShortcutLabel(tool)})' : ''}',
+        message: _buildTooltipMessage(),
         child: Material(
           color: isSelected
               ? theme.colorScheme.primaryContainer
@@ -167,6 +179,18 @@ class _ToolButton extends StatelessWidget {
     if (key == null) return '';
     final keyLabel = key.keyLabel;
     return keyLabel.isNotEmpty ? keyLabel.toUpperCase() : '';
+  }
+
+  String _buildTooltipMessage() {
+    final shortcut = tool.shortcutKey != null ? ' (${_getShortcutLabel(tool)})' : '';
+    final base = '${tool.name}$shortcut';
+
+    // 拾色器工具添加 Alt 快捷键说明
+    if (tool.id == 'color_picker') {
+      return '$base\nAlt+点击: 临时取色';
+    }
+
+    return base;
   }
 }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -72,6 +73,8 @@ class _EditorCanvasState extends State<EditorCanvas>
         onPointerUp: _inputHandler.handlePointerUp,
         onPointerMove: _inputHandler.handlePointerMove,
         child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          dragStartBehavior: DragStartBehavior.down,
           onScaleStart: _inputHandler.handleScaleStart,
           onScaleUpdate: _inputHandler.handleScaleUpdate,
           onScaleEnd: _inputHandler.handleScaleEnd,

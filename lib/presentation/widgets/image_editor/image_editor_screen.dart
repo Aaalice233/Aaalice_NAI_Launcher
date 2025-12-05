@@ -506,51 +506,67 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             Text('快捷键帮助'),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildShortcutSection('工具', [
-                ('B', '画笔'),
-                ('E', '橡皮擦'),
-                ('P', '拾色器'),
-              ]),
-              _buildShortcutSection('画布视图', [
-                ('1', '100% 缩放'),
-                ('2', '适应高度'),
-                ('3', '适应宽度'),
-                ('4', '向左旋转 15°'),
-                ('5', '重置旋转'),
-                ('6', '向右旋转 15°'),
-                ('M', '画布镜像'),
-                ('R', '重置视图'),
-                ('滚轮', '缩放'),
-              ]),
-              _buildShortcutSection('笔刷调整', [
-                ('[', '减小笔刷'),
-                (']', '增大笔刷'),
-                ('I', '降低透明度'),
-                ('O', '提高透明度'),
-                ('Shift + 拖动', '调整笔刷大小'),
-              ]),
-              _buildShortcutSection('颜色', [
-                ('X', '交换前景/背景色'),
-              ]),
-              _buildShortcutSection('画布操作', [
-                ('空格 + 拖动', '平移画布'),
-                ('中键拖动', '平移画布'),
-                ('Ctrl+Z', '撤销'),
-                ('Ctrl+Shift+Z', '重做'),
-                ('Ctrl+Y', '重做'),
-              ]),
-              _buildShortcutSection('选区', [
-                ('Delete', '清除选区'),
-                ('Esc', '取消操作'),
-              ]),
-            ],
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 500, maxWidth: 350),
+          child: SingleChildScrollView(
+            primary: true,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildShortcutSection('绘画工具', [
+                    ('B', '画笔'),
+                    ('E', '橡皮擦'),
+                    ('P', '拾色器'),
+                    ('Alt 按住', '临时拾色器'),
+                  ]),
+                  _buildShortcutSection('选区工具', [
+                    ('M', '矩形选区'),
+                    ('U', '椭圆选区'),
+                    ('L', '套索选区'),
+                  ]),
+                  _buildShortcutSection('画布视图', [
+                    ('1', '100% 缩放'),
+                    ('2', '适应高度'),
+                    ('3', '适应宽度'),
+                    ('4', '向左旋转 15°'),
+                    ('5', '重置旋转'),
+                    ('6', '向右旋转 15°'),
+                    ('F', '水平镜像'),
+                    ('R', '重置视图'),
+                    ('滚轮', '缩放'),
+                    ('Ctrl+0', '100% 缩放'),
+                    ('Ctrl++', '放大'),
+                    ('Ctrl+-', '缩小'),
+                  ]),
+                  _buildShortcutSection('笔刷调整', [
+                    ('[', '减小笔刷'),
+                    (']', '增大笔刷'),
+                    ('I', '降低透明度'),
+                    ('O', '提高透明度'),
+                    ('Shift + 拖动', '调整笔刷大小'),
+                  ]),
+                  _buildShortcutSection('颜色', [
+                    ('X', '交换前景/背景色'),
+                  ]),
+                  _buildShortcutSection('画布操作', [
+                    ('空格 + 拖动', '平移画布'),
+                    ('中键拖动', '平移画布'),
+                  ]),
+                  _buildShortcutSection('历史操作', [
+                    ('Ctrl+Z', '撤销'),
+                    ('Ctrl+Shift+Z', '重做'),
+                    ('Ctrl+Y', '重做'),
+                  ]),
+                  _buildShortcutSection('选区操作', [
+                    ('Delete', '清除选区内容'),
+                    ('Backspace', '清除选区内容'),
+                    ('Esc', '取消当前操作'),
+                  ]),
+                ],
+              ),
+            ),
           ),
-        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
