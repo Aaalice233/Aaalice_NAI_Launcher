@@ -406,7 +406,7 @@ class LoginScreen extends ConsumerWidget {
     }
 
     // 执行登录
-    await ref.read(authNotifierProvider.notifier).loginWithToken(
+    final success = await ref.read(authNotifierProvider.notifier).loginWithToken(
           token,
           accountId: account.id,
           displayName: account.displayName,
@@ -415,10 +415,15 @@ class LoginScreen extends ConsumerWidget {
     // 检查 widget 是否仍然 mounted
     if (!context.mounted) return;
 
-    // 更新最后使用时间
-    ref
-        .read(accountManagerNotifierProvider.notifier)
-        .updateLastUsed(account.id);
+    if (success) {
+      // 登录成功，更新最后使用时间
+      ref
+          .read(accountManagerNotifierProvider.notifier)
+          .updateLastUsed(account.id);
+    } else {
+      // 登录失败，错误toast由监听器显示，这里可以添加额外处理
+      // 确保错误状态被清除后重新设置？监听器会处理
+    }
   }
 
   /// 显示账号选择器对话框

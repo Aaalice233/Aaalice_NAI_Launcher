@@ -7,6 +7,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/nai_api_service.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../common/app_toast.dart';
 
 /// Token 登录卡片组件
 class TokenLoginCard extends ConsumerStatefulWidget {
@@ -247,6 +248,39 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
       // 检查 widget 是否仍然 mounted
       if (mounted) {
         widget.onLoginSuccess?.call();
+      }
+    } else {
+      // 登录失败，显示错误提示
+      if (mounted) {
+        final authState = ref.read(authNotifierProvider);
+        String errorMessage;
+
+        if (authState.hasError) {
+          // 根据错误码显示相应提示
+          switch (authState.errorCode) {
+            case AuthErrorCode.tokenInvalid:
+              errorMessage = context.l10n.auth_tokenInvalid;
+              break;
+            case AuthErrorCode.authFailed:
+              errorMessage = context.l10n.auth_error_authFailed;
+              break;
+            case AuthErrorCode.networkTimeout:
+              errorMessage = context.l10n.auth_error_networkTimeout;
+              break;
+            case AuthErrorCode.networkError:
+              errorMessage = context.l10n.auth_error_networkError;
+              break;
+            case AuthErrorCode.serverError:
+              errorMessage = context.l10n.auth_error_serverError;
+              break;
+            default:
+              errorMessage = context.l10n.auth_error_unknown;
+          }
+        } else {
+          errorMessage = context.l10n.auth_error_unknown;
+        }
+
+        AppToast.error(context, errorMessage);
       }
     }
   }
