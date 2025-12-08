@@ -58,9 +58,11 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isNew
-              ? context.l10n.presetEdit_newPreset
-              : context.l10n.presetEdit_editPreset),
+          title: Text(
+            widget.isNew
+                ? context.l10n.presetEdit_newPreset
+                : context.l10n.presetEdit_editPreset,
+          ),
           actions: [
             if (_hasChanges || widget.isNew)
               TextButton.icon(
@@ -337,13 +339,17 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(context.l10n.presetEdit_helpConfigGroup,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    context.l10n.presetEdit_helpConfigGroup,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   Text(context.l10n.presetEdit_helpConfigGroupContent),
                   const SizedBox(height: 16),
-                  Text(context.l10n.presetEdit_helpSelectionMode,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    context.l10n.presetEdit_helpSelectionMode,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   Text(context.l10n.presetEdit_helpSingleRandom),
                   Text(context.l10n.presetEdit_helpSingleSequential),
@@ -351,14 +357,18 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
                   Text(context.l10n.presetEdit_helpMultipleProbability),
                   Text(context.l10n.presetEdit_helpAll),
                   const SizedBox(height: 16),
-                  Text(context.l10n.presetEdit_helpWeightBrackets,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    context.l10n.presetEdit_helpWeightBrackets,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   Text(context.l10n.presetEdit_helpWeightBracketsContent),
                   Text(context.l10n.presetEdit_helpWeightBracketsExample),
                   const SizedBox(height: 16),
-                  Text(context.l10n.presetEdit_helpNestedConfig,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    context.l10n.presetEdit_helpNestedConfig,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   Text(context.l10n.presetEdit_helpNestedConfigContent),
                 ],
@@ -464,8 +474,9 @@ class _ConfigCard extends StatelessWidget {
     if (config.contentType == ContentType.string) {
       parts.add(context.l10n.presetEdit_tagCount(config.stringContents.length));
     } else {
-      parts.add(context.l10n
-          .configEditor_subConfigCount(config.nestedConfigs.length));
+      parts.add(
+        context.l10n.configEditor_subConfigCount(config.nestedConfigs.length),
+      );
     }
 
     // 选取方式
@@ -476,8 +487,10 @@ class _ConfigCard extends StatelessWidget {
       if (config.bracketMin == config.bracketMax) {
         parts.add(context.l10n.presetEdit_bracketLayers(config.bracketMin));
       } else {
-        parts.add(context.l10n
-            .presetEdit_bracketRange(config.bracketMin, config.bracketMax));
+        parts.add(
+          context.l10n
+              .presetEdit_bracketRange(config.bracketMin, config.bracketMax),
+        );
       }
     }
 
@@ -492,12 +505,14 @@ class _ConfigCard extends StatelessWidget {
         return context.l10n.config_singleSequential;
       case SelectionMode.singleProbability:
         return context.l10n.configEditor_probabilityPercent(
-            ((config.selectProbability ?? 0.5) * 100).toInt());
+          ((config.selectProbability ?? 0.5) * 100).toInt(),
+        );
       case SelectionMode.multipleCount:
         return context.l10n.configEditor_randomCount(config.selectCount ?? 1);
       case SelectionMode.multipleProbability:
         return context.l10n.configEditor_probabilityPercent(
-            ((config.selectProbability ?? 0.5) * 100).toInt());
+          ((config.selectProbability ?? 0.5) * 100).toInt(),
+        );
       case SelectionMode.all:
         return context.l10n.config_all;
     }

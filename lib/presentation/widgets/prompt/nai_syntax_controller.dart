@@ -46,13 +46,15 @@ class NaiSyntaxController extends TextEditingController {
     for (final match in bracePattern.allMatches(text)) {
       final matchText = match.group(0)!;
       final depth = _countLeadingChar(matchText, '{').clamp(1, 5);
-      matches.add(_SyntaxMatch(
-        start: match.start,
-        end: match.end,
-        text: matchText,
-        type: _SyntaxType.brace,
-        depth: depth,
-      ));
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.end,
+          text: matchText,
+          type: _SyntaxType.brace,
+          depth: depth,
+        ),
+      );
     }
 
     // 匹配多层方括号 [], [[]], ...
@@ -60,13 +62,15 @@ class NaiSyntaxController extends TextEditingController {
     for (final match in bracketPattern.allMatches(text)) {
       final matchText = match.group(0)!;
       final depth = _countLeadingChar(matchText, '[').clamp(1, 5);
-      matches.add(_SyntaxMatch(
-        start: match.start,
-        end: match.end,
-        text: matchText,
-        type: _SyntaxType.bracket,
-        depth: depth,
-      ));
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.end,
+          text: matchText,
+          type: _SyntaxType.bracket,
+          depth: depth,
+        ),
+      );
     }
 
     // 匹配权重语法 数字::内容::
@@ -79,22 +83,26 @@ class NaiSyntaxController extends TextEditingController {
 
       // 主体部分: 数字::内容
       final mainPart = '$weightStr::$content';
-      matches.add(_SyntaxMatch(
-        start: match.start,
-        end: match.start + mainPart.length,
-        text: mainPart,
-        type: _SyntaxType.weightMain,
-        weight: weight,
-      ));
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.start + mainPart.length,
+          text: mainPart,
+          type: _SyntaxType.weightMain,
+          weight: weight,
+        ),
+      );
 
       // 结尾部分: ::
-      matches.add(_SyntaxMatch(
-        start: match.end - 2,
-        end: match.end,
-        text: '::',
-        type: _SyntaxType.weightTrailing,
-        weight: weight,
-      ));
+      matches.add(
+        _SyntaxMatch(
+          start: match.end - 2,
+          end: match.end,
+          text: '::',
+          type: _SyntaxType.weightTrailing,
+          weight: weight,
+        ),
+      );
     }
 
     // 按起始位置排序
@@ -115,33 +123,41 @@ class NaiSyntaxController extends TextEditingController {
     for (final match in filteredMatches) {
       // 添加匹配前的普通文本
       if (match.start > currentIndex) {
-        spans.add(TextSpan(
-          text: text.substring(currentIndex, match.start),
-          style: baseStyle.copyWith(height: 1.35),
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(currentIndex, match.start),
+            style: baseStyle.copyWith(height: 1.35),
+          ),
+        );
       }
 
       // 添加带背景色的高亮文本
-      spans.add(TextSpan(
-        text: match.text,
-        style: baseStyle.copyWith(
-          backgroundColor: colors.getBackgroundColor(match),
-          height: 1.35, // 增加行高，使高亮行之间有间隙
+      spans.add(
+        TextSpan(
+          text: match.text,
+          style: baseStyle.copyWith(
+            backgroundColor: colors.getBackgroundColor(match),
+            height: 1.35, // 增加行高，使高亮行之间有间隙
+          ),
         ),
-      ));
+      );
 
       currentIndex = match.end;
     }
 
     // 添加剩余的普通文本
     if (currentIndex < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(currentIndex),
-        style: baseStyle.copyWith(height: 1.35),
-      ));
+      spans.add(
+        TextSpan(
+          text: text.substring(currentIndex),
+          style: baseStyle.copyWith(height: 1.35),
+        ),
+      );
     }
 
-    return spans.isEmpty ? [TextSpan(text: text, style: baseStyle.copyWith(height: 1.35))] : spans;
+    return spans.isEmpty
+        ? [TextSpan(text: text, style: baseStyle.copyWith(height: 1.35))]
+        : spans;
   }
 
   /// 统计开头连续字符数量
@@ -160,9 +176,9 @@ class NaiSyntaxController extends TextEditingController {
 
 /// 语法类型
 enum _SyntaxType {
-  brace,          // {} 花括号
-  bracket,        // [] 方括号
-  weightMain,     // 权重主体 (数字::内容)
+  brace, // {} 花括号
+  bracket, // [] 方括号
+  weightMain, // 权重主体 (数字::内容)
   weightTrailing, // 权重结尾 (::)
 }
 
@@ -172,8 +188,8 @@ class _SyntaxMatch {
   final int end;
   final String text;
   final _SyntaxType type;
-  final int depth;      // 括号深度 (1-5)
-  final double weight;  // 权重值
+  final int depth; // 括号深度 (1-5)
+  final double weight; // 权重值
 
   _SyntaxMatch({
     required this.start,

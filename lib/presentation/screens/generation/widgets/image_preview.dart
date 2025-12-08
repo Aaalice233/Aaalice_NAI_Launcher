@@ -250,9 +250,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
             allSelected ? Icons.deselect : Icons.select_all,
             size: 20,
           ),
-          label: Text(allSelected
-              ? context.l10n.common_deselectAll
-              : context.l10n.common_selectAll),
+          label: Text(
+            allSelected
+                ? context.l10n.common_deselectAll
+                : context.l10n.common_selectAll,
+          ),
         ),
         // 保存选中按钮
         FilledButton.icon(
@@ -266,7 +268,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
   /// 保存选中的图片
   Future<void> _saveSelectedImages(
-      BuildContext context, List<Uint8List> images) async {
+    BuildContext context,
+    List<Uint8List> images,
+  ) async {
     if (_selectedIndices.isEmpty) return;
 
     try {
@@ -319,7 +323,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   }
 
   Widget _buildErrorState(
-      ThemeData theme, String? message, BuildContext context) {
+    ThemeData theme,
+    String? message,
+    BuildContext context,
+  ) {
     // 解析错误代码和详情
     final (errorTitle, errorHint) = _parseApiError(message, context);
 
@@ -539,7 +546,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   /// 复制图片到剪贴板
   Future<void> _copyImage(BuildContext context, Uint8List imageBytes) async {
     try {
-      await Clipboard.setData(ClipboardData(text: '')); // 清空剪贴板
+      await Clipboard.setData(const ClipboardData(text: '')); // 清空剪贴板
       // Windows 使用 native 方式复制图片
       final tempDir = await getTemporaryDirectory();
       final file = File(
@@ -732,6 +739,7 @@ class _GeneratingImageCard extends StatefulWidget {
   final int imageWidth;
   final int imageHeight;
   final ThemeData theme;
+
   /// 流式预览图像（渐进式生成中显示）
   final Uint8List? streamPreview;
 
@@ -777,7 +785,8 @@ class _GeneratingImageCardState extends State<_GeneratingImageCard>
   Widget build(BuildContext context) {
     final primaryColor = widget.theme.colorScheme.primary;
     final surfaceColor = widget.theme.colorScheme.surface;
-    final hasPreview = widget.streamPreview != null && widget.streamPreview!.isNotEmpty;
+    final hasPreview =
+        widget.streamPreview != null && widget.streamPreview!.isNotEmpty;
 
     // 计算卡片尺寸（基于图像比例，限制最大尺寸）
     final aspectRatio = widget.imageWidth / widget.imageHeight;
@@ -797,7 +806,8 @@ class _GeneratingImageCardState extends State<_GeneratingImageCard>
 
     // 如果有流式预览，显示预览图像
     if (hasPreview) {
-      return _buildPreviewCard(cardWidth, cardHeight, primaryColor, surfaceColor);
+      return _buildPreviewCard(
+          cardWidth, cardHeight, primaryColor, surfaceColor);
     }
 
     // 否则显示原来的加载动画

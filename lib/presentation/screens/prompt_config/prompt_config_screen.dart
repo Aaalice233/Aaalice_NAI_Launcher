@@ -158,8 +158,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       tooltip: context.l10n.preset_moreActions,
       onSelected: _handlePresetMenuAction,
       itemBuilder: (menuContext) => [
-        PopupMenuItem(value: 'import', child: Text(context.l10n.config_importConfig)),
-        PopupMenuItem(value: 'reset', child: Text(context.l10n.config_restoreDefaults)),
+        PopupMenuItem(
+            value: 'import', child: Text(context.l10n.config_importConfig)),
+        PopupMenuItem(
+            value: 'reset', child: Text(context.l10n.config_restoreDefaults)),
       ],
     );
   }
@@ -237,7 +239,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        context.l10n.preset_configGroupCount(preset.configs.length.toString()),
+                        context.l10n.preset_configGroupCount(
+                            preset.configs.length.toString()),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
@@ -261,8 +264,12 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                       enabled: !isActive,
                       child: Text(context.l10n.preset_setAsCurrent),
                     ),
-                    PopupMenuItem(value: 'duplicate', child: Text(context.l10n.preset_duplicate)),
-                    PopupMenuItem(value: 'export', child: Text(context.l10n.preset_export)),
+                    PopupMenuItem(
+                        value: 'duplicate',
+                        child: Text(context.l10n.preset_duplicate)),
+                    PopupMenuItem(
+                        value: 'export',
+                        child: Text(context.l10n.preset_export)),
                     const PopupMenuDivider(),
                     PopupMenuItem(
                       value: 'delete',
@@ -587,14 +594,16 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   void _doCreateNewPreset() async {
-    final newPreset = RandomPromptPreset.create(name: context.l10n.config_newPreset);
+    final newPreset =
+        RandomPromptPreset.create(name: context.l10n.config_newPreset);
     await ref.read(promptConfigNotifierProvider.notifier).addPreset(newPreset);
     _doSelectPreset(newPreset.id);
     AppToast.success(context, context.l10n.preset_newPresetCreated);
   }
 
   void _addConfig() {
-    final newConfig = PromptConfig.create(name: context.l10n.presetEdit_newConfigGroup);
+    final newConfig =
+        PromptConfig.create(name: context.l10n.presetEdit_newConfigGroup);
     setState(() {
       _editingConfigs.add(newConfig);
       _selectedConfigId = newConfig.id;
@@ -695,9 +704,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   String _getConfigSummary(PromptConfig config) {
     final parts = <String>[];
     if (config.contentType == ContentType.string) {
-      parts.add(context.l10n.preset_itemCount(config.stringContents.length.toString()));
+      parts.add(context.l10n
+          .preset_itemCount(config.stringContents.length.toString()));
     } else {
-      parts.add(context.l10n.preset_subConfigCount(config.nestedConfigs.length.toString()));
+      parts.add(context.l10n
+          .preset_subConfigCount(config.nestedConfigs.length.toString()));
     }
     parts.add(_getSelectionModeShort(config.selectionMode));
     return parts.join(' · ');
@@ -810,10 +821,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     .importPreset(controller.text);
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext);
-                  AppToast.success(this.context, context.l10n.preset_importSuccess);
+                  AppToast.success(context, context.l10n.preset_importSuccess);
                 }
               } catch (e) {
-                AppToast.error(this.context, context.l10n.preset_importFailed(e.toString()));
+                AppToast.error(
+                    context, context.l10n.preset_importFailed(e.toString()));
               }
             },
             child: Text(context.l10n.common_import),
@@ -837,14 +849,16 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              ref.read(promptConfigNotifierProvider.notifier).resetToDefaults(_getDefaultPresetNames());
+              ref
+                  .read(promptConfigNotifierProvider.notifier)
+                  .resetToDefaults(_getDefaultPresetNames());
               setState(() {
                 _selectedPresetId = null;
                 _selectedConfigId = null;
                 _editingConfigs = [];
                 _hasUnsavedChanges = false;
               });
-              AppToast.success(this.context, context.l10n.preset_restored);
+              AppToast.success(context, context.l10n.preset_restored);
             },
             child: Text(context.l10n.common_confirm),
           ),
@@ -900,7 +914,8 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
     );
     _selectionMode = widget.config.selectionMode;
     _selectCount = widget.config.selectCount ?? 1;
-    _selectProbability = (widget.config.selectProbability ?? 0.5).clamp(0.05, 1.0);
+    _selectProbability =
+        (widget.config.selectProbability ?? 0.5).clamp(0.05, 1.0);
     _bracketMin = widget.config.bracketMin;
     _bracketMax = widget.config.bracketMax;
     _shuffle = widget.config.shuffle;
@@ -1121,7 +1136,10 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
           Row(
             children: [
               Text(
-                context.l10n.config_tagContentHint(_contentsController.text.split('\n').where((s) => s.trim().isNotEmpty).length),
+                context.l10n.config_tagContentHint(_contentsController.text
+                    .split('\n')
+                    .where((s) => s.trim().isNotEmpty)
+                    .length),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),
@@ -1257,4 +1275,3 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
     super.dispose();
   }
 }
-

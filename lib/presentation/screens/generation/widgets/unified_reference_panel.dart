@@ -105,7 +105,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               // 标题栏
               InkWell(
                 onTap: () => setState(() => _isExpanded = !_isExpanded),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -211,15 +212,25 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
                       // 模式选择器 (SegmentedButton)
                       _buildModeSelector(
-                          context, theme, currentMode, isV4Model, hasVibes, hasCharacterRefs, params, showBackground),
+                        context,
+                        theme,
+                        currentMode,
+                        isV4Model,
+                        hasVibes,
+                        hasCharacterRefs,
+                        params,
+                        showBackground,
+                      ),
 
                       const SizedBox(height: 12),
 
                       // 根据模式显示对应内容
                       if (currentMode == ReferenceMode.vibe)
-                        _buildVibeContentV4(context, theme, params, showBackground)
+                        _buildVibeContentV4(
+                            context, theme, params, showBackground)
                       else
-                        _buildCharacterContent(context, theme, params, isV4Model, showBackground),
+                        _buildCharacterContent(
+                            context, theme, params, isV4Model, showBackground),
                     ],
                   ),
                 ),
@@ -233,7 +244,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   }
 
   /// 构建背景图片
-  Widget _buildBackgroundImage(ImageParams params, bool hasVibes, bool hasCharacterRefs) {
+  Widget _buildBackgroundImage(
+      ImageParams params, bool hasVibes, bool hasCharacterRefs) {
     if (hasCharacterRefs) {
       // 角色参考：单图背景
       return Image.memory(
@@ -345,9 +357,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     final targetName = targetMode == ReferenceMode.vibe
         ? context.l10n.vibe_title
         : context.l10n.characterRef_title;
-    final sourceName = isFromVibe
-        ? context.l10n.vibe_title
-        : context.l10n.characterRef_title;
+    final sourceName =
+        isFromVibe ? context.l10n.vibe_title : context.l10n.characterRef_title;
 
     showDialog(
       context: context,
@@ -392,7 +403,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         Text(
           context.l10n.vibe_description,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.6),
+            color: showBackground
+                ? Colors.white70
+                : theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 12),
@@ -431,7 +444,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 : null,
           ),
 
-
         // 清除全部按钮
         if (hasVibes) ...[
           const SizedBox(height: 8),
@@ -440,7 +452,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             icon: const Icon(Icons.clear_all, size: 18),
             label: Text(context.l10n.vibe_clearAll),
             style: TextButton.styleFrom(
-              foregroundColor: showBackground ? Colors.red[300] : theme.colorScheme.error,
+              foregroundColor:
+                  showBackground ? Colors.red[300] : theme.colorScheme.error,
             ),
           ),
         ],
@@ -494,7 +507,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     );
   }
 
-
   Future<void> _addVibeV4() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -505,7 +517,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           'jpeg',
           'webp',
           'naiv4vibe',
-          'naiv4vibebundle'
+          'naiv4vibebundle',
         ],
         allowMultiple: true,
       );
@@ -515,7 +527,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
         for (final file in result.files) {
           Uint8List? bytes;
-          String fileName = file.name;
+          final String fileName = file.name;
 
           if (file.bytes != null) {
             bytes = file.bytes;
@@ -552,7 +564,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   }
 
   void _removeVibeV4(int index) {
-    ref.read(generationParamsNotifierProvider.notifier).removeVibeReferenceV4(index);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .removeVibeReferenceV4(index);
   }
 
   void _updateVibeStrengthV4(int index, double value) {
@@ -601,14 +615,18 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 Icon(
                   Icons.warning_amber_rounded,
                   size: 16,
-                  color: showBackground ? Colors.red[300] : theme.colorScheme.error,
+                  color: showBackground
+                      ? Colors.red[300]
+                      : theme.colorScheme.error,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     context.l10n.characterRef_v4Only,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: showBackground ? Colors.red[300] : theme.colorScheme.error,
+                      color: showBackground
+                          ? Colors.red[300]
+                          : theme.colorScheme.error,
                     ),
                   ),
                 ),
@@ -622,7 +640,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         Text(
           context.l10n.characterRef_hint,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.6),
+            color: showBackground
+                ? Colors.white70
+                : theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 12),
@@ -646,10 +666,10 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                   child: InkWell(
                     onTap: _addReference,
                     borderRadius: BorderRadius.circular(4),
-                    child: Tooltip(
+                    child: const Tooltip(
                       message: '替换',
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: EdgeInsets.all(4),
                         child: Icon(
                           Icons.refresh,
                           size: 16,
@@ -668,8 +688,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     borderRadius: BorderRadius.circular(4),
                     child: Tooltip(
                       message: context.l10n.characterRef_remove,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
                         child: Icon(
                           Icons.close,
                           size: 16,
@@ -718,7 +738,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     Text(
                       context.l10n.characterRef_styleAwareHint,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: showBackground
+                            ? Colors.white70
+                            : theme.colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ],
@@ -752,7 +774,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     Text(
                       context.l10n.characterRef_fidelityHint,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: showBackground ? Colors.white70 : theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: showBackground
+                            ? Colors.white70
+                            : theme.colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ],
@@ -787,7 +811,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             icon: const Icon(Icons.clear_all, size: 18),
             label: Text(context.l10n.characterRef_clearAll),
             style: TextButton.styleFrom(
-              foregroundColor: showBackground ? Colors.red[300] : theme.colorScheme.error,
+              foregroundColor:
+                  showBackground ? Colors.red[300] : theme.colorScheme.error,
             ),
           ),
         ],
@@ -830,7 +855,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.img2img_selectFailed(e.toString()))),
+            content: Text(context.l10n.img2img_selectFailed(e.toString())),
+          ),
         );
       }
     }

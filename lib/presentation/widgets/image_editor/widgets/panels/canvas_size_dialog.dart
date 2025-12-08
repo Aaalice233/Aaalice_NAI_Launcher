@@ -117,10 +117,12 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
                   value: null,
                   child: Text('自定义'),
                 ),
-                ...canvasPresets.map((preset) => DropdownMenuItem(
-                      value: preset,
-                      child: Text(preset.toString()),
-                    )),
+                ...canvasPresets.map(
+                  (preset) => DropdownMenuItem(
+                    value: preset,
+                    child: Text(preset.toString()),
+                  ),
+                ),
               ],
               onChanged: (preset) {
                 setState(() {
@@ -181,8 +183,10 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
                       setState(() {
                         _linkDimensions = !_linkDimensions;
                         if (_linkDimensions) {
-                          final width = int.tryParse(_widthController.text) ?? 1;
-                          final height = int.tryParse(_heightController.text) ?? 1;
+                          final width =
+                              int.tryParse(_widthController.text) ?? 1;
+                          final height =
+                              int.tryParse(_heightController.text) ?? 1;
                           _aspectRatio = width / height;
                         }
                       });

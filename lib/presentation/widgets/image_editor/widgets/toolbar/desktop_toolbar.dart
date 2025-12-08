@@ -46,11 +46,15 @@ class DesktopToolbar extends StatelessWidget {
             valueListenable: state.toolNotifier,
             builder: (context, currentToolId, _) {
               return Column(
-                children: state.tools.map((tool) => _ToolButton(
-                  tool: tool,
-                  isSelected: tool.id == currentToolId,
-                  onTap: () => state.setTool(tool),
-                )).toList(),
+                children: state.tools
+                    .map(
+                      (tool) => _ToolButton(
+                        tool: tool,
+                        isSelected: tool.id == currentToolId,
+                        onTap: () => state.setTool(tool),
+                      ),
+                    )
+                    .toList(),
               );
             },
           ),
@@ -59,7 +63,8 @@ class DesktopToolbar extends StatelessWidget {
 
           // 撤销/重做/清空 - 监听历史管理器和图层管理器
           ListenableBuilder(
-            listenable: Listenable.merge([state.historyManager, state.layerManager]),
+            listenable:
+                Listenable.merge([state.historyManager, state.layerManager]),
             builder: (context, _) {
               return Column(
                 children: [
@@ -114,7 +119,8 @@ class DesktopToolbar extends StatelessWidget {
                   _ActionButton(
                     icon: Icons.fit_screen,
                     tooltip: '适应窗口',
-                    onTap: () => state.canvasController.fitToViewport(state.canvasSize),
+                    onTap: () =>
+                        state.canvasController.fitToViewport(state.canvasSize),
                   ),
                 ],
               );
@@ -182,7 +188,8 @@ class _ToolButton extends StatelessWidget {
   }
 
   String _buildTooltipMessage() {
-    final shortcut = tool.shortcutKey != null ? ' (${_getShortcutLabel(tool)})' : '';
+    final shortcut =
+        tool.shortcutKey != null ? ' (${_getShortcutLabel(tool)})' : '';
     final base = '${tool.name}$shortcut';
 
     // 拾色器工具添加 Alt 快捷键说明

@@ -53,8 +53,9 @@ class _VibeTransferPanelV2State extends ConsumerState<VibeTransferPanelV2> {
           // 展开内容
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 200),
-            crossFadeState:
-                _isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
             firstChild: _buildBody(context, theme, params, vibes),
             secondChild: const SizedBox.shrink(),
           ),
@@ -268,7 +269,7 @@ class _VibeTransferPanelV2State extends ConsumerState<VibeTransferPanelV2> {
           'jpeg',
           'webp',
           'naiv4vibe',
-          'naiv4vibebundle'
+          'naiv4vibebundle',
         ],
         allowMultiple: true,
       );
@@ -278,7 +279,7 @@ class _VibeTransferPanelV2State extends ConsumerState<VibeTransferPanelV2> {
 
         for (final file in result.files) {
           Uint8List? bytes;
-          String fileName = file.name;
+          final String fileName = file.name;
 
           if (file.bytes != null) {
             bytes = file.bytes;
@@ -315,7 +316,9 @@ class _VibeTransferPanelV2State extends ConsumerState<VibeTransferPanelV2> {
   }
 
   void _removeVibe(int index) {
-    ref.read(generationParamsNotifierProvider.notifier).removeVibeReferenceV4(index);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .removeVibeReferenceV4(index);
   }
 
   void _updateVibeStrength(int index, double value) {
@@ -435,8 +438,9 @@ class _VibeCardV2State extends State<_VibeCardV2> {
           // 滑块区域
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 150),
-            crossFadeState:
-                _showSliders ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            crossFadeState: _showSliders
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
             firstChild: _buildSliders(context, theme, isRawImage),
             secondChild: const SizedBox.shrink(),
           ),

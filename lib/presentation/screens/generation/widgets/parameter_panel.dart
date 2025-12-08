@@ -20,7 +20,7 @@ class ParameterPanel extends ConsumerWidget {
   final bool showInput;
 
   const ParameterPanel({
-    super.key, 
+    super.key,
     this.inBottomSheet = false,
     this.showInput = false,
   });
@@ -41,29 +41,38 @@ class ParameterPanel extends ConsumerWidget {
         if (showInput) ...[
           const PromptInputWidget(compact: false),
           const SizedBox(height: 16),
-          
+
           // 生成按钮
           SizedBox(
             height: 48,
             child: ThemedButton(
               onPressed: isGenerating
-                  ? () => ref.read(imageGenerationNotifierProvider.notifier).cancel()
+                  ? () => ref
+                      .read(imageGenerationNotifierProvider.notifier)
+                      .cancel()
                   : () {
                       if (params.prompt.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(context.l10n.generation_pleaseInputPrompt)),
+                          SnackBar(
+                              content: Text(
+                                  context.l10n.generation_pleaseInputPrompt)),
                         );
                         return;
                       }
-                      ref.read(imageGenerationNotifierProvider.notifier)
+                      ref
+                          .read(imageGenerationNotifierProvider.notifier)
                           .generate(params);
                     },
               icon: isGenerating
                   ? const Icon(Icons.stop)
                   : const Icon(Icons.auto_awesome),
               isLoading: isGenerating && false, // 不要显示加载圈，直接变 Cancel
-              label: Text(isGenerating ? context.l10n.generation_cancelGeneration : context.l10n.generation_generateImage),
-              style: isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+              label: Text(isGenerating
+                  ? context.l10n.generation_cancelGeneration
+                  : context.l10n.generation_generateImage),
+              style: isGenerating
+                  ? ThemedButtonStyle.outlined
+                  : ThemedButtonStyle.filled,
             ),
           ),
           const SizedBox(height: 24),
@@ -91,7 +100,8 @@ class ParameterPanel extends ConsumerWidget {
           }).toList(),
           onChanged: (value) {
             if (value != null) {
-              ref.read(generationParamsNotifierProvider.notifier)
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
                   .updateModel(value);
             }
           },
@@ -106,7 +116,8 @@ class ParameterPanel extends ConsumerWidget {
           width: params.width,
           height: params.height,
           onChanged: (width, height) {
-            ref.read(generationParamsNotifierProvider.notifier)
+            ref
+                .read(generationParamsNotifierProvider.notifier)
                 .updateSize(width, height);
           },
         ),
@@ -123,7 +134,8 @@ class ParameterPanel extends ConsumerWidget {
                 value: params.sampler,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 items: Samplers.allSamplers.map((sampler) {
                   return DropdownMenuItem(
@@ -136,7 +148,8 @@ class ParameterPanel extends ConsumerWidget {
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
-                    ref.read(generationParamsNotifierProvider.notifier)
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
                         .updateSampler(value);
                   }
                 },
@@ -181,7 +194,8 @@ class ParameterPanel extends ConsumerWidget {
           ],
           onChanged: (value) {
             if (value != null) {
-              ref.read(generationParamsNotifierProvider.notifier)
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
                   .updateNoiseSchedule(value);
             }
           },
@@ -190,7 +204,8 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 步数
-        _buildSectionTitle(theme, context.l10n.generation_steps(params.steps.toString())),
+        _buildSectionTitle(
+            theme, context.l10n.generation_steps(params.steps.toString())),
         Slider(
           value: params.steps.toDouble(),
           min: 1,
@@ -198,7 +213,8 @@ class ParameterPanel extends ConsumerWidget {
           divisions: 49,
           label: params.steps.toString(),
           onChanged: (value) {
-            ref.read(generationParamsNotifierProvider.notifier)
+            ref
+                .read(generationParamsNotifierProvider.notifier)
                 .updateSteps(value.round());
           },
         ),
@@ -206,7 +222,10 @@ class ParameterPanel extends ConsumerWidget {
         // CFG Scale
         Row(
           children: [
-            _buildSectionTitle(theme, context.l10n.generation_cfgScale(params.scale.toStringAsFixed(1))),
+            _buildSectionTitle(
+                theme,
+                context.l10n
+                    .generation_cfgScale(params.scale.toStringAsFixed(1))),
             const Spacer(),
             // Decrisp (仅 V3 模型)
             if (params.isV3Model) ...[
@@ -214,7 +233,8 @@ class ParameterPanel extends ConsumerWidget {
                 label: 'Decrisp',
                 isEnabled: params.decrisp,
                 onChanged: (value) {
-                  ref.read(generationParamsNotifierProvider.notifier)
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
                       .updateDecrisp(value);
                 },
               ),
@@ -225,7 +245,8 @@ class ParameterPanel extends ConsumerWidget {
               label: 'Variety+',
               isEnabled: params.varietyPlus,
               onChanged: (value) {
-                ref.read(generationParamsNotifierProvider.notifier)
+                ref
+                    .read(generationParamsNotifierProvider.notifier)
                     .updateVarietyPlus(value);
               },
             ),
@@ -238,7 +259,8 @@ class ParameterPanel extends ConsumerWidget {
           divisions: 38,
           label: params.scale.toStringAsFixed(1),
           onChanged: (value) {
-            ref.read(generationParamsNotifierProvider.notifier)
+            ref
+                .read(generationParamsNotifierProvider.notifier)
                 .updateScale(value);
           },
         ),
@@ -249,9 +271,12 @@ class ParameterPanel extends ConsumerWidget {
         _buildSectionTitle(theme, context.l10n.generation_seed),
         const SizedBox(height: 8),
         ThemedInput(
-          controller: TextEditingController(text: params.seed == -1 ? '' : params.seed.toString())
+          controller: TextEditingController(
+              text: params.seed == -1 ? '' : params.seed.toString())
             ..selection = TextSelection.fromPosition(
-              TextPosition(offset: params.seed == -1 ? 0 : params.seed.toString().length),
+              TextPosition(
+                  offset:
+                      params.seed == -1 ? 0 : params.seed.toString().length),
             ),
           hintText: context.l10n.generation_seedRandom,
           keyboardType: TextInputType.number,
@@ -259,7 +284,9 @@ class ParameterPanel extends ConsumerWidget {
             // 清空输入框时自动变成随机 (-1)
             final seed = value.isEmpty ? -1 : (int.tryParse(value) ?? -1);
             if (seed != params.seed) {
-               ref.read(generationParamsNotifierProvider.notifier).updateSeed(seed);
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
+                  .updateSeed(seed);
             }
           },
           suffixIcon: params.seed == -1
@@ -272,7 +299,8 @@ class ParameterPanel extends ConsumerWidget {
                       icon: Icons.copy_rounded,
                       tooltip: context.l10n.common_copy,
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: params.seed.toString()));
+                        Clipboard.setData(
+                            ClipboardData(text: params.seed.toString()));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(context.l10n.common_copied),
@@ -286,7 +314,9 @@ class ParameterPanel extends ConsumerWidget {
                       icon: Icons.clear_rounded,
                       tooltip: context.l10n.common_clear,
                       onPressed: () {
-                        ref.read(generationParamsNotifierProvider.notifier).updateSeed(-1);
+                        ref
+                            .read(generationParamsNotifierProvider.notifier)
+                            .updateSeed(-1);
                       },
                     ),
                     const SizedBox(width: 4),
@@ -354,7 +384,8 @@ class ParameterPanel extends ConsumerWidget {
                     _SmeaAutoButton(
                       isAuto: params.smeaAuto,
                       onChanged: (value) {
-                        ref.read(generationParamsNotifierProvider.notifier)
+                        ref
+                            .read(generationParamsNotifierProvider.notifier)
                             .updateSmeaAuto(value);
                       },
                     ),
@@ -364,11 +395,13 @@ class ParameterPanel extends ConsumerWidget {
                       smeaDyn: params.smeaDyn,
                       isAutoEnabled: params.smeaAuto,
                       onSmeaChanged: (value) {
-                        ref.read(generationParamsNotifierProvider.notifier)
+                        ref
+                            .read(generationParamsNotifierProvider.notifier)
                             .updateSmea(value);
                       },
                       onSmeaDynChanged: (value) {
-                        ref.read(generationParamsNotifierProvider.notifier)
+                        ref
+                            .read(generationParamsNotifierProvider.notifier)
                             .updateSmeaDyn(value);
                       },
                     ),
@@ -392,14 +425,16 @@ class ParameterPanel extends ConsumerWidget {
             if (params.isV4Model)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.generation_cfgRescale(params.cfgRescale.toStringAsFixed(2))),
+                title: Text(context.l10n.generation_cfgRescale(
+                    params.cfgRescale.toStringAsFixed(2))),
                 subtitle: Slider(
                   value: params.cfgRescale,
                   min: 0,
                   max: 1,
                   divisions: 100,
                   onChanged: (value) {
-                    ref.read(generationParamsNotifierProvider.notifier)
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
                         .updateCfgRescale(value);
                   },
                 ),
@@ -473,7 +508,8 @@ class _SizeSelectorState extends State<_SizeSelector> {
   }
 
   void _updateSelectedPreset() {
-    final matchedPreset = ResolutionPreset.findBySize(widget.width, widget.height);
+    final matchedPreset =
+        ResolutionPreset.findBySize(widget.width, widget.height);
     _selectedPresetId = matchedPreset?.id ?? 'custom';
   }
 
@@ -561,33 +597,37 @@ class _SizeSelectorState extends State<_SizeSelector> {
       if (presets.isEmpty) continue;
 
       // 分组标题 (不可选中)
-      items.add(DropdownMenuItem<String>(
-        enabled: false,
-        value: '_header_${group.name}',
-        child: Text(
-          _getGroupName(context, group),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
-            letterSpacing: 1.2,
+      items.add(
+        DropdownMenuItem<String>(
+          enabled: false,
+          value: '_header_${group.name}',
+          child: Text(
+            _getGroupName(context, group),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+              letterSpacing: 1.2,
+            ),
           ),
         ),
-      ));
+      );
 
       // 分组内的预设
       for (final preset in presets) {
         final typeName = _getTypeName(context, preset.type);
-        items.add(DropdownMenuItem<String>(
-          value: preset.id,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: Text(
-              preset.getDisplayName(typeName),
-              style: const TextStyle(fontSize: 13),
+        items.add(
+          DropdownMenuItem<String>(
+            value: preset.id,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                preset.getDisplayName(typeName),
+                style: const TextStyle(fontSize: 13),
+              ),
             ),
           ),
-        ));
+        );
       }
     }
 
@@ -654,7 +694,8 @@ class _SizeSelectorState extends State<_SizeSelector> {
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 style: const TextStyle(fontSize: 13),
                 onChanged: (_) => _onManualSizeChanged(),
@@ -684,7 +725,8 @@ class _SizeSelectorState extends State<_SizeSelector> {
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 style: const TextStyle(fontSize: 13),
                 onChanged: (_) => _onManualSizeChanged(),
@@ -832,7 +874,9 @@ class _SmeaOptions extends StatelessWidget {
   }) {
     final color = isDisabled
         ? theme.colorScheme.onSurface.withOpacity(0.3)
-        : (value ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.7));
+        : (value
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurface.withOpacity(0.7));
 
     return InkWell(
       onTap: isDisabled ? null : () => onChanged(!value),
@@ -890,9 +934,13 @@ class _ToggleButtonState extends State<_ToggleButton> {
           ? theme.colorScheme.primary.withOpacity(0.85)
           : theme.colorScheme.primary;
     } else {
-      final baseColor = isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05);
+      final baseColor = isDark
+          ? Colors.white.withOpacity(0.08)
+          : Colors.black.withOpacity(0.05);
       backgroundColor = _isHovered
-          ? (isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.1))
+          ? (isDark
+              ? Colors.white.withOpacity(0.15)
+              : Colors.black.withOpacity(0.1))
           : baseColor;
     }
 
@@ -936,7 +984,8 @@ class _ToggleButtonState extends State<_ToggleButton> {
                   fontWeight: FontWeight.w500,
                   color: widget.isEnabled
                       ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface.withOpacity(_isHovered ? 0.8 : 0.6),
+                      : theme.colorScheme.onSurface
+                          .withOpacity(_isHovered ? 0.8 : 0.6),
                 ),
               ),
             ],

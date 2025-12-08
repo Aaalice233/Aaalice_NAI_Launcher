@@ -9,7 +9,6 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
-import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
@@ -330,7 +329,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    context.l10n.prompt_clearConfirm(_isNegativeMode ? context.l10n.prompt_negativePrompt : context.l10n.prompt_positivePrompt),
+                    context.l10n.prompt_clearConfirm(_isNegativeMode
+                        ? context.l10n.prompt_negativePrompt
+                        : context.l10n.prompt_positivePrompt),
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ],
@@ -358,7 +359,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
-    final enableSdSyntaxAutoConvert = ref.watch(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert =
+        ref.watch(sdSyntaxAutoConvertSettingsProvider);
 
     return PopupMenuButton<String>(
       icon: Icon(
@@ -466,7 +468,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                     ? Icons.check_box
                     : Icons.check_box_outline_blank,
                 size: 20,
-                color: enableSdSyntaxAutoConvert ? theme.colorScheme.primary : null,
+                color: enableSdSyntaxAutoConvert
+                    ? theme.colorScheme.primary
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -723,7 +727,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildTextPromptInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
-    final enableSdSyntaxAutoConvert = ref.watch(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert =
+        ref.watch(sdSyntaxAutoConvertSettingsProvider);
     return AutocompleteTextField(
       controller: _promptController,
       focusNode: _promptFocusNode,
@@ -780,7 +785,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildTextNegativeInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
-    final enableSdSyntaxAutoConvert = ref.watch(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert =
+        ref.watch(sdSyntaxAutoConvertSettingsProvider);
     return AutocompleteTextField(
       controller: _negativeController,
       focusNode: _negativeFocusNode,
@@ -839,7 +845,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final isTagMode = _viewMode == PromptViewMode.tags;
 
     return Tooltip(
-      message: isTagMode ? context.l10n.prompt_switchToTextView : context.l10n.prompt_switchToTagView,
+      message: isTagMode
+          ? context.l10n.prompt_switchToTextView
+          : context.l10n.prompt_switchToTagView,
       child: GestureDetector(
         onTap: _toggleViewMode,
         child: Container(
@@ -1008,7 +1016,9 @@ class _FullScreenPromptEditorState
                   ? Icons.label_outline
                   : Icons.text_fields,
             ),
-            tooltip: _viewMode == PromptViewMode.text ? context.l10n.prompt_switchToTagView : context.l10n.prompt_switchToTextView,
+            tooltip: _viewMode == PromptViewMode.text
+                ? context.l10n.prompt_switchToTagView
+                : context.l10n.prompt_switchToTextView,
             onPressed: _toggleViewMode,
           ),
           IconButton(
@@ -1025,7 +1035,8 @@ class _FullScreenPromptEditorState
             // 正向提示词
             Row(
               children: [
-                Text(context.l10n.prompt_positivePrompt, style: theme.textTheme.titleMedium),
+                Text(context.l10n.prompt_positivePrompt,
+                    style: theme.textTheme.titleMedium),
                 const SizedBox(width: 8),
                 if (_viewMode == PromptViewMode.tags)
                   Text(
@@ -1042,7 +1053,8 @@ class _FullScreenPromptEditorState
                     controller: _promptController,
                     maxLines: 10,
                     minLines: 5,
-                    enableSdSyntaxAutoConvert: ref.watch(sdSyntaxAutoConvertSettingsProvider),
+                    enableSdSyntaxAutoConvert:
+                        ref.watch(sdSyntaxAutoConvertSettingsProvider),
                     config: const AutocompleteConfig(
                       showTranslation: true,
                       showCategory: true,
@@ -1083,7 +1095,8 @@ class _FullScreenPromptEditorState
             // 负向提示词
             Row(
               children: [
-                Text(context.l10n.prompt_negativePrompt, style: theme.textTheme.titleMedium),
+                Text(context.l10n.prompt_negativePrompt,
+                    style: theme.textTheme.titleMedium),
                 const SizedBox(width: 8),
                 if (_viewMode == PromptViewMode.tags)
                   Text(
@@ -1100,7 +1113,8 @@ class _FullScreenPromptEditorState
                     controller: _negativeController,
                     maxLines: 5,
                     minLines: 3,
-                    enableSdSyntaxAutoConvert: ref.watch(sdSyntaxAutoConvertSettingsProvider),
+                    enableSdSyntaxAutoConvert:
+                        ref.watch(sdSyntaxAutoConvertSettingsProvider),
                     config: const AutocompleteConfig(
                       showTranslation: true,
                     ),

@@ -11,7 +11,8 @@ import 'tool_base.dart';
 class ColorPickerTool extends EditorTool {
   /// 静态取色方法（供其他工具在 Alt 模式下调用）
   /// 返回指定画布坐标位置的颜色
-  static Future<Color?> pickColorAt(Offset canvasPoint, EditorState state) async {
+  static Future<Color?> pickColorAt(
+      Offset canvasPoint, EditorState state) async {
     final canvasWidth = state.canvasSize.width.toInt();
     final canvasHeight = state.canvasSize.height.toInt();
 
@@ -36,7 +37,7 @@ class ColorPickerTool extends EditorTool {
     const sampleRegionSize = 5;
     final centerX = canvasPoint.dx.toInt();
     final centerY = canvasPoint.dy.toInt();
-    final halfRegion = sampleRegionSize ~/ 2;
+    const halfRegion = sampleRegionSize ~/ 2;
 
     final regionLeft = (centerX - halfRegion).clamp(0, canvasWidth - 1);
     final regionTop = (centerY - halfRegion).clamp(0, canvasHeight - 1);
@@ -51,12 +52,14 @@ class ColorPickerTool extends EditorTool {
     final canvas = Canvas(recorder);
 
     canvas.translate(-regionLeft.toDouble(), -regionTop.toDouble());
-    canvas.clipRect(Rect.fromLTWH(
-      regionLeft.toDouble(),
-      regionTop.toDouble(),
-      regionWidth.toDouble(),
-      regionHeight.toDouble(),
-    ));
+    canvas.clipRect(
+      Rect.fromLTWH(
+        regionLeft.toDouble(),
+        regionTop.toDouble(),
+        regionWidth.toDouble(),
+        regionHeight.toDouble(),
+      ),
+    );
 
     // 绘制白色背景
     canvas.drawRect(
@@ -175,7 +178,8 @@ class ColorPickerTool extends EditorTool {
   }
 
   /// 采样并应用颜色（用于点击取色）
-  Future<void> _sampleAndApplyColor(Offset canvasPoint, EditorState state) async {
+  Future<void> _sampleAndApplyColor(
+      Offset canvasPoint, EditorState state) async {
     debugPrint('[ColorPicker] _sampleAndApplyColor at $canvasPoint');
     final color = await _sampleColorAt(canvasPoint, state);
     debugPrint('[ColorPicker] sampled color: $color');
@@ -233,7 +237,8 @@ class ColorPickerTool extends EditorTool {
     final currentVersion = state.canvasSnapshotVersion;
 
     // 如果快照已有效且版本匹配，无需更新
-    if (state.hasValidCanvasSnapshot && _usedSnapshotVersion == currentVersion) {
+    if (state.hasValidCanvasSnapshot &&
+        _usedSnapshotVersion == currentVersion) {
       return;
     }
 
@@ -259,7 +264,9 @@ class ColorPickerTool extends EditorTool {
     // 1. 尝试从区域缓存同步采样（最快，O(1)）
     if (_source == ColorPickerSource.allLayers) {
       final regionalPixels = state.layerManager.getRegionalMagnifierPixels(
-        centerX, centerY, _magnifierGridSize,
+        centerX,
+        centerY,
+        _magnifierGridSize,
       );
       if (regionalPixels != null) {
         _magnifierPixels = regionalPixels;
@@ -309,17 +316,21 @@ class ColorPickerTool extends EditorTool {
     }
 
     // 4. 回退到异步采样 + 区域缓存预热
-    _scheduleAsyncSamplingWithRegionalCache(centerX, centerY, screenPosition, state);
+    _scheduleAsyncSamplingWithRegionalCache(
+        centerX, centerY, screenPosition, state);
   }
 
   /// 异步预热区域缓存（为下次移动做准备）
-  void _scheduleRegionalCacheUpdate(int centerX, int centerY, EditorState state) {
+  void _scheduleRegionalCacheUpdate(
+      int centerX, int centerY, EditorState state) {
     final currentVersion = _samplingVersion;
     // 使用很短的延迟，让当前帧先完成
     Future.microtask(() async {
       if (_samplingVersion != currentVersion) return; // 版本变化则取消
       await state.layerManager.updateRegionalSnapshot(
-        centerX, centerY, state.canvasSize,
+        centerX,
+        centerY,
+        state.canvasSize,
       );
     });
   }
@@ -348,7 +359,9 @@ class ColorPickerTool extends EditorTool {
       // 同时启动异步采样和区域缓存更新
       final sampleFuture = _sampleColorAt(position, currentState);
       final cacheFuture = currentState.layerManager.updateRegionalSnapshot(
-        centerX, centerY, currentState.canvasSize,
+        centerX,
+        centerY,
+        currentState.canvasSize,
       );
 
       final color = await sampleFuture;
@@ -383,7 +396,7 @@ class ColorPickerTool extends EditorTool {
 
     if (pixels == null) return null;
 
-    final halfGrid = _magnifierGridSize ~/ 2;
+    const halfGrid = _magnifierGridSize ~/ 2;
     final centerColor = pixels[halfGrid][halfGrid];
 
     Color finalColor;
@@ -444,7 +457,8 @@ class ColorPickerTool extends EditorTool {
     final canvasWidth = state.canvasSize.width.toInt();
     final canvasHeight = state.canvasSize.height.toInt();
 
-    debugPrint('[ColorPicker] _sampleColorAt: canvasPoint=$canvasPoint, canvasSize=${canvasWidth}x$canvasHeight');
+    debugPrint(
+        '[ColorPicker] _sampleColorAt: canvasPoint=$canvasPoint, canvasSize=${canvasWidth}x$canvasHeight');
 
     // 检查是否在画布范围内
     if (canvasPoint.dx < 0 ||
@@ -458,7 +472,7 @@ class ColorPickerTool extends EditorTool {
 
     final centerX = canvasPoint.dx.toInt();
     final centerY = canvasPoint.dy.toInt();
-    final halfRegion = _sampleRegionSize ~/ 2;
+    const halfRegion = _sampleRegionSize ~/ 2;
 
     // 计算采样区域的边界（裁剪到画布范围）
     final regionLeft = (centerX - halfRegion).clamp(0, canvasWidth - 1);
@@ -481,12 +495,14 @@ class ColorPickerTool extends EditorTool {
     canvas.translate(-regionLeft.toDouble(), -regionTop.toDouble());
 
     // 裁剪到采样区域，避免绘制不必要的内容
-    canvas.clipRect(Rect.fromLTWH(
-      regionLeft.toDouble(),
-      regionTop.toDouble(),
-      regionWidth.toDouble(),
-      regionHeight.toDouble(),
-    ));
+    canvas.clipRect(
+      Rect.fromLTWH(
+        regionLeft.toDouble(),
+        regionTop.toDouble(),
+        regionWidth.toDouble(),
+        regionHeight.toDouble(),
+      ),
+    );
 
     // 绘制白色背景（与画布显示一致）
     canvas.drawRect(
@@ -514,7 +530,7 @@ class ColorPickerTool extends EditorTool {
     // 计算光标在采样区域内的相对位置
     final localX = centerX - regionLeft;
     final localY = centerY - regionTop;
-    final halfGrid = _magnifierGridSize ~/ 2;
+    const halfGrid = _magnifierGridSize ~/ 2;
 
     // 获取放大镜区域的像素
     _magnifierPixels = List.generate(_magnifierGridSize, (row) {
@@ -600,6 +616,7 @@ class ColorPickerTool extends EditorTool {
 enum ColorPickerSampleMode {
   /// 单点取样
   point,
+
   /// 区域取样（3x3）
   area,
 }
@@ -619,6 +636,7 @@ extension ColorPickerSampleModeExtension on ColorPickerSampleMode {
 enum ColorPickerSource {
   /// 当前图层
   currentLayer,
+
   /// 所有图层
   allLayers,
 }
@@ -716,7 +734,8 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                   },
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
-                    textStyle: WidgetStatePropertyAll(theme.textTheme.bodySmall),
+                    textStyle:
+                        WidgetStatePropertyAll(theme.textTheme.bodySmall),
                   ),
                 ),
               ),
@@ -748,7 +767,8 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
                   },
                   style: ButtonStyle(
                     visualDensity: VisualDensity.compact,
-                    textStyle: WidgetStatePropertyAll(theme.textTheme.bodySmall),
+                    textStyle:
+                        WidgetStatePropertyAll(theme.textTheme.bodySmall),
                   ),
                 ),
               ),
@@ -792,67 +812,68 @@ class _ColorPickerMagnifier extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
         decoration: _shadowDecoration,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 放大镜圆形区域
-          ClipOval(
-            child: Container(
-              width: magnifierSize,
-              height: magnifierSize,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                shape: BoxShape.circle,
-              ),
-              child: CustomPaint(
-                size: const Size(magnifierSize, magnifierSize),
-                painter: _MagnifierPainter(
-                  pixels: pixels,
-                  gridSize: gridSize,
-                  pixelSize: pixelSize,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 放大镜圆形区域
+            ClipOval(
+              child: Container(
+                width: magnifierSize,
+                height: magnifierSize,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 2),
+                  shape: BoxShape.circle,
+                ),
+                child: CustomPaint(
+                  size: const Size(magnifierSize, magnifierSize),
+                  painter: _MagnifierPainter(
+                    pixels: pixels,
+                    gridSize: gridSize,
+                    pixelSize: pixelSize,
+                  ),
                 ),
               ),
             ),
-          ),
-          // 连接线
-          Container(
-            width: 2,
-            height: 8,
-            color: Colors.white,
-          ),
-          // 颜色信息卡片
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
+            // 连接线
+            Container(
+              width: 2,
+              height: 8,
               color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(2),
-                    border: Border.all(color: Colors.grey.shade400, width: 0.5),
+            // 颜色信息卡片
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                      border:
+                          Border.all(color: Colors.grey.shade400, width: 0.5),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.black87,
-                    fontFamily: 'monospace',
+                  const SizedBox(width: 4),
+                  Text(
+                    '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.black87,
+                      fontFamily: 'monospace',
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -967,8 +988,8 @@ class _MagnifierPainter extends CustomPainter {
   bool shouldRepaint(covariant _MagnifierPainter oldDelegate) {
     // 只在像素数据变化时重绘
     return _pixelsHash != oldDelegate._pixelsHash ||
-           gridSize != oldDelegate.gridSize ||
-           pixelSize != oldDelegate.pixelSize;
+        gridSize != oldDelegate.gridSize ||
+        pixelSize != oldDelegate.pixelSize;
   }
 }
 

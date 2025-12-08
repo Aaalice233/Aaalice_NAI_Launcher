@@ -43,7 +43,6 @@ class ThemedScaffold extends StatelessWidget {
                 painter: _DotMatrixPainter(
                   color: theme.colorScheme.primary.withOpacity(0.1),
                 ),
-                size: Size.infinite,
               ),
             ),
 
@@ -54,7 +53,6 @@ class ThemedScaffold extends StatelessWidget {
                 painter: _ScanLinePainter(
                   color: theme.primaryColor.withOpacity(0.1),
                 ),
-                size: Size.infinite,
               ),
             ),
 
@@ -90,7 +88,7 @@ class _DotMatrixPainter extends CustomPainter {
   final Color color;
   final double spacing;
 
-  _DotMatrixPainter({required this.color, this.spacing = 4});
+  _DotMatrixPainter({required this.color, this.spacing = 8.0});
 
   @override
   void paint(Canvas canvas, Size size) {

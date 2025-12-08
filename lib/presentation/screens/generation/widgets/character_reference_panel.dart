@@ -128,7 +128,8 @@ class _CharacterReferencePanelState
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                        color:
+                            theme.colorScheme.errorContainer.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -196,7 +197,8 @@ class _CharacterReferencePanelState
                               Text(
                                 context.l10n.characterRef_styleAwareHint,
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.5),
                                 ),
                               ),
                             ],
@@ -228,7 +230,8 @@ class _CharacterReferencePanelState
                               Text(
                                 context.l10n.characterRef_fidelityHint,
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.5),
                                 ),
                               ),
                             ],
@@ -299,7 +302,8 @@ class _CharacterReferencePanelState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.img2img_selectFailed(e.toString()))),
+            content: Text(context.l10n.img2img_selectFailed(e.toString())),
+          ),
         );
       }
     }

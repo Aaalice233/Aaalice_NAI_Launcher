@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +8,6 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/app_toast.dart';
 import 'image_destination_dialog.dart';

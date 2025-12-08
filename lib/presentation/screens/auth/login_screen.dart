@@ -23,7 +23,8 @@ class LoginScreen extends ConsumerWidget {
     // 监听登录错误，显示 Toast
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.hasError && previous?.errorCode != next.errorCode) {
-        final errorText = _getErrorText(context, next.errorCode!, next.httpStatusCode);
+        final errorText =
+            _getErrorText(context, next.errorCode!, next.httpStatusCode);
         AppToast.error(context, context.l10n.auth_error_loginFailed(errorText));
         // 清除错误状态
         ref.read(authNotifierProvider.notifier).clearError();
@@ -49,7 +50,8 @@ class LoginScreen extends ConsumerWidget {
                   if (accounts.isEmpty)
                     _buildFirstTimeLoginForm(context, theme, isWideScreen)
                   else
-                    _buildQuickLoginView(context, ref, theme, isWideScreen, accounts),
+                    _buildQuickLoginView(
+                        context, ref, theme, isWideScreen, accounts),
 
                   const SizedBox(height: 24),
 
@@ -151,8 +153,10 @@ class LoginScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: isWideScreen
-              ? _buildWideScreenQuickLogin(context, ref, theme, defaultAccount, accounts)
-              : _buildMobileQuickLogin(context, ref, theme, defaultAccount, accounts),
+              ? _buildWideScreenQuickLogin(
+                  context, ref, theme, defaultAccount, accounts)
+              : _buildMobileQuickLogin(
+                  context, ref, theme, defaultAccount, accounts),
         ),
       ),
     );
@@ -185,10 +189,12 @@ class LoginScreen extends ConsumerWidget {
             children: [
               // 账号名（可点击切换）
               InkWell(
-                onTap: () => _showAccountSelector(context, ref, accounts, currentAccount),
+                onTap: () => _showAccountSelector(
+                    context, ref, accounts, currentAccount),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -221,7 +227,8 @@ class LoginScreen extends ConsumerWidget {
               // 一键登录按钮
               SizedBox(
                 width: double.infinity,
-                child: _buildQuickLoginButton(context, ref, theme, currentAccount),
+                child:
+                    _buildQuickLoginButton(context, ref, theme, currentAccount),
               ),
               const SizedBox(height: 16),
 
@@ -260,7 +267,8 @@ class LoginScreen extends ConsumerWidget {
 
         // 账号名（可点击切换）
         InkWell(
-          onTap: () => _showAccountSelector(context, ref, accounts, currentAccount),
+          onTap: () =>
+              _showAccountSelector(context, ref, accounts, currentAccount),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -317,7 +325,9 @@ class LoginScreen extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
 
     return FilledButton.icon(
-      onPressed: authState.isLoading ? null : () => _handleQuickLogin(context, ref, account),
+      onPressed: authState.isLoading
+          ? null
+          : () => _handleQuickLogin(context, ref, account),
       icon: authState.isLoading
           ? const SizedBox(
               height: 18,
@@ -357,7 +367,9 @@ class LoginScreen extends ConsumerWidget {
     }
 
     // 获取 Token
-    final token = await ref.read(accountManagerNotifierProvider.notifier).getAccountToken(account.id);
+    final token = await ref
+        .read(accountManagerNotifierProvider.notifier)
+        .getAccountToken(account.id);
 
     // 检查 widget 是否仍然 mounted
     if (!context.mounted) return;
@@ -376,16 +388,18 @@ class LoginScreen extends ConsumerWidget {
 
     // 执行登录
     await ref.read(authNotifierProvider.notifier).loginWithToken(
-      token,
-      accountId: account.id,
-      displayName: account.displayName,
-    );
+          token,
+          accountId: account.id,
+          displayName: account.displayName,
+        );
 
     // 检查 widget 是否仍然 mounted
     if (!context.mounted) return;
 
     // 更新最后使用时间
-    ref.read(accountManagerNotifierProvider.notifier).updateLastUsed(account.id);
+    ref
+        .read(accountManagerNotifierProvider.notifier)
+        .updateLastUsed(account.id);
   }
 
   /// 显示账号选择器对话框
@@ -416,17 +430,20 @@ class LoginScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // 账号列表
-              ...accounts.map((account) => _buildAccountListItem(
-                    dialogContext,
-                    ref,
-                    account,
-                    isSelected: account.id == currentAccount.id,
-                  )),
+              ...accounts.map(
+                (account) => _buildAccountListItem(
+                  dialogContext,
+                  ref,
+                  account,
+                  isSelected: account.id == currentAccount.id,
+                ),
+              ),
               const Divider(),
               // 添加新账号
               ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primaryContainer,
                   child: Icon(
                     Icons.add,
                     color: Theme.of(context).colorScheme.primary,
@@ -536,7 +553,8 @@ class LoginScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.auth_deleteAccount),
-        content: Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
+        content:
+            Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -547,7 +565,9 @@ class LoginScreen extends ConsumerWidget {
               backgroundColor: theme.colorScheme.error,
             ),
             onPressed: () {
-              ref.read(accountManagerNotifierProvider.notifier).removeAccount(account.id);
+              ref
+                  .read(accountManagerNotifierProvider.notifier)
+                  .removeAccount(account.id);
               Navigator.pop(dialogContext);
               // 如果还在账号选择对话框中，也关闭它
               Navigator.pop(context);
@@ -645,7 +665,8 @@ class LoginScreen extends ConsumerWidget {
   }
 
   /// 获取错误码对应的本地化文本
-  String _getErrorText(BuildContext context, AuthErrorCode errorCode, int? httpStatusCode) {
+  String _getErrorText(
+      BuildContext context, AuthErrorCode errorCode, int? httpStatusCode) {
     final l10n = context.l10n;
     final statusSuffix = httpStatusCode != null ? ' ($httpStatusCode)' : '';
 

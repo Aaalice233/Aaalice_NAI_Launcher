@@ -56,46 +56,52 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
   /// 注册所有预加载任务
   void _registerTasks() {
     // 1. 加载标签翻译服务
-    _warmupService.registerTask(WarmupTask(
-      name: 'warmup_loadingTranslation',
-      weight: 2,
-      task: () async {
-        final translationService = _ref.read(tagTranslationServiceProvider);
-        await translationService.load();
-      },
-    ));
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_loadingTranslation',
+        weight: 2,
+        task: () async {
+          final translationService = _ref.read(tagTranslationServiceProvider);
+          await translationService.load();
+        },
+      ),
+    );
 
     // 2. 初始化标签数据服务（构建搜索索引）
-    _warmupService.registerTask(WarmupTask(
-      name: 'warmup_initTagSystem',
-      weight: 5,
-      task: () async {
-        final translationService = _ref.read(tagTranslationServiceProvider);
-        final tagDataService = _ref.read(tagDataServiceProvider);
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_initTagSystem',
+        weight: 5,
+        task: () async {
+          final translationService = _ref.read(tagTranslationServiceProvider);
+          final tagDataService = _ref.read(tagDataServiceProvider);
 
-        // 关联服务
-        translationService.setTagDataService(tagDataService);
+          // 关联服务
+          translationService.setTagDataService(tagDataService);
 
-        // 构建搜索索引
-        await tagDataService.initialize();
-      },
-    ));
+          // 构建搜索索引
+          await tagDataService.initialize();
+        },
+      ),
+    );
 
     // 3. 加载随机提示词配置
-    _warmupService.registerTask(WarmupTask(
-      name: 'warmup_loadingPromptConfig',
-      weight: 1,
-      task: () async {
-        // 触发 provider 初始化并等待加载完成
-        _ref.read(promptConfigNotifierProvider.notifier);
-        // 等待最多 3 秒
-        for (var i = 0; i < 60; i++) {
-          await Future.delayed(const Duration(milliseconds: 50));
-          final state = _ref.read(promptConfigNotifierProvider);
-          if (!state.isLoading) break;
-        }
-      },
-    ));
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_loadingPromptConfig',
+        weight: 1,
+        task: () async {
+          // 触发 provider 初始化并等待加载完成
+          _ref.read(promptConfigNotifierProvider.notifier);
+          // 等待最多 3 秒
+          for (var i = 0; i < 60; i++) {
+            await Future.delayed(const Duration(milliseconds: 50));
+            final state = _ref.read(promptConfigNotifierProvider);
+            if (!state.isLoading) break;
+          }
+        },
+      ),
+    );
   }
 
   /// 开始预加载

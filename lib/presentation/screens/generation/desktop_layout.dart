@@ -337,7 +337,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final showCancel = isGenerating && _isHovering;
 
     final randomMode = ref.watch(randomPromptModeProvider);
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -360,7 +360,8 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             showCancel: showCancel,
             generationState: generationState,
             onGenerate: () => _handleGenerate(context, ref, params, randomMode),
-            onCancel: () => ref.read(imageGenerationNotifierProvider.notifier).cancel(),
+            onCancel: () =>
+                ref.read(imageGenerationNotifierProvider.notifier).cancel(),
           ),
         ),
 
@@ -372,7 +373,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           min: 1,
           prefix: '×',
           onChanged: (value) {
-            ref.read(generationParamsNotifierProvider.notifier).updateNSamples(value);
+            ref
+                .read(generationParamsNotifierProvider.notifier)
+                .updateNSamples(value);
           },
         ),
 
@@ -384,12 +387,13 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     );
   }
 
-  void _handleGenerate(BuildContext context, WidgetRef ref, ImageParams params, bool randomMode) {
+  void _handleGenerate(BuildContext context, WidgetRef ref, ImageParams params,
+      bool randomMode) {
     if (params.prompt.isEmpty) {
       AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
       return;
     }
-    
+
     // 生成（抽卡模式逻辑在 generate 方法内部处理）
     ref.read(imageGenerationNotifierProvider.notifier).generate(params);
   }
@@ -398,14 +402,14 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 /// 抽卡模式开关
 class _RandomModeToggle extends ConsumerStatefulWidget {
   final bool enabled;
-  
+
   const _RandomModeToggle({required this.enabled});
 
   @override
   ConsumerState<_RandomModeToggle> createState() => _RandomModeToggleState();
 }
 
-class _RandomModeToggleState extends ConsumerState<_RandomModeToggle> 
+class _RandomModeToggleState extends ConsumerState<_RandomModeToggle>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _rotateAnimation;
@@ -440,13 +444,13 @@ class _RandomModeToggleState extends ConsumerState<_RandomModeToggle>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: Tooltip(
-        message: widget.enabled 
+        message: widget.enabled
             ? context.l10n.randomMode_enabledTip
             : context.l10n.randomMode_disabledTip,
         preferBelow: true,
@@ -463,10 +467,10 @@ class _RandomModeToggleState extends ConsumerState<_RandomModeToggle>
             height: 40,
             decoration: BoxDecoration(
               color: widget.enabled
-                  ? (_isHovering 
+                  ? (_isHovering
                       ? theme.colorScheme.primary.withOpacity(0.25)
                       : theme.colorScheme.primary.withOpacity(0.15))
-                  : (_isHovering 
+                  : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
               borderRadius: BorderRadius.circular(10),
@@ -508,7 +512,7 @@ class _BatchSettingsButton extends ConsumerWidget {
     final batchSize = ref.watch(imagesPerRequestProvider);
     final batchCount = ref.watch(generationParamsNotifierProvider).nSamples;
     final l10n = AppLocalizations.of(context)!;
-    
+
     return IconButton(
       tooltip: l10n.batchSize_tooltip(batchSize),
       icon: Container(
@@ -526,14 +530,15 @@ class _BatchSettingsButton extends ConsumerWidget {
           ),
         ),
       ),
-      onPressed: () => _showBatchSettingsDialog(context, ref, theme, l10n, batchSize, batchCount),
+      onPressed: () => _showBatchSettingsDialog(
+          context, ref, theme, l10n, batchSize, batchCount),
     );
   }
-  
+
   void _showBatchSettingsDialog(
-    BuildContext context, 
-    WidgetRef ref, 
-    ThemeData theme, 
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
     AppLocalizations l10n,
     int currentBatchSize,
     int batchCount,
@@ -544,7 +549,7 @@ class _BatchSettingsButton extends ConsumerWidget {
         return StatefulBuilder(
           builder: (context, setState) {
             final totalImages = batchCount * currentBatchSize;
-            
+
             return AlertDialog(
               title: Row(
                 children: [
@@ -562,7 +567,7 @@ class _BatchSettingsButton extends ConsumerWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // 批次大小选择
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -574,11 +579,11 @@ class _BatchSettingsButton extends ConsumerWidget {
                         }),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 12),
-                  
+
                   // 计算公式
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -590,7 +595,8 @@ class _BatchSettingsButton extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.batchSize_formula(batchCount, currentBatchSize, totalImages),
+                          l10n.batchSize_formula(
+                              batchCount, currentBatchSize, totalImages),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w500,
@@ -599,7 +605,7 @@ class _BatchSettingsButton extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 12),
                   Text(
                     l10n.batchSize_hint,
@@ -630,8 +636,9 @@ class _BatchSettingsButton extends ConsumerWidget {
       },
     );
   }
-  
-  Widget _buildBatchOption(ThemeData theme, int value, int current, VoidCallback onTap) {
+
+  Widget _buildBatchOption(
+      ThemeData theme, int value, int current, VoidCallback onTap) {
     final isSelected = value == current;
     return GestureDetector(
       onTap: onTap,
@@ -640,13 +647,13 @@ class _BatchSettingsButton extends ConsumerWidget {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: isSelected 
-              ? theme.colorScheme.primary 
+          color: isSelected
+              ? theme.colorScheme.primary
               : theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? theme.colorScheme.primary 
+            color: isSelected
+                ? theme.colorScheme.primary
                 : theme.colorScheme.outline.withOpacity(0.3),
             width: 2,
           ),
@@ -716,13 +723,15 @@ class _GenerateButtonWithCost extends ConsumerWidget {
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(showCancel
-                ? context.l10n.generation_cancel
-                : (isGenerating
-                    ? (generationState.totalImages > 1
-                        ? '${generationState.currentImage}/${generationState.totalImages}'
-                        : context.l10n.generation_generating)
-                    : context.l10n.generation_generate)),
+            Text(
+              showCancel
+                  ? context.l10n.generation_cancel
+                  : (isGenerating
+                      ? (generationState.totalImages > 1
+                          ? '${generationState.currentImage}/${generationState.totalImages}'
+                          : context.l10n.generation_generating)
+                      : context.l10n.generation_generate),
+            ),
             // 价格徽章（仅在非生成状态且非免费时显示）
             if (!isGenerating && !isFree) ...[
               const SizedBox(width: 8),
@@ -744,7 +753,8 @@ class _GenerateButtonWithCost extends ConsumerWidget {
             ],
           ],
         ),
-        style: showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+        style:
+            showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
       ),
     );
   }

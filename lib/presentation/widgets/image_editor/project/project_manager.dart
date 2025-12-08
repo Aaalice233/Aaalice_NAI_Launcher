@@ -44,10 +44,12 @@ class ProjectManager {
     state.reset();
 
     // 设置画布尺寸
-    state.setCanvasSize(Size(
-      project.width.toDouble(),
-      project.height.toDouble(),
-    ));
+    state.setCanvasSize(
+      Size(
+        project.width.toDouble(),
+        project.height.toDouble(),
+      ),
+    );
 
     // 设置颜色
     state.setForegroundColor(Color(project.foregroundColor));
@@ -93,15 +95,17 @@ class ProjectManager {
           .map((s) => StrokeProjectData.fromStrokeData(s))
           .toList();
 
-      layers.add(LayerProjectData(
-        id: layer.id,
-        name: layer.name,
-        visible: layer.visible,
-        locked: layer.locked,
-        opacity: layer.opacity,
-        blendMode: layer.blendMode.name,
-        strokes: strokes,
-      ));
+      layers.add(
+        LayerProjectData(
+          id: layer.id,
+          name: layer.name,
+          visible: layer.visible,
+          locked: layer.locked,
+          opacity: layer.opacity,
+          blendMode: layer.blendMode.name,
+          strokes: strokes,
+        ),
+      );
     }
 
     return ProjectData(
@@ -125,7 +129,8 @@ class ProjectManager {
   /// 获取自动保存目录
   static Future<Directory> getAutoSaveDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
-    final autoSaveDir = Directory(path.join(appDir.path, 'NAILauncher', 'autosave'));
+    final autoSaveDir =
+        Directory(path.join(appDir.path, 'NAILauncher', 'autosave'));
 
     if (!await autoSaveDir.exists()) {
       await autoSaveDir.create(recursive: true);
@@ -138,7 +143,8 @@ class ProjectManager {
   static Future<String> autoSave(EditorState state) async {
     final autoSaveDir = await getAutoSaveDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filePath = path.join(autoSaveDir.path, 'autosave_$timestamp$projectExtension');
+    final filePath =
+        path.join(autoSaveDir.path, 'autosave_$timestamp$projectExtension');
 
     await saveProject(state, filePath);
     return filePath;
@@ -154,7 +160,8 @@ class ProjectManager {
 
     final files = await autoSaveDir
         .list()
-        .where((entity) => entity is File && entity.path.endsWith(projectExtension))
+        .where((entity) =>
+            entity is File && entity.path.endsWith(projectExtension))
         .cast<File>()
         .toList();
 
@@ -182,7 +189,8 @@ class ProjectManager {
 
     final files = await autoSaveDir
         .list()
-        .where((entity) => entity is File && entity.path.endsWith(projectExtension))
+        .where((entity) =>
+            entity is File && entity.path.endsWith(projectExtension))
         .cast<File>()
         .toList();
 

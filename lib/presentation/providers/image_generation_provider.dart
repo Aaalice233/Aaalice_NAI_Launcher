@@ -71,7 +71,8 @@ class ImageGenerationState {
       progress: progress ?? this.progress,
       currentImage: currentImage ?? this.currentImage,
       totalImages: totalImages ?? this.totalImages,
-      streamPreview: clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
+      streamPreview:
+          clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
     );
   }
 
@@ -79,7 +80,8 @@ class ImageGenerationState {
   bool get hasImages => currentImages.isNotEmpty;
 
   /// 是否有流式预览图像
-  bool get hasStreamPreview => streamPreview != null && streamPreview!.isNotEmpty;
+  bool get hasStreamPreview =>
+      streamPreview != null && streamPreview!.isNotEmpty;
 }
 
 /// 图像生成状态 Notifier
@@ -99,13 +101,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   Future<void> generate(ImageParams params) async {
     _isCancelled = false;
-    
+
     // 开始生成前清空当前图片
     state = state.copyWith(
       currentImages: [],
       status: GenerationStatus.generating,
     );
-    
+
     // nSamples = 批次数量（请求次数）
     // batchSize = 每次请求生成的图片数量
     final batchCount = params.nSamples;
@@ -122,7 +124,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final ucPresetValue = ucPresetType.index; // enum index 正好对应 API 值
 
     // 将设置应用到参数（不在客户端修改提示词内容，让后端处理）
-    ImageParams baseParams = params.copyWith(
+    final ImageParams baseParams = params.copyWith(
       qualityToggle: addQualityTags,
       ucPreset: ucPresetValue,
     );
@@ -133,10 +135,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       // 单抽完成后，如果开启抽卡模式，也要随机新提示词
       final randomMode = ref.read(randomPromptModeProvider);
       if (randomMode) {
-        final randomPrompt = ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
+        final randomPrompt =
+            ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
         if (randomPrompt.isNotEmpty) {
-          debugPrint('[RandomMode] Single - New prompt for next generation: $randomPrompt');
-          ref.read(generationParamsNotifierProvider.notifier).updatePrompt(randomPrompt);
+          debugPrint(
+              '[RandomMode] Single - New prompt for next generation: $randomPrompt');
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updatePrompt(randomPrompt);
         }
       }
       return;
@@ -144,7 +150,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     // 获取抽卡模式设置
     final randomMode = ref.read(randomPromptModeProvider);
-    
+
     // 多张图片：按批次循环请求
     state = state.copyWith(
       status: GenerationStatus.generating,
@@ -158,7 +164,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final allImages = <Uint8List>[];
     final random = Random();
     int generatedImages = 0;
-    
+
     // 当前使用的参数（可能会被抽卡模式修改）
     ImageParams currentParams = baseParams;
 
@@ -187,14 +193,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             currentImages: List.from(allImages),
             history: [...images, ...state.history].take(50).toList(),
           );
-          
+
           // 如果开启抽卡模式，每批生成后随机新提示词
           if (randomMode && batch < batchCount - 1) {
-            final randomPrompt = ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
+            final randomPrompt = ref
+                .read(promptConfigNotifierProvider.notifier)
+                .generatePrompt();
             if (randomPrompt.isNotEmpty) {
-              debugPrint('[RandomMode] Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt');
+              debugPrint(
+                  '[RandomMode] Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt');
               // 更新 UI 中的提示词
-              ref.read(generationParamsNotifierProvider.notifier).updatePrompt(randomPrompt);
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
+                  .updatePrompt(randomPrompt);
               // 更新下一批次使用的参数（质量标签由后端通过 qualityToggle 自动添加）
               currentParams = currentParams.copyWith(prompt: randomPrompt);
             }
@@ -217,13 +228,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         generatedImages += batchSize;
       }
     }
-    
+
     // 生成完成后，如果开启抽卡模式，再随机一次（为下次点击生成做准备）
     if (randomMode) {
-      final randomPrompt = ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
+      final randomPrompt =
+          ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
       if (randomPrompt.isNotEmpty) {
-        debugPrint('[RandomMode] Final - New prompt for next generation: $randomPrompt');
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(randomPrompt);
+        debugPrint(
+            '[RandomMode] Final - New prompt for next generation: $randomPrompt');
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updatePrompt(randomPrompt);
       }
     }
 
@@ -260,7 +275,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
         if (retry < _maxRetries) {
           AppLogger.w(
-              '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$_maxRetries): $e');
+            '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$_maxRetries): $e',
+          );
           await Future.delayed(Duration(milliseconds: _retryDelays[retry]));
         } else {
           rethrow;
@@ -273,7 +289,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   /// 生成单张（使用流式 API 支持渐进式预览）
   Future<void> _generateSingle(
-      ImageParams params, int current, int total) async {
+    ImageParams params,
+    int current,
+    int total,
+  ) async {
     state = state.copyWith(
       status: GenerationStatus.generating,
       progress: 0.0,
@@ -338,7 +357,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
       } else {
         // 流式 API 未返回图像，回退到非流式 API
-        AppLogger.w('Stream API returned no image, falling back to non-stream API', 'Generation');
+        AppLogger.w(
+            'Stream API returned no image, falling back to non-stream API',
+            'Generation');
         final images = await _generateWithRetry(params);
         state = state.copyWith(
           status: GenerationStatus.completed,
@@ -690,7 +711,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 添加角色参考图
   /// 注意：角色参考最多1张，且和 Vibe Transfer 互斥
   void addCharacterReference(CharacterReference ref) {
-    if (state.characterReferences.length >= 1) return; // 最多1张
+    if (state.characterReferences.isNotEmpty) return; // 最多1张
     state = state.copyWith(
       characterReferences: [...state.characterReferences, ref],
       vibeReferences: [], // 清除 Vibe Transfer（互斥）

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -107,14 +106,15 @@ class _SelectableImageCardState extends State<SelectableImageCard> {
                     right: 4,
                     child: _buildActionButtons(context, theme),
                   ),
-                
+
                 // 左下角：序号
                 if (widget.showIndex && widget.index != null)
                   Positioned(
                     bottom: 4,
                     left: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(4),
@@ -147,14 +147,11 @@ class _SelectableImageCardState extends State<SelectableImageCard> {
         width: 24,
         height: 24,
         decoration: BoxDecoration(
-          color: widget.isSelected
-              ? theme.colorScheme.primary
-              : Colors.black45,
+          color: widget.isSelected ? theme.colorScheme.primary : Colors.black45,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: widget.isSelected
-                ? theme.colorScheme.primary
-                : Colors.white70,
+            color:
+                widget.isSelected ? theme.colorScheme.primary : Colors.white70,
             width: 1.5,
           ),
         ),
@@ -270,4 +267,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

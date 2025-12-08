@@ -41,7 +41,7 @@ class _MobileGenerationLayoutState
           IconButton(
             icon: const Icon(Icons.tune),
             onPressed: () {
-               _scaffoldKey.currentState?.openEndDrawer();
+              _scaffoldKey.currentState?.openEndDrawer();
             },
             tooltip: context.l10n.generation_paramsSettings,
           ),
@@ -52,23 +52,24 @@ class _MobileGenerationLayoutState
         child: SafeArea(
           child: Column(
             children: [
-               Padding(
-                 padding: const EdgeInsets.all(16.0),
-                 child: Row(
-                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                   children: [
-                     Text(context.l10n.generation_paramsSettings, style: theme.textTheme.titleLarge),
-                     IconButton(
-                       icon: const Icon(Icons.close),
-                       onPressed: () => Navigator.pop(context),
-                     ),
-                   ],
-                 ),
-               ),
-               const Divider(),
-               const Expanded(
-                 child: ParameterPanel(),
-               ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(context.l10n.generation_paramsSettings,
+                        style: theme.textTheme.titleLarge),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              const Expanded(
+                child: ParameterPanel(),
+              ),
             ],
           ),
         ),
@@ -98,7 +99,8 @@ class _MobileGenerationLayoutState
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    context.l10n.generation_progress((generationState.progress * 100).toInt().toString()),
+                    context.l10n.generation_progress(
+                        (generationState.progress * 100).toInt().toString()),
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
@@ -135,7 +137,9 @@ class _MobileGenerationLayoutState
                 child: _MobileGenerateButton(
                   isGenerating: generationState.isGenerating,
                   onGenerate: () => _handleGenerate(context, ref, params),
-                  onCancel: () => ref.read(imageGenerationNotifierProvider.notifier).cancel(),
+                  onCancel: () => ref
+                      .read(imageGenerationNotifierProvider.notifier)
+                      .cancel(),
                 ),
               ),
             ],
@@ -145,14 +149,15 @@ class _MobileGenerationLayoutState
     );
   }
 
-  void _handleGenerate(BuildContext context, WidgetRef ref, ImageParams params) {
+  void _handleGenerate(
+      BuildContext context, WidgetRef ref, ImageParams params) {
     if (params.prompt.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.generation_pleaseInputPrompt)),
       );
       return;
     }
-    
+
     // 生成（抽卡模式逻辑在 generate 方法内部处理）
     ref.read(imageGenerationNotifierProvider.notifier).generate(params);
   }
@@ -240,14 +245,18 @@ class _MobileGenerateButton extends ConsumerWidget {
 
     return ThemedButton(
       onPressed: isGenerating ? onCancel : onGenerate,
-      icon: isGenerating ? const Icon(Icons.stop) : const Icon(Icons.auto_awesome),
+      icon: isGenerating
+          ? const Icon(Icons.stop)
+          : const Icon(Icons.auto_awesome),
       isLoading: false,
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(isGenerating
-              ? context.l10n.generation_cancelGeneration
-              : context.l10n.generation_generate),
+          Text(
+            isGenerating
+                ? context.l10n.generation_cancelGeneration
+                : context.l10n.generation_generate,
+          ),
           // 价格徽章（仅在非生成状态且非免费时显示）
           if (!isGenerating && !isFree) ...[
             const SizedBox(width: 8),
@@ -269,9 +278,8 @@ class _MobileGenerateButton extends ConsumerWidget {
           ],
         ],
       ),
-      style: isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+      style:
+          isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
     );
   }
 }
-
-

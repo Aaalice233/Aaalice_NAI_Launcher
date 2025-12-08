@@ -34,10 +34,7 @@ class RegionalSnapshotCache {
   /// 检查坐标是否在缓存范围内
   bool contains(int x, int y) {
     if (_pixelData == null) return false;
-    return x >= _left &&
-        x < _left + _width &&
-        y >= _top &&
-        y < _top + _height;
+    return x >= _left && x < _left + _width && y >= _top && y < _top + _height;
   }
 
   /// 检查是否可以提供完整的放大镜网格
@@ -66,7 +63,8 @@ class RegionalSnapshotCache {
   }
 
   /// 获取放大镜网格像素（同步）
-  List<List<Color>>? getMagnifierPixels(int centerX, int centerY, int gridSize) {
+  List<List<Color>>? getMagnifierPixels(
+      int centerX, int centerY, int gridSize) {
     if (!canProvideMagnifierGrid(centerX, centerY, gridSize)) return null;
 
     final halfGrid = gridSize ~/ 2;
@@ -191,7 +189,8 @@ class CanvasSnapshotManager {
         return false;
       }
 
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final byteData =
+          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
 
       // 再次检查版本号
       if (_snapshotVersion != targetVersion) {
@@ -241,7 +240,8 @@ class CanvasSnapshotManager {
 
   /// 同步获取放大镜网格像素
   /// 如果缓存不可用，返回 null
-  List<List<Color>>? getMagnifierPixels(int centerX, int centerY, int gridSize) {
+  List<List<Color>>? getMagnifierPixels(
+      int centerX, int centerY, int gridSize) {
     if (_canvasSnapshotBytes == null) return null;
 
     final halfGrid = gridSize ~/ 2;
@@ -258,7 +258,10 @@ class CanvasSnapshotManager {
   /// 更新区域快照（仅渲染光标周围的小区域）
   /// 返回是否成功更新
   Future<bool> updateRegionalSnapshot(
-      int centerX, int centerY, Size canvasSize) async {
+    int centerX,
+    int centerY,
+    Size canvasSize,
+  ) async {
     // 防止并发更新
     if (_regionalCache.isUpdating) return false;
     _regionalCache.isUpdating = true;
@@ -363,7 +366,10 @@ class CanvasSnapshotManager {
   /// 获取区域缓存中的放大镜像素网格（同步）
   /// 如果区域缓存不包含所需像素，返回 null
   List<List<Color>>? getRegionalMagnifierPixels(
-      int centerX, int centerY, int gridSize) {
+    int centerX,
+    int centerY,
+    int gridSize,
+  ) {
     if (_regionalCache.isStale(_snapshotVersion)) return null;
     return _regionalCache.getMagnifierPixels(centerX, centerY, gridSize);
   }

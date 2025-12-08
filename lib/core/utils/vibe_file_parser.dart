@@ -39,10 +39,14 @@ class VibeFileParser {
 
     switch (extension) {
       case 'png':
-        return [await fromPng(fileName, bytes, defaultStrength: defaultStrength)];
+        return [
+          await fromPng(fileName, bytes, defaultStrength: defaultStrength)
+        ];
 
       case 'naiv4vibe':
-        return [await fromNaiV4Vibe(fileName, bytes, defaultStrength: defaultStrength)];
+        return [
+          await fromNaiV4Vibe(fileName, bytes, defaultStrength: defaultStrength)
+        ];
 
       case 'naiv4vibebundle':
         return fromBundle(fileName, bytes, defaultStrength: defaultStrength);
@@ -58,7 +62,7 @@ class VibeFileParser {
               rawImageData: bytes,
               strength: defaultStrength,
               sourceType: VibeSourceType.rawImage,
-            )
+            ),
           ];
         }
         throw FormatException('Unsupported file type: $extension');
@@ -125,7 +129,7 @@ class VibeFileParser {
   static String? _parseITXtChunk(Uint8List data) {
     try {
       // 查找关键字结束位置
-      int keywordEndIndex = data.indexOf(0);
+      final int keywordEndIndex = data.indexOf(0);
       if (keywordEndIndex == -1) return null;
 
       final keyword = utf8.decode(data.sublist(0, keywordEndIndex));
@@ -148,12 +152,12 @@ class VibeFileParser {
       currentIndex++;
 
       // 跳过语言标签
-      int langTagEndIndex = data.indexOf(0, currentIndex);
+      final int langTagEndIndex = data.indexOf(0, currentIndex);
       if (langTagEndIndex == -1) return null;
       currentIndex = langTagEndIndex + 1;
 
       // 跳过翻译后的关键字
-      int translatedKeywordEndIndex = data.indexOf(0, currentIndex);
+      final int translatedKeywordEndIndex = data.indexOf(0, currentIndex);
       if (translatedKeywordEndIndex == -1) return null;
       currentIndex = translatedKeywordEndIndex + 1;
 
@@ -246,13 +250,15 @@ class VibeFileParser {
 
         final vibeEncoding = _extractEncodingFromJson(vibeJson);
         if (vibeEncoding != null) {
-          results.add(VibeReferenceV4(
-            displayName: name,
-            vibeEncoding: vibeEncoding,
-            thumbnail: null,
-            strength: strength.clamp(0.0, 1.0),
-            sourceType: VibeSourceType.naiv4vibebundle,
-          ));
+          results.add(
+            VibeReferenceV4(
+              displayName: name,
+              vibeEncoding: vibeEncoding,
+              thumbnail: null,
+              strength: strength.clamp(0.0, 1.0),
+              sourceType: VibeSourceType.naiv4vibebundle,
+            ),
+          );
         }
       } catch (e) {
         if (kDebugMode) {

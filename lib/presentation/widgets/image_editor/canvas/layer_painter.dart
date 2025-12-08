@@ -166,7 +166,7 @@ class LayerPainter extends CustomPainter {
     double size = 20.0;
     double opacity = 1.0;
     double hardness = 0.8;
-    Color color = state.foregroundColor;
+    final Color color = state.foregroundColor;
     bool isEraser = false;
 
     if (tool is BrushTool) {
@@ -180,7 +180,8 @@ class LayerPainter extends CustomPainter {
     }
 
     final paint = Paint()
-      ..color = isEraser ? Colors.grey.withOpacity(0.5) : color.withOpacity(opacity)
+      ..color =
+          isEraser ? Colors.grey.withOpacity(0.5) : color.withOpacity(opacity)
       ..strokeWidth = size
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -347,7 +348,8 @@ class SelectionPainter extends CustomPainter {
   }
 
   /// 绘制虚线路径（使用缓存的 PathMetrics）
-  void _drawDashedPath(Canvas canvas, Path path, Paint paint, double dashOffset) {
+  void _drawDashedPath(
+      Canvas canvas, Path path, Paint paint, double dashOffset) {
     // 检查路径是否变化，仅在变化时重新计算 metrics
     if (_cachedPath != path) {
       _cachedPath = path;

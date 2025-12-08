@@ -61,7 +61,8 @@ class _LayerPanelState extends State<LayerPanel> {
     final layers = widget.state.layerManager.layers;
 
     // 只获取需要更新的图层
-    final layersToUpdate = layers.where((layer) => layer.needsThumbnailUpdate).toList();
+    final layersToUpdate =
+        layers.where((layer) => layer.needsThumbnailUpdate).toList();
 
     // 如果没有需要更新的图层，直接返回
     if (layersToUpdate.isEmpty) return;
@@ -180,16 +181,19 @@ class _LayerPanelState extends State<LayerPanel> {
                                   state.layerManager.toggleLock(layer.id);
                                 },
                                 onDelete: layers.length > 1
-                                    ? () => state.layerManager.removeLayer(layer.id)
+                                    ? () =>
+                                        state.layerManager.removeLayer(layer.id)
                                     : null,
                                 onDuplicate: () {
                                   state.layerManager.duplicateLayer(layer.id);
                                 },
                                 onRename: (newName) {
-                                  state.layerManager.renameLayer(layer.id, newName);
+                                  state.layerManager
+                                      .renameLayer(layer.id, newName);
                                 },
                                 onOpacityChanged: (opacity) {
-                                  state.layerManager.setLayerOpacity(layer.id, opacity);
+                                  state.layerManager
+                                      .setLayerOpacity(layer.id, opacity);
                                 },
                               );
                             },
@@ -265,7 +269,6 @@ class _LayerTile extends StatefulWidget {
   final ValueChanged<double> onOpacityChanged;
 
   const _LayerTile({
-    super.key,
     required this.layer,
     required this.isActive,
     required this.index,
@@ -397,7 +400,8 @@ class _LayerTileState extends State<_LayerTile>
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: widget.layer.visible
                                   ? null
-                                  : theme.colorScheme.onSurface.withOpacity(0.5),
+                                  : theme.colorScheme.onSurface
+                                      .withOpacity(0.5),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -641,7 +645,8 @@ class _TransparentGridPainter extends CustomPainter {
 
     for (double y = 0; y < size.height; y += gridSize) {
       for (double x = 0; x < size.width; x += gridSize) {
-        final isEven = ((x / gridSize).floor() + (y / gridSize).floor()) % 2 == 0;
+        final isEven =
+            ((x / gridSize).floor() + (y / gridSize).floor()) % 2 == 0;
         canvas.drawRect(
           Rect.fromLTWH(x, y, gridSize, gridSize),
           isEven ? paint1 : paint2,

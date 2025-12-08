@@ -146,7 +146,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     if (text.isEmpty) return;
 
     var changed = false;
-    var messages = <String>[];
+    final messages = <String>[];
 
     // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
     if (widget.enableSdSyntaxAutoConvert) {
@@ -215,7 +215,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
     // 找到光标位置前的最后一个逗号或特殊分隔符
     final textBeforeCursor = text.substring(0, cursorPosition);
-    
+
     // 查找最后一个分隔符（英文逗号、中文逗号、竖线等）
     var lastSeparatorIndex = -1;
     for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
@@ -227,8 +227,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
       // 检查单竖线分隔符（跳过双竖线 ||）
       if (char == '|') {
         // 检查是否是双竖线的一部分
-        final isPartOfDoublePipe =
-            (i > 0 && textBeforeCursor[i - 1] == '|') ||
+        final isPartOfDoublePipe = (i > 0 && textBeforeCursor[i - 1] == '|') ||
             (i < textBeforeCursor.length - 1 && textBeforeCursor[i + 1] == '|');
         if (!isPartOfDoublePipe) {
           lastSeparatorIndex = i;
@@ -245,7 +244,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     var currentTag = textBeforeCursor.substring(lastSeparatorIndex + 1).trim();
 
     // 移除可能的权重语法前缀（支持 1.5:: 和 .5:: 格式）
-    final weightMatch = RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(currentTag);
+    final weightMatch =
+        RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(currentTag);
     if (weightMatch != null) {
       currentTag = currentTag.substring(weightMatch.end);
     }
@@ -333,8 +333,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
       }
       // 检查单竖线分隔符（跳过双竖线 ||）
       if (char == '|') {
-        final isPartOfDoublePipe =
-            (i > 0 && textBeforeCursor[i - 1] == '|') ||
+        final isPartOfDoublePipe = (i > 0 && textBeforeCursor[i - 1] == '|') ||
             (i < textBeforeCursor.length - 1 && textBeforeCursor[i + 1] == '|');
         if (!isPartOfDoublePipe) {
           lastSeparatorIndex = i;
@@ -359,8 +358,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
       }
       // 检查单竖线分隔符（跳过双竖线 ||）
       if (char == '|') {
-        final isPartOfDoublePipe =
-            (i > 0 && text[i - 1] == '|') ||
+        final isPartOfDoublePipe = (i > 0 && text[i - 1] == '|') ||
             (i < text.length - 1 && text[i + 1] == '|');
         if (!isPartOfDoublePipe) {
           tagEnd = i;
@@ -388,13 +386,16 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     final leadingSpace = needsLeadingSpace ? ' ' : '';
 
     // 添加逗号和空格（如果配置了自动插入）
-    final trailingComma = widget.config.autoInsertComma && 
-        (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
+    final trailingComma = widget.config.autoInsertComma &&
+            (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
         ? ', '
         : '';
 
     final newText = '$prefix$leadingSpace$tagName$trailingComma$suffix';
-    final newCursorPosition = prefix.length + leadingSpace.length + tagName.length + trailingComma.length;
+    final newCursorPosition = prefix.length +
+        leadingSpace.length +
+        tagName.length +
+        trailingComma.length;
 
     widget.controller.value = TextEditingValue(
       text: newText,
@@ -424,16 +425,17 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
-          _selectedIndex = _selectedIndex <= 0
-              ? suggestions.length - 1
-              : _selectedIndex - 1;
+          _selectedIndex =
+              _selectedIndex <= 0 ? suggestions.length - 1 : _selectedIndex - 1;
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.tab) {
-        if (event is KeyDownEvent && _selectedIndex >= 0 && _selectedIndex < suggestions.length) {
+        if (event is KeyDownEvent &&
+            _selectedIndex >= 0 &&
+            _selectedIndex < suggestions.length) {
           _selectSuggestion(suggestions[_selectedIndex]);
           return KeyEventResult.handled;
         }
@@ -490,4 +492,3 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     );
   }
 }
-
