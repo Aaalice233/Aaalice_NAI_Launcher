@@ -64,7 +64,10 @@ class RegionalSnapshotCache {
 
   /// 获取放大镜网格像素（同步）
   List<List<Color>>? getMagnifierPixels(
-      int centerX, int centerY, int gridSize) {
+    int centerX,
+    int centerY,
+    int gridSize,
+  ) {
     if (!canProvideMagnifierGrid(centerX, centerY, gridSize)) return null;
 
     final halfGrid = gridSize ~/ 2;
@@ -241,7 +244,10 @@ class CanvasSnapshotManager {
   /// 同步获取放大镜网格像素
   /// 如果缓存不可用，返回 null
   List<List<Color>>? getMagnifierPixels(
-      int centerX, int centerY, int gridSize) {
+    int centerX,
+    int centerY,
+    int gridSize,
+  ) {
     if (_canvasSnapshotBytes == null) return null;
 
     final halfGrid = gridSize ~/ 2;

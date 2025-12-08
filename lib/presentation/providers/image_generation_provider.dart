@@ -139,7 +139,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
         if (randomPrompt.isNotEmpty) {
           debugPrint(
-              '[RandomMode] Single - New prompt for next generation: $randomPrompt');
+            '[RandomMode] Single - New prompt for next generation: $randomPrompt',
+          );
           ref
               .read(generationParamsNotifierProvider.notifier)
               .updatePrompt(randomPrompt);
@@ -201,7 +202,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                 .generatePrompt();
             if (randomPrompt.isNotEmpty) {
               debugPrint(
-                  '[RandomMode] Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt');
+                '[RandomMode] Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt',
+              );
               // 更新 UI 中的提示词
               ref
                   .read(generationParamsNotifierProvider.notifier)
@@ -235,7 +237,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
       if (randomPrompt.isNotEmpty) {
         debugPrint(
-            '[RandomMode] Final - New prompt for next generation: $randomPrompt');
+          '[RandomMode] Final - New prompt for next generation: $randomPrompt',
+        );
         ref
             .read(generationParamsNotifierProvider.notifier)
             .updatePrompt(randomPrompt);
@@ -358,8 +361,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       } else {
         // 流式 API 未返回图像，回退到非流式 API
         AppLogger.w(
-            'Stream API returned no image, falling back to non-stream API',
-            'Generation');
+          'Stream API returned no image, falling back to non-stream API',
+          'Generation',
+        );
         final images = await _generateWithRetry(params);
         state = state.copyWith(
           status: GenerationStatus.completed,

@@ -57,8 +57,10 @@ class _MobileGenerationLayoutState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(context.l10n.generation_paramsSettings,
-                        style: theme.textTheme.titleLarge),
+                    Text(
+                      context.l10n.generation_paramsSettings,
+                      style: theme.textTheme.titleLarge,
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),
@@ -100,7 +102,8 @@ class _MobileGenerationLayoutState
                   const SizedBox(height: 4),
                   Text(
                     context.l10n.generation_progress(
-                        (generationState.progress * 100).toInt().toString()),
+                      (generationState.progress * 100).toInt().toString(),
+                    ),
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
@@ -150,7 +153,10 @@ class _MobileGenerationLayoutState
   }
 
   void _handleGenerate(
-      BuildContext context, WidgetRef ref, ImageParams params) {
+    BuildContext context,
+    WidgetRef ref,
+    ImageParams params,
+  ) {
     if (params.prompt.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.generation_pleaseInputPrompt)),

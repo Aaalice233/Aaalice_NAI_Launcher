@@ -807,7 +807,11 @@ class _GeneratingImageCardState extends State<_GeneratingImageCard>
     // 如果有流式预览，显示预览图像
     if (hasPreview) {
       return _buildPreviewCard(
-          cardWidth, cardHeight, primaryColor, surfaceColor);
+        cardWidth,
+        cardHeight,
+        primaryColor,
+        surfaceColor,
+      );
     }
 
     // 否则显示原来的加载动画

@@ -398,12 +398,15 @@ class NAIApiService {
         // 分离预编码和原始图片
         final preEncodedVibes = params.vibeReferencesV4
             .where(
-                (v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty)
+              (v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty,
+            )
             .toList();
         final rawImageVibes = params.vibeReferencesV4
-            .where((v) =>
-                v.sourceType == VibeSourceType.rawImage &&
-                v.rawImageData != null)
+            .where(
+              (v) =>
+                  v.sourceType == VibeSourceType.rawImage &&
+                  v.rawImageData != null,
+            )
             .toList();
 
         // 收集所有编码数据
@@ -438,8 +441,9 @@ class NAIApiService {
                 AppLogger.d('V4 Vibe: Encoded raw image successfully', 'API');
               } else {
                 AppLogger.w(
-                    'V4 Vibe: Failed to encode raw image (empty result)',
-                    'API');
+                  'V4 Vibe: Failed to encode raw image (empty result)',
+                  'API',
+                );
               }
             } catch (e) {
               AppLogger.e('V4 Vibe: Failed to encode raw image: $e', 'API');
@@ -514,8 +518,9 @@ class NAIApiService {
       if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== NON-STREAM CHARACTER REFERENCE DEBUG ===', 'API');
         AppLogger.d(
-            'characterReferences count: ${effectiveCharacterRefs.length}',
-            'API');
+          'characterReferences count: ${effectiveCharacterRefs.length}',
+          'API',
+        );
         AppLogger.d('isV4Model: ${params.isV4Model}', 'API');
 
         // 调试：验证 base64 编码和 PNG 转换
@@ -523,35 +528,45 @@ class NAIApiService {
           final ref = effectiveCharacterRefs[i];
           final pngBytes = ensurePngFormat(ref.image);
           AppLogger.d(
-              'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes',
-              'API');
+            'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes',
+            'API',
+          );
         }
         AppLogger.d(
-            'fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}',
-            'API');
+          'fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}',
+          'API',
+        );
         AppLogger.d(
-            'styleAware: ${params.characterReferenceStyleAware}', 'API');
+          'styleAware: ${params.characterReferenceStyleAware}',
+          'API',
+        );
 
         AppLogger.d(
-            'director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}',
-            'API');
+          'director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}',
-            'API');
+          'director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_strength_values: ${requestParameters['director_reference_strength_values']}',
-            'API');
+          'director_reference_strength_values: ${requestParameters['director_reference_strength_values']}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_secondary_strength_values: ${requestParameters['director_reference_secondary_strength_values']}',
-            'API');
+          'director_reference_secondary_strength_values: ${requestParameters['director_reference_secondary_strength_values']}',
+          'API',
+        );
         AppLogger.d(
-            'normalize_reference_strength_multiple: ${requestParameters['normalize_reference_strength_multiple']}',
-            'API');
+          'normalize_reference_strength_multiple: ${requestParameters['normalize_reference_strength_multiple']}',
+          'API',
+        );
 
         // 打印完整请求 JSON（隐藏 base64 图像数据）
         final debugRequestData = Map<String, dynamic>.from(requestData);
         final debugParams = Map<String, dynamic>.from(
-            debugRequestData['parameters'] as Map<String, dynamic>);
+          debugRequestData['parameters'] as Map<String, dynamic>,
+        );
         // 隐藏图像 base64 数据
         if (debugParams.containsKey('director_reference_images')) {
           final images = debugParams['director_reference_images'] as List;
@@ -571,8 +586,9 @@ class NAIApiService {
         }
         debugRequestData['parameters'] = debugParams;
         AppLogger.d(
-            'FULL REQUEST JSON (images hidden): ${jsonEncode(debugRequestData)}',
-            'API');
+          'FULL REQUEST JSON (images hidden): ${jsonEncode(debugRequestData)}',
+          'API',
+        );
         AppLogger.d('==========================================', 'API');
       }
 
@@ -748,7 +764,7 @@ class NAIApiService {
 
           charCaptions.add({
             'centers': [
-              {'x': x, 'y': y}
+              {'x': x, 'y': y},
             ],
             'char_caption': char.prompt,
           });
@@ -816,12 +832,15 @@ class NAIApiService {
         // 分离预编码和原始图片
         final preEncodedVibes = params.vibeReferencesV4
             .where(
-                (v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty)
+              (v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty,
+            )
             .toList();
         final rawImageVibes = params.vibeReferencesV4
-            .where((v) =>
-                v.sourceType == VibeSourceType.rawImage &&
-                v.rawImageData != null)
+            .where(
+              (v) =>
+                  v.sourceType == VibeSourceType.rawImage &&
+                  v.rawImageData != null,
+            )
             .toList();
 
         // 收集所有编码数据
@@ -854,15 +873,20 @@ class NAIApiService {
                 allStrengths.add(vibe.strength);
                 allInfoExtracted.add(vibe.infoExtracted);
                 AppLogger.d(
-                    'V4 Vibe (Stream): Encoded raw image successfully', 'API');
+                  'V4 Vibe (Stream): Encoded raw image successfully',
+                  'API',
+                );
               } else {
                 AppLogger.w(
-                    'V4 Vibe (Stream): Failed to encode raw image (empty result)',
-                    'API');
+                  'V4 Vibe (Stream): Failed to encode raw image (empty result)',
+                  'API',
+                );
               }
             } catch (e) {
               AppLogger.e(
-                  'V4 Vibe (Stream): Failed to encode raw image: $e', 'API');
+                'V4 Vibe (Stream): Failed to encode raw image: $e',
+                'API',
+              );
             }
           }
         }
@@ -885,8 +909,9 @@ class NAIApiService {
       if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG (STREAM) ===', 'API');
         AppLogger.d(
-            'characterReferences count: ${effectiveCharacterRefs.length}',
-            'API');
+          'characterReferences count: ${effectiveCharacterRefs.length}',
+          'API',
+        );
         AppLogger.d('isV4Model: ${params.isV4Model}', 'API');
 
         // 调试：验证 base64 编码和 PNG 转换
@@ -894,14 +919,18 @@ class NAIApiService {
           final ref = effectiveCharacterRefs[i];
           final pngBytes = ensurePngFormat(ref.image);
           AppLogger.d(
-              'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes',
-              'API');
+            'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes',
+            'API',
+          );
         }
         AppLogger.d(
-            'fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}',
-            'API');
+          'fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}',
+          'API',
+        );
         AppLogger.d(
-            'styleAware: ${params.characterReferenceStyleAware}', 'API');
+          'styleAware: ${params.characterReferenceStyleAware}',
+          'API',
+        );
 
         // 固定为 true（与官网保持一致）
         requestParameters['normalize_reference_strength_multiple'] = true;
@@ -958,35 +987,45 @@ class NAIApiService {
       if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG ===', 'API');
         AppLogger.d(
-            'characterReferences count: ${effectiveCharacterRefs.length}',
-            'API');
+          'characterReferences count: ${effectiveCharacterRefs.length}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}',
-            'API');
+          'director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}',
-            'API');
+          'director_reference_information_extracted: ${requestParameters['director_reference_information_extracted']}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_strength_values: ${requestParameters['director_reference_strength_values']}',
-            'API');
+          'director_reference_strength_values: ${requestParameters['director_reference_strength_values']}',
+          'API',
+        );
         AppLogger.d(
-            'director_reference_secondary_strength_values: ${requestParameters['director_reference_secondary_strength_values']}',
-            'API');
+          'director_reference_secondary_strength_values: ${requestParameters['director_reference_secondary_strength_values']}',
+          'API',
+        );
         AppLogger.d(
-            'normalize_reference_strength_multiple: ${requestParameters['normalize_reference_strength_multiple']}',
-            'API');
+          'normalize_reference_strength_multiple: ${requestParameters['normalize_reference_strength_multiple']}',
+          'API',
+        );
       }
       if (params.isV4Model) {
         AppLogger.d(
-            'v4_prompt: ${jsonEncode(requestParameters['v4_prompt'])}', 'API');
+          'v4_prompt: ${jsonEncode(requestParameters['v4_prompt'])}',
+          'API',
+        );
         AppLogger.d(
-            'v4_negative_prompt: ${jsonEncode(requestParameters['v4_negative_prompt'])}',
-            'API');
+          'v4_negative_prompt: ${jsonEncode(requestParameters['v4_negative_prompt'])}',
+          'API',
+        );
       }
       // 打印完整请求 JSON（隐藏 base64 图像数据）
       final debugRequestData = Map<String, dynamic>.from(requestData);
       final debugParams = Map<String, dynamic>.from(
-          debugRequestData['parameters'] as Map<String, dynamic>);
+        debugRequestData['parameters'] as Map<String, dynamic>,
+      );
       // 隐藏图像 base64 数据
       if (debugParams.containsKey('director_reference_images')) {
         final images = debugParams['director_reference_images'] as List;
@@ -1006,8 +1045,9 @@ class NAIApiService {
       }
       debugRequestData['parameters'] = debugParams;
       AppLogger.d(
-          'FULL REQUEST JSON (images hidden): ${jsonEncode(debugRequestData)}',
-          'API');
+        'FULL REQUEST JSON (images hidden): ${jsonEncode(debugRequestData)}',
+        'API',
+      );
       AppLogger.d('==========================================', 'API');
 
       // 3. 发送流式请求
@@ -1091,8 +1131,9 @@ class NAIApiService {
                 final currentStep = (stepIx ?? messageCount) + 1;
                 final progress = currentStep / totalSteps;
                 AppLogger.d(
-                    'Stream preview: step $currentStep/$totalSteps, ${imageBytes.length} bytes',
-                    'Stream');
+                  'Stream preview: step $currentStep/$totalSteps, ${imageBytes.length} bytes',
+                  'Stream',
+                );
                 yield ImageStreamChunk.progress(
                   progress: progress.clamp(0.0, 0.99),
                   currentStep: currentStep,
@@ -1116,8 +1157,9 @@ class NAIApiService {
 
       // 流结束后检查最终数据
       AppLogger.d(
-          'Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount',
-          'Stream');
+        'Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount',
+        'Stream',
+      );
 
       // 流结束但没有收到完成消息，尝试从 buffer 解析最终结果
       if (buffer.isNotEmpty) {
@@ -1171,7 +1213,9 @@ class NAIApiService {
           // 如果有最新预览，将其作为最终结果（兜底）
           if (latestPreview != null) {
             AppLogger.d(
-                'Stream fallback: using latest preview as final', 'Stream');
+              'Stream fallback: using latest preview as final',
+              'Stream',
+            );
             yield ImageStreamChunk.complete(latestPreview);
           } else {
             yield ImageStreamChunk.error('No image received from stream');

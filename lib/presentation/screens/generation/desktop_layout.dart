@@ -387,8 +387,12 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     );
   }
 
-  void _handleGenerate(BuildContext context, WidgetRef ref, ImageParams params,
-      bool randomMode) {
+  void _handleGenerate(
+    BuildContext context,
+    WidgetRef ref,
+    ImageParams params,
+    bool randomMode,
+  ) {
     if (params.prompt.isEmpty) {
       AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
       return;
@@ -531,7 +535,13 @@ class _BatchSettingsButton extends ConsumerWidget {
         ),
       ),
       onPressed: () => _showBatchSettingsDialog(
-          context, ref, theme, l10n, batchSize, batchCount),
+        context,
+        ref,
+        theme,
+        l10n,
+        batchSize,
+        batchCount,
+      ),
     );
   }
 
@@ -596,7 +606,10 @@ class _BatchSettingsButton extends ConsumerWidget {
                       children: [
                         Text(
                           l10n.batchSize_formula(
-                              batchCount, currentBatchSize, totalImages),
+                            batchCount,
+                            currentBatchSize,
+                            totalImages,
+                          ),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontFamily: 'monospace',
                             fontWeight: FontWeight.w500,
@@ -638,7 +651,11 @@ class _BatchSettingsButton extends ConsumerWidget {
   }
 
   Widget _buildBatchOption(
-      ThemeData theme, int value, int current, VoidCallback onTap) {
+    ThemeData theme,
+    int value,
+    int current,
+    VoidCallback onTap,
+  ) {
     final isSelected = value == current;
     return GestureDetector(
       onTap: onTap,

@@ -51,7 +51,7 @@ class ThemedScaffold extends StatelessWidget {
             IgnorePointer(
               child: CustomPaint(
                 painter: _ScanLinePainter(
-                  color: theme.primaryColor.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withOpacity(0.1),
                 ),
               ),
             ),
@@ -86,9 +86,9 @@ class ThemedScaffold extends StatelessWidget {
 
 class _DotMatrixPainter extends CustomPainter {
   final Color color;
-  final double spacing;
+  final double spacing = 10.0;
 
-  _DotMatrixPainter({required this.color, this.spacing = 8.0});
+  _DotMatrixPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {

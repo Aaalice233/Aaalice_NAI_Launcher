@@ -159,9 +159,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       onSelected: _handlePresetMenuAction,
       itemBuilder: (menuContext) => [
         PopupMenuItem(
-            value: 'import', child: Text(context.l10n.config_importConfig)),
+          value: 'import',
+          child: Text(context.l10n.config_importConfig),
+        ),
         PopupMenuItem(
-            value: 'reset', child: Text(context.l10n.config_restoreDefaults)),
+          value: 'reset',
+          child: Text(context.l10n.config_restoreDefaults),
+        ),
       ],
     );
   }
@@ -240,7 +244,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                       ),
                       Text(
                         context.l10n.preset_configGroupCount(
-                            preset.configs.length.toString()),
+                          preset.configs.length.toString(),
+                        ),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
@@ -265,11 +270,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                       child: Text(context.l10n.preset_setAsCurrent),
                     ),
                     PopupMenuItem(
-                        value: 'duplicate',
-                        child: Text(context.l10n.preset_duplicate)),
+                      value: 'duplicate',
+                      child: Text(context.l10n.preset_duplicate),
+                    ),
                     PopupMenuItem(
-                        value: 'export',
-                        child: Text(context.l10n.preset_export)),
+                      value: 'export',
+                      child: Text(context.l10n.preset_export),
+                    ),
                     const PopupMenuDivider(),
                     PopupMenuItem(
                       value: 'delete',
@@ -704,11 +711,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   String _getConfigSummary(PromptConfig config) {
     final parts = <String>[];
     if (config.contentType == ContentType.string) {
-      parts.add(context.l10n
-          .preset_itemCount(config.stringContents.length.toString()));
+      parts.add(
+        context.l10n.preset_itemCount(config.stringContents.length.toString()),
+      );
     } else {
-      parts.add(context.l10n
-          .preset_subConfigCount(config.nestedConfigs.length.toString()));
+      parts.add(
+        context.l10n
+            .preset_subConfigCount(config.nestedConfigs.length.toString()),
+      );
     }
     parts.add(_getSelectionModeShort(config.selectionMode));
     return parts.join(' · ');
@@ -825,7 +835,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 }
               } catch (e) {
                 AppToast.error(
-                    context, context.l10n.preset_importFailed(e.toString()));
+                  context,
+                  context.l10n.preset_importFailed(e.toString()),
+                );
               }
             },
             child: Text(context.l10n.common_import),
@@ -1136,10 +1148,12 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
           Row(
             children: [
               Text(
-                context.l10n.config_tagContentHint(_contentsController.text
-                    .split('\n')
-                    .where((s) => s.trim().isNotEmpty)
-                    .length),
+                context.l10n.config_tagContentHint(
+                  _contentsController.text
+                      .split('\n')
+                      .where((s) => s.trim().isNotEmpty)
+                      .length,
+                ),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),

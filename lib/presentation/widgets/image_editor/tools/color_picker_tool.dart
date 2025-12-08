@@ -12,7 +12,9 @@ class ColorPickerTool extends EditorTool {
   /// 静态取色方法（供其他工具在 Alt 模式下调用）
   /// 返回指定画布坐标位置的颜色
   static Future<Color?> pickColorAt(
-      Offset canvasPoint, EditorState state) async {
+    Offset canvasPoint,
+    EditorState state,
+  ) async {
     final canvasWidth = state.canvasSize.width.toInt();
     final canvasHeight = state.canvasSize.height.toInt();
 
@@ -179,7 +181,9 @@ class ColorPickerTool extends EditorTool {
 
   /// 采样并应用颜色（用于点击取色）
   Future<void> _sampleAndApplyColor(
-      Offset canvasPoint, EditorState state) async {
+    Offset canvasPoint,
+    EditorState state,
+  ) async {
     debugPrint('[ColorPicker] _sampleAndApplyColor at $canvasPoint');
     final color = await _sampleColorAt(canvasPoint, state);
     debugPrint('[ColorPicker] sampled color: $color');
@@ -317,12 +321,19 @@ class ColorPickerTool extends EditorTool {
 
     // 4. 回退到异步采样 + 区域缓存预热
     _scheduleAsyncSamplingWithRegionalCache(
-        centerX, centerY, screenPosition, state);
+      centerX,
+      centerY,
+      screenPosition,
+      state,
+    );
   }
 
   /// 异步预热区域缓存（为下次移动做准备）
   void _scheduleRegionalCacheUpdate(
-      int centerX, int centerY, EditorState state) {
+    int centerX,
+    int centerY,
+    EditorState state,
+  ) {
     final currentVersion = _samplingVersion;
     // 使用很短的延迟，让当前帧先完成
     Future.microtask(() async {
@@ -458,7 +469,8 @@ class ColorPickerTool extends EditorTool {
     final canvasHeight = state.canvasSize.height.toInt();
 
     debugPrint(
-        '[ColorPicker] _sampleColorAt: canvasPoint=$canvasPoint, canvasSize=${canvasWidth}x$canvasHeight');
+      '[ColorPicker] _sampleColorAt: canvasPoint=$canvasPoint, canvasSize=${canvasWidth}x$canvasHeight',
+    );
 
     // 检查是否在画布范围内
     if (canvasPoint.dx < 0 ||

@@ -160,8 +160,9 @@ class ProjectManager {
 
     final files = await autoSaveDir
         .list()
-        .where((entity) =>
-            entity is File && entity.path.endsWith(projectExtension))
+        .where(
+          (entity) => entity is File && entity.path.endsWith(projectExtension),
+        )
         .cast<File>()
         .toList();
 
@@ -189,8 +190,9 @@ class ProjectManager {
 
     final files = await autoSaveDir
         .list()
-        .where((entity) =>
-            entity is File && entity.path.endsWith(projectExtension))
+        .where(
+          (entity) => entity is File && entity.path.endsWith(projectExtension),
+        )
         .cast<File>()
         .toList();
 

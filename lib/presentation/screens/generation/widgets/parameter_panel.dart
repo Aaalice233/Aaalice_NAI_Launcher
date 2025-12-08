@@ -54,8 +54,10 @@ class ParameterPanel extends ConsumerWidget {
                       if (params.prompt.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content: Text(
-                                  context.l10n.generation_pleaseInputPrompt)),
+                            content: Text(
+                              context.l10n.generation_pleaseInputPrompt,
+                            ),
+                          ),
                         );
                         return;
                       }
@@ -67,9 +69,11 @@ class ParameterPanel extends ConsumerWidget {
                   ? const Icon(Icons.stop)
                   : const Icon(Icons.auto_awesome),
               isLoading: isGenerating && false, // 不要显示加载圈，直接变 Cancel
-              label: Text(isGenerating
-                  ? context.l10n.generation_cancelGeneration
-                  : context.l10n.generation_generateImage),
+              label: Text(
+                isGenerating
+                    ? context.l10n.generation_cancelGeneration
+                    : context.l10n.generation_generateImage,
+              ),
               style: isGenerating
                   ? ThemedButtonStyle.outlined
                   : ThemedButtonStyle.filled,
@@ -205,7 +209,9 @@ class ParameterPanel extends ConsumerWidget {
 
         // 步数
         _buildSectionTitle(
-            theme, context.l10n.generation_steps(params.steps.toString())),
+          theme,
+          context.l10n.generation_steps(params.steps.toString()),
+        ),
         Slider(
           value: params.steps.toDouble(),
           min: 1,
@@ -223,9 +229,9 @@ class ParameterPanel extends ConsumerWidget {
         Row(
           children: [
             _buildSectionTitle(
-                theme,
-                context.l10n
-                    .generation_cfgScale(params.scale.toStringAsFixed(1))),
+              theme,
+              context.l10n.generation_cfgScale(params.scale.toStringAsFixed(1)),
+            ),
             const Spacer(),
             // Decrisp (仅 V3 模型)
             if (params.isV3Model) ...[
@@ -272,11 +278,11 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 8),
         ThemedInput(
           controller: TextEditingController(
-              text: params.seed == -1 ? '' : params.seed.toString())
-            ..selection = TextSelection.fromPosition(
+            text: params.seed == -1 ? '' : params.seed.toString(),
+          )..selection = TextSelection.fromPosition(
               TextPosition(
-                  offset:
-                      params.seed == -1 ? 0 : params.seed.toString().length),
+                offset: params.seed == -1 ? 0 : params.seed.toString().length,
+              ),
             ),
           hintText: context.l10n.generation_seedRandom,
           keyboardType: TextInputType.number,
@@ -300,7 +306,8 @@ class ParameterPanel extends ConsumerWidget {
                       tooltip: context.l10n.common_copy,
                       onPressed: () {
                         Clipboard.setData(
-                            ClipboardData(text: params.seed.toString()));
+                          ClipboardData(text: params.seed.toString()),
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(context.l10n.common_copied),
@@ -425,8 +432,11 @@ class ParameterPanel extends ConsumerWidget {
             if (params.isV4Model)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.generation_cfgRescale(
-                    params.cfgRescale.toStringAsFixed(2))),
+                title: Text(
+                  context.l10n.generation_cfgRescale(
+                    params.cfgRescale.toStringAsFixed(2),
+                  ),
+                ),
                 subtitle: Slider(
                   value: params.cfgRescale,
                   min: 0,

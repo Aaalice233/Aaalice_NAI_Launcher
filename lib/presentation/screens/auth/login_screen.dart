@@ -51,7 +51,12 @@ class LoginScreen extends ConsumerWidget {
                     _buildFirstTimeLoginForm(context, theme, isWideScreen)
                   else
                     _buildQuickLoginView(
-                        context, ref, theme, isWideScreen, accounts),
+                      context,
+                      ref,
+                      theme,
+                      isWideScreen,
+                      accounts,
+                    ),
 
                   const SizedBox(height: 24),
 
@@ -154,9 +159,19 @@ class LoginScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(24),
           child: isWideScreen
               ? _buildWideScreenQuickLogin(
-                  context, ref, theme, defaultAccount, accounts)
+                  context,
+                  ref,
+                  theme,
+                  defaultAccount,
+                  accounts,
+                )
               : _buildMobileQuickLogin(
-                  context, ref, theme, defaultAccount, accounts),
+                  context,
+                  ref,
+                  theme,
+                  defaultAccount,
+                  accounts,
+                ),
         ),
       ),
     );
@@ -190,7 +205,11 @@ class LoginScreen extends ConsumerWidget {
               // 账号名（可点击切换）
               InkWell(
                 onTap: () => _showAccountSelector(
-                    context, ref, accounts, currentAccount),
+                  context,
+                  ref,
+                  accounts,
+                  currentAccount,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding:
@@ -666,7 +685,10 @@ class LoginScreen extends ConsumerWidget {
 
   /// 获取错误码对应的本地化文本
   String _getErrorText(
-      BuildContext context, AuthErrorCode errorCode, int? httpStatusCode) {
+    BuildContext context,
+    AuthErrorCode errorCode,
+    int? httpStatusCode,
+  ) {
     final l10n = context.l10n;
     final statusSuffix = httpStatusCode != null ? ' ($httpStatusCode)' : '';
 

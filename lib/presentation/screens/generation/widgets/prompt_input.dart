@@ -329,9 +329,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    context.l10n.prompt_clearConfirm(_isNegativeMode
-                        ? context.l10n.prompt_negativePrompt
-                        : context.l10n.prompt_positivePrompt),
+                    context.l10n.prompt_clearConfirm(
+                      _isNegativeMode
+                          ? context.l10n.prompt_negativePrompt
+                          : context.l10n.prompt_positivePrompt,
+                    ),
                     style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ],
@@ -1035,8 +1037,10 @@ class _FullScreenPromptEditorState
             // 正向提示词
             Row(
               children: [
-                Text(context.l10n.prompt_positivePrompt,
-                    style: theme.textTheme.titleMedium),
+                Text(
+                  context.l10n.prompt_positivePrompt,
+                  style: theme.textTheme.titleMedium,
+                ),
                 const SizedBox(width: 8),
                 if (_viewMode == PromptViewMode.tags)
                   Text(
@@ -1095,8 +1099,10 @@ class _FullScreenPromptEditorState
             // 负向提示词
             Row(
               children: [
-                Text(context.l10n.prompt_negativePrompt,
-                    style: theme.textTheme.titleMedium),
+                Text(
+                  context.l10n.prompt_negativePrompt,
+                  style: theme.textTheme.titleMedium,
+                ),
                 const SizedBox(width: 8),
                 if (_viewMode == PromptViewMode.tags)
                   Text(

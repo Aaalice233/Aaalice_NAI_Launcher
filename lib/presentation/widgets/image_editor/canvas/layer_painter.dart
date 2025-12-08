@@ -349,7 +349,11 @@ class SelectionPainter extends CustomPainter {
 
   /// 绘制虚线路径（使用缓存的 PathMetrics）
   void _drawDashedPath(
-      Canvas canvas, Path path, Paint paint, double dashOffset) {
+    Canvas canvas,
+    Path path,
+    Paint paint,
+    double dashOffset,
+  ) {
     // 检查路径是否变化，仅在变化时重新计算 metrics
     if (_cachedPath != path) {
       _cachedPath = path;

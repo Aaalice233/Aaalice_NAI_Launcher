@@ -227,10 +227,19 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                       // 根据模式显示对应内容
                       if (currentMode == ReferenceMode.vibe)
                         _buildVibeContentV4(
-                            context, theme, params, showBackground)
+                          context,
+                          theme,
+                          params,
+                          showBackground,
+                        )
                       else
                         _buildCharacterContent(
-                            context, theme, params, isV4Model, showBackground),
+                          context,
+                          theme,
+                          params,
+                          isV4Model,
+                          showBackground,
+                        ),
                     ],
                   ),
                 ),
@@ -245,7 +254,10 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
   /// 构建背景图片
   Widget _buildBackgroundImage(
-      ImageParams params, bool hasVibes, bool hasCharacterRefs) {
+    ImageParams params,
+    bool hasVibes,
+    bool hasCharacterRefs,
+  ) {
     if (hasCharacterRefs) {
       // 角色参考：单图背景
       return Image.memory(
