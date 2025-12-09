@@ -10,10 +10,12 @@ import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_api_service.dart';
+import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
+import 'character_prompt_provider.dart';
 import 'prompt_config_provider.dart';
 import 'subscription_provider.dart';
 
@@ -123,10 +125,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final ucPresetType = ref.read(ucPresetSettingsProvider);
     final ucPresetValue = ucPresetType.index; // enum index 正好对应 API 值
 
+    // 读取多角色提示词配置并转换为 API 格式
+    final characterConfig = ref.read(characterPromptNotifierProvider);
+    final apiCharacters = _convertCharactersToApiFormat(characterConfig);
+
     // 将设置应用到参数（不在客户端修改提示词内容，让后端处理）
     final ImageParams baseParams = params.copyWith(
       qualityToggle: addQualityTags,
       ucPreset: ucPresetValue,
+      characters: apiCharacters,
+      // 如果有角色且使用自定义位置，启用坐标模式
+      useCoords: apiCharacters.isNotEmpty && !characterConfig.globalAiChoice,
     );
 
     // 如果只生成 1 张，直接生成
@@ -432,6 +441,39 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   /// 清除历史
   void clearHistory() {
     state = state.copyWith(history: []);
+  }
+
+  /// 将 UI 层的角色提示词配置转换为 API 层的格式
+  ///
+  /// [config] UI 层的角色提示词配置
+  /// 返回 API 层的 CharacterPrompt 列表
+  List<CharacterPrompt> _convertCharactersToApiFormat(
+    ui_character.CharacterPromptConfig config,
+  ) {
+    // 过滤出启用且有提示词的角色
+    final enabledCharacters = config.characters
+        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .toList();
+
+    if (enabledCharacters.isEmpty) {
+      return [];
+    }
+
+    return enabledCharacters.map((uiChar) {
+      // 计算位置字符串
+      String? position;
+      if (!config.globalAiChoice &&
+          uiChar.positionMode == ui_character.CharacterPositionMode.custom &&
+          uiChar.customPosition != null) {
+        position = uiChar.customPosition!.toNaiString();
+      }
+
+      return CharacterPrompt(
+        prompt: uiChar.prompt,
+        negativePrompt: uiChar.negativePrompt,
+        position: position,
+      );
+    }).toList();
   }
 }
 

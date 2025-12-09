@@ -9,6 +9,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
+import '../../../widgets/character/character_prompt_button.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
@@ -259,6 +260,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         // 使用 Expanded 填充剩余空间
         const Expanded(child: SizedBox()),
+
+        // 多人角色提示词按钮
+        const CharacterPromptButton(),
+
+        const SizedBox(width: 8),
 
         // 质量词提示
         QualityTagsHint(
