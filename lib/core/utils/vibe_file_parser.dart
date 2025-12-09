@@ -45,8 +45,11 @@ class VibeFileParser {
 
       case 'naiv4vibe':
         return [
-          await fromNaiV4Vibe(fileName, bytes,
-              defaultStrength: defaultStrength),
+          await fromNaiV4Vibe(
+            fileName,
+            bytes,
+            defaultStrength: defaultStrength,
+          ),
         ];
 
       case 'naiv4vibebundle':

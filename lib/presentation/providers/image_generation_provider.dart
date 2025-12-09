@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -12,7 +11,6 @@ import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
-import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
 import 'character_prompt_provider.dart';

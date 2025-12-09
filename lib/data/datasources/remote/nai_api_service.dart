@@ -14,7 +14,6 @@ import '../../../core/crypto/nai_crypto_service.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/zip_utils.dart';
-import '../../models/auth/auth_token.dart';
 import '../../models/image/image_params.dart';
 import '../../models/image/image_stream_chunk.dart';
 import '../../models/tag/tag_suggestion.dart';
