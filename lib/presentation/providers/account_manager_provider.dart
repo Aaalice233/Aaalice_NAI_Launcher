@@ -40,20 +40,22 @@ class AccountManagerState {
 }
 
 /// 账号管理器
-@riverpod
+@Riverpod(keepAlive: true)
 class AccountManagerNotifier extends _$AccountManagerNotifier {
   static const String _boxName = 'accounts';
   static const String _accountsKey = 'saved_accounts';
 
   Box? _box;
-  SecureStorageService? _secureStorage;
 
   @override
   AccountManagerState build() {
-    _secureStorage = ref.watch(secureStorageServiceProvider);
     _loadAccounts();
     return const AccountManagerState(isLoading: true);
   }
+
+  /// 获取 SecureStorageService
+  SecureStorageService get _secureStorage =>
+      ref.read(secureStorageServiceProvider);
 
   /// 加载账号列表
   Future<void> _loadAccounts() async {
@@ -89,23 +91,17 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
   /// 获取账号 Token
   Future<String?> getAccountToken(String accountId) async {
-    return _secureStorage?.getAccountToken(accountId);
+    return _secureStorage.getAccountToken(accountId);
   }
 
   /// 保存账号 Token
   Future<void> _saveAccountToken(String accountId, String token) async {
-    final storage = _secureStorage;
-    if (storage != null) {
-      await storage.saveAccountToken(accountId, token);
-    }
+    await _secureStorage.saveAccountToken(accountId, token);
   }
 
   /// 删除账号 Token
   Future<void> _deleteAccountToken(String accountId) async {
-    final storage = _secureStorage;
-    if (storage != null) {
-      await storage.deleteAccountToken(accountId);
-    }
+    await _secureStorage.deleteAccountToken(accountId);
   }
 
   /// 添加账号

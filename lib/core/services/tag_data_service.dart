@@ -147,7 +147,9 @@ class TagDataService {
         );
       } catch (e) {
         AppLogger.w(
-            'Background download failed, using builtin data: $e', 'TagData');
+          'Background download failed, using builtin data: $e',
+          'TagData',
+        );
         // 下载失败保持使用内置数据，不影响应用使用
       }
     });

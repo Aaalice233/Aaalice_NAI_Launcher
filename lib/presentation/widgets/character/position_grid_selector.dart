@@ -41,16 +41,12 @@ class PositionGridSelector extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final totalSize = gridSize * cellSize + (gridSize - 1) * cellSpacing;
-
     return Container(
-      width: totalSize,
-      height: totalSize,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: colorScheme.outline.withOpacity(0.2),
+          color: colorScheme.outline.withOpacity(0.4),
           width: 1,
         ),
       ),
@@ -129,12 +125,12 @@ class _GridCell extends StatelessWidget {
               color: isSelected
                   ? colorScheme.primary.withOpacity(0.8 * effectiveOpacity)
                   : colorScheme.surfaceContainerHigh
-                      .withOpacity(0.5 * effectiveOpacity),
+                      .withOpacity(0.8 * effectiveOpacity),
               borderRadius: BorderRadius.circular(4),
               border: Border.all(
                 color: isSelected
                     ? colorScheme.primary.withOpacity(effectiveOpacity)
-                    : colorScheme.outline.withOpacity(0.3 * effectiveOpacity),
+                    : colorScheme.outline.withOpacity(0.5 * effectiveOpacity),
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: isSelected
@@ -194,6 +190,7 @@ class LabeledPositionGridSelector extends StatelessWidget {
     const cellSize = 28.0;
     const cellSpacing = 2.0;
     const labelWidth = 16.0;
+    const gridSize = PositionGridSelector.gridSize;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -201,13 +198,13 @@ class LabeledPositionGridSelector extends StatelessWidget {
       children: [
         // 列标签 (A-E)
         Padding(
-          padding: const EdgeInsets.only(left: labelWidth + 4),
+          padding: const EdgeInsets.only(left: labelWidth + 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: List.generate(PositionGridSelector.gridSize, (column) {
+            children: List.generate(gridSize, (column) {
               final label = String.fromCharCode('A'.codeUnitAt(0) + column);
               return SizedBox(
-                width: cellSize + (column < 4 ? cellSpacing : 0),
+                width: cellSize + (column < gridSize - 1 ? cellSpacing : 0),
                 child: Text(
                   label,
                   textAlign: TextAlign.center,
@@ -227,27 +224,30 @@ class LabeledPositionGridSelector extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 行标签 (1-5)
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(PositionGridSelector.gridSize, (row) {
-                return SizedBox(
-                  width: labelWidth,
-                  height: cellSize + (row < 4 ? cellSpacing : 0),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Text(
-                        '${row + 1}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-                          fontWeight: FontWeight.w500,
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(gridSize, (row) {
+                  return SizedBox(
+                    width: labelWidth,
+                    height: cellSize + (row < gridSize - 1 ? cellSpacing : 0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Text(
+                          '${row + 1}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ),
             // 网格
             PositionGridSelector(

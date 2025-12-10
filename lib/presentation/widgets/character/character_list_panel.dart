@@ -10,7 +10,7 @@ import 'character_list_item.dart';
 /// 显示所有角色的可滚动列表，支持添加、选择、排序和删除操作。
 ///
 /// Requirements: 1.2, 4.1, 4.3
-class CharacterListPanel extends ConsumerWidget {
+class CharacterListPanel extends ConsumerStatefulWidget {
   /// 当前选中的角色ID
   final String? selectedCharacterId;
 
@@ -28,15 +28,20 @@ class CharacterListPanel extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CharacterListPanel> createState() => _CharacterListPanelState();
+}
+
+class _CharacterListPanelState extends ConsumerState<CharacterListPanel> {
+  @override
+  Widget build(BuildContext context) {
     final characters = ref.watch(characterListProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 添加角色按钮
-        _AddCharacterButton(
-          onPressed: () => _addCharacter(ref),
+        // 添加角色按钮组（按性别分类）
+        _AddCharacterButtons(
+          onAddCharacter: (gender) => _addCharacter(gender),
         ),
         const SizedBox(height: 8),
 
@@ -46,62 +51,58 @@ class CharacterListPanel extends ConsumerWidget {
               ? _EmptyState()
               : _CharacterList(
                   characters: characters,
-                  selectedCharacterId: selectedCharacterId,
-                  onCharacterSelected: onCharacterSelected,
-                  showActions: showActions,
-                  onMoveUp: (index) => _moveCharacterUp(ref, index),
-                  onMoveDown: (index) => _moveCharacterDown(ref, index),
-                  onDelete: (id) => _deleteCharacter(context, ref, id),
+                  selectedCharacterId: widget.selectedCharacterId,
+                  onCharacterSelected: widget.onCharacterSelected,
+                  showActions: widget.showActions,
+                  onMoveUp: (index) => _moveCharacterUp(index),
+                  onMoveDown: (index) => _moveCharacterDown(index),
+                  onDelete: (id) => _deleteCharacter(id),
                   onReorder: (oldIndex, newIndex) =>
-                      _reorderCharacters(ref, oldIndex, newIndex),
+                      _reorderCharacters(oldIndex, newIndex),
                 ),
         ),
       ],
     );
   }
 
-  /// 添加新角色
-  void _addCharacter(WidgetRef ref) {
+  /// 添加新角色（带性别）
+  void _addCharacter(CharacterGender gender) {
     final notifier = ref.read(characterPromptNotifierProvider.notifier);
-    notifier.addCharacter();
+    notifier.addCharacter(gender: gender);
 
     // 自动选中新添加的角色
     final characters = ref.read(characterListProvider);
     if (characters.isNotEmpty) {
       final newCharacterId = characters.last.id;
-      onCharacterSelected?.call(newCharacterId);
+      widget.onCharacterSelected?.call(newCharacterId);
     }
   }
 
   /// 上移角色
-  void _moveCharacterUp(WidgetRef ref, int index) {
+  void _moveCharacterUp(int index) {
     ref.read(characterPromptNotifierProvider.notifier).moveCharacterUp(index);
   }
 
   /// 下移角色
-  void _moveCharacterDown(WidgetRef ref, int index) {
+  void _moveCharacterDown(int index) {
     ref.read(characterPromptNotifierProvider.notifier).moveCharacterDown(index);
   }
 
   /// 删除角色
-  Future<void> _deleteCharacter(
-    BuildContext context,
-    WidgetRef ref,
-    String id,
-  ) async {
+  Future<void> _deleteCharacter(String id) async {
     final confirmed = await _showDeleteConfirmDialog(context);
     if (confirmed == true) {
       ref.read(characterPromptNotifierProvider.notifier).removeCharacter(id);
 
       // 如果删除的是当前选中的角色，清除选择
-      if (selectedCharacterId == id) {
-        onCharacterSelected?.call(null);
+      if (widget.selectedCharacterId == id) {
+        widget.onCharacterSelected?.call(null);
       }
     }
   }
 
   /// 重新排序角色
-  void _reorderCharacters(WidgetRef ref, int oldIndex, int newIndex) {
+  void _reorderCharacters(int oldIndex, int newIndex) {
     ref
         .read(characterPromptNotifierProvider.notifier)
         .reorderCharacters(oldIndex, newIndex);
@@ -133,49 +134,94 @@ class CharacterListPanel extends ConsumerWidget {
 }
 
 
-/// 添加角色按钮
-class _AddCharacterButton extends StatelessWidget {
-  final VoidCallback onPressed;
+/// 添加角色按钮组（按性别分类，紧凑版）
+class _AddCharacterButtons extends StatelessWidget {
+  final ValueChanged<CharacterGender> onAddCharacter;
 
-  const _AddCharacterButton({required this.onPressed});
+  const _AddCharacterButtons({required this.onAddCharacter});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: colorScheme.primary.withOpacity(0.5),
-              width: 1,
+    return Row(
+      children: [
+        _GenderAddButton(
+          icon: Icons.female,
+          label: '女',
+          color: Colors.pink.shade300,
+          onTap: () => onAddCharacter(CharacterGender.female),
+        ),
+        const SizedBox(width: 6),
+        _GenderAddButton(
+          icon: Icons.male,
+          label: '男',
+          color: Colors.blue.shade300,
+          onTap: () => onAddCharacter(CharacterGender.male),
+        ),
+        const SizedBox(width: 6),
+        _GenderAddButton(
+          icon: Icons.transgender,
+          label: '其他',
+          color: Colors.purple.shade300,
+          onTap: () => onAddCharacter(CharacterGender.other),
+        ),
+      ],
+    );
+  }
+}
+
+/// 性别添加按钮（紧凑版）
+class _GenderAddButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _GenderAddButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: color.withOpacity(0.5),
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(6),
+              color: color.withOpacity(0.1),
             ),
-            borderRadius: BorderRadius.circular(8),
-            color: colorScheme.primary.withOpacity(0.05),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.add,
-                size: 20,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '添加角色',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w500,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add, size: 14, color: color),
+                const SizedBox(width: 2),
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -78,7 +78,7 @@ class CharacterPrompt with _$CharacterPrompt {
     required String name,
     CharacterGender gender = CharacterGender.female,
     String prompt = '',
-    String negativePrompt = '',
+    String negativePrompt = 'lowres, aliasing, ',
     CharacterPositionMode positionMode = CharacterPositionMode.aiChoice,
     CharacterPosition? customPosition,
   }) {
@@ -94,25 +94,42 @@ class CharacterPrompt with _$CharacterPrompt {
   }
 
   /// 生成NAI格式的角色提示词
-  /// [useAiPosition] 是否强制使用AI选择位置（全局设置覆盖）
+  /// [useAiPosition] 是否使用AI选择位置（全局设置）
   String toNaiPrompt({bool useAiPosition = false}) {
     if (!enabled || prompt.isEmpty) return '';
 
     final buffer = StringBuffer();
     buffer.write('[');
+
+    // 添加性别提示词
+    final genderTag = _getGenderTag();
+    if (genderTag.isNotEmpty) {
+      buffer.write(genderTag);
+      buffer.write(', ');
+    }
+
     buffer.write(prompt);
 
-    // 处理位置
-    final shouldUseCustomPosition =
-        !useAiPosition && positionMode == CharacterPositionMode.custom && customPosition != null;
-
-    if (shouldUseCustomPosition) {
+    // 处理位置：全局AI选择时不添加位置，否则使用自定义位置
+    if (!useAiPosition && customPosition != null) {
       buffer.write(', position: ');
       buffer.write(customPosition!.toNaiString());
     }
 
     buffer.write(']');
     return buffer.toString();
+  }
+
+  /// 根据性别返回对应的提示词标签
+  String _getGenderTag() {
+    switch (gender) {
+      case CharacterGender.female:
+        return '1girl';
+      case CharacterGender.male:
+        return '1boy';
+      case CharacterGender.other:
+        return '';
+    }
   }
 }
 

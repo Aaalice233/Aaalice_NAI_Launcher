@@ -56,7 +56,6 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
         TextEditingController(text: widget.character.negativePrompt);
   }
 
-
   @override
   void didUpdateWidget(CharacterDetailPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -99,27 +98,6 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
     }
   }
 
-  void _onGenderChanged(CharacterGender gender) {
-    if (gender != widget.character.gender) {
-      _updateCharacter(widget.character.copyWith(gender: gender));
-    }
-  }
-
-  void _onPositionModeChanged(CharacterPositionMode mode) {
-    if (mode != widget.character.positionMode) {
-      _updateCharacter(
-        widget.character.copyWith(
-          positionMode: mode,
-          // 切换到自定义模式时，如果没有位置则设置默认位置
-          customPosition: mode == CharacterPositionMode.custom &&
-                  widget.character.customPosition == null
-              ? const CharacterPosition(row: 2, column: 2)
-              : widget.character.customPosition,
-        ),
-      );
-    }
-  }
-
   void _onPositionSelected(CharacterPosition position) {
     _updateCharacter(widget.character.copyWith(customPosition: position));
   }
@@ -131,12 +109,11 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 名称和性别行
-          _NameAndGenderRow(
+          // 名称行（只读性别显示）
+          _NameRow(
             nameController: _nameController,
             gender: widget.character.gender,
             onNameChanged: _onNameChanged,
-            onGenderChanged: _onGenderChanged,
           ),
           const SizedBox(height: 20),
 
@@ -159,15 +136,14 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
           ),
           const SizedBox(height: 20),
 
-          // 位置设置
-          _PositionSection(
-            positionMode: widget.character.positionMode,
-            customPosition: widget.character.customPosition,
-            globalAiChoice: widget.globalAiChoice,
-            onPositionModeChanged: _onPositionModeChanged,
-            onPositionSelected: _onPositionSelected,
-          ),
-          const SizedBox(height: 16),
+          // 位置设置（仅当全局AI选择未启用时显示）
+          if (!widget.globalAiChoice) ...[
+            _PositionGridSection(
+              customPosition: widget.character.customPosition,
+              onPositionSelected: _onPositionSelected,
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Token计数
           _TokenCountDisplay(prompt: widget.character.prompt),
@@ -177,43 +153,93 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
   }
 }
 
-
-/// 名称和性别行组件
-class _NameAndGenderRow extends StatelessWidget {
+/// 名称行组件（带只读性别图标显示）
+class _NameRow extends StatelessWidget {
   final TextEditingController nameController;
   final CharacterGender gender;
   final ValueChanged<String> onNameChanged;
-  final ValueChanged<CharacterGender> onGenderChanged;
 
-  const _NameAndGenderRow({
+  const _NameRow({
     required this.nameController,
     required this.gender,
     required this.onNameChanged,
-    required this.onGenderChanged,
   });
+
+  IconData get _genderIcon {
+    switch (gender) {
+      case CharacterGender.female:
+        return Icons.female;
+      case CharacterGender.male:
+        return Icons.male;
+      case CharacterGender.other:
+        return Icons.transgender;
+    }
+  }
+
+  Color get _genderColor {
+    switch (gender) {
+      case CharacterGender.female:
+        return Colors.pink.shade300;
+      case CharacterGender.male:
+        return Colors.blue.shade300;
+      case CharacterGender.other:
+        return Colors.purple.shade300;
+    }
+  }
+
+  String get _genderTooltip {
+    switch (gender) {
+      case CharacterGender.female:
+        return '女性（添加时选择）';
+      case CharacterGender.male:
+        return '男性（添加时选择）';
+      case CharacterGender.other:
+        return '其他（添加时选择）';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 名称输入
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '名称',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+        Text(
+          '名称',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            // 性别图标（只读）
+            Tooltip(
+              message: _genderTooltip,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: _genderColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                child: Icon(
+                  _genderIcon,
+                  size: 20,
+                  color: _genderColor,
                 ),
               ),
-              const SizedBox(height: 6),
-              TextField(
+            ),
+            const SizedBox(width: 12),
+            // 名称输入
+            Expanded(
+              child: TextField(
                 controller: nameController,
                 onChanged: onNameChanged,
                 maxLength: 50,
@@ -246,148 +272,13 @@ class _NameAndGenderRow extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-
-        // 性别选择器
-        _GenderSelector(
-          selectedGender: gender,
-          onGenderChanged: onGenderChanged,
+            ),
+          ],
         ),
       ],
     );
   }
 }
-
-/// 性别选择器组件
-class _GenderSelector extends StatelessWidget {
-  final CharacterGender selectedGender;
-  final ValueChanged<CharacterGender> onGenderChanged;
-
-  const _GenderSelector({
-    required this.selectedGender,
-    required this.onGenderChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '性别',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: colorScheme.outline.withOpacity(0.3),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: CharacterGender.values.map((gender) {
-              final isSelected = gender == selectedGender;
-              return _GenderButton(
-                gender: gender,
-                isSelected: isSelected,
-                onTap: () => onGenderChanged(gender),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// 性别按钮组件
-class _GenderButton extends StatelessWidget {
-  final CharacterGender gender;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _GenderButton({
-    required this.gender,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  IconData get _icon {
-    switch (gender) {
-      case CharacterGender.female:
-        return Icons.female;
-      case CharacterGender.male:
-        return Icons.male;
-      case CharacterGender.other:
-        return Icons.transgender;
-    }
-  }
-
-  Color get _color {
-    switch (gender) {
-      case CharacterGender.female:
-        return Colors.pink.shade300;
-      case CharacterGender.male:
-        return Colors.blue.shade300;
-      case CharacterGender.other:
-        return Colors.purple.shade300;
-    }
-  }
-
-  String get _tooltip {
-    switch (gender) {
-      case CharacterGender.female:
-        return '女性';
-      case CharacterGender.male:
-        return '男性';
-      case CharacterGender.other:
-        return '其他';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Tooltip(
-      message: _tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: isSelected ? _color.withOpacity(0.2) : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              _icon,
-              size: 20,
-              color: isSelected ? _color : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 
 /// 提示词编辑区域组件
 class _PromptSection extends StatelessWidget {
@@ -456,19 +347,13 @@ class _PromptSection extends StatelessWidget {
   }
 }
 
-/// 位置设置区域组件
-class _PositionSection extends StatelessWidget {
-  final CharacterPositionMode positionMode;
+/// 位置网格区域组件（简化版，仅显示网格选择器）
+class _PositionGridSection extends StatelessWidget {
   final CharacterPosition? customPosition;
-  final bool globalAiChoice;
-  final ValueChanged<CharacterPositionMode> onPositionModeChanged;
   final ValueChanged<CharacterPosition> onPositionSelected;
 
-  const _PositionSection({
-    required this.positionMode,
+  const _PositionGridSection({
     this.customPosition,
-    required this.globalAiChoice,
-    required this.onPositionModeChanged,
     required this.onPositionSelected,
   });
 
@@ -477,146 +362,21 @@ class _PositionSection extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // 如果全局AI选择启用，显示提示信息
-    final isOverridden = globalAiChoice;
-    final effectiveMode =
-        isOverridden ? CharacterPositionMode.aiChoice : positionMode;
-    final showGrid = effectiveMode == CharacterPositionMode.custom;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              '位置',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (isOverridden) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '全局AI选择已启用',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ],
+        Text(
+          '位置',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 8),
-
-        // 位置模式下拉框
-        Row(
-          children: [
-            Expanded(
-              child: _PositionModeDropdown(
-                value: positionMode,
-                enabled: !isOverridden,
-                onChanged: onPositionModeChanged,
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // 位置网格（仅在自定义模式下显示）
-            if (showGrid)
-              LabeledPositionGridSelector(
-                selectedPosition: customPosition,
-                onPositionSelected: onPositionSelected,
-                enabled: !isOverridden,
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// 位置模式下拉框组件
-class _PositionModeDropdown extends StatelessWidget {
-  final CharacterPositionMode value;
-  final bool enabled;
-  final ValueChanged<CharacterPositionMode> onChanged;
-
-  const _PositionModeDropdown({
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return DropdownButtonFormField<CharacterPositionMode>(
-      value: value,
-      onChanged: enabled ? (v) => v != null ? onChanged(v) : null : null,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
-          ),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.15),
-          ),
-        ),
-      ),
-      items: [
-        DropdownMenuItem(
-          value: CharacterPositionMode.aiChoice,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 16,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              const Text("AI's Choice"),
-            ],
-          ),
-        ),
-        DropdownMenuItem(
-          value: CharacterPositionMode.custom,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.grid_on,
-                size: 16,
-                color: colorScheme.secondary,
-              ),
-              const SizedBox(width: 8),
-              const Text('Custom'),
-            ],
-          ),
+        LabeledPositionGridSelector(
+          selectedPosition: customPosition ?? const CharacterPosition(row: 2, column: 2),
+          onPositionSelected: onPositionSelected,
+          enabled: true,
         ),
       ],
     );
