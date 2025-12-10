@@ -90,8 +90,9 @@ class PromptEditorToolbarConfig {
   /// 紧凑模式预设配置
   ///
   /// 适用于空间有限的场景，仅显示必要的操作按钮。
+  /// 视图模式切换由主界面统一控制，此处禁用。
   static const compactMode = PromptEditorToolbarConfig(
-    showViewModeToggle: true,
+    showViewModeToggle: false,
     showRandomButton: false,
     showFullscreenButton: false,
     showClearButton: true,
