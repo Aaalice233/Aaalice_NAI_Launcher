@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../providers/image_generation_provider.dart';
+import '../prompt/toolbar/toolbar.dart';
 import '../prompt/unified/unified.dart';
 import 'position_grid_selector.dart';
 
@@ -318,8 +320,10 @@ class _NameRow extends StatelessWidget {
 
 /// 提示词编辑区域组件
 ///
-/// 使用 [UnifiedPromptInput] 提供自动补全、标签视图切换、语法高亮等功能。
-/// Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 5.1, 5.2
+/// 使用 [PromptEditorWithToolbar] 提供工具栏、自动补全、标签视图切换、语法高亮等功能。
+/// 角色编辑器不显示设置按钮，所有文本处理设置从共享 Provider 读取，由主界面统一控制。
+///
+/// Requirements: 2.1, 2.2, 2.3, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
 class _PromptSection extends ConsumerWidget {
   final String label;
   final TextEditingController controller;
@@ -327,7 +331,7 @@ class _PromptSection extends ConsumerWidget {
   final String? hintText;
   final int maxLines;
 
-  /// 是否使用紧凑模式（禁用视图切换）
+  /// 是否使用紧凑模式（禁用视图切换，使用 compactMode 预设）
   final bool compact;
 
   const _PromptSection({
@@ -344,56 +348,98 @@ class _PromptSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // 根据 compact 参数选择配置
-    final config = compact
-        ? UnifiedPromptConfig.compactMode.copyWith(
-            hintText: hintText,
-          )
-        : UnifiedPromptConfig.characterEditor.copyWith(
-            hintText: hintText,
-          );
+    // 从共享 Provider 读取文本处理设置
+    // Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
+    final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
+    final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
+    final enableSdSyntaxAutoConvert =
+        ref.watch(sdSyntaxAutoConvertSettingsProvider);
+
+    // 根据 compact 参数选择工具栏配置
+    // compact=true: 使用 compactMode 预设（负面提示词）
+    // compact=false: 使用 characterEditor 预设（正向提示词）
+    // 注意：角色编辑器不显示设置按钮 (Requirements: 6.6)
+    final toolbarConfig = compact
+        ? PromptEditorToolbarConfig.compactMode
+        : PromptEditorToolbarConfig.characterEditor;
+
+    // 根据 compact 参数选择输入组件配置
+    // 使用从 Provider 读取的设置值覆盖默认配置
+    final baseConfig = compact
+        ? UnifiedPromptConfig.compactMode
+        : UnifiedPromptConfig.characterEditor;
+
+    final inputConfig = baseConfig.copyWith(
+      hintText: hintText,
+      enableAutocomplete: enableAutocomplete,
+      enableAutoFormat: enableAutoFormat,
+      enableSyntaxHighlight: enableHighlight,
+      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+    );
+
+    final inputDecoration = InputDecoration(
+      hintText: hintText,
+      isDense: true,
+      contentPadding: const EdgeInsets.all(12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(
+          color: colorScheme.outline.withOpacity(0.3),
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(
+          color: colorScheme.outline.withOpacity(0.3),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(
+          color: colorScheme.primary,
+          width: 1.5,
+        ),
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
-          ),
+        // 标题和工具栏在同一行
+        Row(
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            PromptEditorToolbar(
+              config: toolbarConfig,
+              viewMode: PromptViewMode.text,
+              onClearPressed: () => onChanged(''),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
-        UnifiedPromptInput(
-          config: config,
+        PromptEditorWithToolbar(
+          // 工具栏已在上方显示，这里禁用
+          toolbarConfig: toolbarConfig.copyWith(
+            showClearButton: false,
+            showViewModeToggle: false,
+          ),
+          inputConfig: inputConfig,
           controller: controller,
           onChanged: onChanged,
+          onCleared: () => onChanged(''),
+          // 角色编辑器不显示设置按钮，无需传递 onSettingsPressed
+          // Requirements: 6.6
           maxLines: maxLines,
           minLines: 3,
-          decoration: InputDecoration(
-            hintText: hintText,
-            isDense: true,
-            contentPadding: const EdgeInsets.all(12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: colorScheme.outline.withOpacity(0.3),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: colorScheme.outline.withOpacity(0.3),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: colorScheme.primary,
-                width: 1.5,
-              ),
-            ),
-          ),
+          decoration: inputDecoration,
         ),
       ],
     );
