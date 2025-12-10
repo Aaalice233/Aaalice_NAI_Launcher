@@ -814,5 +814,71 @@
       "count": {"type": "int"}
     }
   },
-  "drop_addedToCharacterRef": "已添加到角色参考"
+  "drop_addedToCharacterRef": "已添加到角色参考",
+
+  "characterEditor_title": "多人角色提示词",
+  "characterEditor_close": "关闭",
+  "characterEditor_confirm": "确定",
+  "characterEditor_clearAll": "清空所有",
+  "characterEditor_clearAllTitle": "清空所有角色",
+  "characterEditor_clearAllConfirm": "确定要删除所有角色吗？此操作无法撤销。",
+  "characterEditor_tabList": "角色列表",
+  "characterEditor_tabDetail": "角色详情",
+  "characterEditor_globalAiChoice": "全局AI选择位置",
+  "characterEditor_globalAiChoiceHint": "启用后，所有角色的位置将由AI自动决定",
+  "characterEditor_emptyTitle": "请选择一个角色",
+  "characterEditor_emptyHint": "从左侧列表选择或添加新角色",
+  "characterEditor_noCharacters": "暂无角色",
+  "characterEditor_addCharacterHint": "点击上方按钮添加角色",
+  "characterEditor_deleteTitle": "删除角色",
+  "characterEditor_deleteConfirm": "确定要删除这个角色吗？此操作无法撤销。",
+  "characterEditor_name": "名称",
+  "characterEditor_nameHint": "输入角色名称",
+  "characterEditor_enabled": "启用",
+  "characterEditor_promptHint": "输入角色的正向提示词...",
+  "characterEditor_negativePromptHint": "输入角色的负面提示词...",
+  "characterEditor_position": "位置",
+  "characterEditor_genderFemale": "女性",
+  "characterEditor_genderMale": "男性",
+  "characterEditor_genderOther": "其他",
+  "characterEditor_genderFemaleHint": "女性（添加时选择）",
+  "characterEditor_genderMaleHint": "男性（添加时选择）",
+  "characterEditor_genderOtherHint": "其他（添加时选择）",
+  "characterEditor_addFemale": "女",
+  "characterEditor_addMale": "男",
+  "characterEditor_addOther": "其他",
+  "characterEditor_moveUp": "上移",
+  "characterEditor_moveDown": "下移",
+  "characterEditor_aiChoice": "AI选择",
+  "characterEditor_positionLabel": "位置:",
+  "characterEditor_promptLabel": "提示词:",
+  "characterEditor_disabled": "[禁用]",
+  "characterEditor_characterCount": "{count} 角色",
+  "@characterEditor_characterCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "characterEditor_characterCountWithEnabled": "{enabled}/{total} 角色",
+  "@characterEditor_characterCountWithEnabled": {
+    "placeholders": {
+      "enabled": {},
+      "total": {}
+    }
+  },
+  "characterEditor_tooltipWithCount": "多人角色提示词 ({count} 个角色)",
+  "@characterEditor_tooltipWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "characterEditor_clickToEdit": "点击编辑多人角色提示词",
+
+  "toolbar_switchToTextView": "切换到文本视图",
+  "toolbar_switchToTagView": "切换到标签视图",
+  "toolbar_randomPrompt": "随机提示词",
+  "toolbar_fullscreenEdit": "全屏编辑",
+  "toolbar_clear": "清空",
+  "toolbar_confirmClear": "确认清空",
+  "toolbar_settings": "设置"
 }

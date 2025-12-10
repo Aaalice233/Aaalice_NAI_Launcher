@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
@@ -134,19 +135,20 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
 
           // 正向提示词
           _PromptSection(
-            label: 'Prompt',
+            label: AppLocalizations.of(context)!.prompt_positivePrompt,
             controller: _promptController,
             onChanged: _onPromptChanged,
-            hintText: '输入角色的正向提示词...',
+            hintText: AppLocalizations.of(context)!.characterEditor_promptHint,
           ),
           const SizedBox(height: 16),
 
           // 负面提示词（使用紧凑模式，禁用视图切换）
           _PromptSection(
-            label: 'Undesired Content',
+            label: AppLocalizations.of(context)!.prompt_negativePrompt,
             controller: _negativePromptController,
             onChanged: _onNegativePromptChanged,
-            hintText: '输入角色的负面提示词...',
+            hintText: AppLocalizations.of(context)!
+                .characterEditor_negativePromptHint,
             maxLines: 3,
             compact: true,
           ),
@@ -203,14 +205,15 @@ class _NameRow extends StatelessWidget {
     }
   }
 
-  String get _genderTooltip {
+  String _getGenderTooltip(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     switch (gender) {
       case CharacterGender.female:
-        return '女性（添加时选择）';
+        return l10n.characterEditor_genderFemaleHint;
       case CharacterGender.male:
-        return '男性（添加时选择）';
+        return l10n.characterEditor_genderMaleHint;
       case CharacterGender.other:
-        return '其他（添加时选择）';
+        return l10n.characterEditor_genderOtherHint;
     }
   }
 
@@ -218,12 +221,13 @@ class _NameRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '名称',
+          l10n.characterEditor_name,
           style: theme.textTheme.labelMedium?.copyWith(
             color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
@@ -234,7 +238,7 @@ class _NameRow extends StatelessWidget {
           children: [
             // 性别图标（只读）
             Tooltip(
-              message: _genderTooltip,
+              message: _getGenderTooltip(context),
               child: Container(
                 width: 36,
                 height: 36,
@@ -260,7 +264,7 @@ class _NameRow extends StatelessWidget {
                 onChanged: onNameChanged,
                 maxLength: 50,
                 decoration: InputDecoration(
-                  hintText: '输入角色名称',
+                  hintText: l10n.characterEditor_nameHint,
                   counterText: '',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
@@ -295,7 +299,7 @@ class _NameRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '启用',
+                  l10n.characterEditor_enabled,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -460,12 +464,13 @@ class _PositionGridSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '位置',
+          l10n.characterEditor_position,
           style: theme.textTheme.labelMedium?.copyWith(
             color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,

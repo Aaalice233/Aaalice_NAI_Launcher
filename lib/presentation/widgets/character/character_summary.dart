@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
@@ -37,7 +38,7 @@ class CharacterSummary extends ConsumerWidget {
 
     // 构建摘要文本
     final summaryText = _buildSummaryText(characters);
-    final tooltipText = _buildTooltipText(characters);
+    final tooltipText = _buildTooltipText(context, characters);
 
     Widget content = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -100,10 +101,7 @@ class CharacterSummary extends ConsumerWidget {
     final enabledCount = characters.where((c) => c.enabled).length;
 
     // 获取角色名称列表
-    final names = characters
-        .take(maxDisplayNames)
-        .map((c) => c.name)
-        .toList();
+    final names = characters.take(maxDisplayNames).map((c) => c.name).toList();
 
     final namesText = names.join(', ');
     final hasMore = count > maxDisplayNames;
@@ -117,25 +115,28 @@ class CharacterSummary extends ConsumerWidget {
   }
 
   /// 构建工具提示文本
-  String _buildTooltipText(List<CharacterPrompt> characters) {
+  String _buildTooltipText(
+      BuildContext context, List<CharacterPrompt> characters) {
+    final l10n = AppLocalizations.of(context)!;
     final buffer = StringBuffer();
-    buffer.writeln('多人角色提示词');
+    buffer.writeln(l10n.characterEditor_title);
     buffer.writeln('─────────────');
 
     for (int i = 0; i < characters.length; i++) {
       final char = characters[i];
       final genderIcon = _getGenderIcon(char.gender);
-      final positionText = _getPositionText(char);
-      final enabledText = char.enabled ? '' : ' [禁用]';
+      final positionText = _getPositionText(context, char);
+      final enabledText =
+          char.enabled ? '' : ' ${l10n.characterEditor_disabled}';
 
       buffer.writeln('${i + 1}. $genderIcon ${char.name}$enabledText');
-      buffer.writeln('   位置: $positionText');
+      buffer.writeln('   ${l10n.characterEditor_positionLabel} $positionText');
 
       if (char.prompt.isNotEmpty) {
         final promptPreview = char.prompt.length > 30
             ? '${char.prompt.substring(0, 30)}...'
             : char.prompt;
-        buffer.writeln('   提示词: $promptPreview');
+        buffer.writeln('   ${l10n.characterEditor_promptLabel} $promptPreview');
       }
 
       if (i < characters.length - 1) {
@@ -157,9 +158,10 @@ class CharacterSummary extends ConsumerWidget {
     }
   }
 
-  String _getPositionText(CharacterPrompt character) {
+  String _getPositionText(BuildContext context, CharacterPrompt character) {
+    final l10n = AppLocalizations.of(context)!;
     if (character.positionMode == CharacterPositionMode.aiChoice) {
-      return 'AI选择';
+      return l10n.characterEditor_aiChoice;
     }
     if (character.customPosition != null) {
       final pos = character.customPosition!;
@@ -167,7 +169,7 @@ class CharacterSummary extends ConsumerWidget {
       final row = (pos.row + 1).toString();
       return '$col$row';
     }
-    return 'AI选择';
+    return l10n.characterEditor_aiChoice;
   }
 }
 
@@ -193,10 +195,12 @@ class CompactCharacterSummary extends ConsumerWidget {
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     final displayText = enabledCount < characterCount
-        ? '$enabledCount/$characterCount 角色'
-        : '$characterCount 角色';
+        ? l10n.characterEditor_characterCountWithEnabled(
+            enabledCount, characterCount)
+        : l10n.characterEditor_characterCount(characterCount);
 
     Widget content = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -226,7 +230,7 @@ class CompactCharacterSummary extends ConsumerWidget {
 
     if (clickable) {
       content = Tooltip(
-        message: '点击编辑多人角色提示词',
+        message: l10n.characterEditor_clickToEdit,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
@@ -257,6 +261,7 @@ class CharacterSummaryRow extends ConsumerWidget {
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -279,7 +284,7 @@ class CharacterSummaryRow extends ConsumerWidget {
           TextButton.icon(
             onPressed: () => CharacterEditorDialog.show(context),
             icon: const Icon(Icons.edit, size: 16),
-            label: const Text('编辑'),
+            label: Text(l10n.common_edit),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               minimumSize: Size.zero,

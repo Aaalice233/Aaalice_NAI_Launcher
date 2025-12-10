@@ -1139,5 +1139,71 @@
       "count": {"type": "int"}
     }
   },
-  "drop_addedToCharacterRef": "Added to Character Reference"
+  "drop_addedToCharacterRef": "Added to Character Reference",
+
+  "characterEditor_title": "Multi-Character Prompts",
+  "characterEditor_close": "Close",
+  "characterEditor_confirm": "Confirm",
+  "characterEditor_clearAll": "Clear All",
+  "characterEditor_clearAllTitle": "Clear All Characters",
+  "characterEditor_clearAllConfirm": "Are you sure you want to delete all characters? This action cannot be undone.",
+  "characterEditor_tabList": "Character List",
+  "characterEditor_tabDetail": "Character Detail",
+  "characterEditor_globalAiChoice": "Global AI Position",
+  "characterEditor_globalAiChoiceHint": "When enabled, AI will automatically decide positions for all characters",
+  "characterEditor_emptyTitle": "Please select a character",
+  "characterEditor_emptyHint": "Select from the list or add a new character",
+  "characterEditor_noCharacters": "No characters",
+  "characterEditor_addCharacterHint": "Click buttons above to add characters",
+  "characterEditor_deleteTitle": "Delete Character",
+  "characterEditor_deleteConfirm": "Are you sure you want to delete this character? This action cannot be undone.",
+  "characterEditor_name": "Name",
+  "characterEditor_nameHint": "Enter character name",
+  "characterEditor_enabled": "Enabled",
+  "characterEditor_promptHint": "Enter positive prompt for this character...",
+  "characterEditor_negativePromptHint": "Enter negative prompt for this character...",
+  "characterEditor_position": "Position",
+  "characterEditor_genderFemale": "Female",
+  "characterEditor_genderMale": "Male",
+  "characterEditor_genderOther": "Other",
+  "characterEditor_genderFemaleHint": "Female (selected when adding)",
+  "characterEditor_genderMaleHint": "Male (selected when adding)",
+  "characterEditor_genderOtherHint": "Other (selected when adding)",
+  "characterEditor_addFemale": "F",
+  "characterEditor_addMale": "M",
+  "characterEditor_addOther": "Other",
+  "characterEditor_moveUp": "Move Up",
+  "characterEditor_moveDown": "Move Down",
+  "characterEditor_aiChoice": "AI",
+  "characterEditor_positionLabel": "Position:",
+  "characterEditor_promptLabel": "Prompt:",
+  "characterEditor_disabled": "[Disabled]",
+  "characterEditor_characterCount": "{count} characters",
+  "@characterEditor_characterCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "characterEditor_characterCountWithEnabled": "{enabled}/{total} characters",
+  "@characterEditor_characterCountWithEnabled": {
+    "placeholders": {
+      "enabled": {},
+      "total": {}
+    }
+  },
+  "characterEditor_tooltipWithCount": "Multi-Character Prompts ({count} characters)",
+  "@characterEditor_tooltipWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "characterEditor_clickToEdit": "Click to edit multi-character prompts",
+
+  "toolbar_switchToTextView": "Switch to Text View",
+  "toolbar_switchToTagView": "Switch to Tag View",
+  "toolbar_randomPrompt": "Random Prompt",
+  "toolbar_fullscreenEdit": "Fullscreen Edit",
+  "toolbar_clear": "Clear",
+  "toolbar_confirmClear": "Confirm Clear",
+  "toolbar_settings": "Settings"
 }

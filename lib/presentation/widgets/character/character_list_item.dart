@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../../data/models/character/character_prompt.dart';
 
@@ -143,7 +144,6 @@ class CharacterListItem extends StatelessWidget {
   }
 }
 
-
 /// 性别图标组件
 class _GenderIcon extends StatelessWidget {
   final CharacterGender gender;
@@ -270,6 +270,7 @@ class _ActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -278,20 +279,20 @@ class _ActionButtons extends StatelessWidget {
         _SmallIconButton(
           icon: Icons.arrow_upward,
           onPressed: onMoveUp,
-          tooltip: '上移',
+          tooltip: l10n.characterEditor_moveUp,
         ),
         // 下移按钮
         _SmallIconButton(
           icon: Icons.arrow_downward,
           onPressed: onMoveDown,
-          tooltip: '下移',
+          tooltip: l10n.characterEditor_moveDown,
         ),
         const SizedBox(width: 4),
         // 删除按钮
         _SmallIconButton(
           icon: Icons.delete_outline,
           onPressed: onDelete,
-          tooltip: '删除',
+          tooltip: l10n.common_delete,
           color: theme.colorScheme.error,
         ),
       ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/character_prompt_provider.dart';
@@ -19,11 +20,12 @@ class CharacterPromptButton extends ConsumerWidget {
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Tooltip(
       message: hasCharacters
-          ? '多人角色提示词 ($characterCount 个角色)'
-          : '多人角色提示词',
+          ? l10n.characterEditor_tooltipWithCount(characterCount)
+          : l10n.characterEditor_title,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -107,6 +109,7 @@ class CharacterPromptIconButton extends ConsumerWidget {
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -120,8 +123,8 @@ class CharacterPromptIconButton extends ConsumerWidget {
                 : colorScheme.onSurfaceVariant,
           ),
           tooltip: hasCharacters
-              ? '多人角色提示词 ($characterCount 个角色)'
-              : '多人角色提示词',
+              ? l10n.characterEditor_tooltipWithCount(characterCount)
+              : l10n.characterEditor_title,
         ),
         if (hasCharacters)
           Positioned(

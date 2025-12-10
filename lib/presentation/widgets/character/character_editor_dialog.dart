@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
@@ -77,7 +78,9 @@ class _CharacterEditorDialogState extends ConsumerState<CharacterEditorDialog>
   }
 
   void _onCharacterUpdated(CharacterPrompt character) {
-    ref.read(characterPromptNotifierProvider.notifier).updateCharacter(character);
+    ref
+        .read(characterPromptNotifierProvider.notifier)
+        .updateCharacter(character);
   }
 
   void _onGlobalAiChoiceChanged(bool value) {
@@ -95,22 +98,23 @@ class _CharacterEditorDialogState extends ConsumerState<CharacterEditorDialog>
   }
 
   Future<bool?> _showClearAllConfirmDialog() {
+    final l10n = AppLocalizations.of(context)!;
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('清空所有角色'),
-        content: const Text('确定要删除所有角色吗？此操作无法撤销。'),
+        title: Text(l10n.characterEditor_clearAllTitle),
+        content: Text(l10n.characterEditor_clearAllConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(l10n.common_cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('清空'),
+            child: Text(l10n.common_clear),
           ),
         ],
       ),
@@ -251,7 +255,6 @@ class _CharacterEditorDialogState extends ConsumerState<CharacterEditorDialog>
   }
 }
 
-
 /// 对话框头部组件（桌面端）
 class _DialogHeader extends StatelessWidget {
   final VoidCallback onClose;
@@ -262,6 +265,7 @@ class _DialogHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -283,7 +287,7 @@ class _DialogHeader extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            '多人角色提示词',
+            l10n.characterEditor_title,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -292,7 +296,7 @@ class _DialogHeader extends StatelessWidget {
           IconButton(
             onPressed: onClose,
             icon: const Icon(Icons.close),
-            tooltip: '关闭',
+            tooltip: l10n.characterEditor_close,
             style: IconButton.styleFrom(
               foregroundColor: colorScheme.onSurfaceVariant,
             ),
@@ -317,6 +321,7 @@ class _MobileDialogHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -343,7 +348,7 @@ class _MobileDialogHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '多人角色提示词',
+                  l10n.characterEditor_title,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -352,7 +357,7 @@ class _MobileDialogHeader extends StatelessWidget {
                 IconButton(
                   onPressed: onClose,
                   icon: const Icon(Icons.close),
-                  tooltip: '关闭',
+                  tooltip: l10n.characterEditor_close,
                   style: IconButton.styleFrom(
                     foregroundColor: colorScheme.onSurfaceVariant,
                   ),
@@ -364,9 +369,9 @@ class _MobileDialogHeader extends StatelessWidget {
           // 标签栏
           TabBar(
             controller: tabController,
-            tabs: const [
-              Tab(text: '角色列表'),
-              Tab(text: '角色详情'),
+            tabs: [
+              Tab(text: l10n.characterEditor_tabList),
+              Tab(text: l10n.characterEditor_tabDetail),
             ],
             labelColor: colorScheme.primary,
             unselectedLabelColor: colorScheme.onSurfaceVariant,
@@ -396,6 +401,7 @@ class _ListPanelContainer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       children: [
@@ -428,7 +434,7 @@ class _ListPanelContainer extends ConsumerWidget {
                 child: GestureDetector(
                   onTap: () => onGlobalAiChoiceChanged(!globalAiChoice),
                   child: Text(
-                    '全局AI选择位置',
+                    l10n.characterEditor_globalAiChoice,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -436,7 +442,7 @@ class _ListPanelContainer extends ConsumerWidget {
                 ),
               ),
               Tooltip(
-                message: '启用后，所有角色的位置将由AI自动决定',
+                message: l10n.characterEditor_globalAiChoiceHint,
                 child: Icon(
                   Icons.info_outline,
                   size: 16,
@@ -468,6 +474,7 @@ class _EmptyDetailState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Center(
       child: Column(
@@ -480,14 +487,14 @@ class _EmptyDetailState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '请选择一个角色',
+            l10n.characterEditor_emptyTitle,
             style: theme.textTheme.bodyLarge?.copyWith(
               color: colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '从左侧列表选择或添加新角色',
+            l10n.characterEditor_emptyHint,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurface.withOpacity(0.4),
             ),
@@ -514,6 +521,7 @@ class _DialogFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -538,7 +546,7 @@ class _DialogFooter extends StatelessWidget {
                 color: colorScheme.error,
               ),
               label: Text(
-                '清空所有',
+                l10n.characterEditor_clearAll,
                 style: TextStyle(color: colorScheme.error),
               ),
             ),
@@ -548,7 +556,7 @@ class _DialogFooter extends StatelessWidget {
           // 确定按钮
           FilledButton(
             onPressed: onConfirm,
-            child: const Text('确定'),
+            child: Text(l10n.characterEditor_confirm),
           ),
         ],
       ),

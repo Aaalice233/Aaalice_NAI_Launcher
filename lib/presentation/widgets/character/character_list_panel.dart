@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
@@ -115,29 +116,29 @@ class _CharacterListPanelState extends ConsumerState<CharacterListPanel> {
 
   /// 显示删除确认对话框
   Future<bool?> _showDeleteConfirmDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('删除角色'),
-        content: const Text('确定要删除这个角色吗？此操作无法撤销。'),
+        title: Text(l10n.characterEditor_deleteTitle),
+        content: Text(l10n.characterEditor_deleteConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(l10n.common_cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('删除'),
+            child: Text(l10n.common_delete),
           ),
         ],
       ),
     );
   }
 }
-
 
 /// 添加角色按钮组（按性别分类，紧凑版）
 class _AddCharacterButtons extends StatelessWidget {
@@ -147,28 +148,27 @@ class _AddCharacterButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Row(
       children: [
         _GenderAddButton(
           icon: Icons.female,
-          label: '女',
+          label: l10n.characterEditor_addFemale,
           color: Colors.pink.shade300,
           onTap: () => onAddCharacter(CharacterGender.female),
         ),
         const SizedBox(width: 6),
         _GenderAddButton(
           icon: Icons.male,
-          label: '男',
+          label: l10n.characterEditor_addMale,
           color: Colors.blue.shade300,
           onTap: () => onAddCharacter(CharacterGender.male),
         ),
         const SizedBox(width: 6),
         _GenderAddButton(
           icon: Icons.transgender,
-          label: '其他',
+          label: l10n.characterEditor_addOther,
           color: Colors.purple.shade300,
           onTap: () => onAddCharacter(CharacterGender.other),
         ),
@@ -240,6 +240,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Center(
       child: Column(
@@ -252,14 +253,14 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '暂无角色',
+            l10n.characterEditor_noCharacters,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            '点击上方按钮添加角色',
+            l10n.characterEditor_addCharacterHint,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurface.withOpacity(0.4),
             ),
@@ -304,7 +305,8 @@ class _CharacterList extends StatelessWidget {
         return AnimatedBuilder(
           animation: animation,
           builder: (context, child) {
-            final elevation = Tween<double>(begin: 0, end: 4).evaluate(animation);
+            final elevation =
+                Tween<double>(begin: 0, end: 4).evaluate(animation);
             return Material(
               elevation: elevation,
               color: Colors.transparent,

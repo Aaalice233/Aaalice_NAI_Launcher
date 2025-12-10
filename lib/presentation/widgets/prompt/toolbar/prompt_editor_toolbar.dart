@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../unified/unified_prompt_config.dart';
 import 'prompt_editor_toolbar_config.dart';
@@ -111,19 +112,20 @@ class PromptEditorToolbar extends StatelessWidget {
         if (leadingActions != null) ...leadingActions!,
 
         // 视图模式切换（必要操作，紧凑模式保留）
-        if (showViewModeToggle) _buildViewModeSwitch(theme, isCompact),
+        if (showViewModeToggle) _buildViewModeSwitch(context, theme, isCompact),
 
         // 随机按钮（次要操作，紧凑模式隐藏）
-        if (showRandomButton) _buildRandomButton(theme, isCompact),
+        if (showRandomButton) _buildRandomButton(context, theme, isCompact),
 
         // 全屏按钮（次要操作，紧凑模式隐藏）
-        if (showFullscreenButton) _buildFullscreenButton(theme, isCompact),
+        if (showFullscreenButton)
+          _buildFullscreenButton(context, theme, isCompact),
 
         // 清空按钮（必要操作，紧凑模式保留）
         if (showClearButton) _buildClearButton(context, theme, isCompact),
 
         // 设置按钮（次要操作，紧凑模式隐藏）
-        if (showSettingsButton) _buildSettingsButton(theme, isCompact),
+        if (showSettingsButton) _buildSettingsButton(context, theme, isCompact),
 
         // 后置自定义按钮
         if (trailingActions != null) ...trailingActions!,
@@ -132,8 +134,10 @@ class PromptEditorToolbar extends StatelessWidget {
   }
 
   /// 构建视图模式切换开关
-  Widget _buildViewModeSwitch(ThemeData theme, bool isCompact) {
+  Widget _buildViewModeSwitch(
+      BuildContext context, ThemeData theme, bool isCompact) {
     final isTagMode = viewMode == PromptViewMode.tags;
+    final l10n = AppLocalizations.of(context)!;
 
     // 根据紧凑模式选择尺寸
     final switchHeight =
@@ -146,7 +150,9 @@ class PromptEditorToolbar extends StatelessWidget {
     final spacing = isCompact ? 1.0 : 2.0;
 
     return Tooltip(
-      message: isTagMode ? '切换到文本视图' : '切换到标签视图',
+      message: isTagMode
+          ? l10n.toolbar_switchToTextView
+          : l10n.toolbar_switchToTagView,
       child: GestureDetector(
         onTap: onViewModeChanged != null ? _toggleViewMode : null,
         child: Container(
@@ -217,8 +223,10 @@ class PromptEditorToolbar extends StatelessWidget {
   }
 
   /// 构建随机按钮
-  Widget _buildRandomButton(ThemeData theme, bool isCompact) {
+  Widget _buildRandomButton(
+      BuildContext context, ThemeData theme, bool isCompact) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
       onLongPress: onRandomLongPressed,
@@ -230,7 +238,7 @@ class PromptEditorToolbar extends StatelessWidget {
               ? theme.colorScheme.primary
               : theme.colorScheme.onSurface.withOpacity(0.3),
         ),
-        tooltip: '随机提示词',
+        tooltip: l10n.toolbar_randomPrompt,
         onPressed: onRandomPressed,
         visualDensity: VisualDensity.compact,
         constraints: isCompact
@@ -242,8 +250,10 @@ class PromptEditorToolbar extends StatelessWidget {
   }
 
   /// 构建全屏按钮
-  Widget _buildFullscreenButton(ThemeData theme, bool isCompact) {
+  Widget _buildFullscreenButton(
+      BuildContext context, ThemeData theme, bool isCompact) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final l10n = AppLocalizations.of(context)!;
 
     return IconButton(
       icon: Icon(
@@ -253,7 +263,7 @@ class PromptEditorToolbar extends StatelessWidget {
             ? theme.colorScheme.onSurface.withOpacity(0.6)
             : theme.colorScheme.onSurface.withOpacity(0.3),
       ),
-      tooltip: '全屏编辑',
+      tooltip: l10n.toolbar_fullscreenEdit,
       onPressed: onFullscreenPressed,
       visualDensity: VisualDensity.compact,
       constraints:
@@ -270,6 +280,7 @@ class PromptEditorToolbar extends StatelessWidget {
     }
 
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final l10n = AppLocalizations.of(context)!;
 
     return IconButton(
       icon: Icon(
@@ -279,7 +290,7 @@ class PromptEditorToolbar extends StatelessWidget {
             ? theme.colorScheme.onSurface.withOpacity(0.6)
             : theme.colorScheme.onSurface.withOpacity(0.3),
       ),
-      tooltip: '清空',
+      tooltip: l10n.toolbar_clear,
       onPressed: onClearPressed,
       visualDensity: VisualDensity.compact,
       constraints:
@@ -293,6 +304,7 @@ class PromptEditorToolbar extends StatelessWidget {
       BuildContext context, ThemeData theme, bool isCompact) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
     final menuOffset = isCompact ? 32.0 : 40.0;
+    final l10n = AppLocalizations.of(context)!;
 
     return PopupMenuButton<bool>(
       icon: Icon(
@@ -302,7 +314,7 @@ class PromptEditorToolbar extends StatelessWidget {
             ? theme.colorScheme.onSurface.withOpacity(0.6)
             : theme.colorScheme.onSurface.withOpacity(0.3),
       ),
-      tooltip: '清空',
+      tooltip: l10n.toolbar_clear,
       enabled: onClearPressed != null,
       offset: Offset(0, menuOffset),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -322,7 +334,7 @@ class PromptEditorToolbar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '确认清空',
+                l10n.toolbar_confirmClear,
                 style: TextStyle(color: theme.colorScheme.error),
               ),
             ],
@@ -340,8 +352,10 @@ class PromptEditorToolbar extends StatelessWidget {
   /// 构建设置按钮
   ///
   /// 使用 Builder 包装以获取正确的按钮位置上下文
-  Widget _buildSettingsButton(ThemeData theme, bool isCompact) {
+  Widget _buildSettingsButton(
+      BuildContext context, ThemeData theme, bool isCompact) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
+    final l10n = AppLocalizations.of(context)!;
 
     return Builder(
       builder: (buttonContext) => IconButton(
@@ -352,7 +366,7 @@ class PromptEditorToolbar extends StatelessWidget {
               ? theme.colorScheme.onSurface.withOpacity(0.6)
               : theme.colorScheme.onSurface.withOpacity(0.3),
         ),
-        tooltip: '设置',
+        tooltip: l10n.toolbar_settings,
         onPressed: onSettingsPressed != null
             ? () => _invokeSettingsWithContext(buttonContext)
             : null,
