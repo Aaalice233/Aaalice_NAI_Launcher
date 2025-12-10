@@ -7,6 +7,7 @@ import '../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
+import '../../../providers/prompt_view_mode_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/character/character_prompt_button.dart';
@@ -14,13 +15,10 @@ import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/tag_view.dart';
+import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
-
-/// 视图模式
-enum PromptViewMode {
-  text,
-  tags,
-}
+import '../../../widgets/prompt/unified/unified_prompt_config.dart'
+    show PromptViewMode;
 
 /// Prompt 输入组件 (带自动补全和标签视图)
 class PromptInputWidget extends ConsumerStatefulWidget {
@@ -41,8 +39,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   bool _isPromptFocused = false;
   bool _isNegativeFocused = false;
 
-  // 视图模式
-  PromptViewMode _viewMode = PromptViewMode.text;
+  // 标签列表（视图模式从共享 Provider 读取）
   List<PromptTag> _promptTags = [];
   List<PromptTag> _negativeTags = [];
 
@@ -90,21 +87,26 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   void _toggleViewMode() {
-    setState(() {
-      if (_viewMode == PromptViewMode.text) {
-        // 切换到标签视图，解析当前文本
+    final currentMode = ref.read(promptViewModeNotifierProvider);
+    if (currentMode == PromptViewMode.text) {
+      // 切换到标签视图，解析当前文本
+      setState(() {
         _promptTags = NaiPromptParser.parse(_promptController.text);
         _negativeTags = NaiPromptParser.parse(_negativeController.text);
-        _viewMode = PromptViewMode.tags;
-      } else {
-        // 切换到文本视图，同步标签到文本
-        final promptText = NaiPromptParser.toPromptString(_promptTags);
-        final negativeText = NaiPromptParser.toPromptString(_negativeTags);
-        _promptController.text = promptText;
-        _negativeController.text = negativeText;
-        _viewMode = PromptViewMode.text;
-      }
-    });
+      });
+      ref
+          .read(promptViewModeNotifierProvider.notifier)
+          .setViewMode(PromptViewMode.tags);
+    } else {
+      // 切换到文本视图，同步标签到文本
+      final promptText = NaiPromptParser.toPromptString(_promptTags);
+      final negativeText = NaiPromptParser.toPromptString(_negativeTags);
+      _promptController.text = promptText;
+      _negativeController.text = negativeText;
+      ref
+          .read(promptViewModeNotifierProvider.notifier)
+          .setViewMode(PromptViewMode.text);
+    }
   }
 
   void _onPromptTagsChanged(List<PromptTag> tags) {
@@ -213,21 +215,24 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildFullLayout(ThemeData theme) {
+    // 从共享 Provider 读取视图模式
+    final viewMode = ref.watch(promptViewModeNotifierProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 顶栏：正面/负面切换 + 操作按钮
-        _buildTopBar(theme),
+        _buildTopBar(theme, viewMode),
 
         const SizedBox(height: 8),
 
         // 提示词编辑区域
         Expanded(
           child: _isNegativeMode
-              ? (_viewMode == PromptViewMode.text
+              ? (viewMode == PromptViewMode.text
                   ? _buildTextNegativeInput(theme)
                   : _buildTagNegativeView(theme))
-              : (_viewMode == PromptViewMode.text
+              : (viewMode == PromptViewMode.text
                   ? _buildTextPromptInput(theme)
                   : _buildTagPromptView(theme)),
         ),
@@ -235,14 +240,14 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
-  Widget _buildTopBar(ThemeData theme) {
-    final promptCount = _viewMode == PromptViewMode.tags
+  Widget _buildTopBar(ThemeData theme, PromptViewMode viewMode) {
+    final promptCount = viewMode == PromptViewMode.tags
         ? _promptTags.length
         : _promptController.text
             .split(',')
             .where((s) => s.trim().isNotEmpty)
             .length;
-    final negativeCount = _viewMode == PromptViewMode.tags
+    final negativeCount = viewMode == PromptViewMode.tags
         ? _negativeTags.length
         : _negativeController.text
             .split(',')
@@ -282,104 +287,40 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         const SizedBox(width: 8),
 
-        // 视图模式切换
-        _buildViewModeSwitch(theme),
-
-        // 随机按钮
-        GestureDetector(
-          onLongPress: () => context.push(AppRoutes.promptConfig),
-          child: IconButton(
-            icon: Icon(
-              Icons.casino_outlined,
-              size: 20,
-              color: theme.colorScheme.primary,
-            ),
-            tooltip: context.l10n.tooltip_randomPrompt,
-            onPressed: _generateRandomPrompt,
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-
-        // 全屏按钮
-        IconButton(
-          icon: Icon(
-            Icons.fullscreen,
-            size: 20,
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-          tooltip: context.l10n.tooltip_fullscreenEdit,
-          onPressed: _openFullScreenEditor,
-          visualDensity: VisualDensity.compact,
-        ),
-
-        // 清空按钮（带确认）
-        PopupMenuButton<bool>(
-          icon: Icon(
-            Icons.clear,
-            size: 20,
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-          tooltip: context.l10n.tooltip_clear,
-          offset: const Offset(40, 40),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          itemBuilder: (context) => [
-            PopupMenuItem<bool>(
-              value: true,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.delete_outline,
-                    size: 18,
-                    color: theme.colorScheme.error,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    context.l10n.prompt_clearConfirm(
-                      _isNegativeMode
-                          ? context.l10n.prompt_negativePrompt
-                          : context.l10n.prompt_positivePrompt,
-                    ),
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) {
-            if (value) {
-              if (_isNegativeMode) {
-                _clearNegative();
-              } else {
-                _clearPrompt();
-              }
-            }
+        // 使用共享的工具栏组件
+        PromptEditorToolbar(
+          config: PromptEditorToolbarConfig.mainEditor,
+          viewMode: viewMode,
+          onViewModeChanged: (mode) {
+            if (mode != viewMode) _toggleViewMode();
           },
+          onRandomPressed: _generateRandomPrompt,
+          onRandomLongPressed: () => context.push(AppRoutes.promptConfig),
+          onFullscreenPressed: _openFullScreenEditor,
+          onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+          onSettingsPressed: () => _showSettingsMenu(context, theme),
         ),
-
-        // 设置按钮
-        _buildSettingsButton(theme),
       ],
     );
   }
 
-  Widget _buildSettingsButton(ThemeData theme) {
-    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
-    final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
-    final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
+  /// 显示设置菜单
+  void _showSettingsMenu(BuildContext context, ThemeData theme) {
+    final enableAutocomplete = ref.read(autocompleteSettingsProvider);
+    final enableAutoFormat = ref.read(autoFormatPromptSettingsProvider);
+    final enableHighlight = ref.read(highlightEmphasisSettingsProvider);
     final enableSdSyntaxAutoConvert =
-        ref.watch(sdSyntaxAutoConvertSettingsProvider);
+        ref.read(sdSyntaxAutoConvertSettingsProvider);
 
-    return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.settings,
-        size: 20,
-        color: theme.colorScheme.onSurface.withOpacity(0.6),
-      ),
-      tooltip: context.l10n.tooltip_promptSettings,
-      offset: const Offset(0, 40),
+    // 使用工具栏提供的按钮位置
+    final position = PromptEditorToolbar.getSettingsButtonPosition(context);
+    if (position == null) return;
+
+    showMenu<String>(
+      context: context,
+      position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      itemBuilder: (context) => [
+      items: [
         PopupMenuItem<String>(
           value: 'autocomplete',
           child: Row(
@@ -499,18 +440,17 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           ),
         ),
       ],
-      onSelected: (value) {
-        if (value == 'autocomplete') {
-          ref.read(autocompleteSettingsProvider.notifier).toggle();
-        } else if (value == 'auto_format') {
-          ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
-        } else if (value == 'highlight') {
-          ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
-        } else if (value == 'sd_syntax_convert') {
-          ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
-        }
-      },
-    );
+    ).then((value) {
+      if (value == 'autocomplete') {
+        ref.read(autocompleteSettingsProvider.notifier).toggle();
+      } else if (value == 'auto_format') {
+        ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
+      } else if (value == 'highlight') {
+        ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
+      } else if (value == 'sd_syntax_convert') {
+        ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      }
+    });
   }
 
   Widget _buildPromptTypeSwitch(
@@ -544,70 +484,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
-  Widget _buildPromptTypeTab(
-    ThemeData theme, {
-    required String label,
-    required int count,
-    required bool isSelected,
-    required VoidCallback onTap,
-    bool isNegative = false,
-  }) {
-    final color =
-        isNegative ? theme.colorScheme.error : theme.colorScheme.primary;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: isSelected
-              ? Border.all(color: color.withOpacity(0.3), width: 1)
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? color
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-            if (count > 0) ...[
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? color.withOpacity(0.2)
-                      : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected
-                        ? color
-                        : theme.colorScheme.onSurface.withOpacity(0.5),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   void _clearNegative() {
     _negativeController.clear();
     setState(() {
@@ -616,120 +492,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     ref
         .read(generationParamsNotifierProvider.notifier)
         .updateNegativePrompt('');
-  }
-
-  Widget _buildViewModeToggle(ThemeData theme) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
-        ),
-      ),
-      child: Stack(
-        children: [
-          // 滑动指示器
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            alignment: _viewMode == PromptViewMode.text
-                ? Alignment.centerLeft
-                : Alignment.centerRight,
-            child: FractionallySizedBox(
-              widthFactor: 0.5,
-              child: Container(
-                height: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      theme.colorScheme.primary,
-                      theme.colorScheme.primary.withOpacity(0.85),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // 按钮
-          Row(
-            children: [
-              Expanded(
-                child: _buildViewModeButton(
-                  theme,
-                  icon: Icons.text_fields_rounded,
-                  label: context.l10n.prompt_textMode,
-                  isSelected: _viewMode == PromptViewMode.text,
-                  onTap: () {
-                    if (_viewMode != PromptViewMode.text) _toggleViewMode();
-                  },
-                ),
-              ),
-              Expanded(
-                child: _buildViewModeButton(
-                  theme,
-                  icon: Icons.auto_awesome_rounded,
-                  label: context.l10n.prompt_tagMode,
-                  isSelected: _viewMode == PromptViewMode.tags,
-                  onTap: () {
-                    if (_viewMode != PromptViewMode.tags) _toggleViewMode();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildViewModeButton(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected
-                  ? Colors.white
-                  : theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? Colors.white
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildTextPromptInput(ThemeData theme) {
@@ -844,75 +606,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         onTagsChanged: _onNegativeTagsChanged,
         emptyHint: context.l10n.prompt_addUnwantedHint,
         compact: true,
-      ),
-    );
-  }
-
-  /// 小巧的视图模式切换开关
-  Widget _buildViewModeSwitch(ThemeData theme) {
-    final isTagMode = _viewMode == PromptViewMode.tags;
-
-    return Tooltip(
-      message: isTagMode
-          ? context.l10n.prompt_switchToTextView
-          : context.l10n.prompt_switchToTagView,
-      child: GestureDetector(
-        onTap: _toggleViewMode,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.15),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 文本模式图标
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: !isTagMode
-                      ? theme.colorScheme.primary
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  Icons.text_fields_rounded,
-                  size: 14,
-                  color: !isTagMode
-                      ? Colors.white
-                      : theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-              const SizedBox(width: 2),
-              // 标签模式图标
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: isTagMode
-                      ? theme.colorScheme.primary
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 14,
-                  color: isTagMode
-                      ? Colors.white
-                      : theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
