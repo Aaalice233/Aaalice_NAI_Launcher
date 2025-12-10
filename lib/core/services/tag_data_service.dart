@@ -74,10 +74,10 @@ class TagDataService {
   /// 搜索索引是否就绪
   bool get isSearchIndexReady => _searchIndex.isReady;
 
-  /// 初始化服务
-  /// 1. 尝试从本地缓存加载
-  /// 2. 如果缓存过期或不存在，从网络下载
-  /// 3. 加载内置翻译数据
+  /// 初始化服务（非阻塞式）
+  /// 1. 加载内置翻译数据
+  /// 2. 尝试从本地缓存加载
+  /// 3. 如果缓存不存在，先用内置数据，后台下载
   /// 4. 构建搜索索引
   Future<void> initialize() async {
     if (_isInitialized || _isLoading) return;
@@ -93,8 +93,21 @@ class TagDataService {
       final cacheLoaded = await _loadFromCache();
 
       if (!cacheLoaded) {
-        // 3. 从网络下载
-        await _downloadAndParseTags();
+        // 3. 缓存不存在，先用内置数据，后台下载
+        await _loadBuiltinTags();
+
+        // 标记为已初始化（使用内置数据）
+        _isInitialized = true;
+        _isLoading = false;
+
+        AppLogger.i(
+          'TagDataService initialized with builtin data: ${_tags.length} tags',
+          'TagData',
+        );
+
+        // 后台下载完整数据（不阻塞）
+        _downloadInBackground();
+        return;
       }
 
       // 4. 构建搜索索引
@@ -111,9 +124,33 @@ class TagDataService {
       AppLogger.e('Failed to initialize TagDataService', e, stack, 'TagData');
       // 尝试使用内置数据作为回退
       await _loadBuiltinTags();
+      _isInitialized = true;
     } finally {
       _isLoading = false;
     }
+  }
+
+  /// 后台下载完整标签数据
+  void _downloadInBackground() {
+    Future(() async {
+      try {
+        await _downloadAndParseTags();
+
+        // 下载成功后重建索引
+        if (_tags.isNotEmpty) {
+          await _searchIndex.buildIndex(_tags);
+        }
+
+        AppLogger.i(
+          'TagDataService background download complete: ${_tags.length} tags',
+          'TagData',
+        );
+      } catch (e) {
+        AppLogger.w(
+            'Background download failed, using builtin data: $e', 'TagData');
+        // 下载失败保持使用内置数据，不影响应用使用
+      }
+    });
   }
 
   /// 加载内置翻译数据
@@ -194,7 +231,7 @@ class TagDataService {
         '$_baseUrl/$_tagsFileName',
         options: Options(
           responseType: ResponseType.plain,
-          receiveTimeout: const Duration(minutes: 2),
+          receiveTimeout: const Duration(seconds: 15),
         ),
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -349,9 +386,9 @@ class TagDataService {
 TagDataService tagDataService(TagDataServiceRef ref) {
   final dio = Dio(
     BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(minutes: 5),
-      sendTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 10),
     ),
   );
 

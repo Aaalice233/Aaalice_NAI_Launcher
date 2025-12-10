@@ -67,11 +67,11 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
       ),
     );
 
-    // 2. 初始化标签数据服务（构建搜索索引）
+    // 2. 初始化标签数据服务（非阻塞式，网络下载在后台进行）
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_initTagSystem',
-        weight: 5,
+        weight: 1,
         task: () async {
           final translationService = _ref.read(tagTranslationServiceProvider);
           final tagDataService = _ref.read(tagDataServiceProvider);
@@ -79,7 +79,7 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
           // 关联服务
           translationService.setTagDataService(tagDataService);
 
-          // 构建搜索索引
+          // 初始化（非阻塞式：先用内置数据，网络下载在后台）
           await tagDataService.initialize();
         },
       ),
