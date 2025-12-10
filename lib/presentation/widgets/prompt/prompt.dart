@@ -13,3 +13,5 @@ export 'weight_adjust_dialog.dart';
 export 'tag_view.dart';
 export 'components/components.dart';
 
+// 统一提示词输入模块
+export 'unified/unified.dart';

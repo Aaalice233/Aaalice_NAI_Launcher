@@ -406,11 +406,12 @@ class _ListPanelContainer extends ConsumerWidget {
             child: CharacterListPanel(
               selectedCharacterId: selectedCharacterId,
               onCharacterSelected: onCharacterSelected,
+              globalAiChoice: globalAiChoice,
             ),
           ),
         ),
 
-        // 全局AI选择复选框
+        // 全局AI选择开关
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -423,17 +424,6 @@ class _ListPanelContainer extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: Checkbox(
-                  value: globalAiChoice,
-                  onChanged: (value) =>
-                      onGlobalAiChoiceChanged(value ?? false),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-              const SizedBox(width: 8),
               Expanded(
                 child: GestureDetector(
                   onTap: () => onGlobalAiChoiceChanged(!globalAiChoice),
@@ -451,6 +441,15 @@ class _ListPanelContainer extends ConsumerWidget {
                   Icons.info_outline,
                   size: 16,
                   color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 24,
+                child: Switch(
+                  value: globalAiChoice,
+                  onChanged: onGlobalAiChoiceChanged,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
             ],

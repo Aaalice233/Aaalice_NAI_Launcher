@@ -20,11 +20,15 @@ class CharacterListPanel extends ConsumerStatefulWidget {
   /// 是否显示操作按钮（上移/下移/删除）
   final bool showActions;
 
+  /// 是否全局AI选择位置
+  final bool globalAiChoice;
+
   const CharacterListPanel({
     super.key,
     this.selectedCharacterId,
     this.onCharacterSelected,
     this.showActions = true,
+    this.globalAiChoice = false,
   });
 
   @override
@@ -54,6 +58,7 @@ class _CharacterListPanelState extends ConsumerState<CharacterListPanel> {
                   selectedCharacterId: widget.selectedCharacterId,
                   onCharacterSelected: widget.onCharacterSelected,
                   showActions: widget.showActions,
+                  globalAiChoice: widget.globalAiChoice,
                   onMoveUp: (index) => _moveCharacterUp(index),
                   onMoveDown: (index) => _moveCharacterDown(index),
                   onDelete: (id) => _deleteCharacter(id),
@@ -271,6 +276,7 @@ class _CharacterList extends StatelessWidget {
   final String? selectedCharacterId;
   final ValueChanged<String?>? onCharacterSelected;
   final bool showActions;
+  final bool globalAiChoice;
   final ValueChanged<int> onMoveUp;
   final ValueChanged<int> onMoveDown;
   final ValueChanged<String> onDelete;
@@ -281,6 +287,7 @@ class _CharacterList extends StatelessWidget {
     this.selectedCharacterId,
     this.onCharacterSelected,
     required this.showActions,
+    required this.globalAiChoice,
     required this.onMoveUp,
     required this.onMoveDown,
     required this.onDelete,
@@ -322,6 +329,7 @@ class _CharacterList extends StatelessWidget {
             child: CharacterListItem(
               character: character,
               isSelected: isSelected,
+              globalAiChoice: globalAiChoice,
               onTap: () => onCharacterSelected?.call(character.id),
               showActions: showActions && isSelected,
               canMoveUp: canMoveUp,

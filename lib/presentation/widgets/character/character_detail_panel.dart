@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../prompt/unified/unified.dart';
 import 'position_grid_selector.dart';
 
 /// 角色详情编辑面板组件
 ///
 /// 用于编辑选中角色的所有属性，包括：
 /// - 名称输入
+/// - 启用开关
 /// - 性别选择器
 /// - 正向提示词编辑器
 /// - 负面提示词编辑器
@@ -99,7 +101,16 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
   }
 
   void _onPositionSelected(CharacterPosition position) {
-    _updateCharacter(widget.character.copyWith(customPosition: position));
+    _updateCharacter(
+      widget.character.copyWith(
+        customPosition: position,
+        positionMode: CharacterPositionMode.custom,
+      ),
+    );
+  }
+
+  void _onEnabledChanged(bool value) {
+    _updateCharacter(widget.character.copyWith(enabled: value));
   }
 
   @override
@@ -109,11 +120,13 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 名称行（只读性别显示）
+          // 名称行（只读性别显示 + 启用开关）
           _NameRow(
             nameController: _nameController,
             gender: widget.character.gender,
             onNameChanged: _onNameChanged,
+            enabled: widget.character.enabled,
+            onEnabledChanged: _onEnabledChanged,
           ),
           const SizedBox(height: 20),
 
@@ -126,13 +139,14 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
           ),
           const SizedBox(height: 16),
 
-          // 负面提示词
+          // 负面提示词（使用紧凑模式，禁用视图切换）
           _PromptSection(
             label: 'Undesired Content',
             controller: _negativePromptController,
             onChanged: _onNegativePromptChanged,
             hintText: '输入角色的负面提示词...',
             maxLines: 3,
+            compact: true,
           ),
           const SizedBox(height: 20),
 
@@ -142,27 +156,27 @@ class _CharacterDetailPanelState extends ConsumerState<CharacterDetailPanel> {
               customPosition: widget.character.customPosition,
               onPositionSelected: _onPositionSelected,
             ),
-            const SizedBox(height: 16),
           ],
-
-          // Token计数
-          _TokenCountDisplay(prompt: widget.character.prompt),
         ],
       ),
     );
   }
 }
 
-/// 名称行组件（带只读性别图标显示）
+/// 名称行组件（带只读性别图标显示和启用开关）
 class _NameRow extends StatelessWidget {
   final TextEditingController nameController;
   final CharacterGender gender;
   final ValueChanged<String> onNameChanged;
+  final bool enabled;
+  final ValueChanged<bool> onEnabledChanged;
 
   const _NameRow({
     required this.nameController,
     required this.gender,
     required this.onNameChanged,
+    required this.enabled,
+    required this.onEnabledChanged,
   });
 
   IconData get _genderIcon {
@@ -273,6 +287,28 @@ class _NameRow extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 12),
+            // 启用开关
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '启用',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                SizedBox(
+                  height: 24,
+                  child: Switch(
+                    value: enabled,
+                    onChanged: onEnabledChanged,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ],
@@ -281,12 +317,18 @@ class _NameRow extends StatelessWidget {
 }
 
 /// 提示词编辑区域组件
-class _PromptSection extends StatelessWidget {
+///
+/// 使用 [UnifiedPromptInput] 提供自动补全、标签视图切换、语法高亮等功能。
+/// Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 5.1, 5.2
+class _PromptSection extends ConsumerWidget {
   final String label;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final String? hintText;
   final int maxLines;
+
+  /// 是否使用紧凑模式（禁用视图切换）
+  final bool compact;
 
   const _PromptSection({
     required this.label,
@@ -294,12 +336,22 @@ class _PromptSection extends StatelessWidget {
     required this.onChanged,
     this.hintText,
     this.maxLines = 5,
+    this.compact = false,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    // 根据 compact 参数选择配置
+    final config = compact
+        ? UnifiedPromptConfig.compactMode.copyWith(
+            hintText: hintText,
+          )
+        : UnifiedPromptConfig.characterEditor.copyWith(
+            hintText: hintText,
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +364,8 @@ class _PromptSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        TextField(
+        UnifiedPromptInput(
+          config: config,
           controller: controller,
           onChanged: onChanged,
           maxLines: maxLines,
@@ -374,68 +427,12 @@ class _PositionGridSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         LabeledPositionGridSelector(
-          selectedPosition: customPosition ?? const CharacterPosition(row: 2, column: 2),
+          selectedPosition:
+              customPosition ?? const CharacterPosition(row: 2, column: 2),
           onPositionSelected: onPositionSelected,
           enabled: true,
         ),
       ],
-    );
-  }
-}
-
-/// Token计数显示组件
-class _TokenCountDisplay extends StatelessWidget {
-  final String prompt;
-
-  const _TokenCountDisplay({required this.prompt});
-
-  /// 估算token数量
-  int _estimateTokenCount(String text) {
-    if (text.trim().isEmpty) return 0;
-    final tags = text.split(',').where((t) => t.trim().isNotEmpty);
-    return tags.length;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final tokenCount = _estimateTokenCount(prompt);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.token,
-            size: 16,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Token: ',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            '$tokenCount',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

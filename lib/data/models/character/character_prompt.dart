@@ -170,9 +170,17 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     String? name,
     CharacterGender gender = CharacterGender.female,
   }) {
+    // 根据性别设置初始提示词
+    final initialPrompt = switch (gender) {
+      CharacterGender.female => 'girl, ',
+      CharacterGender.male => 'boy, ',
+      CharacterGender.other => '',
+    };
+
     final newCharacter = CharacterPrompt.create(
       name: name ?? getNextCharacterName(),
       gender: gender,
+      prompt: initialPrompt,
     );
     return copyWith(characters: [...characters, newCharacter]);
   }

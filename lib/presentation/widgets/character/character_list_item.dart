@@ -4,7 +4,7 @@ import '../../../data/models/character/character_prompt.dart';
 
 /// 角色列表项组件
 ///
-/// 显示单个角色的摘要信息，包括性别图标、名称、位置指示器和token计数。
+/// 显示单个角色的摘要信息，包括性别图标、名称、位置指示器。
 /// 支持选中状态高亮显示。
 ///
 /// Requirements: 2.1, 5.1
@@ -14,6 +14,9 @@ class CharacterListItem extends StatelessWidget {
 
   /// 是否选中
   final bool isSelected;
+
+  /// 是否全局AI选择位置
+  final bool globalAiChoice;
 
   /// 点击回调
   final VoidCallback? onTap;
@@ -40,6 +43,7 @@ class CharacterListItem extends StatelessWidget {
     super.key,
     required this.character,
     this.isSelected = false,
+    this.globalAiChoice = false,
     this.onTap,
     this.onDelete,
     this.onMoveUp,
@@ -95,21 +99,19 @@ class CharacterListItem extends StatelessWidget {
                         color: character.enabled
                             ? colorScheme.onSurface
                             : colorScheme.onSurface.withOpacity(0.5),
+                        decoration: character.enabled
+                            ? null
+                            : TextDecoration.lineThrough,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    // 位置和Token信息
-                    Row(
-                      children: [
-                        _PositionIndicator(
-                          positionMode: character.positionMode,
-                          customPosition: character.customPosition,
-                        ),
-                        const SizedBox(width: 8),
-                        _TokenCount(prompt: character.prompt),
-                      ],
+                    // 位置信息
+                    _PositionIndicator(
+                      positionMode: character.positionMode,
+                      customPosition: character.customPosition,
+                      globalAiChoice: globalAiChoice,
                     ),
                   ],
                 ),
@@ -192,10 +194,12 @@ class _GenderIcon extends StatelessWidget {
 class _PositionIndicator extends StatelessWidget {
   final CharacterPositionMode positionMode;
   final CharacterPosition? customPosition;
+  final bool globalAiChoice;
 
   const _PositionIndicator({
     required this.positionMode,
     this.customPosition,
+    this.globalAiChoice = false,
   });
 
   @override
@@ -206,12 +210,18 @@ class _PositionIndicator extends StatelessWidget {
     String text;
     IconData icon;
 
-    if (positionMode == CharacterPositionMode.aiChoice) {
+    // 全局AI选择开启时，显示AI
+    if (globalAiChoice) {
       text = 'AI';
       icon = Icons.auto_awesome;
     } else if (customPosition != null) {
+      // 全局关闭时，优先显示自定义位置
       text = customPosition!.toNaiString();
       icon = Icons.grid_on;
+    } else if (positionMode == CharacterPositionMode.aiChoice) {
+      // 没有自定义位置且模式是AI选择
+      text = 'AI';
+      icon = Icons.auto_awesome;
     } else {
       text = '--';
       icon = Icons.help_outline;
@@ -242,47 +252,6 @@ class _PositionIndicator extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// Token计数组件
-class _TokenCount extends StatelessWidget {
-  final String prompt;
-
-  const _TokenCount({required this.prompt});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    // 简单的token估算：按逗号分隔的标签数量
-    // 实际token计算可能需要更复杂的逻辑
-    final tokenCount = _estimateTokenCount(prompt);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '${tokenCount}T',
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  /// 估算token数量
-  /// 简单实现：按逗号分隔计数，空字符串返回0
-  int _estimateTokenCount(String text) {
-    if (text.trim().isEmpty) return 0;
-    // 按逗号分隔并过滤空项
-    final tags = text.split(',').where((t) => t.trim().isNotEmpty);
-    return tags.length;
   }
 }
 

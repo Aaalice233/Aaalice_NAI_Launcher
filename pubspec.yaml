@@ -84,6 +84,8 @@ dev_dependencies:
   freezed: ^2.5.2
   json_serializable: ^6.8.0
   hive_generator: ^2.0.1
+  # 属性基测试
+  glados: ^1.1.1
 
 flutter:
   uses-material-design: true
