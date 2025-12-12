@@ -165,6 +165,50 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     return 'Character ${characters.length + 1}';
   }
 
+  /// 预定义的默认位置列表（分散在5x5网格中，尽量不重合）
+  static const List<CharacterPosition> _defaultPositions = [
+    CharacterPosition(row: 2, column: 2), // C3 - 中心
+    CharacterPosition(row: 1, column: 1), // B2 - 左上
+    CharacterPosition(row: 1, column: 3), // D2 - 右上
+    CharacterPosition(row: 3, column: 1), // B4 - 左下
+    CharacterPosition(row: 3, column: 3), // D4 - 右下
+    CharacterPosition(row: 2, column: 0), // A3 - 最左
+  ];
+
+  /// 获取下一个可用的默认位置
+  CharacterPosition _getNextDefaultPosition() {
+    // 收集已使用的位置
+    final usedPositions = characters
+        .where((c) => c.customPosition != null)
+        .map((c) => c.customPosition!)
+        .toList();
+
+    // 从预定义位置中找一个未使用的
+    for (final pos in _defaultPositions) {
+      final isUsed = usedPositions.any(
+        (used) => used.row == pos.row && used.column == pos.column,
+      );
+      if (!isUsed) {
+        return pos;
+      }
+    }
+
+    // 如果预定义位置都用完了，找一个未使用的网格位置
+    for (int row = 0; row < 5; row++) {
+      for (int col = 0; col < 5; col++) {
+        final isUsed = usedPositions.any(
+          (used) => used.row == row && used.column == col,
+        );
+        if (!isUsed) {
+          return CharacterPosition(row: row, column: col);
+        }
+      }
+    }
+
+    // 兜底：返回中心位置
+    return const CharacterPosition(row: 2, column: 2);
+  }
+
   /// 添加新角色
   CharacterPromptConfig addCharacter({
     String? name,
@@ -177,10 +221,15 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
       CharacterGender.other => '',
     };
 
+    // 获取默认位置
+    final defaultPosition = _getNextDefaultPosition();
+
     final newCharacter = CharacterPrompt.create(
       name: name ?? getNextCharacterName(),
       gender: gender,
       prompt: initialPrompt,
+      positionMode: CharacterPositionMode.custom,
+      customPosition: defaultPosition,
     );
     return copyWith(characters: [...characters, newCharacter]);
   }

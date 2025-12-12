@@ -880,5 +880,24 @@
   "toolbar_fullscreenEdit": "全屏编辑",
   "toolbar_clear": "清空",
   "toolbar_confirmClear": "确认清空",
-  "toolbar_settings": "设置"
+  "toolbar_settings": "设置",
+
+  "characterTooltip_noCharacters": "未配置角色",
+  "characterTooltip_clickToConfig": "点击按钮开始配置多人角色",
+  "characterTooltip_globalAiLabel": "全局 AI 位置:",
+  "characterTooltip_enabled": "启用",
+  "characterTooltip_disabled": "禁用",
+  "characterTooltip_positionAi": "AI",
+  "characterTooltip_disabledLabel": "已禁用",
+  "characterTooltip_promptLabel": "正向",
+  "characterTooltip_negativeLabel": "负面",
+  "characterTooltip_notSet": "未设置",
+  "characterTooltip_summary": "共 {total} 个角色 ({enabled} 个启用)",
+  "@characterTooltip_summary": {
+    "placeholders": {
+      "total": {},
+      "enabled": {}
+    }
+  },
+  "characterTooltip_viewFullConfig": "点击查看完整配置"
 }

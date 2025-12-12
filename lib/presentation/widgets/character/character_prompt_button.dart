@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import 'character_editor_dialog.dart';
+import 'character_tooltip_content.dart';
 
 /// 多人角色提示词触发按钮
 ///
@@ -16,16 +17,14 @@ class CharacterPromptButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final characterCount = ref.watch(characterCountProvider);
+    final config = ref.watch(characterPromptNotifierProvider);
+    final characterCount = config.characters.length;
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context)!;
 
-    return Tooltip(
-      message: hasCharacters
-          ? l10n.characterEditor_tooltipWithCount(characterCount)
-          : l10n.characterEditor_title,
+    return _CharacterTooltipWrapper(
+      config: config,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -105,53 +104,96 @@ class CharacterPromptIconButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final characterCount = ref.watch(characterCountProvider);
+    final config = ref.watch(characterPromptNotifierProvider);
+    final characterCount = config.characters.length;
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context)!;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        IconButton(
-          onPressed: () => CharacterEditorDialog.show(context),
-          icon: Icon(
-            hasCharacters ? Icons.people : Icons.people_outline,
-            color: hasCharacters
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-          ),
-          tooltip: hasCharacters
-              ? l10n.characterEditor_tooltipWithCount(characterCount)
-              : l10n.characterEditor_title,
-        ),
-        if (hasCharacters)
-          Positioned(
-            right: 4,
-            top: 4,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
-              child: Text(
-                characterCount.toString(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                ),
-                textAlign: TextAlign.center,
-              ),
+    return _CharacterTooltipWrapper(
+      config: config,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            onPressed: () => CharacterEditorDialog.show(context),
+            icon: Icon(
+              hasCharacters ? Icons.people : Icons.people_outline,
+              color: hasCharacters
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
-      ],
+          if (hasCharacters)
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 16,
+                  minHeight: 16,
+                ),
+                child: Text(
+                  characterCount.toString(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 自定义悬浮提示包装器
+///
+/// 提供详细的多角色配置信息悬浮提示
+class _CharacterTooltipWrapper extends StatelessWidget {
+  final CharacterPromptConfig config;
+  final Widget child;
+
+  const _CharacterTooltipWrapper({
+    required this.config,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Tooltip(
+      richMessage: WidgetSpan(
+        child: CharacterTooltipContent(config: config),
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: colorScheme.outlineVariant.withOpacity(0.3),
+        ),
+      ),
+      waitDuration: const Duration(milliseconds: 400),
+      showDuration: const Duration(seconds: 8),
+      preferBelow: true,
+      child: child,
     );
   }
 }

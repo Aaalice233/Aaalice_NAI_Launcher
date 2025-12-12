@@ -135,7 +135,10 @@ class PromptEditorToolbar extends StatelessWidget {
 
   /// 构建视图模式切换开关
   Widget _buildViewModeSwitch(
-      BuildContext context, ThemeData theme, bool isCompact) {
+    BuildContext context,
+    ThemeData theme,
+    bool isCompact,
+  ) {
     final isTagMode = viewMode == PromptViewMode.tags;
     final l10n = AppLocalizations.of(context)!;
 
@@ -224,7 +227,10 @@ class PromptEditorToolbar extends StatelessWidget {
 
   /// 构建随机按钮
   Widget _buildRandomButton(
-      BuildContext context, ThemeData theme, bool isCompact) {
+    BuildContext context,
+    ThemeData theme,
+    bool isCompact,
+  ) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
     final l10n = AppLocalizations.of(context)!;
 
@@ -251,7 +257,10 @@ class PromptEditorToolbar extends StatelessWidget {
 
   /// 构建全屏按钮
   Widget _buildFullscreenButton(
-      BuildContext context, ThemeData theme, bool isCompact) {
+    BuildContext context,
+    ThemeData theme,
+    bool isCompact,
+  ) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
     final l10n = AppLocalizations.of(context)!;
 
@@ -274,7 +283,10 @@ class PromptEditorToolbar extends StatelessWidget {
 
   /// 构建清空按钮
   Widget _buildClearButton(
-      BuildContext context, ThemeData theme, bool isCompact) {
+    BuildContext context,
+    ThemeData theme,
+    bool isCompact,
+  ) {
     if (config.confirmBeforeClear) {
       return _buildClearButtonWithConfirmation(context, theme, isCompact);
     }
@@ -301,7 +313,10 @@ class PromptEditorToolbar extends StatelessWidget {
 
   /// 构建带确认的清空按钮
   Widget _buildClearButtonWithConfirmation(
-      BuildContext context, ThemeData theme, bool isCompact) {
+    BuildContext context,
+    ThemeData theme,
+    bool isCompact,
+  ) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
     final menuOffset = isCompact ? 32.0 : 40.0;
     final l10n = AppLocalizations.of(context)!;
@@ -353,7 +368,10 @@ class PromptEditorToolbar extends StatelessWidget {
   ///
   /// 使用 Builder 包装以获取正确的按钮位置上下文
   Widget _buildSettingsButton(
-      BuildContext context, ThemeData theme, bool isCompact) {
+    BuildContext context,
+    ThemeData theme,
+    bool isCompact,
+  ) {
     final iconSize = isCompact ? _compactIconSize : _standardIconSize;
     final l10n = AppLocalizations.of(context)!;
 

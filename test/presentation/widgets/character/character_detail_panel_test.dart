@@ -97,7 +97,7 @@ void main() {
       (settings) {
         // 模拟从 Provider 读取设置并应用到 UnifiedPromptConfig
         // 这是 _PromptSection 中的逻辑
-        final baseConfig = UnifiedPromptConfig.characterEditor;
+        const baseConfig = UnifiedPromptConfig.characterEditor;
         final inputConfig = baseConfig.copyWith(
           enableAutocomplete: settings.enableAutocomplete,
           enableAutoFormat: settings.enableAutoFormat,
@@ -133,7 +133,7 @@ void main() {
       'compact mode config also reflects shared settings',
       (settings) {
         // 紧凑模式（负面提示词）也应该反映共享设置
-        final baseConfig = UnifiedPromptConfig.compactMode;
+        const baseConfig = UnifiedPromptConfig.compactMode;
         final inputConfig = baseConfig.copyWith(
           enableAutocomplete: settings.enableAutocomplete,
           enableAutoFormat: settings.enableAutoFormat,

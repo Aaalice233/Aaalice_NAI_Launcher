@@ -116,7 +116,9 @@ class CharacterSummary extends ConsumerWidget {
 
   /// 构建工具提示文本
   String _buildTooltipText(
-      BuildContext context, List<CharacterPrompt> characters) {
+    BuildContext context,
+    List<CharacterPrompt> characters,
+  ) {
     final l10n = AppLocalizations.of(context)!;
     final buffer = StringBuffer();
     buffer.writeln(l10n.characterEditor_title);
@@ -199,7 +201,9 @@ class CompactCharacterSummary extends ConsumerWidget {
 
     final displayText = enabledCount < characterCount
         ? l10n.characterEditor_characterCountWithEnabled(
-            enabledCount, characterCount)
+            enabledCount,
+            characterCount,
+          )
         : l10n.characterEditor_characterCount(characterCount);
 
     Widget content = Container(

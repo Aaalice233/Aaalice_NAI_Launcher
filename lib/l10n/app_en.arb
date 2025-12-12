@@ -1205,5 +1205,24 @@
   "toolbar_fullscreenEdit": "Fullscreen Edit",
   "toolbar_clear": "Clear",
   "toolbar_confirmClear": "Confirm Clear",
-  "toolbar_settings": "Settings"
+  "toolbar_settings": "Settings",
+
+  "characterTooltip_noCharacters": "No characters configured",
+  "characterTooltip_clickToConfig": "Click to configure multi-character prompts",
+  "characterTooltip_globalAiLabel": "Global AI Position:",
+  "characterTooltip_enabled": "Enabled",
+  "characterTooltip_disabled": "Disabled",
+  "characterTooltip_positionAi": "AI",
+  "characterTooltip_disabledLabel": "Disabled",
+  "characterTooltip_promptLabel": "Prompt",
+  "characterTooltip_negativeLabel": "Negative",
+  "characterTooltip_notSet": "Not set",
+  "characterTooltip_summary": "{total} characters ({enabled} enabled)",
+  "@characterTooltip_summary": {
+    "placeholders": {
+      "total": {},
+      "enabled": {}
+    }
+  },
+  "characterTooltip_viewFullConfig": "Click for full configuration"
 }

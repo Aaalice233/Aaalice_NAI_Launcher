@@ -190,7 +190,9 @@ Shrinkable<PromptTag> generatePromptTag(Random random, int size) {
   final length = random.nextInt(20) + 1; // 1-20 字符
   final text = String.fromCharCodes(
     List.generate(
-        length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+      length,
+      (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+    ),
   );
 
   // 生成权重：0.5 到 2.0 之间，步进 0.05
@@ -311,7 +313,9 @@ Shrinkable<String> generatePromptText(Random random, int size) {
     final length = random.nextInt(15) + 1;
     final text = String.fromCharCodes(
       List.generate(
-          length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+        length,
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+      ),
     );
     tags.add(text);
   }
@@ -320,7 +324,9 @@ Shrinkable<String> generatePromptText(Random random, int size) {
   return Shrinkable(result, () sync* {
     if (tags.length > 1) {
       yield Shrinkable(
-          tags.sublist(0, tags.length - 1).join(', '), () sync* {});
+        tags.sublist(0, tags.length - 1).join(', '),
+        () sync* {},
+      );
     }
   });
 }
@@ -389,7 +395,7 @@ enum ModificationType {
 
 /// 自定义生成器：生成修改操作
 Shrinkable<ModificationType> generateModificationType(Random random, int size) {
-  final types = ModificationType.values;
+  const types = ModificationType.values;
   final type = types[random.nextInt(types.length)];
   return Shrinkable(type, () sync* {});
 }
@@ -584,7 +590,9 @@ Shrinkable<String> generateTagName(Random random, int size) {
   final length = random.nextInt(15) + 1; // 1-15 字符
   final tagName = String.fromCharCodes(
     List.generate(
-        length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+      length,
+      (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+    ),
   );
 
   return Shrinkable(tagName, () sync* {
@@ -596,7 +604,9 @@ Shrinkable<String> generateTagName(Random random, int size) {
 
 /// 自定义生成器：生成文本和光标位置的组合
 Shrinkable<({String text, int cursorPosition})> generateTextWithCursor(
-    Random random, int size) {
+  Random random,
+  int size,
+) {
   // 生成 0-5 个标签
   final tagCount = random.nextInt(6);
   String text;
@@ -609,7 +619,9 @@ Shrinkable<({String text, int cursorPosition})> generateTextWithCursor(
       final length = random.nextInt(10) + 1;
       final tag = String.fromCharCodes(
         List.generate(
-            length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+          length,
+          (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+        ),
       );
       tags.add(tag);
     }
@@ -804,11 +816,13 @@ Shrinkable<List<LocalTag>> generateTagDatabase(Random random, int size) {
       ),
     );
 
-    tags.add(LocalTag(
-      tag: tagName,
-      count: random.nextInt(10000) + 1,
-      category: random.nextInt(5),
-    ));
+    tags.add(
+      LocalTag(
+        tag: tagName,
+        count: random.nextInt(10000) + 1,
+        category: random.nextInt(5),
+      ),
+    );
   }
 
   return Shrinkable(tags, () sync* {

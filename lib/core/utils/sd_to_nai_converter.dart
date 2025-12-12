@@ -238,12 +238,34 @@ class SdToNaiConverter {
       final char = chars[i];
 
       if (char == ' ') {
-        // 检查是否在逗号旁边
+        // 检查是否在逗号附近（需要向前/向后跳过其他空格）
         final prevChar = i > 0 ? chars[i - 1] : '';
         final nextChar = i < chars.length - 1 ? chars[i + 1] : '';
 
-        if (prevChar == ',' || nextChar == ',') {
-          // 保留逗号旁边的空格
+        // 查找前面第一个非空格字符
+        String? prevNonSpace;
+        for (var j = i - 1; j >= 0; j--) {
+          if (chars[j] != ' ') {
+            prevNonSpace = chars[j];
+            break;
+          }
+        }
+
+        // 查找后面第一个非空格字符
+        String? nextNonSpace;
+        for (var j = i + 1; j < chars.length; j++) {
+          if (chars[j] != ' ') {
+            nextNonSpace = chars[j];
+            break;
+          }
+        }
+
+        // 如果前面的非空格字符是逗号，或后面的非空格字符是逗号，保留空格
+        if (prevNonSpace == ',' || nextNonSpace == ',') {
+          result.write(char);
+        }
+        // 如果相邻字符是逗号（向后兼容）
+        else if (prevChar == ',' || nextChar == ',') {
           result.write(char);
         } else {
           // 转换为下划线
