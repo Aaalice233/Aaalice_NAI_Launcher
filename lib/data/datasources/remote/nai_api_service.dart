@@ -267,11 +267,13 @@ class NAIApiService {
 
         // 构建角色提示词列表 (char_captions 和 characterPrompts)
         final charCaptions = <Map<String, dynamic>>[];
+        final negativeCharCaptions = <Map<String, dynamic>>[];
         final characterPrompts = <Map<String, dynamic>>[];
 
         for (final char in params.characters) {
           // 计算位置坐标 (A1-E5 网格)
-          double x = 0.5, y = 0.5;
+          // AI Choice 模式时使用 0, 0 表示由 AI 决定位置
+          double x = 0, y = 0;
           if (char.position != null && char.position!.length >= 2) {
             final letter = char.position![0].toUpperCase();
             final digit = char.position![1];
@@ -293,10 +295,18 @@ class NAIApiService {
             'char_caption': char.prompt,
           });
 
+          negativeCharCaptions.add({
+            'centers': [
+              {'x': x, 'y': y},
+            ],
+            'char_caption': char.negativePrompt,
+          });
+
           characterPrompts.add({
             'center': {'x': x, 'y': y},
             'prompt': char.prompt,
             'uc': char.negativePrompt,
+            'enabled': true,
           });
         }
 
@@ -315,7 +325,7 @@ class NAIApiService {
         requestParameters['v4_negative_prompt'] = {
           'caption': {
             'base_caption': userNegativePrompt,
-            'char_captions': [],
+            'char_captions': negativeCharCaptions,
           },
           'legacy_uc': false,
         };
@@ -745,10 +755,12 @@ class NAIApiService {
         // 使用客户端预先填充的负面提示词（包含预设内容）
         final userNegativePrompt = effectiveNegativePrompt;
         final charCaptions = <Map<String, dynamic>>[];
+        final negativeCharCaptions = <Map<String, dynamic>>[];
         final characterPrompts = <Map<String, dynamic>>[];
 
         for (final char in params.characters) {
-          double x = 0.5, y = 0.5;
+          // AI Choice 模式时使用 0, 0 表示由 AI 决定位置
+          double x = 0, y = 0;
           if (char.position != null && char.position!.length >= 2) {
             final letter = char.position![0].toUpperCase();
             final digit = char.position![1];
@@ -768,10 +780,18 @@ class NAIApiService {
             'char_caption': char.prompt,
           });
 
+          negativeCharCaptions.add({
+            'centers': [
+              {'x': x, 'y': y},
+            ],
+            'char_caption': char.negativePrompt,
+          });
+
           characterPrompts.add({
             'center': {'x': x, 'y': y},
             'prompt': char.prompt,
             'uc': char.negativePrompt,
+            'enabled': true,
           });
         }
 
@@ -787,7 +807,7 @@ class NAIApiService {
         requestParameters['v4_negative_prompt'] = {
           'caption': {
             'base_caption': userNegativePrompt,
-            'char_captions': [],
+            'char_captions': negativeCharCaptions,
           },
           'legacy_uc': false,
         };
