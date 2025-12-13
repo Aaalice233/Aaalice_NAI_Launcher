@@ -99,3 +99,7 @@ nul
 .spec-workflow/
 .qoder/
 .kiro
+
+# Local folders
+logs/
+nai web copy/
