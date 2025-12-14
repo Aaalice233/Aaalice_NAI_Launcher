@@ -1055,7 +1055,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   void _doSelectPreset(String presetId) {
     final state = ref.read(promptConfigNotifierProvider);
-    final preset = state.presets.firstWhere((p) => p.id == presetId);
+    final preset = state.presets.cast<RandomPromptPreset?>().firstWhere(
+      (p) => p?.id == presetId,
+      orElse: () => null,
+    );
+
+    // 如果找不到预设，不执行任何操作
+    if (preset == null) return;
 
     // 切换到自定义模式
     ref.read(randomModeNotifierProvider.notifier).setMode(
