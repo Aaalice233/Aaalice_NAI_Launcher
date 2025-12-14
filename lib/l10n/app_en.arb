@@ -8,6 +8,8 @@
   "common_confirm": "Confirm",
   "common_selectAll": "Select All",
   "common_deselectAll": "Deselect All",
+  "common_expandAll": "Expand All",
+  "common_collapseAll": "Collapse All",
   "common_save": "Save",
   "common_delete": "Delete",
   "common_edit": "Edit",
@@ -1224,5 +1226,178 @@
       "enabled": {}
     }
   },
-  "characterTooltip_viewFullConfig": "Click for full configuration"
+  "characterTooltip_viewFullConfig": "Click for full configuration",
+
+  "tagLibrary_title": "Tag Library",
+  "tagLibrary_tagCount": "Loaded {count} tags",
+  "@tagLibrary_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_usingBuiltin": "Using built-in library",
+  "tagLibrary_lastSync": "Last sync: {time}",
+  "@tagLibrary_lastSync": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "tagLibrary_neverSynced": "Never synced",
+  "tagLibrary_syncNow": "Sync Now",
+  "tagLibrary_syncing": "Syncing...",
+  "tagLibrary_syncSuccess": "Library synced successfully",
+  "tagLibrary_syncFailed": "Sync failed, please check network connection",
+  "tagLibrary_networkError": "Cannot connect to Danbooru, please check network or proxy settings",
+  "tagLibrary_autoSync": "Auto Sync",
+  "tagLibrary_autoSyncHint": "Periodically update from Danbooru",
+  "tagLibrary_syncInterval": "Sync Interval",
+  "tagLibrary_dataRange": "Data Range",
+  "tagLibrary_dataRangeHint": "Larger range means longer sync time but more tags",
+  "tagLibrary_dataRangePopular": "Popular (>1000)",
+  "tagLibrary_dataRangeMedium": "Medium (>500)",
+  "tagLibrary_dataRangeFull": "Full (>100)",
+  "tagLibrary_syncIntervalDays": "{days} days",
+  "@tagLibrary_syncIntervalDays": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "tagLibrary_generatedCharacters": "Generated {count} characters",
+  "@tagLibrary_generatedCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_generateFailed": "Generation failed: {error}",
+  "@tagLibrary_generateFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+
+  "randomMode_title": "Select Random Mode",
+  "randomMode_naiOfficial": "Official Mode",
+  "randomMode_custom": "Custom Mode",
+  "randomMode_hybrid": "Hybrid Mode",
+  "randomMode_naiOfficialDesc": "Replicate NovelAI official random algorithm",
+  "randomMode_customDesc": "Generate using custom presets",
+  "randomMode_hybridDesc": "Combine official algorithm with custom presets",
+  "randomMode_naiIndicator": "NAI",
+  "randomMode_customIndicator": "Custom",
+
+  "naiMode_title": "NAI Official Mode",
+  "naiMode_subtitle": "Replicate NovelAI official random algorithm",
+  "naiMode_syncLibrary": "Supplement Library",
+  "naiMode_algorithmInfo": "Algorithm Info",
+  "naiMode_statTags": "Total Tags",
+  "naiMode_statRange": "Data Range",
+  "naiMode_statSync": "Last Sync",
+  "naiMode_totalTags": "Tags: {count}",
+  "@naiMode_totalTags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "naiMode_lastSync": "Synced: {time}",
+  "@naiMode_lastSync": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "naiMode_dataRange": "Range: {range}",
+  "@naiMode_dataRange": {
+    "placeholders": {
+      "range": {}
+    }
+  },
+  "naiMode_preview": "Preview",
+  "naiMode_createCustom": "Create Custom Preset",
+  "naiMode_categoryProbability": "{probability}%",
+  "@naiMode_categoryProbability": {
+    "placeholders": {
+      "probability": {}
+    }
+  },
+  "naiMode_tagCount": "{count} tags",
+  "@naiMode_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "naiMode_readOnlyHint": "Read-only mode, create a new preset to customize",
+  "naiMode_noLibrary": "Library not loaded",
+  "naiMode_noTags": "No tags",
+  "naiMode_previewResult": "Preview Result",
+  "naiMode_characterPrompts": "Character Prompts",
+  "naiMode_character": "Character",
+  "naiMode_createCustomTitle": "Create Custom Preset",
+  "naiMode_createCustomDesc": "This will create a new preset with all NAI categories, which you can customize.",
+  "naiMode_featureComingSoon": "Feature coming soon...",
+  "naiMode_danbooruToggleTooltip": "Toggle Danbooru supplement tags for this category",
+  "naiMode_danbooruSupplementLabel": "Danbooru",
+  "naiMode_danbooruMasterToggleTooltip": "Toggle Danbooru supplement tags for all categories",
+  "naiMode_entrySubtitle": "{count} tags · Replicate official algorithm",
+  "@naiMode_entrySubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "naiAlgorithm_title": "NAI Random Algorithm",
+  "naiAlgorithm_characterCount": "Character Count Distribution",
+  "naiAlgorithm_categoryProbability": "Category Selection Probability",
+  "naiAlgorithm_weightedRandom": "Weighted Random Algorithm",
+  "naiAlgorithm_weightedRandomDesc": "Each tag's weight is based on Danbooru usage count. Higher weight means higher selection probability.",
+  "naiAlgorithm_v4MultiCharacter": "V4 Multi-Character",
+  "naiAlgorithm_v4Desc": "V4 models support independent prompts for each character, separating main and character prompts.",
+  "naiAlgorithm_mainPrompt": "Main Prompt",
+  "naiAlgorithm_mainPromptTags": "Character count, background, style",
+  "naiAlgorithm_characterPrompt": "Character Prompt",
+  "naiAlgorithm_characterPromptTags": "Hair color, eye color, hairstyle, expression, pose",
+  "naiAlgorithm_noHuman": "No Human Scene",
+  "naiAlgorithm_noHumanDesc": "5% chance to generate scene without humans, containing only background, scene, and style tags.",
+  "naiAlgorithm_background": "Background",
+  "naiAlgorithm_hairColor": "Hair Color",
+  "naiAlgorithm_eyeColor": "Eye Color",
+  "naiAlgorithm_expression": "Expression",
+  "naiAlgorithm_hairStyle": "Hair Style",
+  "naiAlgorithm_pose": "Pose",
+  "naiAlgorithm_style": "Style",
+
+  "importNai_title": "Import from NAI Library",
+  "importNai_selectCategories": "Select categories to import",
+  "importNai_import": "Import {count} categories",
+  "@importNai_import": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "importNai_tagCount": "{count} tags",
+  "@importNai_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "tagLibrary_rangePopular": "Popular",
+  "tagLibrary_rangeMedium": "Medium",
+  "tagLibrary_rangeFull": "Full",
+  "tagLibrary_daysAgo": "{days} days ago",
+  "@tagLibrary_daysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "tagLibrary_hoursAgo": "{hours} hours ago",
+  "@tagLibrary_hoursAgo": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "tagLibrary_justNow": "Just now",
+
+  "tagLibrary_danbooruSupplement": "Danbooru Supplement",
+  "tagLibrary_danbooruSupplementHint": "Fetch extra tags from Danbooru to supplement library",
+  "tagLibrary_libraryComposition": "Library Composition",
+  "tagLibrary_libraryCompositionDesc": "NAI Official Fixed Library + Danbooru Supplement (Optional)"
 }

@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_parser.dart';
+import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/prompt/prompt_tag.dart';
+import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
 import '../../../providers/prompt_view_mode_provider.dart';
-import '../../../router/app_router.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/character/character_prompt_button.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
+import '../../../widgets/prompt/random_mode_selector.dart';
 import '../../../widgets/prompt/tag_view.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
@@ -173,11 +175,47 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   /// 生成随机提示词
-  void _generateRandomPrompt() {
-    final prompt =
-        ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
-    // 只更新 Provider，ref.listen 会自动同步到本地状态
-    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(prompt);
+  Future<void> _generateRandomPrompt() async {
+    try {
+      // 检查当前模型是否支持多角色
+      final params = ref.read(generationParamsNotifierProvider);
+      final isV4Model = params.isV4Model;
+
+      // 使用统一的生成入口
+      final result = await ref
+          .read(promptConfigNotifierProvider.notifier)
+          .generateRandomPrompt(isV4Model: isV4Model);
+
+      // 设置主提示词
+      ref
+          .read(generationParamsNotifierProvider.notifier)
+          .updatePrompt(result.mainPrompt);
+
+      // 如果有角色提示词，同步到角色管理器
+      if (result.hasCharacters && isV4Model) {
+        final characterPrompts = result.toCharacterPrompts();
+        ref
+            .read(characterPromptNotifierProvider.notifier)
+            .replaceAll(characterPrompts);
+
+        // 提示用户角色已生成
+        if (mounted) {
+          AppToast.success(context, context.l10n.tagLibrary_generatedCharacters(result.characterCount.toString()));
+        }
+      } else if (result.noHumans) {
+        // 无人物场景，清空角色
+        ref.read(characterPromptNotifierProvider.notifier).clearAll();
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.tagLibrary_generateFailed(e.toString()));
+      }
+    }
+  }
+
+  /// 显示随机模式选择
+  void _showRandomModeSelector() {
+    RandomModeBottomSheet.show(context);
   }
 
   void _clearPrompt() {
@@ -295,7 +333,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             if (mode != viewMode) _toggleViewMode();
           },
           onRandomPressed: _generateRandomPrompt,
-          onRandomLongPressed: () => context.push(AppRoutes.promptConfig),
+          onRandomLongPressed: _showRandomModeSelector,
           onFullscreenPressed: _openFullScreenEditor,
           onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
           onSettingsPressed: () => _showSettingsMenu(context, theme),

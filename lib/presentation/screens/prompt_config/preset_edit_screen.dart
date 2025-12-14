@@ -5,6 +5,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../providers/prompt_config_provider.dart';
 import 'config_item_editor.dart';
+import 'import_nai_category_dialog.dart';
 
 /// 预设编辑页面
 class PresetEditScreen extends ConsumerStatefulWidget {
@@ -108,6 +109,11 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
                   Row(
                     children: [
                       IconButton(
+                        icon: const Icon(Icons.download, size: 20),
+                        tooltip: context.l10n.importNai_title,
+                        onPressed: _importFromNai,
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.help_outline, size: 20),
                         tooltip: context.l10n.tooltip_help,
                         onPressed: _showHelpDialog,
@@ -188,6 +194,17 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
         ],
       ),
     );
+  }
+
+  /// 从NAI词库导入类别
+  Future<void> _importFromNai() async {
+    final result = await ImportNaiCategoryDialog.show(context);
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _configs.addAll(result);
+        _markChanged();
+      });
+    }
   }
 
   void _addConfig() async {

@@ -22,6 +22,10 @@ class TagSearchIndex {
   /// 中文翻译倒排索引：翻译片段 -> 标签索引列表
   final Map<String, List<int>> _chineseIndex = {};
 
+  /// 中文首字符分层索引：首字符 -> (长度 -> 标签索引列表)
+  /// 用于优化无精确匹配时的搜索
+  final Map<String, Map<int, List<int>>> _chineseTieredIndex = {};
+
   /// 别名索引：alias -> 标签索引
   final Map<String, int> _aliasIndex = {};
 
@@ -76,26 +80,30 @@ class TagSearchIndex {
   Future<_IndexData> _buildIndexInIsolate(List<LocalTag> tags) async {
     final receivePort = ReceivePort();
 
-    // 将标签转换为可序列化的格式
-    final tagsData = tags
-        .map(
-          (t) => {
-            'tag': t.tag,
-            'category': t.category,
-            'count': t.count,
-            'alias': t.alias,
-            'translation': t.translation,
-          },
-        )
-        .toList();
+    try {
+      // 将标签转换为可序列化的格式
+      final tagsData = tags
+          .map(
+            (t) => {
+              'tag': t.tag,
+              'category': t.category,
+              'count': t.count,
+              'alias': t.alias,
+              'translation': t.translation,
+            },
+          )
+          .toList();
 
-    await Isolate.spawn(
-      _isolateBuildIndex,
-      _IsolateMessage(tagsData, receivePort.sendPort),
-    );
+      await Isolate.spawn(
+        _isolateBuildIndex,
+        _IsolateMessage(tagsData, receivePort.sendPort),
+      );
 
-    final result = await receivePort.first as _IndexData;
-    return result;
+      final result = await receivePort.first as _IndexData;
+      return result;
+    } finally {
+      receivePort.close();
+    }
   }
 
   /// Isolate 入口点
@@ -118,6 +126,7 @@ class TagSearchIndex {
     // 构建 Trie 数据
     final trieData = <String, List<int>>{};
     final chineseIndex = <String, List<int>>{};
+    final chineseTieredIndex = <String, Map<int, List<int>>>{};
     final aliasIndex = <String, int>{};
 
     for (var i = 0; i < tags.length; i++) {
@@ -154,6 +163,14 @@ class TagSearchIndex {
             chineseIndex.putIfAbsent(substring, () => []).add(i);
           }
         }
+
+        // 构建分层索引：首字符 -> 翻译长度 -> 标签索引
+        final firstChar = translation[0];
+        final length = translation.length;
+        chineseTieredIndex
+            .putIfAbsent(firstChar, () => {})
+            .putIfAbsent(length, () => [])
+            .add(i);
       }
     }
 
@@ -175,6 +192,7 @@ class TagSearchIndex {
         sortedTags: serializedTags,
         trieData: trieData,
         chineseIndex: chineseIndex,
+        chineseTieredIndex: chineseTieredIndex,
         aliasIndex: aliasIndex,
       ),
     );
@@ -205,6 +223,10 @@ class TagSearchIndex {
     _chineseIndex.clear();
     _chineseIndex.addAll(data.chineseIndex);
 
+    // 应用分层索引
+    _chineseTieredIndex.clear();
+    _chineseTieredIndex.addAll(data.chineseTieredIndex);
+
     _aliasIndex.clear();
     _aliasIndex.addAll(data.aliasIndex);
   }
@@ -212,7 +234,8 @@ class TagSearchIndex {
   /// 将前缀插入 Trie
   void _insertIntoTrie(String prefix, List<int> indices) {
     var node = _root;
-    for (final char in prefix.split('')) {
+    for (final codeUnit in prefix.codeUnits) {
+      final char = String.fromCharCode(codeUnit);
       node = node.children.putIfAbsent(char, () => _TrieNode());
     }
     node.tagIndices.addAll(indices);
@@ -247,9 +270,10 @@ class TagSearchIndex {
   /// 将标签插入 Trie
   void _insertTagIntoTrie(String text, int index) {
     var node = _root;
-    final chars = text.split('');
-    for (var i = 0; i < chars.length && i < 10; i++) {
-      final char = chars[i];
+    final codeUnits = text.codeUnits;
+    final limit = codeUnits.length.clamp(0, 10);
+    for (var i = 0; i < limit; i++) {
+      final char = String.fromCharCode(codeUnits[i]);
       node = node.children.putIfAbsent(char, () => _TrieNode());
       node.tagIndices.add(index);
     }
@@ -263,6 +287,14 @@ class TagSearchIndex {
         _chineseIndex.putIfAbsent(substring, () => []).add(index);
       }
     }
+
+    // 构建分层索引
+    final firstChar = translation[0];
+    final length = translation.length;
+    _chineseTieredIndex
+        .putIfAbsent(firstChar, () => {})
+        .putIfAbsent(length, () => [])
+        .add(index);
   }
 
   /// 搜索标签
@@ -294,7 +326,8 @@ class TagSearchIndex {
 
     // 从 Trie 搜索
     var node = _root;
-    for (final char in prefix.split('')) {
+    for (final codeUnit in prefix.codeUnits) {
+      final char = String.fromCharCode(codeUnit);
       if (!node.children.containsKey(char)) {
         break;
       }
@@ -361,12 +394,40 @@ class TagSearchIndex {
       resultIndices.addAll(_chineseIndex[query]!);
     }
 
-    // 如果没有精确匹配，尝试部分匹配
-    if (resultIndices.isEmpty) {
-      for (final entry in _chineseIndex.entries) {
-        if (entry.key.contains(query) || query.contains(entry.key)) {
-          resultIndices.addAll(entry.value);
+    // 如果没有精确匹配，使用分层索引优化搜索范围
+    if (resultIndices.isEmpty && query.isNotEmpty) {
+      final firstChar = query[0];
+      final lengthGroup = _chineseTieredIndex[firstChar];
+
+      if (lengthGroup != null) {
+        // 只搜索长度相近的条目（查询长度 ± 3）
+        final minLen = (query.length - 3).clamp(1, query.length);
+        final maxLen = query.length + 3;
+        for (var len = minLen; len <= maxLen; len++) {
+          final indices = lengthGroup[len];
+          if (indices != null) {
+            for (final idx in indices) {
+              if (idx < _allTags.length) {
+                final translation = _allTags[idx].translation;
+                if (translation != null &&
+                    (translation.contains(query) || query.contains(translation))) {
+                  resultIndices.add(idx);
+                  if (resultIndices.length >= limit * 2) break;
+                }
+              }
+            }
+          }
           if (resultIndices.length >= limit * 2) break;
+        }
+      }
+
+      // 如果分层索引也没有结果，回退到遍历（但限制范围）
+      if (resultIndices.isEmpty) {
+        for (final entry in _chineseIndex.entries) {
+          if (entry.key.contains(query) || query.contains(entry.key)) {
+            resultIndices.addAll(entry.value);
+            if (resultIndices.length >= limit * 2) break;
+          }
         }
       }
     }
@@ -442,6 +503,7 @@ class TagSearchIndex {
     _root.children.clear();
     _allTags.clear();
     _chineseIndex.clear();
+    _chineseTieredIndex.clear();
     _aliasIndex.clear();
     _isReady = false;
   }
@@ -460,12 +522,14 @@ class _IndexData {
   final List<Map<String, dynamic>> sortedTags;
   final Map<String, List<int>> trieData;
   final Map<String, List<int>> chineseIndex;
+  final Map<String, Map<int, List<int>>> chineseTieredIndex;
   final Map<String, int> aliasIndex;
 
   _IndexData({
     required this.sortedTags,
     required this.trieData,
     required this.chineseIndex,
+    required this.chineseTieredIndex,
     required this.aliasIndex,
   });
 }

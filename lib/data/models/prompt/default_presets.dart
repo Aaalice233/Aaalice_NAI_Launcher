@@ -1,4 +1,7 @@
 import 'prompt_config.dart';
+import 'tag_category.dart';
+import 'tag_library.dart';
+import 'weighted_tag.dart';
 
 /// 默认预设配置名称
 class DefaultPresetNames {
@@ -120,6 +123,118 @@ class DefaultPresets {
           contentType: ContentType.string,
           selectProbability: 0.1,
           stringContents: _styleTags,
+        ),
+      ],
+    );
+  }
+
+  /// 从词库创建预设
+  ///
+  /// 使用词库中的标签替换静态标签列表
+  /// [includeDanbooruSupplement] 是否包含 Danbooru 补充标签
+  static RandomPromptPreset createFromLibrary(
+    TagLibrary library, {
+    DefaultPresetNames? names,
+    bool includeDanbooruSupplement = true,
+  }) {
+    final n = names ?? DefaultPresetNames.defaultNames;
+
+    // 从词库获取标签列表，如果没有则使用静态默认值
+    List<String> getTagsFromCategory(TagSubCategory category, List<String> fallback) {
+      final tags = library.getFilteredCategory(category, includeDanbooruSupplement: includeDanbooruSupplement);
+      if (tags.isEmpty) return fallback;
+      // 按权重排序后返回标签名称
+      final sorted = List<WeightedTag>.from(tags)
+        ..sort((a, b) => b.weight.compareTo(a.weight));
+      return sorted.map((t) => t.tag).toList();
+    }
+
+    return RandomPromptPreset.create(
+      name: n.presetName,
+      isDefault: true,
+      configs: [
+        // 角色数量 - 从词库获取
+        PromptConfig.create(
+          name: n.character,
+          selectionMode: SelectionMode.singleRandom,
+          contentType: ContentType.string,
+          stringContents: getTagsFromCategory(
+            TagSubCategory.characterCount,
+            ['1girl', '1boy', '1girl, 1boy', '2girls', 'solo', 'multiple girls'],
+          ),
+        ),
+
+        // 表情 - 从词库获取
+        PromptConfig.create(
+          name: n.expression,
+          selectionMode: SelectionMode.singleRandom,
+          contentType: ContentType.string,
+          stringContents: getTagsFromCategory(
+            TagSubCategory.expression,
+            _expressionTags,
+          ),
+        ),
+
+        // 服装 - 暂无对应词库类别，使用默认
+        PromptConfig.create(
+          name: n.clothing,
+          selectionMode: SelectionMode.singleRandom,
+          contentType: ContentType.string,
+          stringContents: _clothingTags,
+        ),
+
+        // 动作/姿势 - 从词库获取
+        PromptConfig.create(
+          name: n.action,
+          selectionMode: SelectionMode.singleRandom,
+          contentType: ContentType.string,
+          stringContents: getTagsFromCategory(
+            TagSubCategory.pose,
+            _actionTags,
+          ),
+        ),
+
+        // 背景 - 从词库获取
+        PromptConfig.create(
+          name: n.background,
+          selectionMode: SelectionMode.singleRandom,
+          contentType: ContentType.string,
+          stringContents: getTagsFromCategory(
+            TagSubCategory.background,
+            _backgroundTags,
+          ),
+        ),
+
+        // 镜头 - 暂无对应词库类别，使用默认
+        PromptConfig.create(
+          name: n.shot,
+          selectionMode: SelectionMode.singleRandom,
+          contentType: ContentType.string,
+          stringContents: _shotTags,
+        ),
+
+        // 构图 - 从词库场景类别获取
+        PromptConfig.create(
+          name: n.composition,
+          selectionMode: SelectionMode.singleProbability,
+          contentType: ContentType.string,
+          selectProbability: 0.3,
+          stringContents: getTagsFromCategory(
+            TagSubCategory.scene,
+            _compositionTags,
+          ),
+        ),
+
+        // 特殊风格 - 从词库获取
+        PromptConfig.create(
+          name: n.specialStyle,
+          selectionMode: SelectionMode.singleProbability,
+          contentType: ContentType.string,
+          selectProbability: 0.1,
+          stringContents: getTagsFromCategory(
+            TagSubCategory.style,
+            _styleTags,
+          ),
         ),
       ],
     );

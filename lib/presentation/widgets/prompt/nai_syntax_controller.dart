@@ -136,7 +136,7 @@ class NaiSyntaxController extends TextEditingController {
         TextSpan(
           text: match.text,
           style: baseStyle.copyWith(
-            backgroundColor: colors.getBackgroundColor(match),
+            backgroundColor: colors._getBackgroundColor(match),
             height: 1.35, // 增加行高，使高亮行之间有间隙
           ),
         ),
@@ -284,7 +284,7 @@ class NaiSyntaxColors {
   }
 
   /// 根据匹配获取背景色
-  Color getBackgroundColor(_SyntaxMatch match) {
+  Color _getBackgroundColor(_SyntaxMatch match) {
     switch (match.type) {
       case _SyntaxType.brace:
         return _getBraceColor(match.depth);

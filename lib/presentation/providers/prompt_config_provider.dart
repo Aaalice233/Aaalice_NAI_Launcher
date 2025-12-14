@@ -5,6 +5,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/models/prompt/default_presets.dart';
 import '../../data/models/prompt/prompt_config.dart';
+import '../../data/models/prompt/random_prompt_result.dart';
+import '../../data/services/random_prompt_generator.dart';
+import 'random_mode_provider.dart';
+import 'tag_library_provider.dart';
 
 part 'prompt_config_provider.g.dart';
 
@@ -75,11 +79,11 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
         final List<dynamic> decoded = jsonDecode(presetsJson);
         presets = decoded
             .map((e) => RandomPromptPreset.fromJson(e as Map<String, dynamic>))
+            .where((p) => !p.isDefault) // 过滤掉默认预设
             .toList();
       } else {
-        // 首次使用，创建默认预设
-        presets = DefaultPresets.allDefaults;
-        await _savePresets(presets);
+        // 首次使用，不再自动创建默认预设（默认使用 NAI 官方模式）
+        presets = [];
       }
 
       state = PromptConfigState(
@@ -89,7 +93,7 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
       );
     } catch (e) {
       state = PromptConfigState(
-        presets: DefaultPresets.allDefaults,
+        presets: [],
         isLoading: false,
         error: e.toString(),
       );
@@ -108,13 +112,57 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     if (state.presets.isEmpty || state.isLoading) {
       return DefaultPresets.createDefaultPreset().generate(seed: seed);
     }
-    
+
     final preset = state.selectedPreset;
     if (preset == null) {
       return state.presets.first.generate(seed: seed);
     }
-    
+
     return preset.generate(seed: seed);
+  }
+
+  /// 统一随机提示词生成入口
+  ///
+  /// 根据当前模式（官网/自定义）生成随机提示词
+  /// [seed] 随机种子（可选）
+  /// [isV4Model] 是否为 V4+ 模型（可选，默认 true）
+  Future<RandomPromptResult> generateRandomPrompt({
+    int? seed,
+    bool isV4Model = true,
+  }) async {
+    final mode = ref.read(randomModeNotifierProvider);
+
+    if (mode == RandomGenerationMode.naiOfficial) {
+      // 官网模式：使用 NAI 算法生成
+      return _generateNaiStylePrompt(seed: seed, isV4Model: isV4Model);
+    } else {
+      // 自定义模式：使用现有预设生成
+      return _generateCustomPrompt(seed: seed);
+    }
+  }
+
+  /// 官网模式生成
+  Future<RandomPromptResult> _generateNaiStylePrompt({
+    int? seed,
+    bool isV4Model = true,
+  }) async {
+    final generator = ref.read(randomPromptGeneratorProvider);
+    final filterConfig = ref.read(tagLibraryNotifierProvider).categoryFilterConfig;
+    return generator.generateNaiStyle(
+      seed: seed,
+      isV4Model: isV4Model,
+      categoryFilterConfig: filterConfig,
+    );
+  }
+
+  /// 自定义模式生成
+  RandomPromptResult _generateCustomPrompt({int? seed}) {
+    final prompt = generatePrompt(seed: seed);
+    return RandomPromptResult(
+      mainPrompt: prompt,
+      mode: RandomGenerationMode.custom,
+      seed: seed,
+    );
   }
 
   /// 选择预设
@@ -186,46 +234,5 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
       configs: preset.configs,
     );
     await addPreset(newPreset);
-  }
-
-  /// 重置为默认预设
-  Future<void> resetToDefaults([DefaultPresetNames? names]) async {
-    final presets = [DefaultPresets.createDefaultPreset(names)];
-    await _savePresets(presets);
-    await _box?.put(_selectedKey, presets.first.id);
-    state = PromptConfigState(
-      presets: presets,
-      selectedPresetId: presets.first.id,
-      isLoading: false,
-    );
-  }
-
-  /// 更新默认预设的本地化名称
-  /// 当语言切换时调用此方法
-  Future<void> updateDefaultPresetLocalization(DefaultPresetNames names) async {
-    final newPresets = state.presets.map((preset) {
-      if (preset.isDefault) {
-        // 更新默认预设名称和配置组名称
-        final defaultPreset = DefaultPresets.createDefaultPreset(names);
-        final updatedConfigs = preset.configs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final config = entry.value;
-          // 如果索引在默认配置范围内，使用默认配置的名称
-          if (index < defaultPreset.configs.length) {
-            return config.copyWith(name: defaultPreset.configs[index].name);
-          }
-          return config;
-        }).toList();
-        
-        return preset.copyWith(
-          name: names.presetName,
-          configs: updatedConfigs,
-        );
-      }
-      return preset;
-    }).toList();
-
-    await _savePresets(newPresets);
-    state = state.copyWith(presets: newPresets);
   }
 }

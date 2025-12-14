@@ -1,0 +1,124 @@
+{
+  "version": "1.0.0",
+  "source": "NovelAI Web JS Bundle + Danbooru Tag Guidelines",
+  "lastUpdated": "2025-12-14",
+  "description": "角色数量标签组合参考，用于随机提示词生成",
+  "deprecatedTags": {
+    "duo": {
+      "deprecated": true,
+      "reason": "Danbooru 已废弃此标签",
+      "reference": "https://danbooru.donmai.us/wiki_pages/duo",
+      "replacement": "使用具体的角色组合标签，如 2girls, 2boys, 1girl+1boy"
+    },
+    "trio": {
+      "deprecated": true,
+      "reason": "Danbooru 已废弃此标签",
+      "reference": "https://danbooru.donmai.us/wiki_pages/trio",
+      "replacement": "使用具体的角色组合标签，如 3girls, 3boys, 2girls+1boy"
+    }
+  },
+  "characterCountWeights": {
+    "description": "NAI 官网角色数量权重分布",
+    "weights": [
+      { "count": 1, "weight": 70, "probability": "~70%" },
+      { "count": 2, "weight": 20, "probability": "~20%" },
+      { "count": 3, "weight": 7, "probability": "~7%" },
+      { "count": 0, "weight": 5, "probability": "~5%", "note": "no humans 场景" }
+    ]
+  },
+  "tagCombinations": {
+    "description": "所有可能的角色数量标签组合",
+    "combinations": {
+      "0人": {
+        "tags": ["no humans"],
+        "note": "无人物场景，通常配合 scenery 等标签"
+      },
+      "1人": {
+        "tags": ["solo"],
+        "note": "单人场景"
+      },
+      "2人-同性女": {
+        "tags": ["2girls"],
+        "genderCombo": { "female": 2, "male": 0 }
+      },
+      "2人-同性男": {
+        "tags": ["2boys"],
+        "genderCombo": { "female": 0, "male": 2 }
+      },
+      "2人-混合": {
+        "tags": ["1girl", "1boy"],
+        "separator": ", ",
+        "combined": "1girl, 1boy",
+        "genderCombo": { "female": 1, "male": 1 },
+        "note": "注意使用英文逗号分隔，这是两个独立的标签"
+      },
+      "3人-同性女": {
+        "tags": ["3girls"],
+        "genderCombo": { "female": 3, "male": 0 }
+      },
+      "3人-同性男": {
+        "tags": ["3boys"],
+        "genderCombo": { "female": 0, "male": 3 }
+      },
+      "3人-2女1男": {
+        "tags": ["2girls", "1boy"],
+        "separator": ", ",
+        "combined": "2girls, 1boy",
+        "genderCombo": { "female": 2, "male": 1 },
+        "note": "注意使用英文逗号分隔"
+      },
+      "3人-1女2男": {
+        "tags": ["1girl", "2boys"],
+        "separator": ", ",
+        "combined": "1girl, 2boys",
+        "genderCombo": { "female": 1, "male": 2 },
+        "note": "注意使用英文逗号分隔"
+      },
+      "4人以上-同性女": {
+        "tags": ["multiple girls"],
+        "note": "4人及以上同性女"
+      },
+      "4人以上-同性男": {
+        "tags": ["multiple boys"],
+        "note": "4人及以上同性男"
+      },
+      "4人以上-混合": {
+        "tags": ["group"],
+        "note": "4人及以上混合性别"
+      }
+    }
+  },
+  "usageGuidelines": {
+    "mainPromptTags": {
+      "description": "主提示词中使用的人数标签",
+      "examples": [
+        "solo",
+        "2girls",
+        "2boys",
+        "1girl, 1boy",
+        "3girls",
+        "3boys",
+        "2girls, 1boy",
+        "1girl, 2boys",
+        "multiple girls",
+        "multiple boys",
+        "group",
+        "no humans"
+      ]
+    },
+    "characterPromptTags": {
+      "description": "每个角色提示词中使用的性别标签",
+      "examples": [
+        "1girl",
+        "1boy"
+      ],
+      "note": "每个角色提示词开头应包含对应的性别标签"
+    }
+  },
+  "implementationNotes": [
+    "混合性别组合（如 1girl, 1boy）应使用英文逗号加空格分隔",
+    "不要使用已废弃的 duo 和 trio 标签",
+    "V4+ 多角色模式下，主提示词包含人数标签，每个角色提示词包含各自的性别标签",
+    "人数标签应在角色生成后根据实际性别组合动态计算"
+  ]
+}

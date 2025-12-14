@@ -8,6 +8,8 @@
   "common_confirm": "确定",
   "common_selectAll": "全选",
   "common_deselectAll": "取消全选",
+  "common_expandAll": "展开全部",
+  "common_collapseAll": "收起全部",
   "common_save": "保存",
   "common_delete": "删除",
   "common_edit": "编辑",
@@ -899,5 +901,178 @@
       "enabled": {}
     }
   },
-  "characterTooltip_viewFullConfig": "点击查看完整配置"
+  "characterTooltip_viewFullConfig": "点击查看完整配置",
+
+  "tagLibrary_title": "词库管理",
+  "tagLibrary_tagCount": "已加载 {count} 个标签",
+  "@tagLibrary_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_usingBuiltin": "使用内置词库",
+  "tagLibrary_lastSync": "上次同步: {time}",
+  "@tagLibrary_lastSync": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "tagLibrary_neverSynced": "尚未同步",
+  "tagLibrary_syncNow": "立即同步",
+  "tagLibrary_syncing": "同步中...",
+  "tagLibrary_syncSuccess": "词库同步成功",
+  "tagLibrary_syncFailed": "同步失败，请检查网络连接",
+  "tagLibrary_networkError": "无法连接 Danbooru，请检查网络或代理设置",
+  "tagLibrary_autoSync": "自动同步",
+  "tagLibrary_autoSyncHint": "定期从 Danbooru 更新词库",
+  "tagLibrary_syncInterval": "同步间隔",
+  "tagLibrary_dataRange": "数据范围",
+  "tagLibrary_dataRangeHint": "数据量越大，同步时间越长，但标签更丰富",
+  "tagLibrary_dataRangePopular": "热门 (热度>1000)",
+  "tagLibrary_dataRangeMedium": "中等 (热度>500)",
+  "tagLibrary_dataRangeFull": "完整 (热度>100)",
+  "tagLibrary_syncIntervalDays": "{days}天",
+  "@tagLibrary_syncIntervalDays": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "tagLibrary_generatedCharacters": "已生成 {count} 个角色",
+  "@tagLibrary_generatedCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_generateFailed": "生成失败: {error}",
+  "@tagLibrary_generateFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+
+  "randomMode_title": "选择随机模式",
+  "randomMode_naiOfficial": "官网模式",
+  "randomMode_custom": "自定义模式",
+  "randomMode_hybrid": "混合模式",
+  "randomMode_naiOfficialDesc": "复刻 NovelAI 官方随机算法",
+  "randomMode_customDesc": "使用自定义预设生成",
+  "randomMode_hybridDesc": "结合官方算法和自定义预设",
+  "randomMode_naiIndicator": "NAI",
+  "randomMode_customIndicator": "自定义",
+
+  "naiMode_title": "NAI官方模式",
+  "naiMode_subtitle": "复刻 NovelAI 官方随机算法",
+  "naiMode_syncLibrary": "补充词库",
+  "naiMode_algorithmInfo": "算法说明",
+  "naiMode_statTags": "标签总数",
+  "naiMode_statRange": "数据范围",
+  "naiMode_statSync": "上次同步",
+  "naiMode_totalTags": "标签数: {count}",
+  "@naiMode_totalTags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "naiMode_lastSync": "同步: {time}",
+  "@naiMode_lastSync": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "naiMode_dataRange": "范围: {range}",
+  "@naiMode_dataRange": {
+    "placeholders": {
+      "range": {}
+    }
+  },
+  "naiMode_preview": "预览生成",
+  "naiMode_createCustom": "基于此创建自定义预设",
+  "naiMode_categoryProbability": "{probability}%",
+  "@naiMode_categoryProbability": {
+    "placeholders": {
+      "probability": {}
+    }
+  },
+  "naiMode_tagCount": "{count}个标签",
+  "@naiMode_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "naiMode_readOnlyHint": "只读模式，如需自定义请创建新预设",
+  "naiMode_noLibrary": "词库未加载",
+  "naiMode_noTags": "暂无标签",
+  "naiMode_previewResult": "生成预览",
+  "naiMode_characterPrompts": "角色提示词",
+  "naiMode_character": "角色",
+  "naiMode_createCustomTitle": "创建自定义预设",
+  "naiMode_createCustomDesc": "将创建一个包含所有NAI类别的新预设，您可以在此基础上进行自定义修改。",
+  "naiMode_featureComingSoon": "功能开发中...",
+  "naiMode_danbooruToggleTooltip": "切换此类别的 Danbooru 补充标签",
+  "naiMode_danbooruSupplementLabel": "Danbooru",
+  "naiMode_danbooruMasterToggleTooltip": "切换所有类别的 Danbooru 补充标签",
+  "naiMode_entrySubtitle": "{count}个标签 · 复刻官网算法",
+  "@naiMode_entrySubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "naiAlgorithm_title": "NAI随机算法说明",
+  "naiAlgorithm_characterCount": "角色数量分布",
+  "naiAlgorithm_categoryProbability": "类别选择概率",
+  "naiAlgorithm_weightedRandom": "加权随机算法",
+  "naiAlgorithm_weightedRandomDesc": "每个标签的权重基于 Danbooru 使用次数计算，权重越高被选中概率越大。",
+  "naiAlgorithm_v4MultiCharacter": "V4多角色联动",
+  "naiAlgorithm_v4Desc": "V4模型支持多角色独立提示词，主提示词和角色提示词分离。",
+  "naiAlgorithm_mainPrompt": "主提示词",
+  "naiAlgorithm_mainPromptTags": "人数、背景、风格",
+  "naiAlgorithm_characterPrompt": "角色提示词",
+  "naiAlgorithm_characterPromptTags": "发色、瞳色、发型、表情、姿势",
+  "naiAlgorithm_noHuman": "无人物场景",
+  "naiAlgorithm_noHumanDesc": "5%概率生成无人物场景，仅包含背景、场景、风格标签。",
+  "naiAlgorithm_background": "背景",
+  "naiAlgorithm_hairColor": "发色",
+  "naiAlgorithm_eyeColor": "瞳色",
+  "naiAlgorithm_expression": "表情",
+  "naiAlgorithm_hairStyle": "发型",
+  "naiAlgorithm_pose": "姿势",
+  "naiAlgorithm_style": "风格",
+
+  "importNai_title": "从NAI词库导入",
+  "importNai_selectCategories": "选择要导入的类别",
+  "importNai_import": "导入 {count} 个类别",
+  "@importNai_import": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "importNai_tagCount": "{count}个标签",
+  "@importNai_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "tagLibrary_rangePopular": "热门",
+  "tagLibrary_rangeMedium": "中等",
+  "tagLibrary_rangeFull": "完整",
+  "tagLibrary_daysAgo": "{days}天前",
+  "@tagLibrary_daysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "tagLibrary_hoursAgo": "{hours}小时前",
+  "@tagLibrary_hoursAgo": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "tagLibrary_justNow": "刚刚",
+
+  "tagLibrary_danbooruSupplement": "Danbooru 补充",
+  "tagLibrary_danbooruSupplementHint": "从 Danbooru 获取额外标签补充词库",
+  "tagLibrary_libraryComposition": "词库组成",
+  "tagLibrary_libraryCompositionDesc": "NAI 官方固定词库 + Danbooru 补充（可选）"
 }

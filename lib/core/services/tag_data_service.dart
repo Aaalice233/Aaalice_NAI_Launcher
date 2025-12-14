@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
@@ -212,9 +213,9 @@ class TagDataService {
         return false;
       }
 
-      // 加载缓存的标签
+      // 加载缓存的标签（使用 Isolate 避免阻塞主线程）
       final content = await tagsFile.readAsString();
-      _tags = _parseCsvContent(content);
+      _tags = await _parseCsvContentAsync(content);
 
       AppLogger.d('Loaded ${_tags.length} tags from cache', 'TagData');
       return _tags.isNotEmpty;
@@ -246,7 +247,8 @@ class TagDataService {
       if (response.data != null && response.data!.isNotEmpty) {
         onDownloadProgress?.call(_tagsFileName, 1.0, '正在解析数据...');
 
-        _tags = _parseCsvContent(response.data!);
+        // 使用 Isolate 解析，避免阻塞主线程
+        _tags = await _parseCsvContentAsync(response.data!);
 
         // 保存到缓存
         await _saveToCache(response.data!);
@@ -259,8 +261,21 @@ class TagDataService {
     }
   }
 
-  /// 解析 CSV 内容
-  List<LocalTag> _parseCsvContent(String content) {
+  /// 解析 CSV 内容（在 Isolate 中执行，避免阻塞主线程）
+  Future<List<LocalTag>> _parseCsvContentAsync(String content) async {
+    // 将翻译映射作为参数传递给 Isolate
+    final translationMapCopy = Map<String, String>.from(_translationMap);
+
+    return Isolate.run(() {
+      return _parseCsvContentSync(content, translationMapCopy);
+    });
+  }
+
+  /// 同步解析 CSV 内容（供 Isolate 使用）
+  static List<LocalTag> _parseCsvContentSync(
+    String content,
+    Map<String, String> translationMap,
+  ) {
     final lines = content.split('\n');
     final tags = <LocalTag>[];
 
@@ -276,7 +291,7 @@ class TagDataService {
         final tag = LocalTag.fromCsvLine(line);
 
         // 添加翻译
-        final translation = _translationMap[tag.tag.toLowerCase()];
+        final translation = translationMap[tag.tag.toLowerCase()];
         final tagWithTranslation =
             translation != null ? tag.copyWith(translation: translation) : tag;
 
@@ -288,6 +303,11 @@ class TagDataService {
     }
 
     return tags;
+  }
+
+  /// 解析 CSV 内容（同步版本，用于小数据量或回退场景）
+  List<LocalTag> _parseCsvContent(String content) {
+    return _parseCsvContentSync(content, _translationMap);
   }
 
   /// 保存到缓存

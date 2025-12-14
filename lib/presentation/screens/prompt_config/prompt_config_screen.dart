@@ -3,10 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/models/prompt/default_presets.dart';
 import '../../../data/models/prompt/prompt_config.dart';
+import '../../../data/models/prompt/random_prompt_result.dart';
+import '../../../data/models/prompt/sync_config.dart';
+import '../../../data/models/prompt/tag_category.dart';
+import '../../../data/models/prompt/weighted_tag.dart';
 import '../../providers/prompt_config_provider.dart';
+import '../../providers/random_mode_provider.dart';
+import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/prompt/nai_algorithm_dialog.dart';
 
 /// 随机提示词配置页面 - 分栏布局
 class PromptConfigScreen extends ConsumerStatefulWidget {
@@ -36,30 +42,16 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     _presetNameController.dispose();
     super.dispose();
   }
-
-  /// 获取本地化的默认预设名称
-  DefaultPresetNames _getDefaultPresetNames() {
-    final l10n = context.l10n;
-    return DefaultPresetNames(
-      presetName: l10n.defaultPreset_name,
-      character: l10n.defaultPreset_character,
-      expression: l10n.defaultPreset_expression,
-      clothing: l10n.defaultPreset_clothing,
-      action: l10n.defaultPreset_action,
-      background: l10n.defaultPreset_background,
-      shot: l10n.defaultPreset_shot,
-      composition: l10n.defaultPreset_composition,
-      specialStyle: l10n.defaultPreset_specialStyle,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(promptConfigNotifierProvider);
     final theme = Theme.of(context);
+    final currentMode = ref.watch(randomModeNotifierProvider);
 
-    // 初始化选中状态
-    if (_selectedPresetId == null && state.presets.isNotEmpty) {
+    // 初始化选中状态（仅在自定义模式下）
+    if (currentMode == RandomGenerationMode.custom &&
+        _selectedPresetId == null &&
+        state.presets.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _selectPreset(state.selectedPresetId ?? state.presets.first.id);
       });
@@ -73,12 +65,888 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           _buildPresetPanel(state, theme),
           // 垂直分割线
           VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor),
-          // 中间配置组列表
-          _buildConfigPanel(state, theme),
-          // 垂直分割线
-          VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor),
-          // 右侧详情编辑
-          _buildDetailPanel(state, theme),
+          // NAI 模式：显示算法说明；自定义模式：显示配置组列表和详情
+          if (currentMode == RandomGenerationMode.naiOfficial)
+            Expanded(child: _buildNaiDetailPanel(theme))
+          else ...[
+            // 中间配置组列表
+            _buildConfigPanel(state, theme),
+            // 垂直分割线
+            VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor),
+            // 右侧详情编辑
+            _buildDetailPanel(state, theme),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// NAI 模式详情面板 - 直接展示完整内容
+  Widget _buildNaiDetailPanel(ThemeData theme) {
+    final libraryState = ref.watch(tagLibraryNotifierProvider);
+
+    return Container(
+      color: theme.scaffoldBackgroundColor,
+      child: Column(
+        children: [
+          // 信息卡片（包含操作按钮）
+          _buildNaiInfoCard(theme, libraryState),
+
+          // 类别列表
+          Expanded(
+            child: libraryState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildNaiCategoryList(theme, libraryState),
+          ),
+
+          // 底部操作区
+          _buildNaiBottomActions(theme),
+        ],
+      ),
+    );
+  }
+
+  /// NAI 模式头部区域
+  Widget _buildNaiInfoCard(ThemeData theme, TagLibraryState state) {
+    final library = state.library;
+    final config = state.syncConfig;
+    // 根据分类级过滤配置显示过滤后的标签数量
+    final tagCount = library?.getFilteredTagCountWithConfig(
+      state.categoryFilterConfig,
+    ) ?? 0;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题与操作按钮
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 左侧：标题信息
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome,
+                          color: theme.colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          context.l10n.naiMode_subtitle,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.l10n.naiMode_readOnlyHint,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 右侧：操作按钮
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: _showAlgorithmDialog,
+                    icon: const Icon(Icons.help_outline, size: 18),
+                    label: Text(context.l10n.naiMode_algorithmInfo),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: state.isSyncing ? null : _showSyncSettingsDialog,
+                    icon: state.isSyncing
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.onPrimary,
+                            ),
+                          )
+                        : const Icon(Icons.sync, size: 18),
+                    label: Text(
+                      state.isSyncing
+                          ? context.l10n.tagLibrary_syncing
+                          : context.l10n.naiMode_syncLibrary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // 统计数据卡片
+          Row(
+            children: [
+              _buildStatCard(
+                theme,
+                value: tagCount.toString(),
+                label: context.l10n.naiMode_statTags,
+                icon: Icons.label_outline,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              _buildStatCard(
+                theme,
+                value: _getDataRangeText(config.dataRange),
+                label: context.l10n.naiMode_statRange,
+                icon: Icons.data_usage,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(width: 12),
+              _buildStatCard(
+                theme,
+                value: _formatLastSync(config.lastSyncTime),
+                label: context.l10n.naiMode_statSync,
+                icon: Icons.schedule,
+                color: theme.colorScheme.secondary,
+              ),
+            ],
+          ),
+
+          // 同步进度
+          if (state.isSyncing && state.syncProgress != null) ...[
+            const SizedBox(height: 16),
+            _buildNaiSyncProgress(theme, state.syncProgress!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 显示同步设置对话框
+  void _showSyncSettingsDialog() {
+    final theme = Theme.of(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final state = ref.watch(tagLibraryNotifierProvider);
+
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.sync, color: theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(context.l10n.naiMode_syncLibrary),
+                ],
+              ),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 数据范围
+                    Text(
+                      context.l10n.tagLibrary_dataRange,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: DataRange.values.map((range) {
+                        final selected = state.syncConfig.dataRange == range;
+                        final label = switch (range) {
+                          DataRange.popular =>
+                            context.l10n.tagLibrary_dataRangePopular,
+                          DataRange.medium =>
+                            context.l10n.tagLibrary_dataRangeMedium,
+                          DataRange.full =>
+                            context.l10n.tagLibrary_dataRangeFull,
+                        };
+                        return ChoiceChip(
+                          label: Text(label),
+                          selected: selected,
+                          onSelected: (value) {
+                            if (value) {
+                              ref
+                                  .read(tagLibraryNotifierProvider.notifier)
+                                  .setDataRange(range);
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.l10n.tagLibrary_dataRangeHint,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 词库组成说明
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.l10n.tagLibrary_libraryComposition,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  context.l10n.tagLibrary_libraryCompositionDesc,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(context.l10n.common_cancel),
+                ),
+                FilledButton.icon(
+                  onPressed: state.isSyncing
+                      ? null
+                      : () {
+                          Navigator.pop(dialogContext);
+                          _syncLibrary();
+                        },
+                  icon: const Icon(Icons.sync, size: 18),
+                  label: Text(context.l10n.tagLibrary_syncNow),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 统计数据卡片
+  Widget _buildStatCard(
+    ThemeData theme, {
+    required String value,
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNaiSyncProgress(ThemeData theme, SyncProgress progress) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                progress.message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (progress.totalEstimate > 0) ...[
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress.progress,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// NAI 类别列表
+  Widget _buildNaiCategoryList(ThemeData theme, TagLibraryState state) {
+    final library = state.library;
+    if (library == null) {
+      return Center(child: Text(context.l10n.naiMode_noLibrary));
+    }
+
+    final categoryConfig = _getNaiCategoryConfig();
+    final allCategories = categoryConfig.keys.toSet();
+    final allExpanded = _expandedNaiCategories.containsAll(allCategories);
+    final filterConfig = state.categoryFilterConfig;
+
+    return Column(
+      children: [
+        // 展开/收起全部按钮和总开关
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Spacer(),
+              // 全局 Danbooru 补充开关
+              Tooltip(
+                message: context.l10n.naiMode_danbooruMasterToggleTooltip,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      context.l10n.naiMode_danbooruSupplementLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: filterConfig.anyEnabled
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                      ),
+                    ),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: filterConfig.anyEnabled,
+                        onChanged: (value) {
+                          ref.read(tagLibraryNotifierProvider.notifier).setAllCategoriesEnabled(value);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    if (allExpanded) {
+                      _expandedNaiCategories.clear();
+                    } else {
+                      _expandedNaiCategories.addAll(allCategories);
+                    }
+                  });
+                },
+                icon: Icon(
+                  allExpanded ? Icons.unfold_less : Icons.unfold_more,
+                  size: 18,
+                ),
+                label: Text(
+                  allExpanded
+                      ? context.l10n.common_collapseAll
+                      : context.l10n.common_expandAll,
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 类别列表
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: categoryConfig.length,
+            itemBuilder: (context, index) {
+              final entry = categoryConfig.entries.elementAt(index);
+              final category = entry.key;
+              final probability = entry.value;
+              // 使用分类级过滤配置
+              final includeSupplement = filterConfig.isEnabled(category);
+              final tags = library.getFilteredCategory(
+                category,
+                includeDanbooruSupplement: includeSupplement,
+              );
+
+              return _buildNaiCategoryTile(theme, category, probability, tags);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 有 Danbooru 补充的分类（只有这些分类显示开关）
+  static const _categoriesWithDanbooruSupplement = {
+    TagSubCategory.hairColor,
+    TagSubCategory.eyeColor,
+    TagSubCategory.hairStyle,
+    TagSubCategory.background,
+  };
+
+  Widget _buildNaiCategoryTile(
+    ThemeData theme,
+    TagSubCategory category,
+    int probability,
+    List<WeightedTag> tags,
+  ) {
+    final isExpanded = _expandedNaiCategories.contains(category);
+    final hasDanbooruSupplement = _categoriesWithDanbooruSupplement.contains(category);
+    final categoryName = TagSubCategoryHelper.getDisplayName(category);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedNaiCategories.remove(category);
+                } else {
+                  _expandedNaiCategories.add(category);
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      _getCategoryIcon(category),
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          categoryName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.l10n.naiMode_tagCount(tags.length.toString()),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Danbooru 补充开关（仅对有补充的分类显示）
+                  if (hasDanbooruSupplement)
+                    Tooltip(
+                      message: context.l10n.naiMode_danbooruToggleTooltip,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            context.l10n.naiMode_danbooruSupplementLabel,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: ref.watch(tagLibraryNotifierProvider).categoryFilterConfig.isEnabled(category)
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
+                            ),
+                          ),
+                          Transform.scale(
+                            scale: 0.8,
+                            child: Switch(
+                              value: ref.watch(tagLibraryNotifierProvider).categoryFilterConfig.isEnabled(category),
+                              onChanged: (value) {
+                                ref.read(tagLibraryNotifierProvider.notifier).setCategoryEnabled(category, value);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiaryContainer.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      context.l10n.naiMode_categoryProbability(
+                        probability.toString(),
+                      ),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.tertiary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: isExpanded
+                ? _buildNaiTagList(theme, tags)
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNaiTagList(ThemeData theme, List<WeightedTag> tags) {
+    if (tags.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          context.l10n.naiMode_noTags,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+      );
+    }
+
+    final sortedTags = List<WeightedTag>.from(tags)
+      ..sort((a, b) => b.weight.compareTo(a.weight));
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: sortedTags.map((tag) {
+          return _buildNaiTagChip(theme, tag);
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildNaiTagChip(ThemeData theme, WeightedTag tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Text(
+        tag.tag,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+
+  /// NAI 底部操作区
+  Widget _buildNaiBottomActions(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _previewGenerate,
+              icon: const Icon(Icons.play_arrow, size: 18),
+              label: Text(context.l10n.naiMode_preview),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: FilledButton.icon(
+              onPressed: _createCustomPreset,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(context.l10n.naiMode_createCustom),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // NAI 模式辅助方法
+  final _expandedNaiCategories = <TagSubCategory>{};
+
+  /// NAI 官方类别及其选中概率配置
+  /// 参考: docs/NAI随机提示词功能分析.md
+  Map<TagSubCategory, int> _getNaiCategoryConfig() {
+    return {
+      // 角色特征类（概率约50%）
+      TagSubCategory.hairColor: 50,
+      TagSubCategory.eyeColor: 50,
+      TagSubCategory.hairStyle: 50,
+      TagSubCategory.expression: 50,
+      TagSubCategory.pose: 50,
+      TagSubCategory.clothing: 50,
+      TagSubCategory.accessory: 50,
+      TagSubCategory.bodyFeature: 30,
+      // 场景/画风类
+      TagSubCategory.background: 90,
+      TagSubCategory.scene: 50,
+      TagSubCategory.style: 30,
+      // 人数（由算法决定，显示供参考）
+      TagSubCategory.characterCount: 100,
+    };
+  }
+
+  IconData _getCategoryIcon(TagSubCategory category) {
+    return switch (category) {
+      TagSubCategory.hairColor => Icons.palette,
+      TagSubCategory.eyeColor => Icons.remove_red_eye,
+      TagSubCategory.hairStyle => Icons.face,
+      TagSubCategory.expression => Icons.emoji_emotions,
+      TagSubCategory.pose => Icons.accessibility_new,
+      TagSubCategory.clothing => Icons.checkroom,
+      TagSubCategory.accessory => Icons.watch,
+      TagSubCategory.bodyFeature => Icons.accessibility,
+      TagSubCategory.background => Icons.landscape,
+      TagSubCategory.scene => Icons.photo_camera,
+      TagSubCategory.style => Icons.brush,
+      TagSubCategory.characterCount => Icons.group,
+      _ => Icons.label,
+    };
+  }
+
+  String _getDataRangeText(DataRange range) {
+    return switch (range) {
+      DataRange.popular => context.l10n.tagLibrary_rangePopular,
+      DataRange.medium => context.l10n.tagLibrary_rangeMedium,
+      DataRange.full => context.l10n.tagLibrary_rangeFull,
+    };
+  }
+
+  String _formatLastSync(DateTime? time) {
+    if (time == null) return context.l10n.tagLibrary_neverSynced;
+    final diff = DateTime.now().difference(time);
+    if (diff.inDays > 0) {
+      return context.l10n.tagLibrary_daysAgo(diff.inDays.toString());
+    }
+    if (diff.inHours > 0) {
+      return context.l10n.tagLibrary_hoursAgo(diff.inHours.toString());
+    }
+    return context.l10n.tagLibrary_justNow;
+  }
+
+  void _showAlgorithmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const NaiAlgorithmDialog(),
+    );
+  }
+
+  Future<void> _syncLibrary() async {
+    final success =
+        await ref.read(tagLibraryNotifierProvider.notifier).syncLibrary();
+    if (mounted) {
+      if (success) {
+        AppToast.success(context, context.l10n.tagLibrary_syncSuccess);
+      } else {
+        AppToast.error(context, context.l10n.tagLibrary_syncFailed);
+      }
+    }
+  }
+
+  Future<void> _previewGenerate() async {
+    try {
+      final result = await ref
+          .read(promptConfigNotifierProvider.notifier)
+          .generateRandomPrompt(isV4Model: true);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(context.l10n.naiMode_previewResult),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.l10n.prompt_positive,
+                    style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(ctx).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(result.mainPrompt),
+                  if (result.hasCharacters) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      context.l10n.naiMode_characterPrompts,
+                      style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...result.characters.asMap().entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${context.l10n.naiMode_character} ${entry.key + 1}:',
+                              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(ctx).colorScheme.outline,
+                                  ),
+                            ),
+                            SelectableText(entry.value.prompt),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(context.l10n.common_close),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, e.toString());
+      }
+    }
+  }
+
+  void _createCustomPreset() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.naiMode_createCustomTitle),
+        content: Text(context.l10n.naiMode_createCustomDesc),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              AppToast.info(context, context.l10n.naiMode_featureComingSoon);
+            },
+            child: Text(context.l10n.common_confirm),
+          ),
         ],
       ),
     );
@@ -86,6 +954,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   // ==================== 左侧预设面板 ====================
   Widget _buildPresetPanel(PromptConfigState state, ThemeData theme) {
+    final currentMode = ref.watch(randomModeNotifierProvider);
+    final isNaiMode = currentMode == RandomGenerationMode.naiOfficial;
+
     return Container(
       width: 220,
       color: theme.colorScheme.surfaceContainerLowest,
@@ -98,13 +969,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             child: Row(
               children: [
                 Icon(
-                  Icons.folder_outlined,
+                  Icons.shuffle,
                   size: 20,
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  context.l10n.config_presets,
+                  context.l10n.config_title,
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
@@ -114,21 +985,58 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ),
           ),
           Divider(height: 1, color: theme.dividerColor),
-          // 预设列表
+
+          // 预设列表（包含固定的 NAI 官方模式）
           Expanded(
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : state.presets.isEmpty
-                    ? _buildEmptyPresets(theme)
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: state.presets.length,
-                        itemBuilder: (context, index) {
-                          final preset = state.presets[index];
-                          return _buildPresetItem(preset, state, theme);
-                        },
+                : ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    children: [
+                      // NAI 官方模式（固定项）
+                      _buildNaiPresetItem(isNaiMode, theme),
+                      // 分隔线
+                      if (state.presets.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  height: 1,
+                                  color: theme.dividerColor,
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  context.l10n.config_presets,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  height: 1,
+                                  color: theme.dividerColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // 自定义预设列表
+                      ...state.presets.map(
+                        (preset) => _buildPresetItem(preset, state, theme),
                       ),
+                    ],
+                  ),
           ),
+
           // 底部操作
           Divider(height: 1, color: theme.dividerColor),
           Padding(
@@ -147,6 +1055,100 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
+  /// NAI 官方模式预设项（固定）
+  Widget _buildNaiPresetItem(bool isSelected, ThemeData theme) {
+    final libraryState = ref.watch(tagLibraryNotifierProvider);
+    // 根据分类级过滤配置显示过滤后的标签数量
+    final tagCount = libraryState.library?.getFilteredTagCountWithConfig(
+      libraryState.categoryFilterConfig,
+    ) ?? 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withOpacity(0.5)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () => _selectNaiMode(),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                // 激活指示器
+                if (isSelected)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                else
+                  const SizedBox(width: 16),
+                // 图标
+                Icon(
+                  Icons.auto_awesome,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                // 预设信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.l10n.naiMode_title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: isSelected ? FontWeight.w600 : null,
+                          color: theme.colorScheme.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        context.l10n.naiMode_totalTags(tagCount.toString()),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 选择 NAI 官方模式
+  void _selectNaiMode() {
+    if (_hasUnsavedChanges) {
+      _showUnsavedDialog(() => _doSelectNaiMode());
+      return;
+    }
+    _doSelectNaiMode();
+  }
+
+  void _doSelectNaiMode() {
+    ref.read(randomModeNotifierProvider.notifier).setMode(
+          RandomGenerationMode.naiOfficial,
+        );
+    setState(() {
+      _selectedPresetId = null;
+      _selectedConfigId = null;
+      _editingConfigs = [];
+      _hasUnsavedChanges = false;
+    });
+  }
+
   Widget _buildPresetMenu(ThemeData theme) {
     return PopupMenuButton<String>(
       icon: Icon(
@@ -162,35 +1164,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           value: 'import',
           child: Text(context.l10n.config_importConfig),
         ),
-        PopupMenuItem(
-          value: 'reset',
-          child: Text(context.l10n.config_restoreDefaults),
-        ),
       ],
-    );
-  }
-
-  Widget _buildEmptyPresets(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.folder_open, size: 48, color: theme.colorScheme.outline),
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.preset_noPresets,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => ref
-                .read(promptConfigNotifierProvider.notifier)
-                .resetToDefaults(_getDefaultPresetNames()),
-            child: Text(context.l10n.preset_restoreDefault),
-          ),
-        ],
-      ),
     );
   }
 
@@ -569,6 +1543,12 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   void _doSelectPreset(String presetId) {
     final state = ref.read(promptConfigNotifierProvider);
     final preset = state.presets.firstWhere((p) => p.id == presetId);
+
+    // 切换到自定义模式
+    ref.read(randomModeNotifierProvider.notifier).setMode(
+          RandomGenerationMode.custom,
+        );
+
     setState(() {
       _selectedPresetId = presetId;
       _presetNameController.text = preset.name;
@@ -601,11 +1581,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   void _doCreateNewPreset() async {
-    final newPreset =
-        RandomPromptPreset.create(name: context.l10n.config_newPreset);
+    final presetName = context.l10n.config_newPreset;
+    final successMessage = context.l10n.preset_newPresetCreated;
+    final newPreset = RandomPromptPreset.create(name: presetName);
     await ref.read(promptConfigNotifierProvider.notifier).addPreset(newPreset);
     _doSelectPreset(newPreset.id);
-    AppToast.success(context, context.l10n.preset_newPresetCreated);
+    if (mounted) {
+      AppToast.success(context, successMessage);
+    }
   }
 
   void _addConfig() {
@@ -659,6 +1642,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   void _savePreset() async {
     if (_selectedPresetId == null) return;
 
+    final successMessage = context.l10n.preset_saveSuccess;
     final state = ref.read(promptConfigNotifierProvider);
     final preset = state.presets.firstWhere((p) => p.id == _selectedPresetId);
     final updated = preset.copyWith(
@@ -669,16 +1653,15 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     await ref.read(promptConfigNotifierProvider.notifier).updatePreset(updated);
     setState(() => _hasUnsavedChanges = false);
-    AppToast.success(context, context.l10n.preset_saveSuccess);
+    if (mounted) {
+      AppToast.success(context, successMessage);
+    }
   }
 
   void _handlePresetMenuAction(String action) {
     switch (action) {
       case 'import':
         _showImportDialog();
-        break;
-      case 'reset':
-        _showResetConfirmDialog();
         break;
     }
   }
@@ -803,17 +1786,24 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   void _showImportDialog() {
     final controller = TextEditingController();
+    // 预先捕获本地化字符串，避免异步间隙问题
+    final titleText = context.l10n.preset_importConfig;
+    final hintText = context.l10n.preset_pasteJson;
+    final cancelText = context.l10n.common_cancel;
+    final importText = context.l10n.common_import;
+    final successText = context.l10n.preset_importSuccess;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.preset_importConfig),
+        title: Text(titleText),
         content: SizedBox(
           width: 400,
           child: TextField(
             controller: controller,
             maxLines: 10,
             decoration: InputDecoration(
-              hintText: context.l10n.preset_pasteJson,
+              hintText: hintText,
               border: const OutlineInputBorder(),
             ),
           ),
@@ -821,7 +1811,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.common_cancel),
+            child: Text(cancelText),
           ),
           FilledButton(
             onPressed: () async {
@@ -831,48 +1821,20 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     .importPreset(controller.text);
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext);
-                  AppToast.success(context, context.l10n.preset_importSuccess);
+                }
+                if (mounted) {
+                  AppToast.success(context, successText);
                 }
               } catch (e) {
-                AppToast.error(
-                  context,
-                  context.l10n.preset_importFailed(e.toString()),
-                );
+                if (mounted) {
+                  AppToast.error(
+                    context,
+                    context.l10n.preset_importFailed(e.toString()),
+                  );
+                }
               }
             },
-            child: Text(context.l10n.common_import),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResetConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.preset_restoreDefault),
-        content: Text(context.l10n.preset_restoreDefaultConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              ref
-                  .read(promptConfigNotifierProvider.notifier)
-                  .resetToDefaults(_getDefaultPresetNames());
-              setState(() {
-                _selectedPresetId = null;
-                _selectedConfigId = null;
-                _editingConfigs = [];
-                _hasUnsavedChanges = false;
-              });
-              AppToast.success(context, context.l10n.preset_restored);
-            },
-            child: Text(context.l10n.common_confirm),
+            child: Text(importText),
           ),
         ],
       ),

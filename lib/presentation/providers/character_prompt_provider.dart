@@ -84,10 +84,24 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 清空所有角色
-  /// 
+  ///
   /// Requirements: 4.4
   void clearAllCharacters() {
     state = state.clearAllCharacters();
+    _saveConfig();
+  }
+
+  /// 清空所有角色（别名）
+  void clearAll() => clearAllCharacters();
+
+  /// 替换所有角色
+  ///
+  /// 用于随机生成时一次性设置所有角色
+  void replaceAll(List<CharacterPrompt> characters) {
+    state = CharacterPromptConfig(
+      characters: characters,
+      globalAiChoice: state.globalAiChoice,
+    );
     _saveConfig();
   }
 

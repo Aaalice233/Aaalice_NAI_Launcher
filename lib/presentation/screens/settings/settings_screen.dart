@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/models/prompt/default_presets.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/prompt_config_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -402,7 +400,6 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (value) {
                   if (value != null) {
                     ref.read(localeNotifierProvider.notifier).setLocale(value);
-                    _updateDefaultPresetLocalization(ref, value);
                     Navigator.pop(dialogContext);
                   }
                 },
@@ -414,7 +411,6 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (value) {
                   if (value != null) {
                     ref.read(localeNotifierProvider.notifier).setLocale(value);
-                    _updateDefaultPresetLocalization(ref, value);
                     Navigator.pop(dialogContext);
                   }
                 },
@@ -430,34 +426,5 @@ class SettingsScreen extends ConsumerWidget {
         );
       },
     );
-  }
-
-  /// 更新默认预设的本地化名称
-  void _updateDefaultPresetLocalization(WidgetRef ref, String languageCode) {
-    final names = languageCode == 'zh'
-        ? const DefaultPresetNames(
-            presetName: '默认预设',
-            character: '角色',
-            expression: '表情',
-            clothing: '服装',
-            action: '动作',
-            background: '背景',
-            shot: '镜头',
-            composition: '构图',
-            specialStyle: '特殊风格',
-          )
-        : const DefaultPresetNames(
-            presetName: 'Default Preset',
-            character: 'Character',
-            expression: 'Expression',
-            clothing: 'Clothing',
-            action: 'Action',
-            background: 'Background',
-            shot: 'Shot',
-            composition: 'Composition',
-            specialStyle: 'Special Style',
-          );
-
-    ref.read(promptConfigNotifierProvider.notifier).updateDefaultPresetLocalization(names);
   }
 }

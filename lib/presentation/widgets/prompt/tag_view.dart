@@ -471,50 +471,6 @@ class _TagViewState extends ConsumerState<TagView> {
     );
   }
 
-  Widget _buildPrimaryAddButton(ThemeData theme) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _startAddTag,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.colorScheme.primary,
-                theme.colorScheme.primary.withOpacity(0.8),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.primary.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.add, size: 18, color: Colors.white),
-              const SizedBox(width: 8),
-                  Text(
-                    context.l10n.tag_addTag,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.95),
-                    ),
-                  ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTagsArea(ThemeData theme) {
     return SingleChildScrollView(
       child: Padding(
