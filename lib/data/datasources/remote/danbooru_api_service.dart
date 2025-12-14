@@ -56,6 +56,12 @@ class DanbooruApiService {
   /// 用户搜索
   static const String _usersEndpoint = '/users.json';
 
+  /// Wiki 页面
+  static const String _wikiPagesEndpoint = '/wiki_pages.json';
+
+  /// Wiki 页面详情
+  static const String _wikiPageDetailEndpoint = '/wiki_pages';
+
   // ==================== 配置 ====================
   static const Duration _timeout = Duration(seconds: 10);
   static const int _defaultLimit = 20;
@@ -684,6 +690,147 @@ class DanbooruApiService {
       return [];
     }
   }
+
+  // ==================== Wiki 页面 (Tag Groups) ====================
+
+  /// 获取 Wiki 页面
+  ///
+  /// [title] Wiki 页面标题 (如 "tag_group:hair_color")
+  /// 返回 Wiki 页面内容的 JSON 对象
+  Future<Map<String, dynamic>?> getWikiPage(String title) async {
+    try {
+      AppLogger.d('Fetching wiki page: $title', 'Danbooru');
+
+      // 对标题进行 URL 编码
+      final encodedTitle = Uri.encodeComponent(title);
+
+      final response = await _dio.get(
+        '$_baseUrl$_wikiPageDetailEndpoint/$encodedTitle.json',
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: _getHeaders(),
+        ),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } on DioException catch (e) {
+      // 404 表示 wiki 页面不存在，410 表示页面已被删除，均静默返回 null
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 410) {
+        AppLogger.d('Wiki page not found or deleted: $title', 'Danbooru');
+        return null;
+      }
+      AppLogger.e('Danbooru getWikiPage error: $e', e, null, 'Danbooru');
+      return null;
+    } catch (e, stack) {
+      AppLogger.e('Danbooru getWikiPage error: $e', e, stack, 'Danbooru');
+      return null;
+    }
+  }
+
+  /// 搜索 Wiki 页面
+  ///
+  /// [titlePattern] 标题搜索模式 (如 "tag_group:*")
+  /// [limit] 最大返回数量
+  /// 注意：使用 search[title_normalize] 参数进行通配符搜索
+  Future<List<Map<String, dynamic>>> searchWikiPages({
+    String? titlePattern,
+    int limit = 100,
+  }) async {
+    try {
+      AppLogger.d('Searching wiki pages: $titlePattern', 'Danbooru');
+
+      final queryParams = <String, dynamic>{
+        'limit': limit.clamp(1, 200),
+      };
+
+      if (titlePattern != null && titlePattern.isNotEmpty) {
+        // 使用 title_normalize 进行通配符搜索
+        queryParams['search[title_normalize]'] = titlePattern;
+      }
+
+      final response = await _dio.get(
+        '$_baseUrl$_wikiPagesEndpoint',
+        queryParameters: queryParams,
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: _getHeaders(),
+        ),
+      );
+
+      if (response.data is List) {
+        return (response.data as List).cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e, stack) {
+      AppLogger.e('Danbooru searchWikiPages error: $e', e, stack, 'Danbooru');
+      return [];
+    }
+  }
+
+  /// 批量获取标签的帖子数量（热度）
+  ///
+  /// [tagNames] 标签名列表
+  /// 返回 Map<标签名, 帖子数量>
+  ///
+  /// 使用 search[name] 精确匹配，每批最多处理 40 个标签
+  Future<Map<String, int>> batchGetTagPostCounts(List<String> tagNames) async {
+    if (tagNames.isEmpty) return {};
+
+    final results = <String, int>{};
+    const batchSize = 40;
+
+    // 分批处理
+    for (var i = 0; i < tagNames.length; i += batchSize) {
+      final batch = tagNames.skip(i).take(batchSize).toList();
+
+      try {
+        // 使用 name 精确匹配，逗号分隔多个标签
+        final response = await _dio.get(
+          '$_baseUrl$_tagsEndpoint',
+          queryParameters: {
+            'search[name]': batch.join(','),
+            'limit': batchSize,
+          },
+          options: Options(
+            receiveTimeout: _timeout,
+            sendTimeout: _timeout,
+            headers: _getHeaders(),
+          ),
+        );
+
+        if (response.data is List) {
+          for (final item in response.data as List) {
+            if (item is Map<String, dynamic>) {
+              final name = item['name'] as String?;
+              final count = item['post_count'] as int? ?? 0;
+              if (name != null) {
+                results[name] = count;
+              }
+            }
+          }
+        }
+
+        AppLogger.d(
+          'Batch tag query: ${batch.length} tags, found ${results.length} results',
+          'Danbooru',
+        );
+      } catch (e) {
+        AppLogger.w('Batch tag query failed: $e', 'Danbooru');
+      }
+
+      // 避免速率限制
+      if (i + batchSize < tagNames.length) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+    }
+
+    return results;
+  }
 }
 
 /// DanbooruApiService Provider
@@ -703,6 +850,7 @@ DanbooruApiService danbooruApiService(DanbooruApiServiceRef ref) {
       LogInterceptor(
         requestBody: false,
         responseBody: false,
+        error: false, // 禁用错误日志，避免 404 等预期错误被打印
         logPrint: (obj) => AppLogger.d(obj.toString(), 'Dio'),
       ),
     );

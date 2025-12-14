@@ -9,9 +9,12 @@ import '../../core/utils/app_logger.dart';
 import '../datasources/local/nai_tags_data_source.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/default_pool_mappings.dart';
+import '../models/prompt/default_tag_group_mappings.dart';
 import '../models/prompt/pool_sync_config.dart';
 import '../models/prompt/sync_config.dart';
 import '../models/prompt/tag_category.dart';
+import '../models/prompt/tag_group.dart';
+import '../models/prompt/tag_group_sync_config.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/weighted_tag.dart';
 
@@ -26,6 +29,7 @@ class TagLibraryService {
   static const String _syncConfigKey = 'sync_config';
   static const String _categoryFilterKey = 'category_filter_config';
   static const String _poolSyncConfigKey = 'pool_sync_config';
+  static const String _tagGroupSyncConfigKey = 'tag_group_sync_config';
 
   final NaiTagsDataSource _naiTagsDataSource;
   Box? _box;
@@ -414,6 +418,116 @@ class TagLibraryService {
     await _ensureInit();
     await _box?.delete(_libraryKey);
     AppLogger.d('Library cache cleared', 'TagLibrary');
+  }
+
+  // ==================== Tag Group 同步配置 ====================
+
+  /// 加载 Tag Group 同步配置
+  Future<TagGroupSyncConfig> loadTagGroupSyncConfig() async {
+    await _ensureInit();
+    try {
+      final json = _box?.get(_tagGroupSyncConfigKey) as String?;
+      if (json != null) {
+        final data = jsonDecode(json) as Map<String, dynamic>;
+        return TagGroupSyncConfig.fromJson(data);
+      }
+    } catch (e) {
+      AppLogger.e('Failed to load tag group sync config: $e', 'TagLibrary');
+    }
+    // 返回默认配置
+    return DefaultTagGroupMappings.getDefaultConfig();
+  }
+
+  /// 保存 Tag Group 同步配置
+  Future<void> saveTagGroupSyncConfig(TagGroupSyncConfig config) async {
+    await _ensureInit();
+    try {
+      final json = jsonEncode(config.toJson());
+      await _box?.put(_tagGroupSyncConfigKey, json);
+      AppLogger.d('Tag group sync config saved', 'TagLibrary');
+    } catch (e) {
+      AppLogger.e('Failed to save tag group sync config: $e', 'TagLibrary');
+      rethrow;
+    }
+  }
+
+  /// 合并 Tag Group 标签到词库
+  ///
+  /// [library] 原始词库
+  /// [tagGroupTags] Tag Group 提取的标签（按目标分类）
+  ///
+  /// 返回合并后的词库
+  TagLibrary mergeTagGroupTags(
+    TagLibrary library,
+    Map<TagSubCategory, List<WeightedTag>> tagGroupTags,
+  ) {
+    if (tagGroupTags.isEmpty) {
+      return library;
+    }
+
+    final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
+    var addedCount = 0;
+
+    for (final entry in tagGroupTags.entries) {
+      final categoryName = entry.key.name;
+      final existingTags = mergedCategories[categoryName] ?? [];
+      final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
+
+      // 添加不重复的标签
+      for (final tag in entry.value) {
+        if (!existingNames.contains(tag.tag.toLowerCase())) {
+          existingTags.add(tag);
+          existingNames.add(tag.tag.toLowerCase());
+          addedCount++;
+        }
+      }
+
+      mergedCategories[categoryName] = existingTags;
+    }
+
+    AppLogger.d(
+      'Merged $addedCount tag group tags into library',
+      'TagLibrary',
+    );
+
+    return library.copyWith(
+      categories: mergedCategories,
+      lastUpdated: DateTime.now(),
+      hasDanbooruSupplement: true,
+      danbooruSupplementCount: addedCount,
+    );
+  }
+
+  /// 从 TagGroupEntry 列表转换为 WeightedTag 列表
+  ///
+  /// [entries] TagGroupEntry 列表
+  List<WeightedTag> tagGroupEntriesToWeightedTags(
+    List<TagGroupEntry> entries,
+  ) {
+    return entries.map((entry) {
+      // 根据热度计算权重 (1-10)
+      final weight = _calculateWeight(entry.postCount);
+      return WeightedTag(
+        tag: entry.displayName,
+        weight: weight,
+        source: TagSource.danbooru,
+      );
+    }).toList();
+  }
+
+  /// 根据帖子数量计算权重
+  int _calculateWeight(int postCount) {
+    if (postCount <= 0) return 1;
+    if (postCount < 1000) return 1;
+    if (postCount < 5000) return 2;
+    if (postCount < 10000) return 3;
+    if (postCount < 50000) return 4;
+    if (postCount < 100000) return 5;
+    if (postCount < 500000) return 6;
+    if (postCount < 1000000) return 7;
+    if (postCount < 2000000) return 8;
+    if (postCount < 5000000) return 9;
+    return 10;
   }
 }
 

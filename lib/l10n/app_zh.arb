@@ -7,7 +7,7 @@
   "common_cancel": "取消",
   "common_confirm": "确定",
   "common_selectAll": "全选",
-  "common_deselectAll": "取消全选",
+  "common_deselectAll": "全不选",
   "common_expandAll": "展开全部",
   "common_collapseAll": "收起全部",
   "common_save": "保存",
@@ -29,6 +29,7 @@
   "common_reset": "重置",
   "common_search": "搜索",
   "common_featureInDev": "功能开发中...",
+  "common_add": "添加",
 
   "nav_canvas": "画布",
   "nav_gallery": "图库",
@@ -960,9 +961,9 @@
   "randomMode_naiIndicator": "NAI",
   "randomMode_customIndicator": "自定义",
 
-  "naiMode_title": "NAI官方模式",
+  "naiMode_title": "默认模式",
   "naiMode_subtitle": "复刻 NovelAI 官方随机算法",
-  "naiMode_syncLibrary": "补充词库",
+  "naiMode_syncLibrary": "管理扩展词库",
   "naiMode_algorithmInfo": "算法说明",
   "naiMode_tagCountBadge": "{count} 个标签",
   "@naiMode_tagCountBadge": {
@@ -1002,7 +1003,7 @@
       "count": {}
     }
   },
-  "naiMode_readOnlyHint": "只读模式，如需自定义请创建新预设",
+  "naiMode_readOnlyHint": "基于官方算法的随机提示词配置",
   "naiMode_noLibrary": "词库未加载",
   "naiMode_noTags": "暂无标签",
   "naiMode_previewResult": "生成预览",
@@ -1011,9 +1012,9 @@
   "naiMode_createCustomTitle": "创建自定义预设",
   "naiMode_createCustomDesc": "将创建一个包含所有NAI类别的新预设，您可以在此基础上进行自定义修改。",
   "naiMode_featureComingSoon": "功能开发中...",
-  "naiMode_danbooruToggleTooltip": "切换此类别的 Danbooru Pools 补充标签",
-  "naiMode_danbooruSupplementLabel": "Danbooru Pools",
-  "naiMode_danbooruMasterToggleTooltip": "切换所有类别的 Danbooru Pools 补充标签",
+  "naiMode_danbooruToggleTooltip": "切换此类别的扩展标签",
+  "naiMode_danbooruSupplementLabel": "扩展标签",
+  "naiMode_danbooruMasterToggleTooltip": "切换所有类别的扩展标签",
   "naiMode_entrySubtitle": "{count}个标签 · 复刻官网算法",
   "@naiMode_entrySubtitle": {
     "placeholders": {
@@ -1041,6 +1042,10 @@
   "naiAlgorithm_hairStyle": "发型",
   "naiAlgorithm_pose": "姿势",
   "naiAlgorithm_style": "风格",
+  "naiAlgorithm_clothing": "服装",
+  "naiAlgorithm_accessory": "配饰",
+  "naiAlgorithm_scene": "场景",
+  "naiAlgorithm_bodyFeature": "身体特征",
 
   "importNai_title": "从NAI词库导入",
   "importNai_selectCategories": "选择要导入的类别",
@@ -1077,7 +1082,7 @@
   "tagLibrary_danbooruSupplement": "Danbooru 补充",
   "tagLibrary_danbooruSupplementHint": "从 Danbooru 获取额外标签补充词库",
   "tagLibrary_libraryComposition": "词库组成",
-  "tagLibrary_libraryCompositionDesc": "NAI 官方固定词库 + Danbooru 补充（可选）",
+  "tagLibrary_libraryCompositionDesc": "NAI 官方固定词库 + 扩展标签（可选）",
 
   "poolMapping_title": "Pool 映射",
   "poolMapping_enableSync": "启用 Pool 同步",
@@ -1116,6 +1121,121 @@
   "poolMapping_resetConfirm": "确定要恢复默认 Pool 映射吗？当前配置将被覆盖。",
   "poolMapping_resetSuccess": "已恢复默认配置",
 
+  "tagGroup_title": "Tag Group 同步",
+  "tagGroup_enableSync": "启用 Tag Group 同步",
+  "tagGroup_enableSyncDesc": "从 Danbooru Tag Groups 获取分类标签数据",
+  "tagGroup_mappingTitle": "Tag Group 映射",
+  "tagGroup_addMapping": "添加映射",
+  "tagGroup_noMappings": "暂无 Tag Group 映射",
+  "tagGroup_noMappingsHint": "点击上方按钮浏览并添加 Tag Group",
+  "tagGroup_searchHint": "搜索 Tag Group...",
+  "tagGroup_targetCategory": "目标分类",
+  "tagGroup_selectGroup": "选择 Tag Group",
+  "tagGroup_neverSynced": "从未同步",
+  "tagGroup_noResults": "未找到匹配的 Tag Group",
+  "tagGroup_groupExists": "该 Tag Group 已添加",
+  "tagGroup_addSuccess": "Tag Group 映射添加成功",
+  "tagGroup_removeConfirm": "确定删除此 Tag Group 映射？",
+  "tagGroup_removeSuccess": "Tag Group 映射已删除",
+  "tagGroup_tagCount": "{count} 标签",
+  "@tagGroup_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_childCount": "{count} 子分组",
+  "@tagGroup_childCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_alreadyAdded": "已添加",
+  "tagGroup_resetToDefault": "恢复默认",
+  "tagGroup_resetConfirm": "确定要恢复默认 Tag Group 映射吗？当前配置将被覆盖。",
+  "tagGroup_resetSuccess": "已恢复默认配置",
+  "tagGroup_minPostCount": "最小热度阈值",
+  "tagGroup_postCountValue": "{count} posts",
+  "@tagGroup_postCountValue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_minPostCountHint": "只会同步帖子数量高于此阈值的标签",
+  "tagGroup_preview": "标签预览",
+  "tagGroup_previewCount": "预览 {count} 标签",
+  "@tagGroup_previewCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_selectToPreview": "选择一个 Tag Group 查看预览",
+  "tagGroup_noTagsInGroup": "该分组暂无标签数据",
+  "tagGroup_andMore": "还有 {count} 个...",
+  "@tagGroup_andMore": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_options": "选项",
+  "tagGroup_includeChildren": "包含子分组标签",
+  "tagGroup_includesChildren": "含子分组",
+  "tagGroup_syncPreparing": "准备同步...",
+  "tagGroup_syncFetching": "正在获取 {name}... ({current}/{total})",
+  "@tagGroup_syncFetching": {
+    "placeholders": {
+      "name": {},
+      "current": {},
+      "total": {}
+    }
+  },
+  "tagGroup_syncFiltering": "筛选中: {total} 标签, 保留 {filtered} 标签",
+  "@tagGroup_syncFiltering": {
+    "placeholders": {
+      "total": {},
+      "filtered": {}
+    }
+  },
+  "tagGroup_syncCompleted": "同步完成, 共 {count} 标签",
+  "@tagGroup_syncCompleted": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_syncFailed": "同步失败: {error}",
+  "@tagGroup_syncFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "tagGroup_addTo": "添加到: {category}",
+  "@tagGroup_addTo": {
+    "placeholders": {
+      "category": {}
+    }
+  },
+  "tagGroup_refresh": "刷新列表",
+  "tagGroup_loadingFromDanbooru": "正在从 Danbooru 加载 Tag Groups...",
+  "tagGroup_loadFailed": "无法加载 Tag Groups，请检查网络连接",
+  "tagGroup_loadError": "加载失败: {error}",
+  "@tagGroup_loadError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "tagGroup_reload": "重新加载",
+  "tagGroup_searchHintAlt": "或使用搜索功能查找特定分组",
+  "tagGroup_selected": "已选择",
+  "tagGroup_manageGroups": "管理组",
+  "tagGroup_manageGroupsHint": "选择要同步的 Tag Group",
+  "tagGroup_selectedCount": "已选择 {count} 个组",
+  "@tagGroup_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "naiMode_syncCategory": "补充此类别",
+  "naiMode_syncCategoryTooltip": "仅同步此类别的扩展标签",
   "naiMode_viewDetails": "查看详情",
   "naiMode_tagListTitle": "标签列表",
   "naiMode_desc_hairColor": "角色头发颜色相关标签，用于描述发色",
@@ -1129,5 +1249,7 @@
   "naiMode_desc_background": "背景相关标签，用于描述画面背景类型",
   "naiMode_desc_scene": "场景相关标签，用于描述具体场景元素",
   "naiMode_desc_style": "画风相关标签，用于描述艺术风格",
-  "naiMode_desc_characterCount": "角色数量相关标签，决定画面中的人物数量"
+  "naiMode_desc_characterCount": "角色数量相关标签，决定画面中的人物数量",
+
+  "tagGroup_builtin": "内置"
 }

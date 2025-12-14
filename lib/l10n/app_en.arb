@@ -29,6 +29,7 @@
   "common_reset": "Reset",
   "common_search": "Search",
   "common_featureInDev": "Feature in development...",
+  "common_add": "Add",
 
   "nav_canvas": "Canvas",
   "nav_gallery": "Gallery",
@@ -1285,9 +1286,9 @@
   "randomMode_naiIndicator": "NAI",
   "randomMode_customIndicator": "Custom",
 
-  "naiMode_title": "NAI Official Mode",
+  "naiMode_title": "Default Mode",
   "naiMode_subtitle": "Replicate NovelAI official random algorithm",
-  "naiMode_syncLibrary": "Supplement Library",
+  "naiMode_syncLibrary": "Manage Extended Library",
   "naiMode_algorithmInfo": "Algorithm Info",
   "naiMode_tagCountBadge": "{count} tags",
   "@naiMode_tagCountBadge": {
@@ -1327,7 +1328,7 @@
       "count": {}
     }
   },
-  "naiMode_readOnlyHint": "Read-only mode, create a new preset to customize",
+  "naiMode_readOnlyHint": "Random prompt configuration based on official algorithm",
   "naiMode_noLibrary": "Library not loaded",
   "naiMode_noTags": "No tags",
   "naiMode_previewResult": "Preview Result",
@@ -1336,9 +1337,9 @@
   "naiMode_createCustomTitle": "Create Custom Preset",
   "naiMode_createCustomDesc": "This will create a new preset with all NAI categories, which you can customize.",
   "naiMode_featureComingSoon": "Feature coming soon...",
-  "naiMode_danbooruToggleTooltip": "Toggle Danbooru Pools supplement tags for this category",
-  "naiMode_danbooruSupplementLabel": "Danbooru Pools",
-  "naiMode_danbooruMasterToggleTooltip": "Toggle Danbooru Pools supplement tags for all categories",
+  "naiMode_danbooruToggleTooltip": "Toggle extended tags for this category",
+  "naiMode_danbooruSupplementLabel": "Extended Tags",
+  "naiMode_danbooruMasterToggleTooltip": "Toggle extended tags for all categories",
   "naiMode_entrySubtitle": "{count} tags · Replicate official algorithm",
   "@naiMode_entrySubtitle": {
     "placeholders": {
@@ -1366,6 +1367,10 @@
   "naiAlgorithm_hairStyle": "Hair Style",
   "naiAlgorithm_pose": "Pose",
   "naiAlgorithm_style": "Style",
+  "naiAlgorithm_clothing": "Clothing",
+  "naiAlgorithm_accessory": "Accessory",
+  "naiAlgorithm_scene": "Scene",
+  "naiAlgorithm_bodyFeature": "Body Feature",
 
   "importNai_title": "Import from NAI Library",
   "importNai_selectCategories": "Select categories to import",
@@ -1402,7 +1407,7 @@
   "tagLibrary_danbooruSupplement": "Danbooru Supplement",
   "tagLibrary_danbooruSupplementHint": "Fetch extra tags from Danbooru to supplement library",
   "tagLibrary_libraryComposition": "Library Composition",
-  "tagLibrary_libraryCompositionDesc": "NAI Official Fixed Library + Danbooru Supplement (Optional)",
+  "tagLibrary_libraryCompositionDesc": "NAI Official Fixed Library + Extended Tags (Optional)",
 
   "poolMapping_title": "Pool Mapping",
   "poolMapping_enableSync": "Enable Pool Sync",
@@ -1441,6 +1446,121 @@
   "poolMapping_resetConfirm": "Are you sure you want to reset to default Pool mappings? Current configuration will be overwritten.",
   "poolMapping_resetSuccess": "Reset to default configuration",
 
+  "tagGroup_title": "Tag Group Sync",
+  "tagGroup_enableSync": "Enable Tag Group Sync",
+  "tagGroup_enableSyncDesc": "Fetch tag data from Danbooru Tag Groups",
+  "tagGroup_mappingTitle": "Tag Group Mappings",
+  "tagGroup_addMapping": "Add Mapping",
+  "tagGroup_noMappings": "No Tag Group Mappings",
+  "tagGroup_noMappingsHint": "Click the button above to browse and add Tag Groups",
+  "tagGroup_searchHint": "Search Tag Groups...",
+  "tagGroup_targetCategory": "Target Category",
+  "tagGroup_selectGroup": "Select Tag Group",
+  "tagGroup_neverSynced": "Never synced",
+  "tagGroup_noResults": "No matching Tag Groups found",
+  "tagGroup_groupExists": "This Tag Group is already added",
+  "tagGroup_addSuccess": "Tag Group mapping added successfully",
+  "tagGroup_removeConfirm": "Are you sure you want to remove this Tag Group mapping?",
+  "tagGroup_removeSuccess": "Tag Group mapping removed",
+  "tagGroup_tagCount": "{count} tags",
+  "@tagGroup_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_childCount": "{count} sub-groups",
+  "@tagGroup_childCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_alreadyAdded": "Added",
+  "tagGroup_resetToDefault": "Reset to Default",
+  "tagGroup_resetConfirm": "Are you sure you want to reset to default Tag Group mappings? Current configuration will be overwritten.",
+  "tagGroup_resetSuccess": "Reset to default configuration",
+  "tagGroup_minPostCount": "Minimum Post Count",
+  "tagGroup_postCountValue": "{count} posts",
+  "@tagGroup_postCountValue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_minPostCountHint": "Only sync tags with post count above this threshold",
+  "tagGroup_preview": "Tag Preview",
+  "tagGroup_previewCount": "Preview {count} tags",
+  "@tagGroup_previewCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_selectToPreview": "Select a Tag Group to see preview",
+  "tagGroup_noTagsInGroup": "No tags in this group",
+  "tagGroup_andMore": "and {count} more...",
+  "@tagGroup_andMore": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_options": "Options",
+  "tagGroup_includeChildren": "Include sub-group tags",
+  "tagGroup_includesChildren": "Includes sub-groups",
+  "tagGroup_syncPreparing": "Preparing sync...",
+  "tagGroup_syncFetching": "Fetching {name}... ({current}/{total})",
+  "@tagGroup_syncFetching": {
+    "placeholders": {
+      "name": {},
+      "current": {},
+      "total": {}
+    }
+  },
+  "tagGroup_syncFiltering": "Filtering: {total} tags, keeping {filtered} tags",
+  "@tagGroup_syncFiltering": {
+    "placeholders": {
+      "total": {},
+      "filtered": {}
+    }
+  },
+  "tagGroup_syncCompleted": "Sync completed, {count} tags total",
+  "@tagGroup_syncCompleted": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroup_syncFailed": "Sync failed: {error}",
+  "@tagGroup_syncFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "tagGroup_addTo": "Add to: {category}",
+  "@tagGroup_addTo": {
+    "placeholders": {
+      "category": {}
+    }
+  },
+  "tagGroup_refresh": "Refresh list",
+  "tagGroup_loadingFromDanbooru": "Loading Tag Groups from Danbooru...",
+  "tagGroup_loadFailed": "Failed to load Tag Groups, please check network connection",
+  "tagGroup_loadError": "Load failed: {error}",
+  "@tagGroup_loadError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "tagGroup_reload": "Reload",
+  "tagGroup_searchHintAlt": "Or use search to find specific groups",
+  "tagGroup_selected": "Selected",
+  "tagGroup_manageGroups": "Manage Groups",
+  "tagGroup_manageGroupsHint": "Select Tag Groups to sync",
+  "tagGroup_selectedCount": "Selected {count} groups",
+  "@tagGroup_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "naiMode_syncCategory": "Sync Category",
+  "naiMode_syncCategoryTooltip": "Sync extended tags for this category only",
   "naiMode_viewDetails": "View Details",
   "naiMode_tagListTitle": "Tag List",
   "naiMode_desc_hairColor": "Hair color tags for describing character's hair color",
@@ -1454,5 +1574,7 @@
   "naiMode_desc_background": "Background tags for describing background types",
   "naiMode_desc_scene": "Scene tags for describing scene elements",
   "naiMode_desc_style": "Style tags for describing art styles",
-  "naiMode_desc_characterCount": "Character count tags for determining number of characters"
+  "naiMode_desc_characterCount": "Character count tags for determining number of characters",
+
+  "tagGroup_builtin": "Built-in"
 }

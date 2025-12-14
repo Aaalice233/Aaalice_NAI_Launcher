@@ -59,7 +59,7 @@ class NaiAlgorithmDialog extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // 2. 类别选择概率
+              // 2. 类别选择概率（与主界面一致）
               _buildSection(
                 context,
                 theme,
@@ -69,17 +69,25 @@ class NaiAlgorithmDialog extends StatelessWidget {
                   children: [
                     _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_background, 90, Colors.teal),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_hairColor, 80, Colors.purple),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_hairColor, 50, Colors.purple),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_eyeColor, 80, Colors.blue),
-                    const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_expression, 60, Colors.amber),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_eyeColor, 50, Colors.blue),
                     const SizedBox(height: 6),
                     _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_hairStyle, 50, Colors.pink),
                     const SizedBox(height: 6),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_expression, 50, Colors.amber),
+                    const SizedBox(height: 6),
                     _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_pose, 50, Colors.indigo),
                     const SizedBox(height: 6),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_clothing, 50, Colors.orange),
+                    const SizedBox(height: 6),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_accessory, 50, Colors.brown),
+                    const SizedBox(height: 6),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_scene, 50, Colors.green),
+                    const SizedBox(height: 6),
                     _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_style, 30, Colors.cyan),
+                    const SizedBox(height: 6),
+                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_bodyFeature, 30, Colors.grey),
                   ],
                 ),
               ),

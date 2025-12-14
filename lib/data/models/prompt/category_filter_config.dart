@@ -7,7 +7,7 @@ part 'category_filter_config.g.dart';
 
 /// 分类过滤配置
 ///
-/// 控制各分类是否启用 Danbooru 补充标签
+/// 控制各分类是否启用 Danbooru 补充标签和内置词库
 /// 与同步配置解耦，仅影响显示和生成
 @freezed
 class CategoryFilterConfig with _$CategoryFilterConfig {
@@ -18,6 +18,11 @@ class CategoryFilterConfig with _$CategoryFilterConfig {
     /// key: TagSubCategory.name
     /// value: 是否启用
     @Default({}) Map<String, bool> categoryEnabled,
+
+    /// 各分类的内置词库启用状态
+    /// key: TagSubCategory.name
+    /// value: 是否启用（默认 true）
+    @Default({}) Map<String, bool> builtinEnabled,
   }) = _CategoryFilterConfig;
 
   factory CategoryFilterConfig.fromJson(Map<String, dynamic> json) =>
@@ -44,11 +49,24 @@ class CategoryFilterConfig with _$CategoryFilterConfig {
     return categoryEnabled[category.name] ?? false;
   }
 
+  /// 检查指定分类是否启用内置词库
+  bool isBuiltinEnabled(TagSubCategory category) {
+    // 默认启用内置词库
+    return builtinEnabled[category.name] ?? true;
+  }
+
   /// 设置指定分类的启用状态
   CategoryFilterConfig setEnabled(TagSubCategory category, bool enabled) {
     final newMap = Map<String, bool>.from(categoryEnabled);
     newMap[category.name] = enabled;
     return copyWith(categoryEnabled: newMap);
+  }
+
+  /// 设置指定分类的内置词库启用状态
+  CategoryFilterConfig setBuiltinEnabled(TagSubCategory category, bool enabled) {
+    final newMap = Map<String, bool>.from(builtinEnabled);
+    newMap[category.name] = enabled;
+    return copyWith(builtinEnabled: newMap);
   }
 
   /// 设置所有分类的启用状态
@@ -58,6 +76,15 @@ class CategoryFilterConfig with _$CategoryFilterConfig {
       newMap[category.name] = enabled;
     }
     return copyWith(categoryEnabled: newMap);
+  }
+
+  /// 设置所有分类的内置词库启用状态
+  CategoryFilterConfig setAllBuiltinEnabled(bool enabled) {
+    final newMap = <String, bool>{};
+    for (final category in configurableCategories) {
+      newMap[category.name] = enabled;
+    }
+    return copyWith(builtinEnabled: newMap);
   }
 
   /// 检查是否所有分类都启用
