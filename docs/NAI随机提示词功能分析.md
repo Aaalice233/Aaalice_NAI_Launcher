@@ -747,6 +747,15 @@ Future<Map<GeneralSubCategory, List<WeightedTag>>> fetchCategorizedTags() async 
 
 ## 实现建议
 
+### 本地实现架构
+
+本应用的词库数据来源分为两部分：
+
+1. **NAI 固定词库**：从 NovelAI 官方 JS bundle 提取的固定标签数据，存储在本地 `assets/data/` 目录
+2. **Pool 扩展词库**（可选）：通过 Danbooru Pools API 获取特定系列/主题的高频标签，由 `DanbooruPoolService` 负责同步
+
+> **注意**：已移除基于正则匹配的热度标签同步功能，改用更精准的 Pool 同步机制。
+
 ### Dart 实现示例
 
 ```dart

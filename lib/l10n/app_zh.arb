@@ -964,9 +964,12 @@
   "naiMode_subtitle": "复刻 NovelAI 官方随机算法",
   "naiMode_syncLibrary": "补充词库",
   "naiMode_algorithmInfo": "算法说明",
-  "naiMode_statTags": "标签总数",
-  "naiMode_statRange": "数据范围",
-  "naiMode_statSync": "上次同步",
+  "naiMode_tagCountBadge": "{count} 个标签",
+  "@naiMode_tagCountBadge": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "naiMode_totalTags": "标签数: {count}",
   "@naiMode_totalTags": {
     "placeholders": {
@@ -1008,9 +1011,9 @@
   "naiMode_createCustomTitle": "创建自定义预设",
   "naiMode_createCustomDesc": "将创建一个包含所有NAI类别的新预设，您可以在此基础上进行自定义修改。",
   "naiMode_featureComingSoon": "功能开发中...",
-  "naiMode_danbooruToggleTooltip": "切换此类别的 Danbooru 补充标签",
-  "naiMode_danbooruSupplementLabel": "Danbooru",
-  "naiMode_danbooruMasterToggleTooltip": "切换所有类别的 Danbooru 补充标签",
+  "naiMode_danbooruToggleTooltip": "切换此类别的 Danbooru Pools 补充标签",
+  "naiMode_danbooruSupplementLabel": "Danbooru Pools",
+  "naiMode_danbooruMasterToggleTooltip": "切换所有类别的 Danbooru Pools 补充标签",
   "naiMode_entrySubtitle": "{count}个标签 · 复刻官网算法",
   "@naiMode_entrySubtitle": {
     "placeholders": {
@@ -1074,5 +1077,57 @@
   "tagLibrary_danbooruSupplement": "Danbooru 补充",
   "tagLibrary_danbooruSupplementHint": "从 Danbooru 获取额外标签补充词库",
   "tagLibrary_libraryComposition": "词库组成",
-  "tagLibrary_libraryCompositionDesc": "NAI 官方固定词库 + Danbooru 补充（可选）"
+  "tagLibrary_libraryCompositionDesc": "NAI 官方固定词库 + Danbooru 补充（可选）",
+
+  "poolMapping_title": "Pool 映射",
+  "poolMapping_enableSync": "启用 Pool 同步",
+  "poolMapping_enableSyncDesc": "从 Danbooru Pools 中提取标签补充到分类",
+  "poolMapping_addMapping": "添加 Pool 映射",
+  "poolMapping_noMappings": "暂无 Pool 映射",
+  "poolMapping_noMappingsHint": "点击上方按钮添加 Danbooru Pool",
+  "poolMapping_searchPool": "搜索 Pool",
+  "poolMapping_searchHint": "输入 Pool 名称关键词",
+  "poolMapping_targetCategory": "目标分类",
+  "poolMapping_selectPool": "选择 Pool",
+  "poolMapping_syncPools": "同步 Pools",
+  "poolMapping_syncing": "同步中...",
+  "poolMapping_neverSynced": "从未同步",
+  "poolMapping_syncSuccess": "Pool 同步成功",
+  "poolMapping_syncFailed": "Pool 同步失败",
+  "poolMapping_noResults": "未找到匹配的 Pool",
+  "poolMapping_poolExists": "该 Pool 已添加",
+  "poolMapping_addSuccess": "Pool 映射添加成功",
+  "poolMapping_removeConfirm": "确定删除此 Pool 映射？",
+  "poolMapping_removeSuccess": "Pool 映射已删除",
+  "poolMapping_tagCount": "{count} 标签",
+  "@poolMapping_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "poolMapping_postCount": "{count} 帖子",
+  "@poolMapping_postCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "poolMapping_alreadyAdded": "已添加",
+  "poolMapping_resetToDefault": "恢复默认",
+  "poolMapping_resetConfirm": "确定要恢复默认 Pool 映射吗？当前配置将被覆盖。",
+  "poolMapping_resetSuccess": "已恢复默认配置",
+
+  "naiMode_viewDetails": "查看详情",
+  "naiMode_tagListTitle": "标签列表",
+  "naiMode_desc_hairColor": "角色头发颜色相关标签，用于描述发色",
+  "naiMode_desc_eyeColor": "角色眼睛颜色相关标签，用于描述瞳色",
+  "naiMode_desc_hairStyle": "角色发型相关标签，用于描述发型样式",
+  "naiMode_desc_expression": "角色表情相关标签，用于描述面部表情",
+  "naiMode_desc_pose": "角色姿势相关标签，用于描述身体动作和姿态",
+  "naiMode_desc_clothing": "角色服装相关标签，用于描述衣着",
+  "naiMode_desc_accessory": "配饰相关标签，用于描述装饰品和配件",
+  "naiMode_desc_bodyFeature": "身体特征相关标签，用于描述体型特点",
+  "naiMode_desc_background": "背景相关标签，用于描述画面背景类型",
+  "naiMode_desc_scene": "场景相关标签，用于描述具体场景元素",
+  "naiMode_desc_style": "画风相关标签，用于描述艺术风格",
+  "naiMode_desc_characterCount": "角色数量相关标签，决定画面中的人物数量"
 }

@@ -5,6 +5,7 @@ import '../../data/models/prompt/category_filter_config.dart';
 import '../../data/models/prompt/sync_config.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_library.dart';
+import '../../data/models/prompt/weighted_tag.dart';
 import '../../data/services/tag_library_service.dart';
 
 part 'tag_library_provider.g.dart';
@@ -236,6 +237,17 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
       library: _libraryService.getBuiltinLibrary(),
       clearError: true,
     );
+  }
+
+  /// 合并 Pool 标签到当前词库
+  ///
+  /// 由 PoolMappingProvider 调用
+  Future<void> mergePoolTags(Map<TagSubCategory, List<WeightedTag>> poolTags) async {
+    if (state.library == null || poolTags.isEmpty) return;
+
+    final mergedLibrary = _libraryService.mergePoolTags(state.library!, poolTags);
+    await _libraryService.saveLibrary(mergedLibrary);
+    state = state.copyWith(library: mergedLibrary);
   }
 }
 

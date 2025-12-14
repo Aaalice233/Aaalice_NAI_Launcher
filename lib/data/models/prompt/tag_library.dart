@@ -177,4 +177,25 @@ class TagLibrary with _$TagLibrary {
 
   /// 检查词库是否有效
   bool get isValid => !isEmpty;
+
+  /// 检查指定分类是否有 Danbooru 补充标签
+  bool hasDanbooruSupplementForCategory(TagSubCategory category) {
+    final tags = getCategory(category);
+    return tags.any((t) => t.isDanbooruSupplement);
+  }
+
+  /// 获取所有有 Danbooru 补充标签的分类
+  Set<TagSubCategory> getCategoriesWithDanbooruSupplement() {
+    final result = <TagSubCategory>{};
+    for (final entry in categories.entries) {
+      final category = TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+        (c) => c?.name == entry.key,
+        orElse: () => null,
+      );
+      if (category != null && entry.value.any((t) => t.isDanbooruSupplement)) {
+        result.add(category);
+      }
+    }
+    return result;
+  }
 }

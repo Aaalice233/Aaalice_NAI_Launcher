@@ -7,8 +7,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../datasources/local/nai_tags_data_source.dart';
-import '../datasources/remote/danbooru_tag_library_service.dart';
 import '../models/prompt/category_filter_config.dart';
+import '../models/prompt/default_pool_mappings.dart';
+import '../models/prompt/pool_sync_config.dart';
 import '../models/prompt/sync_config.dart';
 import '../models/prompt/tag_category.dart';
 import '../models/prompt/tag_library.dart';
@@ -24,13 +25,13 @@ class TagLibraryService {
   static const String _libraryKey = 'library';
   static const String _syncConfigKey = 'sync_config';
   static const String _categoryFilterKey = 'category_filter_config';
+  static const String _poolSyncConfigKey = 'pool_sync_config';
 
-  final DanbooruTagLibraryService _remoteService;
   final NaiTagsDataSource _naiTagsDataSource;
   Box? _box;
   Future<void>? _initFuture;
 
-  TagLibraryService(this._remoteService, this._naiTagsDataSource);
+  TagLibraryService(this._naiTagsDataSource);
 
   /// 初始化
   Future<void> init() async {
@@ -53,36 +54,12 @@ class TagLibraryService {
       final json = _box?.get(_libraryKey) as String?;
       if (json != null) {
         final data = jsonDecode(json) as Map<String, dynamic>;
-        final library = TagLibrary.fromJson(data);
-
-        // 检查是否需要迁移：有 Danbooru 补充但标签没有 source 字段
-        if (library.hasDanbooruSupplement && _needsMigration(library)) {
-          AppLogger.i('Library needs migration for source field', 'TagLibrary');
-          return null; // 返回 null 触发重新同步
-        }
-
-        return library;
+        return TagLibrary.fromJson(data);
       }
     } catch (e) {
       AppLogger.e('Failed to load local library: $e', 'TagLibrary');
     }
     return null;
-  }
-
-  /// 检查词库是否需要迁移（旧数据没有 source 字段）
-  bool _needsMigration(TagLibrary library) {
-    // 如果有 Danbooru 补充，但所有标签的 source 都是 nai
-    // 说明是旧数据，需要重新同步
-    if (!library.hasDanbooruSupplement) return false;
-
-    for (final tags in library.categories.values) {
-      for (final tag in tags) {
-        if (tag.source == TagSource.danbooru) {
-          return false; // 已经有正确标记的标签，不需要迁移
-        }
-      }
-    }
-    return true; // 有补充但没有标记，需要迁移
   }
 
   /// 保存词库到本地
@@ -152,26 +129,23 @@ class TagLibraryService {
     }
   }
 
-  /// 同步词库（优化：并行加载）
+  /// 同步词库
   ///
-  /// 基于 NAI 固定词库，始终从 Danbooru 获取补充标签
-  /// 分类级过滤由 CategoryFilterConfig 控制，与同步操作解耦
+  /// 仅加载 NAI 固定词库，Danbooru 补充标签由 Pool 同步机制独立处理
   Future<TagLibrary> syncLibrary({
     required DataRange range,
     void Function(SyncProgress progress)? onProgress,
   }) async {
     onProgress?.call(SyncProgress.initial());
 
-    // 并行执行可独立的初始化步骤
+    // 加载 NAI 标签数据和同步配置
     final results = await Future.wait([
       _naiTagsDataSource.loadData(),
       loadSyncConfig(),
-      _remoteService.checkConnectivity(),
     ]);
 
     final naiTags = results[0] as NaiTagsData;
     final syncConfig = results[1] as TagLibrarySyncConfig;
-    final connected = results[2] as bool;
 
     // 构建 NAI 固定词库
     final naiCategories = <String, List<WeightedTag>>{};
@@ -185,57 +159,17 @@ class TagLibraryService {
       }
     }
 
-    var supplementCount = 0;
-
-    // 始终获取 Danbooru 补充标签（不受过滤开关影响）
-    if (connected) {
-      try {
-        // 获取补充标签
-        final supplementTags = await _remoteService.fetchSupplementTags(
-          range: range,
-          naiTags: naiTags,
-          onProgress: onProgress,
-        );
-
-        // 合并补充标签到对应类别
-        for (final entry in supplementTags.entries) {
-          final categoryName = entry.key.name;
-          final existingTags = naiCategories[categoryName] ?? [];
-          final existingSet = existingTags.map((t) => t.tag.toLowerCase()).toSet();
-
-          // 只添加不存在的标签
-          for (final tag in entry.value) {
-            if (!existingSet.contains(tag.tag.toLowerCase())) {
-              existingTags.add(tag);
-              supplementCount++;
-            }
-          }
-          naiCategories[categoryName] = existingTags;
-        }
-
-        AppLogger.d(
-          'Added $supplementCount supplement tags from Danbooru',
-          'TagLibrary',
-        );
-      } catch (e) {
-        AppLogger.w('Failed to fetch supplement tags: $e', 'TagLibrary');
-        // 补充失败不影响主流程
-      }
-    } else {
-      AppLogger.w('Danbooru not reachable, skipping supplement', 'TagLibrary');
-    }
-
     onProgress?.call(SyncProgress.saving());
 
-    // 创建词库
+    // 创建词库（无 Danbooru 热度标签补充，Pool 标签由独立机制处理）
     final library = TagLibrary(
       id: const Uuid().v4(),
       name: 'NAI 词库',
       lastUpdated: DateTime.now(),
       version: 1,
       source: TagLibrarySource.nai,
-      hasDanbooruSupplement: supplementCount > 0,
-      danbooruSupplementCount: supplementCount,
+      hasDanbooruSupplement: false,
+      danbooruSupplementCount: 0,
       categories: naiCategories,
     );
 
@@ -254,7 +188,7 @@ class TagLibraryService {
     onProgress?.call(SyncProgress.completed(library.totalTagCount));
 
     AppLogger.i(
-      'Library synced: ${library.totalTagCount} tags (NAI: ${library.totalTagCount - supplementCount}, Supplement: $supplementCount)',
+      'Library synced: ${library.totalTagCount} NAI tags',
       'TagLibrary',
     );
 
@@ -399,6 +333,82 @@ class TagLibraryService {
     return config.shouldSync();
   }
 
+  // ==================== Pool 同步配置 ====================
+
+  /// 加载 Pool 同步配置
+  Future<PoolSyncConfig> loadPoolSyncConfig() async {
+    await _ensureInit();
+    try {
+      final json = _box?.get(_poolSyncConfigKey) as String?;
+      if (json != null) {
+        final data = jsonDecode(json) as Map<String, dynamic>;
+        return PoolSyncConfig.fromJson(data);
+      }
+    } catch (e) {
+      AppLogger.e('Failed to load pool sync config: $e', 'TagLibrary');
+    }
+    // 返回默认配置（包含预设的 Pool 映射）
+    return DefaultPoolMappings.getDefaultConfig();
+  }
+
+  /// 保存 Pool 同步配置
+  Future<void> savePoolSyncConfig(PoolSyncConfig config) async {
+    await _ensureInit();
+    try {
+      final json = jsonEncode(config.toJson());
+      await _box?.put(_poolSyncConfigKey, json);
+      AppLogger.d('Pool sync config saved', 'TagLibrary');
+    } catch (e) {
+      AppLogger.e('Failed to save pool sync config: $e', 'TagLibrary');
+      rethrow;
+    }
+  }
+
+  /// 合并 Pool 标签到词库
+  ///
+  /// [library] 原始词库
+  /// [poolTags] Pool 提取的标签（按目标分类）
+  ///
+  /// 返回合并后的词库
+  TagLibrary mergePoolTags(
+    TagLibrary library,
+    Map<TagSubCategory, List<WeightedTag>> poolTags,
+  ) {
+    if (poolTags.isEmpty) {
+      return library;
+    }
+
+    final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
+    var addedCount = 0;
+
+    for (final entry in poolTags.entries) {
+      final categoryName = entry.key.name;
+      final existingTags = mergedCategories[categoryName] ?? [];
+      final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
+
+      // 添加不重复的标签
+      for (final tag in entry.value) {
+        if (!existingNames.contains(tag.tag.toLowerCase())) {
+          existingTags.add(tag);
+          existingNames.add(tag.tag.toLowerCase());
+          addedCount++;
+        }
+      }
+
+      mergedCategories[categoryName] = existingTags;
+    }
+
+    AppLogger.d(
+      'Merged $addedCount pool tags into library',
+      'TagLibrary',
+    );
+
+    return library.copyWith(
+      categories: mergedCategories,
+      lastUpdated: DateTime.now(),
+    );
+  }
+
   /// 清除词库缓存
   Future<void> clearCache() async {
     await _ensureInit();
@@ -410,7 +420,6 @@ class TagLibraryService {
 /// Provider
 @Riverpod(keepAlive: true)
 TagLibraryService tagLibraryService(Ref ref) {
-  final remoteService = ref.watch(danbooruTagLibraryServiceProvider);
   final naiTagsDataSource = ref.watch(naiTagsDataSourceProvider);
-  return TagLibraryService(remoteService, naiTagsDataSource);
+  return TagLibraryService(naiTagsDataSource);
 }

@@ -1289,9 +1289,12 @@
   "naiMode_subtitle": "Replicate NovelAI official random algorithm",
   "naiMode_syncLibrary": "Supplement Library",
   "naiMode_algorithmInfo": "Algorithm Info",
-  "naiMode_statTags": "Total Tags",
-  "naiMode_statRange": "Data Range",
-  "naiMode_statSync": "Last Sync",
+  "naiMode_tagCountBadge": "{count} tags",
+  "@naiMode_tagCountBadge": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "naiMode_totalTags": "Tags: {count}",
   "@naiMode_totalTags": {
     "placeholders": {
@@ -1333,9 +1336,9 @@
   "naiMode_createCustomTitle": "Create Custom Preset",
   "naiMode_createCustomDesc": "This will create a new preset with all NAI categories, which you can customize.",
   "naiMode_featureComingSoon": "Feature coming soon...",
-  "naiMode_danbooruToggleTooltip": "Toggle Danbooru supplement tags for this category",
-  "naiMode_danbooruSupplementLabel": "Danbooru",
-  "naiMode_danbooruMasterToggleTooltip": "Toggle Danbooru supplement tags for all categories",
+  "naiMode_danbooruToggleTooltip": "Toggle Danbooru Pools supplement tags for this category",
+  "naiMode_danbooruSupplementLabel": "Danbooru Pools",
+  "naiMode_danbooruMasterToggleTooltip": "Toggle Danbooru Pools supplement tags for all categories",
   "naiMode_entrySubtitle": "{count} tags · Replicate official algorithm",
   "@naiMode_entrySubtitle": {
     "placeholders": {
@@ -1399,5 +1402,57 @@
   "tagLibrary_danbooruSupplement": "Danbooru Supplement",
   "tagLibrary_danbooruSupplementHint": "Fetch extra tags from Danbooru to supplement library",
   "tagLibrary_libraryComposition": "Library Composition",
-  "tagLibrary_libraryCompositionDesc": "NAI Official Fixed Library + Danbooru Supplement (Optional)"
+  "tagLibrary_libraryCompositionDesc": "NAI Official Fixed Library + Danbooru Supplement (Optional)",
+
+  "poolMapping_title": "Pool Mapping",
+  "poolMapping_enableSync": "Enable Pool Sync",
+  "poolMapping_enableSyncDesc": "Extract tags from Danbooru Pools to supplement categories",
+  "poolMapping_addMapping": "Add Pool Mapping",
+  "poolMapping_noMappings": "No Pool Mappings",
+  "poolMapping_noMappingsHint": "Click the button above to add a Danbooru Pool",
+  "poolMapping_searchPool": "Search Pool",
+  "poolMapping_searchHint": "Enter Pool name keywords",
+  "poolMapping_targetCategory": "Target Category",
+  "poolMapping_selectPool": "Select Pool",
+  "poolMapping_syncPools": "Sync Pools",
+  "poolMapping_syncing": "Syncing...",
+  "poolMapping_neverSynced": "Never synced",
+  "poolMapping_syncSuccess": "Pool sync successful",
+  "poolMapping_syncFailed": "Pool sync failed",
+  "poolMapping_noResults": "No matching Pools found",
+  "poolMapping_poolExists": "This Pool is already added",
+  "poolMapping_addSuccess": "Pool mapping added successfully",
+  "poolMapping_removeConfirm": "Are you sure you want to remove this Pool mapping?",
+  "poolMapping_removeSuccess": "Pool mapping removed",
+  "poolMapping_tagCount": "{count} tags",
+  "@poolMapping_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "poolMapping_postCount": "{count} posts",
+  "@poolMapping_postCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "poolMapping_alreadyAdded": "Added",
+  "poolMapping_resetToDefault": "Reset to Default",
+  "poolMapping_resetConfirm": "Are you sure you want to reset to default Pool mappings? Current configuration will be overwritten.",
+  "poolMapping_resetSuccess": "Reset to default configuration",
+
+  "naiMode_viewDetails": "View Details",
+  "naiMode_tagListTitle": "Tag List",
+  "naiMode_desc_hairColor": "Hair color tags for describing character's hair color",
+  "naiMode_desc_eyeColor": "Eye color tags for describing character's eye color",
+  "naiMode_desc_hairStyle": "Hair style tags for describing character's hairstyle",
+  "naiMode_desc_expression": "Expression tags for describing facial expressions",
+  "naiMode_desc_pose": "Pose tags for describing body postures and actions",
+  "naiMode_desc_clothing": "Clothing tags for describing outfits",
+  "naiMode_desc_accessory": "Accessory tags for describing decorations and accessories",
+  "naiMode_desc_bodyFeature": "Body feature tags for describing body characteristics",
+  "naiMode_desc_background": "Background tags for describing background types",
+  "naiMode_desc_scene": "Scene tags for describing scene elements",
+  "naiMode_desc_style": "Style tags for describing art styles",
+  "naiMode_desc_characterCount": "Character count tags for determining number of characters"
 }

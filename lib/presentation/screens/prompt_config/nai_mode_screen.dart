@@ -86,7 +86,10 @@ class _NaiModeScreenState extends ConsumerState<NaiModeScreen> {
     TagLibraryState state,
   ) {
     final library = state.library;
-    final config = state.syncConfig;
+    // 根据分类级过滤配置显示过滤后的标签数量
+    final tagCount = library?.getFilteredTagCountWithConfig(
+      state.categoryFilterConfig,
+    ) ?? 0;
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -128,11 +131,31 @@ class _NaiModeScreenState extends ConsumerState<NaiModeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      context.l10n.naiMode_subtitle,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          context.l10n.naiMode_subtitle,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // 标签总数
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            context.l10n.naiMode_tagCountBadge(tagCount.toString()),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -146,70 +169,12 @@ class _NaiModeScreenState extends ConsumerState<NaiModeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // 统计信息
-          Row(
-            children: [
-              // 总标签数
-              _buildStatChip(
-                theme,
-                Icons.label,
-                context.l10n.naiMode_totalTags(library?.totalTagCount.toString() ?? '0'),
-              ),
-              const SizedBox(width: 12),
-              // 数据范围
-              _buildStatChip(
-                theme,
-                Icons.data_usage,
-                context.l10n.naiMode_dataRange(_getDataRangeText(context, config.dataRange)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              // 上次同步
-              _buildStatChip(
-                theme,
-                Icons.schedule,
-                context.l10n.naiMode_lastSync(_formatLastSync(context, config.lastSyncTime)),
-              ),
-            ],
-          ),
 
           // 同步进度
           if (state.isSyncing && state.syncProgress != null) ...[
             const SizedBox(height: 12),
             _buildSyncProgress(theme, state.syncProgress!),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(
-    ThemeData theme,
-    IconData icon,
-    String text,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: theme.colorScheme.outline),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
         ],
       ),
     );
@@ -581,26 +546,6 @@ class _NaiModeScreenState extends ConsumerState<NaiModeScreen> {
       TagSubCategory.characterCount => Icons.group,
       _ => Icons.label,
     };
-  }
-
-  String _getDataRangeText(BuildContext context, DataRange range) {
-    return switch (range) {
-      DataRange.popular => context.l10n.tagLibrary_rangePopular,
-      DataRange.medium => context.l10n.tagLibrary_rangeMedium,
-      DataRange.full => context.l10n.tagLibrary_rangeFull,
-    };
-  }
-
-  String _formatLastSync(BuildContext context, DateTime? time) {
-    if (time == null) return context.l10n.tagLibrary_neverSynced;
-    final diff = DateTime.now().difference(time);
-    if (diff.inDays > 0) {
-      return context.l10n.tagLibrary_daysAgo(diff.inDays.toString());
-    }
-    if (diff.inHours > 0) {
-      return context.l10n.tagLibrary_hoursAgo(diff.inHours.toString());
-    }
-    return context.l10n.tagLibrary_justNow;
   }
 
   void _showAlgorithmDialog(BuildContext context) {

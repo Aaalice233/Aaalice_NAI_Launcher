@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../models/danbooru/danbooru_pool.dart';
 import '../../models/danbooru/danbooru_user.dart';
 import '../../models/online_gallery/danbooru_post.dart';
 import '../../models/tag/danbooru_tag.dart';
@@ -585,6 +586,101 @@ class DanbooruApiService {
       return [];
     } catch (e, stack) {
       AppLogger.e('Danbooru searchPools error: $e', e, stack, 'Danbooru');
+      return [];
+    }
+  }
+
+  /// 搜索图池（类型化版本）
+  ///
+  /// 返回 [DanbooruPool] 对象列表
+  Future<List<DanbooruPool>> searchPoolsTyped(
+    String query, {
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl$_poolsEndpoint',
+        queryParameters: {
+          'search[name_matches]': '*${query.trim()}*',
+          'limit': limit.clamp(1, 100),
+        },
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: _getHeaders(),
+        ),
+      );
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => DanbooruPool.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e, stack) {
+      AppLogger.e('Danbooru searchPoolsTyped error: $e', e, stack, 'Danbooru');
+      return [];
+    }
+  }
+
+  /// 获取 Pool 详情
+  ///
+  /// [poolId] Pool ID
+  Future<DanbooruPool?> getPool(int poolId) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/pools/$poolId.json',
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: _getHeaders(),
+        ),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return DanbooruPool.fromJson(response.data);
+      }
+      return null;
+    } catch (e, stack) {
+      AppLogger.e('Danbooru getPool error: $e', e, stack, 'Danbooru');
+      return null;
+    }
+  }
+
+  /// 获取 Pool 内的帖子
+  ///
+  /// 使用 `pool:$poolId` 标签搜索获取 Pool 内的帖子
+  /// [poolId] Pool ID
+  /// [limit] 最大返回数量
+  /// [page] 页码（从1开始）
+  Future<List<DanbooruPost>> getPoolPosts({
+    required int poolId,
+    int limit = 100,
+    int page = 1,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl$_postsEndpoint',
+        queryParameters: {
+          'tags': 'pool:$poolId',
+          'limit': limit.clamp(1, 200),
+          'page': page,
+        },
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: _getHeaders(),
+        ),
+      );
+
+      if (response.data is List) {
+        return (response.data as List)
+            .map((e) => DanbooruPost.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e, stack) {
+      AppLogger.e('Danbooru getPoolPosts error: $e', e, stack, 'Danbooru');
       return [];
     }
   }

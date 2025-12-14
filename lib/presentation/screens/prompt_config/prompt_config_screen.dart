@@ -3,16 +3,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/prompt/pool_mapping.dart';
+import '../../../data/models/prompt/pool_sync_config.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../../data/models/prompt/random_prompt_result.dart';
 import '../../../data/models/prompt/sync_config.dart';
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/weighted_tag.dart';
+import '../../providers/pool_mapping_provider.dart';
 import '../../providers/prompt_config_provider.dart';
 import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/prompt/nai_algorithm_dialog.dart';
+import 'pool_search_dialog.dart';
 
 /// 随机提示词配置页面 - 分栏布局
 class PromptConfigScreen extends ConsumerStatefulWidget {
@@ -109,11 +113,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// NAI 模式头部区域
   Widget _buildNaiInfoCard(ThemeData theme, TagLibraryState state) {
     final library = state.library;
-    final config = state.syncConfig;
     // 根据分类级过滤配置显示过滤后的标签数量
     final tagCount = library?.getFilteredTagCountWithConfig(
       state.categoryFilterConfig,
     ) ?? 0;
+    final filterConfig = state.categoryFilterConfig;
+    final categoryConfig = _getNaiCategoryConfig();
+    final allCategories = categoryConfig.keys.toSet();
+    final allExpanded = _expandedNaiCategories.containsAll(allCategories);
+    // 监听 Pool 同步状态
+    final poolMappingState = ref.watch(poolMappingNotifierProvider);
+    final isSyncing = state.isSyncing || poolMappingState.isSyncing;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
@@ -143,6 +153,22 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        // 标签总数
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            context.l10n.naiMode_tagCountBadge(tagCount.toString()),
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -155,10 +181,61 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                   ],
                 ),
               ),
-              // 右侧：操作按钮
+              // 右侧：操作按钮（含全局控制）
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // 全局 Danbooru Pools 开关
+                  Tooltip(
+                    message: context.l10n.naiMode_danbooruMasterToggleTooltip,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          context.l10n.naiMode_danbooruSupplementLabel,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: filterConfig.anyEnabled
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.outline,
+                          ),
+                        ),
+                        Transform.scale(
+                          scale: 0.8,
+                          child: Switch(
+                            value: filterConfig.anyEnabled,
+                            onChanged: (value) {
+                              ref.read(tagLibraryNotifierProvider.notifier).setAllCategoriesEnabled(value);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 收起/展开全部按钮
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        if (allExpanded) {
+                          _expandedNaiCategories.clear();
+                        } else {
+                          _expandedNaiCategories.addAll(allCategories);
+                        }
+                      });
+                    },
+                    icon: Icon(
+                      allExpanded ? Icons.unfold_less : Icons.unfold_more,
+                      size: 18,
+                    ),
+                    label: Text(
+                      allExpanded
+                          ? context.l10n.common_collapseAll
+                          : context.l10n.common_expandAll,
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: _showAlgorithmDialog,
                     icon: const Icon(Icons.help_outline, size: 18),
@@ -166,8 +243,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
-                    onPressed: state.isSyncing ? null : _showSyncSettingsDialog,
-                    icon: state.isSyncing
+                    onPressed: isSyncing ? null : _showSyncSettingsDialog,
+                    icon: isSyncing
                         ? SizedBox(
                             width: 16,
                             height: 16,
@@ -178,7 +255,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                           )
                         : const Icon(Icons.sync, size: 18),
                     label: Text(
-                      state.isSyncing
+                      isSyncing
                           ? context.l10n.tagLibrary_syncing
                           : context.l10n.naiMode_syncLibrary,
                     ),
@@ -188,41 +265,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ],
           ),
 
-          const SizedBox(height: 20),
-
-          // 统计数据卡片
-          Row(
-            children: [
-              _buildStatCard(
-                theme,
-                value: tagCount.toString(),
-                label: context.l10n.naiMode_statTags,
-                icon: Icons.label_outline,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              _buildStatCard(
-                theme,
-                value: _getDataRangeText(config.dataRange),
-                label: context.l10n.naiMode_statRange,
-                icon: Icons.data_usage,
-                color: theme.colorScheme.tertiary,
-              ),
-              const SizedBox(width: 12),
-              _buildStatCard(
-                theme,
-                value: _formatLastSync(config.lastSyncTime),
-                label: context.l10n.naiMode_statSync,
-                icon: Icons.schedule,
-                color: theme.colorScheme.secondary,
-              ),
-            ],
-          ),
-
-          // 同步进度
+          // 同步进度（TagLibrary 或 Pool 同步）
           if (state.isSyncing && state.syncProgress != null) ...[
             const SizedBox(height: 16),
             _buildNaiSyncProgress(theme, state.syncProgress!),
+          ],
+          if (poolMappingState.isSyncing && poolMappingState.syncProgress != null) ...[
+            const SizedBox(height: 16),
+            _buildPoolSyncProgressExternal(theme, poolMappingState.syncProgress!),
           ],
         ],
       ),
@@ -231,180 +281,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 显示同步设置对话框
   void _showSyncSettingsDialog() {
-    final theme = Theme.of(context);
-
     showDialog(
       context: context,
-      builder: (dialogContext) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final state = ref.watch(tagLibraryNotifierProvider);
-
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.sync, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(context.l10n.naiMode_syncLibrary),
-                ],
-              ),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 数据范围
-                    Text(
-                      context.l10n.tagLibrary_dataRange,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: DataRange.values.map((range) {
-                        final selected = state.syncConfig.dataRange == range;
-                        final label = switch (range) {
-                          DataRange.popular =>
-                            context.l10n.tagLibrary_dataRangePopular,
-                          DataRange.medium =>
-                            context.l10n.tagLibrary_dataRangeMedium,
-                          DataRange.full =>
-                            context.l10n.tagLibrary_dataRangeFull,
-                        };
-                        return ChoiceChip(
-                          label: Text(label),
-                          selected: selected,
-                          onSelected: (value) {
-                            if (value) {
-                              ref
-                                  .read(tagLibraryNotifierProvider.notifier)
-                                  .setDataRange(range);
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.l10n.tagLibrary_dataRangeHint,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // 词库组成说明
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  context.l10n.tagLibrary_libraryComposition,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  context.l10n.tagLibrary_libraryCompositionDesc,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text(context.l10n.common_cancel),
-                ),
-                FilledButton.icon(
-                  onPressed: state.isSyncing
-                      ? null
-                      : () {
-                          Navigator.pop(dialogContext);
-                          _syncLibrary();
-                        },
-                  icon: const Icon(Icons.sync, size: 18),
-                  label: Text(context.l10n.tagLibrary_syncNow),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  /// 统计数据卡片
-  Widget _buildStatCard(
-    ThemeData theme, {
-    required String value,
-    required String label,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (dialogContext) => const _SyncSettingsDialog(),
     );
   }
 
@@ -447,6 +326,46 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
+  /// 外部 Pool 同步进度显示
+  Widget _buildPoolSyncProgressExternal(ThemeData theme, PoolSyncProgress progress) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                progress.currentPool ?? context.l10n.tagLibrary_syncing,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (progress.totalCount > 0) ...[
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress.completedCount / progress.totalCount,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   /// NAI 类别列表
   Widget _buildNaiCategoryList(ThemeData theme, TagLibraryState state) {
     final library = state.library;
@@ -455,101 +374,26 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     final categoryConfig = _getNaiCategoryConfig();
-    final allCategories = categoryConfig.keys.toSet();
-    final allExpanded = _expandedNaiCategories.containsAll(allCategories);
     final filterConfig = state.categoryFilterConfig;
 
-    return Column(
-      children: [
-        // 展开/收起全部按钮和总开关
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              const Spacer(),
-              // 全局 Danbooru 补充开关
-              Tooltip(
-                message: context.l10n.naiMode_danbooruMasterToggleTooltip,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      context.l10n.naiMode_danbooruSupplementLabel,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: filterConfig.anyEnabled
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline,
-                      ),
-                    ),
-                    Transform.scale(
-                      scale: 0.8,
-                      child: Switch(
-                        value: filterConfig.anyEnabled,
-                        onChanged: (value) {
-                          ref.read(tagLibraryNotifierProvider.notifier).setAllCategoriesEnabled(value);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    if (allExpanded) {
-                      _expandedNaiCategories.clear();
-                    } else {
-                      _expandedNaiCategories.addAll(allCategories);
-                    }
-                  });
-                },
-                icon: Icon(
-                  allExpanded ? Icons.unfold_less : Icons.unfold_more,
-                  size: 18,
-                ),
-                label: Text(
-                  allExpanded
-                      ? context.l10n.common_collapseAll
-                      : context.l10n.common_expandAll,
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // 类别列表
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: categoryConfig.length,
-            itemBuilder: (context, index) {
-              final entry = categoryConfig.entries.elementAt(index);
-              final category = entry.key;
-              final probability = entry.value;
-              // 使用分类级过滤配置
-              final includeSupplement = filterConfig.isEnabled(category);
-              final tags = library.getFilteredCategory(
-                category,
-                includeDanbooruSupplement: includeSupplement,
-              );
+    // 直接返回类别列表，全局控制按钮已移至头部
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: categoryConfig.length,
+      itemBuilder: (context, index) {
+        final entry = categoryConfig.entries.elementAt(index);
+        final category = entry.key;
+        final probability = entry.value;
+        final includeSupplement = filterConfig.isEnabled(category);
+        final tags = library.getFilteredCategory(
+          category,
+          includeDanbooruSupplement: includeSupplement,
+        );
 
-              return _buildNaiCategoryTile(theme, category, probability, tags);
-            },
-          ),
-        ),
-      ],
+        return _buildNaiCategoryTile(theme, category, probability, tags);
+      },
     );
   }
-
-  /// 有 Danbooru 补充的分类（只有这些分类显示开关）
-  static const _categoriesWithDanbooruSupplement = {
-    TagSubCategory.hairColor,
-    TagSubCategory.eyeColor,
-    TagSubCategory.hairStyle,
-    TagSubCategory.background,
-  };
 
   Widget _buildNaiCategoryTile(
     ThemeData theme,
@@ -557,8 +401,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     int probability,
     List<WeightedTag> tags,
   ) {
-    final isExpanded = _expandedNaiCategories.contains(category);
-    final hasDanbooruSupplement = _categoriesWithDanbooruSupplement.contains(category);
+    // 动态检测该分类是否有 Danbooru 补充标签
+    final libraryState = ref.watch(tagLibraryNotifierProvider);
+    final hasDanbooruSupplement = libraryState.library?.hasDanbooruSupplementForCategory(category) ?? false;
     final categoryName = TagSubCategoryHelper.getDisplayName(category);
 
     return Card(
@@ -570,170 +415,111 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           color: theme.colorScheme.outline.withOpacity(0.1),
         ),
       ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedNaiCategories.remove(category);
-                } else {
-                  _expandedNaiCategories.add(category);
-                }
-              });
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // 分类图标
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getCategoryIcon(category),
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // 分类名称和标签数
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      _getCategoryIcon(category),
-                      size: 18,
-                      color: theme.colorScheme.primary,
+                  Text(
+                    categoryName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          categoryName,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          context.l10n.naiMode_tagCount(tags.length.toString()),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Danbooru 补充开关（仅对有补充的分类显示）
-                  if (hasDanbooruSupplement)
-                    Tooltip(
-                      message: context.l10n.naiMode_danbooruToggleTooltip,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            context.l10n.naiMode_danbooruSupplementLabel,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: ref.watch(tagLibraryNotifierProvider).categoryFilterConfig.isEnabled(category)
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.outline,
-                            ),
-                          ),
-                          Transform.scale(
-                            scale: 0.8,
-                            child: Switch(
-                              value: ref.watch(tagLibraryNotifierProvider).categoryFilterConfig.isEnabled(category),
-                              onChanged: (value) {
-                                ref.read(tagLibraryNotifierProvider.notifier).setCategoryEnabled(category, value);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.tertiaryContainer.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      context.l10n.naiMode_categoryProbability(
-                        probability.toString(),
-                      ),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.tertiary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AnimatedRotation(
-                    turns: isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
+                  const SizedBox(height: 2),
+                  Text(
+                    context.l10n.naiMode_tagCount(tags.length.toString()),
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: isExpanded
-                ? _buildNaiTagList(theme, tags)
-                : const SizedBox.shrink(),
-          ),
-        ],
+            // Danbooru 补充开关（仅对有补充的分类显示）
+            if (hasDanbooruSupplement)
+              Tooltip(
+                message: context.l10n.naiMode_danbooruToggleTooltip,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      context.l10n.naiMode_danbooruSupplementLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: libraryState.categoryFilterConfig.isEnabled(category)
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                      ),
+                    ),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: libraryState.categoryFilterConfig.isEnabled(category),
+                        onChanged: (value) {
+                          ref.read(tagLibraryNotifierProvider.notifier).setCategoryEnabled(category, value);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // 概率标签
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.tertiaryContainer.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                context.l10n.naiMode_categoryProbability(
+                  probability.toString(),
+                ),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.tertiary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 查看详情按钮
+            TextButton(
+              onPressed: () => _showCategoryDetailDialog(category, tags),
+              child: Text(context.l10n.naiMode_viewDetails),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNaiTagList(ThemeData theme, List<WeightedTag> tags) {
-    if (tags.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          context.l10n.naiMode_noTags,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
-      );
-    }
-
-    final sortedTags = List<WeightedTag>.from(tags)
-      ..sort((a, b) => b.weight.compareTo(a.weight));
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: sortedTags.map((tag) {
-          return _buildNaiTagChip(theme, tag);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildNaiTagChip(ThemeData theme, WeightedTag tag) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Text(
-        tag.tag,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurface,
-        ),
+  /// 显示类别详情对话框
+  void _showCategoryDetailDialog(TagSubCategory category, List<WeightedTag> tags) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _CategoryDetailDialog(
+        category: category,
+        tags: tags,
       ),
     );
   }
@@ -820,43 +606,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     };
   }
 
-  String _getDataRangeText(DataRange range) {
-    return switch (range) {
-      DataRange.popular => context.l10n.tagLibrary_rangePopular,
-      DataRange.medium => context.l10n.tagLibrary_rangeMedium,
-      DataRange.full => context.l10n.tagLibrary_rangeFull,
-    };
-  }
-
-  String _formatLastSync(DateTime? time) {
-    if (time == null) return context.l10n.tagLibrary_neverSynced;
-    final diff = DateTime.now().difference(time);
-    if (diff.inDays > 0) {
-      return context.l10n.tagLibrary_daysAgo(diff.inDays.toString());
-    }
-    if (diff.inHours > 0) {
-      return context.l10n.tagLibrary_hoursAgo(diff.inHours.toString());
-    }
-    return context.l10n.tagLibrary_justNow;
-  }
-
   void _showAlgorithmDialog() {
     showDialog(
       context: context,
       builder: (context) => const NaiAlgorithmDialog(),
     );
-  }
-
-  Future<void> _syncLibrary() async {
-    final success =
-        await ref.read(tagLibraryNotifierProvider.notifier).syncLibrary();
-    if (mounted) {
-      if (success) {
-        AppToast.success(context, context.l10n.tagLibrary_syncSuccess);
-      } else {
-        AppToast.error(context, context.l10n.tagLibrary_syncFailed);
-      }
-    }
   }
 
   Future<void> _previewGenerate() async {
@@ -2249,5 +2003,545 @@ class _ConfigDetailEditorState extends State<_ConfigDetailEditor> {
     _nameController.dispose();
     _contentsController.dispose();
     super.dispose();
+  }
+}
+
+/// 类别详情对话框
+class _CategoryDetailDialog extends StatelessWidget {
+  final TagSubCategory category;
+  final List<WeightedTag> tags;
+
+  const _CategoryDetailDialog({
+    required this.category,
+    required this.tags,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final categoryName = TagSubCategoryHelper.getDisplayName(category);
+    final sortedTags = List<WeightedTag>.from(tags)
+      ..sort((a, b) => b.weight.compareTo(a.weight));
+
+    return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      title: Row(
+        children: [
+          Icon(
+            _getCategoryIconStatic(category),
+            color: theme.colorScheme.primary,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(categoryName),
+                Text(
+                  context.l10n.naiMode_tagCount(tags.length.toString()),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      content: SizedBox(
+        width: 600,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 分类描述
+            Text(
+              _getCategoryDescription(context, category),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 12),
+            // 标签列表标题
+            Text(
+              context.l10n.naiMode_tagListTitle,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // 可滚动标签列表
+            Expanded(
+              child: sortedTags.isEmpty
+                  ? Center(
+                      child: Text(
+                        context.l10n.naiMode_noTags,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: sortedTags.map((tag) {
+                          return _buildTagChip(theme, tag);
+                        }).toList(),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.common_close),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagChip(ThemeData theme, WeightedTag tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Text(
+        tag.tag,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+
+  String _getCategoryDescription(BuildContext context, TagSubCategory category) {
+    return switch (category) {
+      TagSubCategory.hairColor => context.l10n.naiMode_desc_hairColor,
+      TagSubCategory.eyeColor => context.l10n.naiMode_desc_eyeColor,
+      TagSubCategory.hairStyle => context.l10n.naiMode_desc_hairStyle,
+      TagSubCategory.expression => context.l10n.naiMode_desc_expression,
+      TagSubCategory.pose => context.l10n.naiMode_desc_pose,
+      TagSubCategory.clothing => context.l10n.naiMode_desc_clothing,
+      TagSubCategory.accessory => context.l10n.naiMode_desc_accessory,
+      TagSubCategory.bodyFeature => context.l10n.naiMode_desc_bodyFeature,
+      TagSubCategory.background => context.l10n.naiMode_desc_background,
+      TagSubCategory.scene => context.l10n.naiMode_desc_scene,
+      TagSubCategory.style => context.l10n.naiMode_desc_style,
+      TagSubCategory.characterCount => context.l10n.naiMode_desc_characterCount,
+      _ => '',
+    };
+  }
+
+  static IconData _getCategoryIconStatic(TagSubCategory category) {
+    return switch (category) {
+      TagSubCategory.hairColor => Icons.palette,
+      TagSubCategory.eyeColor => Icons.remove_red_eye,
+      TagSubCategory.hairStyle => Icons.face,
+      TagSubCategory.expression => Icons.emoji_emotions,
+      TagSubCategory.pose => Icons.accessibility_new,
+      TagSubCategory.clothing => Icons.checkroom,
+      TagSubCategory.accessory => Icons.watch,
+      TagSubCategory.bodyFeature => Icons.accessibility,
+      TagSubCategory.background => Icons.landscape,
+      TagSubCategory.scene => Icons.photo_camera,
+      TagSubCategory.style => Icons.brush,
+      TagSubCategory.characterCount => Icons.group,
+      _ => Icons.label,
+    };
+  }
+}
+
+/// 同步设置对话框 - 紧凑专业布局
+class _SyncSettingsDialog extends ConsumerWidget {
+  const _SyncSettingsDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tagLibraryState = ref.watch(tagLibraryNotifierProvider);
+    final poolMappingState = ref.watch(poolMappingNotifierProvider);
+    final isSyncing = tagLibraryState.isSyncing || poolMappingState.isSyncing;
+
+    return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      title: Row(
+        children: [
+          Icon(Icons.sync, color: theme.colorScheme.primary, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(context.l10n.naiMode_syncLibrary),
+                const SizedBox(height: 2),
+                Text(
+                  context.l10n.tagLibrary_libraryCompositionDesc,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 操作按钮
+          TextButton.icon(
+            onPressed: () => _confirmResetToDefault(context, ref),
+            icon: const Icon(Icons.restore, size: 16),
+            label: Text(context.l10n.poolMapping_resetToDefault),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => _showAddMappingDialog(context),
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(context.l10n.poolMapping_addMapping),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+        ],
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ========== Pool 映射部分 ==========
+              _buildPoolMappingSection(context, ref, theme, poolMappingState),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.common_close),
+        ),
+        FilledButton.icon(
+          onPressed: isSyncing ? null : () => _syncAll(context, ref),
+          icon: isSyncing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.sync, size: 18),
+          label: Text(context.l10n.tagLibrary_syncNow),
+        ),
+      ],
+    );
+  }
+
+  /// Pool 映射部分
+  Widget _buildPoolMappingSection(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    PoolMappingState state,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 映射列表
+        if (state.config.mappings.isEmpty)
+          _buildEmptyState(context, theme)
+        else
+          _buildMappingList(context, ref, theme, state.config.mappings),
+
+        // 同步进度
+        if (state.isSyncing && state.syncProgress != null) ...[
+          const SizedBox(height: 12),
+          _buildPoolSyncProgress(theme, state.syncProgress!),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.collections_bookmark_outlined,
+            size: 40,
+            color: theme.colorScheme.outline.withOpacity(0.5),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.poolMapping_noMappings,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMappingList(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    List<PoolMapping> mappings,
+  ) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 320),
+      child: ListView.separated(
+        shrinkWrap: true,
+        itemCount: mappings.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 6),
+        itemBuilder: (context, index) {
+          final mapping = mappings[index];
+          return _buildMappingItem(context, ref, theme, mapping);
+        },
+      ),
+    );
+  }
+
+  Widget _buildMappingItem(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    PoolMapping mapping,
+  ) {
+    final categoryName = TagSubCategoryHelper.getDisplayName(mapping.targetCategory);
+    // 直接显示 Pool 帖子数量
+    final postInfo = context.l10n.poolMapping_postCount(mapping.postCount.toString());
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          // 启用/禁用开关
+          SizedBox(
+            width: 40,
+            height: 24,
+            child: Transform.scale(
+              scale: 0.8,
+              child: Switch(
+                value: mapping.enabled,
+                onChanged: (value) {
+                  ref
+                      .read(poolMappingNotifierProvider.notifier)
+                      .toggleMappingEnabled(mapping.id);
+                },
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // 映射信息
+          Expanded(
+            child: Opacity(
+              opacity: mapping.enabled ? 1.0 : 0.5,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${mapping.poolDisplayName}  →  $categoryName',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    postInfo,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 删除按钮
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            color: theme.colorScheme.error.withOpacity(0.7),
+            onPressed: () => _confirmRemoveMapping(context, ref, mapping),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            tooltip: context.l10n.common_delete,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPoolSyncProgress(ThemeData theme, PoolSyncProgress progress) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              progress.currentPool ?? '',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(
+          value: progress.totalCount > 0
+              ? progress.completedCount / progress.totalCount
+              : null,
+        ),
+      ],
+    );
+  }
+
+  void _showAddMappingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const PoolSearchDialog(),
+    );
+  }
+
+  void _confirmResetToDefault(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.poolMapping_resetToDefault),
+        content: Text(context.l10n.poolMapping_resetConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              ref.read(poolMappingNotifierProvider.notifier).resetToDefault();
+              AppToast.success(context, context.l10n.poolMapping_resetSuccess);
+            },
+            child: Text(context.l10n.common_confirm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemoveMapping(
+    BuildContext context,
+    WidgetRef ref,
+    PoolMapping mapping,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.common_confirm),
+        content: Text(context.l10n.poolMapping_removeConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              ref
+                  .read(poolMappingNotifierProvider.notifier)
+                  .removeMapping(mapping.id);
+              AppToast.success(context, context.l10n.poolMapping_removeSuccess);
+            },
+            child: Text(context.l10n.common_confirm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _syncAll(BuildContext context, WidgetRef ref) {
+    final tagLibraryNotifier = ref.read(tagLibraryNotifierProvider.notifier);
+    final poolMappingNotifier = ref.read(poolMappingNotifierProvider.notifier);
+    final poolMappingState = ref.read(poolMappingNotifierProvider);
+
+    // 关闭对话框，让外部进度条显示同步进度
+    Navigator.pop(context);
+
+    // 在后台执行同步（只要有映射就同步）
+    _doSync(
+      context,
+      tagLibraryNotifier,
+      poolMappingNotifier,
+      poolMappingState.config.mappings.isNotEmpty,
+    );
+  }
+
+  Future<void> _doSync(
+    BuildContext context,
+    TagLibraryNotifier tagLibraryNotifier,
+    PoolMappingNotifier poolMappingNotifier,
+    bool syncPools,
+  ) async {
+    // 先同步 Danbooru 标签库
+    final tagSuccess = await tagLibraryNotifier.syncLibrary();
+    if (!tagSuccess) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.tagLibrary_syncFailed);
+      }
+      return;
+    }
+
+    // 然后同步 Pool 映射
+    if (syncPools) {
+      final poolSuccess = await poolMappingNotifier.syncPools();
+      if (!poolSuccess) {
+        if (context.mounted) {
+          AppToast.error(context, context.l10n.poolMapping_syncFailed);
+        }
+        return;
+      }
+    }
+
+    if (context.mounted) {
+      AppToast.success(context, context.l10n.tagLibrary_syncSuccess);
+    }
   }
 }
