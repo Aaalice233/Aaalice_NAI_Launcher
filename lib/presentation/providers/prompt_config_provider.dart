@@ -210,7 +210,9 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
   /// 复制预设
   Future<void> duplicatePreset(String presetId) async {
-    final source = state.presets.firstWhere((p) => p.id == presetId);
+    final source = state.presets.where((p) => p.id == presetId).firstOrNull;
+    if (source == null) return;
+
     final copy = RandomPromptPreset.create(
       name: '${source.name} (副本)',
       configs: source.configs,
@@ -220,7 +222,8 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
   /// 导出预设为 JSON
   String exportPreset(String presetId) {
-    final preset = state.presets.firstWhere((p) => p.id == presetId);
+    final preset = state.presets.where((p) => p.id == presetId).firstOrNull;
+    if (preset == null) return '{}';
     return jsonEncode(preset.toJson());
   }
 
@@ -234,5 +237,23 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
       configs: preset.configs,
     );
     await addPreset(newPreset);
+  }
+
+  /// 重置预设为默认配置
+  Future<void> resetPreset(String presetId) async {
+    final index = state.presets.indexWhere((p) => p.id == presetId);
+    if (index == -1) return;
+
+    final original = state.presets[index];
+    final defaultPreset = DefaultPresets.createDefaultPreset();
+    final resetPreset = original.copyWith(
+      configs: defaultPreset.configs,
+      updatedAt: DateTime.now(),
+    );
+
+    final newPresets = [...state.presets];
+    newPresets[index] = resetPreset;
+    await _savePresets(newPresets);
+    state = state.copyWith(presets: newPresets);
   }
 }

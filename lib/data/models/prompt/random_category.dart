@@ -1,0 +1,122 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:uuid/uuid.dart';
+
+import 'random_tag_group.dart';
+
+part 'random_category.freezed.dart';
+part 'random_category.g.dart';
+
+/// 随机类别
+///
+/// 表示随机提示词中的一个大类别（如发色、瞳色等），
+/// 每个类别包含多个标签分组。
+@freezed
+class RandomCategory with _$RandomCategory {
+  const RandomCategory._();
+
+  const factory RandomCategory({
+    /// 类别ID
+    required String id,
+
+    /// 显示名称（如"发色"）
+    required String name,
+
+    /// 类别键名（如"hairColor"，用于程序内部标识）
+    required String key,
+
+    /// 是否启用该类别
+    @Default(true) bool enabled,
+
+    /// 标签分组列表
+    @Default([]) List<RandomTagGroup> groups,
+  }) = _RandomCategory;
+
+  factory RandomCategory.fromJson(Map<String, dynamic> json) =>
+      _$RandomCategoryFromJson(json);
+
+  /// 创建新类别
+  factory RandomCategory.create({
+    required String name,
+    required String key,
+    List<RandomTagGroup>? groups,
+  }) {
+    return RandomCategory(
+      id: const Uuid().v4(),
+      name: name,
+      key: key,
+      groups: groups ?? [],
+    );
+  }
+
+  /// 获取分组数量
+  int get groupCount => groups.length;
+
+  /// 获取启用的分组数量
+  int get enabledGroupCount => groups.where((g) => g.enabled).length;
+
+  /// 获取所有标签总数
+  int get totalTagCount =>
+      groups.fold(0, (sum, group) => sum + group.tagCount);
+
+  /// 获取启用分组的标签总数
+  int get enabledTagCount => enabled
+      ? groups
+          .where((g) => g.enabled)
+          .fold(0, (sum, group) => sum + group.tagCount)
+      : 0;
+
+  /// 深拷贝类别（生成新的ID）
+  RandomCategory deepCopy() {
+    return copyWith(
+      id: const Uuid().v4(),
+      groups: groups.map((g) => g.deepCopy()).toList(),
+    );
+  }
+
+  /// 添加分组
+  RandomCategory addGroup(RandomTagGroup group) {
+    return copyWith(groups: [...groups, group]);
+  }
+
+  /// 删除分组
+  RandomCategory removeGroup(String groupId) {
+    return copyWith(
+      groups: groups.where((g) => g.id != groupId).toList(),
+    );
+  }
+
+  /// 更新分组
+  RandomCategory updateGroup(RandomTagGroup updatedGroup) {
+    final index = groups.indexWhere((g) => g.id == updatedGroup.id);
+    if (index == -1) return this;
+
+    final newGroups = [...groups];
+    newGroups[index] = updatedGroup;
+    return copyWith(groups: newGroups);
+  }
+
+  /// 通过ID查找分组
+  RandomTagGroup? findGroupById(String groupId) {
+    for (final group in groups) {
+      if (group.id == groupId) return group;
+    }
+    return null;
+  }
+
+  /// 重新排序分组
+  RandomCategory reorderGroups(int oldIndex, int newIndex) {
+    if (oldIndex < 0 ||
+        oldIndex >= groups.length ||
+        newIndex < 0 ||
+        newIndex > groups.length) {
+      return this;
+    }
+
+    final newGroups = [...groups];
+    final item = newGroups.removeAt(oldIndex);
+    // 如果 newIndex 在 removeAt 之后仍然有效，直接插入
+    final insertIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    newGroups.insert(insertIndex.clamp(0, newGroups.length), item);
+    return copyWith(groups: newGroups);
+  }
+}
