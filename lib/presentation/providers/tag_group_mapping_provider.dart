@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../data/datasources/local/tag_group_cache_service.dart';
 import '../../data/datasources/remote/danbooru_tag_group_service.dart';
 import '../../data/models/prompt/default_tag_group_mappings.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
+import '../../data/models/prompt/tag_group_preset_cache.dart';
 import '../../data/models/prompt/tag_group_sync_config.dart';
 import '../../data/models/prompt/weighted_tag.dart';
 import '../../data/services/tag_library_service.dart';
@@ -23,6 +27,9 @@ class TagGroupMappingState {
   final TagGroupSyncProgress? syncProgress;
   final String? error;
 
+  /// 按当前热度阈值实时计算的过滤后标签数量
+  final Map<String, int> filteredTagCounts;
+
   const TagGroupMappingState({
     this.config = const TagGroupSyncConfig(),
     this.cachedGroups = const {},
@@ -30,7 +37,12 @@ class TagGroupMappingState {
     this.isSyncing = false,
     this.syncProgress,
     this.error,
+    this.filteredTagCounts = const {},
   });
+
+  /// 总过滤后标签数
+  int get totalFilteredTagCount =>
+      filteredTagCounts.values.fold(0, (sum, c) => sum + c);
 
   TagGroupMappingState copyWith({
     TagGroupSyncConfig? config,
@@ -39,6 +51,7 @@ class TagGroupMappingState {
     bool? isSyncing,
     TagGroupSyncProgress? syncProgress,
     String? error,
+    Map<String, int>? filteredTagCounts,
   }) {
     return TagGroupMappingState(
       config: config ?? this.config,
@@ -47,6 +60,7 @@ class TagGroupMappingState {
       isSyncing: isSyncing ?? this.isSyncing,
       syncProgress: syncProgress ?? this.syncProgress,
       error: error,
+      filteredTagCounts: filteredTagCounts ?? this.filteredTagCounts,
     );
   }
 }
@@ -57,6 +71,14 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
   TagLibraryService get _libraryService => ref.read(tagLibraryServiceProvider);
   DanbooruTagGroupService get _tagGroupService =>
       ref.read(danbooruTagGroupServiceProvider);
+  TagGroupCacheService get _cacheService =>
+      ref.read(tagGroupCacheServiceProvider);
+
+  /// 防抖计时器，用于减少热度滑块调整时的计算频率
+  Timer? _debounceTimer;
+
+  /// 防抖延迟时间（毫秒）
+  static const int _debounceDelayMs = 150;
 
   @override
   TagGroupMappingState build() {
@@ -68,10 +90,24 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
   Future<void> _loadConfig() async {
     try {
       final config = await _libraryService.loadTagGroupSyncConfig();
+
+      // 初始化缓存服务
+      await _cacheService.init();
+
+      // 从持久化缓存加载数据到内存
+      final enabledMappings = config.enabledMappings;
+      if (enabledMappings.isNotEmpty) {
+        final groupTitles = enabledMappings.map((m) => m.groupTitle).toList();
+        await _cacheService.getTagGroups(groupTitles);
+      }
+
       state = state.copyWith(
         config: config,
         isLoading: false,
       );
+
+      // 计算初始过滤数量
+      await _updateFilteredCounts(config.minPostCount);
     } catch (e) {
       AppLogger.e('Failed to load tag group mapping config: $e', 'TagGroupMapping');
       state = state.copyWith(
@@ -87,10 +123,62 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
     await _saveConfig(newConfig);
   }
 
-  /// 设置最小热度阈值
+  /// 设置最小热度阈值（触发实时过滤计算，带防抖）
+  ///
+  /// 配置会立即更新，但过滤计算会在 [_debounceDelayMs] 毫秒后执行，
+  /// 避免滑块拖动时频繁计算影响性能。
   Future<void> setMinPostCount(int count) async {
     final newConfig = state.config.copyWith(minPostCount: count);
+
+    // 立即更新配置（用户可立即看到滑块值变化）
+    state = state.copyWith(config: newConfig);
+
+    // 取消之前的防抖计时器
+    _debounceTimer?.cancel();
+
+    // 设置新的防抖计时器
+    _debounceTimer = Timer(const Duration(milliseconds: _debounceDelayMs), () async {
+      // 从缓存计算过滤后数量
+      await _updateFilteredCounts(count);
+      // 保存配置
+      await _saveConfig(newConfig);
+    });
+  }
+
+  /// 立即设置最小热度阈值（无防抖，用于非交互场景）
+  Future<void> setMinPostCountImmediate(int count) async {
+    _debounceTimer?.cancel();
+
+    final newConfig = state.config.copyWith(minPostCount: count);
+    state = state.copyWith(config: newConfig);
+
+    await _updateFilteredCounts(count);
     await _saveConfig(newConfig);
+  }
+
+  /// 从缓存计算过滤后的标签数量
+  Future<void> _updateFilteredCounts(int minPostCount) async {
+    final enabledMappings = state.config.enabledMappings;
+    if (enabledMappings.isEmpty) {
+      state = state.copyWith(filteredTagCounts: {});
+      return;
+    }
+
+    final groupTitles = enabledMappings.map((m) => m.groupTitle).toList();
+
+    // 使用异步方法计算（包含子组）
+    final counts = await _cacheService.getFilteredTagCountsAsync(
+      groupTitles,
+      minPostCount,
+      includeChildren: true,
+    );
+
+    state = state.copyWith(filteredTagCounts: counts);
+
+    AppLogger.d(
+      'Updated filtered counts: ${counts.length} groups, total=${counts.values.fold(0, (sum, c) => sum + c)}',
+      'TagGroupMapping',
+    );
   }
 
   /// 设置每分组最大标签数
@@ -100,7 +188,8 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
   }
 
   /// 添加 Tag Group 映射
-  /// [estimatedTagCount] 可选的预估标签数量，如果传入则直接使用，避免 API 请求
+  /// [estimatedTagCount] 可选的预估标签数量，如果传入则直接使用
+  /// 不发起 API 请求，标签数量只在同步时更新
   Future<void> addMapping({
     required String groupTitle,
     required String displayName,
@@ -114,27 +203,9 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
       throw Exception('Tag Group 已添加');
     }
 
-    // 如果没有传入预估数量，则请求 API 获取
-    int tagCount = estimatedTagCount ?? 0;
-    if (estimatedTagCount == null) {
-      try {
-        final group = await _tagGroupService.getTagGroup(
-          groupTitle,
-          fetchPostCounts: false,
-        );
-        if (group != null) {
-          // 过滤掉子组引用，只计算实际标签数量
-          tagCount = group.tags
-              .where((t) => !t.name.startsWith('tag_group'))
-              .length;
-        }
-      } catch (e) {
-        AppLogger.d(
-          'Failed to get tag count for $groupTitle: $e',
-          'TagGroupMapping',
-        );
-      }
-    }
+    // 只使用传入值，否则为 0（标签数量只在同步时更新）
+    final tagCount = estimatedTagCount ?? 0;
+    final originalCount = estimatedTagCount ?? 0;
 
     final mapping = TagGroupMapping(
       id: const Uuid().v4(),
@@ -145,7 +216,7 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
       includeChildren: includeChildren,
       customMinPostCount: customMinPostCount,
       // 使用获取到的预估数量
-      danbooruOriginalTagCount: tagCount,
+      danbooruOriginalTagCount: originalCount,
       lastSyncedTagCount: tagCount,
     );
 
@@ -252,47 +323,19 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
     final newGroupTitles = selectedGroupTitles.difference(existingGroupTitles).toList();
 
     if (newGroupTitles.isNotEmpty) {
-      // 并发获取所有新组的标签数量（限制并发数为 5）
-      final tagCounts = <String, int>{};
-
-      if (estimatedTagCounts != null) {
-        // 使用传入的预估数量
-        tagCounts.addAll(estimatedTagCounts);
-      } else {
-        // 并发请求，限制并发数
-        const batchSize = 5;
-        for (var i = 0; i < newGroupTitles.length; i += batchSize) {
-          final batch = newGroupTitles.skip(i).take(batchSize).toList();
-          final futures = batch.map((groupTitle) async {
-            try {
-              final group = await _tagGroupService.getTagGroup(
-                groupTitle,
-                fetchPostCounts: false,
-              );
-              if (group != null) {
-                return MapEntry(
-                  groupTitle,
-                  group.tags.where((t) => !t.name.startsWith('tag_group')).length,
-                );
-              }
-            } catch (e) {
-              AppLogger.d('Failed to get tag count for $groupTitle: $e', 'TagGroupMapping');
-            }
-            return MapEntry(groupTitle, 0);
-          });
-
-          final results = await Future.wait(futures);
-          for (final entry in results) {
-            tagCounts[entry.key] = entry.value;
-          }
-        }
-      }
+      // 使用预估数量（如果提供）> 预缓存值 > 0
+      // 不发起 API 请求，标签数量只在同步时更新
+      final tagCounts = estimatedTagCounts ?? <String, int>{};
 
       // 创建新映射
       for (final groupTitle in newGroupTitles) {
         final info = groupInfoMap[groupTitle];
         if (info != null) {
-          final count = tagCounts[groupTitle] ?? 0;
+          // 优先使用传入的预估值，其次使用预缓存值，否则为 0
+          final count = tagCounts[groupTitle]
+              ?? TagGroupPresetCache.getCount(groupTitle)
+              ?? 0;
+          final originalCount = TagGroupPresetCache.getOriginalCount(groupTitle) ?? count;
           updatedMappings.add(TagGroupMapping(
             id: const Uuid().v4(),
             groupTitle: groupTitle,
@@ -301,7 +344,7 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
             createdAt: DateTime.now(),
             includeChildren: info.includeChildren,
             enabled: true,
-            danbooruOriginalTagCount: count,
+            danbooruOriginalTagCount: originalCount,
             lastSyncedTagCount: count,
           ),);
         }
@@ -357,7 +400,6 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
     final group = await _tagGroupService.syncTagGroup(
       groupTitle: groupTitle,
       minPostCount: effectiveMinPostCount,
-      maxTags: state.config.maxTagsPerGroup,
       includeChildren: true,
     );
 
@@ -375,12 +417,14 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
 
     state = state.copyWith(isSyncing: true, error: null);
 
+    // 清除缓存，确保使用最新的 API 数据
+    _tagGroupService.clearCache();
+
     try {
-      // 获取 Tag Group 标签
+      // 获取 Tag Group 标签（同步时不过滤，数据会保存到持久化缓存）
       final syncResult = await _tagGroupService.syncTagGroupMappings(
         mappings: enabledMappings,
         minPostCount: state.config.minPostCount,
-        maxTagsPerGroup: state.config.maxTagsPerGroup,
         onProgress: (progress) {
           state = state.copyWith(syncProgress: progress);
         },
@@ -408,10 +452,28 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
 
       // 更新映射的同步信息
       final now = DateTime.now();
+
+      // 调试：打印同步结果
+      AppLogger.d(
+        'syncResult.tagCountByGroup keys: ${syncResult.tagCountByGroup.keys.toList()}',
+        'TagGroupMapping',
+      );
+      AppLogger.d(
+        'syncResult.tagCountByGroup: ${syncResult.tagCountByGroup}',
+        'TagGroupMapping',
+      );
+
       final updatedMappings = state.config.mappings.map((m) {
         if (!m.enabled) return m;
         final tagCount = syncResult.tagCountByGroup[m.groupTitle] ?? 0;
         final originalCount = syncResult.originalTagCountByGroup[m.groupTitle] ?? 0;
+
+        // 调试：打印每个 mapping 的更新
+        AppLogger.d(
+          'Updating mapping: ${m.groupTitle} -> tagCount=$tagCount, originalCount=$originalCount',
+          'TagGroupMapping',
+        );
+
         return m.copyWith(
           lastSyncedAt: now,
           lastSyncedTagCount: tagCount,
@@ -424,6 +486,9 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
         lastFullSyncTime: now,
       );
       await _saveConfig(newConfig);
+
+      // 同步完成后，根据当前阈值计算过滤数量
+      await _updateFilteredCounts(state.config.minPostCount);
 
       state = state.copyWith(isSyncing: false, syncProgress: null);
       AppLogger.i(
@@ -464,7 +529,6 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
       final syncResult = await _tagGroupService.syncTagGroupMappings(
         mappings: categoryMappings,
         minPostCount: state.config.minPostCount,
-        maxTagsPerGroup: state.config.maxTagsPerGroup,
         onProgress: (progress) {
           state = state.copyWith(syncProgress: progress);
         },
@@ -505,6 +569,9 @@ class TagGroupMappingNotifier extends _$TagGroupMappingNotifier {
 
       final newConfig = state.config.copyWith(mappings: updatedMappings);
       await _saveConfig(newConfig);
+
+      // 同步完成后，根据当前阈值计算过滤数量
+      await _updateFilteredCounts(state.config.minPostCount);
 
       state = state.copyWith(isSyncing: false, syncProgress: null);
       AppLogger.i(

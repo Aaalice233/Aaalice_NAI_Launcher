@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
 import '../../models/prompt/tag_group.dart';
 import '../../models/prompt/tag_group_mapping.dart';
 import '../../models/prompt/weighted_tag.dart';
+import '../local/tag_group_cache_service.dart';
 import 'danbooru_api_service.dart';
 import 'dtext_parser.dart';
 
@@ -17,8 +19,9 @@ part 'danbooru_tag_group_service.g.dart';
 /// 替代原有的 DanbooruPoolService
 class DanbooruTagGroupService {
   final DanbooruApiService _apiService;
+  final TagGroupCacheService _cacheService;
 
-  /// 缓存的 tag_group 数据
+  /// 缓存的 tag_group 数据（内存缓存，用于单次会话）
   final Map<String, TagGroup> _groupCache = {};
 
   /// 缓存的标签热度数据
@@ -30,7 +33,7 @@ class DanbooruTagGroupService {
   /// 缓存时间戳
   DateTime? _cacheTimestamp;
 
-  DanbooruTagGroupService(this._apiService);
+  DanbooruTagGroupService(this._apiService, this._cacheService);
 
   /// 获取指定 tag_group 页面
   ///
@@ -42,7 +45,38 @@ class DanbooruTagGroupService {
   }) async {
     // 检查缓存
     if (_isCacheValid() && _groupCache.containsKey(title)) {
-      return _groupCache[title];
+      var cachedGroup = _groupCache[title]!;
+
+      // 调试：检查缓存数据的 postCount
+      if (cachedGroup.tags.isNotEmpty) {
+        final firstTag = cachedGroup.tags.first;
+        final lastTag = cachedGroup.tags.last;
+        AppLogger.d(
+          'getTagGroup cache hit: $title, tags=${cachedGroup.tagCount}, '
+          'firstTag=${firstTag.name}(postCount=${firstTag.postCount}, hasPostCount=${firstTag.hasPostCount}), '
+          'lastTag=${lastTag.name}(postCount=${lastTag.postCount}), fetchPostCounts=$fetchPostCounts',
+          'TagGroup',
+        );
+      } else {
+        AppLogger.d(
+          'getTagGroup cache hit: $title, tags=${cachedGroup.tagCount}, children=${cachedGroup.childGroupTitles.length}, fetchPostCounts=$fetchPostCounts',
+          'TagGroup',
+        );
+      }
+
+      // 如果需要热度信息但缓存的 group 没有，需要补充获取
+      // 注意：如果 hasPostCount=true 但 postCount=0，说明之前获取失败，需要重试
+      if (fetchPostCounts && cachedGroup.tags.isNotEmpty) {
+        final firstTag = cachedGroup.tags.first;
+        if (!firstTag.hasPostCount || firstTag.postCount == 0) {
+          // 缓存的数据没有热度信息或热度为0（可能之前获取失败），需要补充
+          AppLogger.d('Cache miss or zero postCount, fetching...', 'TagGroup');
+          cachedGroup = await _enrichWithPostCounts(cachedGroup);
+          _groupCache[title] = cachedGroup;
+        }
+      }
+
+      return cachedGroup;
     }
 
     try {
@@ -94,18 +128,21 @@ class DanbooruTagGroupService {
   Future<TagGroup> _enrichWithPostCounts(TagGroup group) async {
     final tagNames = group.tags.map((t) => t.name).toList();
 
-    // 检查缓存中已有的热度数据
+    // 检查缓存中已有的热度数据（跳过缓存值为0的，因为可能是之前获取失败）
     final uncachedTags = <String>[];
     for (final name in tagNames) {
-      if (!_postCountCache.containsKey(name)) {
+      final cachedCount = _postCountCache[name];
+      if (cachedCount == null || cachedCount == 0) {
         uncachedTags.add(name);
       }
     }
 
-    // 获取未缓存的标签热度
+    // 获取未缓存或缓存为0的标签热度
     if (uncachedTags.isNotEmpty) {
+      AppLogger.d('Fetching post counts for ${uncachedTags.length} tags...', 'TagGroup');
       final postCounts = await _apiService.batchGetTagPostCounts(uncachedTags);
       _postCountCache.addAll(postCounts);
+      AppLogger.d('Fetched post counts, sample: ${postCounts.entries.take(3).map((e) => "${e.key}=${e.value}").join(", ")}', 'TagGroup');
     }
 
     // 更新标签的热度信息
@@ -125,19 +162,20 @@ class DanbooruTagGroupService {
 
   /// 同步指定 tag_group 的标签
   ///
+  /// 同步时获取所有标签（不进行热度过滤），并保存到持久化缓存
+  /// 热度过滤在本地实时进行
+  ///
   /// [groupTitle] tag_group 标题
-  /// [minPostCount] 最小热度阈值
-  /// [maxTags] 最大标签数
+  /// [minPostCount] 最小热度阈值（仅用于返回值统计，不影响缓存）
   /// [includeChildren] 是否包含子分组的标签
   /// [onProgress] 进度回调
   /// [maxConcurrency] 子分组并发获取数
   Future<TagGroup?> syncTagGroup({
     required String groupTitle,
     int minPostCount = 1000,
-    int maxTags = 200,
     bool includeChildren = true,
     void Function(TagGroupSyncProgress)? onProgress,
-    int maxConcurrency = 3,
+    int maxConcurrency = 8,
   }) async {
     onProgress?.call(TagGroupSyncProgress.fetchingGroup(groupTitle, 0, 1));
 
@@ -147,6 +185,11 @@ class DanbooruTagGroupService {
       onProgress?.call(TagGroupSyncProgress.failed('无法获取分组: $groupTitle'));
       return null;
     }
+
+    AppLogger.d(
+      'syncTagGroup: $groupTitle, tags=${group.tagCount}, children=${group.childGroupTitles.length}, hasChildren=${group.hasChildren}',
+      'TagGroupSync',
+    );
 
     // 收集所有标签
     final allTags = <TagGroupEntry>[...group.tags];
@@ -178,6 +221,10 @@ class DanbooruTagGroupService {
       final existingNames = allTags.map((t) => t.name).toSet();
       for (final childGroup in childGroups) {
         if (childGroup != null) {
+          AppLogger.d(
+            'Child group: ${childGroup.title}, tags=${childGroup.tagCount}',
+            'TagGroupSync',
+          );
           for (final tag in childGroup.tags) {
             if (!existingNames.contains(tag.name)) {
               allTags.add(tag);
@@ -195,42 +242,53 @@ class DanbooruTagGroupService {
       ),
     );
 
-    // 按热度筛选和排序
-    final filteredTags = allTags
-        .where((t) => t.postCount >= minPostCount)
-        .toList()
+    // 按热度排序（不进行过滤，保留所有标签）
+    final sortedTags = allTags.toList()
       ..sort((a, b) => b.postCount.compareTo(a.postCount));
 
-    // 限制数量
-    final finalTags = filteredTags.take(maxTags).toList();
+    // 创建完整的 TagGroup（包含所有标签）
+    final fullGroup = group.copyWith(
+      tags: sortedTags,
+      originalTagCount: sortedTags.length,
+      lastUpdated: DateTime.now(),
+    );
+
+    // 保存到持久化缓存
+    await _cacheService.saveTagGroup(groupTitle, fullGroup);
+
+    // 如果有子组，也保存子组到缓存
+    if (includeChildren && group.hasChildren) {
+      for (final childTitle in group.childGroupTitles) {
+        if (_groupCache.containsKey(childTitle)) {
+          await _cacheService.saveTagGroup(childTitle, _groupCache[childTitle]!);
+        }
+      }
+    }
 
     onProgress?.call(
       TagGroupSyncProgress.completed(
-        allTags.length,
-        finalTags.length,
+        sortedTags.length,
+        sortedTags.where((t) => t.postCount >= minPostCount).length,
       ),
     );
 
-    return group.copyWith(
-      tags: finalTags,
-      originalTagCount: allTags.length,
-      lastUpdated: DateTime.now(),
-    );
+    return fullGroup;
   }
 
   /// 批量同步多个 tag_group 映射
   ///
+  /// 同步时获取所有标签（不进行热度过滤），并保存到持久化缓存
+  /// 返回的 TagGroupSyncResult 中的标签数量是应用 minPostCount 过滤后的数量
+  ///
   /// [mappings] 映射配置列表
-  /// [minPostCount] 全局最小热度阈值
-  /// [maxTagsPerGroup] 每个分组最大标签数
+  /// [minPostCount] 全局最小热度阈值（用于统计和合并到词库时的过滤）
   /// [onProgress] 进度回调
   /// [maxConcurrency] 最大并发数
   Future<TagGroupSyncResult> syncTagGroupMappings({
     required List<TagGroupMapping> mappings,
     int minPostCount = 1000,
-    int maxTagsPerGroup = 200,
     void Function(TagGroupSyncProgress)? onProgress,
-    int maxConcurrency = 2,
+    int maxConcurrency = 6,
   }) async {
     if (mappings.isEmpty) {
       return const TagGroupSyncResult();
@@ -261,9 +319,8 @@ class DanbooruTagGroupService {
           return await syncTagGroup(
             groupTitle: mapping.groupTitle,
             minPostCount: effectiveMinPostCount,
-            maxTags: maxTagsPerGroup,
             includeChildren: mapping.includeChildren,
-            maxConcurrency: 3, // 子分组并发
+            maxConcurrency: 8, // 子分组并发
           );
         } catch (e) {
           AppLogger.w(
@@ -286,18 +343,30 @@ class DanbooruTagGroupService {
     );
 
     // 汇总结果
+    AppLogger.d(
+      'syncResults.length=${syncResults.length}, enabledMappings.length=${enabledMappings.length}',
+      'TagGroupSync',
+    );
     for (var i = 0; i < enabledMappings.length; i++) {
       final mapping = enabledMappings[i];
       final group = syncResults.length > i ? syncResults[i] : null;
+      final effectiveMinPostCount = mapping.customMinPostCount ?? minPostCount;
+
+      AppLogger.d(
+        'Processing mapping[$i]: ${mapping.groupTitle}, group=${group != null ? "exists" : "null"}, hasTags=${group?.hasTags}, tagCount=${group?.tagCount}',
+        'TagGroupSync',
+      );
 
       if (group != null && group.hasTags) {
         final categoryName = mapping.targetCategory.name;
 
-        // 合并到目标分类
+        // 合并到目标分类（应用热度过滤）
         final existingTags = tagsByCategory[categoryName] ?? [];
         final existingNames = existingTags.map((t) => t.name).toSet();
 
-        for (final tag in group.tags) {
+        // 过滤后的标签列表
+        final filteredTags = group.getTagsAboveThreshold(effectiveMinPostCount);
+        for (final tag in filteredTags) {
           if (!existingNames.contains(tag.name)) {
             existingTags.add(tag);
             existingNames.add(tag.name);
@@ -305,10 +374,12 @@ class DanbooruTagGroupService {
         }
 
         tagsByCategory[categoryName] = existingTags;
-        tagCountByGroup[mapping.groupTitle] = group.tagCount;
-        originalTagCountByGroup[mapping.groupTitle] = group.originalTagCount;
-        totalFetched += group.originalTagCount;
-        totalFiltered += group.tags.length;
+        // 记录过滤后的数量
+        tagCountByGroup[mapping.groupTitle] = filteredTags.length;
+        // 记录原始数量（所有标签）
+        originalTagCountByGroup[mapping.groupTitle] = group.tagCount;
+        totalFetched += group.tagCount;
+        totalFiltered += filteredTags.length;
       }
     }
 
@@ -546,6 +617,42 @@ class DanbooruTagGroupService {
     _cacheTimestamp = null;
   }
 
+  /// 从缓存中获取 Tag Group 的标签数量（不发起 API 请求）
+  ///
+  /// 返回 null 表示缓存中没有该组的数据
+  /// 返回的数量是过滤掉子组引用后的实际标签数
+  int? getCachedTagCount(String groupTitle) {
+    if (!_isCacheValid() || !_groupCache.containsKey(groupTitle)) {
+      return null;
+    }
+    final group = _groupCache[groupTitle]!;
+    // 过滤掉子组引用，只计算实际标签数量
+    return group.tags.where((t) => !t.name.startsWith('tag_group')).length;
+  }
+
+  /// 批量从缓存中获取标签数量（不发起 API 请求）
+  ///
+  /// 返回已缓存的组的数量映射，未缓存的组不包含在结果中
+  Map<String, int> getCachedTagCounts(List<String> groupTitles) {
+    if (!_isCacheValid()) {
+      return {};
+    }
+    final result = <String, int>{};
+    for (final title in groupTitles) {
+      if (_groupCache.containsKey(title)) {
+        final group = _groupCache[title]!;
+        result[title] =
+            group.tags.where((t) => !t.name.startsWith('tag_group')).length;
+      }
+    }
+    return result;
+  }
+
+  /// 检查缓存中是否有指定组的数据
+  bool hasCachedGroup(String groupTitle) {
+    return _isCacheValid() && _groupCache.containsKey(groupTitle);
+  }
+
   /// 并发执行任务的辅助方法
   ///
   /// [items] 要处理的项目列表
@@ -605,15 +712,17 @@ class DanbooruTagGroupService {
       await completer.future;
     }
 
-    return results.whereType<R>().toList();
+    // 保持索引对应，不过滤 null 值
+    return results.cast<R>();
   }
 }
 
 /// Provider
 @Riverpod(keepAlive: true)
 DanbooruTagGroupService danbooruTagGroupService(
-  DanbooruTagGroupServiceRef ref,
+  Ref ref,
 ) {
   final apiService = ref.watch(danbooruApiServiceProvider);
-  return DanbooruTagGroupService(apiService);
+  final cacheService = ref.watch(tagGroupCacheServiceProvider);
+  return DanbooruTagGroupService(apiService, cacheService);
 }

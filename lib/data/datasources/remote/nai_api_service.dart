@@ -24,6 +24,7 @@ part 'nai_api_service.g.dart';
 /// NovelAI API 服务
 class NAIApiService {
   final Dio _dio;
+  // ignore: unused_field - 预留给未来的加密功能
   final NAICryptoService _cryptoService;
 
   NAIApiService(this._dio, this._cryptoService);
@@ -1129,7 +1130,7 @@ class NAIApiService {
 
               // NovelAI 流式消息格式:
               // {event_type, samp_ix, step_ix, gen_id, sigma, image}
-              final eventType = msg['event_type'];
+              final _ = msg['event_type']; // eventType 预留用于未来功能
               final stepIx = msg['step_ix'] as int?;
               final imageData = msg['image'];
 

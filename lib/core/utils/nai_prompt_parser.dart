@@ -42,15 +42,17 @@ class NaiPromptParser {
       // 跟踪括号深度
       if (char == '{') {
         braceDepth++;
-      } else if (char == '}')
+      } else if (char == '}') {
         braceDepth--;
-      else if (char == '[')
+      } else if (char == '[') {
         bracketDepth++;
-      else if (char == ']')
+      } else if (char == ']') {
         bracketDepth--;
-      else if (char == '(')
+      } else if (char == '(') {
         parenDepth++;
-      else if (char == ')') parenDepth--;
+      } else if (char == ')') {
+        parenDepth--;
+      }
 
       // 检测双竖线语法 ||
       if (char == '|' && i + 1 < prompt.length && prompt[i + 1] == '|') {

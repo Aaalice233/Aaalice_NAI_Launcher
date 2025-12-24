@@ -34,7 +34,6 @@ class _VibeTransferPanelV2State extends ConsumerState<VibeTransferPanelV2> {
     final theme = Theme.of(context);
     final params = ref.watch(generationParamsNotifierProvider);
     final vibes = params.vibeReferencesV4;
-    final hasVibes = vibes.isNotEmpty;
     final hasCharacterRefs = params.characterReferences.isNotEmpty;
 
     // 当存在角色参考时，Vibe Transfer 不可用

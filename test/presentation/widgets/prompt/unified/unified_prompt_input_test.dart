@@ -111,7 +111,7 @@ void consistencyTests() {
 
       // 验证权重调整后的 clamp 行为
       // 注意：copyWith 不会自动 clamp，需要手动 clamp
-      final tag = PromptTag.create(text: 'test', weight: 1.0);
+      final _ = PromptTag.create(text: 'test', weight: 1.0);
 
       // 测试超出范围的权重被正确 clamp（模拟 TagView 中的行为）
       final highWeightValue =

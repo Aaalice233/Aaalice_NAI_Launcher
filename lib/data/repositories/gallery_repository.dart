@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -350,7 +351,7 @@ class GalleryRepository {
 
 /// GalleryRepository Provider
 @riverpod
-GalleryRepository galleryRepository(GalleryRepositoryRef ref) {
+GalleryRepository galleryRepository(Ref ref) {
   final repo = GalleryRepository();
   // 初始化在应用启动时进行
   return repo;

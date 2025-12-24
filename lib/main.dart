@@ -12,6 +12,9 @@ import 'presentation/screens/splash/app_bootstrap.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 初始化日志系统
+  await AppLogger.init();
+
   // 初始化 Hive
   await Hive.initFlutter();
 

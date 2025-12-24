@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -292,7 +293,7 @@ class TagCacheService {
 
 /// TagCacheService Provider
 @riverpod
-TagCacheService tagCacheService(TagCacheServiceRef ref) {
+TagCacheService tagCacheService(Ref ref) {
   final service = TagCacheService();
   // 初始化在 LocalStorageService 中进行
   return service;

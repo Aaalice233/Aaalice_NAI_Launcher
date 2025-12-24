@@ -223,7 +223,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     GenerationParamsNotifier notifier,
   ) async {
     try {
-      final currentCount = notifier.state.vibeReferencesV4.length;
+      final currentState = ref.read(generationParamsNotifierProvider);
+      final currentCount = currentState.vibeReferencesV4.length;
       const maxCount = 16;
 
       // 解析文件，可能返回多个 vibe（bundle 情况）
@@ -266,7 +267,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     Uint8List bytes,
     GenerationParamsNotifier notifier,
   ) {
-    final hasExisting = notifier.state.characterReferences.isNotEmpty;
+    final currentState = ref.read(generationParamsNotifierProvider);
+    final hasExisting = currentState.characterReferences.isNotEmpty;
 
     // 角色参考只支持 1 张，如果已有则替换
     if (hasExisting) {

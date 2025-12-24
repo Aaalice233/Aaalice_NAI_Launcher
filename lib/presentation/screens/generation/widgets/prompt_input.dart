@@ -38,9 +38,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   final _promptFocusNode = FocusNode();
   final _negativeFocusNode = FocusNode();
 
-  bool _isPromptFocused = false;
-  bool _isNegativeFocused = false;
-
   // 标签列表（视图模式从共享 Provider 读取）
   List<PromptTag> _promptTags = [];
   List<PromptTag> _negativeTags = [];
@@ -77,15 +74,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   void _onPromptFocusChanged() {
-    setState(() {
-      _isPromptFocused = _promptFocusNode.hasFocus;
-    });
+    // Focus 状态变化时触发重建
+    setState(() {});
   }
 
   void _onNegativeFocusChanged() {
-    setState(() {
-      _isNegativeFocused = _negativeFocusNode.hasFocus;
-    });
+    // Focus 状态变化时触发重建
+    setState(() {});
   }
 
   void _toggleViewMode() {

@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -31,7 +32,8 @@ class TagDataService {
   /// 主标签文件
   static const String _tagsFileName = 'danbooru_tags.csv';
 
-  /// 共现标签文件
+  /// 共现标签文件（预留给未来的共现功能）
+  // ignore: unused_field
   static const String _cooccurrenceFileName = 'danbooru_tags_cooccurrence.csv';
 
   /// 缓存有效期（天）
@@ -306,6 +308,7 @@ class TagDataService {
   }
 
   /// 解析 CSV 内容（同步版本，用于小数据量或回退场景）
+  // ignore: unused_element
   List<LocalTag> _parseCsvContent(String content) {
     return _parseCsvContentSync(content, _translationMap);
   }
@@ -405,7 +408,7 @@ class TagDataService {
 
 /// TagDataService Provider
 @Riverpod(keepAlive: true)
-TagDataService tagDataService(TagDataServiceRef ref) {
+TagDataService tagDataService(Ref ref) {
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),

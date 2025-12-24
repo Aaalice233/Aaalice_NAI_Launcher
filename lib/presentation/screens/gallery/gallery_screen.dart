@@ -474,6 +474,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   Future<void> _exportSelected(BuildContext context, GalleryState state) async {
+    // 在任何异步操作前保存引用，避免跨异步间隙使用 context
+    final l10n = context.l10n;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     // 选择导出目录
     final result = await FilePicker.platform.getDirectoryPath();
     if (result == null) return;
@@ -487,8 +491,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.gallery_exportSuccess(successCount.toString(), result))),
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(l10n.gallery_exportSuccess(successCount.toString(), result))),
       );
       notifier.exitSelectionMode();
     }

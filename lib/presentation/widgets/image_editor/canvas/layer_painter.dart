@@ -82,6 +82,7 @@ class _CheckerboardCache {
   }
 
   /// 释放缓存（通常不需要调用，除非显式清理）
+  // ignore: unused_element
   static void dispose() {
     _shader = null;
     _image?.dispose();

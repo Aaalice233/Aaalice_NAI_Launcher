@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
@@ -789,11 +790,11 @@ class DanbooruApiService {
       final batch = tagNames.skip(i).take(batchSize).toList();
 
       try {
-        // 使用 name 精确匹配，逗号分隔多个标签
+        // 使用 name_comma 参数批量查询逗号分隔的多个标签
         final response = await _dio.get(
           '$_baseUrl$_tagsEndpoint',
           queryParameters: {
-            'search[name]': batch.join(','),
+            'search[name_comma]': batch.join(','),
             'limit': batchSize,
           },
           options: Options(
@@ -835,7 +836,7 @@ class DanbooruApiService {
 
 /// DanbooruApiService Provider
 @Riverpod(keepAlive: true)
-DanbooruApiService danbooruApiService(DanbooruApiServiceRef ref) {
+DanbooruApiService danbooruApiService(Ref ref) {
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 15),

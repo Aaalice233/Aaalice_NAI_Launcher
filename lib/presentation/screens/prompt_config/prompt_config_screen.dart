@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/datasources/remote/danbooru_tag_group_service.dart';
+import '../../../data/models/prompt/category_filter_config.dart';
 import '../../../data/models/prompt/danbooru_tag_group_tree.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../../data/models/prompt/random_prompt_result.dart';
@@ -13,6 +13,7 @@ import '../../../data/models/prompt/sync_config.dart';
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/tag_group.dart';
 import '../../../data/models/prompt/tag_group_mapping.dart';
+import '../../../data/models/prompt/tag_group_preset_cache.dart';
 import '../../../data/models/prompt/weighted_tag.dart';
 import '../../providers/prompt_config_provider.dart';
 import '../../providers/random_mode_provider.dart';
@@ -118,28 +119,45 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     // 监听 TagGroup 同步状态
     final tagGroupState = ref.watch(tagGroupMappingNotifierProvider);
     final isSyncing = state.isSyncing || tagGroupState.isSyncing;
-    // 计算已启用的 tag group 数量
-    final enabledMappingCount = tagGroupState.config.mappings
+    // 计算已启用的 tag group 数量（内置组 + 同步组）
+    final builtinGroupCount = CategoryFilterConfig.configurableCategories
+        .where((cat) => state.categoryFilterConfig.isBuiltinEnabled(cat))
+        .length;
+    final syncGroupCount = tagGroupState.config.mappings
         .where((m) => m.enabled)
         .length;
+    final enabledMappingCount = builtinGroupCount + syncGroupCount;
 
     // 计算总标签数：内置词库 + TagGroup
     int tagCount = 0;
     final categoryConfig = _getNaiCategoryConfig();
+
+    // 1. 内置词库启用时计入
     for (final category in categoryConfig.keys) {
-      // 1. 内置词库启用时计入
       if (state.categoryFilterConfig.isBuiltinEnabled(category) && library != null) {
         tagCount += library.getCategory(category)
             .where((t) => !t.isDanbooruSupplement)
             .length;
       }
-      // 2. 启用的 TagGroup 标签数
-      for (final mapping in tagGroupState.config.mappings.where((m) => m.enabled)) {
-        if (mapping.targetCategory == category) {
-          tagCount += mapping.lastSyncedTagCount;
-        }
-      }
     }
+
+    // 2. 启用的 TagGroup 标签数（遍历所有启用的 mapping，包含 other 类别）
+    int originalTagCount = tagCount; // 内置词库的原始数量等于过滤后数量
+    debugPrint('[PromptConfigScreen] 计算标签数量，启用的 mapping 数量: ${tagGroupState.config.mappings.where((m) => m.enabled).length}');
+    for (final mapping in tagGroupState.config.mappings.where((m) => m.enabled)) {
+      // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
+      final count = tagGroupState.filteredTagCounts[mapping.groupTitle]
+          ?? (mapping.lastSyncedTagCount > 0 ? mapping.lastSyncedTagCount : null)
+          ?? TagGroupPresetCache.getCount(mapping.groupTitle)
+          ?? 0;
+      debugPrint('[PromptConfigScreen]   ${mapping.groupTitle}: filteredCount=${tagGroupState.filteredTagCounts[mapping.groupTitle]}, lastSyncedTagCount=${mapping.lastSyncedTagCount}, presetCache=${TagGroupPresetCache.getCount(mapping.groupTitle)}, 使用=$count');
+      final original = mapping.danbooruOriginalTagCount > 0
+          ? mapping.danbooruOriginalTagCount
+          : TagGroupPresetCache.getOriginalCount(mapping.groupTitle) ?? count;
+      tagCount += count;
+      originalTagCount += original;
+    }
+    debugPrint('[PromptConfigScreen] 最终 tagCount=$tagCount, originalTagCount=$originalTagCount');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
@@ -149,11 +167,21 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           // 热度阈值控制 + 统计信息 + 同步按钮
           _GlobalPostCountToolbar(
             tagCount: tagCount,
+            originalTagCount: originalTagCount,
             enabledMappingCount: enabledMappingCount,
+            totalMappingCount: CategoryFilterConfig.configurableCategories.length + tagGroupState.config.mappings.length,
             isSyncing: isSyncing,
             onSync: () => _syncAll(context),
-            onSelectAll: _selectAllTagGroups,
-            onDeselectAll: _deselectAllTagGroups,
+            onToggleSelectAll: () {
+              // 如果全选则执行全不选，否则执行全选
+              final allSelected = builtinGroupCount == CategoryFilterConfig.configurableCategories.length &&
+                  tagGroupState.config.mappings.every((m) => m.enabled);
+              if (allSelected) {
+                _deselectAllTagGroups();
+              } else {
+                _selectAllTagGroups();
+              }
+            },
             allExpanded: _expandedCategories.length == _getNaiCategoryConfig().length,
             onToggleExpand: _toggleAllExpand,
           ),
@@ -178,6 +206,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final tagGroupNotifier = ref.read(tagGroupMappingNotifierProvider.notifier);
     final tagGroupState = ref.read(tagGroupMappingNotifierProvider);
 
+    debugPrint('=== _syncAll 开始 ===');
+    debugPrint('tagGroupState.config.enabled: ${tagGroupState.config.enabled}');
+    debugPrint('tagGroupState.config.mappings.length: ${tagGroupState.config.mappings.length}');
+    debugPrint('tagGroupState.config.enabledMappings.length: ${tagGroupState.config.enabledMappings.length}');
+
     // 先同步 Danbooru 标签库
     final tagSuccess = await tagLibraryNotifier.syncLibrary();
     if (!tagSuccess) {
@@ -188,14 +221,19 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     // 然后同步 TagGroup 映射
+    debugPrint('检查是否同步 TagGroup: enabled=${tagGroupState.config.enabled}, mappings.isNotEmpty=${tagGroupState.config.mappings.isNotEmpty}');
     if (tagGroupState.config.enabled && tagGroupState.config.mappings.isNotEmpty) {
+      debugPrint('开始同步 TagGroup...');
       final groupSuccess = await tagGroupNotifier.syncTagGroups();
+      debugPrint('TagGroup 同步结果: $groupSuccess');
       if (!groupSuccess) {
         if (context.mounted) {
           AppToast.error(context, context.l10n.tagGroup_syncFailed(''));
         }
         return;
       }
+    } else {
+      debugPrint('跳过 TagGroup 同步');
     }
 
     if (context.mounted) {
@@ -362,10 +400,12 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 全选所有 tag groups
   Future<void> _selectAllTagGroups() async {
     final notifier = ref.read(tagGroupMappingNotifierProvider.notifier);
+    final tagGroupState = ref.read(tagGroupMappingNotifierProvider);
 
     final allGroups = <String, ({String displayName, TagSubCategory category, bool includeChildren})>{};
     final locale = Localizations.localeOf(context).languageCode;
 
+    // 1. 收集树中定义的所有组
     for (final category in _getNaiCategoryConfig().keys) {
       final categoryNode = DanbooruTagGroupTree.tree.firstWhere(
         (n) => n.category == category,
@@ -388,6 +428,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       }
     }
 
+    // 2. 也包含现有 mappings 中的所有组（确保已存在但不在树中的组也被选中）
+    for (final mapping in tagGroupState.config.mappings) {
+      if (!allGroups.containsKey(mapping.groupTitle)) {
+        allGroups[mapping.groupTitle] = (
+          displayName: mapping.displayName,
+          category: mapping.targetCategory,
+          includeChildren: mapping.includeChildren,
+        );
+      }
+    }
+
     final selectedTitles = allGroups.keys.toSet();
     await notifier.updateSelectedGroupsWithTree(selectedTitles, allGroups);
   }
@@ -407,12 +458,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 取消选择所有 tag groups
   Future<void> _deselectAllTagGroups() async {
     final notifier = ref.read(tagGroupMappingNotifierProvider.notifier);
-    final currentState = ref.read(tagGroupMappingNotifierProvider);
-
-    // 禁用所有映射
-    for (final mapping in currentState.config.mappings.where((m) => m.enabled)) {
-      await notifier.removeMapping(mapping.id);
-    }
+    // 调用批量更新方法，传入空集合表示全部取消选择（只执行一次磁盘 IO）
+    await notifier.updateSelectedGroupsWithTree({}, {});
   }
 
   /// 切换全部展开/收起状态
@@ -561,19 +608,24 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     // 计算总标签数：内置词库 + TagGroup
     int tagCount = 0;
     final categoryConfig = _getNaiCategoryConfig();
+
+    // 1. 内置词库启用时计入
     for (final category in categoryConfig.keys) {
-      // 1. 内置词库启用时计入
       if (libraryState.categoryFilterConfig.isBuiltinEnabled(category) && library != null) {
         tagCount += library.getCategory(category)
             .where((t) => !t.isDanbooruSupplement)
             .length;
       }
-      // 2. 启用的 TagGroup 标签数
-      for (final mapping in tagGroupState.config.mappings.where((m) => m.enabled)) {
-        if (mapping.targetCategory == category) {
-          tagCount += mapping.lastSyncedTagCount;
-        }
-      }
+    }
+
+    // 2. 启用的 TagGroup 标签数（遍历所有启用的 mapping，包含 other 类别）
+    for (final mapping in tagGroupState.config.mappings.where((m) => m.enabled)) {
+      // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
+      final count = tagGroupState.filteredTagCounts[mapping.groupTitle]
+          ?? (mapping.lastSyncedTagCount > 0 ? mapping.lastSyncedTagCount : null)
+          ?? TagGroupPresetCache.getCount(mapping.groupTitle)
+          ?? 0;
+      tagCount += count;
     }
 
     return Padding(
@@ -1931,21 +1983,23 @@ class _CategoryDetailDialog extends StatelessWidget {
 /// 全局热度阈值工具栏
 class _GlobalPostCountToolbar extends ConsumerStatefulWidget {
   final int tagCount;
+  final int originalTagCount;
   final int enabledMappingCount;
+  final int totalMappingCount;
   final bool isSyncing;
   final VoidCallback onSync;
-  final VoidCallback onSelectAll;
-  final VoidCallback onDeselectAll;
+  final VoidCallback onToggleSelectAll;
   final bool allExpanded;
   final VoidCallback onToggleExpand;
 
   const _GlobalPostCountToolbar({
     required this.tagCount,
+    required this.originalTagCount,
     required this.enabledMappingCount,
+    required this.totalMappingCount,
     required this.isSyncing,
     required this.onSync,
-    required this.onSelectAll,
-    required this.onDeselectAll,
+    required this.onToggleSelectAll,
     required this.allExpanded,
     required this.onToggleExpand,
   });
@@ -2034,51 +2088,6 @@ class _GlobalPostCountToolbarState extends ConsumerState<_GlobalPostCountToolbar
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // 预设按钮
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [100, 500, 1000, 5000, 10000].map((value) {
-                      final isSelected = currentValue == value;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: InkWell(
-                          onTap: () {
-                            ref.read(tagGroupMappingNotifierProvider.notifier)
-                                .setMinPostCount(value);
-                          },
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? theme.colorScheme.primaryContainer
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: isSelected
-                                    ? theme.colorScheme.primary.withOpacity(0.5)
-                                    : theme.colorScheme.outline.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Text(
-                              _formatPostCount(value),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: isSelected
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.outline,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
               const SizedBox(width: 8),
               // 已选择的组数量
               Container(
@@ -2096,35 +2105,39 @@ class _GlobalPostCountToolbarState extends ConsumerState<_GlobalPostCountToolbar
                 ),
               ),
               const SizedBox(width: 8),
-              // 总tag数量
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
+              // 总tag数量 - 悬浮提示显示过滤前后数量
+              Tooltip(
+                message: context.l10n.tagGroup_totalTagsTooltip(
+                  widget.originalTagCount.toString(),
+                  widget.tagCount.toString(),
                 ),
-                child: Text(
-                  context.l10n.naiMode_totalTags(widget.tagCount.toString()),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.secondary,
-                    fontWeight: FontWeight.w600,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    context.l10n.naiMode_totalTags(widget.tagCount.toString()),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
               const Spacer(),
-              // 全选/取消选择按钮（二合一）
-              _buildCompactToggleButton(
-                theme: theme,
-                icon: Icons.check_box_outlined,
-                label: context.l10n.common_selectAll,
-                onTap: widget.onSelectAll,
-              ),
-              const SizedBox(width: 4),
-              _buildCompactToggleButton(
-                theme: theme,
-                icon: Icons.check_box_outline_blank,
-                label: context.l10n.common_deselectAll,
-                onTap: widget.onDeselectAll,
+              // 全选/取消选择切换按钮
+              Builder(
+                builder: (context) {
+                  final allSelected = widget.enabledMappingCount == widget.totalMappingCount;
+                  return _buildCompactToggleButton(
+                    theme: theme,
+                    icon: allSelected ? Icons.deselect : Icons.select_all,
+                    label: allSelected ? context.l10n.common_deselectAll : context.l10n.common_selectAll,
+                    onTap: widget.onToggleSelectAll,
+                  );
+                },
               ),
               const SizedBox(width: 8),
               // 展开/收起按钮
@@ -2137,20 +2150,26 @@ class _GlobalPostCountToolbarState extends ConsumerState<_GlobalPostCountToolbar
                 onTap: widget.onToggleExpand,
               ),
               const SizedBox(width: 12),
-              // 同步按钮
-              FilledButton.icon(
-                onPressed: widget.isSyncing ? null : widget.onSync,
-                icon: widget.isSyncing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.sync, size: 18),
-                label: Text(context.l10n.tagLibrary_syncNow),
+              // 缓存详情按钮
+              _buildCacheDetailsButton(context, theme, state),
+              const SizedBox(width: 8),
+              // 同步按钮 - 添加 Tooltip 显示上次同步时间
+              Tooltip(
+                message: _getLastSyncTooltip(context, state),
+                child: FilledButton.icon(
+                  onPressed: widget.isSyncing ? null : widget.onSync,
+                  icon: widget.isSyncing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.sync, size: 18),
+                  label: Text(context.l10n.tagLibrary_syncNow),
+                ),
               ),
             ],
           ),
@@ -2193,6 +2212,44 @@ class _GlobalPostCountToolbarState extends ConsumerState<_GlobalPostCountToolbar
     );
   }
 
+  /// 获取上次同步时间的 Tooltip 文本
+  String _getLastSyncTooltip(BuildContext context, TagGroupMappingState state) {
+    // 找出最近的同步时间
+    DateTime? lastSync;
+    for (final mapping in state.config.mappings.where((m) => m.enabled)) {
+      if (mapping.lastSyncedAt != null) {
+        if (lastSync == null || mapping.lastSyncedAt!.isAfter(lastSync)) {
+          lastSync = mapping.lastSyncedAt;
+        }
+      }
+    }
+
+    if (lastSync == null) {
+      return context.l10n.tagLibrary_neverSynced;
+    }
+
+    // 格式化时间
+    return context.l10n.naiMode_lastSync(_formatSyncTime(context, lastSync));
+  }
+
+  /// 格式化同步时间为人性化文本
+  String _formatSyncTime(BuildContext context, DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 1) {
+      return context.l10n.timeAgo_justNow;
+    } else if (diff.inMinutes < 60) {
+      return context.l10n.timeAgo_minutes(diff.inMinutes.toString());
+    } else if (diff.inHours < 24) {
+      return context.l10n.timeAgo_hours(diff.inHours.toString());
+    } else if (diff.inDays < 7) {
+      return context.l10n.timeAgo_days(diff.inDays.toString());
+    } else {
+      return '${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}';
+    }
+  }
+
   Widget _buildCompactToggleButton({
     required ThemeData theme,
     required IconData icon,
@@ -2203,7 +2260,7 @@ class _GlobalPostCountToolbarState extends ConsumerState<_GlobalPostCountToolbar
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
@@ -2215,18 +2272,312 @@ class _GlobalPostCountToolbarState extends ConsumerState<_GlobalPostCountToolbar
           children: [
             Icon(
               icon,
-              size: 16,
+              size: 18,
               color: theme.colorScheme.outline,
             ),
             const SizedBox(width: 4),
             Text(
               label,
-              style: theme.textTheme.labelSmall?.copyWith(
+              style: theme.textTheme.labelMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建缓存详情按钮
+  Widget _buildCacheDetailsButton(BuildContext context, ThemeData theme, TagGroupMappingState state) {
+    final syncedMappings = state.config.mappings.where((m) => m.lastSyncedAt != null).toList();
+    final totalMappings = state.config.mappings.length;
+    final hasSyncedData = syncedMappings.isNotEmpty;
+
+    return InkWell(
+      onTap: () => _showSyncDetailsDialog(context, theme, state, syncedMappings),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          color: hasSyncedData
+              ? theme.colorScheme.tertiaryContainer.withOpacity(0.3)
+              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          border: Border.all(
+            color: hasSyncedData
+                ? theme.colorScheme.tertiary.withOpacity(0.5)
+                : theme.colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasSyncedData ? Icons.cloud_done : Icons.cloud_off,
+              size: 18,
+              color: hasSyncedData
+                  ? theme.colorScheme.tertiary
+                  : theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              context.l10n.tagGroup_syncedCount(
+                syncedMappings.length.toString(),
+                totalMappings.toString(),
+              ),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: hasSyncedData
+                    ? theme.colorScheme.tertiary
+                    : theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 显示同步详情对话框
+  void _showSyncDetailsDialog(
+    BuildContext context,
+    ThemeData theme,
+    TagGroupMappingState state,
+    List<TagGroupMapping> syncedMappings,
+  ) {
+    // 计算上次同步时间
+    DateTime? lastSync;
+    for (final mapping in syncedMappings) {
+      if (lastSync == null || (mapping.lastSyncedAt?.isAfter(lastSync) ?? false)) {
+        lastSync = mapping.lastSyncedAt;
+      }
+    }
+
+    // 计算总标签数
+    int totalFiltered = 0;
+    int totalOriginal = 0;
+    for (final mapping in syncedMappings) {
+      totalFiltered += mapping.lastSyncedTagCount;
+      totalOriginal += mapping.danbooruOriginalTagCount;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 标题栏
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 16, 8, 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_done, color: theme.colorScheme.tertiary),
+                    const SizedBox(width: 12),
+                    Text(
+                      context.l10n.tagGroup_cacheDetails,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      iconSize: 20,
+                    ),
+                  ],
+                ),
+              ),
+              // 摘要卡片
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // 热度阈值
+                    Expanded(
+                      child: _buildSummaryCard(
+                        context,
+                        theme,
+                        icon: Icons.local_fire_department,
+                        iconColor: Colors.orange,
+                        label: context.l10n.tagGroup_minPostCount,
+                        value: state.config.minPostCount.toString(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // 上次同步
+                    Expanded(
+                      child: _buildSummaryCard(
+                        context,
+                        theme,
+                        icon: Icons.schedule,
+                        iconColor: theme.colorScheme.primary,
+                        label: context.l10n.naiMode_lastSyncLabel,
+                        value: lastSync != null ? _formatSyncTime(context, lastSync) : '-',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 分类列表
+              if (syncedMappings.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.cloud_off, size: 48, color: theme.colorScheme.outline.withOpacity(0.5)),
+                        const SizedBox(height: 12),
+                        Text(
+                          context.l10n.tagGroup_noCachedData,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: syncedMappings.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final mapping = syncedMappings[index];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                mapping.displayName,
+                                style: theme.textTheme.bodyMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // 进度条
+                            Expanded(
+                              flex: 2,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: mapping.danbooruOriginalTagCount > 0
+                                      ? mapping.lastSyncedTagCount / mapping.danbooruOriginalTagCount
+                                      : 0,
+                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                  valueColor: AlwaysStoppedAnimation(theme.colorScheme.tertiary),
+                                  minHeight: 6,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // 数量
+                            SizedBox(
+                              width: 90,
+                              child: Text(
+                                '${mapping.lastSyncedTagCount} / ${mapping.danbooruOriginalTagCount}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.outline,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                ),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              // 底部总计
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      context.l10n.naiMode_totalTags(totalFiltered.toString()),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '/ $totalOriginal',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建摘要卡片
+  Widget _buildSummaryCard(
+    BuildContext context,
+    ThemeData theme, {
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: iconColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2355,44 +2706,58 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     );
   }
 
-  /// 加载标签预览
-  Future<void> _loadTagPreview(String groupTitle) async {
-    if (_previewCache.containsKey(groupTitle) || _loadingGroups.contains(groupTitle)) {
+  /// 加载标签预览（从本地词库读取，不调用 API）
+  void _loadTagPreview(String groupTitle) {
+    if (_previewCache.containsKey(groupTitle)) {
       return;
     }
 
-    _loadingGroups.add(groupTitle);
-    if (mounted) setState(() {});
+    // 从本地词库读取已同步的标签数据
+    final mappingState = ref.read(tagGroupMappingNotifierProvider);
+    final libraryState = ref.read(tagLibraryNotifierProvider);
 
-    try {
-      final service = ref.read(danbooruTagGroupServiceProvider);
-      final group = await service.getTagGroup(groupTitle, fetchPostCounts: false);
+    // 查找 mapping
+    final mapping = mappingState.config.mappings.cast<TagGroupMapping?>().firstWhere(
+      (m) => m?.groupTitle == groupTitle,
+      orElse: () => null,
+    );
 
-      if (mounted) {
-        if (group != null) {
-          final actualTags = group.tags
-              .where((t) => !t.name.startsWith('tag_group'))
-              .toList();
-          _totalCountCache[groupTitle] = actualTags.length;
-          _previewCache[groupTitle] = actualTags.take(20).map((t) => t.name).toList();
-        } else {
-          // 获取失败，缓存空列表以避免重复请求
-          _previewCache[groupTitle] = [];
-          _totalCountCache[groupTitle] = 0;
-        }
-        setState(() {});
-      }
-    } catch (e) {
-      // 发生异常，缓存空列表
-      if (mounted) {
-        _previewCache[groupTitle] = [];
-        _totalCountCache[groupTitle] = 0;
-        setState(() {});
-      }
-    } finally {
-      _loadingGroups.remove(groupTitle);
-      if (mounted) setState(() {});
+    if (mapping == null) {
+      // 未配置映射，显示空
+      _previewCache[groupTitle] = [];
+      _totalCountCache[groupTitle] = 0;
+      return;
     }
+
+    // 检查是否已同步
+    if (mapping.lastSyncedAt == null) {
+      // 未同步，标记为需要同步（使用特殊标记）
+      _previewCache[groupTitle] = const ['__SYNC_REQUIRED__'];
+      _totalCountCache[groupTitle] = mapping.lastSyncedTagCount;
+      return;
+    }
+
+    // 从本地词库读取该分类的标签
+    final library = libraryState.library;
+    if (library == null) {
+      _previewCache[groupTitle] = [];
+      _totalCountCache[groupTitle] = 0;
+      return;
+    }
+
+    // 获取该分类下所有 Danbooru 来源的标签
+    final categoryTags = library.getCategory(mapping.targetCategory);
+    final danbooruTags = categoryTags
+        .where((t) => t.isDanbooruSupplement)
+        .toList();
+
+    _totalCountCache[groupTitle] = danbooruTags.length;
+    _previewCache[groupTitle] = danbooruTags
+        .take(20)
+        .map((t) => t.tag)
+        .toList();
+
+    if (mounted) setState(() {});
   }
 
   /// 获取预览文本
@@ -2426,6 +2791,32 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
           ),
         ),
       );
+    } else if (tags.length == 1 && tags.first == '__SYNC_REQUIRED__') {
+      // 未同步，显示需要同步提示
+      final syncRequiredText = context.l10n.tagGroup_syncRequired;
+      return WidgetSpan(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.sync,
+                size: 14,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                syncRequiredText,
+                style: TextStyle(
+                  color: theme.colorScheme.tertiary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     } else if (tags.isEmpty) {
       // 加载完成但没有标签
       final emptyText = isZh ? '该分组暂无标签数据' : 'No tags in this group';
@@ -2442,9 +2833,13 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
       final tagText = tags.join(', ');
       final count = totalCount ?? tags.length;
       final omittedCount = count - tags.length;
+      // 显示 tag_group 来源标识（去掉 tag_group: 前缀以便阅读）
+      final sourceId = node.title.startsWith('tag_group:')
+          ? node.title.substring('tag_group:'.length)
+          : node.title;
       final countLabel = isZh
-          ? 'Tag数量：$count | 来源：Danbooru'
-          : 'Tag count: $count | Source: Danbooru';
+          ? 'Tag数量：$count | Pool：$sourceId'
+          : 'Tag count: $count | Pool: $sourceId';
       final omittedLabel = omittedCount > 0
           ? (isZh ? '\n（省略了 $omittedCount 个）' : '\n($omittedCount more omitted)')
           : '';
@@ -2491,21 +2886,16 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     final notifier = ref.read(tagGroupMappingNotifierProvider.notifier);
     final state = ref.read(tagGroupMappingNotifierProvider);
 
-    if (currentlyEnabled) {
-      final mapping = state.config.mappings.firstWhere(
-        (m) => m.groupTitle == node.title && m.enabled,
-        orElse: () => TagGroupMapping(
-          id: '',
-          groupTitle: '',
-          displayName: '',
-          targetCategory: category,
-          createdAt: DateTime.now(),
-        ),
-      );
-      if (mapping.id.isNotEmpty) {
-        await notifier.removeMapping(mapping.id);
-      }
+    // 先查找是否已存在该 mapping（无论启用与否）
+    final existingMapping = state.config.mappings
+        .where((m) => m.groupTitle == node.title)
+        .firstOrNull;
+
+    if (existingMapping != null) {
+      // 已存在，切换启用状态
+      await notifier.toggleMappingEnabled(existingMapping.id);
     } else {
+      // 不存在，添加新映射
       await notifier.addMapping(
         groupTitle: node.title,
         displayName: _getDisplayName(node),
@@ -2570,7 +2960,12 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     final tagGroupState = ref.watch(tagGroupMappingNotifierProvider);
     for (final mapping in tagGroupState.config.mappings.where((m) => m.enabled)) {
       if (mapping.targetCategory == widget.category) {
-        count += mapping.lastSyncedTagCount;
+        // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
+        final tagCount = tagGroupState.filteredTagCounts[mapping.groupTitle]
+            ?? (mapping.lastSyncedTagCount > 0 ? mapping.lastSyncedTagCount : null)
+            ?? TagGroupPresetCache.getCount(mapping.groupTitle)
+            ?? 0;
+        count += tagCount;
       }
     }
 
@@ -2697,9 +3092,9 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
                 _buildBuiltinChip(theme, isBuiltinEnabled),
                 // Danbooru tag group chips
                 if (hasSubGroups)
-                  ..._buildSubGroupChipsList(theme, tagGroups, enabledTitles)
+                  ..._buildSubGroupChipsList(theme, tagGroups, enabledTitles, state)
                 else
-                  ..._buildFlatTagGroupChipsList(theme, tagGroups, enabledTitles),
+                  ..._buildFlatTagGroupChipsList(theme, tagGroups, enabledTitles, state),
               ],
             ),
           ),
@@ -2817,10 +3212,11 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     ThemeData theme,
     List<TagGroupTreeNode> tagGroups,
     Set<String> enabledTitles,
+    TagGroupMappingState mappingState,
   ) {
     return tagGroups.where((node) => node.isTagGroup).map((node) {
       final isEnabled = enabledTitles.contains(node.title);
-      return _buildTagGroupChip(theme, node, isEnabled);
+      return _buildTagGroupChip(theme, node, isEnabled, mappingState);
     }).toList();
   }
 
@@ -2829,13 +3225,14 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     ThemeData theme,
     List<TagGroupTreeNode> subGroups,
     Set<String> enabledTitles,
+    TagGroupMappingState mappingState,
   ) {
     return subGroups.map((subGroup) {
       if (subGroup.isTagGroup) {
         final isEnabled = enabledTitles.contains(subGroup.title);
-        return _buildTagGroupChip(theme, subGroup, isEnabled);
+        return _buildTagGroupChip(theme, subGroup, isEnabled, mappingState);
       }
-      return _buildSubGroupPopoverChip(theme, subGroup, enabledTitles);
+      return _buildSubGroupPopoverChip(theme, subGroup, enabledTitles, mappingState);
     }).toList();
   }
 
@@ -2844,7 +3241,15 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     ThemeData theme,
     TagGroupTreeNode node,
     bool isEnabled,
+    TagGroupMappingState mappingState,
   ) {
+    // 检查同步状态
+    final mapping = mappingState.config.mappings.cast<TagGroupMapping?>().firstWhere(
+      (m) => m?.groupTitle == node.title,
+      orElse: () => null,
+    );
+    final isSynced = mapping?.lastSyncedAt != null;
+
     return MouseRegion(
       onEnter: (_) => _loadTagPreview(node.title),
       child: Tooltip(
@@ -2853,17 +3258,43 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
         preferBelow: false,
         child: FilterChip(
           selected: isEnabled,
-          label: Text(
-            _getDisplayName(node),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: isEnabled
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurface,
-            ),
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 未同步时显示小图标
+              if (!isSynced && isEnabled) ...[
+                Icon(
+                  Icons.sync,
+                  size: 14,
+                  color: theme.colorScheme.tertiary,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                _getDisplayName(node),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: isEnabled
+                      ? (isSynced
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.tertiary)
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
           ),
           onSelected: (_) => _toggleTagGroup(node, widget.category, isEnabled),
-          selectedColor: theme.colorScheme.primaryContainer,
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          selectedColor: isSynced
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.tertiaryContainer.withOpacity(0.5),
+          backgroundColor: isSynced
+              ? theme.colorScheme.surfaceContainerHighest
+              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          side: isSynced
+              ? null
+              : BorderSide(
+                  color: theme.colorScheme.tertiary.withOpacity(0.4),
+                  width: 1,
+                ),
           showCheckmark: false,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         ),
@@ -2876,6 +3307,7 @@ class _ExpandableCategoryTileState extends ConsumerState<_ExpandableCategoryTile
     ThemeData theme,
     TagGroupTreeNode subGroup,
     Set<String> enabledTitles,
+    TagGroupMappingState mappingState,
   ) {
     final childTitles = _collectLeafTitles(subGroup);
     final enabledChildCount = childTitles.where((t) => enabledTitles.contains(t)).length;
@@ -2979,7 +3411,7 @@ class _SubGroupSelectionDialog extends ConsumerWidget {
   final VoidCallback onSelectAll;
   final VoidCallback onDeselectAll;
   final String Function(TagGroupTreeNode node) getDisplayName;
-  final Future<void> Function(String groupTitle) loadTagPreview;
+  final void Function(String groupTitle) loadTagPreview;
   final InlineSpan Function(TagGroupTreeNode node) getPreviewSpan;
 
   const _SubGroupSelectionDialog({
@@ -3039,6 +3471,13 @@ class _SubGroupSelectionDialog extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: subGroup.children.map((child) {
             final isEnabled = currentEnabledTitles.contains(child.title);
+            // 检查同步状态
+            final mapping = state.config.mappings.cast<TagGroupMapping?>().firstWhere(
+              (m) => m?.groupTitle == child.title,
+              orElse: () => null,
+            );
+            final isSynced = mapping?.lastSyncedAt != null;
+
             return MouseRegion(
               onEnter: (_) => loadTagPreview(child.title),
               child: Tooltip(
@@ -3049,17 +3488,33 @@ class _SubGroupSelectionDialog extends ConsumerWidget {
                   leading: Icon(
                     isEnabled ? Icons.check_box : Icons.check_box_outline_blank,
                     color: isEnabled
-                        ? theme.colorScheme.primary
+                        ? (isSynced ? theme.colorScheme.primary : theme.colorScheme.tertiary)
                         : theme.colorScheme.outline,
                   ),
-                  title: Text(
-                    locale == 'zh' ? child.displayNameZh : child.displayNameEn,
-                    style: TextStyle(
-                      color: isEnabled
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
-                      fontWeight: isEnabled ? FontWeight.w500 : null,
-                    ),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 未同步时显示小图标
+                      if (!isSynced && isEnabled) ...[
+                        Icon(
+                          Icons.sync,
+                          size: 14,
+                          color: theme.colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          locale == 'zh' ? child.displayNameZh : child.displayNameEn,
+                          style: TextStyle(
+                            color: isEnabled
+                                ? (isSynced ? theme.colorScheme.primary : theme.colorScheme.tertiary)
+                                : theme.colorScheme.onSurface,
+                            fontWeight: isEnabled ? FontWeight.w500 : null,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   onTap: () => onToggle(child, isEnabled),
                   dense: true,

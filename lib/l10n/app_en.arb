@@ -1308,6 +1308,26 @@
       "time": {}
     }
   },
+  "naiMode_lastSyncLabel": "Last Sync",
+  "timeAgo_justNow": "just now",
+  "timeAgo_minutes": "{count} min ago",
+  "@timeAgo_minutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "timeAgo_hours": "{count}h ago",
+  "@timeAgo_hours": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "timeAgo_days": "{count}d ago",
+  "@timeAgo_days": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "naiMode_dataRange": "Range: {range}",
   "@naiMode_dataRange": {
     "placeholders": {
@@ -1576,5 +1596,28 @@
   "naiMode_desc_style": "Style tags for describing art styles",
   "naiMode_desc_characterCount": "Character count tags for determining number of characters",
 
-  "tagGroup_builtin": "Built-in"
+  "tagGroup_builtin": "Built-in",
+  "tagGroup_totalTagsTooltip": "Original: {original} / Filtered: {filtered}",
+  "@tagGroup_totalTagsTooltip": {
+    "placeholders": {
+      "original": {},
+      "filtered": {}
+    }
+  },
+
+  "tagGroup_cacheDetails": "Cache Details",
+  "tagGroup_cachedCategories": "Cached Categories",
+  "tagGroup_noCachedData": "No cached data",
+  "tagGroup_syncRequired": "Sync required",
+  "tagGroup_notSynced": "Not synced",
+  "tagGroup_lastSyncTime": "Last sync",
+  "tagGroup_heatThreshold": "Heat threshold",
+  "tagGroup_totalStats": "Total",
+  "tagGroup_syncedCount": "{synced}/{total} synced",
+  "@tagGroup_syncedCount": {
+    "placeholders": {
+      "synced": {},
+      "total": {}
+    }
+  }
 }

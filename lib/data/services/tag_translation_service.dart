@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/tag_data_service.dart';
@@ -269,7 +270,7 @@ class TagTranslationService {
 
 /// TagTranslationService Provider
 @Riverpod(keepAlive: true)
-TagTranslationService tagTranslationService(TagTranslationServiceRef ref) {
+TagTranslationService tagTranslationService(Ref ref) {
   final service = TagTranslationService();
 
   // 尝试获取 TagDataService 并关联

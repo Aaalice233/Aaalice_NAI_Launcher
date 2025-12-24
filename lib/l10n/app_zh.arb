@@ -983,6 +983,26 @@
       "time": {}
     }
   },
+  "naiMode_lastSyncLabel": "上次同步",
+  "timeAgo_justNow": "刚刚",
+  "timeAgo_minutes": "{count}分钟前",
+  "@timeAgo_minutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "timeAgo_hours": "{count}小时前",
+  "@timeAgo_hours": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "timeAgo_days": "{count}天前",
+  "@timeAgo_days": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "naiMode_dataRange": "范围: {range}",
   "@naiMode_dataRange": {
     "placeholders": {
@@ -1251,5 +1271,28 @@
   "naiMode_desc_style": "画风相关标签，用于描述艺术风格",
   "naiMode_desc_characterCount": "角色数量相关标签，决定画面中的人物数量",
 
-  "tagGroup_builtin": "内置"
+  "tagGroup_builtin": "内置",
+  "tagGroup_totalTagsTooltip": "原始: {original} / 过滤后: {filtered}",
+  "@tagGroup_totalTagsTooltip": {
+    "placeholders": {
+      "original": {},
+      "filtered": {}
+    }
+  },
+
+  "tagGroup_cacheDetails": "缓存详情",
+  "tagGroup_cachedCategories": "已缓存分类",
+  "tagGroup_noCachedData": "无缓存数据",
+  "tagGroup_syncRequired": "需要同步",
+  "tagGroup_notSynced": "未同步",
+  "tagGroup_lastSyncTime": "上次同步",
+  "tagGroup_heatThreshold": "热度阈值",
+  "tagGroup_totalStats": "总计",
+  "tagGroup_syncedCount": "{synced}/{total} 已同步",
+  "@tagGroup_syncedCount": {
+    "placeholders": {
+      "synced": {},
+      "total": {}
+    }
+  }
 }

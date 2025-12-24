@@ -29,7 +29,6 @@ class HoverImagePreview extends StatefulWidget {
 class _HoverImagePreviewState extends State<HoverImagePreview> {
   final _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
-  bool _isHovering = false;
 
   @override
   void dispose() {
@@ -100,11 +99,9 @@ class _HoverImagePreviewState extends State<HoverImagePreview> {
       link: _layerLink,
       child: MouseRegion(
         onEnter: (_) {
-          setState(() => _isHovering = true);
           _showOverlay();
         },
         onExit: (_) {
-          setState(() => _isHovering = false);
           _removeOverlay();
         },
         child: widget.child,

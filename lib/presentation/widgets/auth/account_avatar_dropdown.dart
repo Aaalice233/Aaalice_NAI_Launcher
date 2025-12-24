@@ -26,7 +26,8 @@ class AccountAvatarDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accountState = ref.watch(accountManagerNotifierProvider);
+    // 监听账号状态变化以触发重建
+    ref.watch(accountManagerNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
     final accounts = ref.read(accountManagerNotifierProvider.notifier).sortedAccounts;
 

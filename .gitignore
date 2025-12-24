@@ -99,6 +99,8 @@ nul
 .spec-workflow/
 .qoder/
 .kiro
+CLAUDE.md
+.claude/
 
 # Local folders
 logs/
