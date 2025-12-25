@@ -3,6 +3,9 @@ import 'package:uuid/uuid.dart';
 
 import 'random_tag_group.dart';
 
+// 从 random_tag_group.dart 重新导出 SelectionMode 以便使用
+export 'random_tag_group.dart' show SelectionMode;
+
 part 'random_category.freezed.dart';
 part 'random_category.g.dart';
 
@@ -26,6 +29,27 @@ class RandomCategory with _$RandomCategory {
 
     /// 是否启用该类别
     @Default(true) bool enabled,
+
+    /// 类别被选中的概率 (0.0 - 1.0)
+    @Default(1.0) double probability,
+
+    /// 词组选取模式（从下属词组中如何选取）
+    @Default(SelectionMode.single) SelectionMode groupSelectionMode,
+
+    /// 词组选取数量（多选模式下选择几个词组）
+    @Default(1) int groupSelectCount,
+
+    /// 是否打乱输出顺序
+    @Default(true) bool shuffle,
+
+    /// 统一权重括号最小层数 (0-5)，应用于所有下属词组
+    @Default(0) int unifiedBracketMin,
+
+    /// 统一权重括号最大层数 (0-5)，应用于所有下属词组
+    @Default(0) int unifiedBracketMax,
+
+    /// 是否启用统一权重括号设置（false则使用各词组自己的设置）
+    @Default(false) bool useUnifiedBracket,
 
     /// 标签分组列表
     @Default([]) List<RandomTagGroup> groups,

@@ -11,6 +11,7 @@
   "common_expandAll": "Expand All",
   "common_collapseAll": "Collapse All",
   "common_save": "Save",
+  "common_saved": "Saved",
   "common_delete": "Delete",
   "common_edit": "Edit",
   "common_close": "Close",
@@ -30,6 +31,8 @@
   "common_search": "Search",
   "common_featureInDev": "Feature in development...",
   "common_add": "Add",
+  "common_confirmDelete": "Confirm Delete",
+  "common_settings": "Settings",
 
   "nav_canvas": "Canvas",
   "nav_gallery": "Gallery",
@@ -1349,6 +1352,33 @@
     }
   },
   "naiMode_readOnlyHint": "Random prompt configuration based on official algorithm",
+  "promptConfig_confirmRemoveGroup": "Are you sure you want to remove group \"{name}\"?",
+  "@promptConfig_confirmRemoveGroup": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "promptConfig_groupList": "Group List",
+  "promptConfig_groupCount": "{count} groups",
+  "@promptConfig_groupCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptConfig_addGroup": "Add Group",
+  "promptConfig_noGroups": "No groups yet, click \"Add Group\" to create",
+  "promptConfig_builtinLibrary": "NAI Built-in Library",
+  "promptConfig_danbooruTagGroup": "Danbooru TagGroup",
+  "promptConfig_categorySettings": "Category Settings",
+  "promptConfig_removeCategory": "Remove Category",
+  "promptConfig_confirmRemoveCategory": "Are you sure you want to remove category \"{name}\"?",
+  "@promptConfig_confirmRemoveCategory": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "promptConfig_enableCategory": "Enable Category",
+  "promptConfig_disableCategory": "Disable Category",
   "naiMode_noLibrary": "Library not loaded",
   "naiMode_noTags": "No tags",
   "naiMode_previewResult": "Preview Result",
@@ -1787,5 +1817,85 @@
       "n": {}
     }
   },
-  "time_never_synced": "Never synced"
+  "time_never_synced": "Never synced",
+
+  "selectionMode_single": "Single Random",
+  "selectionMode_multipleNum": "Multiple Count",
+  "selectionMode_multipleProb": "Multiple Prob",
+  "selectionMode_all": "All",
+  "selectionMode_sequential": "Sequential",
+
+  "categorySettings_title": "Category Settings - {name}",
+  "@categorySettings_title": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "categorySettings_probability": "Category Probability",
+  "categorySettings_probabilityDesc": "Probability of this category participating in random generation",
+  "categorySettings_groupSelectionMode": "Group Selection Mode",
+  "categorySettings_groupSelectionModeDesc": "How to select from sub-groups",
+  "categorySettings_groupSelectCount": "Select Count:",
+  "categorySettings_shuffle": "Shuffle Order",
+  "categorySettings_shuffleDesc": "Randomly arrange selected groups output order",
+  "categorySettings_unifiedBracket": "Unified Bracket",
+  "categorySettings_enableUnifiedBracket": "Enable Unified Settings",
+  "categorySettings_enableUnifiedBracketDesc": "When enabled, will override each group's individual bracket settings",
+  "categorySettings_bracketRange": "Bracket Layer Range",
+  "categorySettings_bracketMin": "Min: {count} layers",
+  "@categorySettings_bracketMin": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "categorySettings_bracketMax": "Max: {count} layers",
+  "@categorySettings_bracketMax": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "categorySettings_bracketPreview": "Preview:",
+  "categorySettings_batchSettings": "Batch Operations",
+  "categorySettings_batchSettingsDesc": "Batch operations for all groups under this category",
+  "categorySettings_enableAllGroups": "Enable All",
+  "categorySettings_disableAllGroups": "Disable All",
+  "categorySettings_resetGroupSettings": "Reset Group Settings",
+  "categorySettings_batchEnableSuccess": "All groups enabled",
+  "categorySettings_batchDisableSuccess": "All groups disabled",
+  "categorySettings_batchResetSuccess": "All group settings reset",
+
+  "tagGroupSettings_title": "Group Settings - {name}",
+  "@tagGroupSettings_title": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tagGroupSettings_probability": "Selection Probability",
+  "tagGroupSettings_probabilityDesc": "Probability of this group being selected",
+  "tagGroupSettings_selectionMode": "Selection Mode",
+  "tagGroupSettings_selectionModeDesc": "How to select tags from this group",
+  "tagGroupSettings_selectCount": "Select Count:",
+  "tagGroupSettings_shuffle": "Shuffle Order",
+  "tagGroupSettings_shuffleDesc": "Randomly arrange selected tags output order",
+  "tagGroupSettings_bracket": "Weight Brackets",
+  "tagGroupSettings_bracketDesc": "Randomly add weight brackets to selected tags, each curly bracket adds ~5% weight",
+  "tagGroupSettings_bracketMin": "Min: {count} layers",
+  "@tagGroupSettings_bracketMin": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupSettings_bracketMax": "Max: {count} layers",
+  "@tagGroupSettings_bracketMax": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupSettings_bracketPreview": "Preview:",
+
+  "categorySettings_settingsButton": "Settings",
+  "tagGroupSettings_settingsButton": "Settings",
+
+  "promptConfig_tagCountUnit": "tags",
+  "promptConfig_removeGroup": "Remove Group"
 }

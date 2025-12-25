@@ -77,6 +77,15 @@ class RandomTagGroup with _$RandomTagGroup {
     /// multiple_num 模式下选择的数量
     @Default(1) int multipleNum,
 
+    /// 权重括号最小层数 (0-5)
+    @Default(0) int bracketMin,
+
+    /// 权重括号最大层数 (0-5)
+    @Default(0) int bracketMax,
+
+    /// 是否打乱输出顺序
+    @Default(true) bool shuffle,
+
     /// 标签列表
     @Default([]) List<WeightedTag> tags,
 
@@ -143,31 +152,6 @@ class RandomTagGroup with _$RandomTagGroup {
   bool get isSyncable =>
       sourceType == TagGroupSourceType.tagGroup ||
       sourceType == TagGroupSourceType.pool;
-
-  /// 获取选择模式的显示名称
-  String get selectionModeDisplayName {
-    return switch (selectionMode) {
-      SelectionMode.single => '单选',
-      SelectionMode.all => '全选',
-      SelectionMode.multipleNum => '多选($multipleNum个)',
-      SelectionMode.multipleProb => '概率选',
-      SelectionMode.sequential => '顺序',
-    };
-  }
-
-  /// 获取概率的显示文本
-  String get probabilityDisplayText {
-    return '${(probability * 100).round()}%';
-  }
-
-  /// 获取来源类型的显示名称
-  String get sourceTypeDisplayName {
-    return switch (sourceType) {
-      TagGroupSourceType.custom => '自定义',
-      TagGroupSourceType.tagGroup => 'Tag Group',
-      TagGroupSourceType.pool => 'Pool',
-    };
-  }
 
   /// 深拷贝分组（生成新的ID）
   RandomTagGroup deepCopy() {

@@ -11,6 +11,7 @@
   "common_expandAll": "展开全部",
   "common_collapseAll": "收起全部",
   "common_save": "保存",
+  "common_saved": "已保存",
   "common_delete": "删除",
   "common_edit": "编辑",
   "common_close": "关闭",
@@ -30,6 +31,8 @@
   "common_search": "搜索",
   "common_featureInDev": "功能开发中...",
   "common_add": "添加",
+  "common_confirmDelete": "确认删除",
+  "common_settings": "设置",
 
   "nav_canvas": "画布",
   "nav_gallery": "图库",
@@ -1024,6 +1027,33 @@
     }
   },
   "naiMode_readOnlyHint": "基于官方算法的随机提示词配置",
+  "promptConfig_confirmRemoveGroup": "确定要移除分组「{name}」吗？",
+  "@promptConfig_confirmRemoveGroup": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "promptConfig_groupList": "分组列表",
+  "promptConfig_groupCount": "{count} 个分组",
+  "@promptConfig_groupCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "promptConfig_addGroup": "添加分组",
+  "promptConfig_noGroups": "暂无分组，点击「添加分组」创建",
+  "promptConfig_builtinLibrary": "NAI 内置词库",
+  "promptConfig_danbooruTagGroup": "Danbooru TagGroup",
+  "promptConfig_categorySettings": "类别设置",
+  "promptConfig_removeCategory": "移除类别",
+  "promptConfig_confirmRemoveCategory": "确定要移除类别「{name}」吗？",
+  "@promptConfig_confirmRemoveCategory": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "promptConfig_enableCategory": "启用类别",
+  "promptConfig_disableCategory": "禁用类别",
   "naiMode_noLibrary": "词库未加载",
   "naiMode_noTags": "暂无标签",
   "naiMode_previewResult": "生成预览",
@@ -1462,5 +1492,85 @@
       "n": {}
     }
   },
-  "time_never_synced": "从未同步"
+  "time_never_synced": "从未同步",
+
+  "selectionMode_single": "单选随机",
+  "selectionMode_multipleNum": "多选数量",
+  "selectionMode_multipleProb": "多选概率",
+  "selectionMode_all": "全选",
+  "selectionMode_sequential": "顺序轮替",
+
+  "categorySettings_title": "类别设置 - {name}",
+  "@categorySettings_title": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "categorySettings_probability": "类别选取概率",
+  "categorySettings_probabilityDesc": "该类别参与随机生成的概率",
+  "categorySettings_groupSelectionMode": "词组选取模式",
+  "categorySettings_groupSelectionModeDesc": "从下属词组中选取的方式",
+  "categorySettings_groupSelectCount": "选取数量：",
+  "categorySettings_shuffle": "打乱顺序",
+  "categorySettings_shuffleDesc": "随机排列选中的词组输出顺序",
+  "categorySettings_unifiedBracket": "统一权重括号",
+  "categorySettings_enableUnifiedBracket": "启用统一设置",
+  "categorySettings_enableUnifiedBracketDesc": "启用后将覆盖各词组的独立括号设置",
+  "categorySettings_bracketRange": "括号层数范围",
+  "categorySettings_bracketMin": "最少: {count} 层",
+  "@categorySettings_bracketMin": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "categorySettings_bracketMax": "最多: {count} 层",
+  "@categorySettings_bracketMax": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "categorySettings_bracketPreview": "效果预览：",
+  "categorySettings_batchSettings": "批量操作",
+  "categorySettings_batchSettingsDesc": "对该类别下所有词组进行批量操作",
+  "categorySettings_enableAllGroups": "全部启用",
+  "categorySettings_disableAllGroups": "全部禁用",
+  "categorySettings_resetGroupSettings": "重置词组设置",
+  "categorySettings_batchEnableSuccess": "已启用所有词组",
+  "categorySettings_batchDisableSuccess": "已禁用所有词组",
+  "categorySettings_batchResetSuccess": "已重置所有词组设置",
+
+  "tagGroupSettings_title": "词组设置 - {name}",
+  "@tagGroupSettings_title": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tagGroupSettings_probability": "选取概率",
+  "tagGroupSettings_probabilityDesc": "该词组被选中的概率",
+  "tagGroupSettings_selectionMode": "选取模式",
+  "tagGroupSettings_selectionModeDesc": "从词组内标签中选取的方式",
+  "tagGroupSettings_selectCount": "选取数量：",
+  "tagGroupSettings_shuffle": "打乱顺序",
+  "tagGroupSettings_shuffleDesc": "随机排列选中的标签输出顺序",
+  "tagGroupSettings_bracket": "权重括号",
+  "tagGroupSettings_bracketDesc": "为选中的标签随机添加权重括号，每层花括号增加约5%权重",
+  "tagGroupSettings_bracketMin": "最少: {count} 层",
+  "@tagGroupSettings_bracketMin": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupSettings_bracketMax": "最多: {count} 层",
+  "@tagGroupSettings_bracketMax": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupSettings_bracketPreview": "效果预览：",
+
+  "categorySettings_settingsButton": "设置",
+  "tagGroupSettings_settingsButton": "设置",
+
+  "promptConfig_tagCountUnit": "个标签",
+  "promptConfig_removeGroup": "移除分组"
 }

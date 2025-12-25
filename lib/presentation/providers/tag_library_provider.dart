@@ -224,6 +224,12 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
     await updateCategoryFilterConfig(newConfig);
   }
 
+  /// 设置所有分类的内置词库开关（批量操作，只写一次磁盘）
+  Future<void> setAllBuiltinEnabled(bool enabled) async {
+    final newConfig = state.categoryFilterConfig.setAllBuiltinEnabled(enabled);
+    await updateCategoryFilterConfig(newConfig);
+  }
+
   /// 检查指定分类是否启用内置词库
   bool isBuiltinEnabled(TagSubCategory category) {
     return state.categoryFilterConfig.isBuiltinEnabled(category);
