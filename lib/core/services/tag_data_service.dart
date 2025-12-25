@@ -11,6 +11,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/models/tag/local_tag.dart';
 import '../utils/app_logger.dart';
+import '../utils/download_message_keys.dart';
 import 'tag_search_index.dart';
 
 part 'tag_data_service.g.dart';
@@ -230,7 +231,7 @@ class TagDataService {
   /// 下载并解析标签
   Future<void> _downloadAndParseTags() async {
     try {
-      onDownloadProgress?.call(_tagsFileName, 0, '正在下载标签数据...');
+      onDownloadProgress?.call(_tagsFileName, 0, DownloadMessageKeys.downloadingTags);
 
       final response = await _dio.get<String>(
         '$_baseUrl/$_tagsFileName',
@@ -247,7 +248,7 @@ class TagDataService {
       );
 
       if (response.data != null && response.data!.isNotEmpty) {
-        onDownloadProgress?.call(_tagsFileName, 1.0, '正在解析数据...');
+        onDownloadProgress?.call(_tagsFileName, 1.0, DownloadMessageKeys.parsingData);
 
         // 使用 Isolate 解析，避免阻塞主线程
         _tags = await _parseCsvContentAsync(response.data!);

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/utils/app_logger.dart';
 import 'editor_state.dart';
 import '../layers/layer.dart';
 
@@ -112,7 +113,7 @@ class AddStrokeAction extends EditorAction {
   void undo(EditorState state) {
     final layer = state.layerManager.getLayerById(layerId);
     if (layer == null) {
-      debugPrint('Warning: Layer $layerId not found for undo');
+      AppLogger.w('Layer $layerId not found for undo', 'ImageEditor');
       return;
     }
     state.layerManager.removeLastStrokeFromLayer(layerId);

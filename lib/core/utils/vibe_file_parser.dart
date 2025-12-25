@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:png_chunks_extract/png_chunks_extract.dart' as png_extract;
 
 import '../../data/models/vibe/vibe_reference_v4.dart';
+import 'app_logger.dart';
 
 /// Vibe 文件解析器
 ///
@@ -105,7 +106,7 @@ class VibeFileParser {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error parsing PNG iTXt chunks: $e');
+        AppLogger.d('Error parsing PNG iTXt chunks: $e', 'VibeParser');
       }
     }
 
@@ -170,7 +171,7 @@ class VibeFileParser {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error parsing iTXt chunk: $e');
+        AppLogger.d('Error parsing iTXt chunk: $e', 'VibeParser');
       }
     }
 
@@ -265,7 +266,7 @@ class VibeFileParser {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('Error parsing vibe entry $i in bundle: $e');
+          AppLogger.d('Error parsing vibe entry $i in bundle: $e', 'VibeParser');
         }
         // 继续处理其他条目
       }

@@ -1294,5 +1294,173 @@
       "synced": {},
       "total": {}
     }
-  }
+  },
+
+  "addGroup_dialogTitle": "为「{category}」添加词库",
+  "@addGroup_dialogTitle": {
+    "placeholders": {
+      "category": {}
+    }
+  },
+  "addGroup_builtinTab": "内置词库",
+  "addGroup_tagGroupTab": "Tag Group",
+  "addGroup_cancel": "取消",
+  "addGroup_submit": "添加",
+  "addGroup_builtinEnabled": "内置词库已启用",
+  "addGroup_builtinEnabledDesc": "该分类的内置词库已经在使用中",
+  "addGroup_enableBuiltin": "启用内置词库",
+  "addGroup_enableBuiltinDesc": "使用应用内置的标签词库",
+  "addGroup_enable": "启用",
+  "addGroup_backToParent": "返回上级",
+  "addGroup_browseMode": "浏览选择",
+  "addGroup_customMode": "自定义输入",
+  "addGroup_allCategories": "全部分类",
+  "addGroup_noMoreSubcategories": "没有更多子分类",
+  "addGroup_tagGroupCount": "{count} 个 Tag Group",
+  "@addGroup_tagGroupCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "addGroup_customInputHint": "输入 Danbooru 的 tag_group 标题，例如：hair_color",
+  "addGroup_groupTitleLabel": "Tag Group 标题 *",
+  "addGroup_groupTitleHint": "例如：hair_color 或 tag_group:hair_color",
+  "addGroup_displayNameLabel": "显示名称（可选）",
+  "addGroup_displayNameHint": "留空则使用标题",
+  "addGroup_targetCategoryLabel": "目标分类",
+  "addGroup_includeChildren": "包含子分组",
+  "addGroup_includeChildrenDesc": "同时获取该 Tag Group 下所有子分组的标签",
+  "addGroup_errorEmptyTitle": "请输入 Tag Group 标题",
+  "addGroup_errorGroupExists": "该 Tag Group 已存在",
+
+  "globalSettings_title": "总览设置",
+  "globalSettings_resetToDefault": "重置为默认",
+  "globalSettings_characterCountDistribution": "角色数量分布",
+  "globalSettings_weightRandomOffset": "权重随机偏移",
+  "globalSettings_categoryProbabilityOverview": "类别概率总览",
+  "globalSettings_cancel": "取消",
+  "globalSettings_save": "保存",
+  "globalSettings_saveFailed": "保存失败: {error}",
+  "@globalSettings_saveFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "globalSettings_noCharacter": "无人",
+  "globalSettings_characterCount": "{count}人",
+  "@globalSettings_characterCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "globalSettings_enableWeightRandomOffset": "启用权重随机偏移",
+  "globalSettings_enableWeightRandomOffsetDesc": "生成时随机添加括号模拟人类微调",
+  "globalSettings_bracketType": "括号类型",
+  "globalSettings_bracketEnhance": "花括号 增强",
+  "globalSettings_bracketWeaken": "[] 减弱",
+  "globalSettings_layerRange": "层数范围",
+  "globalSettings_layerRangeValue": "{min} - {max} 层",
+  "@globalSettings_layerRangeValue": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "globalSettings_category_hairColor": "发色",
+  "globalSettings_category_eyeColor": "瞳色",
+  "globalSettings_category_hairStyle": "发型",
+  "globalSettings_category_expression": "表情",
+  "globalSettings_category_pose": "姿势",
+  "globalSettings_category_clothing": "服装",
+  "globalSettings_category_accessory": "配饰",
+  "globalSettings_category_bodyFeature": "身体特征",
+  "globalSettings_category_background": "背景",
+  "globalSettings_category_scene": "场景",
+  "globalSettings_category_style": "风格",
+
+  "nav_generate": "生成",
+  "nav_gallery": "画廊",
+  "nav_settings": "设置",
+
+  "download_downloading": "正在下载 {name}",
+  "@download_downloading": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "download_completed": "{name}下载完成",
+  "@download_completed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "download_failed": "{name}下载失败",
+  "@download_failed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
+  "sync_preparing": "准备同步...",
+  "sync_fetching": "正在获取 {category}...",
+  "@sync_fetching": {
+    "placeholders": {
+      "category": {}
+    }
+  },
+  "sync_processing": "正在处理数据...",
+  "sync_saving": "正在保存...",
+  "sync_completed": "同步完成，共 {count} 个标签",
+  "@sync_completed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "sync_failed": "同步失败: {error}",
+  "@sync_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "sync_extracting": "正在提取 {poolName} 标签...",
+  "@sync_extracting": {
+    "placeholders": {
+      "poolName": {}
+    }
+  },
+  "sync_merging": "正在合并标签...",
+
+  "sync_fetching_tags": "正在获取 {groupName} 标签热度...",
+  "@sync_fetching_tags": {
+    "placeholders": {
+      "groupName": {}
+    }
+  },
+  "sync_filtering": "正在筛选标签...",
+  "sync_done": "同步完成",
+
+  "download_tags_data": "正在下载标签数据...",
+  "download_cooccurrence_data": "正在下载共现标签数据...",
+  "download_parsing_data": "正在解析数据...",
+
+  "time_just_now": "刚刚",
+  "time_minutes_ago": "{n}分钟前",
+  "@time_minutes_ago": {
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "time_hours_ago": "{n}小时前",
+  "@time_hours_ago": {
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "time_days_ago": "{n}天前",
+  "@time_days_ago": {
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "time_never_synced": "从未同步"
 }

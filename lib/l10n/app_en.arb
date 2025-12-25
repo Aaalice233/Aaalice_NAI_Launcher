@@ -1619,5 +1619,173 @@
       "synced": {},
       "total": {}
     }
-  }
+  },
+
+  "addGroup_dialogTitle": "Add Dictionary for \"{category}\"",
+  "@addGroup_dialogTitle": {
+    "placeholders": {
+      "category": {}
+    }
+  },
+  "addGroup_builtinTab": "Built-in",
+  "addGroup_tagGroupTab": "Tag Group",
+  "addGroup_cancel": "Cancel",
+  "addGroup_submit": "Add",
+  "addGroup_builtinEnabled": "Built-in Dictionary Enabled",
+  "addGroup_builtinEnabledDesc": "The built-in dictionary for this category is already in use",
+  "addGroup_enableBuiltin": "Enable Built-in Dictionary",
+  "addGroup_enableBuiltinDesc": "Use the app's built-in tag dictionary",
+  "addGroup_enable": "Enable",
+  "addGroup_backToParent": "Go back",
+  "addGroup_browseMode": "Browse",
+  "addGroup_customMode": "Custom Input",
+  "addGroup_allCategories": "All Categories",
+  "addGroup_noMoreSubcategories": "No more subcategories",
+  "addGroup_tagGroupCount": "{count} Tag Groups",
+  "@addGroup_tagGroupCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "addGroup_customInputHint": "Enter Danbooru tag_group title, e.g.: hair_color",
+  "addGroup_groupTitleLabel": "Tag Group Title *",
+  "addGroup_groupTitleHint": "e.g.: hair_color or tag_group:hair_color",
+  "addGroup_displayNameLabel": "Display Name (Optional)",
+  "addGroup_displayNameHint": "Leave empty to use title",
+  "addGroup_targetCategoryLabel": "Target Category",
+  "addGroup_includeChildren": "Include Sub-groups",
+  "addGroup_includeChildrenDesc": "Also fetch tags from all sub-groups of this Tag Group",
+  "addGroup_errorEmptyTitle": "Please enter Tag Group title",
+  "addGroup_errorGroupExists": "This Tag Group already exists",
+
+  "globalSettings_title": "Overview Settings",
+  "globalSettings_resetToDefault": "Reset to Default",
+  "globalSettings_characterCountDistribution": "Character Count Distribution",
+  "globalSettings_weightRandomOffset": "Weight Random Offset",
+  "globalSettings_categoryProbabilityOverview": "Category Probability Overview",
+  "globalSettings_cancel": "Cancel",
+  "globalSettings_save": "Save",
+  "globalSettings_saveFailed": "Save failed: {error}",
+  "@globalSettings_saveFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "globalSettings_noCharacter": "None",
+  "globalSettings_characterCount": "{count} character(s)",
+  "@globalSettings_characterCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "globalSettings_enableWeightRandomOffset": "Enable Weight Random Offset",
+  "globalSettings_enableWeightRandomOffsetDesc": "Randomly add brackets during generation to simulate human fine-tuning",
+  "globalSettings_bracketType": "Bracket Type",
+  "globalSettings_bracketEnhance": "Curly Braces Enhance",
+  "globalSettings_bracketWeaken": "[] Weaken",
+  "globalSettings_layerRange": "Layer Range",
+  "globalSettings_layerRangeValue": "{min} - {max} layers",
+  "@globalSettings_layerRangeValue": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "globalSettings_category_hairColor": "Hair Color",
+  "globalSettings_category_eyeColor": "Eye Color",
+  "globalSettings_category_hairStyle": "Hair Style",
+  "globalSettings_category_expression": "Expression",
+  "globalSettings_category_pose": "Pose",
+  "globalSettings_category_clothing": "Clothing",
+  "globalSettings_category_accessory": "Accessory",
+  "globalSettings_category_bodyFeature": "Body Feature",
+  "globalSettings_category_background": "Background",
+  "globalSettings_category_scene": "Scene",
+  "globalSettings_category_style": "Style",
+
+  "nav_generate": "Generate",
+  "nav_gallery": "Gallery",
+  "nav_settings": "Settings",
+
+  "download_downloading": "Downloading {name}",
+  "@download_downloading": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "download_completed": "{name} download completed",
+  "@download_completed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "download_failed": "{name} download failed",
+  "@download_failed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
+  "sync_preparing": "Preparing to sync...",
+  "sync_fetching": "Fetching {category}...",
+  "@sync_fetching": {
+    "placeholders": {
+      "category": {}
+    }
+  },
+  "sync_processing": "Processing data...",
+  "sync_saving": "Saving...",
+  "sync_completed": "Sync completed, {count} tags",
+  "@sync_completed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "sync_failed": "Sync failed: {error}",
+  "@sync_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "sync_extracting": "Extracting {poolName} tags...",
+  "@sync_extracting": {
+    "placeholders": {
+      "poolName": {}
+    }
+  },
+  "sync_merging": "Merging tags...",
+
+  "sync_fetching_tags": "Fetching {groupName} tag popularity...",
+  "@sync_fetching_tags": {
+    "placeholders": {
+      "groupName": {}
+    }
+  },
+  "sync_filtering": "Filtering tags...",
+  "sync_done": "Sync completed",
+
+  "download_tags_data": "Downloading tags data...",
+  "download_cooccurrence_data": "Downloading cooccurrence data...",
+  "download_parsing_data": "Parsing data...",
+
+  "time_just_now": "Just now",
+  "time_minutes_ago": "{n} minutes ago",
+  "@time_minutes_ago": {
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "time_hours_ago": "{n} hours ago",
+  "@time_hours_ago": {
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "time_days_ago": "{n} days ago",
+  "@time_days_ago": {
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "time_never_synced": "Never synced"
 }

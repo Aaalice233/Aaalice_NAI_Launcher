@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
+import '../utils/app_logger.dart';
 
 part 'secure_storage_service.g.dart';
 
@@ -34,7 +35,7 @@ class SecureStorageService {
     try {
       await _storage.write(key: StorageKeys.accessToken, value: token);
     } catch (e) {
-      print('[SecureStorage] Failed to save token to disk: $e');
+      AppLogger.w('Failed to save token to disk: $e', 'SecureStorage');
       // 内存缓存仍然有效，不影响本次会话
     }
   }
@@ -56,7 +57,7 @@ class SecureStorageService {
       }
       return token;
     } catch (e) {
-      print('[SecureStorage] Failed to read token: $e');
+      AppLogger.w('Failed to read token: $e', 'SecureStorage');
       return null;
     }
   }

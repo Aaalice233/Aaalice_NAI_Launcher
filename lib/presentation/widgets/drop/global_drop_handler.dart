@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/image/image_params.dart';
@@ -134,7 +135,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             await _processDroppedFile(fileName, bytes);
           } catch (e) {
             if (kDebugMode) {
-              print('Error reading dropped file: $e');
+              AppLogger.d('Error reading dropped file: $e', 'DropHandler');
             }
             _showError(e.toString());
           }
@@ -150,7 +151,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             await _processDroppedFile(fileName, bytes);
           } catch (e) {
             if (kDebugMode) {
-              print('Error reading dropped image: $e');
+              AppLogger.d('Error reading dropped image: $e', 'DropHandler');
             }
             _showError(e.toString());
           }
@@ -164,7 +165,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             await _processDroppedFile(fileName, bytes);
           } catch (e) {
             if (kDebugMode) {
-              print('Error reading dropped image: $e');
+              AppLogger.d('Error reading dropped image: $e', 'DropHandler');
             }
             _showError(e.toString());
           }
@@ -257,7 +258,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error parsing vibe file: $e');
+        AppLogger.d('Error parsing vibe file: $e', 'DropHandler');
       }
       _showError(e.toString());
     }

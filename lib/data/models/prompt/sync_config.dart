@@ -1,5 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/localization_extension.dart';
+import 'package:flutter/widgets.dart';
+
 part 'sync_config.freezed.dart';
 part 'sync_config.g.dart';
 
@@ -105,52 +108,64 @@ class TagLibrarySyncConfig with _$TagLibrarySyncConfig {
   }
 
   /// 格式化上次同步时间
-  String formatLastSyncTime() {
+  String formatLastSyncTime(BuildContext context) {
     if (lastSyncTime == null) return '';
     final now = DateTime.now();
     final diff = now.difference(lastSyncTime!);
 
     if (diff.inMinutes < 1) {
-      return '刚刚';
+      return context.l10n.time_just_now;
     } else if (diff.inHours < 1) {
-      return '${diff.inMinutes}分钟前';
+      return context.l10n.time_minutes_ago(diff.inMinutes);
     } else if (diff.inDays < 1) {
-      return '${diff.inHours}小时前';
+      return context.l10n.time_hours_ago(diff.inHours);
     } else if (diff.inDays < 30) {
-      return '${diff.inDays}天前';
+      return context.l10n.time_days_ago(diff.inDays);
     } else {
       return '${lastSyncTime!.year}-${lastSyncTime!.month.toString().padLeft(2, '0')}-${lastSyncTime!.day.toString().padLeft(2, '0')}';
     }
   }
 }
 
+/// 同步进度类型
+enum SyncProgressType {
+  initial,
+  fetching,
+  processing,
+  saving,
+  completed,
+  failed,
+}
+
 /// 同步进度
 class SyncProgress {
   final double progress; // 0.0 - 1.0
-  final String message;
+  final SyncProgressType type;
   final String? currentCategory;
   final int fetchedCount;
   final int totalEstimate;
+  final String? error;
 
   const SyncProgress({
     required this.progress,
-    required this.message,
+    required this.type,
     this.currentCategory,
     this.fetchedCount = 0,
     this.totalEstimate = 0,
+    this.error,
   });
 
   factory SyncProgress.initial() {
     return const SyncProgress(
       progress: 0,
-      message: '准备同步...',
+      type: SyncProgressType.initial,
     );
   }
 
   factory SyncProgress.fetching(String category, int fetched, int total) {
     return SyncProgress(
       progress: fetched / total.clamp(1, double.infinity),
-      message: '正在获取 $category...',
+      type: SyncProgressType.fetching,
       currentCategory: category,
       fetchedCount: fetched,
       totalEstimate: total,
@@ -160,21 +175,21 @@ class SyncProgress {
   factory SyncProgress.processing() {
     return const SyncProgress(
       progress: 0.9,
-      message: '正在处理数据...',
+      type: SyncProgressType.processing,
     );
   }
 
   factory SyncProgress.saving() {
     return const SyncProgress(
       progress: 0.95,
-      message: '正在保存...',
+      type: SyncProgressType.saving,
     );
   }
 
   factory SyncProgress.completed(int count) {
     return SyncProgress(
       progress: 1.0,
-      message: '同步完成，共 $count 个标签',
+      type: SyncProgressType.completed,
       fetchedCount: count,
     );
   }
@@ -182,7 +197,20 @@ class SyncProgress {
   factory SyncProgress.failed(String error) {
     return SyncProgress(
       progress: 0,
-      message: '同步失败: $error',
+      type: SyncProgressType.failed,
+      error: error,
     );
+  }
+
+  /// 获取本地化消息
+  String localizedMessage(BuildContext context) {
+    return switch (type) {
+      SyncProgressType.initial => context.l10n.sync_preparing,
+      SyncProgressType.fetching => context.l10n.sync_fetching(currentCategory ?? ''),
+      SyncProgressType.processing => context.l10n.sync_processing,
+      SyncProgressType.saving => context.l10n.sync_saving,
+      SyncProgressType.completed => context.l10n.sync_completed(fetchedCount),
+      SyncProgressType.failed => context.l10n.sync_failed(error ?? ''),
+    };
   }
 }

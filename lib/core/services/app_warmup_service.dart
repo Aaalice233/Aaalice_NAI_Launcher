@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../utils/app_logger.dart';
+
 /// 预加载任务
 class WarmupTask {
   /// 任务名称（显示用）
@@ -106,7 +108,7 @@ class AppWarmupService {
       } catch (e) {
         // 任务失败时继续执行其他任务，但记录错误
         // 可以根据需求改为失败时停止
-        print('Warmup task "${task.name}" failed: $e');
+        AppLogger.w('Warmup task "${task.name}" failed: $e', 'AppWarmup');
       }
 
       // 更新完成权重
@@ -129,7 +131,7 @@ class AppWarmupService {
       try {
         await task.task();
       } catch (e) {
-        print('Warmup task "${task.name}" failed: $e');
+        AppLogger.w('Warmup task "${task.name}" failed: $e', 'AppWarmup');
       }
     }
   }

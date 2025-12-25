@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../../core/utils/app_logger.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
 
@@ -87,7 +88,7 @@ class _LayerPanelState extends State<LayerPanel> {
         }
       }
     } catch (e) {
-      debugPrint('缩略图更新失败: $e');
+      AppLogger.w('缩略图更新失败: $e', 'ImageEditor');
     }
   }
 

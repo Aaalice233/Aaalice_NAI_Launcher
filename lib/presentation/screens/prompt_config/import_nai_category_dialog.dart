@@ -7,6 +7,7 @@ import '../../../data/models/prompt/prompt_config.dart';
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/weighted_tag.dart';
 import '../../providers/tag_library_provider.dart';
+import '../../utils/category_icon_utils.dart';
 
 /// 从NAI词库导入类别的弹窗
 ///
@@ -123,7 +124,7 @@ class _ImportNaiCategoryDialogState
                   title: Row(
                     children: [
                       Icon(
-                        _getCategoryIcon(category),
+                        CategoryIconUtils.getCategoryIcon(category),
                         size: 18,
                         color: isSelected
                             ? theme.colorScheme.primary
@@ -212,21 +213,6 @@ class _ImportNaiCategoryDialogState
         ),
       ],
     );
-  }
-
-  IconData _getCategoryIcon(TagSubCategory category) {
-    return switch (category) {
-      TagSubCategory.hairColor => Icons.palette,
-      TagSubCategory.eyeColor => Icons.remove_red_eye,
-      TagSubCategory.hairStyle => Icons.face,
-      TagSubCategory.expression => Icons.emoji_emotions,
-      TagSubCategory.pose => Icons.accessibility_new,
-      TagSubCategory.background => Icons.landscape,
-      TagSubCategory.scene => Icons.photo_camera,
-      TagSubCategory.style => Icons.brush,
-      TagSubCategory.characterCount => Icons.group,
-      _ => Icons.label,
-    };
   }
 
   void _doImport(dynamic library, CategoryFilterConfig filterConfig) {

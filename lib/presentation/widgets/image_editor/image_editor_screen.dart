@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/app_logger.dart';
 import 'core/editor_state.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
@@ -154,7 +155,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
       image.dispose();
     } catch (e) {
-      debugPrint('Failed to load initial image: $e');
+      AppLogger.w('Failed to load initial image: $e', 'ImageEditor');
       _state.initNewCanvas(widget.initialSize ?? const Size(1024, 1024));
     } finally {
       codec?.dispose();

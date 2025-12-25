@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:flutter/widgets.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import 'tag_category.dart';
 
 part 'pool_mapping.freezed.dart';
@@ -55,19 +57,19 @@ class PoolMapping with _$PoolMapping {
   bool get hasSynced => lastSyncedAt != null;
 
   /// 格式化上次同步时间
-  String formatLastSyncTime() {
-    if (lastSyncedAt == null) return '从未同步';
+  String formatLastSyncTime(BuildContext context) {
+    if (lastSyncedAt == null) return context.l10n.time_never_synced;
     final now = DateTime.now();
     final diff = now.difference(lastSyncedAt!);
 
     if (diff.inMinutes < 1) {
-      return '刚刚';
+      return context.l10n.time_just_now;
     } else if (diff.inHours < 1) {
-      return '${diff.inMinutes}分钟前';
+      return context.l10n.time_minutes_ago(diff.inMinutes);
     } else if (diff.inDays < 1) {
-      return '${diff.inHours}小时前';
+      return context.l10n.time_hours_ago(diff.inHours);
     } else if (diff.inDays < 30) {
-      return '${diff.inDays}天前';
+      return context.l10n.time_days_ago(diff.inDays);
     } else {
       return '${lastSyncedAt!.year}-${lastSyncedAt!.month.toString().padLeft(2, '0')}-${lastSyncedAt!.day.toString().padLeft(2, '0')}';
     }

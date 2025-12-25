@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../providers/random_preset_provider.dart';
 
@@ -69,11 +70,11 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                 children: [
                   Icon(Icons.settings, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
-                  Text('总览设置', style: theme.textTheme.titleMedium),
+                  Text(context.l10n.globalSettings_title, style: theme.textTheme.titleMedium),
                   const Spacer(),
                   TextButton(
                     onPressed: _resetToDefault,
-                    child: const Text('重置为默认'),
+                    child: Text(context.l10n.globalSettings_resetToDefault),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -91,7 +92,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 角色数量分布
-                    _buildSectionTitle('角色数量分布', theme),
+                    _buildSectionTitle(context.l10n.globalSettings_characterCountDistribution, theme),
                     const SizedBox(height: 8),
                     _CharacterCountWeightEditor(
                       config: _config,
@@ -106,7 +107,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     const SizedBox(height: 24),
 
                     // 权重随机偏移
-                    _buildSectionTitle('权重随机偏移', theme),
+                    _buildSectionTitle(context.l10n.globalSettings_weightRandomOffset, theme),
                     const SizedBox(height: 8),
                     _BracketRandomizationEditor(
                       config: _config,
@@ -121,7 +122,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     const SizedBox(height: 24),
 
                     // 类别概率总览
-                    _buildSectionTitle('类别概率总览', theme),
+                    _buildSectionTitle(context.l10n.globalSettings_categoryProbabilityOverview, theme),
                     const SizedBox(height: 8),
                     _CategoryProbabilityOverview(
                       config: _probConfig,
@@ -150,7 +151,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('取消'),
+                    child: Text(context.l10n.globalSettings_cancel),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
@@ -161,7 +162,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('保存'),
+                        : Text(context.l10n.globalSettings_save),
                   ),
                 ],
               ),
@@ -204,7 +205,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
+          SnackBar(content: Text(context.l10n.globalSettings_saveFailed(e.toString()))),
         );
       }
     } finally {
@@ -256,7 +257,10 @@ class _CharacterCountWeightEditor extends StatelessWidget {
     int weight,
     ThemeData theme,
   ) {
-    final label = count == 0 ? '无人' : '$count人';
+    final l10n = context.l10n;
+    final label = count == 0
+        ? l10n.globalSettings_noCharacter
+        : l10n.globalSettings_characterCount(count);
 
     return Row(
       children: [
@@ -304,6 +308,7 @@ class _BracketRandomizationEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     return Card(
       child: Padding(
@@ -313,8 +318,8 @@ class _BracketRandomizationEditor extends StatelessWidget {
           children: [
             // 启用开关
             SwitchListTile(
-              title: const Text('启用权重随机偏移'),
-              subtitle: const Text('生成时随机添加括号模拟人类微调'),
+              title: Text(l10n.globalSettings_enableWeightRandomOffset),
+              subtitle: Text(l10n.globalSettings_enableWeightRandomOffsetDesc),
               value: config.bracketRandomizationEnabled,
               onChanged: (value) {
                 onChanged(config.copyWith(bracketRandomizationEnabled: value));
@@ -326,11 +331,11 @@ class _BracketRandomizationEditor extends StatelessWidget {
 
               // 括号类型
               ListTile(
-                title: const Text('括号类型'),
+                title: Text(l10n.globalSettings_bracketType),
                 trailing: SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('{} 增强')),
-                    ButtonSegment(value: false, label: Text('[] 减弱')),
+                  segments: [
+                    ButtonSegment(value: true, label: Text(l10n.globalSettings_bracketEnhance)),
+                    ButtonSegment(value: false, label: Text(l10n.globalSettings_bracketWeaken)),
                   ],
                   selected: {config.bracketEnhance},
                   onSelectionChanged: (values) {
@@ -341,9 +346,12 @@ class _BracketRandomizationEditor extends StatelessWidget {
 
               // 层数范围
               ListTile(
-                title: const Text('层数范围'),
+                title: Text(l10n.globalSettings_layerRange),
                 subtitle: Text(
-                  '${config.bracketRandomizationMin} - ${config.bracketRandomizationMax} 层',
+                  l10n.globalSettings_layerRangeValue(
+                    config.bracketRandomizationMin,
+                    config.bracketRandomizationMax,
+                  ),
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -389,19 +397,37 @@ class _CategoryProbabilityOverview extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _categories = [
-    ('hairColor', '发色'),
-    ('eyeColor', '瞳色'),
-    ('hairStyle', '发型'),
-    ('expression', '表情'),
-    ('pose', '姿势'),
-    ('clothing', '服装'),
-    ('accessory', '配饰'),
-    ('bodyFeature', '身体特征'),
-    ('background', '背景'),
-    ('scene', '场景'),
-    ('style', '风格'),
+  static const _categoryKeys = [
+    'hairColor',
+    'eyeColor',
+    'hairStyle',
+    'expression',
+    'pose',
+    'clothing',
+    'accessory',
+    'bodyFeature',
+    'background',
+    'scene',
+    'style',
   ];
+
+  String _getCategoryLabel(BuildContext context, String key) {
+    final l10n = context.l10n;
+    return switch (key) {
+      'hairColor' => l10n.globalSettings_category_hairColor,
+      'eyeColor' => l10n.globalSettings_category_eyeColor,
+      'hairStyle' => l10n.globalSettings_category_hairStyle,
+      'expression' => l10n.globalSettings_category_expression,
+      'pose' => l10n.globalSettings_category_pose,
+      'clothing' => l10n.globalSettings_category_clothing,
+      'accessory' => l10n.globalSettings_category_accessory,
+      'bodyFeature' => l10n.globalSettings_category_bodyFeature,
+      'background' => l10n.globalSettings_category_background,
+      'scene' => l10n.globalSettings_category_scene,
+      'style' => l10n.globalSettings_category_style,
+      _ => key,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -412,14 +438,17 @@ class _CategoryProbabilityOverview extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            for (final (key, label) in _categories)
+            for (final key in _categoryKeys)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
                     SizedBox(
                       width: 80,
-                      child: Text(label, style: theme.textTheme.bodyMedium),
+                      child: Text(
+                        _getCategoryLabel(context, key),
+                        style: theme.textTheme.bodyMedium,
+                      ),
                     ),
                     Expanded(
                       child: Slider(

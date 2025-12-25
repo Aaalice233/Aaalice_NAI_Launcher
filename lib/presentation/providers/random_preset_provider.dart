@@ -3,11 +3,15 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
+import '../../data/models/prompt/default_tag_group_mappings.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
+import '../../data/models/prompt/tag_category.dart';
+import '../../data/models/prompt/tag_group_mapping.dart';
 
 part 'random_preset_provider.g.dart';
 
@@ -108,15 +112,33 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       presets.insert(0, defaultPreset);
       await _savePreset(defaultPreset);
     } else {
-      // 迁移旧版默认预设：如果 categories 为空，填充默认类别
+      // 迁移旧版默认预设
       final defaultIndex = presets.indexWhere((p) => p.isDefault);
-      if (defaultIndex != -1 && presets[defaultIndex].categories.isEmpty) {
-        final updatedDefault = presets[defaultIndex].copyWith(
-          categories: DefaultCategories.createDefault(),
-          version: 2,
-        );
-        presets[defaultIndex] = updatedDefault;
-        await _savePreset(updatedDefault);
+      if (defaultIndex != -1) {
+        var needsUpdate = false;
+        var updatedDefault = presets[defaultIndex];
+
+        // 如果 categories 为空，填充默认类别
+        if (updatedDefault.categories.isEmpty) {
+          updatedDefault = updatedDefault.copyWith(
+            categories: DefaultCategories.createDefault(),
+          );
+          needsUpdate = true;
+        }
+
+        // 如果 tagGroupMappings 为空，填充默认映射
+        if (updatedDefault.tagGroupMappings.isEmpty) {
+          updatedDefault = updatedDefault.copyWith(
+            tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
+          );
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          updatedDefault = updatedDefault.copyWith(version: 2);
+          presets[defaultIndex] = updatedDefault;
+          await _savePreset(updatedDefault);
+        }
       }
     }
 
@@ -314,5 +336,93 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
 
     await _savePreset(newPreset);
     return newPreset;
+  }
+
+  // ========== Tag Group 映射管理 ==========
+
+  /// 添加 Tag Group 映射到当前预设
+  Future<void> addTagGroupMapping(TagGroupMapping mapping) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.addTagGroupMapping(mapping));
+  }
+
+  /// 从当前预设删除 Tag Group 映射
+  Future<void> removeTagGroupMapping(String mappingId) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.removeTagGroupMapping(mappingId));
+  }
+
+  /// 更新当前预设的 Tag Group 映射
+  Future<void> updateTagGroupMapping(TagGroupMapping mapping) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.updateTagGroupMapping(mapping));
+  }
+
+  /// 切换当前预设的 Tag Group 映射启用状态
+  Future<void> toggleTagGroupMappingEnabled(String mappingId) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.toggleTagGroupMappingEnabled(mappingId));
+  }
+
+  // ========== 热度阈值管理 ==========
+
+  /// 更新当前预设的热度阈值
+  Future<void> updatePopularityThreshold(int threshold) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.updatePopularityThreshold(threshold));
+  }
+
+  // ========== 批量 Tag Group 管理 ==========
+
+  /// 批量更新选中的组（完整版本，包含添加新映射）
+  Future<void> updateSelectedGroupsWithTree(
+    Set<String> selectedGroupTitles,
+    Map<String, ({String displayName, TagSubCategory category, bool includeChildren})> groupInfoMap,
+  ) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    final existingGroupTitles = preset.tagGroupMappings.map((m) => m.groupTitle).toSet();
+
+    // 更新现有映射的 enabled 状态
+    final updatedMappings = preset.tagGroupMappings.map((m) {
+      final shouldBeEnabled = selectedGroupTitles.contains(m.groupTitle);
+      if (m.enabled != shouldBeEnabled) {
+        return m.copyWith(enabled: shouldBeEnabled);
+      }
+      return m;
+    }).toList();
+
+    // 添加新的映射
+    final newGroupTitles = selectedGroupTitles.difference(existingGroupTitles).toList();
+
+    if (newGroupTitles.isNotEmpty) {
+      for (final groupTitle in newGroupTitles) {
+        final info = groupInfoMap[groupTitle];
+        if (info != null) {
+          updatedMappings.add(TagGroupMapping(
+            id: const Uuid().v4(),
+            groupTitle: groupTitle,
+            displayName: info.displayName,
+            targetCategory: info.category,
+            createdAt: DateTime.now(),
+            includeChildren: info.includeChildren,
+            enabled: true,
+          ),);
+        }
+      }
+    }
+
+    await updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
   }
 }

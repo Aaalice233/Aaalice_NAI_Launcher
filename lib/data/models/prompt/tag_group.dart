@@ -1,4 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:flutter/widgets.dart';
+
+import '../../../core/utils/localization_extension.dart';
 
 part 'tag_group.freezed.dart';
 part 'tag_group.g.dart';
@@ -61,18 +64,23 @@ class TagGroup with _$TagGroup {
       tags.where((t) => t.postCount >= minPostCount).length;
 
   /// 从 wiki_page 标题提取显示名称
-  /// 例如: "tag_group:hair_color" -> "Hair Color"
-  static String titleToDisplayName(String title) {
+  /// 例如: "tag_group:hair_color" -> "Hair Color" (英文) 或 "发色" (中文)
+  static String titleToDisplayName(String title, [BuildContext? context]) {
     // 移除 "tag_group:" 前缀
     var name = title;
     if (name.startsWith('tag_group:')) {
       name = name.substring('tag_group:'.length);
     }
 
-    // 检查是否有中文翻译
-    final chineseName = _tagGroupChineseNames[name];
-    if (chineseName != null) {
-      return chineseName;
+    // 检查是否有中文翻译（仅在中文语言环境下使用）
+    if (context != null) {
+      final locale = Localizations.localeOf(context);
+      if (locale.languageCode == 'zh') {
+        final chineseName = _tagGroupChineseNames[name];
+        if (chineseName != null) {
+          return chineseName;
+        }
+      }
     }
 
     // 将下划线替换为空格，并将首字母大写
@@ -242,30 +250,44 @@ class TagGroupEntry with _$TagGroupEntry {
   }
 }
 
+/// Tag Group 同步进度类型
+enum TagGroupSyncProgressType {
+  initial,
+  fetchingGroup,
+  fetchingTags,
+  filtering,
+  merging,
+  saving,
+  completed,
+  failed,
+}
+
 /// Tag Group 同步进度
 class TagGroupSyncProgress {
   final double progress; // 0.0 - 1.0
-  final String message;
+  final TagGroupSyncProgressType type;
   final String? currentGroup;
   final int completedGroups;
   final int totalGroups;
   final int fetchedTags;
   final int filteredTags;
+  final String? error;
 
   const TagGroupSyncProgress({
     required this.progress,
-    required this.message,
+    required this.type,
     this.currentGroup,
     this.completedGroups = 0,
     this.totalGroups = 0,
     this.fetchedTags = 0,
     this.filteredTags = 0,
+    this.error,
   });
 
   factory TagGroupSyncProgress.initial() {
     return const TagGroupSyncProgress(
       progress: 0,
-      message: '准备同步...',
+      type: TagGroupSyncProgressType.initial,
     );
   }
 
@@ -277,7 +299,7 @@ class TagGroupSyncProgress {
     // 获取 groups 是主要工作量，占 95% 进度
     return TagGroupSyncProgress(
       progress: total > 0 ? completed / total * 0.95 : 0,
-      message: '正在获取 $groupName...',
+      type: TagGroupSyncProgressType.fetchingGroup,
       currentGroup: groupName,
       completedGroups: completed,
       totalGroups: total,
@@ -290,7 +312,7 @@ class TagGroupSyncProgress {
   ) {
     return TagGroupSyncProgress(
       progress: 0.96,
-      message: '正在获取 $groupName 标签热度...',
+      type: TagGroupSyncProgressType.fetchingTags,
       currentGroup: groupName,
       fetchedTags: fetchedTags,
     );
@@ -299,7 +321,7 @@ class TagGroupSyncProgress {
   factory TagGroupSyncProgress.filtering(int fetchedTags, int filteredTags) {
     return TagGroupSyncProgress(
       progress: 0.97,
-      message: '正在筛选标签...',
+      type: TagGroupSyncProgressType.filtering,
       fetchedTags: fetchedTags,
       filteredTags: filteredTags,
     );
@@ -308,21 +330,21 @@ class TagGroupSyncProgress {
   factory TagGroupSyncProgress.merging() {
     return const TagGroupSyncProgress(
       progress: 0.98,
-      message: '正在合并标签...',
+      type: TagGroupSyncProgressType.merging,
     );
   }
 
   factory TagGroupSyncProgress.saving() {
     return const TagGroupSyncProgress(
       progress: 0.99,
-      message: '正在保存...',
+      type: TagGroupSyncProgressType.saving,
     );
   }
 
   factory TagGroupSyncProgress.completed(int totalTags, int filteredTags) {
     return TagGroupSyncProgress(
       progress: 1.0,
-      message: '同步完成',
+      type: TagGroupSyncProgressType.completed,
       fetchedTags: totalTags,
       filteredTags: filteredTags,
     );
@@ -331,8 +353,23 @@ class TagGroupSyncProgress {
   factory TagGroupSyncProgress.failed(String error) {
     return TagGroupSyncProgress(
       progress: 0,
-      message: '同步失败: $error',
+      type: TagGroupSyncProgressType.failed,
+      error: error,
     );
+  }
+
+  /// 获取本地化消息
+  String localizedMessage(BuildContext context) {
+    return switch (type) {
+      TagGroupSyncProgressType.initial => context.l10n.sync_preparing,
+      TagGroupSyncProgressType.fetchingGroup => context.l10n.sync_fetching(currentGroup ?? ''),
+      TagGroupSyncProgressType.fetchingTags => context.l10n.sync_fetching_tags(currentGroup ?? ''),
+      TagGroupSyncProgressType.filtering => context.l10n.sync_filtering,
+      TagGroupSyncProgressType.merging => context.l10n.sync_merging,
+      TagGroupSyncProgressType.saving => context.l10n.sync_saving,
+      TagGroupSyncProgressType.completed => context.l10n.sync_done,
+      TagGroupSyncProgressType.failed => context.l10n.sync_failed(error ?? ''),
+    };
   }
 }
 

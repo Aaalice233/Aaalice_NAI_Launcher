@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/tag_data_service.dart';
 import '../../data/services/tag_translation_service.dart';
 import 'prompt_config_provider.dart';
+
+part 'warmup_provider.g.dart';
 
 /// 预加载状态
 class WarmupState {
@@ -42,15 +44,24 @@ class WarmupState {
 }
 
 /// 预加载状态 Notifier
-class WarmupNotifier extends StateNotifier<WarmupState> {
-  final Ref _ref;
+@riverpod
+class WarmupNotifier extends _$WarmupNotifier {
   late AppWarmupService _warmupService;
   StreamSubscription<WarmupProgress>? _subscription;
 
-  WarmupNotifier(this._ref) : super(WarmupState.initial()) {
+  @override
+  WarmupState build() {
+    // 注册生命周期回调
+    ref.onDispose(() {
+      _subscription?.cancel();
+    });
+
+    // 初始化服务并开始预加载
     _warmupService = AppWarmupService();
     _registerTasks();
     _startWarmup();
+
+    return WarmupState.initial();
   }
 
   /// 注册所有预加载任务
@@ -61,7 +72,7 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
         name: 'warmup_loadingTranslation',
         weight: 2,
         task: () async {
-          final translationService = _ref.read(tagTranslationServiceProvider);
+          final translationService = ref.read(tagTranslationServiceProvider);
           await translationService.load();
         },
       ),
@@ -73,8 +84,8 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
         name: 'warmup_initTagSystem',
         weight: 1,
         task: () async {
-          final translationService = _ref.read(tagTranslationServiceProvider);
-          final tagDataService = _ref.read(tagDataServiceProvider);
+          final translationService = ref.read(tagTranslationServiceProvider);
+          final tagDataService = ref.read(tagDataServiceProvider);
 
           // 关联服务
           translationService.setTagDataService(tagDataService);
@@ -92,12 +103,12 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
         weight: 1,
         task: () async {
           // 触发 provider 初始化并等待加载完成
-          _ref.read(promptConfigNotifierProvider.notifier);
+          ref.read(promptConfigNotifierProvider.notifier);
           // 等待最多 3 秒
           for (var i = 0; i < 60; i++) {
             await Future.delayed(const Duration(milliseconds: 50));
-            final state = _ref.read(promptConfigNotifierProvider);
-            if (!state.isLoading) break;
+            final configState = ref.read(promptConfigNotifierProvider);
+            if (!configState.isLoading) break;
           }
         },
       ),
@@ -138,16 +149,4 @@ class WarmupNotifier extends StateNotifier<WarmupState> {
     _subscription?.cancel();
     state = WarmupState.complete();
   }
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
 }
-
-/// 预加载状态 Provider
-final warmupNotifierProvider =
-    StateNotifierProvider<WarmupNotifier, WarmupState>((ref) {
-  return WarmupNotifier(ref);
-});

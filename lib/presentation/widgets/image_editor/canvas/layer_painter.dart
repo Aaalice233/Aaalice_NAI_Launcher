@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/app_logger.dart';
 import '../core/editor_state.dart';
 import '../tools/brush_tool.dart';
 import '../tools/eraser_tool.dart';
@@ -75,7 +76,7 @@ class _CheckerboardCache {
         Matrix4.identity().storage,
       );
     } catch (e) {
-      debugPrint('Failed to initialize checkerboard cache: $e');
+      AppLogger.w('Failed to initialize checkerboard cache: $e', 'ImageEditor');
     } finally {
       _isInitializing = false;
     }

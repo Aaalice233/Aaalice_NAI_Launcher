@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-import 'package:flutter/foundation.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
@@ -145,8 +144,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         final randomPrompt =
             ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
         if (randomPrompt.isNotEmpty) {
-          debugPrint(
-            '[RandomMode] Single - New prompt for next generation: $randomPrompt',
+          AppLogger.d(
+            'Single - New prompt for next generation: $randomPrompt',
+            'RandomMode',
           );
           ref
               .read(generationParamsNotifierProvider.notifier)
@@ -208,8 +208,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                 .read(promptConfigNotifierProvider.notifier)
                 .generatePrompt();
             if (randomPrompt.isNotEmpty) {
-              debugPrint(
-                '[RandomMode] Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt',
+              AppLogger.d(
+                'Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt',
+                'RandomMode',
               );
               // 更新 UI 中的提示词
               ref
@@ -243,8 +244,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       final randomPrompt =
           ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
       if (randomPrompt.isNotEmpty) {
-        debugPrint(
-          '[RandomMode] Final - New prompt for next generation: $randomPrompt',
+        AppLogger.d(
+          'Final - New prompt for next generation: $randomPrompt',
+          'RandomMode',
         );
         ref
             .read(generationParamsNotifierProvider.notifier)

@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/services/tag_translation_service.dart';
 
-/// 标签芯片组件
+/// 简单标签芯片组件
 ///
 /// 显示带颜色的标签，支持点击和自动翻译
-class TagChip extends ConsumerStatefulWidget {
+/// 用于在线画廊、权重调整等简单场景
+class SimpleTagChip extends ConsumerStatefulWidget {
   final String tag;
   final Color? color;
   final VoidCallback? onTap;
@@ -14,7 +15,7 @@ class TagChip extends ConsumerStatefulWidget {
   final bool autoTranslate;
   final int? category;
 
-  const TagChip({
+  const SimpleTagChip({
     super.key,
     required this.tag,
     this.color,
@@ -25,10 +26,10 @@ class TagChip extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TagChip> createState() => _TagChipState();
+  ConsumerState<SimpleTagChip> createState() => _SimpleTagChipState();
 }
 
-class _TagChipState extends ConsumerState<TagChip> {
+class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   bool _isHovering = false;
   String? _autoTranslation;
 
@@ -41,7 +42,7 @@ class _TagChipState extends ConsumerState<TagChip> {
   }
 
   @override
-  void didUpdateWidget(TagChip oldWidget) {
+  void didUpdateWidget(SimpleTagChip oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tag != widget.tag && widget.autoTranslate && widget.translation == null) {
       _fetchTranslation();
@@ -116,8 +117,8 @@ class _TagChipState extends ConsumerState<TagChip> {
   }
 }
 
-/// 带 Tooltip 的标签芯片
-class TagChipWithTooltip extends StatelessWidget {
+/// 带 Tooltip 的简单标签芯片
+class SimpleTagChipWithTooltip extends StatelessWidget {
   final String tag;
   final Color? color;
   final VoidCallback? onTap;
@@ -125,7 +126,7 @@ class TagChipWithTooltip extends StatelessWidget {
   final int? category;
   final String? tooltipMessage;
 
-  const TagChipWithTooltip({
+  const SimpleTagChipWithTooltip({
     super.key,
     required this.tag,
     this.color,
@@ -137,7 +138,7 @@ class TagChipWithTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chip = TagChip(
+    final chip = SimpleTagChip(
       tag: tag,
       color: color,
       onTap: onTap,

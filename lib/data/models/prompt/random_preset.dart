@@ -3,7 +3,9 @@ import 'package:uuid/uuid.dart';
 
 import 'algorithm_config.dart';
 import 'default_categories.dart';
+import 'default_tag_group_mappings.dart';
 import 'random_category.dart';
+import 'tag_group_mapping.dart';
 
 part 'random_preset.freezed.dart';
 part 'random_preset.g.dart';
@@ -40,6 +42,12 @@ class RandomPreset with _$RandomPreset {
 
     /// 类别列表
     @Default([]) List<RandomCategory> categories,
+
+    /// Tag Group 映射配置
+    @Default([]) List<TagGroupMapping> tagGroupMappings,
+
+    /// 热度阈值 (0-100)
+    @Default(50) int popularityThreshold,
 
     /// 创建时间
     DateTime? createdAt,
@@ -81,6 +89,8 @@ class RandomPreset with _$RandomPreset {
       version: 2,
       algorithmConfig: const AlgorithmConfig(),
       categories: DefaultCategories.createDefault(),
+      tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
+      popularityThreshold: 50,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -98,6 +108,10 @@ class RandomPreset with _$RandomPreset {
       algorithmConfig: source.algorithmConfig,
       categoryProbabilities: source.categoryProbabilities,
       categories: source.categories.map((c) => c.deepCopy()).toList(),
+      tagGroupMappings: source.tagGroupMappings.map((m) => m.copyWith(
+        id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
+      ),).toList(),
+      popularityThreshold: source.popularityThreshold,
       createdAt: now,
       updatedAt: now,
     );
@@ -194,12 +208,77 @@ class RandomPreset with _$RandomPreset {
     return null;
   }
 
+  // ========== Tag Group 映射管理 ==========
+
+  /// 添加 Tag Group 映射
+  RandomPreset addTagGroupMapping(TagGroupMapping mapping) {
+    return copyWith(
+      tagGroupMappings: [...tagGroupMappings, mapping],
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 删除 Tag Group 映射
+  RandomPreset removeTagGroupMapping(String mappingId) {
+    return copyWith(
+      tagGroupMappings: tagGroupMappings.where((m) => m.id != mappingId).toList(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 更新 Tag Group 映射
+  RandomPreset updateTagGroupMapping(TagGroupMapping updatedMapping) {
+    final index = tagGroupMappings.indexWhere((m) => m.id == updatedMapping.id);
+    if (index == -1) return this;
+
+    final newMappings = [...tagGroupMappings];
+    newMappings[index] = updatedMapping;
+    return copyWith(
+      tagGroupMappings: newMappings,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 切换 Tag Group 映射启用状态
+  RandomPreset toggleTagGroupMappingEnabled(String mappingId) {
+    final index = tagGroupMappings.indexWhere((m) => m.id == mappingId);
+    if (index == -1) return this;
+
+    final mapping = tagGroupMappings[index];
+    final newMappings = [...tagGroupMappings];
+    newMappings[index] = mapping.copyWith(enabled: !mapping.enabled);
+    return copyWith(
+      tagGroupMappings: newMappings,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 通过ID查找 Tag Group 映射
+  TagGroupMapping? findTagGroupMappingById(String mappingId) {
+    for (final mapping in tagGroupMappings) {
+      if (mapping.id == mappingId) return mapping;
+    }
+    return null;
+  }
+
+  // ========== 热度阈值管理 ==========
+
+  /// 更新热度阈值
+  RandomPreset updatePopularityThreshold(int threshold) {
+    return copyWith(
+      popularityThreshold: threshold.clamp(0, 100),
+      updatedAt: DateTime.now(),
+    );
+  }
+
   /// 重置为默认配置
   RandomPreset resetToDefault() {
     return copyWith(
       algorithmConfig: const AlgorithmConfig(),
       categoryProbabilities: const CategoryProbabilityConfig(),
       categories: DefaultCategories.createDefault(),
+      tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
+      popularityThreshold: 50,
       updatedAt: DateTime.now(),
     );
   }
@@ -212,6 +291,8 @@ class RandomPreset with _$RandomPreset {
       'version': version,
       'algorithmConfig': algorithmConfig.toJson(),
       'categories': categories.map((c) => c.toJson()).toList(),
+      'tagGroupMappings': tagGroupMappings.map((m) => m.toJson()).toList(),
+      'popularityThreshold': popularityThreshold,
       'exportedAt': DateTime.now().toIso8601String(),
     };
   }
@@ -233,6 +314,14 @@ class RandomPreset with _$RandomPreset {
           .toList();
     }
 
+    // 解析 Tag Group 映射列表
+    List<TagGroupMapping> tagGroupMappings = [];
+    if (json['tagGroupMappings'] != null) {
+      tagGroupMappings = (json['tagGroupMappings'] as List)
+          .map((m) => TagGroupMapping.fromJson(m as Map<String, dynamic>))
+          .toList();
+    }
+
     return RandomPreset(
       id: const Uuid().v4(),
       name: json['name'] as String? ?? '导入的预设',
@@ -250,6 +339,8 @@ class RandomPreset with _$RandomPreset {
             )
           : const CategoryProbabilityConfig(),
       categories: categories,
+      tagGroupMappings: tagGroupMappings,
+      popularityThreshold: json['popularityThreshold'] as int? ?? 50,
       createdAt: now,
       updatedAt: now,
     );

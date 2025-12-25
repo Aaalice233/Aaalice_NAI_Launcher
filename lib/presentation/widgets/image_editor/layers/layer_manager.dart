@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/app_logger.dart';
 import '../core/history_manager.dart';
 import 'layer.dart';
 import 'snapshot_cache.dart';
@@ -147,7 +148,7 @@ class LayerManager extends ChangeNotifier {
     } catch (e) {
       // 解码失败，清理资源
       layer.dispose();
-      debugPrint('Failed to add layer from image: $e');
+      AppLogger.w('Failed to add layer from image: $e', 'ImageEditor');
       return null;
     }
 

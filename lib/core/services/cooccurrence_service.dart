@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/download_message_keys.dart';
 
 part 'cooccurrence_service.g.dart';
 
@@ -178,7 +179,7 @@ class CooccurrenceService {
     _isDownloading = true;
 
     try {
-      onDownloadProgress?.call(0, '正在下载共现标签数据...');
+      onDownloadProgress?.call(0, DownloadMessageKeys.downloadingCooccurrence);
 
       final cacheFile = await _getCacheFile();
 
@@ -196,7 +197,7 @@ class CooccurrenceService {
         ),
       );
 
-      onDownloadProgress?.call(1.0, '正在解析数据...');
+      onDownloadProgress?.call(1.0, DownloadMessageKeys.parsingData);
 
       // 解析下载的文件
       await _loadFromFile(cacheFile);

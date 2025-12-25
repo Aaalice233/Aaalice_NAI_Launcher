@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/utils/app_logger.dart';
 import '../core/history_manager.dart';
 
 /// 图层混合模式
@@ -209,7 +210,7 @@ class Layer {
       _needsComposite = true;
       _needsThumbnailUpdate = true;
     } catch (e) {
-      debugPrint('Failed to decode base image: $e');
+      AppLogger.w('Failed to decode base image: $e', 'ImageEditor');
       rethrow;
     } finally {
       codec?.dispose();

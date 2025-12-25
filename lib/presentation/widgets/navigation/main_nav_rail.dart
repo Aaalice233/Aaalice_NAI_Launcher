@@ -78,7 +78,7 @@ class MainNavRail extends ConsumerWidget {
             icon: Icons.book, // Tags/Dictionary placeholder
             label: context.l10n.nav_dictionary,
             isSelected: false,
-            onTap: () {}, // TODO
+            onTap: () {}, // 词库功能 - 待产品规划
             isDisabled: true,
           ),
 

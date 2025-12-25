@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
@@ -659,7 +664,7 @@ class LoginScreen extends ConsumerWidget {
               title: Text(context.l10n.auth_selectFromGallery),
               onTap: () {
                 Navigator.pop(sheetContext);
-                // TODO: 实现从相册选择头像
+                _pickImageFromGallery(context, ref, account);
               },
             ),
             ListTile(
@@ -667,7 +672,8 @@ class LoginScreen extends ConsumerWidget {
               title: Text(context.l10n.auth_takePhoto),
               onTap: () {
                 Navigator.pop(sheetContext);
-                // TODO: 实现拍照设置头像
+                // Desktop 平台不支持拍照，使用相同的文件选择逻辑
+                _pickImageFromGallery(context, ref, account);
               },
             ),
             if (account.avatarPath != null)
@@ -679,13 +685,91 @@ class LoginScreen extends ConsumerWidget {
                 ),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  // TODO: 实现移除头像
+                  _removeAvatar(context, ref, account);
                 },
               ),
           ],
         ),
       ),
     );
+  }
+
+  /// 从相册/文件选择头像
+  Future<void> _pickImageFromGallery(
+    BuildContext context,
+    WidgetRef ref,
+    SavedAccount account,
+  ) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+
+    final pickedFile = result.files.first;
+    if (pickedFile.path == null) return;
+
+    try {
+      // 获取应用文档目录
+      final appDir = await getApplicationDocumentsDirectory();
+      final avatarsDir = Directory(path.join(appDir.path, 'avatars'));
+
+      // 创建头像目录
+      if (!await avatarsDir.exists()) {
+        await avatarsDir.create(recursive: true);
+      }
+
+      // 生成唯一文件名
+      final extension = path.extension(pickedFile.path!);
+      final newFileName = '${account.id}$extension';
+      final newPath = path.join(avatarsDir.path, newFileName);
+
+      // 复制文件到应用目录
+      final sourceFile = File(pickedFile.path!);
+      await sourceFile.copy(newPath);
+
+      // 更新账号信息
+      final updatedAccount = account.copyWith(avatarPath: newPath);
+      await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.common_success);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.common_error);
+      }
+    }
+  }
+
+  /// 移除头像
+  Future<void> _removeAvatar(
+    BuildContext context,
+    WidgetRef ref,
+    SavedAccount account,
+  ) async {
+    try {
+      // 删除头像文件
+      if (account.avatarPath != null) {
+        final file = File(account.avatarPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+
+      // 更新账号信息（清除头像路径）
+      final updatedAccount = account.copyWith(avatarPath: null);
+      await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.common_success);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.common_error);
+      }
+    }
   }
 
   /// 获取错误码对应的本地化文本

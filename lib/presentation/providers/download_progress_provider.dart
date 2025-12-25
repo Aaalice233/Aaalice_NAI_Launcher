@@ -3,6 +3,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/tag_data_service.dart';
+import '../../core/utils/download_message_keys.dart';
+import '../../core/utils/localization_extension.dart';
 import '../widgets/common/app_toast.dart';
 
 part 'download_progress_provider.g.dart';
@@ -117,7 +119,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       if (!isDownloading) {
         // 第一次回调，说明需要下载，添加任务
         isDownloading = true;
-        _addTask('tags', '标签数据');
+        _addTask('tags', _context?.l10n.download_tagsData ?? 'Tags Data');
       }
       _updateTaskProgress('tags', progress, message: message);
     };
@@ -150,7 +152,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
     // 缓存不存在，需要下载
     // 添加下载任务
-    _addTask('cooccurrence', '共现标签数据');
+    _addTask('cooccurrence', _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data');
 
     // 设置下载进度回调
     cooccurrenceService.onDownloadProgress = (progress, message) {
@@ -189,7 +191,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       _toastController?.dismiss();
       _toastController = AppToast.showProgress(
         _context!,
-        '正在下载 $name',
+        _context!.l10n.download_downloading(name),
         progress: 0,
       );
     }
@@ -200,17 +202,22 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     final task = state.tasks[id];
     if (task == null) return;
 
+    // 将消息 key 转换为本地化字符串
+    final localizedMessage = _context != null && message != null
+        ? DownloadMessageKeys.localizeMessage(_context!, message)
+        : message;
+
     state = state.copyWith(
       tasks: {
         ...state.tasks,
-        id: task.copyWith(progress: progress, message: message),
+        id: task.copyWith(progress: progress, message: localizedMessage),
       },
     );
 
     // 更新 Toast
     _toastController?.updateProgress(
       progress,
-      message: message,
+      message: localizedMessage,
       subtitle: '${(progress * 100).toInt()}%',
     );
   }
@@ -231,7 +238,11 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     );
 
     // 完成 Toast
-    _toastController?.complete(message: '${task.name}下载完成');
+    if (_context != null) {
+      _toastController?.complete(
+        message: _context!.l10n.download_completed(task.name),
+      );
+    }
     _toastController = null;
   }
 
@@ -251,7 +262,11 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     );
 
     // 失败 Toast
-    _toastController?.fail(message: '${task.name}下载失败');
+    if (_context != null) {
+      _toastController?.fail(
+        message: _context!.l10n.download_failed(task.name),
+      );
+    }
     _toastController = null;
   }
 

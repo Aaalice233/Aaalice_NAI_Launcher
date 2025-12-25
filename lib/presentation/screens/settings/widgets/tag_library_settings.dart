@@ -106,7 +106,7 @@ class TagLibrarySettings extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             config.lastSyncTime != null
-                ? context.l10n.tagLibrary_lastSync(config.formatLastSyncTime())
+                ? context.l10n.tagLibrary_lastSync(config.formatLastSyncTime(context))
                 : context.l10n.tagLibrary_neverSynced,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
@@ -281,7 +281,7 @@ class TagLibrarySettings extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            progress.message,
+            progress.localizedMessage(context),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),

@@ -175,7 +175,6 @@ class ColorPickerTool extends EditorTool {
   @override
   void onPointerUp(PointerUpEvent event, EditorState state) {
     // 松开时采样并设置颜色
-    debugPrint('[ColorPicker] onPointerUp at ${event.localPosition}');
     _sampleAndApplyColor(event.localPosition, state);
   }
 
@@ -184,14 +183,9 @@ class ColorPickerTool extends EditorTool {
     Offset canvasPoint,
     EditorState state,
   ) async {
-    debugPrint('[ColorPicker] _sampleAndApplyColor at $canvasPoint');
     final color = await _sampleColorAt(canvasPoint, state);
-    debugPrint('[ColorPicker] sampled color: $color');
     if (color != null) {
-      debugPrint('[ColorPicker] setting foreground color to $color');
       state.setForegroundColor(color);
-    } else {
-      debugPrint('[ColorPicker] color is null, not setting');
     }
     // 切回上一个工具
     state.switchToPreviousTool();
@@ -468,16 +462,11 @@ class ColorPickerTool extends EditorTool {
     final canvasWidth = state.canvasSize.width.toInt();
     final canvasHeight = state.canvasSize.height.toInt();
 
-    debugPrint(
-      '[ColorPicker] _sampleColorAt: canvasPoint=$canvasPoint, canvasSize=${canvasWidth}x$canvasHeight',
-    );
-
     // 检查是否在画布范围内
     if (canvasPoint.dx < 0 ||
         canvasPoint.dy < 0 ||
         canvasPoint.dx >= canvasWidth ||
         canvasPoint.dy >= canvasHeight) {
-      debugPrint('[ColorPicker] _sampleColorAt: out of bounds');
       _magnifierPixels = null;
       return null;
     }

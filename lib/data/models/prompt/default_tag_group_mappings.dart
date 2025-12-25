@@ -102,6 +102,16 @@ class DefaultTagGroupMappings {
         ),
       ];
 
+  /// 创建默认映射列表的深拷贝
+  ///
+  /// 用于初始化预设时使用，确保每个预设有独立的映射副本
+  static List<TagGroupMapping> createDefaultMappings() {
+    return mappings.map((m) => m.copyWith(
+      id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${m.targetCategory.name}',
+      createdAt: DateTime.now(),
+    ),).toList();
+  }
+
   /// 获取默认配置
   static TagGroupSyncConfig getDefaultConfig() {
     return TagGroupSyncConfig(

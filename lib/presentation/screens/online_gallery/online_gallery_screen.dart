@@ -1299,7 +1299,7 @@ class _TagSection extends ConsumerWidget {
             runSpacing: 4,
             children: tags.map((tag) {
               final translation = translationService.translate(tag, isCharacter: isCharacter);
-              return TagChip(tag: tag, color: color, translation: translation, onTap: () => onTagTap(tag));
+              return SimpleTagChip(tag: tag, color: color, translation: translation, onTap: () => onTagTap(tag));
             }).toList(),
           ),
         ],
