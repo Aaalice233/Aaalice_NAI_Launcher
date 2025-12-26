@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/datasources/local/pool_cache_service.dart';
+import '../../../../data/datasources/local/tag_group_cache_service.dart';
+import '../../../../data/datasources/remote/danbooru_pool_service.dart';
+import '../../../../data/datasources/remote/danbooru_tag_group_service.dart';
+import '../../../../data/models/danbooru/danbooru_pool.dart';
 import '../../../../data/models/prompt/danbooru_tag_group_tree.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../../../utils/category_icon_utils.dart';
@@ -12,6 +18,9 @@ enum AddGroupType {
 
   /// 远程 Tag Group
   tagGroup,
+
+  /// Danbooru Pools
+  danbooruPool,
 }
 
 /// 添加分组结果
@@ -22,12 +31,20 @@ class AddGroupResult {
   final bool includeChildren;
   final TagSubCategory? targetCategory;
 
+  /// Pool 相关字段
+  final int? poolId;
+  final String? poolName;
+  final int? postCount;
+
   const AddGroupResult({
     required this.type,
     this.groupTitle,
     this.displayName,
     this.includeChildren = true,
     this.targetCategory,
+    this.poolId,
+    this.poolName,
+    this.postCount,
   });
 
   /// 创建内置词库结果
@@ -48,10 +65,25 @@ class AddGroupResult {
         includeChildren: includeChildren,
         targetCategory: targetCategory,
       );
+
+  /// 创建 Danbooru Pool 结果
+  factory AddGroupResult.danbooruPool({
+    required int poolId,
+    required String poolName,
+    required int postCount,
+    TagSubCategory? targetCategory,
+  }) =>
+      AddGroupResult(
+        type: AddGroupType.danbooruPool,
+        poolId: poolId,
+        poolName: poolName,
+        postCount: postCount,
+        targetCategory: targetCategory,
+      );
 }
 
-/// 添加分组对话框（支持内置词库和 Tag Group）
-class AddGroupDialog extends StatefulWidget {
+/// 添加分组对话框（支持内置词库、Tag Group 和 Danbooru Pool）
+class AddGroupDialog extends ConsumerStatefulWidget {
   final ThemeData theme;
   final TagSubCategory category;
   final bool isBuiltinEnabled;
@@ -89,12 +121,12 @@ class AddGroupDialog extends StatefulWidget {
   }
 
   @override
-  State<AddGroupDialog> createState() => _AddGroupDialogState();
+  ConsumerState<AddGroupDialog> createState() => _AddGroupDialogState();
 }
 
-class _AddGroupDialogState extends State<AddGroupDialog>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AddGroupDialogState extends ConsumerState<AddGroupDialog> {
+  // 当前选择的数据来源类型
+  late AddGroupType _selectedSourceType;
 
   // 自定义模式状态
   bool _isCustomMode = false;
@@ -107,24 +139,31 @@ class _AddGroupDialogState extends State<AddGroupDialog>
   final List<TagGroupTreeNode> _navigationStack = [];
   TagSubCategory? _selectedTargetCategory;
 
+  // Pool 搜索相关状态
+  final _poolSearchController = TextEditingController();
+  String _poolSearchQuery = '';
+  List<DanbooruPool> _poolSearchResults = [];
+  bool _isSearching = false;
+  String? _poolSearchError;
+
+  // 自动拉取缓存状态
+  bool _isFetchingCache = false;
+
   @override
   void initState() {
     super.initState();
-    // 如果内置已启用，默认显示 TagGroup 标签页
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-      initialIndex: widget.isBuiltinEnabled ? 1 : 0,
-    );
+    // 如果内置已启用，默认显示 TagGroup
+    _selectedSourceType =
+        widget.isBuiltinEnabled ? AddGroupType.tagGroup : AddGroupType.builtin;
     // 初始化目标分类
     _selectedTargetCategory = widget.category;
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _groupTitleController.dispose();
     _displayNameController.dispose();
+    _poolSearchController.dispose();
     super.dispose();
   }
 
@@ -132,17 +171,50 @@ class _AddGroupDialogState extends State<AddGroupDialog>
     Navigator.of(context).pop(AddGroupResult.builtin());
   }
 
-  void _selectTagGroup(TagGroupTreeNode node) {
+  void _selectTagGroup(TagGroupTreeNode node) async {
     final displayName =
         widget.locale == 'zh' ? node.displayNameZh : node.displayNameEn;
-    Navigator.of(context).pop(
-      AddGroupResult.tagGroup(
-        groupTitle: node.title,
-        displayName: displayName.isNotEmpty ? displayName : node.title,
-        includeChildren: true,
-        targetCategory: _selectedTargetCategory,
-      ),
-    );
+
+    // 检查缓存是否存在
+    final cacheService = ref.read(tagGroupCacheServiceProvider);
+    final hasCached = await cacheService.hasCachedAsync(node.title);
+
+    if (!hasCached) {
+      // 显示加载指示器
+      setState(() => _isFetchingCache = true);
+
+      try {
+        // 从 Danbooru 拉取数据
+        final tagGroupService = ref.read(danbooruTagGroupServiceProvider);
+        await tagGroupService.syncTagGroup(
+          groupTitle: node.title,
+          minPostCount: 1000,
+          includeChildren: true,
+        );
+      } catch (e) {
+        // 显示错误提示但仍允许添加
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.addGroup_fetchFailed)),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isFetchingCache = false);
+        }
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop(
+        AddGroupResult.tagGroup(
+          groupTitle: node.title,
+          displayName: displayName.isNotEmpty ? displayName : node.title,
+          includeChildren: true,
+          targetCategory: _selectedTargetCategory,
+        ),
+      );
+    }
   }
 
   void _navigateInto(TagGroupTreeNode node) {
@@ -188,68 +260,225 @@ class _AddGroupDialogState extends State<AddGroupDialog>
     );
   }
 
+  void _resetContentState() {
+    setState(() {
+      _navigationStack.clear();
+      _isCustomMode = false;
+      _poolSearchResults.clear();
+      _poolSearchQuery = '';
+      _poolSearchController.clear();
+      _poolSearchError = null;
+      _errorMessage = null;
+    });
+  }
+
+  Future<void> _searchPools(String query) async {
+    if (query.trim().isEmpty) return;
+
+    setState(() {
+      _isSearching = true;
+      _poolSearchQuery = query;
+      _poolSearchError = null;
+    });
+
+    try {
+      final poolService = ref.read(danbooruPoolServiceProvider);
+      final results = await poolService.searchPools(query, limit: 20);
+      if (mounted) {
+        setState(() {
+          _poolSearchResults = results;
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+          _poolSearchError = e.toString();
+        });
+      }
+    }
+  }
+
+  void _selectPool(DanbooruPool pool) async {
+    // 检查 Pool 缓存是否存在
+    final poolCacheService = ref.read(poolCacheServiceProvider);
+    final hasCached = await poolCacheService.hasCachedAsync(pool.id);
+
+    if (!hasCached) {
+      // 显示加载指示器
+      setState(() => _isFetchingCache = true);
+
+      try {
+        // 从 Danbooru 拉取 Pool 标签数据
+        final poolService = ref.read(danbooruPoolServiceProvider);
+        final tags = await poolService.extractTagsFromPool(
+          poolId: pool.id,
+          poolName: pool.name,
+          maxPosts: 100,
+          minOccurrence: 3,
+        );
+
+        // 存入缓存
+        await poolCacheService.savePool(
+          pool.id,
+          pool.name,
+          tags,
+          pool.postCount,
+        );
+      } catch (e) {
+        // 显示错误提示但仍允许添加
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.addGroup_fetchFailed)),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isFetchingCache = false);
+        }
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop(
+        AddGroupResult.danbooruPool(
+          poolId: pool.id,
+          poolName: pool.name,
+          postCount: pool.postCount,
+          targetCategory: _selectedTargetCategory,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final categoryName = TagSubCategoryHelper.getDisplayName(widget.category);
     final l10n = context.l10n;
 
-    return AlertDialog(
-      title: Text(l10n.addGroup_dialogTitle(categoryName)),
-      content: SizedBox(
-        width: 500,
-        height: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Tab 切换
-            TabBar(
-              controller: _tabController,
-              tabs: [
-                Tab(
-                  icon: Icon(
-                    Icons.home_outlined,
-                    color: widget.isBuiltinEnabled
-                        ? theme.colorScheme.outline
-                        : theme.colorScheme.primary,
+    return Stack(
+      children: [
+        AlertDialog(
+          title: Text(l10n.addGroup_dialogTitle(categoryName)),
+          content: SizedBox(
+            width: 500,
+            height: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 数据来源下拉选择器
+                DropdownButtonFormField<AddGroupType>(
+                  value: _selectedSourceType,
+                  decoration: InputDecoration(
+                    labelText: l10n.addGroup_sourceTypeLabel,
+                    border: const OutlineInputBorder(),
                   ),
-                  text: l10n.addGroup_builtinTab,
+                  items: [
+                    DropdownMenuItem(
+                      value: AddGroupType.builtin,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.home_outlined,
+                            size: 20,
+                            color: widget.isBuiltinEnabled
+                                ? theme.colorScheme.outline
+                                : theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(l10n.addGroup_builtinTab),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: AddGroupType.tagGroup,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.cloud_outlined,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(l10n.addGroup_tagGroupTab),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: AddGroupType.danbooruPool,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.collections_outlined,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(l10n.addGroup_poolTab),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (type) {
+                    if (type != null && type != _selectedSourceType) {
+                      setState(() => _selectedSourceType = type);
+                      _resetContentState();
+                    }
+                  },
                 ),
-                Tab(
-                  icon: const Icon(Icons.cloud_outlined),
-                  text: l10n.addGroup_tagGroupTab,
+                const SizedBox(height: 16),
+                // 内容区域
+                Expanded(
+                  child: switch (_selectedSourceType) {
+                    AddGroupType.builtin => _buildBuiltinContent(theme),
+                    AddGroupType.tagGroup => _buildTagGroupContent(theme),
+                    AddGroupType.danbooruPool => _buildPoolContent(theme),
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            // Tab 内容
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildBuiltinTab(theme),
-                  _buildTagGroupTab(theme),
-                ],
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.addGroup_cancel),
             ),
+            if (_isCustomMode && _selectedSourceType == AddGroupType.tagGroup)
+              FilledButton(
+                onPressed: _submitCustom,
+                child: Text(l10n.addGroup_submit),
+              ),
           ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.addGroup_cancel),
-        ),
-        if (_isCustomMode && _tabController.index == 1)
-          FilledButton(
-            onPressed: _submitCustom,
-            child: Text(l10n.addGroup_submit),
+        // 加载覆盖层
+        if (_isFetchingCache)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(l10n.addGroup_fetchingCache),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
       ],
     );
   }
 
-  Widget _buildBuiltinTab(ThemeData theme) {
+  Widget _buildBuiltinContent(ThemeData theme) {
     final l10n = context.l10n;
     if (widget.isBuiltinEnabled) {
       return Center(
@@ -302,7 +531,7 @@ class _AddGroupDialogState extends State<AddGroupDialog>
     );
   }
 
-  Widget _buildTagGroupTab(ThemeData theme) {
+  Widget _buildTagGroupContent(ThemeData theme) {
     final l10n = context.l10n;
     return Column(
       children: [
@@ -348,6 +577,125 @@ class _AddGroupDialogState extends State<AddGroupDialog>
               : _buildTreeNavigation(theme),
         ),
       ],
+    );
+  }
+
+  Widget _buildPoolContent(ThemeData theme) {
+    final l10n = context.l10n;
+    return Column(
+      children: [
+        // 搜索框
+        TextField(
+          controller: _poolSearchController,
+          decoration: InputDecoration(
+            labelText: l10n.addGroup_poolSearchLabel,
+            hintText: l10n.addGroup_poolSearchHint,
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _isSearching
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Padding(
+                      padding: EdgeInsets.all(10),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: _searchPools,
+        ),
+        const SizedBox(height: 16),
+        // 搜索结果列表
+        Expanded(
+          child: _buildPoolSearchResults(theme),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPoolSearchResults(ThemeData theme) {
+    final l10n = context.l10n;
+
+    // 显示搜索错误
+    if (_poolSearchError != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.addGroup_poolSearchError,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _poolSearchError!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_poolSearchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.collections_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _poolSearchQuery.isEmpty
+                  ? l10n.addGroup_poolSearchEmpty
+                  : l10n.addGroup_poolNoResults,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _poolSearchResults.length,
+      itemBuilder: (context, index) {
+        final pool = _poolSearchResults[index];
+        return ListTile(
+          leading: Icon(
+            pool.category == PoolCategory.series
+                ? Icons.format_list_numbered
+                : Icons.collections_outlined,
+            color: theme.colorScheme.primary,
+          ),
+          title: Text(pool.displayName),
+          subtitle: Text(
+            l10n.addGroup_poolPostCount(pool.postCount),
+            style: theme.textTheme.bodySmall,
+          ),
+          trailing: Icon(Icons.add, color: theme.colorScheme.primary),
+          onTap: () => _selectPool(pool),
+        );
+      },
     );
   }
 

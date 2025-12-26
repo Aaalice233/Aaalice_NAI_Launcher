@@ -44,6 +44,17 @@ enum TagGroupSourceType {
   pool,
 }
 
+/// 节点类型
+enum TagGroupNodeType {
+  /// 字符串列表（标签）
+  @JsonValue('str')
+  str,
+
+  /// 嵌套配置
+  @JsonValue('config')
+  config,
+}
+
 /// 随机标签分组
 ///
 /// 表示类别下的一个标签分组，可以是用户自定义的，
@@ -88,6 +99,12 @@ class RandomTagGroup with _$RandomTagGroup {
 
     /// 标签列表
     @Default([]) List<WeightedTag> tags,
+
+    /// 节点类型：str = 标签列表，config = 嵌套配置
+    @Default(TagGroupNodeType.str) TagGroupNodeType nodeType,
+
+    /// 嵌套的子词组（当 nodeType = config 时使用）
+    @Default([]) List<RandomTagGroup> children,
 
     /// 最后同步时间（仅对 tagGroup/pool 类型有效）
     DateTime? lastSyncedAt,
@@ -145,19 +162,28 @@ class RandomTagGroup with _$RandomTagGroup {
     );
   }
 
-  /// 获取标签数量
-  int get tagCount => tags.length;
+  /// 获取标签数量（包含嵌套）
+  int get tagCount {
+    if (nodeType == TagGroupNodeType.config) {
+      return children.fold(0, (sum, child) => sum + child.tagCount);
+    }
+    return tags.length;
+  }
 
   /// 是否可同步（来自外部源）
   bool get isSyncable =>
       sourceType == TagGroupSourceType.tagGroup ||
       sourceType == TagGroupSourceType.pool;
 
-  /// 深拷贝分组（生成新的ID）
+  /// 是否为嵌套配置
+  bool get isNested => nodeType == TagGroupNodeType.config;
+
+  /// 深拷贝分组（生成新的ID，包含嵌套）
   RandomTagGroup deepCopy() {
     return copyWith(
       id: const Uuid().v4(),
       tags: tags.map((t) => t.copyWith()).toList(),
+      children: children.map((c) => c.deepCopy()).toList(),
     );
   }
 

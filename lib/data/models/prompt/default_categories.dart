@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+
 import 'random_category.dart';
 import 'random_tag_group.dart';
 import 'weighted_tag.dart';
@@ -5,20 +7,30 @@ import 'weighted_tag.dart';
 /// 默认类别配置
 ///
 /// 为新用户提供预配置的类别和分组，包含 NAI 内置标签
+/// 各类别概率基于 NAI 官方逻辑设置
 class DefaultCategories {
+  static const _uuid = Uuid();
+
   /// 创建默认类别列表
   ///
   /// 每个类别包含一个"NAI内置"分组，默认启用，并预填充标签数据
+  /// 类别概率基于 NAI 逻辑：
+  /// - 角色特征（发色、瞳色、服装）: 100%
+  /// - 背景: 90%
+  /// - 风格、身体特征: 30%
+  /// - 其他: 50%
   static List<RandomCategory> createDefault() {
     return [
-      // 发色
-      RandomCategory.create(
+      // 发色 - 100% 概率（角色核心特征）
+      RandomCategory(
+        id: _uuid.v4(),
         name: '发色',
         key: 'hairColor',
+        probability: 1.0,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'blonde hair', weight: 5),
@@ -38,14 +50,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 瞳色
-      RandomCategory.create(
+      // 瞳色 - 100% 概率（角色核心特征）
+      RandomCategory(
+        id: _uuid.v4(),
         name: '瞳色',
         key: 'eyeColor',
+        probability: 1.0,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'blue eyes', weight: 6),
@@ -61,14 +75,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 发型
-      RandomCategory.create(
+      // 发型 - 50% 概率
+      RandomCategory(
+        id: _uuid.v4(),
         name: '发型',
         key: 'hairStyle',
+        probability: 0.5,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'long hair', weight: 8),
@@ -85,14 +101,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 表情
-      RandomCategory.create(
+      // 表情 - 50% 概率
+      RandomCategory(
+        id: _uuid.v4(),
         name: '表情',
         key: 'expression',
+        probability: 0.5,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'smile', weight: 10),
@@ -108,14 +126,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 姿势
-      RandomCategory.create(
+      // 姿势 - 50% 概率
+      RandomCategory(
+        id: _uuid.v4(),
         name: '姿势',
         key: 'pose',
+        probability: 0.5,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'looking at viewer', weight: 10),
@@ -133,14 +153,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 服装
-      RandomCategory.create(
+      // 服装 - 100% 概率（角色核心特征）
+      RandomCategory(
+        id: _uuid.v4(),
         name: '服装',
         key: 'clothing',
+        probability: 1.0,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'school uniform', weight: 8),
@@ -155,14 +177,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 配饰
-      RandomCategory.create(
+      // 配饰 - 50% 概率
+      RandomCategory(
+        id: _uuid.v4(),
         name: '配饰',
         key: 'accessory',
+        probability: 0.5,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'ribbon', weight: 6),
@@ -177,14 +201,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 身体特征
-      RandomCategory.create(
+      // 身体特征 - 30% 概率（较少使用）
+      RandomCategory(
+        id: _uuid.v4(),
         name: '身体特征',
         key: 'bodyFeature',
+        probability: 0.3,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'large breasts', weight: 5),
@@ -197,14 +223,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 背景
-      RandomCategory.create(
+      // 背景 - 90% 概率（NAI 使用 90%）
+      RandomCategory(
+        id: _uuid.v4(),
         name: '背景',
         key: 'background',
+        probability: 0.9,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'simple background', weight: 10),
@@ -219,14 +247,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 场景
-      RandomCategory.create(
+      // 场景 - 50% 概率
+      RandomCategory(
+        id: _uuid.v4(),
         name: '场景',
         key: 'scene',
+        probability: 0.5,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'outdoors', weight: 8),
@@ -244,14 +274,16 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 风格
-      RandomCategory.create(
+      // 风格 - 30% 概率（NAI 使用 30%）
+      RandomCategory(
+        id: _uuid.v4(),
         name: '风格',
         key: 'style',
+        probability: 0.3,
         groups: [
           RandomTagGroup.custom(
             name: 'NAI内置',
-            probability: 0.5,
+            probability: 1.0,
             selectionMode: SelectionMode.single,
             tags: const [
               WeightedTag(tag: 'masterpiece', weight: 10),

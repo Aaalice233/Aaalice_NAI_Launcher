@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'algorithm_config.dart';
 import 'default_categories.dart';
 import 'default_tag_group_mappings.dart';
+import 'pool_mapping.dart';
 import 'random_category.dart';
 import 'tag_group_mapping.dart';
 
@@ -45,6 +46,9 @@ class RandomPreset with _$RandomPreset {
 
     /// Tag Group 映射配置
     @Default([]) List<TagGroupMapping> tagGroupMappings,
+
+    /// Pool 映射配置
+    @Default([]) List<PoolMapping> poolMappings,
 
     /// 热度阈值 (0-100)
     @Default(50) int popularityThreshold,
@@ -110,6 +114,9 @@ class RandomPreset with _$RandomPreset {
       categories: source.categories.map((c) => c.deepCopy()).toList(),
       tagGroupMappings: source.tagGroupMappings.map((m) => m.copyWith(
         id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
+      ),).toList(),
+      poolMappings: source.poolMappings.map((m) => m.copyWith(
+        id: 'pool_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
       ),).toList(),
       popularityThreshold: source.popularityThreshold,
       createdAt: now,
@@ -179,6 +186,14 @@ class RandomPreset with _$RandomPreset {
     );
   }
 
+  /// 按 key 删除类别
+  RandomPreset removeCategoryByKey(String key) {
+    return copyWith(
+      categories: categories.where((c) => c.key != key).toList(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
   /// 更新单个类别
   RandomPreset updateCategory(RandomCategory updatedCategory) {
     final index = categories.indexWhere((c) => c.id == updatedCategory.id);
@@ -186,6 +201,23 @@ class RandomPreset with _$RandomPreset {
 
     final newCategories = [...categories];
     newCategories[index] = updatedCategory;
+    return copyWith(
+      categories: newCategories,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 按 key 更新或添加类别
+  RandomPreset upsertCategoryByKey(RandomCategory category) {
+    final index = categories.indexWhere((c) => c.key == category.key);
+    if (index == -1) {
+      // 不存在则添加
+      return addCategory(category);
+    }
+
+    // 存在则更新
+    final newCategories = [...categories];
+    newCategories[index] = category;
     return copyWith(
       categories: newCategories,
       updatedAt: DateTime.now(),
@@ -261,6 +293,59 @@ class RandomPreset with _$RandomPreset {
     return null;
   }
 
+  // ========== Pool 映射管理 ==========
+
+  /// 添加 Pool 映射
+  RandomPreset addPoolMapping(PoolMapping mapping) {
+    return copyWith(
+      poolMappings: [...poolMappings, mapping],
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 删除 Pool 映射
+  RandomPreset removePoolMapping(String mappingId) {
+    return copyWith(
+      poolMappings: poolMappings.where((m) => m.id != mappingId).toList(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 更新 Pool 映射
+  RandomPreset updatePoolMapping(PoolMapping updatedMapping) {
+    final index = poolMappings.indexWhere((m) => m.id == updatedMapping.id);
+    if (index == -1) return this;
+
+    final newMappings = [...poolMappings];
+    newMappings[index] = updatedMapping;
+    return copyWith(
+      poolMappings: newMappings,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 切换 Pool 映射启用状态
+  RandomPreset togglePoolMappingEnabled(String mappingId) {
+    final index = poolMappings.indexWhere((m) => m.id == mappingId);
+    if (index == -1) return this;
+
+    final mapping = poolMappings[index];
+    final newMappings = [...poolMappings];
+    newMappings[index] = mapping.copyWith(enabled: !mapping.enabled);
+    return copyWith(
+      poolMappings: newMappings,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 通过ID查找 Pool 映射
+  PoolMapping? findPoolMappingById(String mappingId) {
+    for (final mapping in poolMappings) {
+      if (mapping.id == mappingId) return mapping;
+    }
+    return null;
+  }
+
   // ========== 热度阈值管理 ==========
 
   /// 更新热度阈值
@@ -278,6 +363,7 @@ class RandomPreset with _$RandomPreset {
       categoryProbabilities: const CategoryProbabilityConfig(),
       categories: DefaultCategories.createDefault(),
       tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
+      poolMappings: [],
       popularityThreshold: 50,
       updatedAt: DateTime.now(),
     );
@@ -292,6 +378,7 @@ class RandomPreset with _$RandomPreset {
       'algorithmConfig': algorithmConfig.toJson(),
       'categories': categories.map((c) => c.toJson()).toList(),
       'tagGroupMappings': tagGroupMappings.map((m) => m.toJson()).toList(),
+      'poolMappings': poolMappings.map((m) => m.toJson()).toList(),
       'popularityThreshold': popularityThreshold,
       'exportedAt': DateTime.now().toIso8601String(),
     };
@@ -322,6 +409,14 @@ class RandomPreset with _$RandomPreset {
           .toList();
     }
 
+    // 解析 Pool 映射列表
+    List<PoolMapping> poolMappings = [];
+    if (json['poolMappings'] != null) {
+      poolMappings = (json['poolMappings'] as List)
+          .map((m) => PoolMapping.fromJson(m as Map<String, dynamic>))
+          .toList();
+    }
+
     return RandomPreset(
       id: const Uuid().v4(),
       name: json['name'] as String? ?? '导入的预设',
@@ -340,6 +435,7 @@ class RandomPreset with _$RandomPreset {
           : const CategoryProbabilityConfig(),
       categories: categories,
       tagGroupMappings: tagGroupMappings,
+      poolMappings: poolMappings,
       popularityThreshold: json['popularityThreshold'] as int? ?? 50,
       createdAt: now,
       updatedAt: now,

@@ -1033,6 +1033,12 @@
       "name": {}
     }
   },
+  "promptConfig_confirmRemoveCategory": "确定要移除类别「{name}」吗？移除后该类别将不再参与随机生成。",
+  "@promptConfig_confirmRemoveCategory": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "promptConfig_groupList": "分组列表",
   "promptConfig_groupCount": "{count} 个分组",
   "@promptConfig_groupCount": {
@@ -1044,18 +1050,13 @@
   "promptConfig_noGroups": "暂无分组，点击「添加分组」创建",
   "promptConfig_builtinLibrary": "NAI 内置词库",
   "promptConfig_danbooruTagGroup": "Danbooru TagGroup",
+  "promptConfig_danbooruPool": "Danbooru Pool",
   "promptConfig_categorySettings": "类别设置",
-  "promptConfig_removeCategory": "移除类别",
-  "promptConfig_confirmRemoveCategory": "确定要移除类别「{name}」吗？",
-  "@promptConfig_confirmRemoveCategory": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptConfig_enableCategory": "启用类别",
   "promptConfig_disableCategory": "禁用类别",
   "naiMode_noLibrary": "词库未加载",
   "naiMode_noTags": "暂无标签",
+  "naiMode_noCategories": "暂无类别，请重置预设或添加新类别",
   "naiMode_previewResult": "生成预览",
   "naiMode_characterPrompts": "角色提示词",
   "naiMode_character": "角色",
@@ -1312,6 +1313,27 @@
 
   "tagGroup_cacheDetails": "缓存详情",
   "tagGroup_cachedCategories": "已缓存分类",
+
+  "cache_title": "缓存管理",
+  "cache_manage": "缓存管理",
+  "cache_tabTagGroup": "Tag Group",
+  "cache_tabPool": "Pool",
+  "cache_noTagGroups": "暂无 Tag Group 缓存",
+  "cache_noPools": "暂无 Pool 缓存",
+  "cache_tags": "标签",
+  "cache_neverSynced": "从未同步",
+  "cache_refresh": "刷新",
+  "cache_refreshAll": "刷新全部",
+  "cache_totalStats": "共 {count} 个缓存，{tags} 个标签",
+  "@cache_totalStats": {
+    "placeholders": {
+      "count": {},
+      "tags": {}
+    }
+  },
+  "addGroup_fetchingCache": "正在获取数据...",
+  "addGroup_fetchFailed": "获取数据失败，但仍可添加词组",
+
   "tagGroup_noCachedData": "无缓存数据",
   "tagGroup_syncRequired": "需要同步",
   "tagGroup_notSynced": "未同步",
@@ -1362,6 +1384,19 @@
   "addGroup_includeChildrenDesc": "同时获取该 Tag Group 下所有子分组的标签",
   "addGroup_errorEmptyTitle": "请输入 Tag Group 标题",
   "addGroup_errorGroupExists": "该 Tag Group 已存在",
+  "addGroup_sourceTypeLabel": "数据来源",
+  "addGroup_poolTab": "Danbooru Pool",
+  "addGroup_poolSearchLabel": "搜索 Pool",
+  "addGroup_poolSearchHint": "输入 Pool 名称进行搜索",
+  "addGroup_poolSearchEmpty": "输入关键词搜索 Danbooru Pool",
+  "addGroup_poolSearchError": "搜索失败",
+  "addGroup_poolNoResults": "未找到匹配的 Pool",
+  "addGroup_poolPostCount": "{count} 个帖子",
+  "@addGroup_poolPostCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
 
   "globalSettings_title": "总览设置",
   "globalSettings_resetToDefault": "重置为默认",
@@ -1514,6 +1549,7 @@
   "categorySettings_shuffle": "打乱顺序",
   "categorySettings_shuffleDesc": "随机排列选中的词组输出顺序",
   "categorySettings_unifiedBracket": "统一权重括号",
+  "categorySettings_unifiedBracketDisabled": "未启用",
   "categorySettings_enableUnifiedBracket": "启用统一设置",
   "categorySettings_enableUnifiedBracketDesc": "启用后将覆盖各词组的独立括号设置",
   "categorySettings_bracketRange": "括号层数范围",
@@ -1572,5 +1608,10 @@
   "tagGroupSettings_settingsButton": "设置",
 
   "promptConfig_tagCountUnit": "个标签",
-  "promptConfig_removeGroup": "移除分组"
+  "promptConfig_removeGroup": "移除分组",
+
+  "preset_resetToDefault": "重置为默认",
+  "preset_resetConfirmTitle": "重置预设",
+  "preset_resetConfirmMessage": "确定要将当前预设的所有类别和词组设置重置为默认配置吗？此操作不可撤销。",
+  "preset_resetSuccess": "预设已重置为默认配置"
 }

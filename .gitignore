@@ -105,3 +105,6 @@ CLAUDE.md
 # Local folders
 logs/
 nai_web_copy/
+
+# Auto Claude data directory
+.auto-claude/

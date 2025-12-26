@@ -6,10 +6,14 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/character/character_prompt.dart';
 import '../models/prompt/category_filter_config.dart';
+import '../models/prompt/random_category.dart';
+import '../models/prompt/random_preset.dart';
 import '../models/prompt/random_prompt_result.dart';
+import '../models/prompt/random_tag_group.dart';
 import '../models/prompt/tag_category.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/weighted_tag.dart';
+import 'sequential_state_service.dart';
 import 'tag_library_service.dart';
 
 part 'random_prompt_generator.g.dart';
@@ -20,8 +24,9 @@ part 'random_prompt_generator.g.dart';
 /// 参考: docs/NAI随机提示词功能分析.md
 class RandomPromptGenerator {
   final TagLibraryService _libraryService;
+  final SequentialStateService _sequentialService;
 
-  RandomPromptGenerator(this._libraryService);
+  RandomPromptGenerator(this._libraryService, this._sequentialService);
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -445,11 +450,350 @@ class RandomPromptGenerator {
       seed: seed,
     );
   }
+
+  // ========== 从预设配置生成（Phase 1 新增） ==========
+
+  /// 从预设生成提示词
+  ///
+  /// [preset] 随机预设配置
+  /// [isV4Model] 是否为 V4+ 模型
+  /// [seed] 随机种子
+  Future<RandomPromptResult> generateFromPreset({
+    required RandomPreset preset,
+    bool isV4Model = true,
+    int? seed,
+  }) async {
+    final random = seed != null ? Random(seed) : Random();
+
+    AppLogger.d(
+      'Generating from preset: ${preset.name} (${preset.categories.length} categories)',
+      'RandomGen',
+    );
+
+    // 从预设类别生成标签
+    final tags = _generateFromPresetCategories(preset, random);
+
+    if (tags.isEmpty) {
+      // 如果没有生成任何标签，返回默认结果
+      return RandomPromptResult(
+        mainPrompt: '',
+        mode: RandomGenerationMode.naiOfficial,
+        seed: seed,
+      );
+    }
+
+    return RandomPromptResult(
+      mainPrompt: tags.join(', '),
+      mode: RandomGenerationMode.naiOfficial,
+      seed: seed,
+    );
+  }
+
+  /// 从预设类别列表生成标签
+  List<String> _generateFromPresetCategories(RandomPreset preset, Random random) {
+    final results = <String>[];
+
+    for (final category in preset.categories) {
+      // 跳过禁用的类别
+      if (!category.enabled) continue;
+
+      // 类别概率检查
+      if (random.nextDouble() > category.probability) continue;
+
+      // 生成类别内的标签
+      final categoryTags = _generateFromCategory(category, random);
+      results.addAll(categoryTags);
+    }
+
+    // 应用变量替换
+    return _applyVariableReplacement(results, preset, random);
+  }
+
+  /// 从单个类别生成标签
+  List<String> _generateFromCategory(RandomCategory category, Random random) {
+    final enabledGroups = category.groups.where((g) => g.enabled).toList();
+    if (enabledGroups.isEmpty) return [];
+
+    // 根据 groupSelectionMode 选择词组
+    final selectedGroups = _selectItems<RandomTagGroup>(
+      enabledGroups,
+      category.groupSelectionMode,
+      category.groupSelectCount,
+      random,
+      (g) => 1.0, // 词组默认等权重选择
+      sequentialKey: 'cat_${category.id}',
+    );
+
+    final results = <String>[];
+    for (final group in selectedGroups) {
+      // 词组概率检查
+      if (random.nextDouble() > group.probability) continue;
+
+      // 从词组生成标签
+      final tags = _generateFromGroup(group, category, random);
+      results.addAll(tags);
+    }
+
+    // 类别级打乱
+    if (category.shuffle) {
+      results.shuffle(random);
+    }
+
+    return results;
+  }
+
+  /// 从单个词组生成标签（支持递归嵌套）
+  List<String> _generateFromGroup(
+    RandomTagGroup group,
+    RandomCategory category,
+    Random random,
+  ) {
+    // 处理嵌套配置
+    if (group.nodeType == TagGroupNodeType.config) {
+      return _generateFromNestedGroup(group, category, random);
+    }
+
+    // 处理标签列表
+    final enabledTags = group.tags;
+    if (enabledTags.isEmpty) return [];
+
+    // 根据 selectionMode 选择标签
+    final selectedTags = _selectItems<WeightedTag>(
+      enabledTags,
+      group.selectionMode,
+      group.multipleNum,
+      random,
+      (t) => t.weight.toDouble(), // 使用标签权重
+      sequentialKey: 'grp_${group.id}',
+    );
+
+    // 确定括号范围
+    final bracketMin = category.useUnifiedBracket
+        ? category.unifiedBracketMin
+        : group.bracketMin;
+    final bracketMax = category.useUnifiedBracket
+        ? category.unifiedBracketMax
+        : group.bracketMax;
+
+    // 应用权重括号
+    final bracketedTags = selectedTags.map((t) {
+      return _applyBrackets(t.tag, bracketMin, bracketMax, random);
+    }).toList();
+
+    // 词组级打乱
+    if (group.shuffle) {
+      bracketedTags.shuffle(random);
+    }
+
+    return bracketedTags;
+  }
+
+  /// 从嵌套词组生成标签（递归）
+  List<String> _generateFromNestedGroup(
+    RandomTagGroup group,
+    RandomCategory category,
+    Random random,
+  ) {
+    final enabledChildren = group.children.where((c) => c.enabled).toList();
+    if (enabledChildren.isEmpty) return [];
+
+    // 根据 selectionMode 选择子词组
+    final selectedChildren = _selectItems<RandomTagGroup>(
+      enabledChildren,
+      group.selectionMode,
+      group.multipleNum,
+      random,
+      (c) => 1.0, // 子词组默认等权重
+      sequentialKey: 'nested_${group.id}',
+    );
+
+    final results = <String>[];
+    for (final child in selectedChildren) {
+      // 子词组概率检查
+      if (random.nextDouble() > child.probability) continue;
+
+      // 递归生成
+      final childTags = _generateFromGroup(child, category, random);
+      results.addAll(childTags);
+    }
+
+    // 词组级打乱
+    if (group.shuffle) {
+      results.shuffle(random);
+    }
+
+    return results;
+  }
+
+  /// 通用选择算法
+  ///
+  /// 支持 5 种选择模式：
+  /// - single: 加权随机选择一个
+  /// - all: 选择所有
+  /// - multipleNum: 选择指定数量
+  /// - multipleProb: 每个独立概率判断
+  /// - sequential: 顺序轮替（持久化）
+  ///
+  /// [sequentialKey] 用于 sequential 模式的持久化 key
+  List<T> _selectItems<T>(
+    List<T> items,
+    SelectionMode mode,
+    int count,
+    Random random,
+    double Function(T) weightGetter, {
+    String? sequentialKey,
+  }) {
+    if (items.isEmpty) return [];
+
+    return switch (mode) {
+      SelectionMode.single => [_weightedSelect(items, random, weightGetter)],
+      SelectionMode.all => List.from(items),
+      SelectionMode.multipleNum => _selectByCount(items, count, random, weightGetter),
+      SelectionMode.multipleProb => _selectByProbability(items, random),
+      SelectionMode.sequential => [_getSequentialItem(items, sequentialKey ?? 'default')],
+    };
+  }
+
+  /// 加权随机选择单个项目
+  T _weightedSelect<T>(
+    List<T> items,
+    Random random,
+    double Function(T) weightGetter,
+  ) {
+    if (items.length == 1) return items.first;
+
+    final totalWeight = items.fold<double>(0, (sum, t) => sum + weightGetter(t));
+    if (totalWeight <= 0) return items[random.nextInt(items.length)];
+
+    final target = random.nextDouble() * totalWeight;
+    var cumulative = 0.0;
+
+    for (final item in items) {
+      cumulative += weightGetter(item);
+      if (target <= cumulative) {
+        return item;
+      }
+    }
+
+    return items.last;
+  }
+
+  /// 按数量选择（不重复）
+  List<T> _selectByCount<T>(
+    List<T> items,
+    int count,
+    Random random,
+    double Function(T) weightGetter,
+  ) {
+    if (count >= items.length) return List.from(items);
+
+    final selected = <T>[];
+    final remaining = List<T>.from(items);
+
+    for (var i = 0; i < count && remaining.isNotEmpty; i++) {
+      final item = _weightedSelect(remaining, random, weightGetter);
+      selected.add(item);
+      remaining.remove(item);
+    }
+
+    return selected;
+  }
+
+  /// 按概率独立选择（每个项目 50% 概率）
+  List<T> _selectByProbability<T>(List<T> items, Random random) {
+    return items.where((_) => random.nextBool()).toList();
+  }
+
+  /// 顺序轮替选择（使用持久化服务）
+  T _getSequentialItem<T>(List<T> items, String key) {
+    final index = _sequentialService.getNextIndexSync(key, items.length);
+    return items[index];
+  }
+
+  /// 应用权重括号
+  ///
+  /// [bracketMin] 最小括号层数（可为负数）
+  /// [bracketMax] 最大括号层数（可为负数）
+  /// 正数使用 {} 增强权重
+  /// 负数使用 [] 降低权重
+  String _applyBrackets(String tag, int bracketMin, int bracketMax, Random random) {
+    if (bracketMin == 0 && bracketMax == 0) return tag;
+
+    // 确保 min <= max
+    final min = bracketMin <= bracketMax ? bracketMin : bracketMax;
+    final max = bracketMin <= bracketMax ? bracketMax : bracketMin;
+
+    // 随机选择层数
+    final n = min + random.nextInt(max - min + 1);
+
+    if (n == 0) return tag;
+
+    // 负数用 []（降权），正数用 {}（增强）
+    if (n < 0) {
+      final count = -n;
+      final open = '[' * count;
+      final close = ']' * count;
+      return '$open$tag$close';
+    } else {
+      final open = '{' * n;
+      final close = '}' * n;
+      return '$open$tag$close';
+    }
+  }
+
+  // ========== 变量替换系统（Phase 4） ==========
+
+  /// 变量引用正则：__变量名__
+  static final RegExp _variablePattern = RegExp(
+    r'__([^\s_][^_]*?)__',
+    unicode: true,
+  );
+
+  /// 替换变量引用
+  ///
+  /// 支持格式：__变量名__
+  /// 会在预设的类别和词组中查找匹配项并生成内容
+  String _replaceVariables(String text, RandomPreset preset, Random random) {
+    if (!text.contains('__')) return text;
+
+    return text.replaceAllMapped(_variablePattern, (match) {
+      final varName = match.group(1)!;
+
+      // 1. 在类别中查找匹配（按名称或 key）
+      for (final category in preset.categories) {
+        if (category.name == varName || category.key == varName) {
+          final generated = _generateFromCategory(category, random);
+          return generated.join(', ');
+        }
+
+        // 2. 在词组中查找匹配
+        for (final group in category.groups) {
+          if (group.name == varName) {
+            final generated = _generateFromGroup(group, category, random);
+            return generated.join(', ');
+          }
+        }
+      }
+
+      // 未找到匹配，保持原样
+      return match.group(0)!;
+    });
+  }
+
+  /// 对生成结果进行变量替换
+  List<String> _applyVariableReplacement(
+    List<String> tags,
+    RandomPreset preset,
+    Random random,
+  ) {
+    return tags.map((tag) => _replaceVariables(tag, preset, random)).toList();
+  }
 }
 
 /// Provider
 @Riverpod(keepAlive: true)
 RandomPromptGenerator randomPromptGenerator(Ref ref) {
   final libraryService = ref.watch(tagLibraryServiceProvider);
-  return RandomPromptGenerator(libraryService);
+  final sequentialService = ref.watch(sequentialStateServiceProvider);
+  return RandomPromptGenerator(libraryService, sequentialService);
 }

@@ -105,10 +105,12 @@ class DefaultTagGroupMappings {
   /// 创建默认映射列表的深拷贝
   ///
   /// 用于初始化预设时使用，确保每个预设有独立的映射副本
+  /// 注意：默认禁用所有 Danbooru 映射，只启用内置词组
   static List<TagGroupMapping> createDefaultMappings() {
     return mappings.map((m) => m.copyWith(
       id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${m.targetCategory.name}',
       createdAt: DateTime.now(),
+      enabled: false, // 默认禁用 Danbooru 映射，只启用内置词组
     ),).toList();
   }
 

@@ -1358,6 +1358,12 @@
       "name": {}
     }
   },
+  "promptConfig_confirmRemoveCategory": "Are you sure you want to remove category \"{name}\"? It will no longer participate in random generation.",
+  "@promptConfig_confirmRemoveCategory": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "promptConfig_groupList": "Group List",
   "promptConfig_groupCount": "{count} groups",
   "@promptConfig_groupCount": {
@@ -1369,17 +1375,12 @@
   "promptConfig_noGroups": "No groups yet, click \"Add Group\" to create",
   "promptConfig_builtinLibrary": "NAI Built-in Library",
   "promptConfig_danbooruTagGroup": "Danbooru TagGroup",
+  "promptConfig_danbooruPool": "Danbooru Pool",
   "promptConfig_categorySettings": "Category Settings",
-  "promptConfig_removeCategory": "Remove Category",
-  "promptConfig_confirmRemoveCategory": "Are you sure you want to remove category \"{name}\"?",
-  "@promptConfig_confirmRemoveCategory": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "promptConfig_enableCategory": "Enable Category",
   "promptConfig_disableCategory": "Disable Category",
   "naiMode_noLibrary": "Library not loaded",
+  "naiMode_noCategories": "No categories. Please reset preset or add new categories.",
   "naiMode_noTags": "No tags",
   "naiMode_previewResult": "Preview Result",
   "naiMode_characterPrompts": "Character Prompts",
@@ -1637,6 +1638,27 @@
 
   "tagGroup_cacheDetails": "Cache Details",
   "tagGroup_cachedCategories": "Cached Categories",
+
+  "cache_title": "Cache Management",
+  "cache_manage": "Manage Cache",
+  "cache_tabTagGroup": "Tag Group",
+  "cache_tabPool": "Pool",
+  "cache_noTagGroups": "No Tag Group cache",
+  "cache_noPools": "No Pool cache",
+  "cache_tags": "tags",
+  "cache_neverSynced": "Never synced",
+  "cache_refresh": "Refresh",
+  "cache_refreshAll": "Refresh All",
+  "cache_totalStats": "{count} cached, {tags} tags total",
+  "@cache_totalStats": {
+    "placeholders": {
+      "count": {},
+      "tags": {}
+    }
+  },
+  "addGroup_fetchingCache": "Fetching data...",
+  "addGroup_fetchFailed": "Failed to fetch data, but you can still add the group",
+
   "tagGroup_noCachedData": "No cached data",
   "tagGroup_syncRequired": "Sync required",
   "tagGroup_notSynced": "Not synced",
@@ -1687,6 +1709,19 @@
   "addGroup_includeChildrenDesc": "Also fetch tags from all sub-groups of this Tag Group",
   "addGroup_errorEmptyTitle": "Please enter Tag Group title",
   "addGroup_errorGroupExists": "This Tag Group already exists",
+  "addGroup_sourceTypeLabel": "Data Source",
+  "addGroup_poolTab": "Danbooru Pool",
+  "addGroup_poolSearchLabel": "Search Pool",
+  "addGroup_poolSearchHint": "Enter pool name to search",
+  "addGroup_poolSearchEmpty": "Enter keywords to search Danbooru Pools",
+  "addGroup_poolSearchError": "Search failed",
+  "addGroup_poolNoResults": "No matching pools found",
+  "addGroup_poolPostCount": "{count} posts",
+  "@addGroup_poolPostCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
 
   "globalSettings_title": "Overview Settings",
   "globalSettings_resetToDefault": "Reset to Default",
@@ -1839,6 +1874,7 @@
   "categorySettings_shuffle": "Shuffle Order",
   "categorySettings_shuffleDesc": "Randomly arrange selected groups output order",
   "categorySettings_unifiedBracket": "Unified Bracket",
+  "categorySettings_unifiedBracketDisabled": "Disabled",
   "categorySettings_enableUnifiedBracket": "Enable Unified Settings",
   "categorySettings_enableUnifiedBracketDesc": "When enabled, will override each group's individual bracket settings",
   "categorySettings_bracketRange": "Bracket Layer Range",
@@ -1897,5 +1933,10 @@
   "tagGroupSettings_settingsButton": "Settings",
 
   "promptConfig_tagCountUnit": "tags",
-  "promptConfig_removeGroup": "Remove Group"
+  "promptConfig_removeGroup": "Remove Group",
+
+  "preset_resetToDefault": "Reset to Default",
+  "preset_resetConfirmTitle": "Reset Preset",
+  "preset_resetConfirmMessage": "Are you sure you want to reset all categories and groups in the current preset to default? This action cannot be undone.",
+  "preset_resetSuccess": "Preset has been reset to default"
 }

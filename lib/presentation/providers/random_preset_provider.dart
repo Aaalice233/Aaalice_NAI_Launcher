@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
 import '../../data/models/prompt/default_tag_group_mappings.dart';
+import '../../data/models/prompt/pool_mapping.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
 import '../../data/models/prompt/tag_category.dart';
@@ -276,12 +277,20 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     await updatePreset(preset.addCategory(category));
   }
 
-  /// 从当前预设删除类别
+  /// 从当前预设删除类别（按 ID）
   Future<void> removeCategory(String categoryId) async {
     final preset = state.selectedPreset;
     if (preset == null) return;
 
     await updatePreset(preset.removeCategory(categoryId));
+  }
+
+  /// 从当前预设删除类别（按 key）
+  Future<void> removeCategoryByKey(String categoryKey) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.removeCategoryByKey(categoryKey));
   }
 
   /// 更新当前预设的单个类别
@@ -290,6 +299,14 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     if (preset == null) return;
 
     await updatePreset(preset.updateCategory(category));
+  }
+
+  /// 更新或添加类别（按 key 匹配）
+  Future<void> upsertCategoryByKey(RandomCategory category) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.upsertCategoryByKey(category));
   }
 
   /// 重置当前预设为默认配置
@@ -370,6 +387,40 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     if (preset == null) return;
 
     await updatePreset(preset.toggleTagGroupMappingEnabled(mappingId));
+  }
+
+  // ========== Pool 映射管理 ==========
+
+  /// 添加 Pool 映射到当前预设
+  Future<void> addPoolMapping(PoolMapping mapping) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.addPoolMapping(mapping));
+  }
+
+  /// 从当前预设删除 Pool 映射
+  Future<void> removePoolMapping(String mappingId) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.removePoolMapping(mappingId));
+  }
+
+  /// 更新当前预设的 Pool 映射
+  Future<void> updatePoolMapping(PoolMapping mapping) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.updatePoolMapping(mapping));
+  }
+
+  /// 切换当前预设的 Pool 映射启用状态
+  Future<void> togglePoolMappingEnabled(String mappingId) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    await updatePreset(preset.togglePoolMappingEnabled(mappingId));
   }
 
   // ========== 热度阈值管理 ==========

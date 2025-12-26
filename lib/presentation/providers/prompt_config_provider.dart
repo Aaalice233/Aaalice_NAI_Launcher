@@ -8,6 +8,7 @@ import '../../data/models/prompt/prompt_config.dart';
 import '../../data/models/prompt/random_prompt_result.dart';
 import '../../data/services/random_prompt_generator.dart';
 import 'random_mode_provider.dart';
+import 'random_preset_provider.dart';
 import 'tag_library_provider.dart';
 
 part 'prompt_config_provider.g.dart';
@@ -147,6 +148,19 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     bool isV4Model = true,
   }) async {
     final generator = ref.read(randomPromptGeneratorProvider);
+    final presetState = ref.read(randomPresetNotifierProvider);
+
+    // 优先使用用户预设生成
+    final preset = presetState.selectedPreset;
+    if (preset != null && preset.categories.isNotEmpty) {
+      return generator.generateFromPreset(
+        preset: preset,
+        isV4Model: isV4Model,
+        seed: seed,
+      );
+    }
+
+    // 如果没有配置类别，使用原有 TagLibrary 方式
     final filterConfig = ref.read(tagLibraryNotifierProvider).categoryFilterConfig;
     return generator.generateNaiStyle(
       seed: seed,
