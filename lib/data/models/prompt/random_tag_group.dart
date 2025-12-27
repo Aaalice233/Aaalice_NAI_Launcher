@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'pool_output_config.dart';
 import 'weighted_tag.dart';
 
 part 'random_tag_group.freezed.dart';
@@ -70,6 +71,9 @@ class RandomTagGroup with _$RandomTagGroup {
     /// 显示名称
     required String name,
 
+    /// emoji 图标（用于 UI 显示）
+    @Default('') String emoji,
+
     /// 来源类型
     @Default(TagGroupSourceType.custom) TagGroupSourceType sourceType,
 
@@ -108,6 +112,12 @@ class RandomTagGroup with _$RandomTagGroup {
 
     /// 最后同步时间（仅对 tagGroup/pool 类型有效）
     DateTime? lastSyncedAt,
+
+    /// Pool 输出配置（仅对 pool 类型有效）
+    @Default(PoolOutputConfig()) PoolOutputConfig poolOutputConfig,
+
+    /// Pool 选择的帖子数量（用于 multipleNum 模式时的 post 数量）
+    @Default(1) int poolPostCount,
   }) = _RandomTagGroup;
 
   factory RandomTagGroup.fromJson(Map<String, dynamic> json) =>
@@ -116,6 +126,7 @@ class RandomTagGroup with _$RandomTagGroup {
   /// 创建自定义分组
   factory RandomTagGroup.custom({
     required String name,
+    String emoji = '',
     List<WeightedTag>? tags,
     SelectionMode selectionMode = SelectionMode.single,
     double probability = 1.0,
@@ -123,6 +134,7 @@ class RandomTagGroup with _$RandomTagGroup {
     return RandomTagGroup(
       id: const Uuid().v4(),
       name: name,
+      emoji: emoji,
       sourceType: TagGroupSourceType.custom,
       selectionMode: selectionMode,
       probability: probability,
@@ -135,10 +147,12 @@ class RandomTagGroup with _$RandomTagGroup {
     required String name,
     required String tagGroupName,
     required List<WeightedTag> tags,
+    String emoji = '',
   }) {
     return RandomTagGroup(
       id: const Uuid().v4(),
       name: name,
+      emoji: emoji,
       sourceType: TagGroupSourceType.tagGroup,
       sourceId: tagGroupName,
       tags: tags,
@@ -150,14 +164,18 @@ class RandomTagGroup with _$RandomTagGroup {
   factory RandomTagGroup.fromPool({
     required String name,
     required String poolId,
-    required List<WeightedTag> tags,
+    required int postCount,
+    String emoji = '',
+    PoolOutputConfig? outputConfig,
   }) {
     return RandomTagGroup(
       id: const Uuid().v4(),
       name: name,
+      emoji: emoji,
       sourceType: TagGroupSourceType.pool,
       sourceId: poolId,
-      tags: tags,
+      tags: [], // Pool 不使用 tags 字段
+      poolOutputConfig: outputConfig ?? const PoolOutputConfig(),
       lastSyncedAt: DateTime.now(),
     );
   }

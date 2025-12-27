@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import 'pool_output_config.dart';
 import 'tag_category.dart';
 
 part 'pool_mapping.freezed.dart';
@@ -39,8 +40,11 @@ class PoolMapping with _$PoolMapping {
     /// 上次同步时间
     DateTime? lastSyncedAt,
 
-    /// 上次同步的标签数量
-    @Default(0) int lastSyncedTagCount,
+    /// 上次同步的帖子数量（已缓存）
+    @Default(0) int lastSyncedPostCount,
+
+    /// Pool 输出配置
+    @Default(PoolOutputConfig()) PoolOutputConfig outputConfig,
   }) = _PoolMapping;
 
   factory PoolMapping.fromJson(Map<String, dynamic> json) =>

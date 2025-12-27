@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
@@ -64,12 +62,6 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
   TagGroupCacheService get _cacheService =>
       ref.read(tagGroupCacheServiceProvider);
 
-  /// 防抖计时器，用于减少热度滑块调整时的计算频率
-  Timer? _debounceTimer;
-
-  /// 防抖延迟时间（毫秒）
-  static const int _debounceDelayMs = 150;
-
   @override
   TagGroupSyncState build() {
     _init();
@@ -80,48 +72,19 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
     try {
       await _cacheService.init();
 
-      // 初始化时根据当前预设的热度阈值计算过滤数量
+      // 初始化时计算过滤数量
       final presetState = ref.read(randomPresetNotifierProvider);
       final preset = presetState.selectedPreset;
       if (preset != null && preset.tagGroupMappings.isNotEmpty) {
-        await _updateFilteredCounts(
-          preset.tagGroupMappings,
-          preset.popularityThreshold * 100, // 转换为 post count
-        );
+        await _updateFilteredCounts(preset.tagGroupMappings);
       }
     } catch (e) {
       AppLogger.e('Failed to init tag group sync: $e', 'TagGroupSync');
     }
   }
 
-  /// 设置热度阈值并更新过滤数量（带防抖）
-  void setPopularityThreshold(int threshold) {
-    // 取消之前的防抖计时器
-    _debounceTimer?.cancel();
-
-    // 设置新的防抖计时器
-    _debounceTimer = Timer(const Duration(milliseconds: _debounceDelayMs), () async {
-      final presetState = ref.read(randomPresetNotifierProvider);
-      final preset = presetState.selectedPreset;
-      if (preset != null) {
-        // 更新预设的热度阈值
-        await ref.read(randomPresetNotifierProvider.notifier)
-            .updatePopularityThreshold(threshold);
-
-        // 重新计算过滤数量
-        await _updateFilteredCounts(
-          preset.tagGroupMappings,
-          threshold * 100,
-        );
-      }
-    });
-  }
-
   /// 从缓存计算过滤后的标签数量
-  Future<void> _updateFilteredCounts(
-    List<TagGroupMapping> mappings,
-    int minPostCount,
-  ) async {
+  Future<void> _updateFilteredCounts(List<TagGroupMapping> mappings) async {
     final enabledMappings = mappings.where((m) => m.enabled).toList();
     if (enabledMappings.isEmpty) {
       state = state.copyWith(filteredTagCounts: {});
@@ -130,10 +93,10 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
 
     final groupTitles = enabledMappings.map((m) => m.groupTitle).toList();
 
-    // 使用异步方法计算（包含子组）
+    // 使用异步方法计算（包含子组），不再使用热度阈值过滤
     final counts = await _cacheService.getFilteredTagCountsAsync(
       groupTitles,
-      minPostCount,
+      0, // 不应用额外的热度过滤
       includeChildren: true,
     );
 
@@ -150,10 +113,7 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
     final presetState = ref.read(randomPresetNotifierProvider);
     final preset = presetState.selectedPreset;
     if (preset != null) {
-      await _updateFilteredCounts(
-        preset.tagGroupMappings,
-        preset.popularityThreshold * 100,
-      );
+      await _updateFilteredCounts(preset.tagGroupMappings);
     }
   }
 
@@ -179,7 +139,7 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       // 获取 Tag Group 标签
       final syncResult = await _tagGroupService.syncTagGroupMappings(
         mappings: enabledMappings,
-        minPostCount: preset.popularityThreshold * 100,
+        minPostCount: 0, // 不应用全局热度过滤，由各 TagGroup 自己的设置控制
         onProgress: (progress) {
           state = state.copyWith(syncProgress: progress);
         },
@@ -223,8 +183,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       await ref.read(randomPresetNotifierProvider.notifier)
           .updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
 
-      // 同步完成后，根据当前阈值计算过滤数量
-      await _updateFilteredCounts(updatedMappings, preset.popularityThreshold * 100);
+      // 同步完成后计算过滤数量
+      await _updateFilteredCounts(updatedMappings);
 
       state = state.copyWith(isSyncing: false, syncProgress: null);
       AppLogger.i(
@@ -262,7 +222,7 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
     try {
       final syncResult = await _tagGroupService.syncTagGroupMappings(
         mappings: categoryMappings,
-        minPostCount: preset.popularityThreshold * 100,
+        minPostCount: 0, // 不应用全局热度过滤
         onProgress: (progress) {
           state = state.copyWith(syncProgress: progress);
         },
@@ -305,8 +265,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       await ref.read(randomPresetNotifierProvider.notifier)
           .updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
 
-      // 同步完成后，根据当前阈值计算过滤数量
-      await _updateFilteredCounts(updatedMappings, preset.popularityThreshold * 100);
+      // 同步完成后计算过滤数量
+      await _updateFilteredCounts(updatedMappings);
 
       state = state.copyWith(isSyncing: false, syncProgress: null);
       AppLogger.i(

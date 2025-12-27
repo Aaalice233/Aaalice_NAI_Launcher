@@ -729,6 +729,9 @@
   "preset_multiple": "Multiple",
   "preset_probability": "Probability",
   "preset_moreActions": "More Actions",
+  "preset_rename": "Rename",
+  "preset_moveUp": "Move Up",
+  "preset_moveDown": "Move Down",
 
   "onlineGallery_search": "Search",
   "onlineGallery_popular": "Popular",
@@ -1645,9 +1648,20 @@
   "cache_tabPool": "Pool",
   "cache_noTagGroups": "No Tag Group cache",
   "cache_noPools": "No Pool cache",
+  "cache_noBuiltin": "No built-in dictionaries",
+  "cache_probability": "Probability",
   "cache_tags": "tags",
+  "cache_posts": "posts",
   "cache_neverSynced": "Never synced",
   "cache_refresh": "Refresh",
+  "cache_refreshFailed": "Refresh failed: {error}",
+  "@cache_refreshFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "cache_refreshAll": "Refresh All",
   "cache_totalStats": "{count} cached, {tags} tags total",
   "@cache_totalStats": {
@@ -1658,6 +1672,23 @@
   },
   "addGroup_fetchingCache": "Fetching data...",
   "addGroup_fetchFailed": "Failed to fetch data, but you can still add the group",
+  "addGroup_syncFailed": "Sync failed, please check network connection and try again",
+  "addGroup_addFailed": "Failed to add: {error}",
+  "@addGroup_addFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "addGroup_addCustom": "Add Custom",
+  "addGroup_filterHint": "Search cached groups...",
+
+  "customGroup_title": "Add Custom Group",
+  "customGroup_searchHint": "Enter keyword to search Danbooru...",
+  "customGroup_nameLabel": "Display Name",
+  "customGroup_add": "Add & Cache",
+  "customGroup_searchPrompt": "Enter keyword and search",
 
   "tagGroup_noCachedData": "No cached data",
   "tagGroup_syncRequired": "Sync required",
@@ -1689,8 +1720,8 @@
   "addGroup_enableBuiltinDesc": "Use the app's built-in tag dictionary",
   "addGroup_enable": "Enable",
   "addGroup_backToParent": "Go back",
-  "addGroup_browseMode": "Browse",
-  "addGroup_customMode": "Custom Input",
+  "addGroup_browseMode": "Cached List",
+  "addGroup_customMode": "Add Other",
   "addGroup_allCategories": "All Categories",
   "addGroup_noMoreSubcategories": "No more subcategories",
   "addGroup_tagGroupCount": "{count} Tag Groups",
@@ -1722,6 +1753,13 @@
       "count": {}
     }
   },
+  "addGroup_noCachedTagGroups": "No cached Tag Groups",
+  "addGroup_noCachedTagGroupsHint": "Please sync Tag Group data in Cache Management first",
+  "addGroup_noFilterResults": "No matching results found",
+  "addGroup_noCachedPools": "No cached Pools",
+  "addGroup_noCachedPoolsHint": "Use the search box to search and add Danbooru Pools",
+  "addGroup_sectionTagGroups": "Tag Groups ☁️",
+  "addGroup_sectionPools": "Pools 🖼️",
 
   "globalSettings_title": "Overview Settings",
   "globalSettings_resetToDefault": "Reset to Default",
@@ -1938,5 +1976,29 @@
   "preset_resetToDefault": "Reset to Default",
   "preset_resetConfirmTitle": "Reset Preset",
   "preset_resetConfirmMessage": "Are you sure you want to reset all categories and groups in the current preset to default? This action cannot be undone.",
-  "preset_resetSuccess": "Preset has been reset to default"
+  "preset_resetSuccess": "Preset has been reset to default",
+
+  "category_addNew": "Add Category",
+  "category_dialogTitle": "Create Category",
+  "category_name": "Name",
+  "category_nameHint": "Enter category name",
+  "category_key": "Key",
+  "category_keyHint": "Internal identifier",
+  "category_emoji": "Icon",
+  "category_selectEmoji": "Select Emoji",
+  "category_probability": "Probability",
+  "category_createSuccess": "Category created",
+  "category_nameRequired": "Name is required",
+  "category_keyRequired": "Key is required",
+  "category_keyExists": "This key already exists",
+  "group_selectEmoji": "Select Icon",
+  "category_noRecentEmoji": "No recent emojis",
+  "category_searchEmoji": "Search emoji",
+
+  "tagGroup_selectedCount": "Selected {count} groups",
+  "@tagGroup_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }

@@ -6,6 +6,8 @@ import '../../../data/datasources/local/pool_cache_service.dart';
 import '../../../data/datasources/local/tag_group_cache_service.dart';
 import '../../../data/datasources/remote/danbooru_pool_service.dart';
 import '../../../data/datasources/remote/danbooru_tag_group_service.dart';
+import '../../../data/models/prompt/default_categories.dart';
+import '../../../data/models/prompt/random_category.dart';
 import '../../../data/models/prompt/tag_group.dart';
 
 /// 缓存管理对话框
@@ -32,6 +34,9 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // 内置词库数据
+  List<RandomCategory> _builtinCategories = [];
+
   // Tag Group 缓存数据
   Map<String, TagGroup> _tagGroupCache = {};
   bool _isLoadingTagGroups = true;
@@ -48,7 +53,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _loadBuiltinCategories();
     _loadCacheData();
   }
 
@@ -63,6 +69,10 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       _loadTagGroupCache(),
       _loadPoolCache(),
     ]);
+  }
+
+  void _loadBuiltinCategories() {
+    _builtinCategories = DefaultCategories.createDefault();
   }
 
   Future<void> _loadTagGroupCache() async {
@@ -115,8 +125,9 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       await _loadTagGroupCache();
     } catch (e) {
       if (mounted) {
+        final l10n = context.l10n;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('刷新失败: $e')),
+          SnackBar(content: Text(l10n.cache_refreshFailed(e.toString()))),
         );
       }
     } finally {
@@ -134,25 +145,24 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       final poolService = ref.read(danbooruPoolServiceProvider);
       final poolCacheService = ref.read(poolCacheServiceProvider);
 
-      final tags = await poolService.extractTagsFromPool(
+      final posts = await poolService.syncAllPoolPosts(
         poolId: poolId,
         poolName: poolName,
-        maxPosts: 100,
-        minOccurrence: 3,
       );
 
       final pool = _poolCache[poolId];
-      await poolCacheService.savePool(
+      await poolCacheService.savePoolPosts(
         poolId,
         poolName,
-        tags,
-        pool?.postCount ?? 0,
+        posts,
+        pool?.totalPostCount ?? posts.length,
       );
       await _loadPoolCache();
     } catch (e) {
       if (mounted) {
+        final l10n = context.l10n;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('刷新失败: $e')),
+          SnackBar(content: Text(l10n.cache_refreshFailed(e.toString()))),
         );
       }
     } finally {
@@ -187,13 +197,19 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    final totalCacheCount = _tagGroupCache.length + _poolCache.length;
-    var totalTags = 0;
+    // 计算内置词库标签总数
+    var builtinTotalTags = 0;
+    for (final category in _builtinCategories) {
+      for (final group in category.groups) {
+        builtinTotalTags += group.tags.length;
+      }
+    }
+
+    final totalCacheCount =
+        _builtinCategories.length + _tagGroupCache.length + _poolCache.length;
+    var totalTags = builtinTotalTags;
     for (final group in _tagGroupCache.values) {
       totalTags += group.tagCount;
-    }
-    for (final pool in _poolCache.values) {
-      totalTags += pool.tagCount;
     }
 
     return AlertDialog(
@@ -206,13 +222,44 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       ),
       content: SizedBox(
         width: 500,
-        height: 450,
+        height: 550,
         child: Column(
           children: [
             // Tab 栏
             TabBar(
               controller: _tabController,
               tabs: [
+                // 内置词库 Tab
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(l10n.addGroup_builtinTab),
+                      if (_builtinCategories.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_builtinCategories.length}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // 标签词库 Tab
                 Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -279,13 +326,14 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
               child: TabBarView(
                 controller: _tabController,
                 children: [
+                  _buildBuiltinList(theme),
                   _buildTagGroupList(theme),
                   _buildPoolList(theme),
                 ],
               ),
             ),
             const SizedBox(height: 8),
-            // 底部统计和刷新按钮
+            // 底部统计、刷新和取消按钮
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -320,18 +368,85 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                           : const Icon(Icons.refresh, size: 16),
                       label: Text(l10n.cache_refreshAll),
                     ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(l10n.addGroup_cancel),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.addGroup_cancel),
+    );
+  }
+
+  Widget _buildBuiltinList(ThemeData theme) {
+    final l10n = context.l10n;
+
+    if (_builtinCategories.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.cache_noBuiltin,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
         ),
-      ],
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _builtinCategories.length,
+      itemBuilder: (context, index) {
+        final category = _builtinCategories[index];
+        // 计算该类别的标签总数
+        var tagCount = 0;
+        for (final group in category.groups) {
+          tagCount += group.tags.length;
+        }
+
+        return ListTile(
+          leading: Text(
+            category.emoji,
+            style: const TextStyle(fontSize: 24),
+          ),
+          title: Text(category.name),
+          subtitle: Text(
+            '${l10n.cache_probability}: ${(category.probability * 100).toInt()}%',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$tagCount ${l10n.cache_tags}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -372,15 +487,19 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       itemBuilder: (context, index) {
         final group = groups[index];
         final isRefreshing = _refreshingTagGroups.contains(group.title);
+        // 使用动态翻译获取显示名称
+        final displayName = TagGroup.titleToDisplayName(group.title, context);
 
         return ListTile(
           leading: Icon(
             Icons.cloud_outlined,
             color: theme.colorScheme.primary,
           ),
-          title: Text(group.displayName),
+          title: Text(displayName),
           subtitle: Text(
-            group.title,
+            group.lastUpdated != null
+                ? '${group.title} · ${_formatLastSynced(group.lastUpdated!)}'
+                : group.title,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -493,7 +612,7 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${pool.tagCount} ${l10n.cache_tags}',
+                  '${pool.cachedPostCount} ${l10n.cache_posts}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSecondaryContainer,
                   ),
@@ -524,15 +643,16 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
   String _formatLastSynced(DateTime lastSynced) {
     final now = DateTime.now();
     final diff = now.difference(lastSynced);
+    final l10n = context.l10n;
 
     if (diff.inMinutes < 1) {
-      return '刚刚';
+      return l10n.time_just_now;
     } else if (diff.inHours < 1) {
-      return '${diff.inMinutes} 分钟前';
+      return l10n.time_minutes_ago(diff.inMinutes);
     } else if (diff.inDays < 1) {
-      return '${diff.inHours} 小时前';
+      return l10n.time_hours_ago(diff.inHours);
     } else if (diff.inDays < 30) {
-      return '${diff.inDays} 天前';
+      return l10n.time_days_ago(diff.inDays);
     } else {
       return '${lastSynced.month}/${lastSynced.day}';
     }

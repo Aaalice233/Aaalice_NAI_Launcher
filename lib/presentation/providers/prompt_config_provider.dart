@@ -234,6 +234,24 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     await addPreset(copy);
   }
 
+  /// 移动预设位置
+  ///
+  /// [direction] 为正数表示向下移动，负数表示向上移动
+  Future<void> movePreset(String presetId, int direction) async {
+    final currentIndex = state.presets.indexWhere((p) => p.id == presetId);
+    if (currentIndex == -1) return;
+
+    final newIndex = currentIndex + direction;
+    if (newIndex < 0 || newIndex >= state.presets.length) return;
+
+    final newPresets = List<RandomPromptPreset>.from(state.presets);
+    final preset = newPresets.removeAt(currentIndex);
+    newPresets.insert(newIndex, preset);
+
+    await _savePresets(newPresets);
+    state = state.copyWith(presets: newPresets);
+  }
+
   /// 导出预设为 JSON
   String exportPreset(String presetId) {
     final preset = state.presets.where((p) => p.id == presetId).firstOrNull;

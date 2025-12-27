@@ -48,6 +48,7 @@ dependencies:
   # UI 组件
   flex_color_scheme: ^7.3.1
   google_fonts: ^6.1.0
+  emoji_picker_flutter: ^2.1.1
 
   # 数据模型
   freezed_annotation: ^2.4.1
@@ -84,6 +85,8 @@ dev_dependencies:
   freezed: ^2.5.2
   json_serializable: ^6.8.0
   hive_generator: ^2.0.1
+  # Mock 测试
+  mocktail: ^1.0.3
   # 属性基测试
   glados: ^1.1.1
 

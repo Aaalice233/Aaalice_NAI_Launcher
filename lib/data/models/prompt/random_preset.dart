@@ -50,9 +50,6 @@ class RandomPreset with _$RandomPreset {
     /// Pool 映射配置
     @Default([]) List<PoolMapping> poolMappings,
 
-    /// 热度阈值 (0-100)
-    @Default(50) int popularityThreshold,
-
     /// 创建时间
     DateTime? createdAt,
 
@@ -94,7 +91,6 @@ class RandomPreset with _$RandomPreset {
       algorithmConfig: const AlgorithmConfig(),
       categories: DefaultCategories.createDefault(),
       tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
-      popularityThreshold: 50,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -118,7 +114,6 @@ class RandomPreset with _$RandomPreset {
       poolMappings: source.poolMappings.map((m) => m.copyWith(
         id: 'pool_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
       ),).toList(),
-      popularityThreshold: source.popularityThreshold,
       createdAt: now,
       updatedAt: now,
     );
@@ -346,25 +341,14 @@ class RandomPreset with _$RandomPreset {
     return null;
   }
 
-  // ========== 热度阈值管理 ==========
-
-  /// 更新热度阈值
-  RandomPreset updatePopularityThreshold(int threshold) {
-    return copyWith(
-      popularityThreshold: threshold.clamp(0, 100),
-      updatedAt: DateTime.now(),
-    );
-  }
-
   /// 重置为默认配置
   RandomPreset resetToDefault() {
     return copyWith(
       algorithmConfig: const AlgorithmConfig(),
       categoryProbabilities: const CategoryProbabilityConfig(),
       categories: DefaultCategories.createDefault(),
-      tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
-      poolMappings: [],
-      popularityThreshold: 50,
+      tagGroupMappings: [], // 完全清除所有 Danbooru TagGroup 映射
+      poolMappings: [], // 完全清除所有 Danbooru Pool 映射
       updatedAt: DateTime.now(),
     );
   }
@@ -379,7 +363,6 @@ class RandomPreset with _$RandomPreset {
       'categories': categories.map((c) => c.toJson()).toList(),
       'tagGroupMappings': tagGroupMappings.map((m) => m.toJson()).toList(),
       'poolMappings': poolMappings.map((m) => m.toJson()).toList(),
-      'popularityThreshold': popularityThreshold,
       'exportedAt': DateTime.now().toIso8601String(),
     };
   }
@@ -436,7 +419,6 @@ class RandomPreset with _$RandomPreset {
       categories: categories,
       tagGroupMappings: tagGroupMappings,
       poolMappings: poolMappings,
-      popularityThreshold: json['popularityThreshold'] as int? ?? 50,
       createdAt: now,
       updatedAt: now,
     );

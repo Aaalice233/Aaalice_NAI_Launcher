@@ -7,7 +7,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
-import '../../data/models/prompt/default_tag_group_mappings.dart';
 import '../../data/models/prompt/pool_mapping.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
@@ -123,14 +122,6 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
         if (updatedDefault.categories.isEmpty) {
           updatedDefault = updatedDefault.copyWith(
             categories: DefaultCategories.createDefault(),
-          );
-          needsUpdate = true;
-        }
-
-        // 如果 tagGroupMappings 为空，填充默认映射
-        if (updatedDefault.tagGroupMappings.isEmpty) {
-          updatedDefault = updatedDefault.copyWith(
-            tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
           );
           needsUpdate = true;
         }
@@ -421,16 +412,6 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     if (preset == null) return;
 
     await updatePreset(preset.togglePoolMappingEnabled(mappingId));
-  }
-
-  // ========== 热度阈值管理 ==========
-
-  /// 更新当前预设的热度阈值
-  Future<void> updatePopularityThreshold(int threshold) async {
-    final preset = state.selectedPreset;
-    if (preset == null) return;
-
-    await updatePreset(preset.updatePopularityThreshold(threshold));
   }
 
   // ========== 批量 Tag Group 管理 ==========

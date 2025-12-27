@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/danbooru/danbooru_pool.dart';
 import '../../models/prompt/pool_mapping.dart';
+import '../../models/prompt/pool_post.dart';
 import '../../models/prompt/pool_sync_config.dart';
 import '../../models/prompt/tag_category.dart';
 import '../../models/prompt/weighted_tag.dart';
@@ -112,6 +113,92 @@ class DanbooruPoolService {
       return weightedTags;
     } catch (e, stack) {
       AppLogger.e('Failed to extract tags from pool: $poolName', e, stack, 'PoolService');
+      return [];
+    }
+  }
+
+  /// 同步 Pool 的所有帖子
+  ///
+  /// 分页获取 Pool 中的所有帖子并转换为 PoolPost 列表
+  /// [poolId] Pool ID
+  /// [poolName] Pool 名称（用于日志）
+  /// [onProgress] 进度回调 (已完成数量, 总数量)
+  /// [maxConcurrency] 最大并发数（默认3）
+  Future<List<PoolPost>> syncAllPoolPosts({
+    required int poolId,
+    required String poolName,
+    void Function(int completed, int total)? onProgress,
+    int maxConcurrency = 3,
+  }) async {
+    try {
+      AppLogger.d('Syncing all posts from pool: $poolName (ID: $poolId)', 'PoolService');
+
+      // 1. 获取 Pool 详情确定 post_count
+      final pool = await getPool(poolId);
+      if (pool == null) {
+        AppLogger.w('Pool not found: $poolId', 'PoolService');
+        return [];
+      }
+
+      final totalPosts = pool.postCount;
+      if (totalPosts == 0) {
+        AppLogger.w('Pool has no posts: $poolName', 'PoolService');
+        return [];
+      }
+
+      // 2. 计算总页数（每页最多 200）
+      const postsPerPage = 200;
+      final totalPages = (totalPosts / postsPerPage).ceil();
+
+      AppLogger.d('Pool $poolName has $totalPosts posts, $totalPages pages', 'PoolService');
+
+      // 3. 并发分页获取
+      final allPosts = <PoolPost>[];
+      final semaphore = _Semaphore(maxConcurrency);
+      var completedPages = 0;
+
+      final futures = List.generate(totalPages, (index) async {
+        final page = index + 1;
+        await semaphore.acquire();
+        try {
+          final posts = await _apiService.getPoolPosts(
+            poolId: poolId,
+            limit: postsPerPage,
+            page: page,
+          );
+
+          // 转换为 PoolPost
+          final poolPosts = posts.map((p) => PoolPost.fromDanbooruPost({
+            'id': p.id,
+            'tag_string_general': p.generalTags.join(' '),
+            'tag_string_character': p.characterTags.join(' '),
+            'tag_string_copyright': p.copyrightTags.join(' '),
+            'tag_string_artist': p.artistTags.join(' '),
+            'tag_string_meta': p.metaTags.join(' '),
+          }),).toList();
+
+          completedPages++;
+          onProgress?.call(completedPages, totalPages);
+
+          return poolPosts;
+        } finally {
+          semaphore.release();
+        }
+      });
+
+      final results = await Future.wait(futures);
+      for (final posts in results) {
+        allPosts.addAll(posts);
+      }
+
+      AppLogger.i(
+        'Synced ${allPosts.length} posts from pool: $poolName',
+        'PoolService',
+      );
+
+      return allPosts;
+    } catch (e, stack) {
+      AppLogger.e('Failed to sync pool posts: $poolName', e, stack, 'PoolService');
       return [];
     }
   }

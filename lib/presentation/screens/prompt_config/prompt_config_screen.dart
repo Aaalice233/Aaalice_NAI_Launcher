@@ -19,6 +19,7 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
 import 'widgets/expandable_category_tile.dart';
@@ -126,7 +127,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final preset = presetState.selectedPreset;
     final tagGroupMappings = preset?.tagGroupMappings ?? [];
 
-    final isSyncing = state.isSyncing || syncState.isSyncing;
     // 获取预设中的类别列表（动态列表）
     final categories = preset?.categories ?? [];
 
@@ -177,7 +177,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     // 2. 启用的 TagGroup 标签数（需要类别也启用）
-    int originalTagCount = tagCount; // 内置词库的原始数量等于过滤后数量
     for (final mapping in tagGroupMappings.where((m) => m.enabled)) {
       // 查找对应的 RandomCategory
       final randomCategory = categories.cast<RandomCategory?>().firstWhere(
@@ -193,11 +192,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 : null) ??
             TagGroupPresetCache.getCount(mapping.groupTitle) ??
             0;
-        final original = mapping.danbooruOriginalTagCount > 0
-            ? mapping.danbooruOriginalTagCount
-            : TagGroupPresetCache.getOriginalCount(mapping.groupTitle) ?? count;
         tagCount += count;
-        originalTagCount += original;
       }
     }
 
@@ -206,14 +201,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 热度阈值控制 + 统计信息 + 同步按钮
+          // 统计信息和操作按钮
           GlobalPostCountToolbar(
             tagCount: tagCount,
-            originalTagCount: originalTagCount,
             enabledMappingCount: enabledMappingCount,
             totalMappingCount: categories.length + tagGroupMappings.length,
-            isSyncing: isSyncing,
-            onSync: () => _syncAll(context),
             onToggleSelectAll: () {
               // 如果全选则执行全不选，否则执行全选
               final allSelected = builtinGroupCount == categories.length &&
@@ -227,6 +219,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             allExpanded: _expandedCategories.length == categories.length,
             onToggleExpand: _toggleAllExpand,
             onResetPreset: () => _showResetPresetConfirmDialog(context),
+            onAddCategory: () => _showAddCategoryDialog(context),
           ),
 
           // 同步进度（TagLibrary 或 TagGroup 同步）
@@ -241,39 +234,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         ],
       ),
     );
-  }
-
-  /// 执行全部同步
-  Future<void> _syncAll(BuildContext context) async {
-    final tagLibraryNotifier = ref.read(tagLibraryNotifierProvider.notifier);
-    final tagGroupSyncNotifier =
-        ref.read(tagGroupSyncNotifierProvider.notifier);
-    final presetState = ref.read(randomPresetNotifierProvider);
-    final preset = presetState.selectedPreset;
-
-    // 先同步 Danbooru 标签库
-    final tagSuccess = await tagLibraryNotifier.syncLibrary();
-    if (!tagSuccess) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.tagLibrary_syncFailed);
-      }
-      return;
-    }
-
-    // 然后同步 TagGroup 映射
-    if (preset != null && preset.tagGroupMappings.isNotEmpty) {
-      final groupSuccess = await tagGroupSyncNotifier.syncTagGroups();
-      if (!groupSuccess) {
-        if (context.mounted) {
-          AppToast.error(context, context.l10n.tagGroup_syncFailed(''));
-        }
-        return;
-      }
-    }
-
-    if (context.mounted) {
-      AppToast.success(context, context.l10n.tagLibrary_syncSuccess);
-    }
   }
 
   /// 显示重置预设确认对话框
@@ -306,6 +266,35 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       if (context.mounted) {
         AppToast.success(context, context.l10n.preset_resetSuccess);
       }
+    }
+  }
+
+  /// 显示新增类别对话框
+  Future<void> _showAddCategoryDialog(BuildContext context) async {
+    // 获取现有类别的 key 列表，用于唯一性校验
+    final presetState = ref.read(randomPresetNotifierProvider);
+    final preset = presetState.selectedPreset;
+    final existingKeys = preset?.categories.map((c) => c.key).toList() ?? [];
+
+    final result = await AddCategoryDialog.show(
+      context,
+      existingKeys: existingKeys,
+    );
+
+    if (result == null) return;
+
+    // 创建新类别
+    final newCategory = RandomCategory.create(
+      name: result.name,
+      key: result.key,
+      emoji: result.emoji,
+    ).copyWith(probability: result.probability);
+
+    // 添加到预设
+    await ref.read(randomPresetNotifierProvider.notifier).addCategory(newCategory);
+
+    if (context.mounted) {
+      AppToast.success(context, context.l10n.category_createSuccess);
     }
   }
 
@@ -447,7 +436,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           orElse: () => TagSubCategory.hairColor,
         );
 
-        final probability = randomCategory.probability.round();
+        final probability = (randomCategory.probability * 100).round();
         final includeSupplement = filterConfig.isEnabled(category);
         final tags = library.getFilteredCategory(
           category,
@@ -700,8 +689,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                const Spacer(),
-                _buildPresetMenu(theme),
               ],
             ),
           ),
@@ -913,25 +900,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     });
   }
 
-  Widget _buildPresetMenu(ThemeData theme) {
-    return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_horiz,
-        size: 20,
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-      padding: EdgeInsets.zero,
-      tooltip: context.l10n.preset_moreActions,
-      onSelected: _handlePresetMenuAction,
-      itemBuilder: (menuContext) => [
-        PopupMenuItem(
-          value: 'import',
-          child: Text(context.l10n.config_importConfig),
-        ),
-      ],
-    );
-  }
-
   Widget _buildPresetItem(
     pc.RandomPromptPreset preset,
     PromptConfigState state,
@@ -939,6 +907,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   ) {
     final isSelected = preset.id == _selectedPresetId;
     final isActive = preset.id == state.selectedPresetId;
+    final presetIndex = state.presets.indexWhere((p) => p.id == preset.id);
+    final isFirst = presetIndex == 0;
+    final isLast = presetIndex == state.presets.length - 1;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -947,94 +918,188 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ? theme.colorScheme.primaryContainer.withOpacity(0.5)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: () => _selectPreset(preset.id),
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                // 激活指示器
-                if (isActive)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
+        child: GestureDetector(
+          onSecondaryTapDown: (details) => _showPresetContextMenu(
+            details.globalPosition,
+            preset,
+            isActive,
+            isFirst,
+            isLast,
+          ),
+          onLongPressStart: (details) => _showPresetContextMenu(
+            details.globalPosition,
+            preset,
+            isActive,
+            isFirst,
+            isLast,
+          ),
+          child: InkWell(
+            onTap: () => _selectPreset(preset.id),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  // 激活指示器
+                  if (isActive)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 16),
+                  // 预设名称
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          preset.name,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: isSelected ? FontWeight.w600 : null,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          context.l10n.preset_configGroupCount(
+                            preset.configs.length.toString(),
+                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                else
-                  const SizedBox(width: 16),
-                // 预设名称
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        preset.name,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: isSelected ? FontWeight.w600 : null,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        context.l10n.preset_configGroupCount(
-                          preset.configs.length.toString(),
-                        ),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    ],
                   ),
-                ),
-                // 右键菜单
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert,
-                    size: 18,
-                    color: theme.colorScheme.outline,
-                  ),
-                  padding: EdgeInsets.zero,
-                  onSelected: (action) =>
-                      _handlePresetItemAction(preset, action),
-                  itemBuilder: (menuContext) => [
-                    PopupMenuItem(
-                      value: 'activate',
-                      enabled: !isActive,
-                      child: Text(context.l10n.preset_setAsCurrent),
-                    ),
-                    PopupMenuItem(
-                      value: 'duplicate',
-                      child: Text(context.l10n.preset_duplicate),
-                    ),
-                    PopupMenuItem(
-                      value: 'export',
-                      child: Text(context.l10n.preset_export),
-                    ),
-                    PopupMenuItem(
-                      value: 'reset',
-                      child: Text(context.l10n.config_restoreDefaults),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        context.l10n.preset_delete,
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// 显示预设上下文菜单
+  Future<void> _showPresetContextMenu(
+    Offset position,
+    pc.RandomPromptPreset preset,
+    bool isActive,
+    bool isFirst,
+    bool isLast,
+  ) async {
+    final theme = Theme.of(context);
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'activate',
+          enabled: !isActive,
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.preset_setAsCurrent),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'rename',
+          child: Row(
+            children: [
+              const Icon(Icons.edit_outlined, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.preset_rename),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'moveUp',
+          enabled: !isFirst,
+          child: Row(
+            children: [
+              const Icon(Icons.arrow_upward, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.preset_moveUp),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'moveDown',
+          enabled: !isLast,
+          child: Row(
+            children: [
+              const Icon(Icons.arrow_downward, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.preset_moveDown),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'duplicate',
+          child: Row(
+            children: [
+              const Icon(Icons.copy_outlined, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.preset_duplicate),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'export',
+          child: Row(
+            children: [
+              const Icon(Icons.file_download_outlined, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.preset_export),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'reset',
+          child: Row(
+            children: [
+              const Icon(Icons.restart_alt, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.config_restoreDefaults),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
+              const SizedBox(width: 12),
+              Text(
+                context.l10n.preset_delete,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (action != null) {
+      _handlePresetItemAction(preset, action);
+    }
   }
 
   // ==================== 中间配置组面板 ====================
@@ -1435,19 +1500,20 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
-  void _handlePresetMenuAction(String action) {
-    switch (action) {
-      case 'import':
-        _showImportDialog();
-        break;
-    }
-  }
-
   void _handlePresetItemAction(pc.RandomPromptPreset preset, String action) {
     switch (action) {
       case 'activate':
         ref.read(promptConfigNotifierProvider.notifier).selectPreset(preset.id);
         AppToast.success(context, context.l10n.preset_setAsCurrentSuccess);
+        break;
+      case 'rename':
+        _showRenamePresetDialog(preset);
+        break;
+      case 'moveUp':
+        ref.read(promptConfigNotifierProvider.notifier).movePreset(preset.id, -1);
+        break;
+      case 'moveDown':
+        ref.read(promptConfigNotifierProvider.notifier).movePreset(preset.id, 1);
         break;
       case 'duplicate':
         ref
@@ -1468,6 +1534,42 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       case 'delete':
         _showDeletePresetDialog(preset);
         break;
+    }
+  }
+
+  /// 显示重命名预设对话框
+  Future<void> _showRenamePresetDialog(pc.RandomPromptPreset preset) async {
+    final controller = TextEditingController(text: preset.name);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.preset_rename),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: context.l10n.preset_presetName,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(context.l10n.common_confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && newName != preset.name) {
+      final updated = preset.copyWith(name: newName, updatedAt: DateTime.now());
+      await ref.read(promptConfigNotifierProvider.notifier).updatePreset(updated);
     }
   }
 
@@ -1591,63 +1693,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         ],
       ),
     );
-  }
-
-  void _showImportDialog() {
-    final controller = TextEditingController();
-    // 预先捕获本地化字符串，避免异步间隙问题
-    final titleText = context.l10n.preset_importConfig;
-    final hintText = context.l10n.preset_pasteJson;
-    final cancelText = context.l10n.common_cancel;
-    final importText = context.l10n.common_import;
-    final successText = context.l10n.preset_importSuccess;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(titleText),
-        content: SizedBox(
-          width: 400,
-          child: TextField(
-            controller: controller,
-            maxLines: 10,
-            decoration: InputDecoration(
-              hintText: hintText,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(cancelText),
-          ),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await ref
-                    .read(promptConfigNotifierProvider.notifier)
-                    .importPreset(controller.text);
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-                if (mounted) {
-                  AppToast.success(context, successText);
-                }
-              } catch (e) {
-                if (mounted) {
-                  AppToast.error(
-                    context,
-                    context.l10n.preset_importFailed(e.toString()),
-                  );
-                }
-              }
-            },
-            child: Text(importText),
-          ),
-        ],
-      ),
-    ).then((_) => controller.dispose());
   }
 }
 

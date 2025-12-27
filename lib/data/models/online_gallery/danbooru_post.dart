@@ -97,6 +97,12 @@ class DanbooruPost with _$DanbooruPost {
     return tagStringGeneral.split(' ').where((t) => t.isNotEmpty).toList();
   }
 
+  /// 获取元标签
+  List<String> get metaTags {
+    if (tagStringMeta.isEmpty) return [];
+    return tagStringMeta.split(' ').where((t) => t.isNotEmpty).toList();
+  }
+
   /// 获取帖子页面 URL
   String get postUrl => 'https://danbooru.donmai.us/posts/$id';
 

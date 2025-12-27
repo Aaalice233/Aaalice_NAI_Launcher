@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../datasources/local/pool_cache_service.dart';
+import '../datasources/local/tag_group_cache_service.dart';
 import '../models/character/character_prompt.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/random_category.dart';
@@ -11,6 +13,7 @@ import '../models/prompt/random_preset.dart';
 import '../models/prompt/random_prompt_result.dart';
 import '../models/prompt/random_tag_group.dart';
 import '../models/prompt/tag_category.dart';
+import '../models/prompt/tag_group.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/weighted_tag.dart';
 import 'sequential_state_service.dart';
@@ -25,8 +28,15 @@ part 'random_prompt_generator.g.dart';
 class RandomPromptGenerator {
   final TagLibraryService _libraryService;
   final SequentialStateService _sequentialService;
+  final TagGroupCacheService _tagGroupCacheService;
+  final PoolCacheService _poolCacheService;
 
-  RandomPromptGenerator(this._libraryService, this._sequentialService);
+  RandomPromptGenerator(
+    this._libraryService,
+    this._sequentialService,
+    this._tagGroupCacheService,
+    this._poolCacheService,
+  );
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -471,7 +481,7 @@ class RandomPromptGenerator {
     );
 
     // 从预设类别生成标签
-    final tags = _generateFromPresetCategories(preset, random);
+    final tags = await _generateFromPresetCategories(preset, random);
 
     if (tags.isEmpty) {
       // 如果没有生成任何标签，返回默认结果
@@ -490,7 +500,7 @@ class RandomPromptGenerator {
   }
 
   /// 从预设类别列表生成标签
-  List<String> _generateFromPresetCategories(RandomPreset preset, Random random) {
+  Future<List<String>> _generateFromPresetCategories(RandomPreset preset, Random random) async {
     final results = <String>[];
 
     for (final category in preset.categories) {
@@ -501,7 +511,7 @@ class RandomPromptGenerator {
       if (random.nextDouble() > category.probability) continue;
 
       // 生成类别内的标签
-      final categoryTags = _generateFromCategory(category, random);
+      final categoryTags = await _generateFromCategory(category, random);
       results.addAll(categoryTags);
     }
 
@@ -510,7 +520,7 @@ class RandomPromptGenerator {
   }
 
   /// 从单个类别生成标签
-  List<String> _generateFromCategory(RandomCategory category, Random random) {
+  Future<List<String>> _generateFromCategory(RandomCategory category, Random random) async {
     final enabledGroups = category.groups.where((g) => g.enabled).toList();
     if (enabledGroups.isEmpty) return [];
 
@@ -530,7 +540,7 @@ class RandomPromptGenerator {
       if (random.nextDouble() > group.probability) continue;
 
       // 从词组生成标签
-      final tags = _generateFromGroup(group, category, random);
+      final tags = await _generateFromGroup(group, category, random);
       results.addAll(tags);
     }
 
@@ -543,18 +553,23 @@ class RandomPromptGenerator {
   }
 
   /// 从单个词组生成标签（支持递归嵌套）
-  List<String> _generateFromGroup(
+  Future<List<String>> _generateFromGroup(
     RandomTagGroup group,
     RandomCategory category,
     Random random,
-  ) {
+  ) async {
     // 处理嵌套配置
     if (group.nodeType == TagGroupNodeType.config) {
       return _generateFromNestedGroup(group, category, random);
     }
 
-    // 处理标签列表
-    final enabledTags = group.tags;
+    // Pool 类型使用专门的生成逻辑
+    if (group.sourceType == TagGroupSourceType.pool) {
+      return _generateFromPoolGroup(group, category, random);
+    }
+
+    // 获取标签列表：对于同步类型的组从缓存读取，否则使用内嵌标签
+    final enabledTags = await _getTagsForGroup(group);
     if (enabledTags.isEmpty) return [];
 
     // 根据 selectionMode 选择标签
@@ -588,12 +603,94 @@ class RandomPromptGenerator {
     return bracketedTags;
   }
 
-  /// 从嵌套词组生成标签（递归）
-  List<String> _generateFromNestedGroup(
+  /// 从 Pool 类型词组生成标签
+  ///
+  /// Pool 使用按帖子随机的逻辑，与普通词组不同：
+  /// 1. 根据 selectionMode 决定选择几个帖子
+  /// 2. 从缓存随机获取帖子
+  /// 3. 根据 poolOutputConfig 提取标签
+  /// 4. 应用括号权重和打乱
+  Future<List<String>> _generateFromPoolGroup(
     RandomTagGroup group,
     RandomCategory category,
     Random random,
-  ) {
+  ) async {
+    final sourceId = group.sourceId;
+    if (sourceId == null || sourceId.isEmpty) {
+      AppLogger.w('Pool ${group.name} has no sourceId', 'RandomGen');
+      return [];
+    }
+
+    final poolId = int.tryParse(sourceId);
+    if (poolId == null) {
+      AppLogger.w('Invalid pool ID: $sourceId', 'RandomGen');
+      return [];
+    }
+
+    // 确保 Pool 缓存已加载到内存
+    final poolEntry = await _poolCacheService.getPool(poolId);
+    if (poolEntry == null || poolEntry.posts.isEmpty) {
+      AppLogger.w('Pool cache not found or empty for: $sourceId', 'RandomGen');
+      return [];
+    }
+
+    // 根据 selectionMode 决定选择几个帖子
+    final postCount = switch (group.selectionMode) {
+      SelectionMode.single => 1,
+      SelectionMode.all => poolEntry.posts.length,
+      SelectionMode.multipleNum => group.poolPostCount,
+      SelectionMode.multipleProb => 1, // Pool 不适用概率模式，默认选1个
+      SelectionMode.sequential => 1, // 顺序模式也选1个
+    };
+
+    // 从缓存随机获取帖子
+    final selectedPosts = _poolCacheService.getRandomPosts(poolId, postCount, random);
+    if (selectedPosts.isEmpty) {
+      AppLogger.w('No posts selected from pool: $sourceId', 'RandomGen');
+      return [];
+    }
+
+    // 根据 poolOutputConfig 提取标签
+    final outputConfig = group.poolOutputConfig;
+    final allTags = <String>[];
+
+    for (final post in selectedPosts) {
+      final tags = post.getTagsForOutput(outputConfig);
+      allTags.addAll(tags);
+    }
+
+    if (allTags.isEmpty) {
+      AppLogger.d('No tags extracted from pool posts: $sourceId', 'RandomGen');
+      return [];
+    }
+
+    // 打乱标签（如果配置要求）
+    if (outputConfig.shuffleTags || group.shuffle) {
+      allTags.shuffle(random);
+    }
+
+    // 确定括号范围
+    final bracketMin = category.useUnifiedBracket
+        ? category.unifiedBracketMin
+        : group.bracketMin;
+    final bracketMax = category.useUnifiedBracket
+        ? category.unifiedBracketMax
+        : group.bracketMax;
+
+    // 应用权重括号并格式化标签
+    return allTags.map((tag) {
+      // 将下划线替换为空格
+      final formattedTag = tag.replaceAll('_', ' ');
+      return _applyBrackets(formattedTag, bracketMin, bracketMax, random);
+    }).toList();
+  }
+
+  /// 从嵌套词组生成标签（递归）
+  Future<List<String>> _generateFromNestedGroup(
+    RandomTagGroup group,
+    RandomCategory category,
+    Random random,
+  ) async {
     final enabledChildren = group.children.where((c) => c.enabled).toList();
     if (enabledChildren.isEmpty) return [];
 
@@ -613,7 +710,7 @@ class RandomPromptGenerator {
       if (random.nextDouble() > child.probability) continue;
 
       // 递归生成
-      final childTags = _generateFromGroup(child, category, random);
+      final childTags = await _generateFromGroup(child, category, random);
       results.addAll(childTags);
     }
 
@@ -649,7 +746,14 @@ class RandomPromptGenerator {
       SelectionMode.single => [_weightedSelect(items, random, weightGetter)],
       SelectionMode.all => List.from(items),
       SelectionMode.multipleNum => _selectByCount(items, count, random, weightGetter),
-      SelectionMode.multipleProb => _selectByProbability(items, random),
+      SelectionMode.multipleProb => _selectByProbability(items, random, (item) {
+        // 对于 RandomTagGroup 使用其 probability 属性
+        if (item is RandomTagGroup) return item.probability;
+        // 对于 WeightedTag 使用归一化的权重作为概率
+        if (item is WeightedTag) return item.weight / 10.0;
+        // 其他类型默认 50%
+        return 0.5;
+      }),
       SelectionMode.sequential => [_getSequentialItem(items, sequentialKey ?? 'default')],
     };
   }
@@ -699,9 +803,16 @@ class RandomPromptGenerator {
     return selected;
   }
 
-  /// 按概率独立选择（每个项目 50% 概率）
-  List<T> _selectByProbability<T>(List<T> items, Random random) {
-    return items.where((_) => random.nextBool()).toList();
+  /// 按概率独立选择（每个项目使用自己的概率）
+  ///
+  /// 对于 RandomTagGroup 使用其 probability 属性
+  /// 对于其他类型使用默认 50% 概率
+  List<T> _selectByProbability<T>(
+    List<T> items,
+    Random random,
+    double Function(T) probabilityGetter,
+  ) {
+    return items.where((item) => random.nextDouble() < probabilityGetter(item)).toList();
   }
 
   /// 顺序轮替选择（使用持久化服务）
@@ -753,40 +864,134 @@ class RandomPromptGenerator {
   ///
   /// 支持格式：__变量名__
   /// 会在预设的类别和词组中查找匹配项并生成内容
-  String _replaceVariables(String text, RandomPreset preset, Random random) {
+  Future<String> _replaceVariables(String text, RandomPreset preset, Random random) async {
     if (!text.contains('__')) return text;
 
-    return text.replaceAllMapped(_variablePattern, (match) {
+    // 由于 replaceAllMapped 不支持 async，需要手动处理
+    var result = text;
+    final matches = _variablePattern.allMatches(text).toList();
+
+    for (final match in matches.reversed) {
       final varName = match.group(1)!;
+      String? replacement;
 
       // 1. 在类别中查找匹配（按名称或 key）
       for (final category in preset.categories) {
         if (category.name == varName || category.key == varName) {
-          final generated = _generateFromCategory(category, random);
-          return generated.join(', ');
+          final generated = await _generateFromCategory(category, random);
+          replacement = generated.join(', ');
+          break;
         }
 
         // 2. 在词组中查找匹配
         for (final group in category.groups) {
           if (group.name == varName) {
-            final generated = _generateFromGroup(group, category, random);
-            return generated.join(', ');
+            final generated = await _generateFromGroup(group, category, random);
+            replacement = generated.join(', ');
+            break;
           }
         }
+        if (replacement != null) break;
       }
 
       // 未找到匹配，保持原样
-      return match.group(0)!;
-    });
+      replacement ??= match.group(0)!;
+      result = result.replaceRange(match.start, match.end, replacement);
+    }
+
+    return result;
   }
 
   /// 对生成结果进行变量替换
-  List<String> _applyVariableReplacement(
+  Future<List<String>> _applyVariableReplacement(
     List<String> tags,
     RandomPreset preset,
     Random random,
-  ) {
-    return tags.map((tag) => _replaceVariables(tag, preset, random)).toList();
+  ) async {
+    final results = <String>[];
+    for (final tag in tags) {
+      results.add(await _replaceVariables(tag, preset, random));
+    }
+    return results;
+  }
+
+  // ========== 从缓存获取标签（用于同步类型的组） ==========
+
+  /// 获取词组的标签列表
+  ///
+  /// 对于同步类型（tagGroup）的组，从缓存读取标签
+  /// 对于自定义类型的组，直接返回内嵌的标签
+  /// 注意：Pool 类型由 _generateFromPoolGroup 单独处理
+  Future<List<WeightedTag>> _getTagsForGroup(RandomTagGroup group) async {
+    // 自定义类型：直接返回内嵌标签
+    if (group.sourceType == TagGroupSourceType.custom) {
+      return group.tags;
+    }
+
+    // Tag Group 类型：从缓存读取
+    if (group.sourceType == TagGroupSourceType.tagGroup) {
+      final sourceId = group.sourceId;
+      if (sourceId == null || sourceId.isEmpty) {
+        AppLogger.w(
+          'Tag group ${group.name} has no sourceId',
+          'RandomGen',
+        );
+        return group.tags; // fallback to embedded tags
+      }
+
+      final tagGroup = await _tagGroupCacheService.getTagGroup(sourceId);
+      if (tagGroup == null) {
+        AppLogger.w(
+          'Tag group cache not found for: $sourceId',
+          'RandomGen',
+        );
+        return group.tags; // fallback to embedded tags
+      }
+
+      // 将 TagGroupEntry 转换为 WeightedTag
+      return _convertTagGroupEntriesToWeightedTags(tagGroup.tags);
+    }
+
+    // Pool 类型由 _generateFromPoolGroup 单独处理，这里不应该被调用
+    // 如果被调用，返回空列表（作为安全措施）
+    if (group.sourceType == TagGroupSourceType.pool) {
+      AppLogger.w(
+        '_getTagsForGroup called for Pool type - this should not happen',
+        'RandomGen',
+      );
+      return [];
+    }
+
+    return group.tags;
+  }
+
+  /// 将 TagGroupEntry 列表转换为 WeightedTag 列表
+  List<WeightedTag> _convertTagGroupEntriesToWeightedTags(List<TagGroupEntry> entries) {
+    return entries.map((entry) {
+      // 根据热度计算权重 (1-10)
+      final weight = _calculateWeightFromPostCount(entry.postCount);
+      return WeightedTag(
+        tag: entry.name.replaceAll('_', ' '),
+        weight: weight,
+      );
+    }).toList();
+  }
+
+  /// 根据帖子数量计算权重（1-10）
+  ///
+  /// 使用对数缩放，更合理地分配权重
+  int _calculateWeightFromPostCount(int postCount) {
+    if (postCount <= 0) return 1;
+    if (postCount < 100) return 1;
+    if (postCount < 1000) return 2;
+    if (postCount < 5000) return 3;
+    if (postCount < 10000) return 4;
+    if (postCount < 50000) return 5;
+    if (postCount < 100000) return 6;
+    if (postCount < 500000) return 7;
+    if (postCount < 1000000) return 8;
+    if (postCount < 5000000) return 9;
+    return 10;
   }
 }
 
@@ -795,5 +1000,12 @@ class RandomPromptGenerator {
 RandomPromptGenerator randomPromptGenerator(Ref ref) {
   final libraryService = ref.watch(tagLibraryServiceProvider);
   final sequentialService = ref.watch(sequentialStateServiceProvider);
-  return RandomPromptGenerator(libraryService, sequentialService);
+  final tagGroupCacheService = ref.watch(tagGroupCacheServiceProvider);
+  final poolCacheService = ref.watch(poolCacheServiceProvider);
+  return RandomPromptGenerator(
+    libraryService,
+    sequentialService,
+    tagGroupCacheService,
+    poolCacheService,
+  );
 }

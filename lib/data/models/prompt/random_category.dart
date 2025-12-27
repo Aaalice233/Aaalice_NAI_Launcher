@@ -27,6 +27,12 @@ class RandomCategory with _$RandomCategory {
     /// 类别键名（如"hairColor"，用于程序内部标识）
     required String key,
 
+    /// emoji 图标（用于 UI 显示）
+    @Default('') String emoji,
+
+    /// 是否为内置类别（不可删除，不可修改 emoji）
+    @Default(false) bool isBuiltin,
+
     /// 是否启用该类别
     @Default(true) bool enabled,
 
@@ -62,12 +68,16 @@ class RandomCategory with _$RandomCategory {
   factory RandomCategory.create({
     required String name,
     required String key,
+    String emoji = '',
+    bool isBuiltin = false,
     List<RandomTagGroup>? groups,
   }) {
     return RandomCategory(
       id: const Uuid().v4(),
       name: name,
       key: key,
+      emoji: emoji,
+      isBuiltin: isBuiltin,
       groups: groups ?? [],
     );
   }

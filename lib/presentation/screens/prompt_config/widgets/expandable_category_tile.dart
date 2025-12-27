@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/danbooru_tag_group_tree.dart';
+import '../../../../data/models/prompt/default_category_emojis.dart';
 import '../../../../data/models/prompt/pool_mapping.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
@@ -13,7 +14,6 @@ import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../../providers/tag_library_provider.dart';
-import '../../../utils/category_icon_utils.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/prompt/tag_group_settings_dialog.dart';
 import 'add_group_dialog.dart';
@@ -155,9 +155,9 @@ class _ExpandableCategoryTileState
     }
 
     // 2. TagGroup 标签数量（始终计入）
-    final syncState = ref.watch(tagGroupSyncNotifierProvider);
     final presetState = ref.watch(randomPresetNotifierProvider);
     final preset = presetState.selectedPreset;
+    final syncState = ref.watch(tagGroupSyncNotifierProvider);
     final tagGroupMappings = preset?.tagGroupMappings ?? [];
     for (final mapping in tagGroupMappings) {
       if (mapping.targetCategory == widget.category) {
@@ -169,6 +169,14 @@ class _ExpandableCategoryTileState
             TagGroupPresetCache.getCount(mapping.groupTitle) ??
             0;
         count += tagCount;
+      }
+    }
+
+    // 3. Pool 映射帖子数量（显示已缓存的帖子数量）
+    final poolMappings = preset?.poolMappings ?? [];
+    for (final poolMapping in poolMappings) {
+      if (poolMapping.targetCategory == widget.category) {
+        count += poolMapping.lastSyncedPostCount;
       }
     }
 
@@ -209,21 +217,14 @@ class _ExpandableCategoryTileState
               child: Row(
                 children: [
                   // 分类图标
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: widget.isEnabled
-                          ? theme.colorScheme.primaryContainer.withOpacity(0.5)
-                          : theme.colorScheme.surfaceContainerHighest
-                              .withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      CategoryIconUtils.getCategoryIcon(widget.category),
-                      size: 18,
-                      color: widget.isEnabled
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline,
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Center(
+                      child: Text(
+                        DefaultCategoryEmojis.getTagSubCategoryEmoji(widget.category),
+                        style: const TextStyle(fontSize: 24),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -450,11 +451,9 @@ class _ExpandableCategoryTileState
                     ),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -465,11 +464,9 @@ class _ExpandableCategoryTileState
                     label: Text(context.l10n.promptConfig_addGroup),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 ],
@@ -540,7 +537,7 @@ class _ExpandableCategoryTileState
     required ThemeData theme,
     required String title,
     required String subtitle,
-    required IconData icon,
+    required String emoji,
     required int tagCount,
     required bool isEnabled,
     required ValueChanged<bool> onToggleEnabled,
@@ -564,11 +561,14 @@ class _ExpandableCategoryTileState
         dense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-        leading: Icon(
-          icon,
-          size: 20,
-          color:
-              isEnabled ? theme.colorScheme.primary : theme.colorScheme.outline,
+        leading: SizedBox(
+          width: 32,
+          child: Center(
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 20),
+            ),
+          ),
         ),
         title: Text(
           title,
@@ -591,12 +591,13 @@ class _ExpandableCategoryTileState
                 icon: Icon(
                   Icons.settings_outlined,
                   size: 16,
-                  color: theme.colorScheme.outline,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 label: Text(
                   context.l10n.common_settings,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onPressed: onSettings,
@@ -611,12 +612,13 @@ class _ExpandableCategoryTileState
               icon: Icon(
                 Icons.delete_outline,
                 size: 16,
-                color: theme.colorScheme.error.withOpacity(0.7),
+                color: theme.colorScheme.error,
               ),
               label: Text(
                 context.l10n.common_delete,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error.withOpacity(0.7),
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               onPressed: onDelete,
@@ -663,7 +665,7 @@ class _ExpandableCategoryTileState
       theme: theme,
       title: context.l10n.tagGroup_builtin,
       subtitle: context.l10n.promptConfig_builtinLibrary,
-      icon: Icons.auto_awesome,
+      emoji: '✨',
       tagCount: tagCount,
       isEnabled: isEnabled,
       onToggleEnabled: (enabled) {
@@ -741,7 +743,7 @@ class _ExpandableCategoryTileState
       theme: theme,
       title: mapping.displayName,
       subtitle: context.l10n.promptConfig_danbooruTagGroup,
-      icon: Icons.cloud_outlined,
+      emoji: '☁️',
       tagCount: tagCount,
       isEnabled: mapping.enabled,
       onToggleEnabled: (enabled) =>
@@ -882,16 +884,146 @@ class _ExpandableCategoryTileState
 
   /// 构建 Pool 映射分组卡片
   Widget _buildPoolMappingCard(ThemeData theme, PoolMapping poolMapping) {
-    return _buildGroupCard(
+    // 获取对应的 RandomTagGroup 用于设置
+    final presetState = ref.watch(randomPresetNotifierProvider);
+    final preset = presetState.selectedPreset;
+    final categories = preset?.categories ?? [];
+
+    // 查找对应的 RandomCategory
+    final randomCategory = categories.cast<RandomCategory?>().firstWhere(
+          (c) => c?.key == widget.category.name,
+          orElse: () => null,
+        );
+
+    // 通过 poolId 查找对应的 RandomTagGroup
+    final tagGroup = randomCategory?.groups.cast<RandomTagGroup?>().firstWhere(
+          (g) =>
+              g?.sourceId == poolMapping.poolId.toString() ||
+              g?.name == poolMapping.poolDisplayName,
+          orElse: () => null,
+        );
+
+    // Pool 使用专门的构建方法，显示帖子数量而非标签数量
+    return _buildPoolGroupCard(
       theme: theme,
       title: poolMapping.poolDisplayName,
       subtitle: context.l10n.promptConfig_danbooruPool,
-      icon: Icons.collections_outlined,
-      tagCount: poolMapping.lastSyncedTagCount,
+      emoji: '🖼️',
+      postCount: poolMapping.lastSyncedPostCount,
       isEnabled: poolMapping.enabled,
       onToggleEnabled: (enabled) =>
           _togglePoolMappingEnabled(poolMapping, enabled),
       onDelete: () => _deletePoolMapping(poolMapping),
+      onSettings: tagGroup != null && randomCategory != null
+          ? () => _showTagGroupSettings(randomCategory, tagGroup)
+          : () => _createAndShowPoolSettings(poolMapping),
+    );
+  }
+
+  /// 构建 Pool 类型的分组卡片（显示帖子数量）
+  Widget _buildPoolGroupCard({
+    required ThemeData theme,
+    required String title,
+    required String subtitle,
+    required String emoji,
+    required int postCount,
+    required bool isEnabled,
+    required ValueChanged<bool> onToggleEnabled,
+    required VoidCallback onDelete,
+    VoidCallback? onSettings,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isEnabled
+            ? theme.colorScheme.surfaceContainerHighest
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isEnabled
+              ? theme.colorScheme.outline.withOpacity(0.2)
+              : theme.colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: ListTile(
+        dense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        leading: SizedBox(
+          width: 32,
+          child: Center(
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 20),
+            ),
+          ),
+        ),
+        title: Text(
+          title,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: isEnabled ? null : theme.colorScheme.outline,
+          ),
+        ),
+        subtitle: Text(
+          '$postCount ${context.l10n.cache_posts} · $subtitle',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 设置按钮
+            if (onSettings != null)
+              TextButton.icon(
+                icon: Icon(
+                  Icons.settings_outlined,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                label: Text(
+                  context.l10n.common_settings,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onPressed: onSettings,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            // 删除按钮
+            TextButton.icon(
+              icon: Icon(
+                Icons.delete_outline,
+                size: 16,
+                color: theme.colorScheme.error,
+              ),
+              label: Text(
+                context.l10n.common_delete,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              onPressed: onDelete,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: const Size(0, 36),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            // 启用开关
+            Switch(
+              value: isEnabled,
+              onChanged: onToggleEnabled,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -932,6 +1064,61 @@ class _ExpandableCategoryTileState
       ref
           .read(randomPresetNotifierProvider.notifier)
           .removePoolMapping(poolMapping.id);
+    }
+  }
+
+  /// 为 PoolMapping 创建 RandomTagGroup 并显示设置对话框
+  void _createAndShowPoolSettings(PoolMapping poolMapping) async {
+    final notifier = ref.read(randomPresetNotifierProvider.notifier);
+    final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
+    if (preset == null) return;
+
+    // 查找或创建 RandomCategory
+    var randomCategory = preset.categories.cast<RandomCategory?>().firstWhere(
+          (c) => c?.key == widget.category.name,
+          orElse: () => null,
+        );
+
+    if (randomCategory == null) {
+      // 创建新的 RandomCategory
+      randomCategory = RandomCategory.create(
+        name: widget.category.name,
+        key: widget.category.name,
+      );
+      await notifier.addCategory(randomCategory);
+    }
+
+    // 创建新的 RandomTagGroup（基于 Pool）
+    final newTagGroup = RandomTagGroup.fromPool(
+      name: poolMapping.poolDisplayName,
+      poolId: poolMapping.poolId.toString(),
+      postCount: poolMapping.lastSyncedPostCount,
+    );
+
+    // 更新 RandomCategory，添加新的 RandomTagGroup
+    final updatedCategory = randomCategory.addGroup(newTagGroup);
+    await notifier.updateCategory(updatedCategory);
+
+    // 显示设置对话框
+    if (mounted) {
+      TagGroupSettingsDialog.show(
+        context: context,
+        tagGroup: newTagGroup,
+        onSave: (updatedTagGroup) async {
+          final latestCategory = ref
+              .read(randomPresetNotifierProvider)
+              .selectedPreset
+              ?.categories
+              .firstWhere((c) => c.key == widget.category.name);
+          if (latestCategory != null) {
+            final finalCategory = latestCategory.updateGroup(updatedTagGroup);
+            await notifier.updateCategory(finalCategory);
+            if (mounted) {
+              AppToast.success(context, context.l10n.common_saved);
+            }
+          }
+        },
+      );
     }
   }
 
@@ -1025,6 +1212,7 @@ class _ExpandableCategoryTileState
               poolId: result.poolId!,
               poolName: result.poolName!,
               postCount: result.postCount ?? 0,
+              lastSyncedPostCount: result.postCount ?? 0,
               targetCategory: targetCategory,
               createdAt: DateTime.now(),
             ),
@@ -1034,7 +1222,7 @@ class _ExpandableCategoryTileState
     } catch (e) {
       if (!mounted) return;
       // ignore: use_build_context_synchronously
-      AppToast.error(currentContext, '添加失败: $e');
+      AppToast.error(currentContext, currentContext.l10n.addGroup_addFailed(e.toString()));
     }
   }
 }

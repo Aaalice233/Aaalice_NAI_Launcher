@@ -1,48 +1,74 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
-import '../../models/prompt/weighted_tag.dart';
+import '../../models/prompt/pool_post.dart';
 
 part 'pool_cache_service.g.dart';
 
+/// 缓存格式版本号
+///
+/// 当数据结构发生变化时递增此版本号
+const int _cacheFormatVersion = 2;
+
 /// Pool 缓存条目
+///
+/// 存储 Pool 的所有帖子及其分类标签
 class PoolCacheEntry {
   final int poolId;
   final String poolName;
-  final List<WeightedTag> tags;
-  final int postCount;
+  final List<PoolPost> posts;
+  final int totalPostCount;
   final DateTime lastSyncedAt;
 
   PoolCacheEntry({
     required this.poolId,
     required this.poolName,
-    required this.tags,
-    required this.postCount,
+    required this.posts,
+    required this.totalPostCount,
     required this.lastSyncedAt,
   });
 
-  int get tagCount => tags.length;
+  /// 已缓存的帖子数量
+  int get cachedPostCount => posts.length;
+
+  /// 是否已完全同步
+  bool get isFullySynced => cachedPostCount >= totalPostCount;
 
   Map<String, dynamic> toJson() => {
         'poolId': poolId,
         'poolName': poolName,
-        'tags': tags.map((t) => t.toJson()).toList(),
-        'postCount': postCount,
+        'posts': posts.map((p) => p.toJson()).toList(),
+        'totalPostCount': totalPostCount,
         'lastSyncedAt': lastSyncedAt.toIso8601String(),
+        'version': _cacheFormatVersion,
       };
 
   factory PoolCacheEntry.fromJson(Map<String, dynamic> json) {
+    // 检查版本，如果是旧版本（没有 version 或 version < 当前版本），返回空 posts
+    final version = json['version'] as int? ?? 1;
+    if (version < _cacheFormatVersion) {
+      // 旧格式：含有 tags 字段，需要重新同步
+      return PoolCacheEntry(
+        poolId: json['poolId'] as int,
+        poolName: json['poolName'] as String,
+        posts: [], // 空列表，触发重新同步
+        totalPostCount: json['postCount'] as int? ?? 0,
+        lastSyncedAt: DateTime.parse(json['lastSyncedAt'] as String),
+      );
+    }
+
     return PoolCacheEntry(
       poolId: json['poolId'] as int,
       poolName: json['poolName'] as String,
-      tags: (json['tags'] as List)
-          .map((t) => WeightedTag.fromJson(t as Map<String, dynamic>))
+      posts: (json['posts'] as List)
+          .map((p) => PoolPost.fromJson(p as Map<String, dynamic>))
           .toList(),
-      postCount: json['postCount'] as int,
+      totalPostCount: json['totalPostCount'] as int,
       lastSyncedAt: DateTime.parse(json['lastSyncedAt'] as String),
     );
   }
@@ -50,7 +76,7 @@ class PoolCacheEntry {
 
 /// Pool 持久化缓存服务
 ///
-/// 使用 Hive 存储 Pool 提取的标签数据
+/// 使用 Hive 存储 Pool 的所有帖子数据
 class PoolCacheService {
   static const String _boxName = 'pool_full_cache';
 
@@ -83,20 +109,20 @@ class PoolCacheService {
   /// 生成缓存 key
   String _cacheKey(int poolId) => 'pool_$poolId';
 
-  /// 保存 Pool 到持久化缓存
-  Future<void> savePool(
+  /// 保存 Pool 帖子到持久化缓存
+  Future<void> savePoolPosts(
     int poolId,
     String poolName,
-    List<WeightedTag> tags,
-    int postCount,
+    List<PoolPost> posts,
+    int totalPostCount,
   ) async {
     await _ensureInit();
     try {
       final entry = PoolCacheEntry(
         poolId: poolId,
         poolName: poolName,
-        tags: tags,
-        postCount: postCount,
+        posts: posts,
+        totalPostCount: totalPostCount,
         lastSyncedAt: DateTime.now(),
       );
 
@@ -107,7 +133,7 @@ class PoolCacheService {
       _memoryCache[poolId] = entry;
 
       AppLogger.d(
-        'Saved Pool to cache: $poolName (${tags.length} tags)',
+        'Saved Pool to cache: $poolName (${posts.length} posts)',
         'PoolCache',
       );
     } catch (e, stack) {
@@ -138,6 +164,41 @@ class PoolCacheService {
       AppLogger.e('Failed to load Pool: $poolId', e, null, 'PoolCache');
     }
     return null;
+  }
+
+  /// 获取随机帖子
+  PoolPost? getRandomPost(int poolId, Random random) {
+    final entry = _memoryCache[poolId];
+    if (entry == null || entry.posts.isEmpty) return null;
+    return entry.posts[random.nextInt(entry.posts.length)];
+  }
+
+  /// 获取多个随机帖子（不重复）
+  List<PoolPost> getRandomPosts(int poolId, int count, Random random) {
+    if (count <= 0) return [];
+
+    final entry = _memoryCache[poolId];
+    if (entry == null || entry.posts.isEmpty) return [];
+
+    // 如果请求数量大于可用数量，返回全部（打乱顺序）
+    if (count >= entry.posts.length) {
+      final shuffled = List<PoolPost>.from(entry.posts);
+      shuffled.shuffle(random);
+      return shuffled;
+    }
+
+    // 使用 Fisher-Yates 部分洗牌选择不重复的元素
+    final posts = List<PoolPost>.from(entry.posts);
+    final result = <PoolPost>[];
+    for (var i = 0; i < count; i++) {
+      final j = random.nextInt(posts.length - i) + i;
+      // 交换
+      final temp = posts[i];
+      posts[i] = posts[j];
+      posts[j] = temp;
+      result.add(posts[i]);
+    }
+    return result;
   }
 
   /// 获取所有已缓存的 Pool
@@ -186,6 +247,14 @@ class PoolCacheService {
     return _box?.containsKey(key) ?? false;
   }
 
+  /// 检查是否需要重新同步（旧格式或数据不完整）
+  Future<bool> needsResync(int poolId) async {
+    final entry = await getPool(poolId);
+    if (entry == null) return true;
+    // 如果 posts 为空（旧格式迁移），需要重新同步
+    return entry.posts.isEmpty;
+  }
+
   /// 清除指定 Pool 的缓存
   Future<void> removePool(int poolId) async {
     await _ensureInit();
@@ -206,14 +275,14 @@ class PoolCacheService {
   Future<Map<String, dynamic>> getCacheStats() async {
     await _ensureInit();
     final pools = await getAllCachedPools();
-    var totalTags = 0;
+    var totalPosts = 0;
     for (final entry in pools.values) {
-      totalTags += entry.tagCount;
+      totalPosts += entry.cachedPostCount;
     }
 
     return {
       'poolCount': pools.length,
-      'totalTags': totalTags,
+      'totalPosts': totalPosts,
       'memoryCacheSize': _memoryCache.length,
     };
   }

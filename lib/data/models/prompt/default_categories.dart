@@ -26,6 +26,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '发色',
         key: 'hairColor',
+        emoji: '🎨',
+        isBuiltin: true,
         probability: 1.0,
         groups: [
           RandomTagGroup.custom(
@@ -55,6 +57,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '瞳色',
         key: 'eyeColor',
+        emoji: '👁️',
+        isBuiltin: true,
         probability: 1.0,
         groups: [
           RandomTagGroup.custom(
@@ -80,6 +84,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '发型',
         key: 'hairStyle',
+        emoji: '✂️',
+        isBuiltin: true,
         probability: 0.5,
         groups: [
           RandomTagGroup.custom(
@@ -106,6 +112,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '表情',
         key: 'expression',
+        emoji: '😊',
+        isBuiltin: true,
         probability: 0.5,
         groups: [
           RandomTagGroup.custom(
@@ -131,6 +139,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '姿势',
         key: 'pose',
+        emoji: '🧘',
+        isBuiltin: true,
         probability: 0.5,
         groups: [
           RandomTagGroup.custom(
@@ -158,6 +168,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '服装',
         key: 'clothing',
+        emoji: '👗',
+        isBuiltin: true,
         probability: 1.0,
         groups: [
           RandomTagGroup.custom(
@@ -182,6 +194,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '配饰',
         key: 'accessory',
+        emoji: '💍',
+        isBuiltin: true,
         probability: 0.5,
         groups: [
           RandomTagGroup.custom(
@@ -206,6 +220,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '身体特征',
         key: 'bodyFeature',
+        emoji: '💪',
+        isBuiltin: true,
         probability: 0.3,
         groups: [
           RandomTagGroup.custom(
@@ -228,6 +244,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '背景',
         key: 'background',
+        emoji: '🌄',
+        isBuiltin: true,
         probability: 0.9,
         groups: [
           RandomTagGroup.custom(
@@ -252,6 +270,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '场景',
         key: 'scene',
+        emoji: '🏞️',
+        isBuiltin: true,
         probability: 0.5,
         groups: [
           RandomTagGroup.custom(
@@ -279,6 +299,8 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '风格',
         key: 'style',
+        emoji: '🎨',
+        isBuiltin: true,
         probability: 0.3,
         groups: [
           RandomTagGroup.custom(

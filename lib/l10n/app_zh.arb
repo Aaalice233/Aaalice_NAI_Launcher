@@ -505,6 +505,9 @@
   "preset_multiple": "多选",
   "preset_probability": "概率",
   "preset_moreActions": "更多操作",
+  "preset_rename": "重命名",
+  "preset_moveUp": "上移",
+  "preset_moveDown": "下移",
 
   "onlineGallery_search": "搜索",
   "onlineGallery_popular": "热门",
@@ -1049,8 +1052,8 @@
   "promptConfig_addGroup": "添加分组",
   "promptConfig_noGroups": "暂无分组，点击「添加分组」创建",
   "promptConfig_builtinLibrary": "NAI 内置词库",
-  "promptConfig_danbooruTagGroup": "Danbooru TagGroup",
-  "promptConfig_danbooruPool": "Danbooru Pool",
+  "promptConfig_danbooruTagGroup": "标签词库",
+  "promptConfig_danbooruPool": "图集",
   "promptConfig_categorySettings": "类别设置",
   "promptConfig_enableCategory": "启用类别",
   "promptConfig_disableCategory": "禁用类别",
@@ -1135,26 +1138,26 @@
   "tagLibrary_libraryComposition": "词库组成",
   "tagLibrary_libraryCompositionDesc": "NAI 官方固定词库 + 扩展标签（可选）",
 
-  "poolMapping_title": "Pool 映射",
-  "poolMapping_enableSync": "启用 Pool 同步",
-  "poolMapping_enableSyncDesc": "从 Danbooru Pools 中提取标签补充到分类",
-  "poolMapping_addMapping": "添加 Pool 映射",
-  "poolMapping_noMappings": "暂无 Pool 映射",
-  "poolMapping_noMappingsHint": "点击上方按钮添加 Danbooru Pool",
-  "poolMapping_searchPool": "搜索 Pool",
-  "poolMapping_searchHint": "输入 Pool 名称关键词",
+  "poolMapping_title": "图集映射",
+  "poolMapping_enableSync": "启用图集同步",
+  "poolMapping_enableSyncDesc": "从图集中提取标签补充到分类",
+  "poolMapping_addMapping": "添加图集映射",
+  "poolMapping_noMappings": "暂无图集映射",
+  "poolMapping_noMappingsHint": "点击上方按钮添加图集",
+  "poolMapping_searchPool": "搜索图集",
+  "poolMapping_searchHint": "输入图集名称关键词",
   "poolMapping_targetCategory": "目标分类",
-  "poolMapping_selectPool": "选择 Pool",
-  "poolMapping_syncPools": "同步 Pools",
+  "poolMapping_selectPool": "选择图集",
+  "poolMapping_syncPools": "同步图集",
   "poolMapping_syncing": "同步中...",
   "poolMapping_neverSynced": "从未同步",
-  "poolMapping_syncSuccess": "Pool 同步成功",
-  "poolMapping_syncFailed": "Pool 同步失败",
-  "poolMapping_noResults": "未找到匹配的 Pool",
-  "poolMapping_poolExists": "该 Pool 已添加",
-  "poolMapping_addSuccess": "Pool 映射添加成功",
-  "poolMapping_removeConfirm": "确定删除此 Pool 映射？",
-  "poolMapping_removeSuccess": "Pool 映射已删除",
+  "poolMapping_syncSuccess": "图集同步成功",
+  "poolMapping_syncFailed": "图集同步失败",
+  "poolMapping_noResults": "未找到匹配的图集",
+  "poolMapping_poolExists": "该图集已添加",
+  "poolMapping_addSuccess": "图集映射添加成功",
+  "poolMapping_removeConfirm": "确定删除此图集映射？",
+  "poolMapping_removeSuccess": "图集映射已删除",
   "poolMapping_tagCount": "{count} 标签",
   "@poolMapping_tagCount": {
     "placeholders": {
@@ -1169,25 +1172,25 @@
   },
   "poolMapping_alreadyAdded": "已添加",
   "poolMapping_resetToDefault": "恢复默认",
-  "poolMapping_resetConfirm": "确定要恢复默认 Pool 映射吗？当前配置将被覆盖。",
+  "poolMapping_resetConfirm": "确定要恢复默认图集映射吗？当前配置将被覆盖。",
   "poolMapping_resetSuccess": "已恢复默认配置",
 
-  "tagGroup_title": "Tag Group 同步",
-  "tagGroup_enableSync": "启用 Tag Group 同步",
-  "tagGroup_enableSyncDesc": "从 Danbooru Tag Groups 获取分类标签数据",
-  "tagGroup_mappingTitle": "Tag Group 映射",
+  "tagGroup_title": "标签词库同步",
+  "tagGroup_enableSync": "启用标签词库同步",
+  "tagGroup_enableSyncDesc": "从 Danbooru 获取分类标签数据",
+  "tagGroup_mappingTitle": "标签词库映射",
   "tagGroup_addMapping": "添加映射",
-  "tagGroup_noMappings": "暂无 Tag Group 映射",
-  "tagGroup_noMappingsHint": "点击上方按钮浏览并添加 Tag Group",
-  "tagGroup_searchHint": "搜索 Tag Group...",
+  "tagGroup_noMappings": "暂无标签词库映射",
+  "tagGroup_noMappingsHint": "点击上方按钮浏览并添加标签词库",
+  "tagGroup_searchHint": "搜索标签词库...",
   "tagGroup_targetCategory": "目标分类",
-  "tagGroup_selectGroup": "选择 Tag Group",
+  "tagGroup_selectGroup": "选择标签词库",
   "tagGroup_neverSynced": "从未同步",
-  "tagGroup_noResults": "未找到匹配的 Tag Group",
-  "tagGroup_groupExists": "该 Tag Group 已添加",
-  "tagGroup_addSuccess": "Tag Group 映射添加成功",
-  "tagGroup_removeConfirm": "确定删除此 Tag Group 映射？",
-  "tagGroup_removeSuccess": "Tag Group 映射已删除",
+  "tagGroup_noResults": "未找到匹配的标签词库",
+  "tagGroup_groupExists": "该标签词库已添加",
+  "tagGroup_addSuccess": "标签词库映射添加成功",
+  "tagGroup_removeConfirm": "确定删除此标签词库映射？",
+  "tagGroup_removeSuccess": "标签词库映射已删除",
   "tagGroup_tagCount": "{count} 标签",
   "@tagGroup_tagCount": {
     "placeholders": {
@@ -1202,7 +1205,7 @@
   },
   "tagGroup_alreadyAdded": "已添加",
   "tagGroup_resetToDefault": "恢复默认",
-  "tagGroup_resetConfirm": "确定要恢复默认 Tag Group 映射吗？当前配置将被覆盖。",
+  "tagGroup_resetConfirm": "确定要恢复默认标签词库映射吗？当前配置将被覆盖。",
   "tagGroup_resetSuccess": "已恢复默认配置",
   "tagGroup_minPostCount": "最小热度阈值",
   "tagGroup_postCountValue": "{count} posts",
@@ -1219,7 +1222,7 @@
       "count": {}
     }
   },
-  "tagGroup_selectToPreview": "选择一个 Tag Group 查看预览",
+  "tagGroup_selectToPreview": "选择一个标签词库查看预览",
   "tagGroup_noTagsInGroup": "该分组暂无标签数据",
   "tagGroup_andMore": "还有 {count} 个...",
   "@tagGroup_andMore": {
@@ -1265,8 +1268,8 @@
     }
   },
   "tagGroup_refresh": "刷新列表",
-  "tagGroup_loadingFromDanbooru": "正在从 Danbooru 加载 Tag Groups...",
-  "tagGroup_loadFailed": "无法加载 Tag Groups，请检查网络连接",
+  "tagGroup_loadingFromDanbooru": "正在从 Danbooru 加载标签词库...",
+  "tagGroup_loadFailed": "无法加载标签词库，请检查网络连接",
   "tagGroup_loadError": "加载失败: {error}",
   "@tagGroup_loadError": {
     "placeholders": {
@@ -1277,7 +1280,7 @@
   "tagGroup_searchHintAlt": "或使用搜索功能查找特定分组",
   "tagGroup_selected": "已选择",
   "tagGroup_manageGroups": "管理组",
-  "tagGroup_manageGroupsHint": "选择要同步的 Tag Group",
+  "tagGroup_manageGroupsHint": "选择要同步的标签词库",
   "tagGroup_selectedCount": "已选择 {count} 个组",
   "@tagGroup_selectedCount": {
     "placeholders": {
@@ -1316,13 +1319,24 @@
 
   "cache_title": "缓存管理",
   "cache_manage": "缓存管理",
-  "cache_tabTagGroup": "Tag Group",
-  "cache_tabPool": "Pool",
-  "cache_noTagGroups": "暂无 Tag Group 缓存",
-  "cache_noPools": "暂无 Pool 缓存",
+  "cache_tabTagGroup": "标签词库",
+  "cache_tabPool": "图集",
+  "cache_noTagGroups": "暂无标签词库缓存",
+  "cache_noPools": "暂无图集缓存",
+  "cache_noBuiltin": "暂无内置词库",
+  "cache_probability": "概率",
   "cache_tags": "标签",
+  "cache_posts": "张图片",
   "cache_neverSynced": "从未同步",
   "cache_refresh": "刷新",
+  "cache_refreshFailed": "刷新失败: {error}",
+  "@cache_refreshFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "cache_refreshAll": "刷新全部",
   "cache_totalStats": "共 {count} 个缓存，{tags} 个标签",
   "@cache_totalStats": {
@@ -1333,6 +1347,23 @@
   },
   "addGroup_fetchingCache": "正在获取数据...",
   "addGroup_fetchFailed": "获取数据失败，但仍可添加词组",
+  "addGroup_syncFailed": "同步失败，请检查网络连接后重试",
+  "addGroup_addFailed": "添加失败: {error}",
+  "@addGroup_addFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "addGroup_addCustom": "添加自定义",
+  "addGroup_filterHint": "搜索已缓存的词组...",
+
+  "customGroup_title": "添加自定义词组",
+  "customGroup_searchHint": "输入关键词搜索 Danbooru...",
+  "customGroup_nameLabel": "显示名称",
+  "customGroup_add": "添加并缓存",
+  "customGroup_searchPrompt": "输入关键词并搜索",
 
   "tagGroup_noCachedData": "无缓存数据",
   "tagGroup_syncRequired": "需要同步",
@@ -1355,7 +1386,7 @@
     }
   },
   "addGroup_builtinTab": "内置词库",
-  "addGroup_tagGroupTab": "Tag Group",
+  "addGroup_tagGroupTab": "标签词库",
   "addGroup_cancel": "取消",
   "addGroup_submit": "添加",
   "addGroup_builtinEnabled": "内置词库已启用",
@@ -1364,39 +1395,46 @@
   "addGroup_enableBuiltinDesc": "使用应用内置的标签词库",
   "addGroup_enable": "启用",
   "addGroup_backToParent": "返回上级",
-  "addGroup_browseMode": "浏览选择",
-  "addGroup_customMode": "自定义输入",
+  "addGroup_browseMode": "已缓存列表",
+  "addGroup_customMode": "添加其他",
   "addGroup_allCategories": "全部分类",
   "addGroup_noMoreSubcategories": "没有更多子分类",
-  "addGroup_tagGroupCount": "{count} 个 Tag Group",
+  "addGroup_tagGroupCount": "{count} 个标签词库",
   "@addGroup_tagGroupCount": {
     "placeholders": {
       "count": {}
     }
   },
   "addGroup_customInputHint": "输入 Danbooru 的 tag_group 标题，例如：hair_color",
-  "addGroup_groupTitleLabel": "Tag Group 标题 *",
+  "addGroup_groupTitleLabel": "标签词库标题 *",
   "addGroup_groupTitleHint": "例如：hair_color 或 tag_group:hair_color",
   "addGroup_displayNameLabel": "显示名称（可选）",
   "addGroup_displayNameHint": "留空则使用标题",
   "addGroup_targetCategoryLabel": "目标分类",
   "addGroup_includeChildren": "包含子分组",
-  "addGroup_includeChildrenDesc": "同时获取该 Tag Group 下所有子分组的标签",
-  "addGroup_errorEmptyTitle": "请输入 Tag Group 标题",
-  "addGroup_errorGroupExists": "该 Tag Group 已存在",
+  "addGroup_includeChildrenDesc": "同时获取该标签词库下所有子分组的标签",
+  "addGroup_errorEmptyTitle": "请输入标签词库标题",
+  "addGroup_errorGroupExists": "该标签词库已存在",
   "addGroup_sourceTypeLabel": "数据来源",
-  "addGroup_poolTab": "Danbooru Pool",
-  "addGroup_poolSearchLabel": "搜索 Pool",
-  "addGroup_poolSearchHint": "输入 Pool 名称进行搜索",
-  "addGroup_poolSearchEmpty": "输入关键词搜索 Danbooru Pool",
+  "addGroup_poolTab": "图集",
+  "addGroup_poolSearchLabel": "搜索图集",
+  "addGroup_poolSearchHint": "输入图集名称进行搜索",
+  "addGroup_poolSearchEmpty": "输入关键词搜索图集",
   "addGroup_poolSearchError": "搜索失败",
-  "addGroup_poolNoResults": "未找到匹配的 Pool",
+  "addGroup_poolNoResults": "未找到匹配的图集",
   "addGroup_poolPostCount": "{count} 个帖子",
   "@addGroup_poolPostCount": {
     "placeholders": {
       "count": {}
     }
   },
+  "addGroup_noCachedTagGroups": "暂无缓存的标签词库",
+  "addGroup_noCachedTagGroupsHint": "请先在「缓存管理」中同步标签词库数据",
+  "addGroup_noFilterResults": "没有找到匹配的结果",
+  "addGroup_noCachedPools": "暂无缓存的图集",
+  "addGroup_noCachedPoolsHint": "使用搜索框搜索并添加图集",
+  "addGroup_sectionTagGroups": "标签词库 ☁️",
+  "addGroup_sectionPools": "图集 🖼️",
 
   "globalSettings_title": "总览设置",
   "globalSettings_resetToDefault": "重置为默认",
@@ -1613,5 +1651,29 @@
   "preset_resetToDefault": "重置为默认",
   "preset_resetConfirmTitle": "重置预设",
   "preset_resetConfirmMessage": "确定要将当前预设的所有类别和词组设置重置为默认配置吗？此操作不可撤销。",
-  "preset_resetSuccess": "预设已重置为默认配置"
+  "preset_resetSuccess": "预设已重置为默认配置",
+
+  "category_addNew": "新增类别",
+  "category_dialogTitle": "创建新类别",
+  "category_name": "类别名称",
+  "category_nameHint": "输入类别名称",
+  "category_key": "类别标识",
+  "category_keyHint": "英文标识，用于内部",
+  "category_emoji": "图标",
+  "category_selectEmoji": "选择 Emoji",
+  "category_probability": "选中概率",
+  "category_createSuccess": "类别创建成功",
+  "category_nameRequired": "请输入类别名称",
+  "category_keyRequired": "请输入类别标识",
+  "category_keyExists": "该标识已存在",
+  "group_selectEmoji": "选择图标",
+  "category_noRecentEmoji": "暂无最近使用的 Emoji",
+  "category_searchEmoji": "搜索 Emoji",
+
+  "tagGroup_selectedCount": "已选 {count} 组",
+  "@tagGroup_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }

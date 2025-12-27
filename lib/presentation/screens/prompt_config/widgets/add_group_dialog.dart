@@ -4,12 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/local/pool_cache_service.dart';
 import '../../../../data/datasources/local/tag_group_cache_service.dart';
-import '../../../../data/datasources/remote/danbooru_pool_service.dart';
-import '../../../../data/datasources/remote/danbooru_tag_group_service.dart';
-import '../../../../data/models/danbooru/danbooru_pool.dart';
-import '../../../../data/models/prompt/danbooru_tag_group_tree.dart';
+import '../../../../data/models/prompt/default_categories.dart';
 import '../../../../data/models/prompt/tag_category.dart';
-import '../../../utils/category_icon_utils.dart';
+import '../../../../data/models/prompt/tag_group.dart';
+import 'custom_group_search_dialog.dart';
 
 /// 添加分组类型
 enum AddGroupType {
@@ -30,11 +28,15 @@ class AddGroupResult {
   final String? displayName;
   final bool includeChildren;
   final TagSubCategory? targetCategory;
+  final String? emoji;
 
   /// Pool 相关字段
   final int? poolId;
   final String? poolName;
   final int? postCount;
+
+  /// 内置类别相关字段
+  final String? builtinCategoryKey;
 
   const AddGroupResult({
     required this.type,
@@ -42,14 +44,16 @@ class AddGroupResult {
     this.displayName,
     this.includeChildren = true,
     this.targetCategory,
+    this.emoji,
     this.poolId,
     this.poolName,
     this.postCount,
+    this.builtinCategoryKey,
   });
 
   /// 创建内置词库结果
-  factory AddGroupResult.builtin() =>
-      const AddGroupResult(type: AddGroupType.builtin);
+  factory AddGroupResult.builtin({String? categoryKey}) =>
+      AddGroupResult(type: AddGroupType.builtin, builtinCategoryKey: categoryKey);
 
   /// 创建 Tag Group 结果
   factory AddGroupResult.tagGroup({
@@ -57,6 +61,7 @@ class AddGroupResult {
     required String displayName,
     bool includeChildren = true,
     TagSubCategory? targetCategory,
+    String? emoji,
   }) =>
       AddGroupResult(
         type: AddGroupType.tagGroup,
@@ -64,6 +69,7 @@ class AddGroupResult {
         displayName: displayName,
         includeChildren: includeChildren,
         targetCategory: targetCategory,
+        emoji: emoji,
       );
 
   /// 创建 Danbooru Pool 结果
@@ -72,6 +78,7 @@ class AddGroupResult {
     required String poolName,
     required int postCount,
     TagSubCategory? targetCategory,
+    String? emoji,
   }) =>
       AddGroupResult(
         type: AddGroupType.danbooruPool,
@@ -79,7 +86,70 @@ class AddGroupResult {
         poolName: poolName,
         postCount: postCount,
         targetCategory: targetCategory,
+        emoji: emoji,
       );
+}
+
+/// 统一的缓存列表项（TagGroup 或 Pool）
+class _CachedGroupItem {
+  final String displayName;
+  final int tagCount;
+  final String emoji;
+  final bool isPool;
+
+  // TagGroup 相关
+  final TagGroup? tagGroup;
+
+  // Pool 相关
+  final PoolCacheEntry? poolEntry;
+
+  _CachedGroupItem._({
+    required this.displayName,
+    required this.tagCount,
+    required this.emoji,
+    required this.isPool,
+    this.tagGroup,
+    this.poolEntry,
+  });
+
+  factory _CachedGroupItem.fromTagGroup(TagGroup group, BuildContext context) {
+    return _CachedGroupItem._(
+      displayName: TagGroup.titleToDisplayName(group.title, context),
+      tagCount: group.tagCount,
+      emoji: '☁️',
+      isPool: false,
+      tagGroup: group,
+    );
+  }
+
+  factory _CachedGroupItem.fromPool(PoolCacheEntry pool) {
+    return _CachedGroupItem._(
+      displayName: pool.poolName.replaceAll('_', ' '),
+      tagCount: pool.cachedPostCount,
+      emoji: '🖼️',
+      isPool: true,
+      poolEntry: pool,
+    );
+  }
+
+  /// 获取唯一标识（用于判断是否已存在）
+  String get uniqueKey =>
+      isPool ? 'pool:${poolEntry!.poolId}' : tagGroup!.title;
+}
+
+/// 内置类别项
+class _BuiltinCategoryItem {
+  final String key;
+  final String name;
+  final String emoji;
+  final int tagCount;
+
+  const _BuiltinCategoryItem({
+    required this.key,
+    required this.name,
+    required this.emoji,
+    required this.tagCount,
+  });
 }
 
 /// 添加分组对话框（支持内置词库、Tag Group 和 Danbooru Pool）
@@ -124,232 +194,202 @@ class AddGroupDialog extends ConsumerStatefulWidget {
   ConsumerState<AddGroupDialog> createState() => _AddGroupDialogState();
 }
 
-class _AddGroupDialogState extends ConsumerState<AddGroupDialog> {
-  // 当前选择的数据来源类型
-  late AddGroupType _selectedSourceType;
+class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
-  // 自定义模式状态
-  bool _isCustomMode = false;
-  final _groupTitleController = TextEditingController();
-  final _displayNameController = TextEditingController();
-  bool _includeChildren = true;
-  String? _errorMessage;
+  // 搜索过滤控制器
+  final _filterController = TextEditingController();
+  String _filterQuery = '';
 
-  // 树状导航状态
-  final List<TagGroupTreeNode> _navigationStack = [];
-  TagSubCategory? _selectedTargetCategory;
+  // 本地缓存的 Tag Group 列表
+  Map<String, TagGroup> _cachedTagGroups = {};
+  bool _isLoadingTagGroups = true;
 
-  // Pool 搜索相关状态
-  final _poolSearchController = TextEditingController();
-  String _poolSearchQuery = '';
-  List<DanbooruPool> _poolSearchResults = [];
-  bool _isSearching = false;
-  String? _poolSearchError;
+  // 本地缓存的 Pool 列表
+  Map<int, PoolCacheEntry> _cachedPools = {};
+  bool _isLoadingPools = true;
 
-  // 自动拉取缓存状态
-  bool _isFetchingCache = false;
+  // 内置类别列表
+  List<_BuiltinCategoryItem> _builtinCategories = [];
 
   @override
   void initState() {
     super.initState();
-    // 如果内置已启用，默认显示 TagGroup
-    _selectedSourceType =
-        widget.isBuiltinEnabled ? AddGroupType.tagGroup : AddGroupType.builtin;
-    // 初始化目标分类
-    _selectedTargetCategory = widget.category;
+    _tabController = TabController(length: 3, vsync: this);
+    _loadCachedData();
+    _loadBuiltinCategories();
+    _filterController.addListener(_onFilterChanged);
   }
 
-  @override
-  void dispose() {
-    _groupTitleController.dispose();
-    _displayNameController.dispose();
-    _poolSearchController.dispose();
-    super.dispose();
-  }
-
-  void _selectBuiltin() {
-    Navigator.of(context).pop(AddGroupResult.builtin());
-  }
-
-  void _selectTagGroup(TagGroupTreeNode node) async {
-    final displayName =
-        widget.locale == 'zh' ? node.displayNameZh : node.displayNameEn;
-
-    // 检查缓存是否存在
-    final cacheService = ref.read(tagGroupCacheServiceProvider);
-    final hasCached = await cacheService.hasCachedAsync(node.title);
-
-    if (!hasCached) {
-      // 显示加载指示器
-      setState(() => _isFetchingCache = true);
-
-      try {
-        // 从 Danbooru 拉取数据
-        final tagGroupService = ref.read(danbooruTagGroupServiceProvider);
-        await tagGroupService.syncTagGroup(
-          groupTitle: node.title,
-          minPostCount: 1000,
-          includeChildren: true,
-        );
-      } catch (e) {
-        // 显示错误提示但仍允许添加
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.addGroup_fetchFailed)),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isFetchingCache = false);
-        }
-      }
-    }
-
-    if (mounted) {
-      Navigator.of(context).pop(
-        AddGroupResult.tagGroup(
-          groupTitle: node.title,
-          displayName: displayName.isNotEmpty ? displayName : node.title,
-          includeChildren: true,
-          targetCategory: _selectedTargetCategory,
-        ),
+  void _loadBuiltinCategories() {
+    final defaultCategories = DefaultCategories.createDefault();
+    _builtinCategories = defaultCategories.map((category) {
+      final tagCount = category.groups.isNotEmpty
+          ? category.groups.first.tags.length
+          : 0;
+      return _BuiltinCategoryItem(
+        key: category.key,
+        name: category.name,
+        emoji: category.emoji,
+        tagCount: tagCount,
       );
-    }
+    }).toList();
   }
 
-  void _navigateInto(TagGroupTreeNode node) {
+  void _onFilterChanged() {
     setState(() {
-      _navigationStack.add(node);
+      _filterQuery = _filterController.text.trim().toLowerCase();
     });
   }
 
-  void _navigateBack() {
-    if (_navigationStack.isNotEmpty) {
-      setState(() {
-        _navigationStack.removeLast();
-      });
-    }
+  Future<void> _loadCachedData() async {
+    await Future.wait([
+      _loadCachedTagGroups(),
+      _loadCachedPools(),
+    ]);
   }
 
-  void _submitCustom() {
-    final groupTitle = _groupTitleController.text.trim();
-    final displayName = _displayNameController.text.trim();
-
-    if (groupTitle.isEmpty) {
-      setState(() => _errorMessage = context.l10n.addGroup_errorEmptyTitle);
-      return;
-    }
-
-    // 自动添加 tag_group: 前缀（如果没有）
-    final finalGroupTitle = groupTitle.startsWith('tag_group:')
-        ? groupTitle
-        : 'tag_group:$groupTitle';
-
-    if (widget.existingGroupTitles.contains(finalGroupTitle)) {
-      setState(() => _errorMessage = context.l10n.addGroup_errorGroupExists);
-      return;
-    }
-
-    Navigator.of(context).pop(
-      AddGroupResult.tagGroup(
-        groupTitle: finalGroupTitle,
-        displayName: displayName.isNotEmpty ? displayName : groupTitle,
-        includeChildren: _includeChildren,
-        targetCategory: _selectedTargetCategory,
-      ),
-    );
-  }
-
-  void _resetContentState() {
-    setState(() {
-      _navigationStack.clear();
-      _isCustomMode = false;
-      _poolSearchResults.clear();
-      _poolSearchQuery = '';
-      _poolSearchController.clear();
-      _poolSearchError = null;
-      _errorMessage = null;
-    });
-  }
-
-  Future<void> _searchPools(String query) async {
-    if (query.trim().isEmpty) return;
-
-    setState(() {
-      _isSearching = true;
-      _poolSearchQuery = query;
-      _poolSearchError = null;
-    });
-
+  Future<void> _loadCachedTagGroups() async {
+    setState(() => _isLoadingTagGroups = true);
     try {
-      final poolService = ref.read(danbooruPoolServiceProvider);
-      final results = await poolService.searchPools(query, limit: 20);
+      final cacheService = ref.read(tagGroupCacheServiceProvider);
+      final groups = await cacheService.getAllCachedGroups();
       if (mounted) {
         setState(() {
-          _poolSearchResults = results;
-          _isSearching = false;
+          _cachedTagGroups = groups;
+          _isLoadingTagGroups = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isSearching = false;
-          _poolSearchError = e.toString();
-        });
+        setState(() => _isLoadingTagGroups = false);
       }
     }
   }
 
-  void _selectPool(DanbooruPool pool) async {
-    // 检查 Pool 缓存是否存在
-    final poolCacheService = ref.read(poolCacheServiceProvider);
-    final hasCached = await poolCacheService.hasCachedAsync(pool.id);
-
-    if (!hasCached) {
-      // 显示加载指示器
-      setState(() => _isFetchingCache = true);
-
-      try {
-        // 从 Danbooru 拉取 Pool 标签数据
-        final poolService = ref.read(danbooruPoolServiceProvider);
-        final tags = await poolService.extractTagsFromPool(
-          poolId: pool.id,
-          poolName: pool.name,
-          maxPosts: 100,
-          minOccurrence: 3,
-        );
-
-        // 存入缓存
-        await poolCacheService.savePool(
-          pool.id,
-          pool.name,
-          tags,
-          pool.postCount,
-        );
-      } catch (e) {
-        // 显示错误提示但仍允许添加
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.addGroup_fetchFailed)),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isFetchingCache = false);
-        }
+  Future<void> _loadCachedPools() async {
+    setState(() => _isLoadingPools = true);
+    try {
+      final cacheService = ref.read(poolCacheServiceProvider);
+      final pools = await cacheService.getAllCachedPools();
+      if (mounted) {
+        setState(() {
+          _cachedPools = pools;
+          _isLoadingPools = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingPools = false);
       }
     }
+  }
 
-    if (mounted) {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _filterController.removeListener(_onFilterChanged);
+    _filterController.dispose();
+    super.dispose();
+  }
+
+  void _selectBuiltin(String categoryKey) {
+    Navigator.of(context).pop(AddGroupResult.builtin(categoryKey: categoryKey));
+  }
+
+  void _selectTagGroup(TagGroup group) {
+    final displayName = TagGroup.titleToDisplayName(group.title, context);
+    Navigator.of(context).pop(
+      AddGroupResult.tagGroup(
+        groupTitle: group.title,
+        displayName: displayName,
+        includeChildren: true,
+        targetCategory: widget.category,
+      ),
+    );
+  }
+
+  void _selectPool(PoolCacheEntry pool) {
+    Navigator.of(context).pop(
+      AddGroupResult.danbooruPool(
+        poolId: pool.poolId,
+        poolName: pool.poolName,
+        postCount: pool.cachedPostCount,
+        targetCategory: widget.category,
+      ),
+    );
+  }
+
+  Future<void> _openCustomGroupSearch() async {
+    final result = await CustomGroupSearchDialog.show(context);
+    if (result == null || !mounted) return;
+
+    // 刷新缓存列表
+    await _loadCachedData();
+
+    if (!mounted) return;
+
+    // 根据结果类型返回
+    if (result.type == CustomGroupType.tagGroup) {
+      Navigator.of(context).pop(
+        AddGroupResult.tagGroup(
+          groupTitle: result.groupTitle!,
+          displayName: result.name,
+          includeChildren: true,
+          targetCategory: widget.category,
+          emoji: result.emoji,
+        ),
+      );
+    } else {
       Navigator.of(context).pop(
         AddGroupResult.danbooruPool(
-          poolId: pool.id,
-          poolName: pool.name,
-          postCount: pool.postCount,
-          targetCategory: _selectedTargetCategory,
+          poolId: result.poolId!,
+          poolName: result.name,
+          postCount: result.postCount ?? 0,
+          targetCategory: widget.category,
+          emoji: result.emoji,
         ),
       );
     }
+  }
+
+  /// 获取过滤后的内置类别
+  List<_BuiltinCategoryItem> _getFilteredBuiltinCategories() {
+    if (_filterQuery.isEmpty) {
+      return _builtinCategories;
+    }
+    return _builtinCategories
+        .where((item) => item.name.toLowerCase().contains(_filterQuery))
+        .toList();
+  }
+
+  /// 获取过滤后的 TagGroups
+  List<_CachedGroupItem> _getFilteredTagGroups() {
+    final items = <_CachedGroupItem>[];
+    for (final group in _cachedTagGroups.values) {
+      final item = _CachedGroupItem.fromTagGroup(group, context);
+      if (_filterQuery.isEmpty ||
+          item.displayName.toLowerCase().contains(_filterQuery)) {
+        items.add(item);
+      }
+    }
+    items.sort((a, b) => a.displayName.compareTo(b.displayName));
+    return items;
+  }
+
+  /// 获取过滤后的 Pools
+  List<_CachedGroupItem> _getFilteredPools() {
+    final items = <_CachedGroupItem>[];
+    for (final pool in _cachedPools.values) {
+      final item = _CachedGroupItem.fromPool(pool);
+      if (_filterQuery.isEmpty ||
+          item.displayName.toLowerCase().contains(_filterQuery)) {
+        items.add(item);
+      }
+    }
+    items.sort((a, b) => a.displayName.compareTo(b.displayName));
+    return items;
   }
 
   @override
@@ -358,300 +398,291 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog> {
     final categoryName = TagSubCategoryHelper.getDisplayName(widget.category);
     final l10n = context.l10n;
 
-    return Stack(
-      children: [
-        AlertDialog(
-          title: Text(l10n.addGroup_dialogTitle(categoryName)),
-          content: SizedBox(
-            width: 500,
-            height: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 数据来源下拉选择器
-                DropdownButtonFormField<AddGroupType>(
-                  value: _selectedSourceType,
-                  decoration: InputDecoration(
-                    labelText: l10n.addGroup_sourceTypeLabel,
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: AddGroupType.builtin,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.home_outlined,
-                            size: 20,
-                            color: widget.isBuiltinEnabled
-                                ? theme.colorScheme.outline
-                                : theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(l10n.addGroup_builtinTab),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: AddGroupType.tagGroup,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_outlined,
-                            size: 20,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(l10n.addGroup_tagGroupTab),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: AddGroupType.danbooruPool,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.collections_outlined,
-                            size: 20,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(l10n.addGroup_poolTab),
-                        ],
-                      ),
-                    ),
-                  ],
-                  onChanged: (type) {
-                    if (type != null && type != _selectedSourceType) {
-                      setState(() => _selectedSourceType = type);
-                      _resetContentState();
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                // 内容区域
-                Expanded(
-                  child: switch (_selectedSourceType) {
-                    AddGroupType.builtin => _buildBuiltinContent(theme),
-                    AddGroupType.tagGroup => _buildTagGroupContent(theme),
-                    AddGroupType.danbooruPool => _buildPoolContent(theme),
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l10n.addGroup_cancel),
-            ),
-            if (_isCustomMode && _selectedSourceType == AddGroupType.tagGroup)
-              FilledButton(
-                onPressed: _submitCustom,
-                child: Text(l10n.addGroup_submit),
-              ),
-          ],
-        ),
-        // 加载覆盖层
-        if (_isFetchingCache)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.3),
-              child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(l10n.addGroup_fetchingCache),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildBuiltinContent(ThemeData theme) {
-    final l10n = context.l10n;
-    if (widget.isBuiltinEnabled) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 48, color: theme.colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              l10n.addGroup_builtinEnabled,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.addGroup_builtinEnabledDesc,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return AlertDialog(
+      title: Row(
         children: [
-          Icon(Icons.home_outlined, size: 48, color: theme.colorScheme.primary),
-          const SizedBox(height: 16),
-          Text(
-            l10n.addGroup_enableBuiltin,
-            style: theme.textTheme.titleMedium,
+          Expanded(
+            child: Text(l10n.addGroup_dialogTitle(categoryName)),
           ),
-          const SizedBox(height: 8),
-          Text(
-            l10n.addGroup_enableBuiltinDesc,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-          const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: _selectBuiltin,
-            icon: const Icon(Icons.add),
-            label: Text(l10n.addGroup_enable),
+            onPressed: _openCustomGroupSearch,
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(l10n.addGroup_addCustom),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTagGroupContent(ThemeData theme) {
-    final l10n = context.l10n;
-    return Column(
-      children: [
-        // 顶部操作栏
-        Row(
+      content: SizedBox(
+        width: 550,
+        height: 520,
+        child: Column(
           children: [
-            // 返回按钮
-            if (_navigationStack.isNotEmpty && !_isCustomMode)
-              IconButton(
-                onPressed: _navigateBack,
-                icon: const Icon(Icons.arrow_back),
-                tooltip: l10n.addGroup_backToParent,
+            // Tab 栏
+            TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.home_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(l10n.addGroup_builtinTab),
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_builtinCategories.length}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cloud_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(l10n.addGroup_tagGroupTab),
+                      if (_cachedTagGroups.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_cachedTagGroups.length}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.collections_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(l10n.addGroup_poolTab),
+                      if (_cachedPools.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_cachedPools.length}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 搜索框
+            TextField(
+              controller: _filterController,
+              decoration: InputDecoration(
+                hintText: l10n.addGroup_filterHint,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _filterQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _filterController.clear();
+                        },
+                      )
+                    : null,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
-            // 面包屑
-            if (!_isCustomMode)
-              Expanded(
-                child: _buildBreadcrumb(theme),
-              ),
-            if (_isCustomMode) const Spacer(),
-            // 切换按钮
-            TextButton.icon(
-              onPressed: () => setState(() {
-                _isCustomMode = !_isCustomMode;
-                _errorMessage = null;
-                if (!_isCustomMode) {
-                  _navigationStack.clear();
-                }
-              }),
-              icon: Icon(_isCustomMode ? Icons.list : Icons.edit, size: 16),
-              label: Text(
-                _isCustomMode
-                    ? l10n.addGroup_browseMode
-                    : l10n.addGroup_customMode,
+            ),
+            const SizedBox(height: 12),
+            // Tab 内容
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildBuiltinList(theme),
+                  _buildTagGroupList(theme),
+                  _buildPoolList(theme),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        // 内容区
-        Expanded(
-          child: _isCustomMode
-              ? _buildCustomInput(theme)
-              : _buildTreeNavigation(theme),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.addGroup_cancel),
         ),
       ],
     );
   }
 
-  Widget _buildPoolContent(ThemeData theme) {
+  /// 构建内置词库列表
+  Widget _buildBuiltinList(ThemeData theme) {
     final l10n = context.l10n;
-    return Column(
-      children: [
-        // 搜索框
-        TextField(
-          controller: _poolSearchController,
-          decoration: InputDecoration(
-            labelText: l10n.addGroup_poolSearchLabel,
-            hintText: l10n.addGroup_poolSearchHint,
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _isSearching
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: Padding(
-                      padding: EdgeInsets.all(10),
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
-            border: const OutlineInputBorder(),
-          ),
-          onSubmitted: _searchPools,
-        ),
-        const SizedBox(height: 16),
-        // 搜索结果列表
-        Expanded(
-          child: _buildPoolSearchResults(theme),
-        ),
-      ],
-    );
-  }
+    final items = _getFilteredBuiltinCategories();
 
-  Widget _buildPoolSearchResults(ThemeData theme) {
-    final l10n = context.l10n;
-
-    // 显示搜索错误
-    if (_poolSearchError != null) {
+    if (items.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.error_outline,
+              Icons.search_off_outlined,
               size: 48,
-              color: theme.colorScheme.error,
+              color: theme.colorScheme.outline,
             ),
             const SizedBox(height: 16),
             Text(
-              l10n.addGroup_poolSearchError,
+              l10n.addGroup_noFilterResults,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _poolSearchError!,
-              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       );
     }
 
-    if (_poolSearchResults.isEmpty) {
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final isExisting = widget.existingGroupTitles.contains('builtin:${item.key}');
+
+        return ListTile(
+          leading: Text(
+            item.emoji,
+            style: const TextStyle(fontSize: 20),
+          ),
+          title: Text(
+            item.name,
+            style: TextStyle(
+              color: isExisting ? theme.colorScheme.outline : null,
+            ),
+          ),
+          subtitle: Text(
+            '${item.tagCount} ${l10n.cache_tags}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          trailing: isExisting
+              ? Text(
+                  l10n.tagGroup_alreadyAdded,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                )
+              : Icon(Icons.add, color: theme.colorScheme.primary),
+          enabled: !isExisting,
+          onTap: isExisting ? null : () => _selectBuiltin(item.key),
+        );
+      },
+    );
+  }
+
+  /// 构建标签词库列表
+  Widget _buildTagGroupList(ThemeData theme) {
+    final l10n = context.l10n;
+
+    if (_isLoadingTagGroups) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final items = _getFilteredTagGroups();
+
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.cloud_off_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _filterQuery.isNotEmpty
+                  ? l10n.addGroup_noFilterResults
+                  : l10n.addGroup_noCachedTagGroups,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (_filterQuery.isEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                l10n.addGroup_noCachedTagGroupsHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _buildItemTile(theme, l10n, item);
+      },
+    );
+  }
+
+  /// 构建图集列表
+  Widget _buildPoolList(ThemeData theme) {
+    final l10n = context.l10n;
+
+    if (_isLoadingPools) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final items = _getFilteredPools();
+
+    if (items.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -663,287 +694,83 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog> {
             ),
             const SizedBox(height: 16),
             Text(
-              _poolSearchQuery.isEmpty
-                  ? l10n.addGroup_poolSearchEmpty
-                  : l10n.addGroup_poolNoResults,
+              _filterQuery.isNotEmpty
+                  ? l10n.addGroup_noFilterResults
+                  : l10n.addGroup_noCachedPools,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
               textAlign: TextAlign.center,
             ),
+            if (_filterQuery.isEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                l10n.addGroup_noCachedPoolsHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       );
     }
 
     return ListView.builder(
-      itemCount: _poolSearchResults.length,
+      itemCount: items.length,
       itemBuilder: (context, index) {
-        final pool = _poolSearchResults[index];
-        return ListTile(
-          leading: Icon(
-            pool.category == PoolCategory.series
-                ? Icons.format_list_numbered
-                : Icons.collections_outlined,
-            color: theme.colorScheme.primary,
-          ),
-          title: Text(pool.displayName),
-          subtitle: Text(
-            l10n.addGroup_poolPostCount(pool.postCount),
-            style: theme.textTheme.bodySmall,
-          ),
-          trailing: Icon(Icons.add, color: theme.colorScheme.primary),
-          onTap: () => _selectPool(pool),
-        );
+        final item = items[index];
+        return _buildItemTile(theme, l10n, item);
       },
     );
   }
 
-  /// 面包屑导航
-  Widget _buildBreadcrumb(ThemeData theme) {
-    final l10n = context.l10n;
-    final parts = <Widget>[
-      InkWell(
-        onTap: _navigationStack.isNotEmpty
-            ? () => setState(() => _navigationStack.clear())
-            : null,
-        child: Text(
-          l10n.addGroup_allCategories,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: _navigationStack.isEmpty
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurface,
-            fontWeight: _navigationStack.isEmpty ? FontWeight.bold : null,
-          ),
+  /// 构建列表项
+  Widget _buildItemTile(
+    ThemeData theme,
+    dynamic l10n,
+    _CachedGroupItem item,
+  ) {
+    final isExisting = widget.existingGroupTitles.contains(item.uniqueKey);
+
+    return ListTile(
+      leading: Text(
+        item.emoji,
+        style: const TextStyle(fontSize: 20),
+      ),
+      title: Text(
+        item.displayName,
+        style: TextStyle(
+          color: isExisting ? theme.colorScheme.outline : null,
         ),
       ),
-    ];
-
-    for (var i = 0; i < _navigationStack.length; i++) {
-      final node = _navigationStack[i];
-      final isLast = i == _navigationStack.length - 1;
-      final displayName =
-          widget.locale == 'zh' ? node.displayNameZh : node.displayNameEn;
-
-      parts.add(
-        Icon(Icons.chevron_right, size: 16, color: theme.colorScheme.outline),
-      );
-      parts.add(
-        InkWell(
-          onTap: isLast
-              ? null
-              : () => setState(() {
-                    _navigationStack.removeRange(i + 1, _navigationStack.length);
-                  }),
-          child: Text(
-            displayName.isNotEmpty ? displayName : node.title,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: isLast
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
-              fontWeight: isLast ? FontWeight.bold : null,
-            ),
-          ),
+      subtitle: Text(
+        item.isPool
+            ? '${item.tagCount} ${l10n.cache_posts}'
+            : '${item.tagCount} ${l10n.cache_tags}',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.outline,
         ),
-      );
-    }
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: parts),
-    );
-  }
-
-  /// 树状导航列表
-  Widget _buildTreeNavigation(ThemeData theme) {
-    final l10n = context.l10n;
-    final currentNodes = _navigationStack.isEmpty
-        ? DanbooruTagGroupTree.tree
-        : _navigationStack.last.children;
-
-    if (currentNodes.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder_open, size: 48, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(
-              l10n.addGroup_noMoreSubcategories,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: currentNodes.length,
-      itemBuilder: (context, index) {
-        final node = currentNodes[index];
-        final displayName =
-            widget.locale == 'zh' ? node.displayNameZh : node.displayNameEn;
-        final isExisting = widget.existingGroupTitles.contains(node.title);
-
-        if (node.isTagGroup) {
-          // 叶子节点：可选择的 Tag Group
-          return ListTile(
-            leading: Icon(
-              Icons.cloud_outlined,
-              color: isExisting
-                  ? theme.colorScheme.outline
-                  : theme.colorScheme.primary,
-            ),
-            title: Text(
-              displayName.isNotEmpty ? displayName : node.title,
-              style: TextStyle(
-                color: isExisting ? theme.colorScheme.outline : null,
-              ),
-            ),
-            subtitle: Text(
-              node.title,
+      ),
+      trailing: isExisting
+          ? Text(
+              l10n.tagGroup_alreadyAdded,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
-            ),
-            trailing: isExisting
-                ? Text(
-                    l10n.tagGroup_alreadyAdded,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  )
-                : Icon(Icons.add, color: theme.colorScheme.primary),
-            enabled: !isExisting,
-            onTap: isExisting ? null : () => _selectTagGroup(node),
-          );
-        } else {
-          // 分支节点：可进入的分类
-          final childCount = _countLeafNodes(node);
-          return ListTile(
-            leading: Icon(
-              node.category != null
-                  ? CategoryIconUtils.getCategoryIcon(node.category!)
-                  : Icons.folder_outlined,
-              color: theme.colorScheme.primary,
-            ),
-            title: Text(displayName.isNotEmpty ? displayName : node.title),
-            subtitle: Text(
-              l10n.addGroup_tagGroupCount(childCount),
-              style: theme.textTheme.bodySmall,
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _navigateInto(node),
-          );
-        }
-      },
-    );
-  }
-
-  /// 计算节点下的叶子节点数量
-  int _countLeafNodes(TagGroupTreeNode node) {
-    if (node.isTagGroup) return 1;
-    int count = 0;
-    for (final child in node.children) {
-      count += _countLeafNodes(child);
-    }
-    return count;
-  }
-
-  Widget _buildCustomInput(ThemeData theme) {
-    final l10n = context.l10n;
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 说明文字
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.addGroup_customInputHint,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Tag Group 标题输入
-          TextField(
-            controller: _groupTitleController,
-            decoration: InputDecoration(
-              labelText: l10n.addGroup_groupTitleLabel,
-              hintText: l10n.addGroup_groupTitleHint,
-              prefixIcon: const Icon(Icons.tag),
-              border: const OutlineInputBorder(),
-              errorText: _errorMessage,
-            ),
-            onChanged: (_) {
-              if (_errorMessage != null) {
-                setState(() => _errorMessage = null);
+            )
+          : Icon(Icons.add, color: theme.colorScheme.primary),
+      enabled: !isExisting,
+      onTap: isExisting
+          ? null
+          : () {
+              if (item.isPool) {
+                _selectPool(item.poolEntry!);
+              } else {
+                _selectTagGroup(item.tagGroup!);
               }
             },
-          ),
-          const SizedBox(height: 16),
-          // 显示名称输入
-          TextField(
-            controller: _displayNameController,
-            decoration: InputDecoration(
-              labelText: l10n.addGroup_displayNameLabel,
-              hintText: l10n.addGroup_displayNameHint,
-              prefixIcon: const Icon(Icons.label_outline),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 目标分类选择
-          DropdownButtonFormField<TagSubCategory>(
-            value: _selectedTargetCategory,
-            decoration: InputDecoration(
-              labelText: l10n.addGroup_targetCategoryLabel,
-              prefixIcon: const Icon(Icons.category_outlined),
-              border: const OutlineInputBorder(),
-            ),
-            items: TagSubCategory.values
-                .map(
-                  (c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(TagSubCategoryHelper.getDisplayName(c)),
-                  ),
-                )
-                .toList(),
-            onChanged: (v) => setState(() => _selectedTargetCategory = v),
-          ),
-          const SizedBox(height: 16),
-          // 包含子组选项
-          CheckboxListTile(
-            value: _includeChildren,
-            onChanged: (v) => setState(() => _includeChildren = v ?? true),
-            title: Text(l10n.addGroup_includeChildren),
-            subtitle: Text(l10n.addGroup_includeChildrenDesc),
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-          ),
-        ],
-      ),
     );
   }
 }
