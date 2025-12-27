@@ -6,9 +6,11 @@ import '../../../data/datasources/local/pool_cache_service.dart';
 import '../../../data/datasources/local/tag_group_cache_service.dart';
 import '../../../data/datasources/remote/danbooru_pool_service.dart';
 import '../../../data/datasources/remote/danbooru_tag_group_service.dart';
-import '../../../data/models/prompt/default_categories.dart';
-import '../../../data/models/prompt/random_category.dart';
+import '../../../data/models/prompt/default_category_emojis.dart';
+import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/tag_group.dart';
+import '../../../data/models/prompt/tag_library.dart';
+import '../../providers/tag_library_provider.dart';
 
 /// 缓存管理对话框
 ///
@@ -34,9 +36,6 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // 内置词库数据
-  List<RandomCategory> _builtinCategories = [];
-
   // Tag Group 缓存数据
   Map<String, TagGroup> _tagGroupCache = {};
   bool _isLoadingTagGroups = true;
@@ -54,7 +53,6 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadBuiltinCategories();
     _loadCacheData();
   }
 
@@ -69,10 +67,6 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       _loadTagGroupCache(),
       _loadPoolCache(),
     ]);
-  }
-
-  void _loadBuiltinCategories() {
-    _builtinCategories = DefaultCategories.createDefault();
   }
 
   Future<void> _loadTagGroupCache() async {
@@ -197,16 +191,24 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    // 计算内置词库标签总数
+    // 从 TagLibrary 获取内置词库数据
+    final libraryState = ref.watch(tagLibraryNotifierProvider);
+    final library = libraryState.library;
+
+    // 计算内置词库标签总数（仅统计内置标签，不含 Danbooru 补充）
     var builtinTotalTags = 0;
-    for (final category in _builtinCategories) {
-      for (final group in category.groups) {
-        builtinTotalTags += group.tags.length;
+    final builtinCategoryCount = TagSubCategory.values.length;
+    if (library != null) {
+      for (final category in TagSubCategory.values) {
+        builtinTotalTags += library
+            .getCategory(category)
+            .where((t) => !t.isDanbooruSupplement)
+            .length;
       }
     }
 
     final totalCacheCount =
-        _builtinCategories.length + _tagGroupCache.length + _poolCache.length;
+        builtinCategoryCount + _tagGroupCache.length + _poolCache.length;
     var totalTags = builtinTotalTags;
     for (final group in _tagGroupCache.values) {
       totalTags += group.tagCount;
@@ -237,7 +239,7 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                       const Icon(Icons.auto_awesome_outlined, size: 18),
                       const SizedBox(width: 8),
                       Text(l10n.addGroup_builtinTab),
-                      if (_builtinCategories.isNotEmpty) ...[
+                      if (builtinCategoryCount > 0) ...[
                         const SizedBox(width: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -249,7 +251,7 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '${_builtinCategories.length}',
+                            '$builtinCategoryCount',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.onPrimaryContainer,
                             ),
@@ -326,7 +328,7 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildBuiltinList(theme),
+                  _buildBuiltinList(theme, library),
                   _buildTagGroupList(theme),
                   _buildPoolList(theme),
                 ],
@@ -382,10 +384,15 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     );
   }
 
-  Widget _buildBuiltinList(ThemeData theme) {
+  Widget _buildBuiltinList(ThemeData theme, TagLibrary? library) {
     final l10n = context.l10n;
 
-    if (_builtinCategories.isEmpty) {
+    if (library == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    const categories = TagSubCategory.values;
+    if (categories.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -408,27 +415,26 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     }
 
     return ListView.builder(
-      itemCount: _builtinCategories.length,
+      itemCount: categories.length,
       itemBuilder: (context, index) {
-        final category = _builtinCategories[index];
-        // 计算该类别的标签总数
-        var tagCount = 0;
-        for (final group in category.groups) {
-          tagCount += group.tags.length;
-        }
+        final category = categories[index];
+        // 从 TagLibrary 获取该类别的内置标签数量（不含 Danbooru 补充）
+        final tagCount = library
+            .getCategory(category)
+            .where((t) => !t.isDanbooruSupplement)
+            .length;
+
+        // 获取类别的 emoji 和名称
+        final emoji =
+            DefaultCategoryEmojis.categoryEmojis[category.name] ?? '🏷️';
+        final categoryName = TagSubCategoryHelper.getDisplayName(category);
 
         return ListTile(
           leading: Text(
-            category.emoji,
+            emoji,
             style: const TextStyle(fontSize: 24),
           ),
-          title: Text(category.name),
-          subtitle: Text(
-            '${l10n.cache_probability}: ${(category.probability * 100).toInt()}%',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
+          title: Text(categoryName),
           trailing: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 8,

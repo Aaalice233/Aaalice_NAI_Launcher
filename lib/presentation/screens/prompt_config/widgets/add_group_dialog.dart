@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/local/pool_cache_service.dart';
 import '../../../../data/datasources/local/tag_group_cache_service.dart';
-import '../../../../data/models/prompt/default_categories.dart';
+import '../../../../data/models/prompt/default_category_emojis.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../../../../data/models/prompt/tag_group.dart';
+import '../../../../data/models/prompt/tag_library.dart';
+import '../../../providers/tag_library_provider.dart';
 import 'custom_group_search_dialog.dart';
 
 /// 添加分组类型
@@ -210,31 +212,12 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   Map<int, PoolCacheEntry> _cachedPools = {};
   bool _isLoadingPools = true;
 
-  // 内置类别列表
-  List<_BuiltinCategoryItem> _builtinCategories = [];
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadCachedData();
-    _loadBuiltinCategories();
     _filterController.addListener(_onFilterChanged);
-  }
-
-  void _loadBuiltinCategories() {
-    final defaultCategories = DefaultCategories.createDefault();
-    _builtinCategories = defaultCategories.map((category) {
-      final tagCount = category.groups.isNotEmpty
-          ? category.groups.first.tags.length
-          : 0;
-      return _BuiltinCategoryItem(
-        key: category.key,
-        name: category.name,
-        emoji: category.emoji,
-        tagCount: tagCount,
-      );
-    }).toList();
   }
 
   void _onFilterChanged() {
@@ -355,11 +338,32 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   }
 
   /// 获取过滤后的内置类别
-  List<_BuiltinCategoryItem> _getFilteredBuiltinCategories() {
-    if (_filterQuery.isEmpty) {
-      return _builtinCategories;
+  List<_BuiltinCategoryItem> _getFilteredBuiltinCategories(TagLibrary? library) {
+    final items = <_BuiltinCategoryItem>[];
+    if (library == null) return items;
+
+    for (final category in TagSubCategory.values) {
+      final tagCount = library
+          .getCategory(category)
+          .where((t) => !t.isDanbooruSupplement)
+          .length;
+      final emoji =
+          DefaultCategoryEmojis.categoryEmojis[category.name] ?? '🏷️';
+      final name = TagSubCategoryHelper.getDisplayName(category);
+      items.add(
+        _BuiltinCategoryItem(
+          key: category.name,
+          name: name,
+          emoji: emoji,
+          tagCount: tagCount,
+        ),
+      );
     }
-    return _builtinCategories
+
+    if (_filterQuery.isEmpty) {
+      return items;
+    }
+    return items
         .where((item) => item.name.toLowerCase().contains(_filterQuery))
         .toList();
   }
@@ -397,6 +401,11 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
     final theme = widget.theme;
     final categoryName = TagSubCategoryHelper.getDisplayName(widget.category);
     final l10n = context.l10n;
+
+    // 从 TagLibrary 获取内置词库数据
+    final libraryState = ref.watch(tagLibraryNotifierProvider);
+    final library = libraryState.library;
+    final builtinCategoryCount = TagSubCategory.values.length;
 
     return AlertDialog(
       title: Row(
@@ -438,7 +447,7 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          '${_builtinCategories.length}',
+                          '$builtinCategoryCount',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.onPrimaryContainer,
                           ),
@@ -535,7 +544,7 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildBuiltinList(theme),
+                  _buildBuiltinList(theme, library),
                   _buildTagGroupList(theme),
                   _buildPoolList(theme),
                 ],
@@ -554,9 +563,14 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   }
 
   /// 构建内置词库列表
-  Widget _buildBuiltinList(ThemeData theme) {
+  Widget _buildBuiltinList(ThemeData theme, TagLibrary? library) {
     final l10n = context.l10n;
-    final items = _getFilteredBuiltinCategories();
+
+    if (library == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final items = _getFilteredBuiltinCategories(library);
 
     if (items.isEmpty) {
       return Center(
