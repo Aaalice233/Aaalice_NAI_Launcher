@@ -55,6 +55,7 @@ class MainNavRail extends ConsumerWidget {
             label: context.l10n.nav_gallery,
             isSelected: selectedIndex == 1,
             onTap: () => context.go(AppRoutes.gallery),
+            isDisabled: true, // 功能开发中
           ),
 
           // 在线画廊

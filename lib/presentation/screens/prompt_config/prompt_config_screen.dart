@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/prompt/character_count_config.dart'
+    show defaultSlotOptions;
 import '../../../data/models/prompt/prompt_config.dart' as pc;
 import '../../../data/models/prompt/random_prompt_result.dart'
     show RandomGenerationMode;
@@ -471,15 +473,22 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 显示类别设置对话框
   void _showCategorySettings(RandomCategory category) {
+    final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
+    final customSlotOptions = preset?.algorithmConfig.characterCountConfig
+            ?.customSlotOptions ??
+        defaultSlotOptions;
+
     CategorySettingsDialog.show(
       context: context,
       category: category,
+      customSlotOptions: customSlotOptions,
       onSave: (updatedCategory) async {
         final notifier = ref.read(randomPresetNotifierProvider.notifier);
-        final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
+        final currentPreset =
+            ref.read(randomPresetNotifierProvider).selectedPreset;
 
         // 检查类别是否已存在于预设中
-        final existingCategory = preset?.categories.any(
+        final existingCategory = currentPreset?.categories.any(
           (c) => c.id == updatedCategory.id,
         );
 
@@ -741,19 +750,20 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                       ...state.presets.map(
                         (preset) => _buildPresetItem(preset, state, theme),
                       ),
-                      // 新建预设按钮（列表末尾）
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 8,),
-                        child: OutlinedButton.icon(
-                          onPressed: _createNewPreset,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Text(context.l10n.config_newPreset),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
+                      // 新建预设按钮（暂时禁用 - 预设管理功能待完善）
+                      // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
+                      // Padding(
+                      //   padding: const EdgeInsets.symmetric(
+                      //       horizontal: 8, vertical: 8,),
+                      //   child: OutlinedButton.icon(
+                      //     onPressed: _createNewPreset,
+                      //     icon: const Icon(Icons.add, size: 18),
+                      //     label: Text(context.l10n.config_newPreset),
+                      //     style: OutlinedButton.styleFrom(
+                      //       padding: const EdgeInsets.symmetric(vertical: 12),
+                      //     ),
+                      //   ),
+                      // ),
                     ],
                   ),
           ),
@@ -1411,24 +1421,26 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
-  void _createNewPreset() {
-    if (_hasUnsavedChanges) {
-      _showUnsavedDialog(_doCreateNewPreset);
-      return;
-    }
-    _doCreateNewPreset();
-  }
+  // 新建预设功能暂时禁用 - 预设管理功能待完善
+  // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
+  // void _createNewPreset() {
+  //   if (_hasUnsavedChanges) {
+  //     _showUnsavedDialog(_doCreateNewPreset);
+  //     return;
+  //   }
+  //   _doCreateNewPreset();
+  // }
 
-  void _doCreateNewPreset() async {
-    final presetName = context.l10n.config_newPreset;
-    final successMessage = context.l10n.preset_newPresetCreated;
-    final newPreset = pc.RandomPromptPreset.create(name: presetName);
-    await ref.read(promptConfigNotifierProvider.notifier).addPreset(newPreset);
-    _doSelectPreset(newPreset.id);
-    if (mounted) {
-      AppToast.success(context, successMessage);
-    }
-  }
+  // void _doCreateNewPreset() async {
+  //   final presetName = context.l10n.config_newPreset;
+  //   final successMessage = context.l10n.preset_newPresetCreated;
+  //   final newPreset = pc.RandomPromptPreset.create(name: presetName);
+  //   await ref.read(promptConfigNotifierProvider.notifier).addPreset(newPreset);
+  //   _doSelectPreset(newPreset.id);
+  //   if (mounted) {
+  //     AppToast.success(context, successMessage);
+  //   }
+  // }
 
   void _addConfig() {
     final newConfig =

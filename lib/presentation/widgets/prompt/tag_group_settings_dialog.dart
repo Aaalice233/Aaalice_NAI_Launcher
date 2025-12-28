@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/prompt/random_category.dart';
 import '../../../data/models/prompt/random_tag_group.dart';
+import '../../../data/models/prompt/tag_scope.dart';
 import '../settings/setting_tiles.dart';
 
 /// 词组设置对话框
@@ -12,14 +14,24 @@ import '../settings/setting_tiles.dart';
 /// - 选取数量（多选模式）
 /// - 权重括号范围
 /// - 打乱顺序
+/// - 性别限定
+/// - 作用域控制
 class TagGroupSettingsDialog extends StatefulWidget {
   final RandomTagGroup tagGroup;
   final ValueChanged<RandomTagGroup> onSave;
+
+  /// 父类别（用于"重置为类别设置"功能）
+  final RandomCategory? parentCategory;
+
+  /// 自定义槽位选项（用于性别限定）
+  final List<String> customSlotOptions;
 
   const TagGroupSettingsDialog({
     super.key,
     required this.tagGroup,
     required this.onSave,
+    required this.customSlotOptions,
+    this.parentCategory,
   });
 
   /// 显示对话框
@@ -27,12 +39,16 @@ class TagGroupSettingsDialog extends StatefulWidget {
     required BuildContext context,
     required RandomTagGroup tagGroup,
     required ValueChanged<RandomTagGroup> onSave,
+    required List<String> customSlotOptions,
+    RandomCategory? parentCategory,
   }) {
     return showDialog(
       context: context,
       builder: (context) => TagGroupSettingsDialog(
         tagGroup: tagGroup,
         onSave: onSave,
+        customSlotOptions: customSlotOptions,
+        parentCategory: parentCategory,
       ),
     );
   }
@@ -48,6 +64,9 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
   late int _bracketMin;
   late int _bracketMax;
   late bool _shuffle;
+  late bool _genderRestrictionEnabled;
+  late List<String> _applicableGenders;
+  late TagScope _scope;
 
   bool _hasChanges = false;
 
@@ -60,6 +79,9 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
     _bracketMin = widget.tagGroup.bracketMin;
     _bracketMax = widget.tagGroup.bracketMax;
     _shuffle = widget.tagGroup.shuffle;
+    _genderRestrictionEnabled = widget.tagGroup.genderRestrictionEnabled;
+    _applicableGenders = List.from(widget.tagGroup.applicableGenders);
+    _scope = widget.tagGroup.scope;
   }
 
   void _markChanged() {
@@ -177,7 +199,7 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
                       min: -10,
                       max: 10,
                       valueFormatter: (start, end) =>
-                          _formatBracketRange(start, end),
+                          _formatBracketRange(start, end, l10n),
                       onChanged: (start, end) {
                         setState(() {
                           _bracketMin = start;
@@ -190,6 +212,20 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
                     // 括号预览
                     if (_bracketMin != 0 || _bracketMax != 0)
                       _buildBracketPreview(theme, l10n),
+
+                    const Divider(height: 1),
+
+                    // 作用域设置
+                    _buildScopeSection(theme, l10n),
+
+                    const Divider(height: 1),
+
+                    // 性别限定设置
+                    _buildGenderRestrictionSection(theme, l10n),
+
+                    // 重置为类别设置按钮
+                    if (widget.parentCategory != null)
+                      _buildResetToCategoryButton(theme, l10n),
 
                     const SizedBox(height: 8),
                   ],
@@ -258,10 +294,10 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
     );
   }
 
-  String _formatBracketRange(int start, int end) {
+  String _formatBracketRange(int start, int end, dynamic l10n) {
     String formatValue(int v) {
-      if (v < 0) return '$v (降权)';
-      if (v > 0) return '+$v (增强)';
+      if (v < 0) return '$v (${l10n.bracket_weaken})';
+      if (v > 0) return '+$v (${l10n.bracket_enhance})';
       return '0';
     }
     if (start == end) return formatValue(start);
@@ -309,6 +345,145 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
     );
   }
 
+  Widget _buildScopeSection(ThemeData theme, dynamic l10n) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.scope_title,
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.scope_titleDesc,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: TagScope.values.map((scope) {
+              final isSelected = _scope == scope;
+              final label = _getScopeLabel(scope, l10n);
+              return ChoiceChip(
+                label: Text(label),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _scope = scope;
+                      _markChanged();
+                    });
+                  }
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getScopeLabel(TagScope scope, dynamic l10n) {
+    return switch (scope) {
+      TagScope.global => l10n.scope_global,
+      TagScope.character => l10n.scope_character,
+      TagScope.all => l10n.scope_all,
+    };
+  }
+
+  Widget _buildGenderRestrictionSection(ThemeData theme, dynamic l10n) {
+    return ExpansionTile(
+      title: Text(l10n.genderRestriction_enabled),
+      subtitle: Text(
+        _genderRestrictionEnabled
+            ? l10n.genderRestriction_enabledActive(_applicableGenders.length)
+            : l10n.genderRestriction_enabledDesc,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.outline,
+        ),
+      ),
+      initiallyExpanded: _genderRestrictionEnabled,
+      children: [
+        SwitchListTile(
+          title: Text(l10n.genderRestriction_enable),
+          subtitle: Text(l10n.genderRestriction_enableDesc),
+          value: _genderRestrictionEnabled,
+          onChanged: (value) {
+            setState(() {
+              _genderRestrictionEnabled = value;
+              _markChanged();
+            });
+          },
+        ),
+        if (_genderRestrictionEnabled)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.genderRestriction_applicableGenders,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: widget.customSlotOptions.map((slotOption) {
+                    final isSelected = _applicableGenders.contains(slotOption);
+                    return FilterChip(
+                      label: Text(slotOption),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _applicableGenders.add(slotOption);
+                          } else {
+                            _applicableGenders.remove(slotOption);
+                          }
+                          _markChanged();
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildResetToCategoryButton(ThemeData theme, dynamic l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: OutlinedButton.icon(
+        onPressed: _resetToCategorySettings,
+        icon: const Icon(Icons.refresh, size: 18),
+        label: Text(l10n.tagGroupSettings_resetToCategory),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(double.infinity, 44),
+        ),
+      ),
+    );
+  }
+
+  void _resetToCategorySettings() {
+    final category = widget.parentCategory;
+    if (category == null) return;
+
+    setState(() {
+      _genderRestrictionEnabled = category.genderRestrictionEnabled;
+      _applicableGenders = List.from(category.applicableGenders);
+      _scope = category.scope;
+      _markChanged();
+    });
+  }
+
   void _saveSettings() {
     final updatedTagGroup = widget.tagGroup.copyWith(
       probability: _probability,
@@ -317,6 +492,9 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
       bracketMin: _bracketMin,
       bracketMax: _bracketMax,
       shuffle: _shuffle,
+      genderRestrictionEnabled: _genderRestrictionEnabled,
+      applicableGenders: _applicableGenders,
+      scope: _scope,
     );
     widget.onSave(updatedTagGroup);
     Navigator.of(context).pop();

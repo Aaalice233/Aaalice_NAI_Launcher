@@ -299,6 +299,89 @@ class TagLibraryService {
       WeightedTag.simple('anime', 5),
     ];
 
+    // 发型
+    categories[TagSubCategory.hairStyle.name] = [
+      WeightedTag.simple('long hair', 8),
+      WeightedTag.simple('short hair', 6),
+      WeightedTag.simple('medium hair', 5),
+      WeightedTag.simple('ponytail', 4),
+      WeightedTag.simple('twintails', 3),
+      WeightedTag.simple('braid', 3),
+      WeightedTag.simple('bob cut', 2),
+      WeightedTag.simple('bangs', 5),
+    ];
+
+    // 配饰
+    categories[TagSubCategory.accessory.name] = [
+      WeightedTag.simple('glasses', 4),
+      WeightedTag.simple('hat', 3),
+      WeightedTag.simple('ribbon', 4),
+      WeightedTag.simple('bow', 3),
+      WeightedTag.simple('earrings', 2),
+      WeightedTag.simple('necklace', 2),
+      WeightedTag.simple('hairband', 3),
+      WeightedTag.simple('hair ornament', 4),
+    ];
+
+    // 女性服装
+    categories[TagSubCategory.clothingFemale.name] = [
+      WeightedTag.simple('dress', 8),
+      WeightedTag.simple('skirt', 7),
+      WeightedTag.simple('school uniform', 6),
+      WeightedTag.simple('bikini', 4),
+      WeightedTag.simple('swimsuit', 4),
+      WeightedTag.simple('maid', 3),
+      WeightedTag.simple('kimono', 3),
+      WeightedTag.simple('wedding dress', 2),
+    ];
+
+    // 男性服装
+    categories[TagSubCategory.clothingMale.name] = [
+      WeightedTag.simple('suit', 6),
+      WeightedTag.simple('formal', 4),
+      WeightedTag.simple('uniform', 5),
+      WeightedTag.simple('armor', 3),
+      WeightedTag.simple('cape', 2),
+    ];
+
+    // 通用服装
+    categories[TagSubCategory.clothingGeneral.name] = [
+      WeightedTag.simple('shirt', 6),
+      WeightedTag.simple('jacket', 5),
+      WeightedTag.simple('hoodie', 4),
+      WeightedTag.simple('sweater', 4),
+      WeightedTag.simple('coat', 3),
+      WeightedTag.simple('t-shirt', 4),
+      WeightedTag.simple('jeans', 3),
+      WeightedTag.simple('shorts', 3),
+    ];
+
+    // 女性体型
+    categories[TagSubCategory.bodyFeatureFemale.name] = [
+      WeightedTag.simple('slim', 5),
+      WeightedTag.simple('curvy', 3),
+      WeightedTag.simple('petite', 3),
+      WeightedTag.simple('tall', 2),
+    ];
+
+    // 男性体型
+    categories[TagSubCategory.bodyFeatureMale.name] = [
+      WeightedTag.simple('muscular', 4),
+      WeightedTag.simple('slim', 4),
+      WeightedTag.simple('athletic', 3),
+      WeightedTag.simple('tall', 3),
+    ];
+
+    // 通用体型
+    categories[TagSubCategory.bodyFeatureGeneral.name] = [
+      WeightedTag.simple('slim', 5),
+      WeightedTag.simple('athletic', 4),
+      WeightedTag.simple('tall', 3),
+      WeightedTag.simple('short', 2),
+      WeightedTag.simple('young', 4),
+      WeightedTag.simple('mature', 2),
+    ];
+
     // 人数
     // 注意: "duo" 和 "trio" 是 Danbooru 已废弃的标签，使用具体的角色组合标签
     // 混合性别组合应该拆分成独立标签，如 "1girl, 1boy"
@@ -322,12 +405,36 @@ class TagLibraryService {
     );
   }
 
-  /// 获取当前可用词库（优先本地，回退内置）
+  /// 获取内置词库（直接从 JSON 读取，不使用缓存）
   Future<TagLibrary> getAvailableLibrary() async {
-    final local = await loadLocalLibrary();
-    if (local != null && local.isValid) {
-      return local;
+    try {
+      final naiTags = await _naiTagsDataSource.loadData();
+      final naiCategories = <String, List<WeightedTag>>{};
+
+      for (final categoryName in naiTags.categoryNames) {
+        final tags = naiTags.getCategory(categoryName);
+        if (tags.isNotEmpty) {
+          naiCategories[categoryName] = tags.map((t) {
+            return WeightedTag.simple(t.replaceAll('_', ' '), 5);
+          }).toList();
+        }
+      }
+
+      if (naiCategories.isNotEmpty) {
+        return TagLibrary(
+          id: 'nai_builtin',
+          name: 'NAI 内置词库',
+          lastUpdated: DateTime.now(),
+          version: 1,
+          source: TagLibrarySource.nai,
+          categories: naiCategories,
+        );
+      }
+    } catch (e) {
+      AppLogger.e('Failed to load from local JSON: $e', 'TagLibrary');
     }
+
+    // 回退到硬编码的内置词库
     return getBuiltinLibrary();
   }
 

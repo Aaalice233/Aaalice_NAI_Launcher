@@ -6,14 +6,9 @@ import '../../../core/utils/localization_extension.dart';
 /// Emoji 选择器对话框
 ///
 /// 用于选择 emoji 图标，支持搜索和分类浏览
-class EmojiPickerDialog extends StatefulWidget {
-  /// 初始 emoji（用于高亮显示）
-  final String? initialEmoji;
-
-  const EmojiPickerDialog({
-    super.key,
-    this.initialEmoji,
-  });
+/// 点击 emoji 即选中并返回，无需二次确认
+class EmojiPickerDialog extends StatelessWidget {
+  const EmojiPickerDialog({super.key});
 
   /// 显示 emoji 选择器对话框
   ///
@@ -24,21 +19,8 @@ class EmojiPickerDialog extends StatefulWidget {
   }) {
     return showDialog<String>(
       context: context,
-      builder: (context) => EmojiPickerDialog(initialEmoji: initialEmoji),
+      builder: (context) => const EmojiPickerDialog(),
     );
-  }
-
-  @override
-  State<EmojiPickerDialog> createState() => _EmojiPickerDialogState();
-}
-
-class _EmojiPickerDialogState extends State<EmojiPickerDialog> {
-  String? _selectedEmoji;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedEmoji = widget.initialEmoji;
   }
 
   @override
@@ -46,34 +28,15 @@ class _EmojiPickerDialogState extends State<EmojiPickerDialog> {
     final theme = Theme.of(context);
 
     return AlertDialog(
-      title: Row(
-        children: [
-          Text(context.l10n.category_selectEmoji),
-          const Spacer(),
-          if (_selectedEmoji != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                _selectedEmoji!,
-                style: const TextStyle(fontSize: 24),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+      title: Text(context.l10n.category_selectEmoji),
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       content: SizedBox(
         width: 400,
         height: 350,
         child: EmojiPicker(
           onEmojiSelected: (category, emoji) {
-            setState(() {
-              _selectedEmoji = emoji.emoji;
-            });
+            // 选中即返回，无需二次确认
+            Navigator.pop(context, emoji.emoji);
           },
           config: Config(
             height: 350,
@@ -116,12 +79,6 @@ class _EmojiPickerDialogState extends State<EmojiPickerDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(context.l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: _selectedEmoji != null
-              ? () => Navigator.pop(context, _selectedEmoji)
-              : null,
-          child: Text(context.l10n.common_confirm),
         ),
       ],
     );

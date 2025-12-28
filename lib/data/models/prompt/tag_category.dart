@@ -39,8 +39,17 @@ enum TagSubCategory {
   /// 发型 - *_hair 且非颜色
   hairStyle,
 
-  /// 服装 - *_dress, *_shirt, *_skirt 等
+  /// 服装 - *_dress, *_shirt, *_skirt 等（总类，向后兼容）
   clothing,
+
+  /// 女性服装 - 女性专属服装标签
+  clothingFemale,
+
+  /// 男性服装 - 男性专属服装标签
+  clothingMale,
+
+  /// 通用服装 - 无性别区分的服装标签
+  clothingGeneral,
 
   /// 表情 - smile, blush, open_mouth 等
   expression,
@@ -57,8 +66,17 @@ enum TagSubCategory {
   /// 风格 - photorealistic, abstract 等
   style,
 
-  /// 身体特征 - abs, breasts 等
+  /// 身体特征 - abs, breasts 等（总类，向后兼容）
   bodyFeature,
+
+  /// 女性体型 - 女性专属身体特征标签
+  bodyFeatureFemale,
+
+  /// 男性体型 - 男性专属身体特征标签
+  bodyFeatureMale,
+
+  /// 通用体型 - 无性别区分的身体特征标签
+  bodyFeatureGeneral,
 
   /// 配饰 - hat, glasses, jewelry 等
   accessory,
@@ -217,12 +235,18 @@ class TagSubCategoryHelper {
         TagSubCategory.eyeColor => '瞳色',
         TagSubCategory.hairStyle => '发型',
         TagSubCategory.clothing => '服装',
+        TagSubCategory.clothingFemale => '女性服装',
+        TagSubCategory.clothingMale => '男性服装',
+        TagSubCategory.clothingGeneral => '通用服装',
         TagSubCategory.expression => '表情',
         TagSubCategory.pose => '姿势',
         TagSubCategory.background => '背景',
         TagSubCategory.scene => '场景',
         TagSubCategory.style => '风格',
         TagSubCategory.bodyFeature => '身体特征',
+        TagSubCategory.bodyFeatureFemale => '女性体型',
+        TagSubCategory.bodyFeatureMale => '男性体型',
+        TagSubCategory.bodyFeatureGeneral => '通用体型',
         TagSubCategory.accessory => '配饰',
         TagSubCategory.characterCount => '人数',
         TagSubCategory.other => '其他',
@@ -233,12 +257,18 @@ class TagSubCategoryHelper {
       TagSubCategory.eyeColor => 'Eye Color',
       TagSubCategory.hairStyle => 'Hair Style',
       TagSubCategory.clothing => 'Clothing',
+      TagSubCategory.clothingFemale => 'Female Clothing',
+      TagSubCategory.clothingMale => 'Male Clothing',
+      TagSubCategory.clothingGeneral => 'General Clothing',
       TagSubCategory.expression => 'Expression',
       TagSubCategory.pose => 'Pose',
       TagSubCategory.background => 'Background',
       TagSubCategory.scene => 'Scene',
       TagSubCategory.style => 'Style',
       TagSubCategory.bodyFeature => 'Body Feature',
+      TagSubCategory.bodyFeatureFemale => 'Female Body',
+      TagSubCategory.bodyFeatureMale => 'Male Body',
+      TagSubCategory.bodyFeatureGeneral => 'General Body',
       TagSubCategory.accessory => 'Accessory',
       TagSubCategory.characterCount => 'Character Count',
       TagSubCategory.other => 'Other',

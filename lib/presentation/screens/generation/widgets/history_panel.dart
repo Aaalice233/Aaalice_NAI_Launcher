@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/image_save_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 
@@ -191,17 +192,28 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   
   Future<void> _saveSelectedImages(BuildContext context, List<Uint8List> history) async {
     if (_selectedIndices.isEmpty) return;
-    
+
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final saveDir = Directory('${docDir.path}/NAI_Launcher');
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
+      // 优先使用设置中的自定义路径
+      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+      Directory saveDir;
+
+      if (saveSettings.hasCustomPath) {
+        saveDir = Directory(saveSettings.customPath!);
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      } else {
+        final docDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${docDir.path}/NAI_Launcher');
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
       }
-      
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final sortedIndices = _selectedIndices.toList()..sort();
-      
+
       for (int i = 0; i < sortedIndices.length; i++) {
         final index = sortedIndices[i];
         final fileName = 'NAI_${timestamp}_${i + 1}.png';
@@ -271,16 +283,16 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 }
 
 /// 沉浸式全屏图像查看器
-class _FullscreenImageView extends StatefulWidget {
+class _FullscreenImageView extends ConsumerStatefulWidget {
   final Uint8List imageBytes;
 
   const _FullscreenImageView({required this.imageBytes});
 
   @override
-  State<_FullscreenImageView> createState() => _FullscreenImageViewState();
+  ConsumerState<_FullscreenImageView> createState() => _FullscreenImageViewState();
 }
 
-class _FullscreenImageViewState extends State<_FullscreenImageView> {
+class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
   final TransformationController _transformController = TransformationController();
 
   @override
@@ -373,12 +385,23 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
 
   Future<void> _saveImage(BuildContext context) async {
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final saveDir = Directory('${docDir.path}/NAI_Launcher');
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
+      // 优先使用设置中的自定义路径
+      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+      Directory saveDir;
+
+      if (saveSettings.hasCustomPath) {
+        saveDir = Directory(saveSettings.customPath!);
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      } else {
+        final docDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${docDir.path}/NAI_Launcher');
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
       }
-      
+
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
       await file.writeAsBytes(widget.imageBytes);

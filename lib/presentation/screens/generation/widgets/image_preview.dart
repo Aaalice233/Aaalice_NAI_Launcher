@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/image_save_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import 'upscale_dialog.dart';
@@ -498,6 +499,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
   /// 获取保存目录
   Future<Directory> _getSaveDirectory() async {
+    // 优先使用设置中的自定义路径
+    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+    if (saveSettings.hasCustomPath) {
+      final customDir = Directory(saveSettings.customPath!);
+      if (!await customDir.exists()) {
+        await customDir.create(recursive: true);
+      }
+      return customDir;
+    }
+
     if (Platform.isAndroid) {
       // Android: 保存到外部存储的 Pictures/NAI_Launcher 目录
       final externalDir = await getExternalStorageDirectory();
@@ -587,16 +598,16 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 }
 
 /// 沉浸式全屏图像查看器
-class _FullscreenImageView extends StatefulWidget {
+class _FullscreenImageView extends ConsumerStatefulWidget {
   final Uint8List imageBytes;
 
   const _FullscreenImageView({required this.imageBytes});
 
   @override
-  State<_FullscreenImageView> createState() => _FullscreenImageViewState();
+  ConsumerState<_FullscreenImageView> createState() => _FullscreenImageViewState();
 }
 
-class _FullscreenImageViewState extends State<_FullscreenImageView> {
+class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
   final TransformationController _transformController =
       TransformationController();
 
@@ -689,6 +700,16 @@ class _FullscreenImageViewState extends State<_FullscreenImageView> {
   }
 
   Future<Directory> _getSaveDirectory() async {
+    // 优先使用设置中的自定义路径
+    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+    if (saveSettings.hasCustomPath) {
+      final customDir = Directory(saveSettings.customPath!);
+      if (!await customDir.exists()) {
+        await customDir.create(recursive: true);
+      }
+      return customDir;
+    }
+
     if (Platform.isAndroid) {
       final externalDir = await getExternalStorageDirectory();
       if (externalDir != null) {

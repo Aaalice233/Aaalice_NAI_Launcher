@@ -1850,6 +1850,78 @@
       "year_2021",
       "year_2022",
       "year_2023"
+    ],
+    "clothingFemale": [
+      "bikini", "bikini_armor", "babydoll", "bandeau", "bloomers", "bride", "bustier",
+      "camisole", "cheerleader", "chemise", "china_dress", "chinese_dress", "cocktail_dress",
+      "crinoline", "dress", "dirndl", "evening_gown", "frilled_dress", "frilly_dress",
+      "furisode", "gyaru", "halter_dress", "harem_outfit", "highleg_dress", "hobble_dress",
+      "kimono", "kogal", "layered_dress", "latex_dress", "long_dress", "magical_girl", "maid",
+      "maid_bikini", "micro_bikini", "microdress", "microskirt", "miko", "miniskirt",
+      "nightgown", "nun", "nurse_dress", "o-ring_bikini", "off-shoulder_dress",
+      "one-piece_swimsuit", "pencil_dress", "petticoat", "pinafore_dress", "pleated_dress",
+      "pleated_skirt", "princess", "race_queen", "ribbon-trimmed_dress", "sailor_dress",
+      "santa_dress", "school_swimsuit", "see-through_dress", "short_dress", "skirt",
+      "skirt_suit", "sleeveless_dress", "slingshot_swimsuit", "slit_dress",
+      "sports_bikini", "strapless_bikini", "strapless_dress", "string_bikini", "sundress",
+      "sweater_dress", "swimsuit", "thong_bikini", "tight_dress", "tube_dress", "tutu",
+      "virgin_killer_sweater", "waitress", "wedding_dress", "yukata",
+      "front-tie_bikini_top", "grass_skirt", "high-waist_skirt", "long_skirt",
+      "lowleg_bikini", "overall_skirt", "plaid_skirt", "suspender_skirt", "christmas_dress",
+      "coat_dress", "collared_dress", "funeral_dress", "glitter_dress", "gown",
+      "pattern_dress", "ribbed_dress", "turtleneck_dress", "breast_curtains",
+      "criss-cross_halter", "halterneck", "tube_top", "underbust"
+    ],
+    "clothingMale": [
+      "fundoshi", "samurai", "knight", "priest", "soldier", "pirate", "swim_briefs", "swim_trunks"
+    ],
+    "clothingGeneral": [
+      "armor", "armored_dress", "blazer", "blouse", "boots", "business_suit", "cardigan",
+      "cargo_pants", "cargo_shorts", "coat", "collared_shirt", "compression_shirt",
+      "cowboy_outfit", "crop_top", "cropped_jacket", "denim_shorts", "dress_shirt",
+      "dress_shoes", "duffel_coat", "employee_uniform", "firefighter_uniform", "flats",
+      "flip-flops", "footwear", "fur_coat", "gym_shorts", "gym_uniform", "hakama",
+      "hazmat_suit", "high_heels", "high_tops", "hoodie", "hot_pants", "jacket", "jeans",
+      "kilt", "knee_boots", "lab_coat", "leather_jacket", "leather_pants", "loafers",
+      "long_coat", "mary_janes", "military_uniform", "overalls", "overcoat", "pajamas",
+      "pant_suit", "pants", "pilot_suit", "police", "poncho", "power_armor", "pumps",
+      "raincoat", "rash_guard", "rubber_boots", "safari_jacket", "sandals",
+      "santa_costume", "school_uniform", "serafuku", "shirt", "short_shorts", "shorts",
+      "shrug_(clothing)", "sleeveless_shirt", "sleeveless_turtleneck", "slippers",
+      "sneakers", "soccer_uniform", "spacesuit", "striped_shirt", "suit_jacket",
+      "surcoat", "suspender_shorts", "sweater", "sweater_vest", "sweatpants",
+      "t-shirt", "tabard", "tailcoat", "tank_top", "thigh_boots", "tight_pants",
+      "tomboy", "track_shorts", "track_suit", "trench_coat", "tunic", "turtleneck",
+      "vest", "waistcoat", "wetsuit", "winter_coat", "converse", "cowboy_boots",
+      "platform_footwear", "pointy_footwear", "wedge_heels", "ankle_boots",
+      "animal_slippers", "aran_sweater", "argyle_sweater", "baggy_pants",
+      "ballet_slippers", "baseball_uniform", "basketball_uniform", "bell-bottoms",
+      "black_tie_(suit)", "booty_shorts", "buruma", "buttons", "camo_pants",
+      "capri_pants", "cardigan_vest", "cassock", "casual_one-piece_swimsuit",
+      "chaps", "competition_swimsuit", "daisy_dukes", "dancer", "dolphin_shorts",
+      "fur-trimmed_coat", "fur-trimmed_dress", "geta", "ghost_costume",
+      "gladiator_sandals", "harem_pants", "high_heel_boots", "lace-up_boots",
+      "letterman_jacket", "micro_shorts", "raglan_sleeves", "ribbed_sweater",
+      "rolled_up_pants", "sagging_pants", "sarashi", "toeless_footwear"
+    ],
+    "bodyFeatureFemale": [
+      "flat_chest", "small_breasts", "medium_breasts", "large_breasts", "huge_breasts",
+      "gigantic_breasts", "sagging_breasts", "curvy_figure", "hourglass_figure",
+      "pear-shaped_figure", "wide_hips", "thigh_gap", "voluptuous", "small_waist", "girly"
+    ],
+    "bodyFeatureMale": [
+      "muscular", "abs", "biceps", "big_muscles", "musclegut", "manly", "thick_arms"
+    ],
+    "bodyFeatureGeneral": [
+      "athletic", "beauty_mark", "big_butt", "big_ears", "bioluminescence", "body_hair",
+      "collarbone", "dipstick_ears", "eye_scar", "feathers", "floppy_ears", "freckles",
+      "fur", "glistening_body", "glowing_body", "huge_butt", "lips", "long_ears",
+      "long_eyelashes", "markings", "mature", "metallic_body", "mottled_body",
+      "multi_arm", "multi_eye", "multi_horn", "multi_tail", "multi_wing", "old",
+      "overweight", "pivoted_ears", "scales", "scar", "short", "short_stack", "skinny",
+      "slightly_chubby", "slim", "small_butt", "spotted_body", "stocky", "striped_body",
+      "tail", "tall", "teapot_(body_type)", "teeth", "thick_eyebrows", "thick_eyelashes",
+      "thick_lips", "translucent_body", "young", "1_eye", "3_eyes"
     ]
   },
   "hairColorKeywords": [

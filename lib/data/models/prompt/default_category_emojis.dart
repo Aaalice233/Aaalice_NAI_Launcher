@@ -16,11 +16,17 @@ class DefaultCategoryEmojis {
     'expression': '😊', // 表情
     'pose': '🧘', // 姿势
     'clothing': '👗', // 服装
+    'clothingFemale': '👗', // 女性服装
+    'clothingMale': '👔', // 男性服装
+    'clothingGeneral': '🎽', // 通用服装
     'accessory': '💍', // 配饰
-    'bodyFeature': '💪', // 身体特征
+    'bodyFeature': '💃', // 身体特征
+    'bodyFeatureFemale': '👙', // 女性体型
+    'bodyFeatureMale': '💪', // 男性体型
+    'bodyFeatureGeneral': '🧍', // 通用体型
     'background': '🌄', // 背景
     'scene': '🏞️', // 场景
-    'style': '🎨', // 风格
+    'style': '🎭', // 风格
     'characterCount': '👥', // 人数
     'other': '🏷️', // 其他
   };

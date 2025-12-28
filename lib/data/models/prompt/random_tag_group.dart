@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'pool_output_config.dart';
+import 'tag_scope.dart';
 import 'weighted_tag.dart';
 
 part 'random_tag_group.freezed.dart';
@@ -43,6 +44,10 @@ enum TagGroupSourceType {
   /// 来自 Danbooru Pool
   @JsonValue('pool')
   pool,
+
+  /// 来自内置词库（NAI官方标签）
+  @JsonValue('builtin')
+  builtin,
 }
 
 /// 节点类型
@@ -118,6 +123,18 @@ class RandomTagGroup with _$RandomTagGroup {
 
     /// Pool 选择的帖子数量（用于 multipleNum 模式时的 post 数量）
     @Default(1) int poolPostCount,
+
+    /// 是否启用性别限定
+    @Default(false) bool genderRestrictionEnabled,
+
+    /// 适用的性别列表（槽位名称，如 'girl', 'boy'，空表示全部适用）
+    @Default([]) List<String> applicableGenders,
+
+    /// 作用域
+    @Default(TagScope.all) TagScope scope,
+
+    /// 是否继承类别设置（用于"重置为类别设置"功能）
+    @Default(true) bool inheritCategorySettings,
   }) = _RandomTagGroup;
 
   factory RandomTagGroup.fromJson(Map<String, dynamic> json) =>
@@ -180,6 +197,25 @@ class RandomTagGroup with _$RandomTagGroup {
     );
   }
 
+  /// 从内置词库分类创建
+  ///
+  /// [builtinCategoryKey] 为 TagSubCategory 的 name，如 'hairColor', 'eyeColor' 等
+  /// 实际标签从 TagLibrary 动态获取，不存储在 tags 字段中
+  factory RandomTagGroup.fromBuiltin({
+    required String name,
+    required String builtinCategoryKey,
+    String emoji = '✨',
+  }) {
+    return RandomTagGroup(
+      id: const Uuid().v4(),
+      name: name,
+      emoji: emoji,
+      sourceType: TagGroupSourceType.builtin,
+      sourceId: builtinCategoryKey,
+      tags: [], // 实际标签从 TagLibrary 动态获取
+    );
+  }
+
   /// 获取标签数量（包含嵌套）
   int get tagCount {
     if (nodeType == TagGroupNodeType.config) {
@@ -192,6 +228,9 @@ class RandomTagGroup with _$RandomTagGroup {
   bool get isSyncable =>
       sourceType == TagGroupSourceType.tagGroup ||
       sourceType == TagGroupSourceType.pool;
+
+  /// 是否为内置词库类型
+  bool get isBuiltin => sourceType == TagGroupSourceType.builtin;
 
   /// 是否为嵌套配置
   bool get isNested => nodeType == TagGroupNodeType.config;
@@ -208,5 +247,36 @@ class RandomTagGroup with _$RandomTagGroup {
   /// 更新同步时间
   RandomTagGroup markSynced() {
     return copyWith(lastSyncedAt: DateTime.now());
+  }
+
+  /// 检查是否适用于指定性别（槽位名称）
+  ///
+  /// 如果未启用性别限定或适用性别列表为空，则适用于所有性别
+  bool isApplicableToGender(String gender) {
+    if (!genderRestrictionEnabled || applicableGenders.isEmpty) {
+      return true;
+    }
+    return applicableGenders.contains(gender);
+  }
+
+  /// 检查是否适用于指定作用域
+  bool isApplicableToScope(TagScope targetScope) {
+    return scope.isApplicableTo(targetScope);
+  }
+
+  /// 从类别继承设置
+  ///
+  /// 将性别限定和作用域设置重置为所属类别的配置
+  RandomTagGroup inheritFromCategory({
+    required bool categoryGenderRestrictionEnabled,
+    required List<String> categoryApplicableGenders,
+    required TagScope categoryScope,
+  }) {
+    return copyWith(
+      genderRestrictionEnabled: categoryGenderRestrictionEnabled,
+      applicableGenders: categoryApplicableGenders,
+      scope: categoryScope,
+      inheritCategorySettings: true,
+    );
   }
 }

@@ -1,9 +1,11 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/image_save_settings_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -21,6 +23,7 @@ class SettingsScreen extends ConsumerWidget {
     final currentTheme = ref.watch(themeNotifierProvider);
     final currentFont = ref.watch(fontNotifierProvider);
     final currentLocale = ref.watch(localeNotifierProvider);
+    final saveSettings = ref.watch(imageSaveSettingsNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -97,19 +100,44 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.folder_outlined),
             title: Text(context.l10n.settings_imageSavePath),
-            subtitle: Text(context.l10n.settings_default),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              AppToast.info(context, context.l10n.common_featureInDev);
-            },
+            subtitle: Text(
+              saveSettings.getDisplayPath(context.l10n.settings_default),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (saveSettings.hasCustomPath)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: context.l10n.common_reset,
+                    onPressed: () async {
+                      await ref
+                          .read(imageSaveSettingsNotifierProvider.notifier)
+                          .resetToDefault();
+                      if (context.mounted) {
+                        AppToast.success(
+                          context,
+                          context.l10n.settings_pathReset,
+                        );
+                      }
+                    },
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () => _selectSaveDirectory(context, ref),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.save_outlined),
             title: Text(context.l10n.settings_autoSave),
             subtitle: Text(context.l10n.settings_autoSaveSubtitle),
-            value: false,
-            onChanged: (value) {
-              AppToast.info(context, context.l10n.common_featureInDev);
+            value: saveSettings.autoSave,
+            onChanged: (value) async {
+              await ref
+                  .read(imageSaveSettingsNotifierProvider.notifier)
+                  .setAutoSave(value);
             },
           ),
           const Divider(),
@@ -426,5 +454,27 @@ class SettingsScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _selectSaveDirectory(BuildContext context, WidgetRef ref) async {
+    try {
+      final result = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: context.l10n.settings_selectFolder,
+      );
+
+      if (result != null && context.mounted) {
+        await ref
+            .read(imageSaveSettingsNotifierProvider.notifier)
+            .setCustomPath(result);
+
+        if (context.mounted) {
+          AppToast.success(context, context.l10n.settings_pathSaved);
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
   }
 }

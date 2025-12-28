@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'character_count_config.dart';
 
 part 'algorithm_config.freezed.dart';
 part 'algorithm_config.g.dart';
@@ -41,6 +42,9 @@ class AlgorithmConfig with _$AlgorithmConfig {
     /// 键: 'm' = 男性, 'f' = 女性, 'o' = 其他
     @Default({'m': 45, 'f': 45, 'o': 10})
     Map<String, int> furryGenderWeights,
+
+    /// 人数类别配置（新版：单人、双人、三人、多人、无人的角色标签配置）
+    CharacterCountConfig? characterCountConfig,
   }) = _AlgorithmConfig;
 
   factory AlgorithmConfig.fromJson(Map<String, dynamic> json) =>

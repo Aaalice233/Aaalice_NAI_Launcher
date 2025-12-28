@@ -264,7 +264,8 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
     setState(() {
       _showSuggestions = true;
-      _selectedIndex = -1;
+      // 默认选中第一项，这样用户可以直接按 Enter 确认
+      _selectedIndex = 0;
     });
 
     _overlayEntry = _createOverlayEntry();
@@ -288,6 +289,55 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     _overlayEntry = null;
   }
 
+  /// 计算光标在文本框内的位置
+  Offset _getCursorOffset() {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final text = widget.controller.text;
+    final cursorPosition = widget.controller.selection.baseOffset;
+
+    if (cursorPosition < 0 || text.isEmpty) {
+      // 默认返回左上角位置
+      return Offset.zero;
+    }
+
+    // 获取文本样式
+    final textStyle = widget.style ?? DefaultTextStyle.of(context).style;
+
+    // 创建 TextPainter 来测量文本
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text.substring(0, cursorPosition.clamp(0, text.length)),
+        style: textStyle,
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: widget.expands ? null : widget.maxLines,
+    );
+
+    // 使用文本框的宽度减去内边距
+    final contentPadding = widget.decoration?.contentPadding;
+    final horizontalPadding = contentPadding is EdgeInsets
+        ? contentPadding.left + contentPadding.right
+        : 24.0; // 默认内边距
+    final leftPadding =
+        contentPadding is EdgeInsets ? contentPadding.left : 12.0;
+    final topPadding =
+        contentPadding is EdgeInsets ? contentPadding.top : 12.0;
+
+    textPainter.layout(maxWidth: renderBox.size.width - horizontalPadding);
+
+    // 获取光标位置
+    final cursorOffset = textPainter.getOffsetForCaret(
+      TextPosition(offset: cursorPosition.clamp(0, text.length)),
+      Rect.zero,
+    );
+
+    // 加上内边距偏移
+    return Offset(
+      leftPadding + cursorOffset.dx,
+      topPadding + cursorOffset.dy + textPainter.preferredLineHeight,
+    );
+  }
+
   OverlayEntry _createOverlayEntry() {
     final renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
@@ -295,12 +345,21 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
     return OverlayEntry(
       builder: (context) {
+        // 对于多行文本框，使用光标位置；否则使用文本框底部
+        final isMultiline = widget.expands || (widget.maxLines ?? 1) > 1;
+        final cursorOffset = isMultiline ? _getCursorOffset() : null;
+
+        // 计算偏移量
+        final offset = isMultiline && cursorOffset != null
+            ? Offset(cursorOffset.dx.clamp(0, size.width - 300), cursorOffset.dy + 4)
+            : Offset(0, size.height + 4);
+
         return Positioned(
           width: size.width.clamp(280.0, 400.0),
           child: CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
-            offset: Offset(0, size.height + 4), // 显示在文本框正下方
+            offset: offset,
             child: AutocompleteOverlay(
               suggestions: _autocompleteController?.suggestions ?? [],
               selectedIndex: _selectedIndex,

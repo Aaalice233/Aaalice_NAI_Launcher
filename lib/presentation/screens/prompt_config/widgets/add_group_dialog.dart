@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
@@ -8,8 +9,9 @@ import '../../../../data/models/prompt/default_category_emojis.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../../../../data/models/prompt/tag_group.dart';
 import '../../../../data/models/prompt/tag_library.dart';
+import '../../../../data/models/prompt/random_tag_group.dart';
+import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
-import 'custom_group_search_dialog.dart';
 
 /// 添加分组类型
 enum AddGroupType {
@@ -21,6 +23,9 @@ enum AddGroupType {
 
   /// Danbooru Pools
   danbooruPool,
+
+  /// 自定义词组
+  custom,
 }
 
 /// 添加分组结果
@@ -40,6 +45,9 @@ class AddGroupResult {
   /// 内置类别相关字段
   final String? builtinCategoryKey;
 
+  /// 自定义词组（当 type == custom 时使用）
+  final RandomTagGroup? customGroup;
+
   const AddGroupResult({
     required this.type,
     this.groupTitle,
@@ -51,11 +59,21 @@ class AddGroupResult {
     this.poolName,
     this.postCount,
     this.builtinCategoryKey,
+    this.customGroup,
   });
 
   /// 创建内置词库结果
-  factory AddGroupResult.builtin({String? categoryKey}) =>
-      AddGroupResult(type: AddGroupType.builtin, builtinCategoryKey: categoryKey);
+  factory AddGroupResult.builtin({
+    required String categoryKey,
+    required String displayName,
+    String? emoji,
+  }) =>
+      AddGroupResult(
+        type: AddGroupType.builtin,
+        builtinCategoryKey: categoryKey,
+        displayName: displayName,
+        emoji: emoji ?? '✨',
+      );
 
   /// 创建 Tag Group 结果
   factory AddGroupResult.tagGroup({
@@ -89,6 +107,17 @@ class AddGroupResult {
         postCount: postCount,
         targetCategory: targetCategory,
         emoji: emoji,
+      );
+
+  /// 创建自定义词组结果
+  factory AddGroupResult.custom({
+    required RandomTagGroup group,
+  }) =>
+      AddGroupResult(
+        type: AddGroupType.custom,
+        customGroup: group,
+        displayName: group.name,
+        emoji: group.emoji,
       );
 }
 
@@ -212,12 +241,39 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   Map<int, PoolCacheEntry> _cachedPools = {};
   bool _isLoadingPools = true;
 
+  // 自定义词组列表（从所有预设的所有分类中提取）
+  List<RandomTagGroup> _customGroups = [];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadCachedData();
+    _loadCustomGroups();
     _filterController.addListener(_onFilterChanged);
+  }
+
+  /// 加载自定义词组（从所有预设中提取 sourceType == custom 的词组）
+  void _loadCustomGroups() {
+    final presetState = ref.read(randomPresetNotifierProvider);
+    final customGroups = <RandomTagGroup>[];
+    final seenIds = <String>{};
+
+    for (final preset in presetState.presets) {
+      for (final category in preset.categories) {
+        for (final group in category.groups) {
+          if (group.sourceType == TagGroupSourceType.custom &&
+              !seenIds.contains(group.id)) {
+            customGroups.add(group);
+            seenIds.add(group.id);
+          }
+        }
+      }
+    }
+
+    setState(() {
+      _customGroups = customGroups;
+    });
   }
 
   void _onFilterChanged() {
@@ -277,8 +333,12 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
     super.dispose();
   }
 
-  void _selectBuiltin(String categoryKey) {
-    Navigator.of(context).pop(AddGroupResult.builtin(categoryKey: categoryKey));
+  void _selectBuiltin(_BuiltinCategoryItem item) {
+    Navigator.of(context).pop(AddGroupResult.builtin(
+      categoryKey: item.key,
+      displayName: item.name,
+      emoji: item.emoji,
+    ),);
   }
 
   void _selectTagGroup(TagGroup group) {
@@ -302,39 +362,6 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
         targetCategory: widget.category,
       ),
     );
-  }
-
-  Future<void> _openCustomGroupSearch() async {
-    final result = await CustomGroupSearchDialog.show(context);
-    if (result == null || !mounted) return;
-
-    // 刷新缓存列表
-    await _loadCachedData();
-
-    if (!mounted) return;
-
-    // 根据结果类型返回
-    if (result.type == CustomGroupType.tagGroup) {
-      Navigator.of(context).pop(
-        AddGroupResult.tagGroup(
-          groupTitle: result.groupTitle!,
-          displayName: result.name,
-          includeChildren: true,
-          targetCategory: widget.category,
-          emoji: result.emoji,
-        ),
-      );
-    } else {
-      Navigator.of(context).pop(
-        AddGroupResult.danbooruPool(
-          poolId: result.poolId!,
-          poolName: result.name,
-          postCount: result.postCount ?? 0,
-          targetCategory: widget.category,
-          emoji: result.emoji,
-        ),
-      );
-    }
   }
 
   /// 获取过滤后的内置类别
@@ -408,26 +435,17 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
     final builtinCategoryCount = TagSubCategory.values.length;
 
     return AlertDialog(
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(l10n.addGroup_dialogTitle(categoryName)),
-          ),
-          FilledButton.icon(
-            onPressed: _openCustomGroupSearch,
-            icon: const Icon(Icons.add, size: 18),
-            label: Text(l10n.addGroup_addCustom),
-          ),
-        ],
-      ),
+      title: Text(l10n.addGroup_dialogTitle(categoryName)),
       content: SizedBox(
         width: 550,
         height: 520,
         child: Column(
           children: [
-            // Tab 栏
+            // Tab 栏（可滚动以适应窄屏）
             TabBar(
               controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               tabs: [
                 Tab(
                   child: Row(
@@ -514,6 +532,17 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
                     ],
                   ),
                 ),
+                // 自定义词组 Tab
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.edit_note_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(l10n.addGroup_customTab),
+                    ],
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -547,6 +576,7 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
                   _buildBuiltinList(theme, library),
                   _buildTagGroupList(theme),
                   _buildPoolList(theme),
+                  _buildCustomGroupTab(theme),
                 ],
               ),
             ),
@@ -626,7 +656,7 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
                 )
               : Icon(Icons.add, color: theme.colorScheme.primary),
           enabled: !isExisting,
-          onTap: isExisting ? null : () => _selectBuiltin(item.key),
+          onTap: isExisting ? null : () => _selectBuiltin(item),
         );
       },
     );
@@ -743,7 +773,7 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   /// 构建列表项
   Widget _buildItemTile(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     _CachedGroupItem item,
   ) {
     final isExisting = widget.existingGroupTitles.contains(item.uniqueKey);
@@ -785,6 +815,105 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
                 _selectTagGroup(item.tagGroup!);
               }
             },
+    );
+  }
+
+  /// 构建自定义词组 Tab（显示已有的自定义词组列表供选择）
+  Widget _buildCustomGroupTab(ThemeData theme) {
+    final l10n = context.l10n;
+
+    // 过滤自定义词组
+    final filteredGroups = _filterQuery.isEmpty
+        ? _customGroups
+        : _customGroups.where((group) {
+            final nameMatch = group.name.toLowerCase().contains(_filterQuery);
+            final tagsMatch = group.tags.any(
+              (tag) => tag.tag.toLowerCase().contains(_filterQuery),
+            );
+            return nameMatch || tagsMatch;
+          }).toList();
+
+    if (_customGroups.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.edit_note_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.customGroup_noCustomGroups,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.customGroup_createInCacheManager,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (filteredGroups.isEmpty) {
+      return Center(
+        child: Text(
+          l10n.tagGroup_noResults,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: filteredGroups.length,
+      itemBuilder: (context, index) {
+        final group = filteredGroups[index];
+        final isExisting = widget.existingGroupTitles.contains(group.id);
+
+        return ListTile(
+          leading: Text(
+            group.emoji.isNotEmpty ? group.emoji : '✨',
+            style: const TextStyle(fontSize: 20),
+          ),
+          title: Text(
+            group.name,
+            style: TextStyle(
+              color: isExisting ? theme.colorScheme.outline : null,
+            ),
+          ),
+          subtitle: Text(
+            '${group.tags.length} ${l10n.promptConfig_tagCountUnit}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          trailing: isExisting
+              ? Text(
+                  l10n.tagGroup_alreadyAdded,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                )
+              : Icon(Icons.add, color: theme.colorScheme.primary),
+          enabled: !isExisting,
+          onTap: isExisting
+              ? null
+              : () {
+                  Navigator.of(context).pop(AddGroupResult.custom(group: group));
+                },
+        );
+      },
     );
   }
 }

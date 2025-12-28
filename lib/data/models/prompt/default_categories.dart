@@ -2,18 +2,19 @@ import 'package:uuid/uuid.dart';
 
 import 'random_category.dart';
 import 'random_tag_group.dart';
-import 'weighted_tag.dart';
+import 'tag_category.dart';
+import 'tag_scope.dart';
 
 /// 默认类别配置
 ///
-/// 为新用户提供预配置的类别和分组，包含 NAI 内置标签
+/// 为新用户提供预配置的类别和分组，使用 NAI 内置词库
 /// 各类别概率基于 NAI 官方逻辑设置
 class DefaultCategories {
   static const _uuid = Uuid();
 
   /// 创建默认类别列表
   ///
-  /// 每个类别包含一个"NAI内置"分组，默认启用，并预填充标签数据
+  /// 每个类别包含一个或多个内置词库分组，从 TagLibrary 动态获取标签
   /// 类别概率基于 NAI 逻辑：
   /// - 角色特征（发色、瞳色、服装）: 100%
   /// - 背景: 90%
@@ -29,26 +30,12 @@ class DefaultCategories {
         emoji: '🎨',
         isBuiltin: true,
         probability: 1.0,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'blonde hair', weight: 5),
-              WeightedTag(tag: 'blue hair', weight: 4),
-              WeightedTag(tag: 'black hair', weight: 6),
-              WeightedTag(tag: 'brown hair', weight: 5),
-              WeightedTag(tag: 'red hair', weight: 3),
-              WeightedTag(tag: 'white hair', weight: 3),
-              WeightedTag(tag: 'pink hair', weight: 2),
-              WeightedTag(tag: 'green hair', weight: 2),
-              WeightedTag(tag: 'purple hair', weight: 2),
-              WeightedTag(tag: 'silver hair', weight: 2),
-              WeightedTag(tag: 'grey hair', weight: 2),
-              WeightedTag(tag: 'orange hair', weight: 2),
-              WeightedTag(tag: 'multicolored hair', weight: 1),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '发色',
+            builtinCategoryKey: TagSubCategory.hairColor.name,
+            emoji: '🎨',
           ),
         ],
       ),
@@ -60,22 +47,12 @@ class DefaultCategories {
         emoji: '👁️',
         isBuiltin: true,
         probability: 1.0,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'blue eyes', weight: 6),
-              WeightedTag(tag: 'red eyes', weight: 5),
-              WeightedTag(tag: 'green eyes', weight: 4),
-              WeightedTag(tag: 'brown eyes', weight: 4),
-              WeightedTag(tag: 'purple eyes', weight: 3),
-              WeightedTag(tag: 'yellow eyes', weight: 3),
-              WeightedTag(tag: 'golden eyes', weight: 3),
-              WeightedTag(tag: 'amber eyes', weight: 3),
-              WeightedTag(tag: 'heterochromia', weight: 1),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '瞳色',
+            builtinCategoryKey: TagSubCategory.eyeColor.name,
+            emoji: '👁️',
           ),
         ],
       ),
@@ -87,23 +64,12 @@ class DefaultCategories {
         emoji: '✂️',
         isBuiltin: true,
         probability: 0.5,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'long hair', weight: 8),
-              WeightedTag(tag: 'short hair', weight: 6),
-              WeightedTag(tag: 'medium hair', weight: 5),
-              WeightedTag(tag: 'twintails', weight: 4),
-              WeightedTag(tag: 'ponytail', weight: 4),
-              WeightedTag(tag: 'braid', weight: 3),
-              WeightedTag(tag: 'twin braids', weight: 2),
-              WeightedTag(tag: 'bun', weight: 2),
-              WeightedTag(tag: 'side ponytail', weight: 2),
-              WeightedTag(tag: 'drill hair', weight: 1),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '发型',
+            builtinCategoryKey: TagSubCategory.hairStyle.name,
+            emoji: '✂️',
           ),
         ],
       ),
@@ -115,22 +81,12 @@ class DefaultCategories {
         emoji: '😊',
         isBuiltin: true,
         probability: 0.5,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'smile', weight: 10),
-              WeightedTag(tag: 'blush', weight: 8),
-              WeightedTag(tag: 'open mouth', weight: 6),
-              WeightedTag(tag: 'closed eyes', weight: 4),
-              WeightedTag(tag: 'grin', weight: 3),
-              WeightedTag(tag: 'expressionless', weight: 2),
-              WeightedTag(tag: 'frown', weight: 2),
-              WeightedTag(tag: 'crying', weight: 1),
-              WeightedTag(tag: 'angry', weight: 1),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '表情',
+            builtinCategoryKey: TagSubCategory.expression.name,
+            emoji: '😊',
           ),
         ],
       ),
@@ -142,28 +98,16 @@ class DefaultCategories {
         emoji: '🧘',
         isBuiltin: true,
         probability: 0.5,
+        scope: TagScope.all,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'looking at viewer', weight: 10),
-              WeightedTag(tag: 'standing', weight: 8),
-              WeightedTag(tag: 'sitting', weight: 7),
-              WeightedTag(tag: 'lying', weight: 4),
-              WeightedTag(tag: 'kneeling', weight: 3),
-              WeightedTag(tag: 'walking', weight: 3),
-              WeightedTag(tag: 'running', weight: 2),
-              WeightedTag(tag: 'from above', weight: 3),
-              WeightedTag(tag: 'from below', weight: 2),
-              WeightedTag(tag: 'from side', weight: 3),
-              WeightedTag(tag: 'from behind', weight: 2),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '姿势',
+            builtinCategoryKey: TagSubCategory.pose.name,
+            emoji: '🧘',
           ),
         ],
       ),
-      // 服装 - 100% 概率（角色核心特征）
+      // 服装 - 100% 概率（拆分为 3 个词组）
       RandomCategory(
         id: _uuid.v4(),
         name: '服装',
@@ -171,21 +115,33 @@ class DefaultCategories {
         emoji: '👗',
         isBuiltin: true,
         probability: 1.0,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'school uniform', weight: 8),
-              WeightedTag(tag: 'dress', weight: 7),
-              WeightedTag(tag: 'casual clothes', weight: 6),
-              WeightedTag(tag: 'maid', weight: 4),
-              WeightedTag(tag: 'kimono', weight: 3),
-              WeightedTag(tag: 'swimsuit', weight: 3),
-              WeightedTag(tag: 'uniform', weight: 4),
-              WeightedTag(tag: 'armor', weight: 2),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '女性服装',
+            builtinCategoryKey: TagSubCategory.clothingFemale.name,
+            emoji: '👗',
+          ).copyWith(
+            genderRestrictionEnabled: true,
+            applicableGenders: ['girl'],
+            scope: TagScope.character,
+          ),
+          RandomTagGroup.fromBuiltin(
+            name: '男性服装',
+            builtinCategoryKey: TagSubCategory.clothingMale.name,
+            emoji: '👔',
+          ).copyWith(
+            genderRestrictionEnabled: true,
+            applicableGenders: ['boy'],
+            scope: TagScope.character,
+          ),
+          RandomTagGroup.fromBuiltin(
+            name: '通用服装',
+            builtinCategoryKey: TagSubCategory.clothingGeneral.name,
+            emoji: '🎽',
+          ).copyWith(
+            genderRestrictionEnabled: false,
+            scope: TagScope.character,
           ),
         ],
       ),
@@ -197,45 +153,50 @@ class DefaultCategories {
         emoji: '💍',
         isBuiltin: true,
         probability: 0.5,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'ribbon', weight: 6),
-              WeightedTag(tag: 'bow', weight: 5),
-              WeightedTag(tag: 'hair ornament', weight: 6),
-              WeightedTag(tag: 'hairband', weight: 4),
-              WeightedTag(tag: 'glasses', weight: 3),
-              WeightedTag(tag: 'hat', weight: 3),
-              WeightedTag(tag: 'earrings', weight: 2),
-              WeightedTag(tag: 'necklace', weight: 2),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '配饰',
+            builtinCategoryKey: TagSubCategory.accessory.name,
+            emoji: '💍',
           ),
         ],
       ),
-      // 身体特征 - 30% 概率（较少使用）
+      // 身体特征 - 30% 概率（拆分为 3 个词组）
       RandomCategory(
         id: _uuid.v4(),
         name: '身体特征',
         key: 'bodyFeature',
-        emoji: '💪',
+        emoji: '💃',
         isBuiltin: true,
         probability: 0.3,
+        scope: TagScope.character,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'large breasts', weight: 5),
-              WeightedTag(tag: 'medium breasts', weight: 6),
-              WeightedTag(tag: 'small breasts', weight: 4),
-              WeightedTag(tag: 'flat chest', weight: 3),
-              WeightedTag(tag: 'thighs', weight: 4),
-              WeightedTag(tag: 'midriff', weight: 3),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '女性体型',
+            builtinCategoryKey: TagSubCategory.bodyFeatureFemale.name,
+            emoji: '👙',
+          ).copyWith(
+            genderRestrictionEnabled: true,
+            applicableGenders: ['girl'],
+            scope: TagScope.character,
+          ),
+          RandomTagGroup.fromBuiltin(
+            name: '男性体型',
+            builtinCategoryKey: TagSubCategory.bodyFeatureMale.name,
+            emoji: '💪',
+          ).copyWith(
+            genderRestrictionEnabled: true,
+            applicableGenders: ['boy'],
+            scope: TagScope.character,
+          ),
+          RandomTagGroup.fromBuiltin(
+            name: '通用体型',
+            builtinCategoryKey: TagSubCategory.bodyFeatureGeneral.name,
+            emoji: '🧍',
+          ).copyWith(
+            genderRestrictionEnabled: false,
+            scope: TagScope.character,
           ),
         ],
       ),
@@ -247,21 +208,12 @@ class DefaultCategories {
         emoji: '🌄',
         isBuiltin: true,
         probability: 0.9,
+        scope: TagScope.global,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'simple background', weight: 10),
-              WeightedTag(tag: 'white background', weight: 8),
-              WeightedTag(tag: 'grey background', weight: 5),
-              WeightedTag(tag: 'black background', weight: 4),
-              WeightedTag(tag: 'gradient background', weight: 3),
-              WeightedTag(tag: 'blurred background', weight: 3),
-              WeightedTag(tag: 'abstract background', weight: 2),
-              WeightedTag(tag: 'detailed background', weight: 5),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '背景',
+            builtinCategoryKey: TagSubCategory.background.name,
+            emoji: '🌄',
           ),
         ],
       ),
@@ -273,24 +225,12 @@ class DefaultCategories {
         emoji: '🏞️',
         isBuiltin: true,
         probability: 0.5,
+        scope: TagScope.global,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'outdoors', weight: 8),
-              WeightedTag(tag: 'indoors', weight: 8),
-              WeightedTag(tag: 'scenery', weight: 6),
-              WeightedTag(tag: 'nature', weight: 5),
-              WeightedTag(tag: 'city', weight: 4),
-              WeightedTag(tag: 'sky', weight: 5),
-              WeightedTag(tag: 'clouds', weight: 4),
-              WeightedTag(tag: 'sunset', weight: 3),
-              WeightedTag(tag: 'night', weight: 3),
-              WeightedTag(tag: 'rain', weight: 2),
-              WeightedTag(tag: 'snow', weight: 2),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '场景',
+            builtinCategoryKey: TagSubCategory.scene.name,
+            emoji: '🏞️',
           ),
         ],
       ),
@@ -299,22 +239,15 @@ class DefaultCategories {
         id: _uuid.v4(),
         name: '风格',
         key: 'style',
-        emoji: '🎨',
+        emoji: '🎭',
         isBuiltin: true,
         probability: 0.3,
+        scope: TagScope.global,
         groups: [
-          RandomTagGroup.custom(
-            name: 'NAI内置',
-            probability: 1.0,
-            selectionMode: SelectionMode.single,
-            tags: const [
-              WeightedTag(tag: 'masterpiece', weight: 10),
-              WeightedTag(tag: 'best quality', weight: 10),
-              WeightedTag(tag: 'high quality', weight: 8),
-              WeightedTag(tag: 'detailed', weight: 6),
-              WeightedTag(tag: 'photorealistic', weight: 2),
-              WeightedTag(tag: 'anime', weight: 5),
-            ],
+          RandomTagGroup.fromBuiltin(
+            name: '风格',
+            builtinCategoryKey: TagSubCategory.style.name,
+            emoji: '🎭',
           ),
         ],
       ),

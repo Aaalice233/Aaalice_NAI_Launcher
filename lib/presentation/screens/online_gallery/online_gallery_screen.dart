@@ -702,25 +702,52 @@ class _PostCardState extends State<_PostCard> {
                     child: Text(widget.post.rating.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                   ),
                 ),
-                // 收藏按钮（始终显示在悬浮时）
+                // 收藏按钮和复制提示词按钮（悬浮时显示）
                 if (_isHovering)
                   Positioned(
                     top: 4,
                     left: 4,
-                    child: GestureDetector(
-                      onTap: widget.onFavoriteToggle,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          shape: BoxShape.circle,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 收藏按钮
+                        _buildHoverButton(
+                          icon: widget.isFavorited ? Icons.favorite : Icons.favorite_border,
+                          iconColor: widget.isFavorited ? Colors.red : Colors.white,
+                          onTap: widget.onFavoriteToggle,
                         ),
-                        child: Icon(
-                          widget.isFavorited ? Icons.favorite : Icons.favorite_border,
-                          color: widget.isFavorited ? Colors.red : Colors.white,
-                          size: 16,
+                        const SizedBox(width: 4),
+                        // 复制提示词按钮
+                        Tooltip(
+                          message: context.l10n.onlineGallery_copyTags,
+                          child: _buildHoverButton(
+                            icon: Icons.content_copy,
+                            iconColor: Colors.white,
+                            onTap: () async {
+                              try {
+                                await Clipboard.setData(ClipboardData(text: widget.post.tags.join(', ')));
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(context.l10n.onlineGallery_copied),
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(context.l10n.common_error),
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 // 简单的底部渐变信息（始终显示）
@@ -765,6 +792,29 @@ class _PostCardState extends State<_PostCard> {
       case 'e': return Colors.red;
       default: return Colors.grey;
     }
+  }
+
+  /// 构建悬浮时显示的圆形按钮
+  Widget _buildHoverButton({
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: iconColor,
+          size: 16,
+        ),
+      ),
+    );
   }
 }
 

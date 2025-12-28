@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'random_tag_group.dart';
+import 'tag_scope.dart';
 
 // 从 random_tag_group.dart 重新导出 SelectionMode 以便使用
 export 'random_tag_group.dart' show SelectionMode;
@@ -59,6 +60,15 @@ class RandomCategory with _$RandomCategory {
 
     /// 标签分组列表
     @Default([]) List<RandomTagGroup> groups,
+
+    /// 是否启用性别限定
+    @Default(false) bool genderRestrictionEnabled,
+
+    /// 适用的性别列表（槽位名称，如 'girl', 'boy'，空表示全部适用）
+    @Default([]) List<String> applicableGenders,
+
+    /// 作用域
+    @Default(TagScope.all) TagScope scope,
   }) = _RandomCategory;
 
   factory RandomCategory.fromJson(Map<String, dynamic> json) =>
@@ -152,5 +162,20 @@ class RandomCategory with _$RandomCategory {
     final insertIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
     newGroups.insert(insertIndex.clamp(0, newGroups.length), item);
     return copyWith(groups: newGroups);
+  }
+
+  /// 检查是否适用于指定性别（槽位名称）
+  ///
+  /// 如果未启用性别限定或适用性别列表为空，则适用于所有性别
+  bool isApplicableToGender(String gender) {
+    if (!genderRestrictionEnabled || applicableGenders.isEmpty) {
+      return true;
+    }
+    return applicableGenders.contains(gender);
+  }
+
+  /// 检查是否适用于指定作用域
+  bool isApplicableToScope(TagScope targetScope) {
+    return scope.isApplicableTo(targetScope);
   }
 }

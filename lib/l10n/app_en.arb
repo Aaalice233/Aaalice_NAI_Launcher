@@ -152,6 +152,9 @@
   },
   "settings_openSource": "Open Source",
   "settings_openSourceSubtitle": "View source code and documentation",
+  "settings_pathReset": "Reset to default location",
+  "settings_pathSaved": "Save location updated",
+  "settings_selectFolder": "Select Save Folder",
 
   "generation_title": "Generate",
   "generation_generate": "Generate",
@@ -1250,7 +1253,7 @@
     }
   },
   "tagLibrary_neverSynced": "Never synced",
-  "tagLibrary_syncNow": "Sync Now",
+  "tagLibrary_syncNow": "Sync from Danbooru",
   "tagLibrary_syncing": "Syncing...",
   "tagLibrary_syncSuccess": "Library synced successfully",
   "tagLibrary_syncFailed": "Sync failed, please check network connection",
@@ -1377,6 +1380,7 @@
   "promptConfig_addGroup": "Add Group",
   "promptConfig_noGroups": "No groups yet, click \"Add Group\" to create",
   "promptConfig_builtinLibrary": "NAI Built-in Library",
+  "promptConfig_customGroup": "Custom Group",
   "promptConfig_danbooruTagGroup": "Danbooru TagGroup",
   "promptConfig_danbooruPool": "Danbooru Pool",
   "promptConfig_categorySettings": "Category Settings",
@@ -1642,8 +1646,8 @@
   "tagGroup_cacheDetails": "Cache Details",
   "tagGroup_cachedCategories": "Cached Categories",
 
-  "cache_title": "Cache Management",
-  "cache_manage": "Manage Cache",
+  "cache_title": "Word Groups",
+  "cache_manage": "Word Groups",
   "cache_tabTagGroup": "Tag Group",
   "cache_tabPool": "Pool",
   "cache_noTagGroups": "No Tag Group cache",
@@ -1663,7 +1667,17 @@
     }
   },
   "cache_refreshAll": "Refresh All",
-  "cache_totalStats": "{count} cached, {tags} tags total",
+  "cache_refreshProgress": "Syncing ({current}/{total}): {name}",
+  "@cache_refreshProgress": {
+    "placeholders": {
+      "current": {},
+      "total": {},
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cache_totalStats": "{count} groups, {tags} tags total",
   "@cache_totalStats": {
     "placeholders": {
       "count": {},
@@ -2000,5 +2014,100 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+
+  "addGroup_customTab": "Custom",
+  "customGroup_groupName": "Group Name",
+  "customGroup_entryPlaceholder": "Enter entry and press Enter (supports multiple tags, comma separated)",
+  "customGroup_noEntries": "No entries yet, add entries to start",
+  "customGroup_entryCount": "{count} entries",
+  "@customGroup_entryCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "customGroup_editEntry": "Edit Entry",
+  "customGroup_aliasLabel": "Alias (optional)",
+  "customGroup_aliasHint": "Enter a memorable alias",
+  "customGroup_contentLabel": "Prompt Content",
+  "customGroup_contentHint": "Enter actual prompt content",
+  "customGroup_save": "Save",
+  "customGroup_confirm": "Confirm",
+  "customGroup_selectEmoji": "Select Icon",
+  "customGroup_nameRequired": "Please enter group name",
+  "customGroup_addEntry": "Add Entry",
+  "customGroup_noCustomGroups": "No custom groups yet",
+  "customGroup_createInCacheManager": "Create custom groups in \"Group Manager\"",
+  "cache_createCustomGroup": "Create Custom Group",
+  "cache_confirmDeleteCustomGroup": "Are you sure you want to delete custom group \"{name}\"?",
+  "@cache_confirmDeleteCustomGroup": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "cache_customTab": "Custom",
+  "cache_addFromDanbooru": "Add from Danbooru",
+  "customGroup_emptyStateTitle": "Start adding entries",
+  "customGroup_emptyStateHint": "Type in the input field above and press Enter to add",
+  "common_comingSoon": "Coming soon...",
+  "common_openInBrowser": "Open in browser",
+  "customGroup_tagsPlaceholder": "Enter tags, separated by commas (autocomplete supported)...",
+
+  "characterCountConfig_title": "Character Count Config",
+  "characterCountConfig_weight": "Weight",
+  "characterCountConfig_solo": "Solo",
+  "characterCountConfig_duo": "Duo",
+  "characterCountConfig_trio": "Trio",
+  "characterCountConfig_noHumans": "No Humans",
+  "characterCountConfig_multiPerson": "Multi-Person",
+  "characterCountConfig_customizable": "Customizable",
+  "characterCountConfig_mainPrompt": "Main Prompt",
+  "characterCountConfig_characterPrompt": "Character Prompt",
+  "characterCountConfig_addTagOption": "Add Character Tag",
+  "characterCountConfig_addMultiPersonCombo": "Add Multi-Person Combo",
+  "characterCountConfig_displayName": "Display Name",
+  "characterCountConfig_displayNameHint": "e.g., Trap",
+  "characterCountConfig_mainPromptLabel": "Main Prompt Tags",
+  "characterCountConfig_mainPromptHint": "e.g., solo, 2girls, 1girl 1boy",
+  "characterCountConfig_personCount": "Person Count:",
+  "characterCountConfig_slotConfig": "Character Slot Config",
+  "characterCountConfig_slot": "Slot",
+  "characterCountConfig_resetToDefault": "Reset to Default",
+  "characterCountConfig_customSlots": "Custom Slots",
+  "characterCountConfig_customSlotsTitle": "Character Slot Management",
+  "characterCountConfig_customSlotsDesc": "Add or remove available character slot options",
+  "characterCountConfig_addSlot": "Add Slot",
+  "characterCountConfig_addSlotHint": "e.g., 1trap, 1futanari",
+  "characterCountConfig_slotExists": "This slot already exists",
+  "characterCountConfig_cannotDeleteBuiltin": "Cannot delete built-in slot",
+
+  "genderRestriction_enabled": "Gender Restriction",
+  "genderRestriction_enabledDesc": "Gender filter not enabled",
+  "genderRestriction_enabledActive": "Enabled, {count} genders available",
+  "@genderRestriction_enabledActive": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "genderRestriction_enable": "Enable Gender Restriction",
+  "genderRestriction_enableDesc": "Only apply to characters of specified genders",
+  "genderRestriction_applicableGenders": "Applicable Genders",
+  "gender_female": "Female",
+  "gender_male": "Male",
+  "gender_trap": "Trap",
+  "gender_futanari": "Futanari",
+
+  "scope_title": "Scope",
+  "scope_titleDesc": "Set the applicable scope of this category/group",
+  "scope_global": "Global",
+  "scope_globalDesc": "Only for main prompt",
+  "scope_character": "Character",
+  "scope_characterDesc": "Only for character prompts",
+  "scope_all": "All",
+  "scope_allDesc": "Available for both main and character prompts",
+
+  "tagGroupSettings_resetToCategory": "Reset to Category Settings",
+
+  "bracket_weaken": "weaken",
+  "bracket_enhance": "enhance"
 }

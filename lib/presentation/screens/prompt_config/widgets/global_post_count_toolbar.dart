@@ -116,11 +116,11 @@ class GlobalPostCountToolbar extends StatelessWidget {
             onTap: () => CacheManagementDialog.show(context),
           ),
           const SizedBox(width: 8),
-          // 总览设置按钮
+          // 人数组合配置按钮
           _buildCompactButton(
             theme: theme,
             icon: Icons.tune,
-            label: context.l10n.globalSettings_title,
+            label: context.l10n.characterCountConfig_title,
             onTap: () => GlobalSettingsDialog.show(context),
           ),
           // 分隔线

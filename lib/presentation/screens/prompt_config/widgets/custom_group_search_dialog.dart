@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/local/pool_cache_service.dart';
@@ -43,12 +44,24 @@ class CustomGroupResult {
 ///
 /// 用于连接 Danbooru 搜索 TagGroup 或 Pool，并设置 emoji 和名称
 class CustomGroupSearchDialog extends ConsumerStatefulWidget {
-  const CustomGroupSearchDialog({super.key});
+  /// 固定的搜索类型，如果指定则不显示类型切换器
+  final CustomGroupType? fixedType;
 
-  static Future<CustomGroupResult?> show(BuildContext context) {
+  const CustomGroupSearchDialog({
+    super.key,
+    this.fixedType,
+  });
+
+  /// 显示对话框
+  ///
+  /// [fixedType] 如果指定，则锁定为该类型，不显示类型切换器
+  static Future<CustomGroupResult?> show(
+    BuildContext context, {
+    CustomGroupType? fixedType,
+  }) {
     return showDialog<CustomGroupResult>(
       context: context,
-      builder: (context) => const CustomGroupSearchDialog(),
+      builder: (context) => CustomGroupSearchDialog(fixedType: fixedType),
     );
   }
 
@@ -62,8 +75,16 @@ class _CustomGroupSearchDialogState
   final _searchController = TextEditingController();
   final _nameController = TextEditingController();
 
-  String _selectedEmoji = '✨';
-  CustomGroupType _searchType = CustomGroupType.tagGroup;
+  late String _selectedEmoji;
+  late CustomGroupType _searchType;
+
+  @override
+  void initState() {
+    super.initState();
+    // 使用固定类型或默认为 tagGroup
+    _searchType = widget.fixedType ?? CustomGroupType.tagGroup;
+    _selectedEmoji = _searchType == CustomGroupType.pool ? '🖼️' : '✨';
+  }
 
   List<TagGroup> _tagGroupResults = [];
   List<DanbooruPool> _poolResults = [];
@@ -233,35 +254,37 @@ class _CustomGroupSearchDialogState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 搜索类型选择
-                SegmentedButton<CustomGroupType>(
-                  segments: [
-                    ButtonSegment(
-                      value: CustomGroupType.tagGroup,
-                      label: Text(l10n.addGroup_tagGroupTab),
-                      icon: const Icon(Icons.cloud_outlined, size: 18),
-                    ),
-                    ButtonSegment(
-                      value: CustomGroupType.pool,
-                      label: Text(l10n.addGroup_poolTab),
-                      icon: const Icon(Icons.collections_outlined, size: 18),
-                    ),
-                  ],
-                  selected: {_searchType},
-                  onSelectionChanged: (value) {
-                    setState(() {
-                      _searchType = value.first;
-                      _tagGroupResults = [];
-                      _poolResults = [];
-                      _selectedTagGroup = null;
-                      _selectedPool = null;
-                      _selectedEmoji = _searchType == CustomGroupType.pool
-                          ? '🖼️'
-                          : '✨';
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
+                // 搜索类型选择（仅在未固定类型时显示）
+                if (widget.fixedType == null) ...[
+                  SegmentedButton<CustomGroupType>(
+                    segments: [
+                      ButtonSegment(
+                        value: CustomGroupType.tagGroup,
+                        label: Text(l10n.addGroup_tagGroupTab),
+                        icon: const Icon(Icons.cloud_outlined, size: 18),
+                      ),
+                      ButtonSegment(
+                        value: CustomGroupType.pool,
+                        label: Text(l10n.addGroup_poolTab),
+                        icon: const Icon(Icons.collections_outlined, size: 18),
+                      ),
+                    ],
+                    selected: {_searchType},
+                    onSelectionChanged: (value) {
+                      setState(() {
+                        _searchType = value.first;
+                        _tagGroupResults = [];
+                        _poolResults = [];
+                        _selectedTagGroup = null;
+                        _selectedPool = null;
+                        _selectedEmoji = _searchType == CustomGroupType.pool
+                            ? '🖼️'
+                            : '✨';
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // 搜索框
                 TextField(
@@ -424,6 +447,20 @@ class _CustomGroupSearchDialogState
                 color: theme.colorScheme.outline,
               ),
             ),
+            trailing: IconButton(
+              icon: Icon(
+                Icons.open_in_new,
+                size: 18,
+                color: theme.colorScheme.outline,
+              ),
+              tooltip: l10n.common_openInBrowser,
+              onPressed: () {
+                final url = Uri.parse(
+                  'https://danbooru.donmai.us/wiki_pages/${group.title}',
+                );
+                launchUrl(url, mode: LaunchMode.externalApplication);
+              },
+            ),
             selected: isSelected,
             selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.3),
             shape: RoundedRectangleBorder(
@@ -458,6 +495,20 @@ class _CustomGroupSearchDialogState
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                Icons.open_in_new,
+                size: 18,
+                color: theme.colorScheme.outline,
+              ),
+              tooltip: l10n.common_openInBrowser,
+              onPressed: () {
+                final url = Uri.parse(
+                  'https://danbooru.donmai.us/pools/${pool.id}',
+                );
+                launchUrl(url, mode: LaunchMode.externalApplication);
+              },
             ),
             selected: isSelected,
             selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.3),

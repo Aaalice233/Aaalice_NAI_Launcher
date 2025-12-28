@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/image_save_settings_provider.dart';
 
 /// 图片放大对话框
 class UpscaleDialog extends ConsumerStatefulWidget {
@@ -428,9 +429,25 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
 
   Future<void> _saveResult(Uint8List data) async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      // 优先使用设置中的自定义路径
+      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+      Directory saveDir;
+
+      if (saveSettings.hasCustomPath) {
+        saveDir = Directory(saveSettings.customPath!);
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      } else {
+        final docDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${docDir.path}/NAI_Launcher');
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      }
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${directory.path}/upscaled_$timestamp.png');
+      final file = File('${saveDir.path}/upscaled_$timestamp.png');
       await file.writeAsBytes(data);
 
       if (mounted) {

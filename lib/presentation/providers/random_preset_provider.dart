@@ -10,6 +10,7 @@ import '../../data/models/prompt/default_categories.dart';
 import '../../data/models/prompt/pool_mapping.dart';
 import '../../data/models/prompt/random_category.dart';
 import '../../data/models/prompt/random_preset.dart';
+import '../../data/models/prompt/random_tag_group.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
 
@@ -412,6 +413,79 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     if (preset == null) return;
 
     await updatePreset(preset.togglePoolMappingEnabled(mappingId));
+  }
+
+  // ========== 分组管理 ==========
+
+  /// 添加分组到指定类别
+  ///
+  /// [categoryKey] 类别的 key（如 'hairColor'）
+  /// [group] 要添加的分组
+  Future<void> addGroupToCategory(String categoryKey, RandomTagGroup group) async {
+    final preset = state.selectedPreset;
+    if (preset == null) {
+      return;
+    }
+
+    final category = preset.findCategoryByKey(categoryKey);
+    if (category == null) {
+      return;
+    }
+
+    final updatedCategory = category.addGroup(group);
+    await updatePreset(preset.updateCategory(updatedCategory));
+  }
+
+  /// 从指定类别移除分组
+  Future<void> removeGroupFromCategory(String categoryKey, String groupId) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    final category = preset.findCategoryByKey(categoryKey);
+    if (category == null) return;
+
+    final updatedCategory = category.removeGroup(groupId);
+    await updatePreset(preset.updateCategory(updatedCategory));
+  }
+
+  /// 更新自定义词组（在所有预设的所有类别中查找并更新）
+  Future<void> updateCustomGroup(String groupId, RandomTagGroup newGroup) async {
+    // 遍历所有预设，找到并更新匹配的词组
+    for (final preset in state.presets) {
+      var presetUpdated = false;
+      var updatedPreset = preset;
+
+      for (final category in preset.categories) {
+        final existingGroup = category.findGroupById(groupId);
+        if (existingGroup != null) {
+          // 保持原有ID，更新其他属性
+          final updatedGroup = newGroup.copyWith(id: groupId);
+          final updatedCategory = category.updateGroup(updatedGroup);
+          updatedPreset = updatedPreset.updateCategory(updatedCategory);
+          presetUpdated = true;
+        }
+      }
+
+      if (presetUpdated) {
+        await updatePreset(updatedPreset);
+      }
+    }
+  }
+
+  /// 切换分组启用状态
+  Future<void> toggleGroupEnabled(String categoryKey, String groupId) async {
+    final preset = state.selectedPreset;
+    if (preset == null) return;
+
+    final category = preset.findCategoryByKey(categoryKey);
+    if (category == null) return;
+
+    final group = category.findGroupById(groupId);
+    if (group == null) return;
+
+    final updatedGroup = group.copyWith(enabled: !group.enabled);
+    final updatedCategory = category.updateGroup(updatedGroup);
+    await updatePreset(preset.updateCategory(updatedCategory));
   }
 
   // ========== 批量 Tag Group 管理 ==========

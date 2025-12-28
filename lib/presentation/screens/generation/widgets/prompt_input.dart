@@ -3,14 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_parser.dart';
-import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/prompt_config_provider.dart';
 import '../../../providers/prompt_view_mode_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
-import '../../../widgets/character/character_prompt_button.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
@@ -172,34 +169,18 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   /// 生成随机提示词
   Future<void> _generateRandomPrompt() async {
     try {
-      // 检查当前模型是否支持多角色
-      final params = ref.read(generationParamsNotifierProvider);
-      final isV4Model = params.isV4Model;
+      // 使用统一的随机提示词生成并应用方法
+      await ref
+          .read(imageGenerationNotifierProvider.notifier)
+          .generateAndApplyRandomPrompt();
 
-      // 使用统一的生成入口
-      final result = await ref
-          .read(promptConfigNotifierProvider.notifier)
-          .generateRandomPrompt(isV4Model: isV4Model);
+      // 检查是否有角色被生成（用于 Toast 提示）
+      final characterConfig = ref.read(characterPromptNotifierProvider);
+      final hasCharacters = characterConfig.characters.any((c) => c.enabled && c.prompt.isNotEmpty);
 
-      // 设置主提示词
-      ref
-          .read(generationParamsNotifierProvider.notifier)
-          .updatePrompt(result.mainPrompt);
-
-      // 如果有角色提示词，同步到角色管理器
-      if (result.hasCharacters && isV4Model) {
-        final characterPrompts = result.toCharacterPrompts();
-        ref
-            .read(characterPromptNotifierProvider.notifier)
-            .replaceAll(characterPrompts);
-
-        // 提示用户角色已生成
-        if (mounted) {
-          AppToast.success(context, context.l10n.tagLibrary_generatedCharacters(result.characterCount.toString()));
-        }
-      } else if (result.noHumans) {
-        // 无人物场景，清空角色
-        ref.read(characterPromptNotifierProvider.notifier).clearAll();
+      if (hasCharacters && mounted) {
+        final count = characterConfig.characters.where((c) => c.enabled && c.prompt.isNotEmpty).length;
+        AppToast.success(context, context.l10n.tagLibrary_generatedCharacters(count.toString()));
       }
     } catch (e) {
       if (mounted) {
@@ -298,11 +279,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         // 使用 Expanded 填充剩余空间
         const Expanded(child: SizedBox()),
-
-        // 多人角色提示词按钮
-        const CharacterPromptButton(),
-
-        const SizedBox(width: 8),
 
         // 质量词提示
         QualityTagsHint(

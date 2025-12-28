@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../providers/image_save_settings_provider.dart';
 import 'app_toast.dart';
 
 /// 可选择的图像卡片组件
-class SelectableImageCard extends StatefulWidget {
+class SelectableImageCard extends ConsumerStatefulWidget {
   final Uint8List imageBytes;
   final int? index;
   final bool isSelected;
@@ -28,10 +30,10 @@ class SelectableImageCard extends StatefulWidget {
   });
 
   @override
-  State<SelectableImageCard> createState() => _SelectableImageCardState();
+  ConsumerState<SelectableImageCard> createState() => _SelectableImageCardState();
 }
 
-class _SelectableImageCardState extends State<SelectableImageCard> {
+class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
   bool _isHovering = false;
 
   @override
@@ -189,10 +191,21 @@ class _SelectableImageCardState extends State<SelectableImageCard> {
 
   Future<void> _saveImage(BuildContext context) async {
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final saveDir = Directory('${docDir.path}/NAI_Launcher');
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
+      // 优先使用设置中的自定义路径
+      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+      Directory saveDir;
+
+      if (saveSettings.hasCustomPath) {
+        saveDir = Directory(saveSettings.customPath!);
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      } else {
+        final docDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${docDir.path}/NAI_Launcher');
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
       }
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';

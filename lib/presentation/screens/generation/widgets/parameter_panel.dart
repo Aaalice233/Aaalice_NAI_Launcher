@@ -11,7 +11,6 @@ import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
 import 'img2img_panel.dart';
 import 'unified_reference_panel.dart';
-import 'character_panel.dart';
 import 'prompt_input.dart';
 
 /// 参数面板组件
@@ -342,11 +341,6 @@ class ParameterPanel extends ConsumerWidget {
 
         // 统一参考面板 (Vibe Transfer 和角色参考二选一)
         const UnifiedReferencePanel(),
-
-        const SizedBox(height: 8),
-
-        // 多角色面板 (仅 V4 模型显示)
-        const CharacterPanel(),
 
         const SizedBox(height: 16),
 

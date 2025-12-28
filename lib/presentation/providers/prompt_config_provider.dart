@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../data/models/prompt/default_presets.dart';
 import '../../data/models/prompt/prompt_config.dart';
 import '../../data/models/prompt/random_prompt_result.dart';
@@ -153,11 +154,18 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     // 优先使用用户预设生成
     final preset = presetState.selectedPreset;
     if (preset != null && preset.categories.isNotEmpty) {
-      return generator.generateFromPreset(
+      final result = await generator.generateFromPreset(
         preset: preset,
         isV4Model: isV4Model,
         seed: seed,
       );
+      // 调试：输出生成结果详情
+      AppLogger.d(
+        'generateFromPreset result: ${result.characterCount} characters, '
+        'mainPrompt: ${result.mainPrompt}',
+        'RandomGen',
+      );
+      return result;
     }
 
     // 如果没有配置类别，使用原有 TagLibrary 方式

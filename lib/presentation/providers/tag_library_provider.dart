@@ -80,12 +80,13 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
     try {
       await _libraryService.init();
 
-      final library = await _libraryService.loadLocalLibrary();
+      // 从 JSON 加载内置词库（不使用缓存）
+      final library = await _libraryService.getAvailableLibrary();
       final config = await _libraryService.loadSyncConfig();
       final filterConfig = await _libraryService.loadCategoryFilterConfig();
 
       state = state.copyWith(
-        library: library ?? _libraryService.getBuiltinLibrary(),
+        library: library,
         syncConfig: config,
         categoryFilterConfig: filterConfig,
         isLoading: false,
@@ -250,8 +251,9 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   /// 清除缓存并重新加载内置词库
   Future<void> resetToBuiltin() async {
     await _libraryService.clearCache();
+    final library = await _libraryService.getAvailableLibrary();
     state = state.copyWith(
-      library: _libraryService.getBuiltinLibrary(),
+      library: library,
       clearError: true,
     );
   }

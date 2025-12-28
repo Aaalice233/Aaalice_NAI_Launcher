@@ -101,6 +101,27 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void> generate(ImageParams params) async {
     _isCancelled = false;
 
+    // 获取抽卡模式设置
+    final randomMode = ref.read(randomPromptModeProvider);
+
+    // 如果开启抽卡模式，先随机提示词再生成
+    // 这样生成的图像和显示的提示词能对应上
+    ImageParams effectiveParams = params;
+    if (randomMode) {
+      final randomPrompt = await generateAndApplyRandomPrompt();
+      if (randomPrompt.isNotEmpty) {
+        AppLogger.d('Random prompt before generation: $randomPrompt', 'RandomMode');
+        // 重新读取角色配置（已被 generateAndApplyRandomPrompt 更新）
+        final characterConfig = ref.read(characterPromptNotifierProvider);
+        final apiCharacters = _convertCharactersToApiFormat(characterConfig);
+        effectiveParams = params.copyWith(
+          prompt: randomPrompt,
+          characters: apiCharacters,
+          useCoords: apiCharacters.isNotEmpty && !characterConfig.globalAiChoice,
+        );
+      }
+    }
+
     // 开始生成前清空当前图片
     state = state.copyWith(
       currentImages: [],
@@ -109,7 +130,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     // nSamples = 批次数量（请求次数）
     // batchSize = 每次请求生成的图片数量
-    final batchCount = params.nSamples;
+    final batchCount = effectiveParams.nSamples;
     final batchSize = ref.read(imagesPerRequestProvider);
     final totalImages = batchCount * batchSize;
 
@@ -127,7 +148,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final apiCharacters = _convertCharactersToApiFormat(characterConfig);
 
     // 将设置应用到参数（不在客户端修改提示词内容，让后端处理）
-    final ImageParams baseParams = params.copyWith(
+    final ImageParams baseParams = effectiveParams.copyWith(
       qualityToggle: addQualityTags,
       ucPreset: ucPresetValue,
       characters: apiCharacters,
@@ -135,29 +156,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       useCoords: apiCharacters.isNotEmpty && !characterConfig.globalAiChoice,
     );
 
-    // 如果只生成 1 张，直接生成
+    // 如果只生成 1 张，直接生成（不需要再随机，已经在开头随机过了）
     if (batchCount == 1 && batchSize == 1) {
       await _generateSingle(baseParams, 1, 1);
-      // 单抽完成后，如果开启抽卡模式，也要随机新提示词
-      final randomMode = ref.read(randomPromptModeProvider);
-      if (randomMode) {
-        final randomPrompt =
-            ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
-        if (randomPrompt.isNotEmpty) {
-          AppLogger.d(
-            'Single - New prompt for next generation: $randomPrompt',
-            'RandomMode',
-          );
-          ref
-              .read(generationParamsNotifierProvider.notifier)
-              .updatePrompt(randomPrompt);
-        }
-      }
       return;
     }
-
-    // 获取抽卡模式设置
-    final randomMode = ref.read(randomPromptModeProvider);
 
     // 多张图片：按批次循环请求
     state = state.copyWith(
@@ -179,6 +182,26 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     for (int batch = 0; batch < batchCount; batch++) {
       if (_isCancelled) break;
 
+      // 如果开启抽卡模式且不是第一批，先随机新提示词再生成
+      // 第一批已在方法开头随机过了
+      if (randomMode && batch > 0) {
+        final randomPrompt = await generateAndApplyRandomPrompt();
+        if (randomPrompt.isNotEmpty) {
+          AppLogger.d(
+            'Batch ${batch + 1}/$batchCount - Random before generation: $randomPrompt',
+            'RandomMode',
+          );
+          // 重新读取角色配置并更新参数
+          final newCharacterConfig = ref.read(characterPromptNotifierProvider);
+          final newApiCharacters = _convertCharactersToApiFormat(newCharacterConfig);
+          currentParams = currentParams.copyWith(
+            prompt: randomPrompt,
+            characters: newApiCharacters,
+            useCoords: newApiCharacters.isNotEmpty && !newCharacterConfig.globalAiChoice,
+          );
+        }
+      }
+
       // 更新当前进度
       state = state.copyWith(
         currentImage: generatedImages + 1,
@@ -192,7 +215,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       );
 
       try {
-        final images = await _generateWithRetry(batchParams);
+        // 使用流式 API 生成，支持预览
+        final images = await _generateBatchWithStream(
+          batchParams,
+          generatedImages + 1,
+          totalImages,
+        );
         if (images.isNotEmpty) {
           allImages.addAll(images);
           generatedImages += images.length;
@@ -200,26 +228,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           state = state.copyWith(
             currentImages: List.from(allImages),
             history: [...images, ...state.history].take(50).toList(),
+            clearStreamPreview: true,
           );
-
-          // 如果开启抽卡模式，每批生成后随机新提示词
-          if (randomMode && batch < batchCount - 1) {
-            final randomPrompt = ref
-                .read(promptConfigNotifierProvider.notifier)
-                .generatePrompt();
-            if (randomPrompt.isNotEmpty) {
-              AppLogger.d(
-                'Batch ${batch + 1}/$batchCount - New prompt: $randomPrompt',
-                'RandomMode',
-              );
-              // 更新 UI 中的提示词
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updatePrompt(randomPrompt);
-              // 更新下一批次使用的参数（质量标签由后端通过 qualityToggle 自动添加）
-              currentParams = currentParams.copyWith(prompt: randomPrompt);
-            }
-          }
         } else {
           generatedImages += batchSize; // 即使失败也要跳过，避免死循环
         }
@@ -239,22 +249,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
     }
 
-    // 生成完成后，如果开启抽卡模式，再随机一次（为下次点击生成做准备）
-    if (randomMode) {
-      final randomPrompt =
-          ref.read(promptConfigNotifierProvider.notifier).generatePrompt();
-      if (randomPrompt.isNotEmpty) {
-        AppLogger.d(
-          'Final - New prompt for next generation: $randomPrompt',
-          'RandomMode',
-        );
-        ref
-            .read(generationParamsNotifierProvider.notifier)
-            .updatePrompt(randomPrompt);
-      }
-    }
-
-    // 完成
+    // 完成（不再随机，保持图像和提示词对应）
     state = state.copyWith(
       status: _isCancelled
           ? GenerationStatus.cancelled
@@ -297,6 +292,102 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
 
     return [];
+  }
+
+  /// 使用流式 API 生成批次图像（支持预览）
+  ///
+  /// 对于多批次生成，每次生成一张图像并显示流式预览
+  /// [params] 生成参数（nSamples 表示本批次要生成的数量）
+  /// [currentStart] 当前批次起始图像编号
+  /// [total] 总图像数量
+  Future<List<Uint8List>> _generateBatchWithStream(
+    ImageParams params,
+    int currentStart,
+    int total,
+  ) async {
+    final apiService = ref.read(naiApiServiceProvider);
+    final batchSize = params.nSamples;
+    final images = <Uint8List>[];
+
+    // 逐张生成以支持流式预览
+    for (int i = 0; i < batchSize; i++) {
+      if (_isCancelled) break;
+
+      // 更新当前进度
+      state = state.copyWith(
+        currentImage: currentStart + i,
+        progress: (currentStart + i - 1) / total,
+        clearStreamPreview: true,
+      );
+
+      // 为每张图使用不同的种子
+      // seed == -1 表示随机，保持 -1 让 API 生成随机种子
+      // 否则每张图使用 seed + 偏移量
+      final singleParams = params.copyWith(
+        nSamples: 1,
+        seed: params.seed == -1 ? -1 : params.seed + i,
+      );
+
+      Uint8List? image;
+      for (int retry = 0; retry <= _maxRetries; retry++) {
+        try {
+          final stream = apiService.generateImageStream(singleParams);
+
+          await for (final chunk in stream) {
+            if (_isCancelled) {
+              return images;
+            }
+
+            if (chunk.hasError) {
+              throw Exception(chunk.error);
+            }
+
+            if (chunk.hasPreview) {
+              // 更新流式预览
+              state = state.copyWith(
+                progress: (currentStart + i - 1 + chunk.progress) / total,
+                streamPreview: chunk.previewImage,
+              );
+            }
+
+            if (chunk.isComplete && chunk.hasFinalImage) {
+              image = chunk.finalImage;
+            }
+          }
+
+          if (image != null) {
+            images.add(image);
+            break; // 成功，退出重试循环
+          } else {
+            // 流式 API 未返回图像，使用非流式 API
+            final fallbackImages = await apiService.generateImageCancellable(
+              singleParams,
+              onProgress: (received, total) {},
+            );
+            if (fallbackImages.isNotEmpty) {
+              images.add(fallbackImages.first);
+              break;
+            }
+          }
+        } catch (e) {
+          if (_isCancelled || e.toString().contains('cancelled')) {
+            return images;
+          }
+
+          if (retry < _maxRetries) {
+            AppLogger.w(
+              '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$_maxRetries): $e',
+            );
+            await Future.delayed(Duration(milliseconds: _retryDelays[retry]));
+          } else {
+            AppLogger.e('生成第 ${currentStart + i} 张图像失败: $e');
+            // 继续生成下一张，不抛出异常
+          }
+        }
+      }
+    }
+
+    return images;
   }
 
   /// 生成单张（使用流式 API 支持渐进式预览）
@@ -474,6 +565,54 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         position: position,
       );
     }).toList();
+  }
+
+  /// 统一随机提示词生成并应用方法
+  ///
+  /// 此方法是随机按钮和自动随机模式的唯一入口
+  /// 生成随机提示词并自动应用到主提示词和角色提示词
+  ///
+  /// [seed] 随机种子（可选）
+  /// 返回生成的主提示词字符串（用于日志/显示）
+  Future<String> generateAndApplyRandomPrompt({int? seed}) async {
+    // 获取当前模型是否为 V4
+    final params = ref.read(generationParamsNotifierProvider);
+    final isV4Model = params.isV4Model;
+
+    // 使用统一的生成入口
+    final result = await ref
+        .read(promptConfigNotifierProvider.notifier)
+        .generateRandomPrompt(isV4Model: isV4Model, seed: seed);
+
+    // 应用主提示词
+    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(result.mainPrompt);
+
+    // 应用角色提示词
+    if (result.hasCharacters && isV4Model) {
+      final characterPrompts = result.toCharacterPrompts();
+      AppLogger.d(
+        'Random result: ${result.characterCount} characters, prompts: ${characterPrompts.length}',
+        'RandomMode',
+      );
+      for (var i = 0; i < characterPrompts.length; i++) {
+        AppLogger.d(
+          'Character $i: ${characterPrompts[i].prompt}',
+          'RandomMode',
+        );
+      }
+      ref.read(characterPromptNotifierProvider.notifier).replaceAll(characterPrompts);
+
+      AppLogger.d(
+        'Applied ${result.characterCount} characters from random generation',
+        'RandomMode',
+      );
+    } else if (result.noHumans) {
+      // 无人物场景，清空角色
+      ref.read(characterPromptNotifierProvider.notifier).clearAll();
+      AppLogger.d('No humans scene, cleared characters', 'RandomMode');
+    }
+
+    return result.mainPrompt;
   }
 }
 

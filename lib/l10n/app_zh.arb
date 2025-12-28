@@ -137,6 +137,9 @@
   "settings_version": "版本 {version}",
   "settings_openSource": "开源项目",
   "settings_openSourceSubtitle": "查看源代码和文档",
+  "settings_pathReset": "已重置为默认路径",
+  "settings_pathSaved": "保存路径已更新",
+  "settings_selectFolder": "选择保存文件夹",
 
   "generation_title": "生成",
   "generation_generate": "生成",
@@ -925,7 +928,7 @@
     }
   },
   "tagLibrary_neverSynced": "尚未同步",
-  "tagLibrary_syncNow": "立即同步",
+  "tagLibrary_syncNow": "从 Danbooru 同步",
   "tagLibrary_syncing": "同步中...",
   "tagLibrary_syncSuccess": "词库同步成功",
   "tagLibrary_syncFailed": "同步失败，请检查网络连接",
@@ -1042,16 +1045,17 @@
       "name": {}
     }
   },
-  "promptConfig_groupList": "分组列表",
-  "promptConfig_groupCount": "{count} 个分组",
+  "promptConfig_groupList": "词组列表",
+  "promptConfig_groupCount": "{count} 个词组",
   "@promptConfig_groupCount": {
     "placeholders": {
       "count": {}
     }
   },
-  "promptConfig_addGroup": "添加分组",
-  "promptConfig_noGroups": "暂无分组，点击「添加分组」创建",
+  "promptConfig_addGroup": "添加词组",
+  "promptConfig_noGroups": "暂无词组，点击「添加词组」创建",
   "promptConfig_builtinLibrary": "NAI 内置词库",
+  "promptConfig_customGroup": "自定义分组",
   "promptConfig_danbooruTagGroup": "标签词库",
   "promptConfig_danbooruPool": "图集",
   "promptConfig_categorySettings": "类别设置",
@@ -1317,8 +1321,8 @@
   "tagGroup_cacheDetails": "缓存详情",
   "tagGroup_cachedCategories": "已缓存分类",
 
-  "cache_title": "缓存管理",
-  "cache_manage": "缓存管理",
+  "cache_title": "词组管理",
+  "cache_manage": "词组管理",
   "cache_tabTagGroup": "标签词库",
   "cache_tabPool": "图集",
   "cache_noTagGroups": "暂无标签词库缓存",
@@ -1338,7 +1342,17 @@
     }
   },
   "cache_refreshAll": "刷新全部",
-  "cache_totalStats": "共 {count} 个缓存，{tags} 个标签",
+  "cache_refreshProgress": "正在同步 ({current}/{total}): {name}",
+  "@cache_refreshProgress": {
+    "placeholders": {
+      "current": {},
+      "total": {},
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cache_totalStats": "共 {count} 个词组，{tags} 个标签",
   "@cache_totalStats": {
     "placeholders": {
       "count": {},
@@ -1429,7 +1443,7 @@
     }
   },
   "addGroup_noCachedTagGroups": "暂无缓存的标签词库",
-  "addGroup_noCachedTagGroupsHint": "请先在「缓存管理」中同步标签词库数据",
+  "addGroup_noCachedTagGroupsHint": "请先在「词组管理」中同步标签词库数据",
   "addGroup_noFilterResults": "没有找到匹配的结果",
   "addGroup_noCachedPools": "暂无缓存的图集",
   "addGroup_noCachedPoolsHint": "使用搜索框搜索并添加图集",
@@ -1675,5 +1689,100 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+
+  "addGroup_customTab": "自定义",
+  "customGroup_groupName": "词组名称",
+  "customGroup_entryPlaceholder": "输入词条并回车（支持多标签，逗号分隔）",
+  "customGroup_noEntries": "暂无词条，添加词条开始创建",
+  "customGroup_entryCount": "共 {count} 个词条",
+  "@customGroup_entryCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "customGroup_editEntry": "编辑词条",
+  "customGroup_aliasLabel": "备注名称（可选）",
+  "customGroup_aliasHint": "输入便于记忆的备注名称",
+  "customGroup_contentLabel": "提示词内容",
+  "customGroup_contentHint": "输入实际的提示词内容",
+  "customGroup_save": "保存",
+  "customGroup_confirm": "确定",
+  "customGroup_selectEmoji": "选择图标",
+  "customGroup_nameRequired": "请输入词组名称",
+  "customGroup_addEntry": "添加词条",
+  "customGroup_noCustomGroups": "暂无自定义词组",
+  "customGroup_createInCacheManager": "请在「词组管理」中创建自定义词组",
+  "cache_createCustomGroup": "创建自定义词组",
+  "cache_confirmDeleteCustomGroup": "确定要删除自定义词组「{name}」吗？",
+  "@cache_confirmDeleteCustomGroup": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "cache_customTab": "自定义",
+  "cache_addFromDanbooru": "从 Danbooru 添加",
+  "customGroup_emptyStateTitle": "开始添加词条",
+  "customGroup_emptyStateHint": "在上方输入框中输入词条，按回车快速添加",
+  "common_comingSoon": "功能开发中...",
+  "common_openInBrowser": "在浏览器中打开",
+  "customGroup_tagsPlaceholder": "输入标签，用逗号分隔（支持补全）...",
+
+  "characterCountConfig_title": "人数类别配置",
+  "characterCountConfig_weight": "权重",
+  "characterCountConfig_solo": "单人",
+  "characterCountConfig_duo": "双人",
+  "characterCountConfig_trio": "三人",
+  "characterCountConfig_noHumans": "无人",
+  "characterCountConfig_multiPerson": "多人",
+  "characterCountConfig_customizable": "可自定义",
+  "characterCountConfig_mainPrompt": "主提示词",
+  "characterCountConfig_characterPrompt": "角色提示词",
+  "characterCountConfig_addTagOption": "添加角色标签",
+  "characterCountConfig_addMultiPersonCombo": "添加多人组合",
+  "characterCountConfig_displayName": "显示名称",
+  "characterCountConfig_displayNameHint": "例如：伪娘",
+  "characterCountConfig_mainPromptLabel": "主提示词标签",
+  "characterCountConfig_mainPromptHint": "例如：solo, 2girls, 1girl 1boy",
+  "characterCountConfig_personCount": "人数：",
+  "characterCountConfig_slotConfig": "角色槽位配置",
+  "characterCountConfig_slot": "槽位",
+  "characterCountConfig_resetToDefault": "重置为默认",
+  "characterCountConfig_customSlots": "自定义槽位",
+  "characterCountConfig_customSlotsTitle": "角色槽位管理",
+  "characterCountConfig_customSlotsDesc": "添加或删除可用的角色槽位选项",
+  "characterCountConfig_addSlot": "添加槽位",
+  "characterCountConfig_addSlotHint": "例如：1trap, 1futanari",
+  "characterCountConfig_slotExists": "该槽位已存在",
+  "characterCountConfig_cannotDeleteBuiltin": "无法删除内置槽位",
+
+  "genderRestriction_enabled": "性别限定",
+  "genderRestriction_enabledDesc": "未启用性别过滤",
+  "genderRestriction_enabledActive": "已启用，{count} 种性别可用",
+  "@genderRestriction_enabledActive": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "genderRestriction_enable": "启用性别限定",
+  "genderRestriction_enableDesc": "仅对指定性别的角色生效",
+  "genderRestriction_applicableGenders": "适用性别",
+  "gender_female": "女性",
+  "gender_male": "男性",
+  "gender_trap": "伪娘",
+  "gender_futanari": "扶她",
+
+  "scope_title": "作用域",
+  "scope_titleDesc": "设置此类别/词组的适用范围",
+  "scope_global": "全局",
+  "scope_globalDesc": "仅用于主提示词",
+  "scope_character": "角色",
+  "scope_characterDesc": "仅用于角色提示词",
+  "scope_all": "全部",
+  "scope_allDesc": "主提示词和角色提示词都可用",
+
+  "tagGroupSettings_resetToCategory": "重置为类别设置",
+
+  "bracket_weaken": "降权",
+  "bracket_enhance": "增强"
 }
