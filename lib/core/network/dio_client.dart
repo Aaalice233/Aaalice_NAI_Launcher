@@ -87,9 +87,22 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     // Token 过期处理
     if (err.response?.statusCode == 401) {
-      AppLogger.w('Received 401, logging out...', 'DIO');
-      // 触发登出，清除认证并更新 UI 状态
-      await _ref.read(authNotifierProvider.notifier).logout();
+      AppLogger.w('[AuthInterceptor] onError: 401 received, path: ${err.requestOptions.path}', 'DIO');
+      
+      final authState = _ref.read(authNotifierProvider);
+      AppLogger.w('[AuthInterceptor] current authState: status=${authState.status}, isAuthenticated=${authState.isAuthenticated}, hasError=${authState.hasError}', 'DIO');
+      
+      // 只有在当前是已登录状态时才触发登出逻辑，避免并发请求导致多次重定向
+      if (authState.isAuthenticated) {
+        AppLogger.w('[AuthInterceptor] Calling logout with error code...', 'DIO');
+        await _ref.read(authNotifierProvider.notifier).logout(
+          errorCode: AuthErrorCode.authFailed,
+          httpStatusCode: 401,
+        );
+        AppLogger.w('[AuthInterceptor] logout() completed', 'DIO');
+      } else {
+        AppLogger.w('[AuthInterceptor] Skipping logout because not authenticated', 'DIO');
+      }
     }
 
     handler.next(err);

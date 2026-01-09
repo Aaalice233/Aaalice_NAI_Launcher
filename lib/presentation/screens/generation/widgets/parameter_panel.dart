@@ -14,7 +14,7 @@ import 'unified_reference_panel.dart';
 import 'prompt_input.dart';
 
 /// 参数面板组件
-class ParameterPanel extends ConsumerWidget {
+class ParameterPanel extends ConsumerStatefulWidget {
   final bool inBottomSheet;
   final bool showInput;
 
@@ -25,19 +25,38 @@ class ParameterPanel extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ParameterPanel> createState() => _ParameterPanelState();
+}
+
+class _ParameterPanelState extends ConsumerState<ParameterPanel> {
+  late final TextEditingController _seedController;
+
+  @override
+  void initState() {
+    super.initState();
+    _seedController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _seedController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final params = ref.watch(generationParamsNotifierProvider);
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
     final isGenerating = generationState.isGenerating;
 
     return ListView(
-      padding: EdgeInsets.all(inBottomSheet ? 16 : 12),
-      shrinkWrap: inBottomSheet,
-      physics: inBottomSheet ? const ClampingScrollPhysics() : null,
+      padding: EdgeInsets.all(widget.inBottomSheet ? 16 : 12),
+      shrinkWrap: widget.inBottomSheet,
+      physics: widget.inBottomSheet ? const ClampingScrollPhysics() : null,
       children: [
         // 提示词输入 (仅当 showInput 为 true 时显示)
-        if (showInput) ...[
+        if (widget.showInput) ...[
           const PromptInputWidget(compact: false),
           const SizedBox(height: 16),
 
@@ -276,13 +295,7 @@ class ParameterPanel extends ConsumerWidget {
         _buildSectionTitle(theme, context.l10n.generation_seed),
         const SizedBox(height: 8),
         ThemedInput(
-          controller: TextEditingController(
-            text: params.seed == -1 ? '' : params.seed.toString(),
-          )..selection = TextSelection.fromPosition(
-              TextPosition(
-                offset: params.seed == -1 ? 0 : params.seed.toString().length,
-              ),
-            ),
+          controller: _seedController,
           hintText: context.l10n.generation_seedRandom,
           keyboardType: TextInputType.number,
           onChanged: (value) {

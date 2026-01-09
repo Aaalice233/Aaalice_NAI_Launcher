@@ -53,4 +53,3 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
     );
   }
 }
-

@@ -6,6 +6,9 @@ part 'saved_account.g.dart';
 
 /// 账号类型
 enum AccountType {
+  /// 邮箱+密码登录（账号密码认证）
+  credentials,
+
   /// API Token 登录
   token,
 }

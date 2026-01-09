@@ -29,6 +29,39 @@ class NAIApiService {
 
   NAIApiService(this._dio, this._cryptoService);
 
+  // ==================== 采样器映射 ====================
+
+  /// 根据模型版本映射采样器
+  ///
+  /// DDIM 在不同模型版本中有不同的行为：
+  /// - V1/V2: 直接使用 ddim
+  /// - V3: 需要映射到 ddim_v3
+  /// - V4+: 不原生支持 DDIM，回退到 Euler Ancestral
+  String _mapSamplerForModel(String sampler, String model) {
+    if (sampler == Samplers.ddim || sampler == Samplers.ddimV3) {
+      // V3 模型需要使用 ddim_v3
+      if (model.contains('diffusion-3')) {
+        AppLogger.i(
+          'Mapping DDIM to DDIM v3 for model: $model',
+          'API',
+        );
+        return Samplers.ddimV3;
+      }
+
+      // V4 及以后版本不原生支持 DDIM
+      if (model.contains('diffusion-4') || model == 'N/A') {
+        AppLogger.w(
+          'Model $model does not support DDIM sampler, '
+          'falling back to Euler Ancestral',
+          'API',
+        );
+        return Samplers.kEulerAncestral;
+      }
+    }
+
+    return sampler;
+  }
+
   // ==================== 认证 API ====================
 
   /// 验证 API Token 是否有效
@@ -37,24 +70,39 @@ class NAIApiService {
   ///
   /// 返回验证结果，包含订阅信息；如果 Token 无效则抛出异常
   Future<Map<String, dynamic>> validateToken(String token) async {
-    try {
-      // 使用临时 Dio 实例直接设置 Token（不影响全局状态）
-      final response = await _dio.get(
-        '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
-      );
-      AppLogger.d('Token validation successful', 'API');
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Token 无效或已过期');
-      }
-      rethrow;
-    }
+    // 直接让异常传播，保留 DioException 类型以便上层识别 401
+    final response = await _dio.get(
+      '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+    AppLogger.d('Token validation successful', 'API');
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// 使用 Access Key 登录
+  ///
+  /// [accessKey] 通过邮箱+密码 Argon2哈希生成的 Access Key
+  ///
+  /// 返回登录结果，包含 accessToken；如果登录失败则抛出异常
+  Future<Map<String, dynamic>> loginWithKey(String accessKey) async {
+    AppLogger.d('Attempting login with access key', 'API');
+
+    final response = await _dio.post(
+      '${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}',
+      data: {'key': accessKey},
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+
+    AppLogger.d('Login successful, received access token', 'API');
+    return response.data as Map<String, dynamic>;
   }
 
   /// 检查 Token 格式是否有效
@@ -178,6 +226,9 @@ class NAIApiService {
 
     try {
       // 1. 处理种子
+      // 0. 采样器版本映射
+      final effectiveSampler = _mapSamplerForModel(params.sampler, params.model);
+
       final seed =
           params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
@@ -203,7 +254,7 @@ class NAIApiService {
         'width': params.width,
         'height': params.height,
         'scale': _toJsonNumber(params.scale),
-        'sampler': params.sampler,
+        'sampler': effectiveSampler, // 使用映射后的采样器
         'steps': params.steps,
         'n_samples': params.nSamples,
         'ucPreset': params.ucPreset,

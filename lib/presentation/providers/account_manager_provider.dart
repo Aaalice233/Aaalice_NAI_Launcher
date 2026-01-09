@@ -110,11 +110,13 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
   /// [token] API Token
   /// [nickname] 昵称（必填，用于显示和生成默认头像）
   /// [setAsDefault] 是否设为默认账号
+  /// [accountType] 账号类型（Token 或 Credentials）
   Future<SavedAccount> addAccount({
     required String identifier,
     required String token,
     required String nickname,
     bool setAsDefault = false,
+    AccountType accountType = AccountType.token,
   }) async {
     // 检查是否已存在相同标识符的账号
     final existingIndex = state.accounts.indexWhere((a) => a.email == identifier);
@@ -125,6 +127,7 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
       final updated = existing.copyWith(
         nickname: nickname,
+        accountType: accountType,
         lastUsedAt: DateTime.now(),
       );
 
@@ -152,6 +155,7 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
       email: identifier,
       nickname: nickname,
       isDefault: setAsDefault || state.accounts.isEmpty,
+      accountType: accountType,
     );
 
     // 保存 Token

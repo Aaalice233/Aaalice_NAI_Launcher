@@ -77,48 +77,79 @@ class VibeFileParser {
   ///
   /// 尝试从 iTXt 块中提取预编码的 Vibe 数据
   /// 如果没有找到，则作为原始图片处理
+  /// 如果解析失败，记录错误日志并作为原始图片处理
   static Future<VibeReferenceV4> fromPng(
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
-  }) async {
+  }  ) async {
+    String? vibeEncoding;
+
     try {
       final chunks = png_extract.extractChunks(bytes);
-      String? vibeEncoding;
 
       for (final chunk in chunks) {
         if (chunk['name'] == 'iTXt') {
           final iTXtData = chunk['data'] as Uint8List;
           vibeEncoding = _parseITXtChunk(iTXtData);
-          if (vibeEncoding != null) break;
+          if (vibeEncoding != null) {
+            AppLogger.i(
+              'Found pre-encoded Vibe data in PNG: $fileName',
+              'VibeParser',
+            );
+            break;
+          }
         }
       }
 
-      if (vibeEncoding != null) {
-        // 找到预编码数据
+      if (vibeEncoding != null && vibeEncoding.isNotEmpty) {
+        // 找到预编码数据 - 使用png类型（isPreEncoded = true）
         return VibeReferenceV4(
           displayName: fileName,
           vibeEncoding: vibeEncoding,
           thumbnail: bytes,
           strength: defaultStrength,
-          sourceType: VibeSourceType.png,
+          sourceType: VibeSourceType.png, // png类型被isPreEncoded视为预编码
+        );
+      } else {
+        // 没有找到预编码数据 - 作为原始图片处理
+        AppLogger.i(
+          'No pre-encoded Vibe data found in PNG: $fileName, '
+          'will be encoded on demand (2 Anlas per image)',
+          'VibeParser',
+        );
+
+        return VibeReferenceV4(
+          displayName: fileName,
+          vibeEncoding: '',
+          thumbnail: bytes,
+          rawImageData: bytes,
+          strength: defaultStrength,
+          sourceType: VibeSourceType.rawImage, // 需要编码，消耗2 Anlas
         );
       }
-    } catch (e) {
-      if (kDebugMode) {
-        AppLogger.d('Error parsing PNG iTXt chunks: $e', 'VibeParser');
-      }
-    }
+    } catch (e, stack) {
+      // 解析失败 - 记录错误日志，作为原始图片处理
+      AppLogger.e(
+        'Failed to parse Vibe from PNG: $fileName, '
+        'falling back to raw image mode',
+        e,
+        stack,
+        'VibeParser',
+      );
 
-    // 没有找到 Vibe 元数据，作为原始图片处理
-    return VibeReferenceV4(
-      displayName: fileName,
-      vibeEncoding: '',
-      thumbnail: bytes,
-      rawImageData: bytes,
-      strength: defaultStrength,
-      sourceType: VibeSourceType.rawImage,
-    );
+      // 返回null会让调用方崩溃，所以我们返回rawImage类型
+      // 但这也意味着用户会被收取编码费用
+      // 更好的做法是通知用户解析失败
+      return VibeReferenceV4(
+        displayName: fileName,
+        vibeEncoding: '',
+        thumbnail: bytes,
+        rawImageData: bytes,
+        strength: defaultStrength,
+        sourceType: VibeSourceType.rawImage,
+      );
+    }
   }
 
   /// 解析 PNG iTXt 块

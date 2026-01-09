@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -92,6 +94,86 @@ class DanbooruApiService {
 
   // ==================== 用户认证 ====================
 
+  /// 验证凭据并获取用户信息
+  ///
+  /// [credentials] Danbooru凭据
+  /// 返回用户信息，失败返回null
+  Future<DanbooruUser?> verifyCredentials(DanbooruCredentials credentials) async {
+    try {
+      AppLogger.i(
+        'Verifying Danbooru credentials for: ${credentials.username}',
+        'Danbooru',
+      );
+
+      // 生成Basic Auth头
+      final authHeader = _buildAuthHeader(credentials);
+      final headers = <String, String>{
+        'Accept': 'application/json',
+        'User-Agent': 'NAI-Launcher/1.0',
+        'Authorization': authHeader,
+      };
+
+      final response = await _dio.get(
+        '$_baseUrl$_profileEndpoint',
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: headers,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.data is Map<String, dynamic>) {
+          final user = DanbooruUser.fromJson(response.data as Map<String, dynamic>);
+          AppLogger.i(
+            'Danbooru credential verification successful: ${user.name}',
+            'Danbooru',
+          );
+          return user;
+        }
+        AppLogger.w(
+          'Danbooru API returned invalid user data',
+          'Danbooru',
+        );
+        return null;
+      }
+
+      if (response.statusCode == 401) {
+        AppLogger.w('Danbooru credentials expired or invalid', 'Danbooru');
+        return null;
+      }
+
+      AppLogger.e(
+        'Danbooru API error: ${response.statusCode}',
+        null,
+        null,
+        'Danbooru',
+      );
+      return null;
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        AppLogger.w('Danbooru request timeout', 'Danbooru');
+      } else if (e.type == DioExceptionType.connectionError) {
+        AppLogger.w('Danbooru connection error: ${e.message}', 'Danbooru');
+      } else {
+        AppLogger.e('Danbooru API error: ${e.message}', e, null, 'Danbooru');
+      }
+      return null;
+    } catch (e, stack) {
+      AppLogger.e('Danbooru credential verification failed', e, stack, 'Danbooru');
+      return null;
+    }
+  }
+
+  /// 构建Basic Auth头
+  String _buildAuthHeader(DanbooruCredentials credentials) {
+    final credentialsStr = '${credentials.username}:${credentials.apiKey}';
+    final encoded = base64Encode(utf8.encode(credentialsStr));
+    return 'Basic $encoded';
+  }
+
   /// 获取当前登录用户信息
   Future<DanbooruUser?> getCurrentUser() async {
     if (_authHeader == null) return null;
@@ -107,6 +189,11 @@ class DanbooruApiService {
           headers: _getHeaders(),
         ),
       );
+
+      if (response.statusCode == 401) {
+        AppLogger.w('Danbooru session expired', 'Danbooru');
+        return null;
+      }
 
       if (response.data is Map<String, dynamic>) {
         return DanbooruUser.fromJson(response.data as Map<String, dynamic>);

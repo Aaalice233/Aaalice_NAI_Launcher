@@ -1,0 +1,11 @@
+{
+  "active_plan": "E:/Aaalice_NAI_Launcher/.sisyphus/plans/novelai-login-enhancement.md",
+  "started_at": "2026-01-09T14:54:23.689Z",
+  "session_ids": ["ses_45cc834bbffe9kx8dM8DRP5NwD"],
+  "plan_name": "novelai-login-enhancement",
+  "current_task": "实现 AuthService.loginWithCredentials() 账号密码登录",
+  "status": "in_progress",
+  "completed_at": null,
+  "summary": "已完成前4个核心任务：1) 扩展SavedAccount模型，2) 确认cryptography依赖，3) 发现现有NAICryptoService，4) 扩展NaiApiService，5) 在AuthNotifier添加loginWithCredentials方法",
+  "pending_issue": null
+}

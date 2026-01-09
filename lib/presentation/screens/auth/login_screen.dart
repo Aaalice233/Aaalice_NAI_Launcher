@@ -6,12 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth/account_avatar.dart';
-import '../../widgets/auth/token_login_card.dart';
+import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/common/app_toast.dart';
 
 /// 登录页面 - QQ 风格
@@ -27,11 +28,27 @@ class LoginScreen extends ConsumerWidget {
 
     // 监听登录错误，显示 Toast
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      AppLogger.d('[LoginScreen] ref.listen triggered: previous=${previous?.status}, next=${next.status}, hasError=${next.hasError}, errorCode=${next.errorCode}', 'LOGIN');
       if (next.hasError && previous?.errorCode != next.errorCode) {
+        AppLogger.d('[LoginScreen] Showing error Toast: ${next.errorCode}', 'LOGIN');
         final errorText =
             _getErrorText(context, next.errorCode!, next.httpStatusCode);
-        AppToast.error(context, context.l10n.auth_error_loginFailed(errorText));
-        // 清除错误状态
+        final errorMessage = context.l10n.auth_error_loginFailed(errorText);
+        
+        // 使用 Navigator.of 来获取 Overlay
+        final overlayState = Navigator.of(context, rootNavigator: true).overlay;
+        if (overlayState != null) {
+          AppLogger.d('[LoginScreen] overlay exists, showing toast...', 'LOGIN');
+          AppToast.error(context, errorMessage);
+          AppLogger.d('[LoginScreen] toast shown', 'LOGIN');
+        } else {
+          AppLogger.w('[LoginScreen] overlay is null!', 'LOGIN');
+        }
+        
+        // 清除错误状态（延迟，让 Toast 有时间显示）
+        ref.read(authNotifierProvider.notifier).clearError(delayMs: 500);
+      } else if (next.hasError && previous?.errorCode == next.errorCode) {
+        AppLogger.d('[LoginScreen] Error already shown, clearing...', 'LOGIN');
         ref.read(authNotifierProvider.notifier).clearError();
       }
     });
@@ -124,7 +141,7 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
-  /// 首次使用 - 显示 Token 登录表单
+  /// 首次使用 - 显示登录表单（支持邮箱密码和 Token 两种模式）
   Widget _buildFirstTimeLoginForm(
     BuildContext context,
     ThemeData theme,
@@ -132,7 +149,7 @@ class LoginScreen extends ConsumerWidget {
   ) {
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
-      child: const TokenLoginCard(),
+      child: const LoginFormContainer(),
     );
   }
 
@@ -410,25 +427,29 @@ class LoginScreen extends ConsumerWidget {
       return;
     }
 
-    // 执行登录
-    final success = await ref.read(authNotifierProvider.notifier).loginWithToken(
+    // 执行登录 - 根据账号类型选择验证方式
+    AppLogger.d('[LoginScreen] _handleQuickLogin: switching account with type ${account.accountType}...', 'LOGIN');
+    final success = await ref.read(authNotifierProvider.notifier).switchAccount(
+          account.id,
           token,
-          accountId: account.id,
           displayName: account.displayName,
+          accountType: account.accountType,
         );
 
     // 检查 widget 是否仍然 mounted
     if (!context.mounted) return;
+
+    AppLogger.d('[LoginScreen] _handleQuickLogin: loginWithToken result=$success', 'LOGIN');
+    final authState = ref.read(authNotifierProvider);
+    AppLogger.d('[LoginScreen] _handleQuickLogin: after login, state=${authState.status}, hasError=${authState.hasError}', 'LOGIN');
 
     if (success) {
       // 登录成功，更新最后使用时间
       ref
           .read(accountManagerNotifierProvider.notifier)
           .updateLastUsed(account.id);
-    } else {
-      // 登录失败，错误toast由监听器显示，这里可以添加额外处理
-      // 确保错误状态被清除后重新设置？监听器会处理
     }
+    // 注意：登录失败的 Toast 由 ref.listen 统一处理，无需在这里重复显示
   }
 
   /// 显示账号选择器对话框
@@ -635,8 +656,8 @@ class LoginScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                // Token 登录表单
-                TokenLoginCard(
+                // 登录表单（支持邮箱密码和 Token）
+                LoginFormContainer(
                   onLoginSuccess: () => Navigator.pop(dialogContext),
                 ),
               ],
@@ -779,21 +800,25 @@ class LoginScreen extends ConsumerWidget {
     int? httpStatusCode,
   ) {
     final l10n = context.l10n;
-    final statusSuffix = httpStatusCode != null ? ' ($httpStatusCode)' : '';
+
+    // 401 错误，提供更明确的提示
+    if (errorCode == AuthErrorCode.authFailed && httpStatusCode == 401) {
+      return l10n.auth_error_authFailed_tokenExpired;
+    }
 
     switch (errorCode) {
       case AuthErrorCode.networkTimeout:
-        return l10n.auth_error_networkTimeout + statusSuffix;
+        return l10n.auth_error_networkTimeout;
       case AuthErrorCode.networkError:
-        return l10n.auth_error_networkError + statusSuffix;
+        return l10n.auth_error_networkError;
       case AuthErrorCode.authFailed:
-        return l10n.auth_error_authFailed + statusSuffix;
+        return l10n.auth_error_authFailed;
       case AuthErrorCode.tokenInvalid:
         return l10n.auth_tokenInvalid;
       case AuthErrorCode.serverError:
-        return l10n.auth_error_serverError + statusSuffix;
+        return l10n.auth_error_serverError;
       case AuthErrorCode.unknown:
-        return l10n.auth_error_unknown + statusSuffix;
+        return l10n.auth_error_unknown;
     }
   }
 }

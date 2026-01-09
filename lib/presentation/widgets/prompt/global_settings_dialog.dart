@@ -489,11 +489,11 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     };
   }
 
-  void _showAddTagOptionDialog(
+  Future<void> _showAddTagOptionDialog(
     CharacterCountCategory category,
     ThemeData theme,
     dynamic l10n,
-  ) {
+  ) async {
     final labelController = TextEditingController();
     final mainPromptController = TextEditingController();
     final weightController = TextEditingController(text: '50');
@@ -503,7 +503,8 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
         : 'girl';
     List<String> slotTags = List.filled(slotCount, defaultSlotTag);
 
-    showDialog(
+    try {
+      await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -656,15 +657,21 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           );
         },
       ),
-    );
+      );
+    } finally {
+      labelController.dispose();
+      mainPromptController.dispose();
+      weightController.dispose();
+    }
   }
 
   /// 显示自定义槽位管理对话框
-  void _showCustomSlotsDialog(ThemeData theme, dynamic l10n) {
+  Future<void> _showCustomSlotsDialog(ThemeData theme, dynamic l10n) async {
     final controller = TextEditingController();
     const builtinSlots = defaultSlotOptions;
 
-    showDialog(
+    try {
+      await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -779,6 +786,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           );
         },
       ),
-    );
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 }

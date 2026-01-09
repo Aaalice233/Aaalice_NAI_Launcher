@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/tag_data_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
@@ -379,6 +380,15 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
 
+    // 边界情况处理
+    if (cursorPosition < 0 || cursorPosition > text.length) {
+      AppLogger.w(
+        'Invalid cursor position: $cursorPosition, text length: ${text.length}',
+        'Autocomplete',
+      );
+      return;
+    }
+
     // 找到当前标签的范围
     final textBeforeCursor = text.substring(0, cursorPosition);
 
@@ -433,6 +443,24 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
       tagEnd = text.length;
     }
 
+    // 验证位置
+    if (tagStart < 0 || tagEnd > text.length || tagStart > tagEnd) {
+      AppLogger.w(
+        'Invalid tag range: start=$tagStart, end=$tagEnd, text length=${text.length}',
+        'Autocomplete',
+      );
+      // 尝试使用_getCurrentTag的结果
+      final currentTag = _getCurrentTag(text, cursorPosition);
+      if (currentTag.isNotEmpty) {
+        final tagStartFromCurrent = cursorPosition - currentTag.length;
+        if (tagStartFromCurrent >= 0) {
+          _applySuggestionAtPosition(suggestion, text, tagStartFromCurrent, cursorPosition);
+          return;
+        }
+      }
+      return;
+    }
+
     // 构建新文本
     final prefix = text.substring(0, tagStart);
     final suffix = text.substring(tagEnd);
@@ -445,6 +473,39 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
     final leadingSpace = needsLeadingSpace ? ' ' : '';
 
     // 添加逗号和空格（如果配置了自动插入）
+    final trailingComma = widget.config.autoInsertComma &&
+            (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
+        ? ', '
+        : '';
+
+    final newText = '$prefix$leadingSpace$tagName$trailingComma$suffix';
+    final newCursorPosition = prefix.length +
+        leadingSpace.length +
+        tagName.length +
+        trailingComma.length;
+
+    widget.controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newCursorPosition),
+    );
+
+    _hideSuggestions();
+  }
+
+  /// 在指定位置应用建议（备选方法）
+  void _applySuggestionAtPosition(
+    LocalTag suggestion,
+    String text,
+    int tagStart,
+    int cursorPosition,
+  ) {
+    final prefix = text.substring(0, tagStart);
+    final suffix = text.substring(cursorPosition);
+    final tagName = suggestion.tag;
+
+    final needsLeadingSpace = prefix.isNotEmpty && !prefix.endsWith(' ');
+    final leadingSpace = needsLeadingSpace ? ' ' : '';
+
     final trailingComma = widget.config.autoInsertComma &&
             (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
         ? ', '

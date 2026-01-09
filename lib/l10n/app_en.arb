@@ -64,6 +64,8 @@
   "auth_passwordRequired": "Please enter password",
 
   "auth_tokenLogin": "API Token Login",
+  "auth_credentialsLogin": "Email & Password",
+  "auth_credentialsLoginTitle": "Login with Email",
   "auth_tokenHint": "Enter your Persistent API Token",
   "auth_tokenRequired": "Please enter token",
   "auth_tokenInvalid": "Invalid token format, should start with pst-",
@@ -115,8 +117,12 @@
   "auth_error_networkTimeout": "Connection timeout",
   "auth_error_networkError": "Network error",
   "auth_error_authFailed": "Authentication failed",
+  "auth_error_authFailed_tokenExpired": "Token expired, please login again",
   "auth_error_serverError": "Server error",
   "auth_error_unknown": "Unknown error",
+  "auth_autoLogin": "Auto login",
+  "auth_forgotPassword": "Forgot password?",
+  "auth_passwordTooShort": "Password must be at least 6 characters",
 
   "common_paste": "Paste",
   "common_default": "Default",
@@ -2109,5 +2115,17 @@
   "tagGroupSettings_resetToCategory": "Reset to Category Settings",
 
   "bracket_weaken": "weaken",
-  "bracket_enhance": "enhance"
+  "bracket_enhance": "enhance",
+
+  "vibeNoEncodingWarning": "This image has no pre-encoded data",
+  "vibeWillCostAnlas": "Encoding will cost {count} Anlas",
+  "@vibeWillCostAnlas": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibeEncodeConfirm": "Continue and consume Anlas?",
+  "vibeCancel": "Cancel",
+  "vibeConfirmEncode": "Encode",
+  "vibeParseFailed": "Failed to parse Vibe file"
 }

@@ -64,6 +64,8 @@
   "auth_passwordRequired": "请输入密码",
 
   "auth_tokenLogin": "API Token 登录",
+  "auth_credentialsLogin": "邮箱密码登录",
+  "auth_credentialsLoginTitle": "邮箱登录",
   "auth_tokenHint": "请输入您的 Persistent API Token",
   "auth_tokenRequired": "请输入 Token",
   "auth_tokenInvalid": "Token 格式无效，应以 pst- 开头",
@@ -110,8 +112,12 @@
   "auth_error_networkTimeout": "连接超时，请检查网络",
   "auth_error_networkError": "网络连接错误",
   "auth_error_authFailed": "认证失败",
+  "auth_error_authFailed_tokenExpired": "Token 已过期，请重新登录",
   "auth_error_serverError": "服务器错误",
   "auth_error_unknown": "未知错误",
+  "auth_autoLogin": "自动登录",
+  "auth_forgotPassword": "忘记密码？",
+  "auth_passwordTooShort": "密码长度至少6位",
 
   "common_paste": "粘贴",
   "common_default": "默认",
@@ -1784,5 +1790,17 @@
   "tagGroupSettings_resetToCategory": "重置为类别设置",
 
   "bracket_weaken": "降权",
-  "bracket_enhance": "增强"
+  "bracket_enhance": "增强",
+
+  "vibeNoEncodingWarning": "此图片没有预编码数据",
+  "vibeWillCostAnlas": "编码将消耗 {count} Anlas",
+  "@vibeWillCostAnlas": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibeEncodeConfirm": "是否继续添加并消耗点数？",
+  "vibeCancel": "取消",
+  "vibeConfirmEncode": "确认编码",
+  "vibeParseFailed": "无法解析 Vibe 文件"
 }

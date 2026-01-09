@@ -177,20 +177,29 @@ class AppToast {
 
   static void _show(BuildContext context, String message, ToastType type) {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    if (overlay == null) return;
+    if (overlay == null) {
+      return;
+    }
 
     final id = DateTime.now().millisecondsSinceEpoch;
-    
+
+    // 先创建 ActiveToast，entry 先为占位符
+    final activeToast = _ActiveToast(
+      id: id,
+      entry: OverlayEntry(builder: (_) => const SizedBox.shrink()),
+    );
+    _activeToasts.add(activeToast);
+    final index = _activeToasts.indexOf(activeToast);
+
+    // 创建真正的 entry
     late OverlayEntry entry;
-    late _ActiveToast activeToast;
-    
     entry = OverlayEntry(
       builder: (context) {
         return _SingleToastWidget(
           key: ValueKey(id),
           message: message,
           type: type,
-          index: _activeToasts.indexOf(activeToast),
+          index: index,
           onDismiss: () {
             entry.remove();
             _activeToasts.remove(activeToast);
@@ -202,16 +211,17 @@ class AppToast {
         );
       },
     );
-    
-    activeToast = _ActiveToast(id: id, entry: entry);
-    _activeToasts.add(activeToast);
+
+    // 更新 ActiveToast 的 entry
+    activeToast.entry = entry;
+
     overlay.insert(entry);
   }
 }
 
 class _ActiveToast {
   final int id;
-  final OverlayEntry entry;
+  OverlayEntry entry;
   
   _ActiveToast({required this.id, required this.entry});
 }

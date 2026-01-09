@@ -30,16 +30,30 @@ class AppRoutes {
 }
 
 /// 应用路由 Provider
+///
+/// 注意：使用 refreshListenable 而非 ref.watch 来监听认证状态，
+/// 这样可以保持 GoRouter 实例稳定，避免每次状态变化都重建 Navigator 和 Overlay。
 @riverpod
 GoRouter appRouter(Ref ref) {
-  final authState = ref.watch(authNotifierProvider);
+  // 使用 ValueNotifier 桥接 Riverpod 到 GoRouter 的 refreshListenable
+  final authStateNotifier = ValueNotifier<bool>(false);
+
+  // 监听认证状态变化，触发 GoRouter 刷新（但不会重建 GoRouter 实例）
+  ref.listen(authNotifierProvider, (_, __) {
+    authStateNotifier.value = !authStateNotifier.value;
+  });
 
   return GoRouter(
     initialLocation: AppRoutes.home,
     debugLogDiagnostics: true,
 
+    // 使用 refreshListenable 监听状态变化，触发 redirect 重新评估
+    refreshListenable: authStateNotifier,
+
     // 重定向逻辑
     redirect: (context, state) {
+      // 在 redirect 内部使用 ref.read 获取最新状态
+      final authState = ref.read(authNotifierProvider);
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
 

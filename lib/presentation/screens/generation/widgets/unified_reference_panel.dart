@@ -550,6 +550,56 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           if (bytes != null) {
             try {
               final vibes = await VibeFileParser.parseFile(fileName, bytes);
+              
+              // 检查是否需要编码
+              final needsEncoding = vibes.any(
+                (v) => v.sourceType == VibeSourceType.rawImage,
+              );
+              
+              // 如果需要编码，显示确认对话框
+              if (needsEncoding && mounted) {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(context.l10n.vibeNoEncodingWarning),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(fileName),
+                        const SizedBox(height: 8),
+                        Text(
+                          context.l10n.vibeWillCostAnlas(2),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          context.l10n.vibeEncodeConfirm,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(context.l10n.vibeCancel),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: Text(context.l10n.vibeConfirmEncode),
+                      ),
+                    ],
+                  ),
+                );
+                
+                if (confirm != true) {
+                  continue; // 用户取消，跳过此文件
+                }
+              }
+              
               notifier.addVibeReferencesV4(vibes);
             } catch (e) {
               if (mounted) {
