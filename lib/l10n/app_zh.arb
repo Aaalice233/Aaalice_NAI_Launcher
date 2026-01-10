@@ -146,6 +146,41 @@
   "settings_pathReset": "已重置为默认路径",
   "settings_pathSaved": "保存路径已更新",
   "settings_selectFolder": "选择保存文件夹",
+  "settings_accountProfile": "账号资料",
+  "settings_accountType": "账号类型",
+  "settings_notLoggedIn": "登录后可设置头像和昵称",
+  "settings_goToLogin": "去登录",
+  "settings_tapToChangeAvatar": "点击更换头像",
+  "settings_changeAvatar": "更换头像",
+  "settings_removeAvatar": "移除头像",
+  "settings_nickname": "昵称",
+  "settings_accountEmail": "账号邮箱",
+  "settings_emailAccount": "邮箱登录",
+  "settings_tokenAccount": "Token登录",
+  "settings_setAsDefault": "设为默认",
+  "settings_defaultAccount": "默认",
+  "settings_editNickname": "编辑昵称",
+  "settings_nickname": "昵称",
+  "settings_nicknameHint": "输入2-32个字符",
+  "settings_nicknameEmpty": "请输入昵称",
+  "settings_nicknameTooShort": "昵称至少{minLength}个字符",
+  "@settings_nicknameTooShort": {
+    "placeholders": {
+      "minLength": {"type": "int"}
+    }
+  },
+  "settings_nicknameTooLong": "昵称不能超过{maxLength}个字符",
+  "@settings_nicknameTooLong": {
+    "placeholders": {
+      "maxLength": {"type": "int"}
+    }
+  },
+  "settings_nicknameAllWhitespace": "昵称不能全为空格",
+  "settings_nicknameUpdated": "昵称已更新",
+  "settings_avatarUpdated": "头像已更新",
+  "settings_avatarRemoved": "头像已移除",
+  "settings_avatarFileMissing": "头像文件已丢失，是否重新选择？",
+  "settings_setAsDefaultSuccess": "已设为默认账号",
 
   "generation_title": "生成",
   "generation_generate": "生成",

@@ -16,8 +16,8 @@ import '../../../widgets/prompt/random_mode_selector.dart';
 import '../../../widgets/prompt/tag_view.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
-import '../../../widgets/prompt/unified/unified_prompt_config.dart'
-    show PromptViewMode;
+import '../../../widgets/prompt/unified/unified_prompt_config.dart';
+import '../../../widgets/character/character_prompt_button.dart';
 
 /// Prompt 输入组件 (带自动补全和标签视图)
 class PromptInputWidget extends ConsumerStatefulWidget {
@@ -293,6 +293,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         // UC 预设选择器
         UcPresetSelector(model: model),
+
+        const SizedBox(width: 8),
+
+        // 多人角色编辑器按钮
+        const CharacterPromptButton(),
 
         const SizedBox(width: 8),
 

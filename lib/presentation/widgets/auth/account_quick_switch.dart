@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/account_manager_provider.dart';
+import '../../widgets/common/app_toast.dart';
 import '../../../data/models/auth/saved_account.dart';
 
 /// 账号快速切换组件
@@ -21,7 +23,7 @@ class AccountQuickSwitch extends ConsumerWidget {
 
     return ExpansionTile(
       title: Text(
-        '已保存账号 (${accounts.length})',
+        context.l10n.auth_savedAccounts,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w500,
             ),
@@ -42,13 +44,44 @@ class AccountQuickSwitch extends ConsumerWidget {
                     final token = await ref
                         .read(accountManagerNotifierProvider.notifier)
                         .getAccountToken(account.id);
-                    if (token != null) {
-                      await ref.read(authNotifierProvider.notifier).switchAccount(
-                            account.id,
-                            token,
-                            displayName: account.displayName,
-                            accountType: account.accountType,
-                          );
+
+                    if (token == null) {
+                      if (context.mounted) {
+                        AppToast.error(context, context.l10n.auth_tokenNotFound);
+                      }
+                      return;
+                    }
+
+                    final success = await ref.read(authNotifierProvider.notifier).switchAccount(
+                          account.id,
+                          token,
+                          displayName: account.displayName,
+                          accountType: account.accountType,
+                        );
+
+                    if (!success && context.mounted) {
+                      final authState = ref.read(authNotifierProvider);
+                      String errorMessage;
+
+                      switch (authState.errorCode) {
+                        case AuthErrorCode.networkTimeout:
+                          errorMessage = context.l10n.auth_error_networkTimeout;
+                          break;
+                        case AuthErrorCode.networkError:
+                          errorMessage = context.l10n.auth_error_networkError;
+                          break;
+                        case AuthErrorCode.authFailed:
+                        case AuthErrorCode.tokenInvalid:
+                          errorMessage = context.l10n.auth_error_authFailed;
+                          break;
+                        case AuthErrorCode.serverError:
+                          errorMessage = context.l10n.auth_error_serverError;
+                          break;
+                        default:
+                          errorMessage = context.l10n.auth_loginFailed;
+                      }
+
+                      AppToast.error(context, errorMessage);
                     }
                   },
                   onDelete: () async {
@@ -56,19 +89,19 @@ class AccountQuickSwitch extends ConsumerWidget {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('删除账号'),
-                        content: Text('确定要删除账号 "${account.displayName}" 吗？'),
+                        title: Text(context.l10n.auth_deleteAccount),
+                        content: Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('取消'),
+                            child: Text(context.l10n.common_cancel),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
                             style: TextButton.styleFrom(
                               foregroundColor: Theme.of(context).colorScheme.error,
                             ),
-                            child: const Text('删除'),
+                            child: Text(context.l10n.common_delete),
                           ),
                         ],
                       ),
@@ -119,7 +152,9 @@ class AccountQuickSwitch extends ConsumerWidget {
           ),
         ),
         subtitle: Text(
-          account.accountType == AccountType.credentials ? '邮箱登录' : 'Token登录',
+          account.accountType == AccountType.credentials
+              ? context.l10n.auth_credentialsLogin
+              : context.l10n.auth_tokenLogin,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -136,7 +171,7 @@ class AccountQuickSwitch extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.swap_horiz, size: 20),
                     onPressed: onTap,
-                    tooltip: '切换到该账号',
+                    tooltip: context.l10n.auth_switchAccount,
                   ),
                   IconButton(
                     icon: Icon(
@@ -145,7 +180,7 @@ class AccountQuickSwitch extends ConsumerWidget {
                       color: theme.colorScheme.error.withOpacity(0.7),
                     ),
                     onPressed: onDelete,
-                    tooltip: '删除账号',
+                    tooltip: context.l10n.auth_deleteAccount,
                   ),
                 ],
               ),

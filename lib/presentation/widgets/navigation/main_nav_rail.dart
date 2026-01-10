@@ -6,10 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
+import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../router/app_router.dart';
 import '../auth/account_avatar.dart';
-import '../auth/token_login_card.dart';
+import '../auth/login_form_container.dart';
 
 class MainNavRail extends ConsumerWidget {
   const MainNavRail({super.key});
@@ -608,21 +609,55 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
       return;
     }
 
-    // 执行登录
-    await widget.ref.read(authNotifierProvider.notifier).loginWithToken(
+    // 使用 switchAccount（根据账号类型选择验证方式）
+    final success = await widget.ref.read(authNotifierProvider.notifier).switchAccount(
+          account.id,
           token,
-          accountId: account.id,
           displayName: account.displayName,
+          accountType: account.accountType,
         );
 
-    // 更新最后使用时间
-    widget.ref
-        .read(accountManagerNotifierProvider.notifier)
-        .updateLastUsed(account.id);
+    if (success) {
+      // 更新最后使用时间
+      widget.ref
+          .read(accountManagerNotifierProvider.notifier)
+          .updateLastUsed(account.id);
+    } else {
+      // 切换失败，显示错误提示并停留在当前账号
+      if (mounted) {
+        final authState = widget.ref.read(authNotifierProvider);
+        String errorMessage;
+
+        switch (authState.errorCode) {
+          case AuthErrorCode.networkTimeout:
+            errorMessage = context.l10n.auth_error_networkTimeout;
+            break;
+          case AuthErrorCode.networkError:
+            errorMessage = context.l10n.auth_error_networkError;
+            break;
+          case AuthErrorCode.authFailed:
+          case AuthErrorCode.tokenInvalid:
+            errorMessage = context.l10n.auth_error_authFailed;
+            break;
+          case AuthErrorCode.serverError:
+            errorMessage = context.l10n.auth_error_serverError;
+            break;
+          default:
+            errorMessage = context.l10n.auth_loginFailed;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    }
   }
 
   /// 显示添加账号对话框
   void _showAddAccountDialog(BuildContext context) {
+    // 重置 AuthMode 为默认模式（credentials）
+    widget.ref.read(authModeNotifierProvider.notifier).reset();
+
     showDialog(
       context: context,
       builder: (dialogContext) => Dialog(
@@ -648,8 +683,8 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
                     ),
                   ],
                 ),
-                // Token 登录表单
-                TokenLoginCard(
+                // 登录表单容器（支持账号密码和Token两种方式）
+                LoginFormContainer(
                   onLoginSuccess: () => Navigator.pop(dialogContext),
                 ),
               ],

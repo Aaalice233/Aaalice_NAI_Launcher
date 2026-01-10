@@ -1,11 +1,7 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 
+import '../../../core/services/avatar_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
@@ -17,9 +13,12 @@ import '../../widgets/common/app_toast.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerWidget {
-  const LoginScreen({super.key});
+  LoginScreen({super.key});
 
   static const double _wideScreenBreakpoint = 800;
+
+  /// 头像服务实例
+  final _avatarService = AvatarService();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -714,49 +713,28 @@ class LoginScreen extends ConsumerWidget {
       ),
     );
   }
-
+  
   /// 从相册/文件选择头像
   Future<void> _pickImageFromGallery(
     BuildContext context,
     WidgetRef ref,
     SavedAccount account,
   ) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-
-    final pickedFile = result.files.first;
-    if (pickedFile.path == null) return;
-
     try {
-      // 获取应用文档目录
-      final appDir = await getApplicationDocumentsDirectory();
-      final avatarsDir = Directory(path.join(appDir.path, 'avatars'));
+      final result = await _avatarService.pickAndSaveAvatar(account);
 
-      // 创建头像目录
-      if (!await avatarsDir.exists()) {
-        await avatarsDir.create(recursive: true);
+      if (result.isSuccess && result.path != null) {
+        final updatedAccount = account.copyWith(avatarPath: result.path);
+        await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+
+        if (context.mounted) {
+          AppToast.success(context, context.l10n.common_success);
+        }
+      } else if (result.isFailure && context.mounted) {
+        // 显示错误信息
+        AppToast.error(context, result.errorMessage ?? context.l10n.common_error);
       }
-
-      // 生成唯一文件名
-      final extension = path.extension(pickedFile.path!);
-      final newFileName = '${account.id}$extension';
-      final newPath = path.join(avatarsDir.path, newFileName);
-
-      // 复制文件到应用目录
-      final sourceFile = File(pickedFile.path!);
-      await sourceFile.copy(newPath);
-
-      // 更新账号信息
-      final updatedAccount = account.copyWith(avatarPath: newPath);
-      await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.common_success);
-      }
+      // 取消操作不需要提示
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, context.l10n.common_error);
@@ -771,13 +749,7 @@ class LoginScreen extends ConsumerWidget {
     SavedAccount account,
   ) async {
     try {
-      // 删除头像文件
-      if (account.avatarPath != null) {
-        final file = File(account.avatarPath!);
-        if (await file.exists()) {
-          await file.delete();
-        }
-      }
+      await _avatarService.removeAvatar(account);
 
       // 更新账号信息（清除头像路径）
       final updatedAccount = account.copyWith(avatarPath: null);

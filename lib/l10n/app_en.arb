@@ -161,6 +161,41 @@
   "settings_pathReset": "Reset to default location",
   "settings_pathSaved": "Save location updated",
   "settings_selectFolder": "Select Save Folder",
+  "settings_accountProfile": "Account Profile",
+  "settings_accountType": "Account Type",
+  "settings_notLoggedIn": "Log in to set avatar and nickname",
+  "settings_goToLogin": "Go to Login",
+  "settings_tapToChangeAvatar": "Tap to change avatar",
+  "settings_changeAvatar": "Change Avatar",
+  "settings_removeAvatar": "Remove Avatar",
+  "settings_nickname": "Nickname",
+  "settings_accountEmail": "Account Email",
+  "settings_emailAccount": "Email Account",
+  "settings_tokenAccount": "Token Account",
+  "settings_setAsDefault": "Set as Default",
+  "settings_defaultAccount": "Default",
+  "settings_editNickname": "Edit Nickname",
+  "settings_nickname": "Nickname",
+  "settings_nicknameHint": "Enter 2-32 characters",
+  "settings_nicknameEmpty": "Please enter a nickname",
+  "settings_nicknameTooShort": "Nickname must be at least {minLength} characters",
+  "@settings_nicknameTooShort": {
+    "placeholders": {
+      "minLength": {"type": "int"}
+    }
+  },
+  "settings_nicknameTooLong": "Nickname cannot exceed {maxLength} characters",
+  "@settings_nicknameTooLong": {
+    "placeholders": {
+      "maxLength": {"type": "int"}
+    }
+  },
+  "settings_nicknameAllWhitespace": "Nickname cannot be all whitespace",
+  "settings_nicknameUpdated": "Nickname updated",
+  "settings_avatarUpdated": "Avatar updated",
+  "settings_avatarRemoved": "Avatar removed",
+  "settings_avatarFileMissing": "Avatar file missing, select again?",
+  "settings_setAsDefaultSuccess": "Set as default account",
 
   "generation_title": "Generate",
   "generation_generate": "Generate",

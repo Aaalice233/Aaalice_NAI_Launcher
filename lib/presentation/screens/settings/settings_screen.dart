@@ -4,13 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/account_manager_provider.dart';
 import '../../themes/app_theme.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/settings/account_detail_tile.dart';
+import '../../widgets/settings/account_profile_sheet.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerWidget {
@@ -19,7 +22,6 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final authState = ref.watch(authNotifierProvider);
     final currentTheme = ref.watch(themeNotifierProvider);
     final currentFont = ref.watch(fontNotifierProvider);
     final currentLocale = ref.watch(localeNotifierProvider);
@@ -33,36 +35,9 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           // 账户信息
           _buildSectionHeader(theme, context.l10n.settings_account),
-          ListTile(
-            leading: CircleAvatar(
-              backgroundColor: authState.isAuthenticated
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.surfaceContainerHighest,
-              child: Icon(
-                authState.isAuthenticated ? Icons.check : Icons.person,
-                color: authState.isAuthenticated
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            title: Text(
-              authState.isLoading
-                  ? context.l10n.common_loading
-                  : (authState.isAuthenticated
-                      ? (authState.displayName ?? context.l10n.auth_loggedIn)
-                      : context.l10n.auth_notLoggedIn),
-            ),
-            subtitle: authState.isLoading
-                ? Text(context.l10n.auth_checkingStatus)
-                : (authState.isAuthenticated
-                    ? Text(context.l10n.auth_tokenConfigured)
-                    : Text(context.l10n.auth_pleaseLogin)),
-            trailing: authState.isAuthenticated
-                ? TextButton(
-                    onPressed: () => _showLogoutDialog(context, ref),
-                    child: Text(context.l10n.auth_logout),
-                  )
-                : null,
+          AccountDetailTile(
+            onEdit: () => _showProfileSheet(context, ref),
+            onLogin: () => _navigateToLogin(context),
           ),
           const Divider(),
 
@@ -178,31 +153,6 @@ class SettingsScreen extends ConsumerWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(context.l10n.auth_logoutConfirmTitle),
-          content: Text(context.l10n.auth_logoutConfirmContent),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(context.l10n.common_cancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                ref.read(authNotifierProvider.notifier).logout();
-                Navigator.pop(dialogContext);
-              },
-              child: Text(context.l10n.auth_logout),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -476,5 +426,35 @@ class SettingsScreen extends ConsumerWidget {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
+  }
+
+  /// 显示账号资料编辑底部面板
+  void _showProfileSheet(BuildContext context, WidgetRef ref) {
+    final authState = ref.read(authNotifierProvider);
+    final accountId = authState.accountId;
+
+    if (accountId == null) {
+      AppToast.info(context, '请先登录');
+      return;
+    }
+
+    final accounts = ref.read(accountManagerNotifierProvider).accounts;
+    final account = accounts.where((a) => a.id == accountId).firstOrNull;
+
+    if (account == null) {
+      AppToast.info(context, '未找到账号信息');
+      return;
+    }
+
+    AccountProfileBottomSheet.show(
+      context: context,
+      account: account,
+    );
+  }
+
+  /// 导航到登录页面
+  void _navigateToLogin(BuildContext context) {
+    // TODO: 实现登录导航
+    AppToast.info(context, '请前往登录页面');
   }
 }
