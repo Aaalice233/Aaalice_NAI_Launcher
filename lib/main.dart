@@ -5,6 +5,8 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 
 import 'core/constants/storage_keys.dart';
+import 'core/network/system_proxy_http_overrides.dart';
+import 'core/network/windows_proxy_helper.dart';
 import 'core/utils/app_logger.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
@@ -54,6 +56,15 @@ void main() async {
       await windowManager.show();
       await windowManager.focus();
     });
+  }
+
+  // Windows 系统代理配置
+  if (Platform.isWindows) {
+    final proxy = WindowsProxyHelper.getSystemProxy();
+    if (proxy != null && proxy != 'DIRECT') {
+      HttpOverrides.global = SystemProxyHttpOverrides(proxy);
+      AppLogger.i('Applied system proxy: $proxy', 'NETWORK');
+    }
   }
 
   runApp(

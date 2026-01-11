@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
 part 'generation_record.freezed.dart';
@@ -58,40 +59,41 @@ class GenerationParamsSnapshot with _$GenerationParamsSnapshot {
 /// 生成记录模型
 ///
 /// 用于存储图像生成历史，支持持久化
+@HiveType(typeId: 0)
 @freezed
 class GenerationRecord with _$GenerationRecord {
   const GenerationRecord._();
 
   const factory GenerationRecord({
-    /// 唯一标识符 (UUID)
-    required String id,
+    /// 唯一标识符 (UUID) - 作为 Hive Key 使用
+    @HiveField(0) required String id,
 
     /// 生成时间
-    required DateTime createdAt,
+    @HiveField(1) required DateTime createdAt,
 
     /// 生成参数快照
-    required GenerationParamsSnapshot params,
+    @HiveField(2) required GenerationParamsSnapshot params,
 
     /// 本地保存的图像文件路径
-    String? filePath,
+    @HiveField(3) String? filePath,
 
     /// 图像 base64 数据（用于未保存到文件的情况）
-    String? imageBase64,
+    @HiveField(4) String? imageBase64,
 
     /// 用户自定义标签
-    @Default([]) List<String> userTags,
+    @HiveField(5) @Default([]) List<String> userTags,
 
     /// 是否收藏
-    @Default(false) bool isFavorite,
+    @HiveField(6) @Default(false) bool isFavorite,
 
     /// 图像宽度（冗余存储，便于展示）
-    @Default(0) int imageWidth,
+    @HiveField(7) @Default(0) int imageWidth,
 
     /// 图像高度（冗余存储，便于展示）
-    @Default(0) int imageHeight,
+    @HiveField(8) @Default(0) int imageHeight,
 
     /// 图像文件大小（字节）
-    @Default(0) int fileSize,
+    @HiveField(9) @Default(0) int fileSize,
   }) = _GenerationRecord;
 
   factory GenerationRecord.fromJson(Map<String, dynamic> json) =>

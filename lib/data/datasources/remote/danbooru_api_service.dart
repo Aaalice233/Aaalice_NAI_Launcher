@@ -278,7 +278,7 @@ class DanbooruApiService {
       return [];
     } catch (e, stack) {
       AppLogger.e('Failed to get popular posts', e, stack, 'Danbooru');
-      return [];
+      rethrow;
     }
   }
 
@@ -291,7 +291,7 @@ class DanbooruApiService {
   /// [limit] 每页数量
   Future<List<DanbooruPost>> getFavorites({
     int? userId,
-    int page = 1,
+    dynamic page = 1, // Changed from int to dynamic
     int limit = 40,
   }) async {
     try {
@@ -336,7 +336,7 @@ class DanbooruApiService {
       return [];
     } catch (e, stack) {
       AppLogger.e('Failed to get favorites', e, stack, 'Danbooru');
-      return [];
+      rethrow;
     }
   }
 
@@ -559,7 +559,7 @@ class DanbooruApiService {
   Future<List<DanbooruPost>> searchPosts({
     String? tags,
     int limit = 40,
-    int page = 1,
+    dynamic page = 1, // Changed from int to dynamic to support "b12345"
     bool random = false,
   }) async {
     try {
@@ -596,7 +596,7 @@ class DanbooruApiService {
       return [];
     } catch (e, stack) {
       AppLogger.e('Danbooru searchPosts error: $e', e, stack, 'Danbooru');
-      return [];
+      rethrow;
     }
   }
 

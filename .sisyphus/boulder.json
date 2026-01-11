@@ -1,34 +1,6 @@
 {
-  "active_plan": "E:/Aaalice_NAI_Launcher/.sisyphus/plans/account-profile-improvement.md",
-  "started_at": "2026-01-10T08:09:09.788Z",
-  "session_ids": ["ses_45916a24affexmCZhsDsh7qUty"],
-  "plan_name": "account-profile-improvement",
-  "total_tasks": 19,
-  "completed_tasks": 19,
-  "current_phase": "所有任务已完成",
-  "current_task": "所有任务已完成",
-  "status": "completed",
-  "completed_at": "2026-01-10T12:00:00.000Z",
-  "pending_issue": null,
-  "completed_tasks_list": [
-    "1. 创建 AccountDetailTile 组件",
-    "2. 修改 SettingsScreen 账号区块",
-    "3. 添加阶段一国际化文案",
-    "4. 运行 flutter analyze 验证",
-    "5. 创建 AvatarService 封装头像逻辑",
-    "6. 抽取登录页头像逻辑到 AvatarService",
-    "7. 创建 AccountProfileBottomSheet 底部操作面板",
-    "8. 启用 AccountAvatar 的编辑徽章",
-    "9. 添加阶段二国际化文案",
-    "10. 修复硬编码问题",
-    "11. 运行 flutter analyze 验证",
-    "12. 创建 NicknameEditDialog 昵称编辑弹窗",
-    "13. 集成昵称编辑到底部操作面板",
-    "14. 添加阶段三国际化文案",
-    "15. 运行 flutter analyze 验证",
-    "16. 底部操作面板添加多账号列表",
-    "17. 实现设为默认功能",
-    "18. 添加阶段四国际化文案",
-    "19. 最终 flutter analyze 验证"
-  ]
+  "active_plan": "E:\\Aaalice_NAI_Launcher\\.sisyphus\\plans\\gallery_infinite_scroll_fix.md",
+  "started_at": "2026-01-11T05:20:00.000Z",
+  "session_ids": ["ses_454b40eb3ffeC9spNBJwxgrVPN"],
+  "plan_name": "gallery_infinite_scroll_fix"
 }

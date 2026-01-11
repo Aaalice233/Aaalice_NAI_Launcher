@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +15,7 @@ import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/tag_translation_service.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
+import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/tag_chip.dart';
 
 /// 在线画廊页面
@@ -26,6 +29,7 @@ class OnlineGalleryScreen extends ConsumerStatefulWidget {
 class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -40,13 +44,18 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 500) {
-      ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
+        _scrollController.position.maxScrollExtent - 800) {
+      // 防抖处理：200ms 内只触发一次加载
+      if (_debounceTimer?.isActive ?? false) return;
+      _debounceTimer = Timer(const Duration(milliseconds: 200), () {
+        ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
+      });
     }
   }
 
@@ -421,9 +430,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
       crossAxisCount: columnCount,
       mainAxisSpacing: 6,
       crossAxisSpacing: 6,
-      itemCount: state.posts.length + (state.hasMore ? 1 : 0),
+      itemCount: state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= state.posts.length) {
+          // 显示错误重试按钮或加载指示器
+          if (state.error != null) {
+            return Center(
+              child: TextButton(
+                onPressed: () {
+                  ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
+                },
+                child: Text(
+                  '加载失败，点击重试',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
+            );
+          }
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -435,7 +458,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         final post = state.posts[index];
         final isFavorited = state.favoritedPostIds.contains(post.id);
 
-        return _PostCard(
+        // 智能预加载：提前缓存后续 10 张图片
+        _prefetchImages(state, index);
+
+        return DanbooruPostCard(
           post: post,
           itemWidth: itemWidth,
           isFavorited: isFavorited,
@@ -455,6 +481,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         );
       },
     );
+  }
+
+  /// 智能预加载图片
+  void _prefetchImages(OnlineGalleryState state, int currentIndex) {
+    const prefetchCount = 10;
+    for (var i = 1; i <= prefetchCount; i++) {
+      final nextIndex = currentIndex + i;
+      if (nextIndex < state.posts.length) {
+        final nextPost = state.posts[nextIndex];
+        if (nextPost.previewUrl.isNotEmpty) {
+          precacheImage(
+            CachedNetworkImageProvider(nextPost.previewUrl),
+            context,
+          );
+        }
+      }
+    }
   }
 
   void _showPostDetail(BuildContext context, DanbooruPost post) {
@@ -551,483 +594,6 @@ class _ModeButtonState extends State<_ModeButton> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 图片卡片（带悬浮预览）
-class _PostCard extends StatefulWidget {
-  final DanbooruPost post;
-  final double itemWidth;
-  final bool isFavorited;
-  final VoidCallback onTap;
-  final Function(String) onTagTap;
-  final VoidCallback onFavoriteToggle;
-
-  const _PostCard({
-    required this.post,
-    required this.itemWidth,
-    required this.isFavorited,
-    required this.onTap,
-    required this.onTagTap,
-    required this.onFavoriteToggle,
-  });
-
-  @override
-  State<_PostCard> createState() => _PostCardState();
-}
-
-class _PostCardState extends State<_PostCard> {
-  bool _isHovering = false;
-  OverlayEntry? _overlayEntry;
-  final _layerLink = LayerLink();
-
-  @override
-  void dispose() {
-    _removeOverlay();
-    super.dispose();
-  }
-
-  void _showOverlay() {
-    if (_overlayEntry != null) return;
-    
-    final overlay = Overlay.of(context);
-    final renderBox = context.findRenderObject() as RenderBox;
-    final position = renderBox.localToGlobal(Offset.zero);
-    final screenSize = MediaQuery.of(context).size;
-    
-    // 计算预览卡片位置（在鼠标右侧或左侧）
-    final bool showOnRight = position.dx < screenSize.width / 2;
-    
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: showOnRight ? position.dx + renderBox.size.width + 12 : null,
-        right: showOnRight ? null : screenSize.width - position.dx + 12,
-        top: (position.dy - 50).clamp(20, screenSize.height - 400),
-        child: _HoverPreviewCard(post: widget.post),
-      ),
-    );
-    
-    overlay.insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    double itemHeight;
-    if (widget.post.width > 0 && widget.post.height > 0) {
-      itemHeight = widget.itemWidth * (widget.post.height / widget.post.width);
-      itemHeight = itemHeight.clamp(80.0, widget.itemWidth * 2.5);
-    } else {
-      itemHeight = widget.itemWidth;
-    }
-
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: MouseRegion(
-        onEnter: (_) {
-          setState(() => _isHovering = true);
-          // 延迟显示预览卡片，避免快速滑过时频繁创建
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (_isHovering && mounted) _showOverlay();
-          });
-        },
-        onExit: (_) {
-          setState(() => _isHovering = false);
-          _removeOverlay();
-        },
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            height: itemHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: _isHovering
-                  ? [BoxShadow(color: theme.colorScheme.primary.withOpacity(0.4), blurRadius: 12, spreadRadius: 1)]
-                  : [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 图片/视频预览
-                  CachedNetworkImage(
-                    imageUrl: widget.post.previewUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(Icons.broken_image, color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                  // 媒体类型标识
-                  if (widget.post.mediaTypeLabel != null)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: widget.post.isVideo ? Colors.purple : Colors.blue,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(widget.post.isVideo ? Icons.play_circle_fill : Icons.gif_box, size: 10, color: Colors.white),
-                            const SizedBox(width: 2),
-                            Text(widget.post.mediaTypeLabel!, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ),
-                // 评级标签
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(color: _getRatingColor(widget.post.rating), borderRadius: BorderRadius.circular(3)),
-                    child: Text(widget.post.rating.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                // 收藏按钮和复制提示词按钮（悬浮时显示）
-                if (_isHovering)
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // 收藏按钮
-                        _buildHoverButton(
-                          icon: widget.isFavorited ? Icons.favorite : Icons.favorite_border,
-                          iconColor: widget.isFavorited ? Colors.red : Colors.white,
-                          onTap: widget.onFavoriteToggle,
-                        ),
-                        const SizedBox(width: 4),
-                        // 复制提示词按钮
-                        Tooltip(
-                          message: context.l10n.onlineGallery_copyTags,
-                          child: _buildHoverButton(
-                            icon: Icons.content_copy,
-                            iconColor: Colors.white,
-                            onTap: () async {
-                              try {
-                                await Clipboard.setData(ClipboardData(text: widget.post.tags.join(', ')));
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(context.l10n.onlineGallery_copied),
-                                      duration: const Duration(seconds: 1),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(context.l10n.common_error),
-                                      duration: const Duration(seconds: 1),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // 简单的底部渐变信息（始终显示）
-                Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(6, 16, 6, 4),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.arrow_upward, size: 10, color: Colors.white70),
-                          Text('${widget.post.score}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.favorite, size: 10, color: Colors.white70),
-                          Text('${widget.post.favCount}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getRatingColor(String rating) {
-    switch (rating) {
-      case 'g': return Colors.green;
-      case 's': return Colors.amber.shade700;
-      case 'q': return Colors.orange;
-      case 'e': return Colors.red;
-      default: return Colors.grey;
-    }
-  }
-
-  /// 构建悬浮时显示的圆形按钮
-  Widget _buildHoverButton({
-    required IconData icon,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.6),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: iconColor,
-          size: 16,
-        ),
-      ),
-    );
-  }
-}
-
-/// 悬浮预览卡片（显示高清图和详细信息）
-class _HoverPreviewCard extends ConsumerWidget {
-  final DanbooruPost post;
-
-  const _HoverPreviewCard({required this.post});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final translationService = ref.watch(tagTranslationServiceProvider);
-    
-    // 计算预览图尺寸，保持宽高比
-    const maxWidth = 320.0;
-    const maxHeight = 360.0;
-    double previewHeight = maxWidth;
-    
-    if (post.width > 0 && post.height > 0) {
-      final aspectRatio = post.width / post.height;
-      if (aspectRatio > 1) {
-        previewHeight = maxWidth / aspectRatio;
-      } else {
-        previewHeight = maxHeight.clamp(0, maxWidth / aspectRatio);
-      }
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: maxWidth,
-        constraints: const BoxConstraints(maxHeight: 500),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, spreadRadius: 2),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 高清预览图
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: SizedBox(
-                width: maxWidth,
-                height: previewHeight.clamp(150, maxHeight),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: post.sampleUrl ?? post.largeFileUrl ?? post.previewUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      ),
-                      errorWidget: (context, url, error) => CachedNetworkImage(
-                        imageUrl: post.previewUrl,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    // 媒体类型标识
-                    if (post.isVideo || post.isAnimated)
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
-                          child: Icon(post.isVideo ? Icons.play_arrow : Icons.gif, color: Colors.white, size: 32),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            // 信息区域
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 统计信息
-                    Row(
-                      children: [
-                        _StatItem(icon: Icons.photo_size_select_actual, value: '${post.width}×${post.height}'),
-                        const SizedBox(width: 12),
-                        _StatItem(icon: Icons.thumb_up, value: '${post.score}'),
-                        const SizedBox(width: 12),
-                        _StatItem(icon: Icons.favorite, value: '${post.favCount}'),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getRatingColor(post.rating),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(post.rating.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    // 艺术家
-                    if (post.artistTags.isNotEmpty) ...[
-                      _TagRow(
-                        icon: Icons.brush,
-                        color: const Color(0xFFFF8A8A),
-                        tags: post.artistTags.take(3).toList(),
-                        translationService: translationService,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    // 角色
-                    if (post.characterTags.isNotEmpty) ...[
-                      _TagRow(
-                        icon: Icons.person,
-                        color: const Color(0xFF8AFF8A),
-                        tags: post.characterTags.take(4).toList(),
-                        translationService: translationService,
-                        isCharacter: true,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    // 作品
-                    if (post.copyrightTags.isNotEmpty) ...[
-                      _TagRow(
-                        icon: Icons.movie,
-                        color: const Color(0xFFCC8AFF),
-                        tags: post.copyrightTags.take(2).toList(),
-                        translationService: translationService,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getRatingColor(String rating) {
-    switch (rating) {
-      case 'g': return Colors.green;
-      case 's': return Colors.amber.shade700;
-      case 'q': return Colors.orange;
-      case 'e': return Colors.red;
-      default: return Colors.grey;
-    }
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final IconData icon;
-  final String value;
-
-  const _StatItem({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 3),
-        Text(value, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
-      ],
-    );
-  }
-}
-
-class _TagRow extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final List<String> tags;
-  final TagTranslationService translationService;
-  final bool isCharacter;
-
-  const _TagRow({
-    required this.icon,
-    required this.color,
-    required this.tags,
-    required this.translationService,
-    this.isCharacter = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Wrap(
-            spacing: 4,
-            runSpacing: 2,
-            children: tags.map((tag) {
-              final translation = translationService.translate(tag, isCharacter: isCharacter);
-              final displayText = tag.replaceAll('_', ' ');
-              return Text(
-                translation != null ? '$displayText ($translation)' : displayText,
-                style: TextStyle(fontSize: 11, color: color),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -318,11 +318,13 @@ class AuthNotifier extends _$AuthNotifier {
     } catch (e) {
       AppLogger.e('Token login failed: $e');
       final (errorCode, httpStatusCode) = AuthState.parseError(e);
+      
       state = AuthState(
         status: AuthStatus.error,
         errorCode: errorCode,
         httpStatusCode: httpStatusCode,
       );
+      
       return false;
     }
   }

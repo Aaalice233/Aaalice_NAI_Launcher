@@ -104,7 +104,13 @@ class DanbooruAuth extends _$DanbooruAuth {
         state = state.copyWith(credentials: credentials, isLoading: true);
 
         // 验证凭据
-        await _verifyCredentials(credentials);
+        final isValid = await _verifyCredentials(credentials);
+
+        // 如果验证失败，清除已保存的凭据
+        if (!isValid) {
+          await prefs.remove(_credentialsKey);
+          AppLogger.w('Saved credentials invalid, cleared', 'DanbooruAuth');
+        }
       }
     } catch (e, stack) {
       AppLogger.e(
@@ -119,14 +125,25 @@ class DanbooruAuth extends _$DanbooruAuth {
   /// 验证凭据并获取用户信息
   Future<bool> _verifyCredentials(DanbooruCredentials credentials) async {
     try {
-      // 这里会被 online_gallery_provider 调用 API 验证
-      // 暂时只保存凭据，实际验证在 API 层
-      state = state.copyWith(
-        credentials: credentials,
-        isLoading: false,
-        clearError: true,
-      );
-      return true;
+      state = state.copyWith(isLoading: true, clearError: true);
+
+      final user = await _fetchUserProfile(credentials);
+
+      if (user != null) {
+        state = state.copyWith(
+          credentials: credentials,
+          user: user,
+          isLoading: false,
+          lastVerifiedAt: DateTime.now(),
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: '无法验证凭据，请检查用户名和 API Key 是否正确',
+        );
+        return false;
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -183,6 +200,7 @@ class DanbooruAuth extends _$DanbooruAuth {
         user: user,
         isLoading: false,
         error: null,
+        lastVerifiedAt: DateTime.now(),
       );
 
       AppLogger.i('Danbooru login successful: $username', 'DanbooruAuth');

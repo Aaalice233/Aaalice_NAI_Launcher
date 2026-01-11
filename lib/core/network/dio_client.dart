@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:dio_http2_adapter/dio_http2_adapter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -26,14 +27,14 @@ Dio dioClient(Ref ref) {
   // 添加错误处理拦截器
   dio.interceptors.add(ErrorInterceptor());
 
-  // 添加日志拦截器（仅调试模式）
-  // dio.interceptors.add(
-  //   LogInterceptor(
-  //     requestBody: true,
-  //     responseBody: false,
-  //     logPrint: (obj) => print('[DIO] $obj'),
-  //   ),
-  // );
+  // 配置 HTTP/2 适配器以支持多路复用（提升并发性能）
+  dio.httpClientAdapter = Http2Adapter(
+    ConnectionManager(
+      idleTimeout: const Duration(seconds: 15),
+      // 忽略证书验证（仅用于开发环境，Danbooru 使用有效证书）
+      // onBadCertificate: (_) => true,
+    ),
+  );
 
   // 注意：不要在 dispose 时关闭 Dio，因为 Provider 可能会被重建
   // ref.onDispose(dio.close);

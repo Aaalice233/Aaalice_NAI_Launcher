@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
@@ -104,14 +101,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       ),
     );
 
-    // 配置 HTTP 客户端以支持系统代理和处理证书问题
-    (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-      final client = HttpClient();
-      client.findProxy = HttpClient.findProxyFromEnvironment;
-      client.badCertificateCallback = (cert, host, port) => true;
-      return client;
-    };
-
     return const OnlineGalleryState();
   }
 
@@ -186,16 +175,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
 
     try {
-      String? dateStr;
-      if (state.popularDate != null) {
-        dateStr =
-            '${state.popularDate!.year}-${state.popularDate!.month.toString().padLeft(2, '0')}-${state.popularDate!.day.toString().padLeft(2, '0')}';
-      }
-
-      final posts = await _apiService.getPopularPosts(
-        scale: state.popularScale,
-        date: dateStr,
+      // 使用 order:rank 标签搜索实现排行榜功能（替代不稳定的 /explore 端点）
+      final posts = await _apiService.searchPosts(
+        tags: 'order:rank',
         page: page,
+        limit: _pageSize,
       );
 
       // 过滤评级
@@ -204,7 +188,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       state = state.copyWith(
         posts: refresh ? filteredPosts : [...state.posts, ...filteredPosts],
         isLoading: false,
-        hasMore: posts.length >= 20, // 排行榜每页较少
+        // 关键修复：只要 API 返回了数据，就认为还有下一页
+        hasMore: posts.isNotEmpty,
         page: page,
       );
     } catch (e, stack) {
@@ -233,19 +218,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
 
-    final page = refresh ? 1 : state.page;
+    // 计算分页参数
+    final apiPage = _getNextPageParam(refresh);
+    final statePage = refresh ? 1 : state.page + 1;
+
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      page: page,
+      page: statePage,
       posts: refresh ? [] : state.posts,
     );
 
     try {
-      final posts = await _apiService.getFavorites(
-        userId: authState.user!.id,
-        page: page,
-        limit: _pageSize,
+      // 使用 ordfav:username 标签搜索收藏夹
+      final (posts, rawCount) = await _fetchPosts(
+        source: state.source,
+        query: 'ordfav:${authState.user!.name}',
+        rating: state.rating,
+        page: apiPage,
       );
 
       // 更新收藏状态
@@ -257,8 +247,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       state = state.copyWith(
         posts: refresh ? posts : [...state.posts, ...posts],
         isLoading: false,
-        hasMore: posts.length >= _pageSize,
-        page: page,
+        hasMore: rawCount > 0,
+        page: statePage,
         favoritedPostIds: favoritedIds,
       );
     } catch (e, stack) {
@@ -317,6 +307,25 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     return state.favoritedPostIds.contains(postId);
   }
 
+  // ==================== 分页逻辑 ====================
+
+  /// 获取下一页参数（Danbooru/Safebooru 使用 ID 分页，其他使用页码）
+  dynamic _getNextPageParam(bool refresh) {
+    if (refresh) return 1;
+
+    // Gelbooru 和 Popular 模式必须使用页码分页
+    if (state.source == 'gelbooru' || state.viewMode == GalleryViewMode.popular) {
+      return state.page + 1;
+    }
+
+    // Danbooru/Safebooru 搜索模式使用 ID 分页 (b{id})
+    if (state.posts.isNotEmpty) {
+      return 'b${state.posts.last.id}';
+    }
+
+    return 1;
+  }
+
   // ==================== 通用功能 ====================
 
   /// 加载帖子（根据当前模式）
@@ -338,28 +347,32 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<void> _loadSearchPosts({bool refresh = false}) async {
     if (state.isLoading) return;
 
-    final page = refresh ? 1 : state.page;
+    // 计算分页参数
+    final apiPage = _getNextPageParam(refresh);
+    final statePage = refresh ? 1 : state.page + 1;
 
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      page: page,
+      page: statePage,
       posts: refresh ? [] : state.posts,
     );
 
     try {
-      final posts = await _fetchPosts(
+      // 1. 获取原始数据和过滤后的数据
+      final (posts, rawCount) = await _fetchPosts(
         source: state.source,
         query: state.searchQuery,
         rating: state.rating,
-        page: page,
+        page: apiPage,
       );
 
       state = state.copyWith(
         posts: refresh ? posts : [...state.posts, ...posts],
         isLoading: false,
-        hasMore: posts.length >= _pageSize,
-        page: page,
+        // 关键修复：只要 API 返回了数据，就认为还有下一页（忽略本地过滤的影响）
+        hasMore: rawCount > 0,
+        page: statePage,
       );
     } catch (e, stack) {
       AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
@@ -373,7 +386,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 加载更多
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore) return;
-    state = state.copyWith(page: state.page + 1);
     await loadPosts();
   }
 
@@ -411,12 +423,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     return posts.where((p) => p.rating == state.rating).toList();
   }
 
-  /// 从 API 获取帖子
-  Future<List<DanbooruPost>> _fetchPosts({
+  /// 从 API 获取帖子，返回 (过滤后的列表, 原始数量)
+  Future<(List<DanbooruPost>, int)> _fetchPosts({
     required String source,
     required String query,
     required String rating,
-    required int page,
+    required dynamic page,
   }) async {
     final baseUrl = _getBaseUrl(source);
     final endpoint = _getEndpoint(source);
@@ -448,16 +460,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
 
     if (response.data is List) {
-      final posts = (response.data as List)
+      final rawList = response.data as List;
+      final List<DanbooruPost> posts = rawList
           .map((item) => _parsePost(source, item as Map<String, dynamic>))
           .where((post) => post.previewUrl.isNotEmpty)
           .toList();
 
-      AppLogger.d('Fetched ${posts.length} posts', 'OnlineGallery');
-      return posts;
+      AppLogger.d(
+          'Fetched ${rawList.length} raw posts, ${posts.length} after filter',
+          'OnlineGallery');
+      return (posts, rawList.length);
     }
 
-    return [];
+    return (<DanbooruPost>[], 0);
   }
 
   /// 获取基础 URL
