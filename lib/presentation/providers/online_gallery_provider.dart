@@ -314,7 +314,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (refresh) return 1;
 
     // Gelbooru 和 Popular 模式必须使用页码分页
-    if (state.source == 'gelbooru' || state.viewMode == GalleryViewMode.popular) {
+    if (state.source == 'gelbooru' ||
+        state.viewMode == GalleryViewMode.popular) {
       return state.page + 1;
     }
 
@@ -467,8 +468,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           .toList();
 
       AppLogger.d(
-          'Fetched ${rawList.length} raw posts, ${posts.length} after filter',
-          'OnlineGallery');
+        'Fetched ${rawList.length} raw posts, ${posts.length} after filter',
+        'OnlineGallery',
+      );
       return (posts, rawList.length);
     }
 
