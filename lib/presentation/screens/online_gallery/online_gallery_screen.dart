@@ -14,6 +14,8 @@ import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/tag_translation_service.dart';
 import '../../providers/online_gallery_provider.dart';
+import '../../providers/gallery_multi_select_provider.dart';
+import '../online_gallery/widgets/multi_select_bottom_bar.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/tag_chip.dart';
@@ -64,6 +66,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
     final theme = Theme.of(context);
     final state = ref.watch(onlineGalleryNotifierProvider);
     final authState = ref.watch(danbooruAuthProvider);
+    final multiSelectState = ref.watch(multiSelectNotifierProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -74,6 +77,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           // 图片网格
           Expanded(
             child: _buildContent(theme, state),
+          ),
+          // 底部操作栏（多选模式时显示）
+          MultiSelectBottomBar(
+            selectedCount: multiSelectState.selectedPostIds.length,
+            onSendToHome: () => _sendToHome(context),
+            onClear: () => ref.read(multiSelectNotifierProvider.notifier).clearSelection(),
           ),
         ],
       ),
@@ -374,6 +383,31 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
     showDialog(context: context, builder: (context) => const DanbooruLoginDialog());
   }
 
+  Future<void> _sendToHome(BuildContext context) async {
+    final multiSelectState = ref.read(multiSelectNotifierProvider);
+    final selectedIds = multiSelectState.selectedPostIds;
+
+    if (selectedIds.isEmpty) return;
+
+    // 获取选中的帖子
+    final galleryState = ref.read(onlineGalleryNotifierProvider);
+    final selectedPosts = galleryState.posts
+        .where((post) => selectedIds.contains(post.id))
+        .toList();
+
+    // TODO: 实现发送到主页队列功能
+
+    // 清除选择
+    ref.read(multiSelectNotifierProvider.notifier).clearSelection();
+
+    // 显示提示
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已添加 ${selectedPosts.length} 张到队列')),
+      );
+    }
+  }
+
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
     if (state.isLoading && state.posts.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -457,6 +491,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
 
         final post = state.posts[index];
         final isFavorited = state.favoritedPostIds.contains(post.id);
+        final multiSelectState = ref.watch(multiSelectNotifierProvider);
+        final isSelected = multiSelectState.selectedPostIds.contains(post.id);
 
         // 智能预加载：提前缓存后续 10 张图片
         _prefetchImages(state, index);
@@ -465,6 +501,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           post: post,
           itemWidth: itemWidth,
           isFavorited: isFavorited,
+          isSelected: isSelected,
           onTap: () => _showPostDetail(context, post),
           onTagTap: (tag) {
             _searchController.text = tag;
@@ -477,6 +514,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
               return;
             }
             ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(post.id);
+          },
+          onSelectionToggle: () {
+            ref.read(multiSelectNotifierProvider.notifier).toggleSelection(post.id);
           },
         );
       },
