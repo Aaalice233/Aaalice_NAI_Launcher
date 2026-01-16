@@ -108,5 +108,8 @@ AGENTS.md
 logs/
 nai_web_copy/
 
+# Git worktrees
+.worktrees/
+
 # Auto Claude data directory
 .auto-claude/
