@@ -17,18 +17,22 @@ class DanbooruPostCard extends StatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
   final bool isFavorited;
+  final bool isSelected;
   final VoidCallback onTap;
   final Function(String) onTagTap;
   final VoidCallback onFavoriteToggle;
+  final VoidCallback onSelectionToggle;
 
   const DanbooruPostCard({
     super.key,
     required this.post,
     required this.itemWidth,
     required this.isFavorited,
+    this.isSelected = false,
     required this.onTap,
     required this.onTagTap,
     required this.onFavoriteToggle,
+    required this.onSelectionToggle,
   });
 
   @override
@@ -161,10 +165,41 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                         child: Text(widget.post.rating.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                       ),
                     ),
+                    // 多选复选框
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: GestureDetector(
+                        onTap: widget.onSelectionToggle,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: widget.isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.surface.withOpacity(0.85),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: widget.isSelected
+                                  ? theme.colorScheme.onPrimary
+                                  : theme.colorScheme.outline,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            widget.isSelected ? Icons.check : Icons.add,
+                            size: 12,
+                            color: widget.isSelected
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
                     if (_isHovering)
                       Positioned(
                         top: 4,
-                        left: 4,
+                        right: 36, // 移到评级徽章左边
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
