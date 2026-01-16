@@ -395,7 +395,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
         .where((post) => selectedIds.contains(post.id))
         .toList();
 
-    // TODO: 实现发送到主页队列功能
+    // 发送到主页队列
+    await ref.read(galleryQueueNotifierProvider.notifier).sendToHome(selectedPosts);
 
     // 清除选择
     ref.read(multiSelectNotifierProvider.notifier).clearSelection();
