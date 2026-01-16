@@ -15,6 +15,7 @@ import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/tag_translation_service.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/gallery_multi_select_provider.dart';
+import '../../providers/image_generation_provider.dart';
 import '../online_gallery/widgets/multi_select_bottom_bar.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
@@ -883,6 +884,21 @@ class _PostDetailDialog extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: FilledButton.icon(
+                          onPressed: () {
+                            ref.read(generationParamsNotifierProvider.notifier).updatePrompt(
+                                  post.tags.join(', '),
+                                );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('已发送到主页')),
+                            );
+                          },
+                          icon: const Icon(Icons.send, size: 16),
+                          label: const Text('发送提示词'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
                           onPressed: () async {
                             final uri = Uri.parse(post.postUrl);
                             if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
