@@ -326,6 +326,32 @@ class LocalStorageService {
     await setSetting(StorageKeys.lastNoiseSchedule, noiseSchedule);
   }
 
+  // ==================== Seed Lock ====================
+
+  /// 获取种子是否锁定 (默认关闭)
+  bool getSeedLocked() {
+    return getSetting<bool>(StorageKeys.seedLocked, defaultValue: false) ?? false;
+  }
+
+  /// 保存种子锁定状态
+  Future<void> setSeedLocked(bool locked) async {
+    await setSetting(StorageKeys.seedLocked, locked);
+  }
+
+  /// 获取锁定的种子值 (默认为null)
+  int? getLockedSeedValue() {
+    return getSetting<int>(StorageKeys.lockedSeedValue);
+  }
+
+  /// 保存锁定的种子值
+  Future<void> setLockedSeedValue(int? seed) async {
+    if (seed != null) {
+      await setSetting(StorageKeys.lockedSeedValue, seed);
+    } else {
+      await deleteSetting(StorageKeys.lockedSeedValue);
+    }
+  }
+
   // ==================== Lifecycle ====================
 
   /// 关闭存储

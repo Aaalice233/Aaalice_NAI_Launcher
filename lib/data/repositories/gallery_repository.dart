@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' show min;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,6 +57,34 @@ class GalleryRepository {
     }
   }
 
+  /// 生成基于提示词的智能文件名
+  ///
+  /// 格式: NAI_[Date]_[PromptSnippet].png
+  /// - 日期时间戳避免文件名冲突
+  /// - 提示词片段：前30个字符，移除特殊字符
+  String _generateFileName(String? prompt, {String prefix = 'nai'}) {
+    // 生成时间戳（ISO 8601 格式，移除冒号以兼容文件系统）
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').substring(0, 19);
+
+    // 如果没有提示词，使用纯时间戳格式
+    if (prompt == null || prompt.isEmpty) {
+      return '${prefix}_$timestamp.png';
+    }
+
+    // 截取提示词片段，移除特殊字符
+    String snippet = prompt
+        .substring(0, min(30, prompt.length))
+        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '') // 移除 Windows 文件系统非法字符
+        .replaceAll(' ', '_') // 空格替换为下划线
+        .replaceAll(',', '') // 移除逗号
+        .trim();
+
+    // 如果处理后为空，使用默认名称
+    if (snippet.isEmpty) snippet = 'generated';
+
+    return '${prefix}_${timestamp}_$snippet.png';
+  }
+
   /// 获取所有记录
   List<GenerationRecord> getAllRecords() {
     try {
@@ -87,8 +116,7 @@ class GalleryRepository {
     // 保存图像到文件
     if (saveToFile && _imageDir != null) {
       try {
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final fileName = 'nai_$timestamp.png';
+        final fileName = _generateFileName(params.prompt);
         final file = File('${_imageDir!.path}/$fileName');
         await file.writeAsBytes(imageData);
         filePath = file.path;
@@ -223,8 +251,7 @@ class GalleryRepository {
       final imageData = await getImageData(record);
       if (imageData == null) return null;
 
-      final timestamp = record.createdAt.millisecondsSinceEpoch;
-      final fileName = 'nai_export_$timestamp.png';
+      final fileName = _generateFileName(record.params.prompt, prefix: 'nai_export');
       final file = File('$targetDir/$fileName');
       await file.writeAsBytes(imageData);
 

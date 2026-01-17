@@ -22,8 +22,15 @@ import '../../../widgets/character/character_prompt_button.dart';
 /// Prompt 输入组件 (带自动补全和标签视图)
 class PromptInputWidget extends ConsumerStatefulWidget {
   final bool compact;
+  final VoidCallback? onToggleMaximize;
+  final bool isMaximized;
 
-  const PromptInputWidget({super.key, this.compact = false});
+  const PromptInputWidget({
+    super.key,
+    this.compact = false,
+    this.onToggleMaximize,
+    this.isMaximized = false,
+  });
 
   @override
   ConsumerState<PromptInputWidget> createState() => _PromptInputWidgetState();
@@ -300,6 +307,29 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         const CharacterPromptButton(),
 
         const SizedBox(width: 8),
+
+        // 最大化按钮（仅在桌面布局中显示）
+        if (widget.onToggleMaximize != null) ...[
+          IconButton(
+            icon: Icon(
+              widget.isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
+              size: 20,
+            ),
+            tooltip: widget.isMaximized
+                ? context.l10n.tooltip_restoreLayout
+                : context.l10n.tooltip_maximizePrompt,
+            onPressed: widget.onToggleMaximize,
+            style: IconButton.styleFrom(
+              backgroundColor: widget.isMaximized
+                  ? theme.colorScheme.primaryContainer
+                  : null,
+              foregroundColor: widget.isMaximized
+                  ? theme.colorScheme.onPrimaryContainer
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
 
         // 使用共享的工具栏组件
         PromptEditorToolbar(

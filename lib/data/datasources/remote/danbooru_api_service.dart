@@ -571,7 +571,10 @@ class DanbooruApiService {
       };
 
       if (tags != null && tags.isNotEmpty) {
-        queryParams['tags'] = tags;
+        // 将空格替换为下划线 (Danbooru 标签格式要求)
+        final formattedTags = tags.replaceAll(' ', '_');
+        AppLogger.d('Search tags: "$tags" -> "$formattedTags"', 'Danbooru');
+        queryParams['tags'] = formattedTags;
       }
 
       if (random) {

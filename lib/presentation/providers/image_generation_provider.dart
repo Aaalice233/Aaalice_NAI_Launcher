@@ -264,12 +264,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   /// 带重试的生成
-  Future<List<Uint8List>> _generateWithRetry(ImageParams params) async {
+  ///
+  /// 返回 (图像列表, Vibe哈希映射)
+  Future<(List<Uint8List>, Map<int, String>)> _generateWithRetry(
+    ImageParams params,
+  ) async {
     final apiService = ref.read(naiApiServiceProvider);
 
     for (int retry = 0; retry <= _maxRetries; retry++) {
       try {
-        return await apiService.generateImageCancellable(
+        // 使用新的 API，返回图像和哈希映射
+        return await apiService.generateImage(
           params,
           onProgress: (received, total) {
             // 单张进度暂不更新
@@ -291,7 +296,30 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
     }
 
-    return [];
+    return (<Uint8List>[], <int, String>{});
+  }
+
+  /// 保存 Vibe 编码哈希到状态
+  ///
+  /// [vibeEncodings] 索引到编码哈希的映射
+  void _saveVibeEncodings(Map<int, String> vibeEncodings) {
+    AppLogger.d(
+      'Saving ${vibeEncodings.length} Vibe encodings to state',
+      'Generation',
+    );
+    for (final entry in vibeEncodings.entries) {
+      final index = entry.key;
+      final encoding = entry.value;
+      if (encoding.isNotEmpty) {
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateVibeReferenceV4(index, vibeEncoding: encoding);
+        AppLogger.d(
+          'Saved Vibe encoding for index $index (hash length: ${encoding.length})',
+          'Generation',
+        );
+      }
+    }
   }
 
   /// 使用流式 API 生成批次图像（支持预览）
@@ -464,7 +492,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           'Stream API returned no image, falling back to non-stream API',
           'Generation',
         );
-        final images = await _generateWithRetry(params);
+        final (images, vibeEncodings) = await _generateWithRetry(params);
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: images,
@@ -474,6 +502,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           totalImages: 0,
           clearStreamPreview: true,
         );
+        // 保存 Vibe 编码哈希到状态
+        if (vibeEncodings.isNotEmpty) {
+          _saveVibeEncodings(vibeEncodings);
+        }
       }
     } catch (e) {
       if (_isCancelled || e.toString().contains('cancelled')) {
@@ -639,7 +671,36 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       smeaDyn: storage.getLastSmeaDyn(),
       cfgRescale: storage.getLastCfgRescale(),
       noiseSchedule: storage.getLastNoiseSchedule(),
+      // 从存储加载种子锁定状态
+      seed: storage.getSeedLocked() && storage.getLockedSeedValue() != null
+          ? storage.getLockedSeedValue()!
+          : -1,
     );
+  }
+
+  // ==================== 种子锁定 ====================
+
+  /// 获取种子是否锁定
+  bool get isSeedLocked => _storage.getSeedLocked();
+
+  /// 切换种子锁定状态
+  void toggleSeedLock() {
+    final wasLocked = _storage.getSeedLocked();
+    final newLocked = !wasLocked;
+
+    if (newLocked) {
+      // 锁定：保存当前种子值（如果是-1则生成新种子）
+      final currentSeed = state.seed;
+      final seedToLock = currentSeed == -1 ? Random().nextInt(4294967295) : currentSeed;
+      _storage.setLockedSeedValue(seedToLock);
+      _storage.setSeedLocked(true);
+      state = state.copyWith(seed: seedToLock);
+    } else {
+      // 解锁：设为随机
+      _storage.setSeedLocked(false);
+      _storage.setLockedSeedValue(null);
+      state = state.copyWith(seed: -1);
+    }
   }
 
   /// 更新提示词
@@ -870,6 +931,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     int index, {
     double? strength,
     double? infoExtracted,
+    String? vibeEncoding, // 新增：编码哈希
   }) {
     if (index < 0 || index >= state.vibeReferencesV4.length) return;
     final newList = [...state.vibeReferencesV4];
@@ -877,6 +939,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     newList[index] = current.copyWith(
       strength: strength ?? current.strength,
       infoExtracted: infoExtracted ?? current.infoExtracted,
+      vibeEncoding: vibeEncoding ?? current.vibeEncoding,
     );
     state = state.copyWith(vibeReferencesV4: newList);
   }

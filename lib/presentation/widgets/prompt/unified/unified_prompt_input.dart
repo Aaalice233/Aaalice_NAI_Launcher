@@ -46,6 +46,9 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 视图模式变化回调
   final ValueChanged<PromptViewMode>? onViewModeChanged;
 
+  /// 提交回调（按 Enter 键时触发，不阻止 Shift+Enter 换行）
+  final ValueChanged<String>? onSubmitted;
+
   /// 最大行数（文本模式）
   final int? maxLines;
 
@@ -64,6 +67,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.onChanged,
     this.onTagsChanged,
     this.onViewModeChanged,
+    this.onSubmitted,
     this.maxLines,
     this.minLines,
     this.expands = false,
@@ -382,6 +386,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         minLines: widget.expands ? null : widget.minLines,
         expands: widget.expands,
         onChanged: _handleTextChanged,
+        onSubmitted: widget.onSubmitted,
         config: widget.config.autocompleteConfig,
         enableAutocomplete: !widget.config.readOnly,
         enableAutoFormat: widget.config.enableAutoFormat,
@@ -400,6 +405,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,
       onChanged: _handleTextChanged,
+      onSubmitted: widget.onSubmitted,
     );
   }
 

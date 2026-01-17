@@ -4,6 +4,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/tag_data_service.dart';
+import '../../core/utils/app_logger.dart';
+import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/tag_translation_service.dart';
 import 'prompt_config_provider.dart';
 
@@ -110,6 +112,19 @@ class WarmupNotifier extends _$WarmupNotifier {
             final configState = ref.read(promptConfigNotifierProvider);
             if (!configState.isLoading) break;
           }
+        },
+      ),
+    );
+
+    // 4. 初始化 Danbooru 认证状态（加载保存的凭据）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_danbooruAuth',
+        weight: 1,
+        task: () async {
+          // 触发 provider 初始化，会自动调用 build() 中的 _loadSavedCredentials()
+          ref.read(danbooruAuthProvider);
+          AppLogger.i('Danbooru auth provider initialized', 'Warmup');
         },
       ),
     );

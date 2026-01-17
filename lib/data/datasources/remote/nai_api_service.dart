@@ -204,8 +204,10 @@ class NAIApiService {
   /// [params] 图像生成参数
   /// [onProgress] 进度回调
   ///
-  /// 返回生成的图像字节数据列表
-  Future<List<Uint8List>> generateImage(
+  /// 返回 (图像列表, Vibe哈希映射)
+  /// - 图像列表：生成的图像字节数据
+  /// - Vibe哈希映射：key=vibeReferencesV4索引, value=编码哈希
+  Future<(List<Uint8List>, Map<int, String>)> generateImage(
     ImageParams params, {
     void Function(int, int)? onProgress,
   }) async {
@@ -225,6 +227,9 @@ class NAIApiService {
     _currentCancelToken = CancelToken();
 
     try {
+      // Vibe 编码哈希映射表（方法级变量，用于返回缓存哈希）
+      final vibeEncodingMap = <int, String>{};
+
       // 1. 处理种子
       // 0. 采样器版本映射
       final effectiveSampler = _mapSamplerForModel(params.sampler, params.model);
@@ -456,39 +461,33 @@ class NAIApiService {
         requestParameters['normalize_reference_strength_multiple'] =
             params.normalizeVibeStrength;
 
-        // 分离预编码和原始图片
-        final preEncodedVibes = params.vibeReferencesV4
-            .where(
-              (v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty,
-            )
-            .toList();
-        final rawImageVibes = params.vibeReferencesV4
-            .where(
-              (v) =>
-                  v.sourceType == VibeSourceType.rawImage &&
-                  v.rawImageData != null,
-            )
-            .toList();
-
         // 收集所有编码数据
         final allEncodings = <String>[];
         final allStrengths = <double>[];
         final allInfoExtracted = <double>[];
 
-        // 添加预编码的 vibe
-        for (final vibe in preEncodedVibes) {
-          allEncodings.add(vibe.vibeEncoding);
-          allStrengths.add(vibe.strength);
-          allInfoExtracted.add(vibe.infoExtracted);
-        }
+        // 遍历所有 vibe 参考，按索引处理
+        for (int i = 0; i < params.vibeReferencesV4.length; i++) {
+          final vibe = params.vibeReferencesV4[i];
 
-        // 自动编码原始图片（每张消耗 2 Anlas）
-        if (rawImageVibes.isNotEmpty) {
-          AppLogger.d(
-            'V4 Vibe: Encoding ${rawImageVibes.length} raw images (2 Anlas each)...',
-            'API',
-          );
-          for (final vibe in rawImageVibes) {
+          // 已预编码的数据直接使用
+          if (vibe.sourceType.isPreEncoded && vibe.vibeEncoding.isNotEmpty) {
+            allEncodings.add(vibe.vibeEncoding);
+            allStrengths.add(vibe.strength);
+            allInfoExtracted.add(vibe.infoExtracted);
+            vibeEncodingMap[i] = vibe.vibeEncoding;
+            AppLogger.d(
+              'V4 Vibe: Using pre-encoded vibe at index $i',
+              'API',
+            );
+          }
+          // 原始图片需要服务端编码（消耗 2 Anlas）
+          else if (vibe.sourceType == VibeSourceType.rawImage &&
+              vibe.rawImageData != null) {
+            AppLogger.d(
+              'V4 Vibe: Encoding rawImage at index $i (2 Anlas)...',
+              'API',
+            );
             try {
               final encoding = await encodeVibe(
                 vibe.rawImageData!,
@@ -499,15 +498,23 @@ class NAIApiService {
                 allEncodings.add(encoding);
                 allStrengths.add(vibe.strength);
                 allInfoExtracted.add(vibe.infoExtracted);
-                AppLogger.d('V4 Vibe: Encoded raw image successfully', 'API');
+                // 保存新编码的哈希到映射表（用于缓存）
+                vibeEncodingMap[i] = encoding;
+                AppLogger.d(
+                  'V4 Vibe: Encoded raw image at index $i successfully, hash length: ${encoding.length}',
+                  'API',
+                );
               } else {
                 AppLogger.w(
-                  'V4 Vibe: Failed to encode raw image (empty result)',
+                  'V4 Vibe: Failed to encode raw image at index $i (empty result)',
                   'API',
                 );
               }
             } catch (e) {
-              AppLogger.e('V4 Vibe: Failed to encode raw image: $e', 'API');
+              AppLogger.e(
+                'V4 Vibe: Failed to encode raw image at index $i: $e',
+                'API',
+              );
             }
           }
         }
@@ -520,7 +527,7 @@ class NAIApiService {
               allInfoExtracted;
 
           AppLogger.d(
-            'V4 Vibe Transfer: ${preEncodedVibes.length} pre-encoded + ${rawImageVibes.length} encoded = ${allEncodings.length} total vibes',
+            'V4 Vibe Transfer: ${vibeEncodingMap.length} vibes with encodings',
             'API',
           );
         }
@@ -675,18 +682,23 @@ class NAIApiService {
         throw Exception('No images found in response');
       }
 
-      return images;
+      // 返回图像和 Vibe 编码哈希映射
+      return (images, vibeEncodingMap);
     } finally {
       _currentCancelToken = null;
     }
   }
 
   /// 生成图像（可取消版本） - 保持向后兼容
+  ///
+  /// 注意: 此方法仅返回图像列表，不返回 Vibe 哈希映射
+  /// 如需获取 Vibe 哈希，请直接使用 generateImage()
   Future<List<Uint8List>> generateImageCancellable(
     ImageParams params, {
     void Function(int, int)? onProgress,
   }) async {
-    return generateImage(params, onProgress: onProgress);
+    final result = await generateImage(params, onProgress: onProgress);
+    return result.$1; // 返回图像列表部分
   }
 
   /// 取消当前生成

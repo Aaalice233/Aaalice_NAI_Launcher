@@ -207,6 +207,8 @@
   "generation_cfgScale": "CFG Scale: {scale}",
   "generation_seed": "种子",
   "generation_seedRandom": "随机",
+  "generation_seedLock": "固定种子",
+  "generation_seedUnlock": "解锁种子",
   "generation_advancedOptions": "高级选项",
   "generation_smea": "SMEA",
   "generation_smeaSubtitle": "改善大图像的生成质量",
@@ -587,6 +589,8 @@
 
   "tooltip_randomPrompt": "随机提示词 (长按配置)",
   "tooltip_fullscreenEdit": "全屏编辑",
+  "tooltip_maximizePrompt": "最大化提示词区域",
+  "tooltip_restoreLayout": "恢复正常布局",
   "tooltip_clear": "清空",
   "tooltip_promptSettings": "提示词设置",
   "tooltip_decreaseWeight": "减少权重 [-5%]",

@@ -294,53 +294,86 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
         // 种子
         _buildSectionTitle(theme, context.l10n.generation_seed),
         const SizedBox(height: 8),
-        ThemedInput(
-          controller: _seedController,
-          hintText: context.l10n.generation_seedRandom,
-          keyboardType: TextInputType.number,
-          onChanged: (value) {
-            // 清空输入框时自动变成随机 (-1)
-            final seed = value.isEmpty ? -1 : (int.tryParse(value) ?? -1);
-            if (seed != params.seed) {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updateSeed(seed);
-            }
-          },
-          suffixIcon: params.seed == -1
-              ? null
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 复制按钮
-                    _SeedIconButton(
-                      icon: Icons.copy_rounded,
-                      tooltip: context.l10n.common_copy,
-                      onPressed: () {
-                        Clipboard.setData(
-                          ClipboardData(text: params.seed.toString()),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(context.l10n.common_copied),
-                            duration: const Duration(seconds: 1),
+        Row(
+          children: [
+            Expanded(
+              child: ThemedInput(
+                controller: _seedController,
+                hintText: context.l10n.generation_seedRandom,
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  // 清空输入框时自动变成随机 (-1)
+                  final seed = value.isEmpty ? -1 : (int.tryParse(value) ?? -1);
+                  if (seed != params.seed) {
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updateSeed(seed);
+                  }
+                },
+                suffixIcon: params.seed == -1
+                    ? null
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 复制按钮
+                          _SeedIconButton(
+                            icon: Icons.copy_rounded,
+                            tooltip: context.l10n.common_copy,
+                            onPressed: () {
+                              Clipboard.setData(
+                                ClipboardData(text: params.seed.toString()),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(context.l10n.common_copied),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
-                    // 清空按钮
-                    _SeedIconButton(
-                      icon: Icons.clear_rounded,
-                      tooltip: context.l10n.common_clear,
-                      onPressed: () {
-                        ref
-                            .read(generationParamsNotifierProvider.notifier)
-                            .updateSeed(-1);
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                  ],
+                          // 清空按钮
+                          _SeedIconButton(
+                            icon: Icons.clear_rounded,
+                            tooltip: context.l10n.common_clear,
+                            onPressed: () {
+                              ref
+                                  .read(generationParamsNotifierProvider.notifier)
+                                  .updateSeed(-1);
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 种子锁定按钮
+            IconButton(
+              icon: Icon(
+                ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                    ? Icons.lock
+                    : Icons.lock_open,
+                size: 20,
+              ),
+              onPressed: () {
+                ref.read(generationParamsNotifierProvider.notifier).toggleSeedLock();
+                // 更新输入框显示
+                final newSeed = ref.read(generationParamsNotifierProvider).seed;
+                _seedController.text = newSeed == -1 ? '' : newSeed.toString();
+              },
+              tooltip: ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                  ? context.l10n.generation_seedUnlock
+                  : context.l10n.generation_seedLock,
+              style: IconButton.styleFrom(
+                backgroundColor: ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                    ? theme.colorScheme.primary.withOpacity(0.15)
+                    : theme.colorScheme.surfaceContainerHighest,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
+              ),
+            ),
+          ],
         ),
 
         const SizedBox(height: 16),

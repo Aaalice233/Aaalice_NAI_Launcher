@@ -21,6 +21,15 @@ class StorageKeys {
   static const String themeType = 'theme_type';
   static const String fontFamily = 'font_family';
   static const String locale = 'locale';
+  
+  // Window State Keys (窗口状态)
+  static const String windowWidth = 'window_width';
+  static const String windowHeight = 'window_height';
+  static const String windowX = 'window_x';
+  static const String windowY = 'window_y';
+  
+  // Panel Width Keys (面板宽度)
+  static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';
   static const String defaultSampler = 'default_sampler';
   static const String defaultSteps = 'default_steps';
@@ -38,6 +47,10 @@ class StorageKeys {
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
   static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';
+  
+  // Seed Lock Keys (种子锁定相关)
+  static const String seedLocked = 'seed_locked';
+  static const String lockedSeedValue = 'locked_seed_value';
 
   // Last Generation Params Keys (持久化上次使用的参数)
   static const String lastPrompt = 'last_prompt';

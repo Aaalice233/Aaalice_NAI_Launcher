@@ -237,6 +237,8 @@
   },
   "generation_seed": "Seed",
   "generation_seedRandom": "Random",
+  "generation_seedLock": "Lock Seed",
+  "generation_seedUnlock": "Unlock Seed",
   "generation_advancedOptions": "Advanced Options",
   "generation_smea": "SMEA",
   "generation_smeaSubtitle": "Improve generation quality for large images",
@@ -816,6 +818,8 @@
 
   "tooltip_randomPrompt": "Random Prompt (long press to configure)",
   "tooltip_fullscreenEdit": "Fullscreen Edit",
+  "tooltip_maximizePrompt": "Maximize Prompt Area",
+  "tooltip_restoreLayout": "Restore Layout",
   "tooltip_clear": "Clear",
   "tooltip_promptSettings": "Prompt Settings",
   "tooltip_decreaseWeight": "Decrease Weight [-5%]",

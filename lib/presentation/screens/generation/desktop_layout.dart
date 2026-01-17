@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 
+import '../../../core/constants/storage_keys.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/cost_estimate_provider.dart';
@@ -43,6 +46,30 @@ class _DesktopGenerationLayoutState
   static const double _promptAreaMinHeight = 100;
   static const double _promptAreaMaxHeight = 500;
 
+  // 提示词最大化状态
+  bool _isPromptMaximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 从 Hive 恢复历史面板宽度
+    final box = Hive.box(StorageKeys.settingsBox);
+    final savedWidth = box.get(
+      StorageKeys.historyPanelWidth,
+      defaultValue: 280.0,
+    ) as double;
+    _rightPanelWidth = savedWidth;
+    AppLogger.d('History panel width restored: $savedWidth', 'DesktopLayout');
+  }
+
+  /// 切换提示词区域最大化状态
+  void _togglePromptMaximize() {
+    setState(() {
+      _isPromptMaximized = !_isPromptMaximized;
+    });
+    AppLogger.d('Prompt area maximized: $_isPromptMaximized', 'DesktopLayout');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -68,25 +95,42 @@ class _DesktopGenerationLayoutState
         Expanded(
           child: Column(
             children: [
-              // 顶部 Prompt 输入区
-              SizedBox(
-                height: _promptAreaHeight,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withOpacity(0.5),
-                  ),
-                  child: const PromptInputWidget(),
+              // 顶部 Prompt 输入区（最大化时占满空间）
+              _isPromptMaximized
+                  ? Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withOpacity(0.5),
+                        ),
+                        child: PromptInputWidget(
+                          onToggleMaximize: _togglePromptMaximize,
+                          isMaximized: _isPromptMaximized,
+                        ),
+                      ),
+                    )
+                  : SizedBox(
+                      height: _promptAreaHeight,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withOpacity(0.5),
+                        ),
+                        child: PromptInputWidget(
+                          onToggleMaximize: _togglePromptMaximize,
+                          isMaximized: _isPromptMaximized,
+                        ),
+                      ),
+                    ),
+
+              // 提示词区域拖拽分隔条（最大化时隐藏）
+              if (!_isPromptMaximized) _buildVerticalResizeHandle(theme),
+
+              // 中间图像预览区（最大化时隐藏）
+              if (!_isPromptMaximized)
+                const Expanded(
+                  child: ImagePreviewWidget(),
                 ),
-              ),
-
-              // 提示词区域拖拽分隔条
-              _buildVerticalResizeHandle(theme),
-
-              // 中间图像预览区
-              const Expanded(
-                child: ImagePreviewWidget(),
-              ),
 
               // 底部生成控制区
               Container(
@@ -115,6 +159,13 @@ class _DesktopGenerationLayoutState
                 _rightPanelWidth = (_rightPanelWidth - dx)
                     .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
               });
+              // 立即保存到 Hive
+              final box = Hive.box(StorageKeys.settingsBox);
+              box.put(StorageKeys.historyPanelWidth, _rightPanelWidth);
+              AppLogger.d(
+                'History panel width saved: $_rightPanelWidth',
+                'DesktopLayout',
+              );
             },
           ),
 
