@@ -67,4 +67,7 @@ class StorageKeys {
 
   // Tag Cache Keys (标签缓存相关)
   static const String tagCacheData = 'tag_cache_data';
+
+  // Local Gallery Keys (本地画廊相关)
+  static const String hasSeenLocalGalleryTip = 'has_seen_local_gallery_tip';
 }

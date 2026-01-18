@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/multi_character_parser.dart';
 import '../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../../providers/character_prompt_provider.dart';
@@ -48,6 +49,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   // 正面/负面切换
   bool _isNegativeMode = false;
+
+  // 多角色导入循环防护
+  bool _isProcessingImport = false;
 
   @override
   void initState() {
@@ -538,6 +542,57 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         .updateNegativePrompt('');
   }
 
+  /// 处理提示词变化（包含多角色解析）
+  void _onPromptChanged(String value) async {
+    // 循环防护
+    if (_isProcessingImport) return;
+
+    // 检查是否包含多角色分隔符
+    if (RegExp(r'\n\s*\|\s*').hasMatch(value)) {
+      setState(() => _isProcessingImport = true);
+      
+      try {
+        final result = MultiCharacterParser.parse(value);
+        
+        if (result.hasMultipleCharacters) {
+          // 更新全局提示词
+          _promptController.text = result.globalPrompt;
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updatePrompt(result.globalPrompt);
+          
+          // 替换角色列表
+          ref
+              .read(characterPromptNotifierProvider.notifier)
+              .replaceAll(result.characters);
+          
+          // 显示成功提示
+          if (mounted) {
+            AppToast.success(
+              context,
+              context.l10n.prompt_importedCharacters(result.characters.length),
+            );
+          }
+          
+          // 确保 UI 刷新后再解除防护
+          await Future.delayed(Duration.zero);
+        }
+      } catch (e) {
+        if (mounted) {
+          AppToast.error(context, 'Failed to parse: $e');
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isProcessingImport = false);
+        }
+      }
+      return;
+    }
+    
+    // 常规单提示词更新
+    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
+  }
+
   Widget _buildTextPromptInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
@@ -566,9 +621,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       maxLines: null,
       expands: true,
-      onChanged: (value) {
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
-      },
+      onChanged: _onPromptChanged,
     );
   }
 

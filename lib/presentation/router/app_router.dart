@@ -9,6 +9,7 @@ import '../providers/download_progress_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
+import '../screens/local_gallery/local_gallery_screen.dart';
 import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -24,6 +25,7 @@ class AppRoutes {
   static const String home = '/';
   static const String generation = '/generation';
   static const String gallery = '/gallery';
+  static const String localGallery = '/local-gallery';
   static const String onlineGallery = '/online-gallery';
   static const String settings = '/settings';
   static const String promptConfig = '/prompt-config';
@@ -102,6 +104,13 @@ GoRouter appRouter(Ref ref) {
             path: AppRoutes.gallery,
             name: 'gallery',
             builder: (context, state) => const GalleryScreen(),
+          ),
+
+          // 本地画廊（App生成的图片）
+          GoRoute(
+            path: AppRoutes.localGallery,
+            name: 'localGallery',
+            builder: (context, state) => const LocalGalleryScreen(),
           ),
 
           // 画廊页（在线图站浏览）

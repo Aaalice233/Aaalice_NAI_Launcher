@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   emoji_picker_flutter
   flutter_secure_storage_windows
   irondash_engine_context
+  permission_handler_windows
   screen_retriever
   share_plus
   super_native_extensions

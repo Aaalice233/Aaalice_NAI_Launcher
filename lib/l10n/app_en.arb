@@ -313,6 +313,14 @@
       "count": {}
     }
   },
+  "prompt_importedCharacters": "Imported {count} character(s)",
+  "@prompt_importedCharacters": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "prompt_editPrompt": "Edit Prompt",
   "prompt_inputPrompt": "Enter prompt...",
   "prompt_inputNegativePrompt": "Enter negative prompt...",

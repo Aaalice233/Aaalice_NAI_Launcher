@@ -231,6 +231,14 @@
   "prompt_positivePrompt": "正向提示词",
   "prompt_negativePrompt": "负向提示词",
   "prompt_tags": "{count} 个标签",
+  "prompt_importedCharacters": "已导入 {count} 个角色",
+  "@prompt_importedCharacters": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "prompt_editPrompt": "编辑提示词",
   "prompt_inputPrompt": "输入提示词...",
   "prompt_inputNegativePrompt": "输入负向提示词...",

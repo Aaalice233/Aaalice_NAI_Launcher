@@ -21,10 +21,10 @@ class MainNavRail extends ConsumerWidget {
     final location = GoRouterState.of(context).matchedLocation;
 
     int selectedIndex = 0;
-    if (location == AppRoutes.gallery) selectedIndex = 1;
-    if (location == AppRoutes.promptConfig) selectedIndex = 2;
-    if (location == AppRoutes.onlineGallery) selectedIndex = 3;
-    if (location == AppRoutes.settings) selectedIndex = 5;
+    if (location == AppRoutes.localGallery) selectedIndex = 1;
+    if (location == AppRoutes.onlineGallery) selectedIndex = 2;
+    if (location == AppRoutes.promptConfig) selectedIndex = 3;
+    if (location == AppRoutes.settings) selectedIndex = 4;
 
     return Container(
       width: 60,
@@ -51,19 +51,20 @@ class MainNavRail extends ConsumerWidget {
             isSelected: selectedIndex == 0,
             onTap: () => context.go(AppRoutes.home),
           ),
+
+          // 本地画廊（App生成的图片）
           _NavIcon(
-            icon: Icons.image, // Local Gallery
-            label: context.l10n.nav_gallery,
+            icon: Icons.folder, // Local Generated Images
+            label: '本地画廊',
             isSelected: selectedIndex == 1,
-            onTap: () => context.go(AppRoutes.gallery),
-            isDisabled: true, // 功能开发中
+            onTap: () => context.go(AppRoutes.localGallery),
           ),
 
           // 在线画廊
           _NavIcon(
             icon: Icons.photo_library, // Online Gallery
             label: context.l10n.nav_onlineGallery,
-            isSelected: selectedIndex == 3,
+            isSelected: selectedIndex == 2,
             onTap: () => context.go(AppRoutes.onlineGallery),
           ),
 
@@ -71,7 +72,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.casino, // Random prompt config
             label: context.l10n.nav_randomConfig,
-            isSelected: selectedIndex == 2,
+            isSelected: selectedIndex == 3,
             onTap: () => context.go(AppRoutes.promptConfig),
           ),
 
@@ -103,7 +104,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.settings,
             label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 5,
+            isSelected: selectedIndex == 4,
             onTap: () => context.go(AppRoutes.settings),
           ),
           const SizedBox(height: 16),

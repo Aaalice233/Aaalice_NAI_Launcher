@@ -138,9 +138,9 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// 检查已存储的认证状态
   Future<void> _checkExistingAuth() async {
-    // 0. 检查自动登录设置
+    // 0. 检查自动登录设置（默认启用，确保重启后自动恢复登录）
     final prefs = await SharedPreferences.getInstance();
-    final autoLogin = prefs.getBool('auto_login') ?? false;
+    final autoLogin = prefs.getBool('auto_login') ?? true; // 改为默认 true
 
     if (!autoLogin) {
       state = const AuthState(status: AuthStatus.unauthenticated);

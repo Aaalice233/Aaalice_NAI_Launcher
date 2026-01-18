@@ -5,6 +5,8 @@ import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'dart:io';
 
+import 'package:timeago/timeago.dart' as timeago;
+
 import 'core/constants/storage_keys.dart';
 import 'core/network/system_proxy_http_overrides.dart';
 import 'core/network/windows_proxy_helper.dart';
@@ -102,6 +104,10 @@ void main() async {
   await Hive.openBox(StorageKeys.historyBox);
   await Hive.openBox(StorageKeys.tagCacheBox);
   await Hive.openBox(StorageKeys.galleryBox);
+
+  // Timeago 本地化配置
+  timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
+  timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
 
   // 后台预加载 NAI 标签数据（不阻塞启动）
   final container = ProviderContainer();

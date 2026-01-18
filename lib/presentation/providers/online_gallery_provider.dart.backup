@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show compute;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
@@ -8,40 +7,6 @@ import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/services/danbooru_auth_service.dart';
 
 part 'online_gallery_provider.g.dart';
-
-/// 顶级函数：在 Isolate 中解析帖子数据 (用于 compute)
-/// 
-/// 避免主线程阻塞，提升 UI 流畅度
-List<DanbooruPost> parsePostsInIsolate(Map<String, dynamic> data) {
-  final rawList = data['rawList'] as List;
-  final source = data['source'] as String;
-
-  return rawList.map((item) {
-    final json = item as Map<String, dynamic>;
-    
-    // Gelbooru 需要特殊字段映射
-    if (source == 'gelbooru') {
-      return DanbooruPost(
-        id: json['id'] as int? ?? 0,
-        score: json['score'] as int? ?? 0,
-        source: json['source'] as String? ?? '',
-        md5: json['md5'] as String? ?? '',
-        rating: json['rating'] as String? ?? 'g',
-        width: json['width'] as int? ?? 0,
-        height: json['height'] as int? ?? 0,
-        tagString: json['tags'] as String? ?? '',
-        fileExt: json['image']?.toString().split('.').last ?? 'jpg',
-        fileUrl: json['file_url'] as String?,
-        previewFileUrl: json['preview_url'] as String?,
-        largeFileUrl: json['sample_url'] as String?,
-      );
-    }
-    
-    // Danbooru/Safebooru 使用标准字段
-    return DanbooruPost.fromJson(json);
-  }).where((post) => post.previewUrl.isNotEmpty).toList();
-}
-
 
 /// 画廊视图模式
 enum GalleryViewMode {
@@ -497,12 +462,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
     if (response.data is List) {
       final rawList = response.data as List;
-      
-      // 使用 compute 在独立 Isolate 中解析，避免主线程阻塞 UI
-      final List<DanbooruPost> posts = await compute(
-        parsePostsInIsolate,
-        {'rawList': rawList, 'source': source},
-      );
+      final List<DanbooruPost> posts = rawList
+          .map((item) => _parsePost(source, item as Map<String, dynamic>))
+          .where((post) => post.previewUrl.isNotEmpty)
+          .toList();
 
       AppLogger.d(
         'Fetched ${rawList.length} raw posts, ${posts.length} after filter',
@@ -538,4 +501,29 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
   }
 
+  /// 解析帖子数据
+  DanbooruPost _parsePost(String source, Map<String, dynamic> json) {
+    if (source == 'gelbooru') {
+      return _parseGelbooruPost(json);
+    }
+    return DanbooruPost.fromJson(json);
+  }
+
+  /// 解析 Gelbooru 帖子
+  DanbooruPost _parseGelbooruPost(Map<String, dynamic> json) {
+    return DanbooruPost(
+      id: json['id'] as int? ?? 0,
+      score: json['score'] as int? ?? 0,
+      source: json['source'] as String? ?? '',
+      md5: json['md5'] as String? ?? '',
+      rating: json['rating'] as String? ?? 'g',
+      width: json['width'] as int? ?? 0,
+      height: json['height'] as int? ?? 0,
+      tagString: json['tags'] as String? ?? '',
+      fileExt: json['image']?.toString().split('.').last ?? 'jpg',
+      fileUrl: json['file_url'] as String?,
+      previewFileUrl: json['preview_url'] as String?,
+      largeFileUrl: json['sample_url'] as String?,
+    );
+  }
 }

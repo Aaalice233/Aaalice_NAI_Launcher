@@ -34,9 +34,28 @@ class GalleryRepository {
   /// 初始化
   Future<void> init() async {
     try {
-      // 初始化图像目录
-      final appDir = await getApplicationDocumentsDirectory();
-      _imageDir = Directory('${appDir.path}/nai_launcher/images');
+      // 初始化图像目录（优先使用用户设置的自定义路径）
+      // 从 Hive 读取，与 LocalStorageService 保持一致
+      final settingsBox = Hive.box(StorageKeys.settingsBox);
+      final customPath = settingsBox.get(StorageKeys.imageSavePath) as String?;
+
+      if (customPath != null && customPath.isNotEmpty) {
+        // 使用用户设置的自定义路径
+        _imageDir = Directory(customPath);
+        AppLogger.i(
+          'Using custom save path: ${_imageDir!.path}',
+          'Gallery',
+        );
+      } else {
+        // 使用默认路径：App 文档目录下的 nai_launcher/images
+        final appDir = await getApplicationDocumentsDirectory();
+        _imageDir = Directory('${appDir.path}/nai_launcher/images');
+        AppLogger.i(
+          'Using default save path: ${_imageDir!.path}',
+          'Gallery',
+        );
+      }
+
       if (!await _imageDir!.exists()) {
         await _imageDir!.create(recursive: true);
       }
