@@ -12,7 +12,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/models/queue/replication_task.dart';
 import '../../providers/local_gallery_provider.dart';
+import '../../providers/replication_queue_provider.dart';
+import '../../providers/selection_mode_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/local_image_card.dart';
 
@@ -51,6 +54,45 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
     });
+  }
+
+  /// 批量加入队列
+  Future<void> _addSelectedToQueue() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+    
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+        
+    if (selectedImages.isEmpty) return;
+
+    final tasks = selectedImages
+        .where((img) => img.metadata?.prompt.isNotEmpty == true)
+        .map((img) => ReplicationTask.create(
+              prompt: img.metadata!.prompt,
+              thumbnailUrl: img.path, // 本地路径
+              source: ReplicationTaskSource.local,
+            ))
+        .toList();
+
+    if (tasks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('选中的图片没有 Prompt 信息')),
+      );
+      return;
+    }
+
+    final addedCount = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .addAll(tasks);
+        
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
+      );
+      ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    }
   }
 
   /// 检查权限并扫描图片
@@ -222,6 +264,44 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   
   /// 构建顶部工具栏
   Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
+    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+
+    if (selectionState.isActive) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          border: Border(
+            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+          ),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
+              tooltip: '退出多选',
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '已选择 ${selectionState.selectedIds.length} 项',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.playlist_add),
+              onPressed: selectionState.selectedIds.isNotEmpty ? _addSelectedToQueue : null,
+              tooltip: '加入队列',
+            ),
+            // 本地画廊不需要批量下载和收藏
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
@@ -261,6 +341,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                   ),
                 ),
               const Spacer(),
+              // 多选模式切换
+              IconButton(
+                icon: const Icon(Icons.checklist),
+                tooltip: '多选模式',
+                onPressed: () {
+                  ref.read(localGallerySelectionNotifierProvider.notifier).enter();
+                },
+              ),
+              const SizedBox(width: 8),
               // 打开文件夹按钮
               TextButton.icon(
                 onPressed: _openImageFolder,
@@ -564,10 +653,26 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       mainAxisSpacing: 4,
       crossAxisSpacing: 4,
       itemCount: state.currentImages.length,
-      itemBuilder: (c, i) => LocalImageCard(
-        record: state.currentImages[i],
-        itemWidth: itemWidth,
-      ),
+      itemBuilder: (c, i) {
+        final record = state.currentImages[i];
+        final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+        final isSelected = selectionState.selectedIds.contains(record.path);
+        
+        return LocalImageCard(
+          record: record,
+          itemWidth: itemWidth,
+          selectionMode: selectionState.isActive,
+          isSelected: isSelected,
+          onSelectionToggle: () {
+            ref.read(localGallerySelectionNotifierProvider.notifier).toggle(record.path);
+          },
+          onLongPress: () {
+            if (!selectionState.isActive) {
+              ref.read(localGallerySelectionNotifierProvider.notifier).enterAndSelect(record.path);
+            }
+          },
+        );
+      },
     );
   }
 }

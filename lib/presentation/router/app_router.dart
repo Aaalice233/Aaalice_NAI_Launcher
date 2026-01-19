@@ -14,6 +14,8 @@ import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
+import '../widgets/queue/replication_queue_bar.dart';
+import '../providers/replication_queue_provider.dart';
 
 part 'app_router.g.dart';
 
@@ -299,7 +301,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 }
 
 /// 桌面端布局
-class DesktopShell extends StatelessWidget {
+class DesktopShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   final Widget content;
 
@@ -310,7 +312,13 @@ class DesktopShell extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentIndex = navigationShell.currentIndex;
+    // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
+    final showQueueBar = currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
+    final queueState = ref.watch(replicationQueueNotifierProvider);
+    final hasQueueItems = !queueState.isEmpty;
+
     return Scaffold(
       body: Row(
         children: [
@@ -318,7 +326,21 @@ class DesktopShell extends StatelessWidget {
           MainNavRail(navigationShell: navigationShell),
 
           // 主内容区
-          Expanded(child: content),
+          Expanded(
+            child: Stack(
+              children: [
+                content,
+                // 队列悬浮栏（仅在特定 Tab 且有队列项时显示）
+                if (showQueueBar && hasQueueItems)
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: ReplicationQueueBar(),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -326,7 +348,7 @@ class DesktopShell extends StatelessWidget {
 }
 
 /// 移动端布局
-class MobileShell extends StatelessWidget {
+class MobileShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   final Widget content;
 
@@ -337,9 +359,28 @@ class MobileShell extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentIndex = navigationShell.currentIndex;
+    // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
+    final showQueueBar = currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
+    final queueState = ref.watch(replicationQueueNotifierProvider);
+    final hasQueueItems = !queueState.isEmpty;
+
     return Scaffold(
-      body: content,
+      body: Stack(
+        children: [
+          content,
+          // 队列悬浮栏（仅在特定 Tab 且有队列项时显示）
+          // 底部导航栏高度约 80px
+          if (showQueueBar && hasQueueItems)
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 80,
+              child: ReplicationQueueBar(),
+            ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _getSelectedIndex(),
         onDestinationSelected: (index) => _onNavigate(index),

@@ -19,6 +19,7 @@ import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/prompt/unified/unified_prompt_config.dart';
 import '../../../widgets/character/character_prompt_button.dart';
+import '../../../providers/pending_prompt_provider.dart';
 
 /// Prompt 输入组件 (带自动补全和标签视图)
 class PromptInputWidget extends ConsumerStatefulWidget {
@@ -68,6 +69,43 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 初始化标签列表
     _promptTags = NaiPromptParser.parse(params.prompt);
     _negativeTags = NaiPromptParser.parse(params.negativePrompt);
+
+    // 检查并消费待填充提示词（从画廊发送）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumePendingPrompt();
+    });
+  }
+
+  /// 消费待填充提示词（从画廊发送）
+  void _consumePendingPrompt() {
+    final pendingState = ref.read(pendingPromptNotifierProvider);
+    if (pendingState.prompt != null || pendingState.negativePrompt != null) {
+      // 消费待填充提示词
+      final consumed =
+          ref.read(pendingPromptNotifierProvider.notifier).consume();
+
+      // 填充正向提示词
+      if (consumed.prompt != null && consumed.prompt!.isNotEmpty) {
+        _promptController.text = consumed.prompt!;
+        _promptTags = NaiPromptParser.parse(consumed.prompt!);
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updatePrompt(consumed.prompt!);
+      }
+
+      // 填充负向提示词
+      if (consumed.negativePrompt != null &&
+          consumed.negativePrompt!.isNotEmpty) {
+        _negativeController.text = consumed.negativePrompt!;
+        _negativeTags = NaiPromptParser.parse(consumed.negativePrompt!);
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNegativePrompt(consumed.negativePrompt!);
+      }
+
+      // 触发 UI 更新
+      if (mounted) setState(() {});
+    }
   }
 
   @override

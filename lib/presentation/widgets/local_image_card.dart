@@ -15,11 +15,19 @@ import 'common/app_toast.dart';
 class LocalImageCard extends StatefulWidget {
   final LocalImageRecord record;
   final double itemWidth;
+  final bool selectionMode;
+  final bool isSelected;
+  final VoidCallback? onSelectionToggle;
+  final VoidCallback? onLongPress;
 
   const LocalImageCard({
     super.key,
     required this.record,
     required this.itemWidth,
+    this.selectionMode = false,
+    this.isSelected = false,
+    this.onSelectionToggle,
+    this.onLongPress,
   });
 
   @override
@@ -564,21 +572,35 @@ class _LocalImageCardState extends State<LocalImageCard> {
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
-        // 点击查看详情
+        // 点击
         onTap: () {
-          _showDetailsDialog();
+          if (widget.selectionMode) {
+            widget.onSelectionToggle?.call();
+          } else {
+            _showDetailsDialog();
+          }
         },
 
         // 桌面端：右键菜单
         onSecondaryTapDown: (details) {
-          _showContextMenu(details.globalPosition);
+          if (!widget.selectionMode) {
+            _showContextMenu(details.globalPosition);
+          }
         },
 
-        // 移动端：长按菜单（500ms 阈值）
+        // 移动端：长按
         onLongPressStart: (details) {
-          _longPressTimer = Timer(const Duration(milliseconds: 500), () {
-            _showContextMenu(details.globalPosition);
-          });
+          if (!widget.selectionMode) {
+            _longPressTimer = Timer(const Duration(milliseconds: 500), () {
+              // 如果提供了 onLongPress 回调（进入多选），则执行它
+              // 否则显示上下文菜单
+              if (widget.onLongPress != null) {
+                widget.onLongPress!();
+              } else {
+                _showContextMenu(details.globalPosition);
+              }
+            });
+          }
         },
         onLongPressEnd: (details) {
           _longPressTimer?.cancel();
@@ -589,6 +611,12 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
         child: Card(
           clipBehavior: Clip.antiAlias,
+          shape: widget.isSelected
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 3),
+                )
+              : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -609,71 +637,107 @@ class _LocalImageCardState extends State<LocalImageCard> {
                       );
                     },
                   ),
-                  Positioned.fill(
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: _isHovering ? 1.0 : 0.0,
+                  // Selection Overlay
+                  if (widget.selectionMode && widget.isSelected)
+                    Positioned.fill(
                       child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.transparent, Colors.black87],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      ),
+                    ),
+                  // Checkbox
+                  if (widget.selectionMode)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.isSelected 
+                              ? Theme.of(context).colorScheme.primary 
+                              : Colors.black.withOpacity(0.4),
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
                           ),
                         ),
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              path.basename(widget.record.path),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.check,
+                            size: 16,
+                            color: widget.isSelected 
+                                ? Theme.of(context).colorScheme.onPrimary 
+                                : Colors.transparent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (!widget.selectionMode)
+                    Positioned.fill(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: _isHovering ? 1.0 : 0.0,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.transparent, Colors.black87],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
                             ),
-                            Row(
-                              children: [
-                                Text(
-                                  timeago.format(
-                                    widget.record.modifiedAt,
-                                    locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en',
-                                  ),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                  ),
+                          ),
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                path.basename(widget.record.path),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                if (metadata?.seed != null) ...[
-                                  const SizedBox(width: 8),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Row(
+                                children: [
                                   Text(
-                                    'Seed: ${metadata!.seed}',
+                                    timeago.format(
+                                      widget.record.modifiedAt,
+                                      locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en',
+                                    ),
                                     style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 10,
                                     ),
                                   ),
+                                  if (metadata?.seed != null) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Seed: ${metadata!.seed}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                            if (metadata?.prompt.isNotEmpty == true)
-                              Text(
-                                metadata!.prompt,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                          ],
+                              if (metadata?.prompt.isNotEmpty == true)
+                                Text(
+                                  metadata!.prompt,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ],

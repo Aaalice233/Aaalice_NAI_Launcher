@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/constants/storage_keys.dart';
 import '../../providers/image_save_settings_provider.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -115,6 +117,11 @@ class SettingsScreen extends ConsumerWidget {
                   .setAutoSave(value);
             },
           ),
+          const Divider(),
+
+          // 队列设置
+          _buildSectionHeader(theme, '队列'),
+          _buildQueueSettings(context, ref),
           const Divider(),
 
           // 关于
@@ -456,5 +463,93 @@ class SettingsScreen extends ConsumerWidget {
   void _navigateToLogin(BuildContext context) {
     // TODO: 实现登录导航
     AppToast.info(context, '请前往登录页面');
+  }
+
+  /// 构建队列设置
+  Widget _buildQueueSettings(BuildContext context, WidgetRef ref) {
+    final storage = ref.watch(localStorageServiceProvider);
+    final retryCount = storage.getSetting<int>(
+      StorageKeys.queueRetryCount,
+      defaultValue: 10,
+    ) ?? 10;
+    final retryInterval = storage.getSetting<double>(
+      StorageKeys.queueRetryInterval,
+      defaultValue: 1.0,
+    ) ?? 1.0;
+
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.replay_outlined),
+          title: const Text('重试次数'),
+          subtitle: Text('生成失败时最多重试 $retryCount 次'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline),
+                onPressed: retryCount > 1
+                    ? () async {
+                        await storage.setSetting(
+                          StorageKeys.queueRetryCount,
+                          retryCount - 1,
+                        );
+                        ref.invalidate(localStorageServiceProvider);
+                      }
+                    : null,
+              ),
+              Text('$retryCount'),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                onPressed: retryCount < 30
+                    ? () async {
+                        await storage.setSetting(
+                          StorageKeys.queueRetryCount,
+                          retryCount + 1,
+                        );
+                        ref.invalidate(localStorageServiceProvider);
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.timer_outlined),
+          title: const Text('重试间隔'),
+          subtitle: Text('每次重试间隔 ${retryInterval.toStringAsFixed(1)} 秒'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline),
+                onPressed: retryInterval > 0.5
+                    ? () async {
+                        await storage.setSetting(
+                          StorageKeys.queueRetryInterval,
+                          retryInterval - 0.5,
+                        );
+                        ref.invalidate(localStorageServiceProvider);
+                      }
+                    : null,
+              ),
+              Text('${retryInterval.toStringAsFixed(1)}s'),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                onPressed: retryInterval < 10.0
+                    ? () async {
+                        await storage.setSetting(
+                          StorageKeys.queueRetryInterval,
+                          retryInterval + 0.5,
+                        );
+                        ref.invalidate(localStorageServiceProvider);
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

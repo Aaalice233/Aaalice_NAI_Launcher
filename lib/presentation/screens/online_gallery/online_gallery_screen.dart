@@ -1,19 +1,26 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/cache/danbooru_image_cache_manager.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/tag_translation_service.dart';
 import '../../providers/online_gallery_provider.dart';
+import '../../providers/replication_queue_provider.dart';
+import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
+import '../../widgets/online_gallery/post_detail_dialog.dart';
 import '../../widgets/tag_chip.dart';
 
 /// 在线画廊页面
@@ -308,6 +315,53 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildToolbar(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
+    final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
+
+    if (selectionState.isActive) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          border: Border(
+            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+          ),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => ref.read(onlineGallerySelectionNotifierProvider.notifier).exit(),
+              tooltip: '退出多选',
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '已选择 ${selectionState.selectedIds.length} 项',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.playlist_add),
+              onPressed: selectionState.selectedIds.isNotEmpty ? _addSelectedToQueue : null,
+              tooltip: '加入队列',
+            ),
+            IconButton(
+              icon: const Icon(Icons.favorite_border),
+              onPressed: selectionState.selectedIds.isNotEmpty ? _favoriteSelected : null,
+              tooltip: '批量收藏',
+            ),
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: selectionState.selectedIds.isNotEmpty ? _downloadSelected : null,
+              tooltip: '批量下载',
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
@@ -482,6 +536,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             visualDensity: VisualDensity.compact,
           ),
+        ),
+        const SizedBox(width: 8),
+        // 多选模式切换
+        IconButton(
+          icon: const Icon(Icons.checklist),
+          tooltip: '多选模式',
+          onPressed: () {
+            ref.read(onlineGallerySelectionNotifierProvider.notifier).enter();
+          },
         ),
         const SizedBox(width: 8),
         // 用户
@@ -777,6 +840,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
         final post = state.posts[index];
         final isFavorited = state.favoritedPostIds.contains(post.id);
+        final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
+        final isSelected = selectionState.selectedIds.contains(post.id.toString());
+        final canSelect = post.tags.isNotEmpty;
 
         // 智能预加载：提前缓存后续 10 张图片
         _prefetchImages(state, index);
@@ -785,7 +851,18 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           post: post,
           itemWidth: itemWidth,
           isFavorited: isFavorited,
+          selectionMode: selectionState.isActive,
+          isSelected: isSelected,
+          canSelect: canSelect,
           onTap: () => _showPostDetail(context, post),
+          onSelectionToggle: () {
+            ref.read(onlineGallerySelectionNotifierProvider.notifier).toggle(post.id.toString());
+          },
+          onLongPress: () {
+            if (!selectionState.isActive) {
+              ref.read(onlineGallerySelectionNotifierProvider.notifier).enterAndSelect(post.id.toString());
+            }
+          },
           onTagTap: (tag) {
             _searchController.text = tag;
             ref.read(onlineGalleryNotifierProvider.notifier).search(tag);
@@ -821,17 +898,139 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   void _showPostDetail(BuildContext context, DanbooruPost post) {
-    showDialog(
-      context: context,
-      builder: (context) => _PostDetailDialog(
-        post: post,
-        onTagTap: (tag) {
-          Navigator.pop(context);
-          _searchController.text = tag;
-          ref.read(onlineGalleryNotifierProvider.notifier).search(tag);
-        },
-      ),
+    showPostDetailDialog(
+      context,
+      post: post,
+      onTagTap: (tag) {
+        _searchController.text = tag;
+        ref.read(onlineGalleryNotifierProvider.notifier).search(tag);
+      },
     );
+  }
+
+  /// 批量加入队列
+  Future<void> _addSelectedToQueue() async {
+    final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
+    final galleryState = ref.read(onlineGalleryNotifierProvider);
+    
+    final selectedPosts = galleryState.posts
+        .where((p) => selectionState.selectedIds.contains(p.id.toString()))
+        .toList();
+        
+    if (selectedPosts.isEmpty) return;
+
+    final tasks = selectedPosts
+        .where((p) => p.tags.isNotEmpty)
+        .map((p) => ReplicationTask.create(
+              prompt: p.tags.join(', '),
+              thumbnailUrl: p.previewUrl,
+              source: ReplicationTaskSource.online,
+            ))
+        .toList();
+
+    if (tasks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('选中的图片没有标签信息')),
+      );
+      return;
+    }
+
+    final addedCount = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .addAll(tasks);
+        
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
+      );
+      ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
+    }
+  }
+
+  /// 批量收藏
+  Future<void> _favoriteSelected() async {
+    final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
+    final galleryState = ref.read(onlineGalleryNotifierProvider);
+    final authState = ref.read(danbooruAuthProvider);
+
+    if (!authState.isLoggedIn) {
+      _showLoginDialog(context);
+      return;
+    }
+
+    final selectedIds = selectionState.selectedIds.toList();
+    if (selectedIds.isEmpty) return;
+
+    // 简单的批量收藏实现：逐个调用 toggleFavorite
+    // 注意：这可能会触发多次 API 调用，理想情况下应该有批量 API
+    // 这里为了简化，我们只对未收藏的进行收藏操作
+    int count = 0;
+    for (final idStr in selectedIds) {
+      final id = int.tryParse(idStr);
+      if (id != null && !galleryState.favoritedPostIds.contains(id)) {
+        await ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(id);
+        count++;
+        // 简单的限流
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已收藏 $count 张图片')),
+      );
+      ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
+    }
+  }
+
+  /// 批量下载
+  Future<void> _downloadSelected() async {
+    final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
+    final galleryState = ref.read(onlineGalleryNotifierProvider);
+    
+    final selectedPosts = galleryState.posts
+        .where((p) => selectionState.selectedIds.contains(p.id.toString()))
+        .toList();
+        
+    if (selectedPosts.isEmpty) return;
+
+    // 选择保存目录
+    final result = await FilePicker.platform.getDirectoryPath();
+    if (result == null) return;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('开始下载 ${selectedPosts.length} 张图片...')),
+      );
+      ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
+    }
+
+    int successCount = 0;
+    int failCount = 0;
+
+    // 并行下载
+    await Future.wait(selectedPosts.map((post) async {
+      try {
+        final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
+        if (url.isEmpty) return;
+
+        final file = await DanbooruImageCacheManager.instance.getSingleFile(url);
+        final fileName = path.basename(Uri.parse(url).path);
+        final destination = path.join(result, fileName);
+        
+        await file.copy(destination);
+        successCount++;
+      } catch (e) {
+        failCount++;
+        debugPrint('Download failed for post ${post.id}: $e');
+      }
+    }));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('下载完成: 成功 $successCount, 失败 $failCount')),
+      );
+    }
   }
 }
 
@@ -1029,217 +1228,3 @@ class _RatingDropdown extends StatelessWidget {
   }
 }
 
-/// 帖子详情对话框
-class _PostDetailDialog extends ConsumerWidget {
-  final DanbooruPost post;
-  final Function(String) onTagTap;
-
-  const _PostDetailDialog({required this.post, required this.onTagTap});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final screenSize = MediaQuery.of(context).size;
-    final authState = ref.watch(danbooruAuthProvider);
-    final galleryState = ref.watch(onlineGalleryNotifierProvider);
-    final isFavorited = galleryState.favoritedPostIds.contains(post.id);
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: screenSize.width * 0.9, maxHeight: screenSize.height * 0.9),
-        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12)),
-        child: Row(
-          children: [
-            // 媒体区域
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                child: Container(
-                  color: Colors.black,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      InteractiveViewer(
-                        child: CachedNetworkImage(
-                          imageUrl: post.sampleUrl ?? post.fileUrl ?? post.previewUrl,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                          errorWidget: (context, url, error) => const Center(child: Icon(Icons.error, color: Colors.white)),
-                        ),
-                      ),
-                      // 媒体类型标识
-                      if (post.isVideo || post.isAnimated)
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              post.isVideo ? Icons.play_arrow : Icons.gif,
-                              color: Colors.white,
-                              size: 48,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // 信息面板
-            Container(
-              width: 300,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(border: Border(left: BorderSide(color: theme.dividerColor))),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题栏
-                  Row(
-                    children: [
-                      Text('Post #${post.id}', style: theme.textTheme.titleMedium),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () {
-                          if (!authState.isLoggedIn) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.onlineGallery_pleaseLogin)));
-                            return;
-                          }
-                          ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(post.id);
-                        },
-                        icon: Icon(isFavorited ? Icons.favorite : Icons.favorite_border, color: isFavorited ? Colors.red : null),
-                        iconSize: 20,
-                      ),
-                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close), iconSize: 20),
-                    ],
-                  ),
-                  const Divider(),
-                  // 信息
-                  _InfoRow(label: context.l10n.onlineGallery_size, value: '${post.width}×${post.height}'),
-                  _InfoRow(label: context.l10n.onlineGallery_score, value: '${post.score}'),
-                  _InfoRow(label: context.l10n.onlineGallery_favCount, value: '${post.favCount}'),
-                  _InfoRow(label: context.l10n.onlineGallery_rating, value: post.rating.toUpperCase()),
-                  if (post.mediaTypeLabel != null) _InfoRow(label: context.l10n.onlineGallery_type, value: post.mediaTypeLabel!),
-                  const SizedBox(height: 12),
-                  // 标签
-                  Text(context.l10n.onlineGallery_tags, style: theme.textTheme.titleSmall),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (post.artistTags.isNotEmpty)
-                            _TagSection(title: context.l10n.onlineGallery_artists, tags: post.artistTags, color: const Color(0xFFFF8A8A), onTagTap: onTagTap),
-                          if (post.characterTags.isNotEmpty)
-                            _TagSection(title: context.l10n.onlineGallery_characters, tags: post.characterTags, color: const Color(0xFF8AFF8A), onTagTap: onTagTap, isCharacter: true),
-                          if (post.copyrightTags.isNotEmpty)
-                            _TagSection(title: context.l10n.onlineGallery_copyrights, tags: post.copyrightTags, color: const Color(0xFFCC8AFF), onTagTap: onTagTap),
-                          if (post.generalTags.isNotEmpty)
-                            _TagSection(title: context.l10n.onlineGallery_general, tags: post.generalTags, color: const Color(0xFF8AC8FF), onTagTap: onTagTap),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Divider(),
-                  // 操作
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: post.tags.join(', ')));
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.onlineGallery_copied)));
-                          },
-                          icon: const Icon(Icons.copy, size: 16),
-                          label: Text(context.l10n.onlineGallery_copyTags),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () async {
-                            final uri = Uri.parse(post.postUrl);
-                            if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          },
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: Text(context.l10n.onlineGallery_open),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(width: 50, child: Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
-          Expanded(child: Text(value, style: theme.textTheme.bodySmall)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TagSection extends ConsumerWidget {
-  final String title;
-  final List<String> tags;
-  final Color color;
-  final Function(String) onTagTap;
-  final bool isCharacter;
-
-  const _TagSection({
-    required this.title,
-    required this.tags,
-    required this.color,
-    required this.onTagTap,
-    this.isCharacter = false,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final translationService = ref.watch(tagTranslationServiceProvider);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: tags.map((tag) {
-              final translation = translationService.translate(tag, isCharacter: isCharacter);
-              return SimpleTagChip(tag: tag, color: color, translation: translation, onTap: () => onTagTap(tag));
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-}
