@@ -9,6 +9,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
 import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
+import '../services/local_metadata_cache_service.dart';
 
 /// 顶级函数：在 Isolate 中解析 NAI 隐写元数据 (用于 compute)
 ///
@@ -29,6 +30,9 @@ Future<NaiImageMetadata?> parseNaiMetadataInIsolate(
 /// 负责扫描 App 生成的图片目录并解析元数据
 class LocalGalleryRepository {
   LocalGalleryRepository._();
+
+  /// 元数据缓存服务
+  final _cacheService = LocalMetadataCacheService();
 
   /// 获取图片保存目录（公共方法）
   ///
@@ -89,55 +93,92 @@ class LocalGalleryRepository {
     return files;
   }
 
-  /// 加载文件记录（批量解析元数据）
+  /// 加载文件记录（批量解析元数据，带缓存）
   ///
   /// [files] 要加载的文件列表
   /// 返回解析后的记录列表
   Future<List<LocalImageRecord>> loadRecords(List<File> files) async {
     final stopwatch = Stopwatch()..start();
+    int cacheHits = 0;
+    int cacheMisses = 0;
+
     final records = await Future.wait(
       files.map((file) async {
         if (!file.existsSync()) {
-           return LocalImageRecord(
-              path: file.path, 
-              size: 0, 
-              modifiedAt: DateTime.now(), 
-              metadataStatus: MetadataStatus.none,
-           );
+          return LocalImageRecord(
+            path: file.path,
+            size: 0,
+            modifiedAt: DateTime.now(),
+            metadataStatus: MetadataStatus.none,
+          );
         }
+
+        final filePath = file.path;
+        final fileModified = file.lastModifiedSync();
+
+        // 尝试从缓存获取
+        final cached = _cacheService.get(filePath);
+        if (cached != null) {
+          final cachedTs = cached['ts'] as DateTime;
+          // 时间戳匹配 → 缓存命中
+          if (cachedTs.millisecondsSinceEpoch ==
+              fileModified.millisecondsSinceEpoch) {
+            cacheHits++;
+            final meta = cached['meta'] as NaiImageMetadata;
+            return LocalImageRecord(
+              path: filePath,
+              size: file.lengthSync(),
+              modifiedAt: fileModified,
+              metadata: meta,
+              metadataStatus:
+                  meta.hasData ? MetadataStatus.success : MetadataStatus.none,
+            );
+          }
+        }
+
+        // 缓存未命中，解析文件
+        cacheMisses++;
         try {
           final bytes = await file.readAsBytes();
-          // 使用新的 NAI 元数据解析器
-          final meta = await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
+          final meta =
+              await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
+
+          // 写入缓存
+          if (meta != null) {
+            await _cacheService.put(filePath, meta, fileModified);
+          }
+
           return LocalImageRecord(
-            path: file.path, 
-            size: bytes.length, 
-            modifiedAt: file.lastModifiedSync(),
+            path: filePath,
+            size: bytes.length,
+            modifiedAt: fileModified,
             metadata: meta,
-            metadataStatus: meta != null && meta.hasData 
-                ? MetadataStatus.success 
+            metadataStatus: meta != null && meta.hasData
+                ? MetadataStatus.success
                 : MetadataStatus.none,
           );
         } catch (e) {
           AppLogger.w(
-            'Failed to parse metadata for ${file.path}: $e',
+            'Failed to parse metadata for $filePath: $e',
             'LocalGalleryRepo',
           );
           return LocalImageRecord(
-             path: file.path, 
-             size: 0, 
-             modifiedAt: file.lastModifiedSync(), 
-             metadataStatus: MetadataStatus.failed,
+            path: filePath,
+            size: 0,
+            modifiedAt: fileModified,
+            metadataStatus: MetadataStatus.failed,
           );
         }
       }),
     );
     stopwatch.stop();
-    
+
     // 统计解析成功数量
-    final successCount = records.where((r) => r.metadataStatus == MetadataStatus.success).length;
+    final successCount =
+        records.where((r) => r.metadataStatus == MetadataStatus.success).length;
     AppLogger.i(
-      'Page load completed: ${records.length} records ($successCount with metadata) in ${stopwatch.elapsedMilliseconds}ms',
+      'Page load completed: ${records.length} records ($successCount with metadata) '
+      'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
       'LocalGalleryRepo',
     );
     return records;

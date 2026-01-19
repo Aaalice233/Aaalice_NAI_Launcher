@@ -50,19 +50,54 @@ enum GalleryViewMode {
   favorites, // 收藏夹模式
 }
 
-/// 在线画廊状态
-class OnlineGalleryState {
+/// 单个模式的缓存状态
+/// 
+/// 每个模式（搜索/排行榜/收藏夹）维护独立的数据和滚动位置
+class ModeCache {
   final List<DanbooruPost> posts;
+  final int page;
+  final bool hasMore;
+  final double scrollOffset;
+
+  const ModeCache({
+    this.posts = const [],
+    this.page = 1,
+    this.hasMore = true,
+    this.scrollOffset = 0,
+  });
+
+  ModeCache copyWith({
+    List<DanbooruPost>? posts,
+    int? page,
+    bool? hasMore,
+    double? scrollOffset,
+  }) {
+    return ModeCache(
+      posts: posts ?? this.posts,
+      page: page ?? this.page,
+      hasMore: hasMore ?? this.hasMore,
+      scrollOffset: scrollOffset ?? this.scrollOffset,
+    );
+  }
+}
+
+/// 在线画廊状态
+/// 
+/// 重构：每个模式维护独立的缓存，切换模式时不丢失数据
+class OnlineGalleryState {
   final bool isLoading;
   final String? error;
   final String searchQuery;
   final String source;
   final String rating;
-  final int page;
-  final bool hasMore;
 
   /// 视图模式
   final GalleryViewMode viewMode;
+
+  /// 各模式独立缓存
+  final ModeCache searchCache;
+  final ModeCache popularCache;
+  final ModeCache favoritesCache;
 
   /// 排行榜时间范围
   final PopularScale popularScale;
@@ -73,51 +108,98 @@ class OnlineGalleryState {
   /// 已收藏的帖子 ID 集合（用于快速查找）
   final Set<int> favoritedPostIds;
 
+  /// 日期范围筛选（搜索模式）
+  final DateTime? dateRangeStart;
+  final DateTime? dateRangeEnd;
+
   const OnlineGalleryState({
-    this.posts = const [],
     this.isLoading = false,
     this.error,
     this.searchQuery = '',
     this.source = 'danbooru',
     this.rating = 'all',
-    this.page = 1,
-    this.hasMore = true,
     this.viewMode = GalleryViewMode.search,
+    this.searchCache = const ModeCache(),
+    this.popularCache = const ModeCache(),
+    this.favoritesCache = const ModeCache(),
     this.popularScale = PopularScale.day,
     this.popularDate,
     this.favoritedPostIds = const {},
+    this.dateRangeStart,
+    this.dateRangeEnd,
   });
 
+  /// 获取当前模式的缓存
+  ModeCache get currentCache {
+    switch (viewMode) {
+      case GalleryViewMode.search:
+        return searchCache;
+      case GalleryViewMode.popular:
+        return popularCache;
+      case GalleryViewMode.favorites:
+        return favoritesCache;
+    }
+  }
+
+  /// 当前模式的帖子列表
+  List<DanbooruPost> get posts => currentCache.posts;
+
+  /// 当前模式的页码
+  int get page => currentCache.page;
+
+  /// 当前模式是否还有更多
+  bool get hasMore => currentCache.hasMore;
+
+  /// 当前模式的滚动位置
+  double get scrollOffset => currentCache.scrollOffset;
+
   OnlineGalleryState copyWith({
-    List<DanbooruPost>? posts,
     bool? isLoading,
     String? error,
     String? searchQuery,
     String? source,
     String? rating,
-    int? page,
-    bool? hasMore,
     GalleryViewMode? viewMode,
+    ModeCache? searchCache,
+    ModeCache? popularCache,
+    ModeCache? favoritesCache,
     PopularScale? popularScale,
     DateTime? popularDate,
     Set<int>? favoritedPostIds,
+    DateTime? dateRangeStart,
+    DateTime? dateRangeEnd,
     bool clearError = false,
     bool clearPopularDate = false,
+    bool clearDateRange = false,
   }) {
     return OnlineGalleryState(
-      posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       searchQuery: searchQuery ?? this.searchQuery,
       source: source ?? this.source,
       rating: rating ?? this.rating,
-      page: page ?? this.page,
-      hasMore: hasMore ?? this.hasMore,
       viewMode: viewMode ?? this.viewMode,
+      searchCache: searchCache ?? this.searchCache,
+      popularCache: popularCache ?? this.popularCache,
+      favoritesCache: favoritesCache ?? this.favoritesCache,
       popularScale: popularScale ?? this.popularScale,
       popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
       favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
+      dateRangeStart: clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
+      dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
     );
+  }
+
+  /// 更新当前模式的缓存
+  OnlineGalleryState updateCurrentCache(ModeCache cache) {
+    switch (viewMode) {
+      case GalleryViewMode.search:
+        return copyWith(searchCache: cache);
+      case GalleryViewMode.popular:
+        return copyWith(popularCache: cache);
+      case GalleryViewMode.favorites:
+        return copyWith(favoritesCache: cache);
+    }
   }
 }
 
@@ -129,6 +211,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   @override
   OnlineGalleryState build() {
+    // 保持状态在切换Tab时不被销毁
+    ref.keepAlive();
+    
     _dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 30),
@@ -147,32 +232,53 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   // ==================== 视图模式切换 ====================
 
-  /// 切换到搜索模式
+  /// 保存当前模式的滚动位置
+  void saveScrollOffset(double offset) {
+    final newCache = state.currentCache.copyWith(scrollOffset: offset);
+    state = state.updateCurrentCache(newCache);
+  }
+
+  /// 切换到搜索模式（保留缓存数据）
   Future<void> switchToSearch() async {
     if (state.viewMode == GalleryViewMode.search) return;
-    state =
-        state.copyWith(viewMode: GalleryViewMode.search, posts: [], page: 1);
-    await loadPosts(refresh: true);
+    
+    // 只切换模式，不清空数据
+    state = state.copyWith(viewMode: GalleryViewMode.search);
+    
+    // 如果目标模式没有缓存数据，才加载
+    if (state.searchCache.posts.isEmpty) {
+      await loadPosts(refresh: true);
+    }
   }
 
-  /// 切换到排行榜模式
+  /// 切换到排行榜模式（保留缓存数据）
   Future<void> switchToPopular() async {
     if (state.viewMode == GalleryViewMode.popular) return;
-    state =
-        state.copyWith(viewMode: GalleryViewMode.popular, posts: [], page: 1);
-    await _loadPopularPosts(refresh: true);
+    
+    // 只切换模式，不清空数据
+    state = state.copyWith(viewMode: GalleryViewMode.popular);
+    
+    // 如果目标模式没有缓存数据，才加载
+    if (state.popularCache.posts.isEmpty) {
+      await _loadPopularPosts(refresh: true);
+    }
   }
 
-  /// 切换到收藏夹模式
+  /// 切换到收藏夹模式（保留缓存数据）
   Future<void> switchToFavorites() async {
     if (!_authState.isLoggedIn) {
       state = state.copyWith(error: '请先登录 Danbooru 账号');
       return;
     }
     if (state.viewMode == GalleryViewMode.favorites) return;
-    state =
-        state.copyWith(viewMode: GalleryViewMode.favorites, posts: [], page: 1);
-    await _loadFavorites(refresh: true);
+    
+    // 只切换模式，不清空数据
+    state = state.copyWith(viewMode: GalleryViewMode.favorites);
+    
+    // 如果目标模式没有缓存数据，才加载
+    if (state.favoritesCache.posts.isEmpty) {
+      await _loadFavorites(refresh: true);
+    }
   }
 
   // ==================== 排行榜功能 ====================
@@ -201,12 +307,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<void> _loadPopularPosts({bool refresh = false}) async {
     if (state.isLoading) return;
 
-    final page = refresh ? 1 : state.page;
+    final currentCache = state.popularCache;
+    final page = refresh ? 1 : currentCache.page;
+    
+    // 更新加载状态，刷新时清空缓存
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      page: page,
-      posts: refresh ? [] : state.posts,
+      popularCache: refresh 
+          ? const ModeCache() 
+          : currentCache,
     );
 
     try {
@@ -220,12 +330,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       // 过滤评级
       final filteredPosts = _filterByRating(posts);
 
-      state = state.copyWith(
-        posts: refresh ? filteredPosts : [...state.posts, ...filteredPosts],
-        isLoading: false,
-        // 关键修复：只要 API 返回了数据，就认为还有下一页
-        hasMore: posts.isNotEmpty,
+      // 更新缓存
+      final newCache = ModeCache(
+        posts: refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
         page: page,
+        hasMore: posts.isNotEmpty,
+        scrollOffset: refresh ? 0 : currentCache.scrollOffset,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        popularCache: newCache,
       );
     } catch (e, stack) {
       AppLogger.e(
@@ -253,15 +368,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
 
+    final currentCache = state.favoritesCache;
+    
     // 计算分页参数
-    final apiPage = _getNextPageParam(refresh);
-    final statePage = refresh ? 1 : state.page + 1;
+    final apiPage = _getNextPageParamForCache(refresh, currentCache);
+    final statePage = refresh ? 1 : currentCache.page + 1;
 
+    // 更新加载状态
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      page: statePage,
-      posts: refresh ? [] : state.posts,
+      favoritesCache: refresh ? const ModeCache() : currentCache,
     );
 
     try {
@@ -279,11 +396,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         favoritedIds.add(post.id);
       }
 
-      state = state.copyWith(
-        posts: refresh ? posts : [...state.posts, ...posts],
-        isLoading: false,
-        hasMore: rawCount > 0,
+      // 更新缓存
+      final newCache = ModeCache(
+        posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
+        hasMore: rawCount > 0,
+        scrollOffset: refresh ? 0 : currentCache.scrollOffset,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        favoritesCache: newCache,
         favoritedPostIds: favoritedIds,
       );
     } catch (e, stack) {
@@ -320,9 +443,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
       // 如果在收藏夹视图中，从列表中移除
       if (state.viewMode == GalleryViewMode.favorites) {
-        state = state.copyWith(
-          posts: state.posts.where((p) => p.id != postId).toList(),
+        final currentCache = state.favoritesCache;
+        final newCache = currentCache.copyWith(
+          posts: currentCache.posts.where((p) => p.id != postId).toList(),
         );
+        state = state.copyWith(favoritesCache: newCache);
       }
     }
     return success;
@@ -344,19 +469,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   // ==================== 分页逻辑 ====================
 
-  /// 获取下一页参数（Danbooru/Safebooru 使用 ID 分页，其他使用页码）
-  dynamic _getNextPageParam(bool refresh) {
+  /// 获取下一页参数（基于缓存，Danbooru/Safebooru 使用 ID 分页，其他使用页码）
+  dynamic _getNextPageParamForCache(bool refresh, ModeCache cache) {
     if (refresh) return 1;
 
     // Gelbooru 和 Popular 模式必须使用页码分页
     if (state.source == 'gelbooru' ||
         state.viewMode == GalleryViewMode.popular) {
-      return state.page + 1;
+      return cache.page + 1;
     }
 
     // Danbooru/Safebooru 搜索模式使用 ID 分页 (b{id})
-    if (state.posts.isNotEmpty) {
-      return 'b${state.posts.last.id}';
+    if (cache.posts.isNotEmpty) {
+      return 'b${cache.posts.last.id}';
     }
 
     return 1;
@@ -383,15 +508,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<void> _loadSearchPosts({bool refresh = false}) async {
     if (state.isLoading) return;
 
+    final currentCache = state.searchCache;
+    
     // 计算分页参数
-    final apiPage = _getNextPageParam(refresh);
-    final statePage = refresh ? 1 : state.page + 1;
+    final apiPage = _getNextPageParamForCache(refresh, currentCache);
+    final statePage = refresh ? 1 : currentCache.page + 1;
 
+    // 更新加载状态
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      page: statePage,
-      posts: refresh ? [] : state.posts,
+      searchCache: refresh ? const ModeCache() : currentCache,
     );
 
     try {
@@ -403,12 +530,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         page: apiPage,
       );
 
-      state = state.copyWith(
-        posts: refresh ? posts : [...state.posts, ...posts],
-        isLoading: false,
-        // 关键修复：只要 API 返回了数据，就认为还有下一页（忽略本地过滤的影响）
-        hasMore: rawCount > 0,
+      // 更新缓存
+      final newCache = ModeCache(
+        posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
+        hasMore: rawCount > 0,
+        scrollOffset: refresh ? 0 : currentCache.scrollOffset,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        searchCache: newCache,
       );
     } catch (e, stack) {
       AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
@@ -427,6 +559,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 刷新
   Future<void> refresh() async {
+    await loadPosts(refresh: true);
+  }
+
+  /// 跳转到指定页码
+  Future<void> goToPage(int page) async {
+    if (page < 1 || state.isLoading) return;
+    
+    // 更新当前模式缓存的页码
+    final newCache = state.currentCache.copyWith(page: page - 1);
+    state = state.updateCurrentCache(newCache);
+    
     await loadPosts(refresh: true);
   }
 
@@ -453,6 +596,29 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     await loadPosts(refresh: true);
   }
 
+  /// 设置日期范围筛选（搜索模式）
+  Future<void> setDateRange(DateTime? start, DateTime? end) async {
+    state = state.copyWith(
+      dateRangeStart: start,
+      dateRangeEnd: end,
+      clearDateRange: start == null && end == null,
+    );
+    // 构建搜索查询
+    await _applyDateRangeToSearch();
+  }
+
+  /// 清除日期范围
+  Future<void> clearDateRange() async {
+    state = state.copyWith(clearDateRange: true);
+    await loadPosts(refresh: true);
+  }
+
+  /// 应用日期范围到搜索
+  Future<void> _applyDateRangeToSearch() async {
+    if (state.viewMode != GalleryViewMode.search) return;
+    await loadPosts(refresh: true);
+  }
+
   /// 根据评级过滤帖子
   List<DanbooruPost> _filterByRating(List<DanbooruPost> posts) {
     if (state.rating == 'all') return posts;
@@ -473,6 +639,22 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     String tags = query;
     if (rating != 'all') {
       tags = tags.isEmpty ? 'rating:$rating' : '$tags rating:$rating';
+    }
+    
+    // 添加日期范围筛选（Danbooru 语法：date:start..end）
+    if (state.dateRangeStart != null && state.dateRangeEnd != null) {
+      final startStr = _formatDateForQuery(state.dateRangeStart!);
+      final endStr = _formatDateForQuery(state.dateRangeEnd!);
+      final dateTag = 'date:$startStr..$endStr';
+      tags = tags.isEmpty ? dateTag : '$tags $dateTag';
+    } else if (state.dateRangeStart != null) {
+      final startStr = _formatDateForQuery(state.dateRangeStart!);
+      final dateTag = 'date:>=$startStr';
+      tags = tags.isEmpty ? dateTag : '$tags $dateTag';
+    } else if (state.dateRangeEnd != null) {
+      final endStr = _formatDateForQuery(state.dateRangeEnd!);
+      final dateTag = 'date:<=$endStr';
+      tags = tags.isEmpty ? dateTag : '$tags $dateTag';
     }
 
     AppLogger.d(
@@ -512,6 +694,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     return (<DanbooruPost>[], 0);
+  }
+
+  /// 格式化日期为 Danbooru 查询格式 (yyyy-MM-dd)
+  String _formatDateForQuery(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   /// 获取基础 URL

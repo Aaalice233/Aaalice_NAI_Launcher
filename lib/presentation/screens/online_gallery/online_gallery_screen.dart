@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,44 +24,144 @@ class OnlineGalleryScreen extends ConsumerStatefulWidget {
   ConsumerState<OnlineGalleryScreen> createState() => _OnlineGalleryScreenState();
 }
 
-class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
+class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  Timer? _debounceTimer;
+  
+  /// 页码输入控制器
+  final TextEditingController _pageController = TextEditingController();
+  final FocusNode _pageFocusNode = FocusNode();
+  bool _isEditingPage = false;
+  
+  /// 当前视图模式（用于检测模式切换）
+  GalleryViewMode? _lastViewMode;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
+    // 添加滚动监听 - 无限滚动
     _scrollController.addListener(_onScroll);
+    // 添加页码焦点监听
+    _pageFocusNode.addListener(_onPageFocusChange);
+    
+    // 只在首次进入（无数据）时加载，切换Tab回来时不再重新加载
+    // 用户需要刷新时可点击刷新按钮
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(onlineGalleryNotifierProvider.notifier).loadPosts();
+      final state = ref.read(onlineGalleryNotifierProvider);
+      // 同步搜索框文本
+      if (_searchController.text != state.searchQuery) {
+        _searchController.text = state.searchQuery;
+      }
+      // 首次加载
+      if (state.posts.isEmpty && !state.isLoading) {
+        ref.read(onlineGalleryNotifierProvider.notifier).loadPosts();
+      }
+      // 记录当前模式
+      _lastViewMode = state.viewMode;
     });
   }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _scrollController.dispose();
-    _debounceTimer?.cancel();
-    super.dispose();
-  }
-
+  
+  /// 滚动监听 - 无限滚动加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 800) {
-      // 防抖处理：200ms 内只触发一次加载
-      if (_debounceTimer?.isActive ?? false) return;
-      _debounceTimer = Timer(const Duration(milliseconds: 200), () {
-        ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
+    }
+  }
+  
+  /// 保存当前滚动位置
+  void _saveScrollOffset() {
+    if (_scrollController.hasClients) {
+      ref.read(onlineGalleryNotifierProvider.notifier)
+          .saveScrollOffset(_scrollController.offset);
+    }
+  }
+  
+  /// 恢复滚动位置
+  void _restoreScrollOffset(double offset) {
+    if (_scrollController.hasClients && offset > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(offset);
+        }
       });
     }
   }
 
   @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _pageFocusNode.removeListener(_onPageFocusChange);
+    _searchController.dispose();
+    _scrollController.dispose();
+    _pageController.dispose();
+    _pageFocusNode.dispose();
+    super.dispose();
+  }
+  
+  /// 页码焦点变化处理
+  void _onPageFocusChange() {
+    if (!_pageFocusNode.hasFocus && _isEditingPage) {
+      setState(() {
+        _isEditingPage = false;
+      });
+    }
+  }
+  
+  /// 开始编辑页码
+  void _startEditingPage(int currentPage) {
+    setState(() {
+      _isEditingPage = true;
+      _pageController.text = currentPage.toString();
+      _pageController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _pageController.text.length,
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pageFocusNode.requestFocus();
+    });
+  }
+  
+  /// 提交页码跳转
+  void _submitPage() {
+    final input = _pageController.text.trim();
+    if (input.isEmpty) {
+      setState(() => _isEditingPage = false);
+      return;
+    }
+    
+    final parsed = int.tryParse(input);
+    if (parsed == null || parsed < 1) {
+      setState(() => _isEditingPage = false);
+      return;
+    }
+    
+    setState(() => _isEditingPage = false);
+    
+    final state = ref.read(onlineGalleryNotifierProvider);
+    if (parsed != state.page) {
+      ref.read(onlineGalleryNotifierProvider.notifier).goToPage(parsed);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final state = ref.watch(onlineGalleryNotifierProvider);
     final authState = ref.watch(danbooruAuthProvider);
+
+    // 检测模式切换，保存旧模式滚动位置，恢复新模式滚动位置
+    if (_lastViewMode != null && _lastViewMode != state.viewMode) {
+      // 模式已切换，恢复目标模式的滚动位置
+      _restoreScrollOffset(state.scrollOffset);
+    }
+    _lastViewMode = state.viewMode;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -75,7 +173,136 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
           Expanded(
             child: _buildContent(theme, state),
           ),
+          // 底部分页条
+          _buildPaginationBar(theme, state),
         ],
+      ),
+    );
+  }
+
+  /// 构建底部分页条
+  Widget _buildPaginationBar(ThemeData theme, OnlineGalleryState state) {
+    if (state.posts.isEmpty && !state.isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 上一页
+          IconButton(
+            onPressed: state.page > 1 && !state.isLoading
+                ? () => ref
+                    .read(onlineGalleryNotifierProvider.notifier)
+                    .goToPage(state.page - 1)
+                : null,
+            icon: const Icon(Icons.chevron_left, size: 24),
+            tooltip: context.l10n.onlineGallery_previousPage,
+          ),
+          const SizedBox(width: 8),
+          // 页码显示/输入
+          _isEditingPage
+              ? _buildPageInput(theme, state)
+              : _buildPageDisplay(theme, state),
+          const SizedBox(width: 8),
+          // 下一页
+          IconButton(
+            onPressed: state.hasMore && !state.isLoading
+                ? () => ref
+                    .read(onlineGalleryNotifierProvider.notifier)
+                    .goToPage(state.page + 1)
+                : null,
+            icon: const Icon(Icons.chevron_right, size: 24),
+            tooltip: context.l10n.onlineGallery_nextPage,
+          ),
+          const SizedBox(width: 24),
+          // 图片计数
+          Text(
+            context.l10n.onlineGallery_imageCount(state.posts.length.toString()),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 可点击的页码显示
+  Widget _buildPageDisplay(ThemeData theme, OnlineGalleryState state) {
+    return InkWell(
+      onTap: !state.isLoading ? () => _startEditingPage(state.page) : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: state.isLoading
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: theme.colorScheme.primary,
+                ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.l10n.onlineGallery_pageN(state.page.toString()),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.edit,
+                    size: 12,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+  
+  /// 页码输入框
+  Widget _buildPageInput(ThemeData theme, OnlineGalleryState state) {
+    return SizedBox(
+      width: 80,
+      child: TextField(
+        controller: _pageController,
+        focusNode: _pageFocusNode,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(5),
+        ],
+        onSubmitted: (_) => _submitPage(),
       ),
     );
   }
@@ -130,14 +357,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
             icon: Icons.search,
             label: context.l10n.onlineGallery_search,
             isSelected: state.viewMode == GalleryViewMode.search,
-            onTap: () => ref.read(onlineGalleryNotifierProvider.notifier).switchToSearch(),
+            onTap: () {
+              _saveScrollOffset(); // 保存当前滚动位置
+              ref.read(onlineGalleryNotifierProvider.notifier).switchToSearch();
+            },
             isFirst: true,
           ),
           _ModeButton(
             icon: Icons.local_fire_department,
             label: context.l10n.onlineGallery_popular,
             isSelected: state.viewMode == GalleryViewMode.popular,
-            onTap: () => ref.read(onlineGalleryNotifierProvider.notifier).switchToPopular(),
+            onTap: () {
+              _saveScrollOffset(); // 保存当前滚动位置
+              ref.read(onlineGalleryNotifierProvider.notifier).switchToPopular();
+            },
           ),
           _ModeButton(
             icon: Icons.favorite,
@@ -148,6 +381,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
                 _showLoginDialog(context);
                 return;
               }
+              _saveScrollOffset(); // 保存当前滚动位置
               ref.read(onlineGalleryNotifierProvider.notifier).switchToFavorites();
             },
             isLast: true,
@@ -222,29 +456,113 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
             ref.read(onlineGalleryNotifierProvider.notifier).setRating(rating);
           },
         ),
+        // 日期范围筛选（仅搜索模式）
+        if (state.viewMode == GalleryViewMode.search) ...[
+          const SizedBox(width: 8),
+          _buildDateRangeButton(theme, state),
+        ],
         const SizedBox(width: 8),
-        // 刷新
-        IconButton(
+        // 刷新按钮 (FilledButton.tonal)
+        FilledButton.tonalIcon(
           onPressed: state.isLoading
               ? null
               : () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
           icon: state.isLoading
               ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
                 )
-              : const Icon(Icons.refresh, size: 20),
-          tooltip: context.l10n.onlineGallery_refresh,
-          style: IconButton.styleFrom(
-            foregroundColor: theme.colorScheme.onSurfaceVariant,
-            padding: const EdgeInsets.all(8),
+              : const Icon(Icons.refresh, size: 18),
+          label: Text(context.l10n.onlineGallery_refresh),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            visualDensity: VisualDensity.compact,
           ),
         ),
+        const SizedBox(width: 8),
         // 用户
         _buildUserButton(theme, authState),
       ],
     );
+  }
+
+  /// 构建日期范围筛选按钮
+  Widget _buildDateRangeButton(ThemeData theme, OnlineGalleryState state) {
+    final hasDateRange = state.dateRangeStart != null || state.dateRangeEnd != null;
+    
+    return OutlinedButton.icon(
+      onPressed: () => _selectDateRange(context, state),
+      icon: Icon(
+        Icons.date_range,
+        size: 16,
+        color: hasDateRange ? theme.colorScheme.primary : null,
+      ),
+      label: Text(
+        hasDateRange
+            ? _formatDateRange(state.dateRangeStart, state.dateRangeEnd)
+            : context.l10n.onlineGallery_dateRange,
+        style: TextStyle(
+          fontSize: 12,
+          color: hasDateRange ? theme.colorScheme.primary : null,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        visualDensity: VisualDensity.compact,
+        side: hasDateRange
+            ? BorderSide(color: theme.colorScheme.primary)
+            : null,
+      ),
+    );
+  }
+
+  /// 格式化日期范围显示
+  String _formatDateRange(DateTime? start, DateTime? end) {
+    final format = DateFormat('MM-dd');
+    if (start != null && end != null) {
+      return '${format.format(start)}~${format.format(end)}';
+    } else if (start != null) {
+      return '${format.format(start)}~';
+    } else if (end != null) {
+      return '~${format.format(end)}';
+    }
+    return '';
+  }
+
+  /// 选择日期范围
+  Future<void> _selectDateRange(BuildContext context, OnlineGalleryState state) async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2005),
+      lastDate: now,
+      initialDateRange: state.dateRangeStart != null && state.dateRangeEnd != null
+          ? DateTimeRange(start: state.dateRangeStart!, end: state.dateRangeEnd!)
+          : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      ref.read(onlineGalleryNotifierProvider.notifier).setDateRange(
+            picked.start,
+            picked.end,
+          );
+    }
   }
 
   Widget _buildUserButton(ThemeData theme, DanbooruAuthState authState) {
@@ -292,13 +610,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
       );
     }
 
-    return IconButton(
+    return FilledButton.icon(
       onPressed: () => _showLoginDialog(context),
-      icon: const Icon(Icons.login, size: 20),
-      tooltip: context.l10n.onlineGallery_login,
-      style: IconButton.styleFrom(
-        foregroundColor: theme.colorScheme.onSurfaceVariant,
-        padding: const EdgeInsets.all(8),
+      icon: const Icon(Icons.login, size: 18),
+      label: Text(context.l10n.onlineGallery_login),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        visualDensity: VisualDensity.compact,
       ),
     );
   }
@@ -425,6 +743,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen> {
     final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
 
     return MasonryGridView.count(
+      // PageStorageKey 让 Flutter 自动保存/恢复滚动位置
+      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
       controller: _scrollController,
       padding: const EdgeInsets.all(12),
       crossAxisCount: columnCount,

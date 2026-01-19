@@ -823,6 +823,15 @@
   "onlineGallery_open": "Open",
   "onlineGallery_all": "All",
   "onlineGallery_clear": "Clear",
+  "onlineGallery_previousPage": "Previous Page",
+  "onlineGallery_nextPage": "Next Page",
+  "onlineGallery_pageN": "Page {page}",
+  "@onlineGallery_pageN": {
+    "placeholders": {
+      "page": {}
+    }
+  },
+  "onlineGallery_dateRange": "Date Range",
 
   "tooltip_randomPrompt": "Random Prompt (long press to configure)",
   "tooltip_fullscreenEdit": "Fullscreen Edit",

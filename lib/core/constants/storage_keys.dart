@@ -16,6 +16,7 @@ class StorageKeys {
   static const String cacheBox = 'cache';
   static const String tagCacheBox = 'tag_cache';
   static const String galleryBox = 'gallery';
+  static const String localMetadataCacheBox = 'local_metadata_cache';
 
   // Settings Keys
   static const String themeType = 'theme_type';

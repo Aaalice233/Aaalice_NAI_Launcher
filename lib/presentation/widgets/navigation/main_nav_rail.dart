@@ -8,23 +8,29 @@ import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../router/app_router.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
 
 class MainNavRail extends ConsumerWidget {
-  const MainNavRail({super.key});
+  final StatefulNavigationShell navigationShell;
+  
+  const MainNavRail({super.key, required this.navigationShell});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final location = GoRouterState.of(context).matchedLocation;
-
+    
+    // 使用 navigationShell.currentIndex 获取当前选中索引
+    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig
+    final currentIndex = navigationShell.currentIndex;
+    
+    // 映射 branch index 到 nav rail index
+    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=promptConfig, 4=settings
     int selectedIndex = 0;
-    if (location == AppRoutes.localGallery) selectedIndex = 1;
-    if (location == AppRoutes.onlineGallery) selectedIndex = 2;
-    if (location == AppRoutes.promptConfig) selectedIndex = 3;
-    if (location == AppRoutes.settings) selectedIndex = 4;
+    if (currentIndex == 2) selectedIndex = 1; // localGallery
+    if (currentIndex == 3) selectedIndex = 2; // onlineGallery
+    if (currentIndex == 5) selectedIndex = 3; // promptConfig
+    if (currentIndex == 4) selectedIndex = 4; // settings
 
     return Container(
       width: 60,
@@ -49,7 +55,7 @@ class MainNavRail extends ConsumerWidget {
             icon: Icons.brush, // Canvas/Edit
             label: context.l10n.nav_canvas,
             isSelected: selectedIndex == 0,
-            onTap: () => context.go(AppRoutes.home),
+            onTap: () => navigationShell.goBranch(0), // home branch
           ),
 
           // 本地画廊（App生成的图片）
@@ -57,7 +63,7 @@ class MainNavRail extends ConsumerWidget {
             icon: Icons.folder, // Local Generated Images
             label: '本地画廊',
             isSelected: selectedIndex == 1,
-            onTap: () => context.go(AppRoutes.localGallery),
+            onTap: () => navigationShell.goBranch(2), // localGallery branch
           ),
 
           // 在线画廊
@@ -65,7 +71,7 @@ class MainNavRail extends ConsumerWidget {
             icon: Icons.photo_library, // Online Gallery
             label: context.l10n.nav_onlineGallery,
             isSelected: selectedIndex == 2,
-            onTap: () => context.go(AppRoutes.onlineGallery),
+            onTap: () => navigationShell.goBranch(3), // onlineGallery branch
           ),
 
           // 随机配置
@@ -73,7 +79,7 @@ class MainNavRail extends ConsumerWidget {
             icon: Icons.casino, // Random prompt config
             label: context.l10n.nav_randomConfig,
             isSelected: selectedIndex == 3,
-            onTap: () => context.go(AppRoutes.promptConfig),
+            onTap: () => navigationShell.goBranch(5), // promptConfig branch
           ),
 
           // 词库（未来功能）
@@ -105,7 +111,7 @@ class MainNavRail extends ConsumerWidget {
             icon: Icons.settings,
             label: context.l10n.nav_settings,
             isSelected: selectedIndex == 4,
-            onTap: () => context.go(AppRoutes.settings),
+            onTap: () => navigationShell.goBranch(4), // settings branch
           ),
           const SizedBox(height: 16),
         ],

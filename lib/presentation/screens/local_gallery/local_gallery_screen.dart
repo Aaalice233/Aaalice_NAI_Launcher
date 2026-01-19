@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,6 +25,9 @@ class LocalGalleryScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounceTimer;
+  
   @override
   void initState() {
     super.initState();
@@ -31,6 +35,21 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
       await _showFirstTimeTip();
+    });
+  }
+  
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+  
+  /// 搜索防抖
+  void _onSearchChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
     });
   }
 
@@ -175,136 +194,380 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final itemWidth = screenWidth / columns;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('本地画廊'),
-        actions: [
-          // 打开文件夹按钮 - 带文字的胶囊按钮
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: TextButton.icon(
-              onPressed: _openImageFolder,
-              icon: const Icon(Icons.folder_open, size: 18),
-              label: const Text('打开文件夹'),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.primary,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+      body: Column(
+        children: [
+          // 顶部工具栏
+          _buildToolbar(theme, state),
+          // 主体内容
+          Expanded(
+            child: state.error != null
+                ? _buildErrorState(theme, state)
+                : state.isIndexing
+                    ? _buildIndexingState()
+                    : state.allFiles.isEmpty
+                        ? _buildEmptyState()
+                        : _buildContent(theme, state, columns, itemWidth),
+          ),
+          // 底部分页条
+          if (!state.isIndexing && state.filteredFiles.isNotEmpty && state.totalPages > 1)
+            PaginationBar(
+              currentPage: state.currentPage,
+              totalPages: state.totalPages,
+              onPageChanged: (p) => ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建顶部工具栏
+  Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+        ),
+      ),
+      child: Column(
+        children: [
+          // 第一行：标题 + 操作按钮
+          Row(
+            children: [
+              Text(
+                '本地画廊',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ),
-          // 刷新按钮
-          if (state.isIndexing)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: TextButton.icon(
-                onPressed: () {
-                  ref.read(localGalleryNotifierProvider.notifier).refresh();
-                },
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('刷新'),
+              const SizedBox(width: 12),
+              // 图片计数
+              if (!state.isIndexing)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    state.hasFilters 
+                        ? '${state.filteredCount} / ${state.totalCount}'
+                        : '${state.totalCount}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              // 打开文件夹按钮
+              TextButton.icon(
+                onPressed: _openImageFolder,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('打开文件夹'),
                 style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.secondary,
-                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                  foregroundColor: theme.colorScheme.primary,
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
-      body: state.error != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('加载失败: ${state.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => ref.read(localGalleryNotifierProvider.notifier).refresh(),
-                    child: const Text('重试'),
-                  ),
-                ],
-              ),
-            )
-          : state.isIndexing // Initial Indexing State
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('索引本地图片中...'), // Updated text
-                    ],
+              const SizedBox(width: 8),
+              // 刷新按钮
+              if (state.isIndexing)
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 )
-              : state.allFiles.isEmpty // Empty State
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text('暂无本地图片'),
-                          SizedBox(height: 8),
-                          Text('生成的图片将保存在此处', style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                    )
-                  : Column( // Content State with Pagination
-                      children: [
-                        Expanded(
-                          child: state.isPageLoading
-                            ? MasonryGridView.count(
-                                crossAxisCount: columns,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
-                                // 骨架屏数量与实际图片一致，如果为空则默认 20 个
-                                itemCount: state.currentImages.isNotEmpty 
-                                    ? state.currentImages.length 
-                                    : 20,
-                                itemBuilder: (c, i) {
-                                  // 使用索引作为随机种子，保证高度在重绘时保持一致
-                                  final random = Random(i);
-                                  final height = 150.0 + random.nextInt(151); // 150-300px
-                                  
-                                  return Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    child: _ShimmerSkeleton(height: height),
-                                  );
-                                },
-                              )
-                            : MasonryGridView.count(
-                                crossAxisCount: columns,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
-                                itemCount: state.currentImages.length,
-                                itemBuilder: (c, i) => LocalImageCard(record: state.currentImages[i], itemWidth: itemWidth),
-                              ),
-                        ),
-                        if (state.totalPages > 1)
-                          PaginationBar(
-                            currentPage: state.currentPage,
-                            totalPages: state.totalPages,
-                            onPageChanged: (p) => ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
-                          ),
-                      ],
+              else
+                TextButton.icon(
+                  onPressed: () {
+                    ref.read(localGalleryNotifierProvider.notifier).refresh();
+                  },
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('刷新'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.secondary,
+                    backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 第二行：搜索框 + 日期过滤
+          Row(
+            children: [
+              // 搜索框
+              Expanded(
+                child: _buildSearchField(theme, state),
+              ),
+              const SizedBox(width: 12),
+              // 日期过滤按钮
+              _buildDateRangeButton(theme, state),
+              // 清除过滤按钮
+              if (state.hasFilters) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+                  },
+                  icon: const Icon(Icons.filter_alt_off, size: 20),
+                  tooltip: '清除所有过滤',
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建搜索框
+  Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: '搜索文件名或 Prompt...',
+          hintStyle: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          isDense: true,
+        ),
+        onChanged: (value) {
+          setState(() {}); // 更新清除按钮显示状态
+          _onSearchChanged(value);
+        },
+        onSubmitted: (value) {
+          _debounceTimer?.cancel();
+          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
+        },
+      ),
+    );
+  }
+  
+  /// 构建日期范围按钮
+  Widget _buildDateRangeButton(ThemeData theme, LocalGalleryState state) {
+    final hasDateRange = state.dateStart != null || state.dateEnd != null;
+    
+    return OutlinedButton.icon(
+      onPressed: () => _selectDateRange(context, state),
+      icon: Icon(
+        Icons.date_range,
+        size: 16,
+        color: hasDateRange ? theme.colorScheme.primary : null,
+      ),
+      label: Text(
+        hasDateRange
+            ? _formatDateRange(state.dateStart, state.dateEnd)
+            : '日期过滤',
+        style: TextStyle(
+          fontSize: 12,
+          color: hasDateRange ? theme.colorScheme.primary : null,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        visualDensity: VisualDensity.compact,
+        side: hasDateRange
+            ? BorderSide(color: theme.colorScheme.primary)
+            : null,
+      ),
+    );
+  }
+  
+  /// 格式化日期范围显示
+  String _formatDateRange(DateTime? start, DateTime? end) {
+    final format = DateFormat('MM-dd');
+    if (start != null && end != null) {
+      return '${format.format(start)}~${format.format(end)}';
+    } else if (start != null) {
+      return '${format.format(start)}~';
+    } else if (end != null) {
+      return '~${format.format(end)}';
+    }
+    return '';
+  }
+  
+  /// 选择日期范围
+  Future<void> _selectDateRange(BuildContext context, LocalGalleryState state) async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: state.dateStart != null && state.dateEnd != null
+          ? DateTimeRange(start: state.dateStart!, end: state.dateEnd!)
+          : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      ref.read(localGalleryNotifierProvider.notifier).setDateRange(
+            picked.start,
+            picked.end,
+          );
+    }
+  }
+  
+  /// 构建错误状态
+  Widget _buildErrorState(ThemeData theme, LocalGalleryState state) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          Text('加载失败: ${state.error}'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => ref.read(localGalleryNotifierProvider.notifier).refresh(),
+            child: const Text('重试'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建索引状态
+  Widget _buildIndexingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('索引本地图片中...'),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建空状态
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text('暂无本地图片'),
+          SizedBox(height: 8),
+          Text('生成的图片将保存在此处', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建内容区
+  Widget _buildContent(ThemeData theme, LocalGalleryState state, int columns, double itemWidth) {
+    // 过滤后无结果
+    if (state.filteredFiles.isEmpty && state.hasFilters) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 48, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            const SizedBox(height: 12),
+            Text(
+              '无匹配结果',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () {
+                _searchController.clear();
+                ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+              },
+              icon: const Icon(Icons.filter_alt_off, size: 16),
+              label: const Text('清除过滤'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // 加载中骨架屏
+    if (state.isPageLoading) {
+      return MasonryGridView.count(
+        crossAxisCount: columns,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        itemCount: state.currentImages.isNotEmpty 
+            ? state.currentImages.length 
+            : 20,
+        itemBuilder: (c, i) {
+          final random = Random(i);
+          final height = 150.0 + random.nextInt(151);
+          
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            child: _ShimmerSkeleton(height: height),
+          );
+        },
+      );
+    }
+    
+    // 正常内容
+    return MasonryGridView.count(
+      key: const PageStorageKey<String>('local_gallery_grid'),
+      crossAxisCount: columns,
+      mainAxisSpacing: 4,
+      crossAxisSpacing: 4,
+      itemCount: state.currentImages.length,
+      itemBuilder: (c, i) => LocalImageCard(
+        record: state.currentImages[i],
+        itemWidth: itemWidth,
+      ),
     );
   }
 }

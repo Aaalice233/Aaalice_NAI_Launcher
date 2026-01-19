@@ -594,6 +594,15 @@
   "onlineGallery_open": "打开",
   "onlineGallery_all": "全部",
   "onlineGallery_clear": "清除",
+  "onlineGallery_previousPage": "上一页",
+  "onlineGallery_nextPage": "下一页",
+  "onlineGallery_pageN": "第 {page} 页",
+  "@onlineGallery_pageN": {
+    "placeholders": {
+      "page": {}
+    }
+  },
+  "onlineGallery_dateRange": "日期范围",
 
   "tooltip_randomPrompt": "随机提示词 (长按配置)",
   "tooltip_fullscreenEdit": "全屏编辑",

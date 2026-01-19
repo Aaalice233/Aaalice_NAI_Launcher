@@ -17,6 +17,15 @@ import '../widgets/navigation/main_nav_rail.dart';
 
 part 'app_router.g.dart';
 
+/// Navigator Keys for StatefulShellRoute branches
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
+final _galleryKey = GlobalKey<NavigatorState>(debugLabel: 'gallery');
+final _localGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'localGallery');
+final _onlineGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
+final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
+final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
+
 /// 路由路径常量
 class AppRoutes {
   AppRoutes._();
@@ -88,57 +97,91 @@ GoRouter appRouter(Ref ref) {
         builder: (context, state) => LoginScreen(),
       ),
 
-      // 主页 Shell - 带底部导航的布局
-      ShellRoute(
-        builder: (context, state, child) {
-          return MainShell(child: child);
+      // 主页 Shell - 使用 StatefulShellRoute 实现混合保活
+      StatefulShellRoute(
+        navigatorContainerBuilder: (context, navigationShell, children) {
+          return MainShell(
+            navigationShell: navigationShell,
+            children: children,
+          );
         },
-        routes: [
-          // 生成页 (首页)
-          GoRoute(
-            path: AppRoutes.home,
-            name: 'home',
-            builder: (context, state) => const GenerationScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.generation,
-            name: 'generation',
-            builder: (context, state) => const GenerationScreen(),
-          ),
-
-          // 图库页（本地生成历史）
-          GoRoute(
-            path: AppRoutes.gallery,
-            name: 'gallery',
-            builder: (context, state) => const GalleryScreen(),
-          ),
-
-          // 本地画廊（App生成的图片）
-          GoRoute(
-            path: AppRoutes.localGallery,
-            name: 'localGallery',
-            builder: (context, state) => const LocalGalleryScreen(),
+        builder: (context, state, navigationShell) => navigationShell,
+        branches: [
+          // Branch 0: 生成页 (首页) - 不保活
+          StatefulShellBranch(
+            navigatorKey: _homeKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                name: 'home',
+                builder: (context, state) => const GenerationScreen(),
+              ),
+              GoRoute(
+                path: AppRoutes.generation,
+                name: 'generation',
+                builder: (context, state) => const GenerationScreen(),
+              ),
+            ],
           ),
 
-          // 画廊页（在线图站浏览）
-          GoRoute(
-            path: AppRoutes.onlineGallery,
-            name: 'onlineGallery',
-            builder: (context, state) => const OnlineGalleryScreen(),
+          // Branch 1: 图库页（本地生成历史）- 不保活
+          StatefulShellBranch(
+            navigatorKey: _galleryKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.gallery,
+                name: 'gallery',
+                builder: (context, state) => const GalleryScreen(),
+              ),
+            ],
           ),
 
-          // 设置页
-          GoRoute(
-            path: AppRoutes.settings,
-            name: 'settings',
-            builder: (context, state) => const SettingsScreen(),
+          // Branch 2: 本地画廊 - 保活
+          StatefulShellBranch(
+            navigatorKey: _localGalleryKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.localGallery,
+                name: 'localGallery',
+                builder: (context, state) => const LocalGalleryScreen(),
+              ),
+            ],
           ),
 
-          // 随机提示词配置页
-          GoRoute(
-            path: AppRoutes.promptConfig,
-            name: 'promptConfig',
-            builder: (context, state) => const PromptConfigScreen(),
+          // Branch 3: 在线画廊 - 保活
+          StatefulShellBranch(
+            navigatorKey: _onlineGalleryKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.onlineGallery,
+                name: 'onlineGallery',
+                builder: (context, state) => const OnlineGalleryScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 4: 设置页 - 不保活
+          StatefulShellBranch(
+            navigatorKey: _settingsKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                name: 'settings',
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 5: 随机提示词配置页 - 不保活
+          StatefulShellBranch(
+            navigatorKey: _promptConfigKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.promptConfig,
+                name: 'promptConfig',
+                builder: (context, state) => const PromptConfigScreen(),
+              ),
+            ],
           ),
         ],
       ),
@@ -153,11 +196,20 @@ GoRouter appRouter(Ref ref) {
   );
 }
 
-/// 主布局 Shell - 包含导航
+/// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
+/// 
+/// 使用混合保活策略：
+/// - 画廊页面（索引 2, 3）使用 Offstage 保活
+/// - 其他页面不保活
 class MainShell extends ConsumerStatefulWidget {
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
+  final List<Widget> children;
 
-  const MainShell({super.key, required this.child});
+  const MainShell({
+    super.key,
+    required this.navigationShell,
+    required this.children,
+  });
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -197,15 +249,50 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = widget.navigationShell.currentIndex;
+    
+    // 构建混合保活内容栈
+    // - 索引 2 (localGallery) 和 3 (onlineGallery) 使用 Offstage 保活
+    // - 其他索引不保活，切换时销毁重建
+    final contentStack = IndexedStack(
+      index: currentIndex,
+      children: widget.children.asMap().entries.map((entry) {
+        final index = entry.key;
+        final child = entry.value;
+        final isActive = index == currentIndex;
+        
+        // 画廊索引（2: localGallery, 3: onlineGallery）始终保持在树中
+        // 通过 TickerMode 控制动画
+        if (index == 2 || index == 3) {
+          return TickerMode(
+            enabled: isActive,
+            child: child,
+          );
+        }
+        
+        // 其他索引：非活动时显示空容器（不保活）
+        if (!isActive) {
+          return const SizedBox.shrink();
+        }
+        return child;
+      }).toList(),
+    );
+    
     return LayoutBuilder(
       builder: (context, constraints) {
         // 桌面端：使用侧边导航
         if (constraints.maxWidth >= 800) {
-          return DesktopShell(child: widget.child);
+          return DesktopShell(
+            navigationShell: widget.navigationShell,
+            content: contentStack,
+          );
         }
 
         // 移动端：使用底部导航
-        return MobileShell(child: widget.child);
+        return MobileShell(
+          navigationShell: widget.navigationShell,
+          content: contentStack,
+        );
       },
     );
   }
@@ -213,9 +300,14 @@ class _MainShellState extends ConsumerState<MainShell> {
 
 /// 桌面端布局
 class DesktopShell extends StatelessWidget {
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
+  final Widget content;
 
-  const DesktopShell({super.key, required this.child});
+  const DesktopShell({
+    super.key,
+    required this.navigationShell,
+    required this.content,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -223,10 +315,10 @@ class DesktopShell extends StatelessWidget {
       body: Row(
         children: [
           // 侧边导航栏
-          const MainNavRail(),
+          MainNavRail(navigationShell: navigationShell),
 
           // 主内容区
-          Expanded(child: child),
+          Expanded(child: content),
         ],
       ),
     );
@@ -235,17 +327,22 @@ class DesktopShell extends StatelessWidget {
 
 /// 移动端布局
 class MobileShell extends StatelessWidget {
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
+  final Widget content;
 
-  const MobileShell({super.key, required this.child});
+  const MobileShell({
+    super.key,
+    required this.navigationShell,
+    required this.content,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
+      body: content,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _getSelectedIndex(context),
-        onDestinationSelected: (index) => _onNavigate(context, index),
+        selectedIndex: _getSelectedIndex(),
+        onDestinationSelected: (index) => _onNavigate(index),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.auto_awesome_outlined),
@@ -267,24 +364,31 @@ class MobileShell extends StatelessWidget {
     );
   }
 
-  int _getSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    if (location == AppRoutes.gallery) return 1;
-    if (location == AppRoutes.settings) return 2;
-    return 0;
+  /// 映射 branch index 到 mobile navigation index
+  /// Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig
+  /// Mobile nav: 0=home, 1=gallery, 2=settings
+  int _getSelectedIndex() {
+    final branchIndex = navigationShell.currentIndex;
+    if (branchIndex == 4) return 2; // settings
+    if (branchIndex >= 1 && branchIndex <= 3) return 1; // any gallery
+    return 0; // home
   }
 
-  void _onNavigate(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go(AppRoutes.home);
-        break;
+  /// 映射 mobile navigation index 到 branch index
+  void _onNavigate(int mobileIndex) {
+    // Mobile nav: 0=home, 1=gallery, 2=settings
+    // Map to branches: 0=home, 1=gallery, 4=settings
+    int branchIndex;
+    switch (mobileIndex) {
       case 1:
-        context.go(AppRoutes.gallery);
+        branchIndex = 1; // gallery (本地生成历史)
         break;
       case 2:
-        context.go(AppRoutes.settings);
+        branchIndex = 4; // settings
         break;
+      default:
+        branchIndex = 0; // home
     }
+    navigationShell.goBranch(branchIndex);
   }
 }
