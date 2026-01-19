@@ -2,27 +2,23 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/vibe_file_parser.dart';
+import '../../core/utils/nai_metadata_parser.dart';
 import '../models/gallery/local_image_record.dart';
-import '../models/vibe/vibe_reference_v4.dart';
+import '../models/gallery/nai_image_metadata.dart';
 
-/// 顶级函数：在 Isolate 中解析 PNG 元数据 (用于 compute)
+/// 顶级函数：在 Isolate 中解析 NAI 隐写元数据 (用于 compute)
 ///
 /// 避免主线程阻塞，提升 UI 流畅度
-Future<VibeReferenceV4?> parseMetadataInIsolate(
+Future<NaiImageMetadata?> parseNaiMetadataInIsolate(
   Map<String, dynamic> data,
 ) async {
   try {
-    // VibeFileParser.fromPng 是静态异步方法
-    return await VibeFileParser.fromPng(
-      data['name'] as String,
-      data['bytes'] as Uint8List,
-    );
+    final bytes = data['bytes'] as Uint8List;
+    return await NaiMetadataParser.extractFromBytes(bytes);
   } catch (e) {
     return null; // 解析失败返回 null
   }
@@ -34,7 +30,15 @@ Future<VibeReferenceV4?> parseMetadataInIsolate(
 class LocalGalleryRepository {
   LocalGalleryRepository._();
 
-  /// 获取图片保存目录
+  /// 获取图片保存目录（公共方法）
+  ///
+  /// 优先使用用户设置的自定义路径,否则使用默认路径
+  /// 这是唯一的保存路径获取方法，保证保存和扫描使用同一目录
+  Future<Directory> getImageDirectory() async {
+    return _getImageDirectory();
+  }
+
+  /// 获取图片保存目录（内部方法）
   ///
   /// 优先使用用户设置的自定义路径,否则使用默认路径
   Future<Directory> _getImageDirectory() async {
@@ -103,116 +107,74 @@ class LocalGalleryRepository {
         }
         try {
           final bytes = await file.readAsBytes();
-          final meta = await compute(parseMetadataInIsolate, {'name': path.basename(file.path), 'bytes': bytes});
+          // 使用新的 NAI 元数据解析器
+          final meta = await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
           return LocalImageRecord(
             path: file.path, 
             size: bytes.length, 
             modifiedAt: file.lastModifiedSync(),
             metadata: meta,
-            metadataStatus: meta != null ? MetadataStatus.success : MetadataStatus.none,
+            metadataStatus: meta != null && meta.hasData 
+                ? MetadataStatus.success 
+                : MetadataStatus.none,
           );
         } catch (e) {
+          AppLogger.w(
+            'Failed to parse metadata for ${file.path}: $e',
+            'LocalGalleryRepo',
+          );
           return LocalImageRecord(
              path: file.path, 
              size: 0, 
              modifiedAt: file.lastModifiedSync(), 
-             metadataStatus: MetadataStatus.none,
+             metadataStatus: MetadataStatus.failed,
           );
         }
       }),
     );
     stopwatch.stop();
+    
+    // 统计解析成功数量
+    final successCount = records.where((r) => r.metadataStatus == MetadataStatus.success).length;
     AppLogger.i(
-      'Page load completed: ${records.length} records in ${stopwatch.elapsedMilliseconds}ms',
+      'Page load completed: ${records.length} records ($successCount with metadata) in ${stopwatch.elapsedMilliseconds}ms',
       'LocalGalleryRepo',
     );
     return records;
   }
 
-  /// 扫描本地图片并逐批返回
+  /// 从单个文件解析元数据
   ///
-  /// 批次大小为 50,平衡 UI 更新频率和流开销
-  @Deprecated('Use getAllImageFiles() + loadRecords() for better performance')
-  Stream<List<LocalImageRecord>> scanImages() async* {
+  /// 用于拖放等场景，需要即时解析
+  Future<NaiImageMetadata?> parseMetadataFromFile(File file) async {
     try {
-      final imageDir = await _getImageDirectory();
-
-      if (!imageDir.existsSync()) {
-        AppLogger.w(
-          'Image directory not found: ${imageDir.path}',
-          'LocalGalleryRepo',
-        );
-        return;
-      }
-
-      // 2. 获取所有 PNG 文件
-      final files = imageDir
-          .listSync(recursive: false)
-          .whereType<File>()
-          .where((f) => f.path.toLowerCase().endsWith('.png'))
-          .toList();
-
-      AppLogger.i(
-        'Found ${files.length} PNG files in ${imageDir.path}',
-        'LocalGalleryRepo',
-      );
-
-      // 3. 批量处理（每批 50 张）
-      final List<LocalImageRecord> batch = [];
-
-      for (final file in files) {
-        try {
-          final bytes = await file.readAsBytes();
-
-          // 使用 compute 在独立 Isolate 中解析，避免主线程阻塞 UI
-          final metadata = await compute(
-            parseMetadataInIsolate,
-            {
-              'name': path.basename(file.path),
-              'bytes': bytes,
-            },
-          );
-
-          batch.add(
-            LocalImageRecord(
-              path: file.path,
-              size: bytes.length,
-              modifiedAt: file.lastModifiedSync(),
-              metadata: metadata,
-              metadataStatus: metadata != null
-                  ? MetadataStatus.success
-                  : MetadataStatus.none,
-            ),
-          );
-
-          // 达到批次大小时，发送当前批次
-          if (batch.length >= 50) {
-            yield List.from(batch);
-            batch.clear();
-          }
-        } catch (e) {
-          AppLogger.e(
-            'Failed to process image: ${file.path}, error: $e',
-            'LocalGalleryRepo',
-          );
-        }
-      }
-
-      // 4. 发送最后一批（不足 50 张）
-      if (batch.isNotEmpty) {
-        yield batch;
-      }
-
-      AppLogger.i(
-        'Scan completed. Total images processed: ${files.length}',
-        'LocalGalleryRepo',
-      );
+      final bytes = await file.readAsBytes();
+      return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
       AppLogger.e(
-        'Scan failed: $e',
+        'Failed to parse metadata from file: ${file.path}',
+        e,
+        null,
         'LocalGalleryRepo',
       );
-      rethrow;
+      return null;
+    }
+  }
+
+  /// 从字节数据解析元数据
+  ///
+  /// 用于拖放等场景
+  Future<NaiImageMetadata?> parseMetadataFromBytes(Uint8List bytes) async {
+    try {
+      return await NaiMetadataParser.extractFromBytes(bytes);
+    } catch (e) {
+      AppLogger.e(
+        'Failed to parse metadata from bytes',
+        e,
+        null,
+        'LocalGalleryRepo',
+      );
+      return null;
     }
   }
 

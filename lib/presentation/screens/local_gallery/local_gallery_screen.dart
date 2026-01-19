@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/permission_utils.dart';
+import '../../../data/repositories/local_gallery_repository.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/local_image_card.dart';
@@ -117,10 +120,55 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
   }
 
+  /// 打开图片保存文件夹
+  Future<void> _openImageFolder() async {
+    try {
+      final dir = await LocalGalleryRepository.instance.getImageDirectory();
+      
+      // 确保目录存在
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      
+      // 获取绝对路径
+      final absolutePath = dir.absolute.path;
+      
+      // 显示路径信息（调试用）
+      debugPrint('Opening folder: $absolutePath');
+      
+      // 使用系统资源管理器打开文件夹
+      if (Platform.isWindows) {
+        // Windows: 将正斜杠替换为反斜杠，直接使用 explorer.exe
+        final windowsPath = absolutePath.replaceAll('/', '\\');
+        debugPrint('Windows path: $windowsPath');
+        
+        // 直接调用 explorer.exe，路径作为参数
+        await Process.run('explorer.exe', [windowsPath]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [absolutePath]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [absolutePath]);
+      } else {
+        // 其他平台使用 url_launcher
+        final uri = Uri.directory(absolutePath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('无法打开文件夹: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(localGalleryNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
+    final theme = Theme.of(context);
 
     // 计算列数（200px/列，最少2列，最多8列）
     final columns = (screenWidth / 200).floor().clamp(2, 8);
@@ -130,6 +178,24 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       appBar: AppBar(
         title: const Text('本地画廊'),
         actions: [
+          // 打开文件夹按钮 - 带文字的胶囊按钮
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: TextButton.icon(
+              onPressed: _openImageFolder,
+              icon: const Icon(Icons.folder_open, size: 18),
+              label: const Text('打开文件夹'),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.primary,
+                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+          // 刷新按钮
           if (state.isIndexing)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -140,12 +206,23 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               ),
             )
           else
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                ref.read(localGalleryNotifierProvider.notifier).refresh();
-              },
-              tooltip: '刷新',
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton.icon(
+                onPressed: () {
+                  ref.read(localGalleryNotifierProvider.notifier).refresh();
+                },
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('刷新'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.secondary,
+                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
             ),
         ],
       ),

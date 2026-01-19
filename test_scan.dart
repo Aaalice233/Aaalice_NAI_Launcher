@@ -2,7 +2,7 @@ import 'dart:io';
 
 void main() async {
   // 测试路径扫描逻辑
-  final testPath = r'E:\Download\图图\NAI';
+  const testPath = r'E:\Download\图图\NAI';
   final imageDir = Directory(testPath);
 
   print('=== 测试路径扫描 ===');
@@ -29,9 +29,8 @@ void main() async {
   }
 
   // 过滤 PNG 文件
-  final pngFiles = filesList
-      .where((f) => f.path.toLowerCase().endsWith('.png'))
-      .toList();
+  final pngFiles =
+      filesList.where((f) => f.path.toLowerCase().endsWith('.png')).toList();
   print('\nPNG 文件数量: ${pngFiles.length}');
   for (final file in pngFiles) {
     print('  - ${file.path}');

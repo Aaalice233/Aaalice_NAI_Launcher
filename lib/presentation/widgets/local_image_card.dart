@@ -8,6 +8,8 @@ import 'package:path/path.dart' as path;
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
+import '../../data/models/gallery/nai_image_metadata.dart';
+import 'common/app_toast.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）
 class LocalImageCard extends StatefulWidget {
@@ -38,10 +40,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
   void _showContextMenu([Offset? position]) {
     final metadata = widget.record.metadata;
 
-    if (metadata == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('此图片无元数据')),
-      );
+    if (metadata == null || !metadata.hasData) {
+      AppToast.warning(context, '此图片无元数据');
       return;
     }
 
@@ -66,37 +66,50 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ],
           ),
           onTap: () {
-            final prompt = metadata.displayName;
-            Clipboard.setData(ClipboardData(text: prompt));
+            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
             Future.delayed(const Duration(milliseconds: 100), () {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Prompt 已复制')),
-                );
+                AppToast.success(context, 'Prompt 已复制');
               }
             });
           },
         ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.tag, size: 18),
-              SizedBox(width: 8),
-              Text('复制 Seed'),
-            ],
+        if (metadata.negativePrompt.isNotEmpty)
+          PopupMenuItem(
+            child: const Row(
+              children: [
+                Icon(Icons.content_copy_outlined, size: 18),
+                SizedBox(width: 8),
+                Text('复制负向提示词'),
+              ],
+            ),
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: metadata.negativePrompt));
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted) {
+                  AppToast.success(context, '负向提示词已复制');
+                }
+              });
+            },
           ),
-          onTap: () {
-            final seed = metadata.strength.toString();
-            Clipboard.setData(ClipboardData(text: seed));
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Seed 已复制')),
-                );
-              }
-            });
-          },
-        ),
+        if (metadata.seed != null)
+          PopupMenuItem(
+            child: const Row(
+              children: [
+                Icon(Icons.tag, size: 18),
+                SizedBox(width: 8),
+                Text('复制 Seed'),
+              ],
+            ),
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: metadata.seed.toString()));
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted) {
+                  AppToast.success(context, 'Seed 已复制');
+                }
+              });
+            },
+          ),
         PopupMenuItem(
           child: const Row(
             children: [
@@ -152,7 +165,6 @@ class _LocalImageCardState extends State<LocalImageCard> {
                 builder: (context, constraints) {
                   final isDesktop = constraints.maxWidth > 800;
                   
-                  // 顶部操作栏（仅移动端显示，桌面端在右侧面板）
                   final closeButton = IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
@@ -227,10 +239,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                       Expanded(
                                         child: ElevatedButton.icon(
                                           onPressed: () {
-                                            Clipboard.setData(ClipboardData(text: metadata.displayName));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Prompt 已复制')),
-                                            );
+                                            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
+                                            AppToast.success(context, 'Prompt 已复制');
                                           },
                                           icon: const Icon(Icons.copy),
                                           label: const Text('复制 Prompt'),
@@ -282,10 +292,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                         ),
                                         ElevatedButton.icon(
                                           onPressed: () {
-                                            Clipboard.setData(ClipboardData(text: metadata.displayName));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Prompt 已复制')),
-                                            );
+                                            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
+                                            AppToast.success(context, 'Prompt 已复制');
                                           },
                                           icon: const Icon(Icons.copy, size: 16),
                                           label: const Text('复制 Prompt'),
@@ -344,7 +352,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
     );
   }
 
-  Widget _buildMetadataContent(BuildContext context, dynamic metadata) {
+  Widget _buildMetadataContent(BuildContext context, NaiImageMetadata metadata) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -371,13 +379,52 @@ class _LocalImageCardState extends State<LocalImageCard> {
           context,
           title: '生成参数',
           children: [
-            _buildInfoRow(context, Icons.tune, 'Strength', metadata.strength.toString()),
-            const SizedBox(height: 8),
-            // 尝试获取图片尺寸 (异步)
+            if (metadata.seed != null) ...[
+              _buildInfoRow(context, Icons.tag, 'Seed', metadata.seed.toString()),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.steps != null) ...[
+              _buildInfoRow(context, Icons.repeat, 'Steps', metadata.steps.toString()),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.scale != null) ...[
+              _buildInfoRow(context, Icons.tune, 'CFG Scale', metadata.scale.toString()),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.sampler != null) ...[
+              _buildInfoRow(context, Icons.shuffle, 'Sampler', metadata.displaySampler),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.sizeString.isNotEmpty) ...[
+              _buildInfoRow(context, Icons.aspect_ratio, '尺寸', metadata.sizeString),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.model != null) ...[
+              _buildInfoRow(context, Icons.smart_toy, '模型', metadata.model!),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.smea == true || metadata.smeaDyn == true) ...[
+              _buildInfoRow(
+                context, 
+                Icons.auto_awesome, 
+                'SMEA', 
+                metadata.smeaDyn == true ? 'DYN' : (metadata.smea == true ? 'ON' : 'OFF'),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.noiseSchedule != null) ...[
+              _buildInfoRow(context, Icons.waves, 'Noise Schedule', metadata.noiseSchedule!),
+              const SizedBox(height: 8),
+            ],
+            if (metadata.cfgRescale != null && metadata.cfgRescale! > 0) ...[
+              _buildInfoRow(context, Icons.balance, 'CFG Rescale', metadata.cfgRescale.toString()),
+              const SizedBox(height: 8),
+            ],
+            // 获取图片实际尺寸
             FutureBuilder<ui.ImageDescriptor>(
               future: _getImageSize(widget.record.path),
               builder: (context, snapshot) {
-                if (snapshot.hasData) {
+                if (snapshot.hasData && metadata.sizeString.isEmpty) {
                   return _buildInfoRow(
                     context,
                     Icons.aspect_ratio,
@@ -396,7 +443,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
           title: 'Prompt',
           children: [
             SelectableText(
-              metadata.displayName,
+              metadata.fullPrompt.isNotEmpty ? metadata.fullPrompt : '(无)',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontFamily: 'monospace',
                 height: 1.5,
@@ -404,6 +451,39 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ),
           ],
         ),
+        if (metadata.negativePrompt.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildInfoCard(
+            context,
+            title: '负向提示词 (UC)',
+            children: [
+              SelectableText(
+                metadata.negativePrompt,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'monospace',
+                  height: 1.5,
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (metadata.rawJson != null) ...[
+          const SizedBox(height: 16),
+          _buildInfoCard(
+            context,
+            title: '原始 JSON',
+            children: [
+              SelectableText(
+                metadata.rawJson!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -478,6 +558,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
   Widget build(BuildContext context) {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
+    final metadata = widget.record.metadata;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -554,19 +635,33 @@ class _LocalImageCardState extends State<LocalImageCard> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              timeago.format(
-                                widget.record.modifiedAt,
-                                locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en',
-                              ),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  timeago.format(
+                                    widget.record.modifiedAt,
+                                    locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en',
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                if (metadata?.seed != null) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Seed: ${metadata!.seed}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                            if (widget.record.metadata?.displayName != null)
+                            if (metadata?.prompt.isNotEmpty == true)
                               Text(
-                                widget.record.metadata!.displayName,
+                                metadata!.prompt,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,

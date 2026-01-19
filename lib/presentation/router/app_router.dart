@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/localization_extension.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
 import '../providers/download_progress_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
@@ -56,8 +56,15 @@ GoRouter appRouter(Ref ref) {
     redirect: (context, state) {
       // 在 redirect 内部使用 ref.read 获取最新状态
       final authState = ref.read(authNotifierProvider);
+      final isLoading = authState.status == AuthStatus.loading || 
+                        authState.status == AuthStatus.initial;
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
+
+      // 正在加载中（检查自动登录），不重定向，等待认证状态确定
+      if (isLoading) {
+        return null;
+      }
 
       // 未登录且不在登录页，重定向到登录页
       if (!isLoggedIn && !isLoggingIn) {

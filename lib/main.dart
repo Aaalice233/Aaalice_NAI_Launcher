@@ -47,14 +47,20 @@ class WindowStateObserver extends WidgetsBindingObserver {
 class AppTrayListener extends TrayListener {
   @override
   Future<void> onTrayIconMouseDown() async {
-    // 双击托盘图标 - 恢复窗口
+    // 左键点击托盘图标 - 恢复窗口
     try {
       await windowManager.show();
       await windowManager.focus();
-      AppLogger.d('Window restored from tray', 'TrayListener');
+      AppLogger.d('Window restored from tray (left click)', 'TrayListener');
     } catch (e) {
       AppLogger.e('Failed to restore window from tray: $e', 'TrayListener');
     }
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    // 右键点击托盘图标 - 显示上下文菜单 (Windows)
+    trayManager.popUpContextMenu();
   }
 
   @override
@@ -67,6 +73,8 @@ class AppTrayListener extends TrayListener {
         AppLogger.d('Window shown via tray menu', 'TrayListener');
       } else if (menuItem.key == 'exit') {
         // 退出应用（真正关闭）
+        // 先解除 preventClose，再销毁窗口
+        await windowManager.setPreventClose(false);
         await windowManager.destroy();
         AppLogger.d('Application exited via tray menu', 'TrayListener');
       }
@@ -82,6 +90,8 @@ class AppWindowListener extends WindowListener {
   Future<void> onWindowClose() async {
     // 阻止默认关闭行为，改为隐藏到托盘
     try {
+      // 阻止窗口关闭
+      await windowManager.setPreventClose(true);
       await windowManager.hide();
       AppLogger.d('Window hidden to tray', 'WindowListener');
     } catch (e) {
@@ -158,7 +168,10 @@ void main() async {
     // 初始化系统托盘（仅 Windows）
     if (Platform.isWindows) {
       try {
-        await trayManager.setIcon('windows/runner/resources/app_icon.ico');
+        // 设置托盘图标和提示
+        // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
+        await trayManager.setIcon('assets/icons/app_icon.ico');
+        await trayManager.setToolTip('NAI Launcher');
         
         final menu = Menu(
           items: [
@@ -174,6 +187,9 @@ void main() async {
           ],
         );
         await trayManager.setContextMenu(menu);
+        
+        // 设置阻止关闭（关闭时隐藏到托盘）
+        await windowManager.setPreventClose(true);
         
         trayManager.addListener(AppTrayListener());
         windowManager.addListener(AppWindowListener());

@@ -1,7 +1,10 @@
 {
   "active_plan": "E:\\Aaalice_NAI_Launcher\\.sisyphus\\plans\\local-gallery-overhaul.md",
   "started_at": "2026-01-18T04:36:41.114Z",
-  "session_ids": ["ses_4309bebf9ffefUNDo6KkmcuMNa"],
+  "session_ids": [
+    "ses_4309bebf9ffefUNDo6KkmcuMNa",
+    "ses_42c29f683ffe56nIVbRRUEeWGZ"
+  ],
   "plan_name": "local-gallery-overhaul",
   "status": "in_progress"
 }

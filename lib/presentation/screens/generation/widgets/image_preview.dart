@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_metadata_parser.dart';
+import '../../../../data/repositories/local_gallery_repository.dart';
+import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/image_save_settings_provider.dart';
+import '../../../providers/local_gallery_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import 'upscale_dialog.dart';
@@ -285,6 +289,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         await file.writeAsBytes(images[index]);
       }
 
+      // 通知本地画廊刷新
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
       }
@@ -497,42 +504,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
   }
 
-  /// 获取保存目录
+  /// 获取保存目录（统一使用 LocalGalleryRepository）
   Future<Directory> _getSaveDirectory() async {
-    // 优先使用设置中的自定义路径
-    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-    if (saveSettings.hasCustomPath) {
-      final customDir = Directory(saveSettings.customPath!);
-      if (!await customDir.exists()) {
-        await customDir.create(recursive: true);
-      }
-      return customDir;
+    // 使用 LocalGalleryRepository 获取保存目录，保证路径一致性
+    final dir = await LocalGalleryRepository.instance.getImageDirectory();
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
     }
-
-    if (Platform.isAndroid) {
-      // Android: 保存到外部存储的 Pictures/NAI_Launcher 目录
-      final externalDir = await getExternalStorageDirectory();
-      if (externalDir != null) {
-        // 尝试保存到 Pictures 目录
-        final picturesPath = externalDir.path.replaceFirst(
-          RegExp(r'/Android/data/[^/]+/files'),
-          '/Pictures/NAI_Launcher',
-        );
-        final picturesDir = Directory(picturesPath);
-        if (!await picturesDir.exists()) {
-          await picturesDir.create(recursive: true);
-        }
-        return picturesDir;
-      }
-    }
-
-    // 其他平台或备用: 使用文档目录
-    final docDir = await getApplicationDocumentsDirectory();
-    final saveDir = Directory('${docDir.path}/NAI_Launcher');
-    if (!await saveDir.exists()) {
-      await saveDir.create(recursive: true);
-    }
-    return saveDir;
+    return dir;
   }
 
   /// 保存图片到文件
@@ -541,7 +520,82 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final saveDir = await _getSaveDirectory();
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(imageBytes);
+      
+      // 获取当前生成参数
+      final params = ref.read(generationParamsNotifierProvider);
+      final characterConfig = ref.read(characterPromptNotifierProvider);
+      
+      // 构建 V4 多角色提示词结构
+      final charCaptions = <Map<String, dynamic>>[];
+      final charNegCaptions = <Map<String, dynamic>>[];
+      
+      for (final char in characterConfig.characters.where((c) => c.enabled && c.prompt.isNotEmpty)) {
+        charCaptions.add({
+          'char_caption': char.prompt,
+          'centers': [{'x': 0.5, 'y': 0.5}],
+        });
+        charNegCaptions.add({
+          'char_caption': char.negativePrompt,
+          'centers': [{'x': 0.5, 'y': 0.5}],
+        });
+      }
+      
+      // 构造 NAI Comment 格式的元数据 JSON（与官网格式完全对齐）
+      final commentJson = <String, dynamic>{
+        'prompt': params.prompt,
+        'uc': params.negativePrompt,
+        'seed': params.seed,
+        'steps': params.steps,
+        'width': params.width,
+        'height': params.height,
+        'scale': params.scale,
+        'uncond_scale': 0.0,
+        'cfg_rescale': params.cfgRescale,
+        'n_samples': 1,
+        'noise_schedule': params.noiseSchedule,
+        'sampler': params.sampler,
+        'sm': params.smea,
+        'sm_dyn': params.smeaDyn,
+      };
+      
+      // 如果有角色提示词，添加 V4 格式
+      if (charCaptions.isNotEmpty) {
+        commentJson['v4_prompt'] = {
+          'caption': {
+            'base_caption': params.prompt,
+            'char_captions': charCaptions,
+          },
+          'use_coords': !characterConfig.globalAiChoice,
+          'use_order': true,
+        };
+        commentJson['v4_negative_prompt'] = {
+          'caption': {
+            'base_caption': params.negativePrompt,
+            'char_captions': charNegCaptions,
+          },
+          'use_coords': false,
+          'use_order': false,
+        };
+      }
+      
+      // 构造完整的官网格式元数据
+      final metadata = {
+        'Description': params.prompt,
+        'Software': 'NovelAI',
+        'Source': _getModelSourceName(params.model),
+        'Comment': jsonEncode(commentJson),
+      };
+      
+      // 嵌入元数据
+      final embeddedBytes = await NaiMetadataParser.embedMetadata(
+        imageBytes,
+        jsonEncode(metadata),
+      );
+      
+      await file.writeAsBytes(embeddedBytes);
+
+      // 通知本地画廊刷新
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
@@ -551,6 +605,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
+  }
+  
+  /// 获取模型的 Source 名称
+  String _getModelSourceName(String model) {
+    if (model.contains('diffusion-4-5')) {
+      return 'NovelAI Diffusion V4.5';
+    } else if (model.contains('diffusion-4')) {
+      return 'NovelAI Diffusion V4';
+    } else if (model.contains('diffusion-3')) {
+      return 'NovelAI Diffusion V3';
+    }
+    return 'NovelAI Diffusion';
   }
 
   /// 复制图片到剪贴板
@@ -699,38 +765,14 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
     );
   }
 
+  /// 获取保存目录（统一使用 LocalGalleryRepository）
   Future<Directory> _getSaveDirectory() async {
-    // 优先使用设置中的自定义路径
-    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-    if (saveSettings.hasCustomPath) {
-      final customDir = Directory(saveSettings.customPath!);
-      if (!await customDir.exists()) {
-        await customDir.create(recursive: true);
-      }
-      return customDir;
+    // 使用 LocalGalleryRepository 获取保存目录，保证路径一致性
+    final dir = await LocalGalleryRepository.instance.getImageDirectory();
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
     }
-
-    if (Platform.isAndroid) {
-      final externalDir = await getExternalStorageDirectory();
-      if (externalDir != null) {
-        final picturesPath = externalDir.path.replaceFirst(
-          RegExp(r'/Android/data/[^/]+/files'),
-          '/Pictures/NAI_Launcher',
-        );
-        final picturesDir = Directory(picturesPath);
-        if (!await picturesDir.exists()) {
-          await picturesDir.create(recursive: true);
-        }
-        return picturesDir;
-      }
-    }
-
-    final docDir = await getApplicationDocumentsDirectory();
-    final saveDir = Directory('${docDir.path}/NAI_Launcher');
-    if (!await saveDir.exists()) {
-      await saveDir.create(recursive: true);
-    }
-    return saveDir;
+    return dir;
   }
 
   Future<void> _saveImage(BuildContext context) async {
@@ -738,7 +780,82 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
       final saveDir = await _getSaveDirectory();
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(widget.imageBytes);
+      
+      // 获取当前生成参数
+      final params = ref.read(generationParamsNotifierProvider);
+      final characterConfig = ref.read(characterPromptNotifierProvider);
+      
+      // 构建 V4 多角色提示词结构
+      final charCaptions = <Map<String, dynamic>>[];
+      final charNegCaptions = <Map<String, dynamic>>[];
+      
+      for (final char in characterConfig.characters.where((c) => c.enabled && c.prompt.isNotEmpty)) {
+        charCaptions.add({
+          'char_caption': char.prompt,
+          'centers': [{'x': 0.5, 'y': 0.5}],
+        });
+        charNegCaptions.add({
+          'char_caption': char.negativePrompt,
+          'centers': [{'x': 0.5, 'y': 0.5}],
+        });
+      }
+      
+      // 构造 NAI Comment 格式的元数据 JSON（与官网格式完全对齐）
+      final commentJson = <String, dynamic>{
+        'prompt': params.prompt,
+        'uc': params.negativePrompt,
+        'seed': params.seed,
+        'steps': params.steps,
+        'width': params.width,
+        'height': params.height,
+        'scale': params.scale,
+        'uncond_scale': 0.0,
+        'cfg_rescale': params.cfgRescale,
+        'n_samples': 1,
+        'noise_schedule': params.noiseSchedule,
+        'sampler': params.sampler,
+        'sm': params.smea,
+        'sm_dyn': params.smeaDyn,
+      };
+      
+      // 如果有角色提示词，添加 V4 格式
+      if (charCaptions.isNotEmpty) {
+        commentJson['v4_prompt'] = {
+          'caption': {
+            'base_caption': params.prompt,
+            'char_captions': charCaptions,
+          },
+          'use_coords': !characterConfig.globalAiChoice,
+          'use_order': true,
+        };
+        commentJson['v4_negative_prompt'] = {
+          'caption': {
+            'base_caption': params.negativePrompt,
+            'char_captions': charNegCaptions,
+          },
+          'use_coords': false,
+          'use_order': false,
+        };
+      }
+      
+      // 构造完整的官网格式元数据
+      final metadata = {
+        'Description': params.prompt,
+        'Software': 'NovelAI',
+        'Source': _getModelSourceName(params.model),
+        'Comment': jsonEncode(commentJson),
+      };
+      
+      // 嵌入元数据
+      final embeddedBytes = await NaiMetadataParser.embedMetadata(
+        widget.imageBytes,
+        jsonEncode(metadata),
+      );
+      
+      await file.writeAsBytes(embeddedBytes);
+
+      // 通知本地画廊刷新
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
@@ -748,6 +865,18 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
+  }
+  
+  /// 获取模型的 Source 名称
+  String _getModelSourceName(String model) {
+    if (model.contains('diffusion-4-5')) {
+      return 'NovelAI Diffusion V4.5';
+    } else if (model.contains('diffusion-4')) {
+      return 'NovelAI Diffusion V4';
+    } else if (model.contains('diffusion-3')) {
+      return 'NovelAI Diffusion V3';
+    }
+    return 'NovelAI Diffusion';
   }
 }
 

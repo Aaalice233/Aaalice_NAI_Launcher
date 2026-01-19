@@ -149,6 +149,20 @@ class AuthNotifier extends _$AuthNotifier {
 
     final storage = ref.read(secureStorageServiceProvider);
 
+    // 等待 AccountManager 加载完成（最多等待 5 秒）
+    final accountManagerNotifier = ref.read(accountManagerNotifierProvider.notifier);
+    var accountManagerState = ref.read(accountManagerNotifierProvider);
+    int waitCount = 0;
+    const maxWait = 50; // 50 * 100ms = 5秒
+    while (accountManagerState.isLoading && waitCount < maxWait) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      accountManagerState = ref.read(accountManagerNotifierProvider);
+      waitCount++;
+    }
+    if (waitCount > 0) {
+      AppLogger.d('Waited ${waitCount * 100}ms for AccountManager to load', 'Auth');
+    }
+
     // 1. 检查是否有有效的全局 Token
 
     final token = await storage.getAccessToken();
@@ -159,18 +173,17 @@ class AuthNotifier extends _$AuthNotifier {
         final subscriptionInfo = await apiService.validateToken(token);
 
         // 尝试找到 Token 对应的账号
-        final accountManager = ref.read(accountManagerNotifierProvider.notifier);
         final accounts = ref.read(accountManagerNotifierProvider).accounts;
         String? matchedAccountId;
         String? matchedDisplayName;
 
         for (final account in accounts) {
-          final accountToken = await accountManager.getAccountToken(account.id);
+          final accountToken = await accountManagerNotifier.getAccountToken(account.id);
           if (accountToken == token) {
             matchedAccountId = account.id;
             matchedDisplayName = account.displayName;
             // 更新最后使用时间
-            accountManager.updateLastUsed(account.id);
+            accountManagerNotifier.updateLastUsed(account.id);
             break;
           }
         }
@@ -198,7 +211,6 @@ class AuthNotifier extends _$AuthNotifier {
     }
 
     // 2. 尝试使用保存的账号自动登录
-    final accountManager = ref.read(accountManagerNotifierProvider.notifier);
     final accounts = ref.read(accountManagerNotifierProvider).accounts;
     // 注意：accounts 已按 lastUsedAt 排序，第一个就是最近登录的账号
 
@@ -208,7 +220,7 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.auth('Attempting auto-login with account: ${lastUsedAccount.displayName}');
 
       // 获取账号的 Token 和类型
-      final accountToken = await accountManager.getAccountToken(lastUsedAccount.id);
+      final accountToken = await accountManagerNotifier.getAccountToken(lastUsedAccount.id);
       final accountType = lastUsedAccount.accountType;
 
       if (accountToken != null && accountToken.isNotEmpty) {
@@ -245,7 +257,7 @@ class AuthNotifier extends _$AuthNotifier {
           );
 
           // 更新最后使用时间
-          accountManager.updateLastUsed(lastUsedAccount.id);
+          accountManagerNotifier.updateLastUsed(lastUsedAccount.id);
 
           AppLogger.auth('Auto-login successful with account: ${lastUsedAccount.displayName}');
           return;

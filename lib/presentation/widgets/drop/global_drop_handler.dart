@@ -7,6 +7,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
@@ -188,6 +189,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       context,
       imageBytes: bytes,
       fileName: fileName,
+      showExtractMetadata: fileName.toLowerCase().endsWith('.png'), // 只有 PNG 才支持提取元数据
     );
 
     if (destination == null || !mounted) return;
@@ -205,6 +207,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       case ImageDestination.characterReference:
         _handleCharacterReference(bytes, notifier);
+        break;
+
+      case ImageDestination.extractMetadata:
+        await _handleExtractMetadata(bytes, notifier);
         break;
     }
   }
@@ -285,6 +291,178 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         hasExisting ? '已替换角色参考' : context.l10n.drop_addedToCharacterRef,
       );
     }
+  }
+
+  /// 处理提取元数据并应用
+  Future<void> _handleExtractMetadata(
+    Uint8List bytes,
+    GenerationParamsNotifier notifier,
+  ) async {
+    try {
+      // 解析 NAI 隐写元数据
+      final metadata = await NaiMetadataParser.extractFromBytes(bytes);
+
+      if (metadata == null || !metadata.hasData) {
+        if (mounted) {
+          AppToast.warning(context, '未找到 NovelAI 元数据');
+        }
+        return;
+      }
+
+      // 应用元数据到生成参数
+      int appliedCount = 0;
+
+      // 应用 Prompt
+      if (metadata.prompt.isNotEmpty) {
+        notifier.updatePrompt(metadata.prompt);
+        appliedCount++;
+      }
+
+      // 应用负向提示词
+      if (metadata.negativePrompt.isNotEmpty) {
+        notifier.updateNegativePrompt(metadata.negativePrompt);
+        appliedCount++;
+      }
+
+      // 应用 Seed
+      if (metadata.seed != null) {
+        notifier.updateSeed(metadata.seed!);
+        appliedCount++;
+      }
+
+      // 应用 Steps
+      if (metadata.steps != null) {
+        notifier.updateSteps(metadata.steps!);
+        appliedCount++;
+      }
+
+      // 应用 Scale
+      if (metadata.scale != null) {
+        notifier.updateScale(metadata.scale!);
+        appliedCount++;
+      }
+
+      // 应用尺寸
+      if (metadata.width != null && metadata.height != null) {
+        notifier.updateSize(metadata.width!, metadata.height!);
+        appliedCount++;
+      }
+
+      // 应用采样器
+      if (metadata.sampler != null) {
+        notifier.updateSampler(metadata.sampler!);
+        appliedCount++;
+      }
+
+      // 应用 SMEA 设置
+      if (metadata.smea != null) {
+        notifier.updateSmea(metadata.smea!);
+        appliedCount++;
+      }
+      if (metadata.smeaDyn != null) {
+        notifier.updateSmeaDyn(metadata.smeaDyn!);
+        appliedCount++;
+      }
+
+      // 应用 Noise Schedule
+      if (metadata.noiseSchedule != null) {
+        notifier.updateNoiseSchedule(metadata.noiseSchedule!);
+        appliedCount++;
+      }
+
+      // 应用 CFG Rescale
+      if (metadata.cfgRescale != null) {
+        notifier.updateCfgRescale(metadata.cfgRescale!);
+        appliedCount++;
+      }
+
+      if (mounted) {
+        if (appliedCount > 0) {
+          AppToast.success(context, '已应用 $appliedCount 项参数');
+          
+          // 显示详细信息
+          _showMetadataAppliedDialog(metadata);
+        } else {
+          AppToast.warning(context, '未能应用任何参数');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        AppLogger.d('Error extracting metadata: $e', 'DropHandler');
+      }
+      _showError('提取元数据失败: $e');
+    }
+  }
+
+  /// 显示元数据应用成功对话框
+  void _showMetadataAppliedDialog(dynamic metadata) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('元数据已应用'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('以下参数已应用到当前设置：'),
+              const SizedBox(height: 12),
+              if (metadata.prompt.isNotEmpty)
+                _buildAppliedItem('Prompt', metadata.prompt, maxLines: 3),
+              if (metadata.negativePrompt.isNotEmpty)
+                _buildAppliedItem('负向提示词', metadata.negativePrompt, maxLines: 2),
+              if (metadata.seed != null)
+                _buildAppliedItem('Seed', metadata.seed.toString()),
+              if (metadata.steps != null)
+                _buildAppliedItem('Steps', metadata.steps.toString()),
+              if (metadata.scale != null)
+                _buildAppliedItem('CFG Scale', metadata.scale.toString()),
+              if (metadata.width != null && metadata.height != null)
+                _buildAppliedItem('尺寸', '${metadata.width} x ${metadata.height}'),
+              if (metadata.sampler != null)
+                _buildAppliedItem('采样器', metadata.displaySampler),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppliedItem(String label, String value, {int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showError(String message) {

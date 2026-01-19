@@ -14,6 +14,9 @@ enum ImageDestination {
 
   /// 角色参考
   characterReference,
+
+  /// 提取元数据并应用到生成参数
+  extractMetadata,
 }
 
 /// 图片目标选择对话框
@@ -26,10 +29,14 @@ class ImageDestinationDialog extends StatelessWidget {
   /// 文件名
   final String fileName;
 
+  /// 是否显示提取元数据选项
+  final bool showExtractMetadata;
+
   const ImageDestinationDialog({
     super.key,
     required this.imageBytes,
     required this.fileName,
+    this.showExtractMetadata = true,
   });
 
   /// 显示对话框
@@ -37,6 +44,7 @@ class ImageDestinationDialog extends StatelessWidget {
     BuildContext context, {
     required Uint8List imageBytes,
     required String fileName,
+    bool showExtractMetadata = true,
   }) {
     return showDialog<ImageDestination>(
       context: context,
@@ -44,6 +52,7 @@ class ImageDestinationDialog extends StatelessWidget {
       builder: (context) => ImageDestinationDialog(
         imageBytes: imageBytes,
         fileName: fileName,
+        showExtractMetadata: showExtractMetadata,
       ),
     );
   }
@@ -128,6 +137,20 @@ class ImageDestinationDialog extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // 提取元数据选项（置顶，用主题色高亮）
+                  if (showExtractMetadata) ...[
+                    _DestinationButton(
+                      icon: Icons.data_object,
+                      label: '提取元数据并应用',
+                      subtitle: '读取图片中的 Prompt、Seed 等参数',
+                      isPrimary: true,
+                      onTap: () =>
+                          Navigator.of(context).pop(ImageDestination.extractMetadata),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 16),
+                  ],
                   _DestinationButton(
                     icon: Icons.image_outlined,
                     label: context.l10n.drop_img2img,
@@ -162,12 +185,16 @@ class ImageDestinationDialog extends StatelessWidget {
 class _DestinationButton extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
+  final bool isPrimary;
 
   const _DestinationButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.subtitle,
+    this.isPrimary = false,
   });
 
   @override
@@ -175,7 +202,9 @@ class _DestinationButton extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: isPrimary 
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -186,19 +215,48 @@ class _DestinationButton extends StatelessWidget {
             vertical: 12,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 20,
-                color: theme.colorScheme.primary,
+                size: 24,
+                color: isPrimary 
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.primary,
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: isPrimary 
+                            ? theme.colorScheme.onPrimaryContainer
+                            : theme.colorScheme.onSurface,
+                        fontWeight: isPrimary ? FontWeight.bold : null,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isPrimary 
+                              ? theme.colorScheme.onPrimaryContainer.withOpacity(0.7)
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: isPrimary 
+                    ? theme.colorScheme.onPrimaryContainer.withOpacity(0.5)
+                    : theme.colorScheme.outline,
               ),
             ],
           ),
