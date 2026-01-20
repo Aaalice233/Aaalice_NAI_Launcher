@@ -18,7 +18,7 @@ class ThemeNotifier extends _$ThemeNotifier {
       return AppStyle.values[index];
     }
 
-    return AppStyle.herdingStyle; // 默认风格 - herdi.ng 金黄深青
+    return AppStyle.minimalGlass; // 默认风格 - 金黄深青 (原 herdingStyle)
   }
 
   /// 设置主题

@@ -1,0 +1,85 @@
+<design-system>
+
+Design Style: Bold Retro-Modernism\
+Design Philosophy\
+This style is a confident fusion of retro aesthetics and modern web design principles. It emphasizes a vibrant, rich color palette, bold typography, and prominent photographic heroes to create an immersive and fashionable user experience. The layout is clean and structured, using distinct sections and generous white space to guide the user, while the visual language feels premium, adventurous, and stylish.
+
+Core Tenets:
+
+Bold & Vibrant Palette: Use a rich, striking color scheme with deep reds, blues, sunny yellows, and warm beiges. Each section should have a dominant color to create visual impact and separation.
+
+Heavy Typography: Employ thick, confident sans-serif fonts for headlines to command attention. Body text should be clean and legible, providing a counterbalance to the bold headings.
+
+Photographic Immersion: Utilize large, high-quality lifestyle photography as the primary visual element. Images should be fashion-forward, showcasing the product in a stylish context.
+
+Structured Layout: The design is built on a clear grid, with distinct, full-width sections. Use generous padding and margin to create a clean, uncluttered feel.
+
+Retro-Modern Details: Incorporate subtle retro elements, like a ticker-tape style brand bar, alongside modern components like clean buttons and carousels.
+
+Design Token System (The DNA)\
+Colors (The "Vibrant Retro" Palette)\
+Primary Palette:
+
+Retro Red: #BC2C2C (A deep, rich red, used for hero backgrounds and prominent accents).
+
+Vintage Blue: #5DA4C9 (A cool, inviting blue, used for secondary sections and backgrounds).
+
+Sunny Yellow: #FCD758 (A bright, cheerful yellow, used for highlights and backgrounds).
+
+Warm Beige: #F5F1E3 (A soft, neutral beige, used for backgrounds and text areas).
+
+Secondary Palette:
+
+Text Dark: #2C2C2C (A very dark grey, used for primary text).
+
+Text Light: #FFFFFF (White, used for text on dark backgrounds).
+
+Typography\
+Font Family: "Montserrat" or "Poppins" (Bold/Extra Bold) for headlines, "Open Sans" or "Roboto" (Regular) for body text.
+
+Hierarchy:
+
+Hero Headline: text-5xl to text-6xl, font-extrabold, uppercase.
+
+Section Headline: text-3xl to text-4xl, font-bold, uppercase.
+
+Subline: text-lg, font-medium.
+
+Body: text-base, leading-relaxed.
+
+Button Text: text-sm to text-base, font-bold, uppercase.
+
+Component Stylings
+
+1. The Hero Banner\
+   Base Styles: A full-width section with a dominant background color (Red, Blue, Yellow).
+
+Content: Features a massive, uppercase headline, a supporting subline, and a prominent call-to-action button. A large, high-quality lifestyle image is integrated, often on one side.
+
+Branding: The brand name (e.g., "SUNVISION") is subtly placed at the top, with a simple navigation and search/cart icons.
+
+1. The Brand Ticker Bar\
+   Base Styles: A full-width bar with a distinct background color (e.g., Blue).
+
+Content: A horizontal list of brand logos or names (e.g., "PRADA", "DIOR", "GUCCI") separated by icons, presented in a ticker-tape fashion.
+
+Typography: Bold, uppercase, text-lg.
+
+1. The Selected Brands Grid\
+   Base Styles: A section with a warm beige background.
+
+Content: A headline like "OUR SELECTED BRANDS" followed by a grid of product cards. Each card features a large product image, a brand name, and a "Shop Now" button. A carousel indicator may be present.
+
+1. The Featured Product Section\
+   Base Styles: A split-panel layout. One side has a large, high-quality product image (e.g., sunglasses on a beach).
+
+Content: The other side has a prominent background color (e.g., Yellow or Red) with a large headline ("LATEST ARRIVALS"), a product description, and a "Shop Now" button.
+
+1. Buttons\
+   Base Styles: Solid, rectangular or slightly rounded buttons.
+
+Colors: White background with dark text for primary actions on colored backgrounds. Colored background with white text for secondary actions.
+
+Typography: Bold, uppercase text.
+
+</design-system>

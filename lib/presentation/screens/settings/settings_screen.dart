@@ -14,6 +14,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../themes/app_theme.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_divider.dart';
 import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
 
@@ -41,7 +42,7 @@ class SettingsScreen extends ConsumerWidget {
             onEdit: () => _showProfileSheet(context, ref),
             onLogin: () => _navigateToLogin(context),
           ),
-          const Divider(),
+          const ThemedDivider(),
 
           // 外观设置
           _buildSectionHeader(theme, context.l10n.settings_appearance),
@@ -70,7 +71,7 @@ class SettingsScreen extends ConsumerWidget {
                 Text(currentLocale.languageCode == 'zh' ? context.l10n.settings_languageChinese : context.l10n.settings_languageEnglish),
             onTap: () => _showLanguageDialog(context, ref, currentLocale),
           ),
-          const Divider(),
+          const ThemedDivider(),
 
           // 存储设置
           _buildSectionHeader(theme, context.l10n.settings_storage),
@@ -117,12 +118,12 @@ class SettingsScreen extends ConsumerWidget {
                   .setAutoSave(value);
             },
           ),
-          const Divider(),
+          const ThemedDivider(),
 
           // 队列设置
           _buildSectionHeader(theme, '队列'),
           _buildQueueSettings(context, ref),
-          const Divider(),
+          const ThemedDivider(),
 
           // 关于
           _buildSectionHeader(theme, context.l10n.settings_about),

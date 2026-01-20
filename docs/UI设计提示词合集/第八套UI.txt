@@ -1,0 +1,406 @@
+This is a reference implementation of Midnight Editorial Style
+
+~~~/README.md
+
+# Superdesign Portfolio
+
+A premium portfolio showcase component featuring a dark mode aesthetic, large typography, and dynamic motion effects.
+
+## Features
+- **Immersive Dark Theme**: Deep black backgrounds with high-contrast text.
+- **Custom Typography**: Uses 'Satoshi' variable font for a modern look.
+- **Motion Effects**: Scroll-triggered reveals, parallax hero, and hover interactions using Framer Motion.
+- **Responsive Layout**: Fully responsive grid and typography.
+
+## Usage
+
+```tsx
+import { SuperdesignPortfolio } from '@/sd-components/a36ad1fa-6ed0-4a22-b24c-c64c863d9a71';
+
+function Page() {
+  return <SuperdesignPortfolio />;
+}
+```
+
+## Props
+This component currently does not accept any props as it is a self-contained page layout. To customize content, modify the `Component.tsx` file directly.
+~~~
+
+~~~/src/App.tsx
+
+import React from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
+import SuperdesignPortfolio from './Component';
+
+export default function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<SuperdesignPortfolio />} />
+      </Routes>
+    </HashRouter>
+  );
+}
+~~~
+
+~~~/package.json
+{
+  "name": "superdesign-portfolio",
+  "description": "Premium portfolio showcase page for Superdesign",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "framer-motion": "^10.16.4",
+    "lucide-react": "^0.292.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0",
+    "react-router-dom": "^6.20.0"
+  }
+}
+~~~
+
+~~~/src/Component.tsx
+
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-motion';
+import { ArrowRight, Menu, X, Globe, Instagram, Twitter, Linkedin, Monitor, Smartphone, Box, Megaphone, LayoutGrid } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// --- Utils ---
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// --- Font Assets (Injected via Style) ---
+const FontStyles = () => (
+  <style>{`
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/4aed2f49-a476-436f-bae8-f31aa18f46fa/1767920861040-60c1c779/Satoshi-Variable.woff2') format('woff2');
+      font-weight: 300 900;
+      font-display: swap;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/4aed2f49-a476-436f-bae8-f31aa18f46fa/1767920861254-1d1a0ef3/Satoshi-VariableItalic.ttf') format('truetype');
+      font-weight: 300 900;
+      font-display: swap;
+      font-style: italic;
+    }
+    
+    :root {
+      --font-satoshi: 'Satoshi', sans-serif;
+    }
+    
+    body {
+      font-family: var(--font-satoshi);
+      background-color: #050505;
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+
+    ::selection {
+      background-color: #FF6B50;
+      color: #ffffff;
+    }
+  `}</style>
+);
+
+// --- Components ---
+
+const FloatingNav = () => {
+  return (
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-[#111111]/90 backdrop-blur-md border border-[#333333] rounded-2xl shadow-2xl">
+      <div className="flex items-center gap-1 pr-4 border-r border-[#333333]">
+        <button className="p-3 hover:bg-[#222222] rounded-xl transition-colors text-white group relative">
+          <LayoutGrid size={20} />
+          <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Home</span>
+        </button>
+        <button className="p-3 hover:bg-[#222222] rounded-xl transition-colors text-white group relative">
+          <Globe size={20} />
+          <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Work</span>
+        </button>
+        <button className="p-3 hover:bg-[#222222] rounded-xl transition-colors text-white group relative">
+          <Smartphone size={20} />
+          <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Mobile</span>
+        </button>
+        <button className="p-3 hover:bg-[#222222] rounded-xl transition-colors text-white group relative">
+          <Box size={20} />
+          <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Services</span>
+        </button>
+        <button className="p-3 hover:bg-[#222222] rounded-xl transition-colors text-white group relative">
+          <Megaphone size={20} />
+          <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">About</span>
+        </button>
+      </div>
+      <button className="px-6 py-3 bg-[#FF6B50] hover:bg-[#E55A40] text-black font-bold text-sm tracking-wide uppercase rounded-xl transition-colors">
+        Contact
+      </button>
+    </div>
+  );
+};
+
+const Navbar = () => {
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-6 py-6 text-white text-sm font-medium">
+      <div className="flex items-center gap-8">
+        {/* Logo */}
+        <div className="w-8 h-8 bg-white rounded flex items-center justify-center text-black font-bold text-lg">S.</div>
+        
+        {/* Left Links */}
+        <div className="hidden md:flex items-center gap-8 text-gray-300">
+          <a href="#" className="hover:text-white transition-colors">Home</a>
+          <a href="#" className="hover:text-white transition-colors">About</a>
+          <a href="#" className="hover:text-white transition-colors">Contact</a>
+          <a href="#" className="hover:text-white transition-colors">Our Work</a>
+        </div>
+      </div>
+
+      {/* Right Actions */}
+      <div className="flex items-center gap-8">
+        <a href="#" className="hidden md:block hover:text-gray-300 transition-colors">Our journal</a>
+        <button className="px-5 py-2.5 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#333333] rounded-lg text-white transition-colors">
+          Get started
+        </button>
+      </div>
+    </nav>
+  );
+};
+
+const Hero = () => {
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 500], [0, 200]);
+  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  return (
+    <section className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden">
+      {/* Main Text */}
+      <motion.div 
+        style={{ y, opacity }}
+        className="relative z-10 flex flex-col items-center"
+      >
+        <motion.h1 
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+          className="text-[13vw] leading-none font-semibold tracking-tight text-white text-center"
+        >
+          /design
+        </motion.h1>
+      </motion.div>
+
+      {/* Background Visuals */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#1a1a1a] to-[#050505]" />
+      </div>
+
+      {/* Bottom Left - Avatars */}
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.5, duration: 0.8 }}
+        className="absolute bottom-8 left-8 z-20 hidden md:flex items-center gap-4"
+      >
+        <div className="flex -space-x-3">
+          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop" className="w-10 h-10 rounded-full border-2 border-[#050505] object-cover" alt="User 1" />
+          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop" className="w-10 h-10 rounded-full border-2 border-[#050505] object-cover" alt="User 2" />
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150&auto=format&fit=crop" className="w-10 h-10 rounded-full border-2 border-[#050505] object-cover" alt="User 3" />
+        </div>
+        <div className="text-white text-sm font-medium leading-tight">
+          Designing the<br/>future, today.
+        </div>
+      </motion.div>
+
+      {/* Bottom Right - Contact */}
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.5, duration: 0.8 }}
+        className="absolute bottom-8 right-8 z-20 hidden md:flex flex-col items-end gap-1"
+      >
+        <a href="mailto:contact@superdesign.com" className="text-white font-medium hover:text-[#FF6B50] transition-colors">
+          contact@superdesign.com
+        </a>
+        <div className="w-8 h-0.5 bg-white"></div>
+      </motion.div>
+    </section>
+  );
+};
+
+const BenefitsSection = () => {
+  return (
+    <section className="py-32 px-6 md:px-12 max-w-7xl mx-auto">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#FF6B50]" />
+        <span className="text-xs font-bold tracking-[0.2em] text-[#666666] uppercase">Why launch slow when you can move fast?</span>
+      </div>
+      
+      <h2 className="text-4xl md:text-6xl lg:text-7xl font-medium leading-[1.1] tracking-tight text-white max-w-5xl mb-24">
+        Clean, scalable design that helps you ship faster and grow your revenue.
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Card */}
+        <div className="bg-[#111111] rounded-3xl p-12 min-h-[500px] flex flex-col justify-between relative overflow-hidden group">
+          <div className="absolute top-8 right-8 bg-[#1a1a1a] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider text-[#888888] border border-[#333333]">
+            Just Ship
+          </div>
+          
+          <div className="mt-auto relative z-10">
+            <h3 className="text-5xl md:text-6xl font-medium tracking-tight mb-2 text-white">
+              Start faster.
+            </h3>
+            <h3 className="text-5xl md:text-6xl font-medium tracking-tight text-[#444444]">
+              Earn sooner.
+            </h3>
+          </div>
+          
+          {/* Subtle gradient effect */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-black/50 to-transparent pointer-events-none" />
+        </div>
+
+        {/* Right Card */}
+        <div className="bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-3xl p-8 md:p-12 min-h-[500px] flex items-center justify-center relative overflow-hidden">
+          <div className="w-full max-w-md bg-[#e5e5e5] rounded-xl shadow-2xl overflow-hidden transform group-hover:scale-105 transition-transform duration-500">
+            <div className="bg-[#f5f5f5] px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+               <div className="w-3 h-3 rounded-full bg-red-400" />
+               <div className="w-3 h-3 rounded-full bg-yellow-400" />
+               <div className="w-3 h-3 rounded-full bg-green-400" />
+               <span className="ml-2 text-xs font-medium text-gray-500">Superdesign Studio</span>
+            </div>
+            <div className="aspect-[4/3] bg-gray-100 relative">
+               <img 
+                 src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop"
+                 alt="Dashboard UI"
+                 className="w-full h-full object-cover"
+               />
+               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+               <div className="absolute bottom-6 left-6 text-white">
+                  <div className="text-xs font-bold uppercase tracking-wider mb-1">Design System</div>
+                  <div className="text-xl font-bold">Ui Kit v2.0</div>
+               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const ProjectCard = ({ title, category, image, index }: { title: string, category: string, image: string, index: number }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6, delay: index * 0.1 }}
+      className="group relative cursor-pointer"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="aspect-[4/3] overflow-hidden bg-[#111111]">
+        <motion.img 
+          src={image} 
+          alt={title}
+          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+          animate={{ scale: isHovered ? 1.05 : 1 }}
+          transition={{ duration: 0.6 }}
+        />
+      </div>
+      <div className="mt-6 flex justify-between items-start border-t border-[#333333] pt-6">
+        <div>
+          <h3 className="text-2xl md:text-3xl font-bold mb-1 group-hover:text-[#FF6B50] transition-colors">{title}</h3>
+          <p className="text-[#666666] text-sm uppercase tracking-wider">{category}</p>
+        </div>
+        <motion.div 
+          animate={{ x: isHovered ? 5 : 0, opacity: isHovered ? 1 : 0.5 }}
+          className="p-2 rounded-full border border-[#333333] group-hover:border-[#FF6B50] group-hover:bg-[#FF6B50] group-hover:text-black transition-all"
+        >
+          <ArrowRight size={20} />
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+};
+
+const WorkGallery = () => {
+  const projects = [
+    { title: "NEBULA", category: "Brand Identity", image: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop" },
+    { title: "QUANTUM", category: "Web Design", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop" },
+    { title: "ECHO", category: "Art Direction", image: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=1000&auto=format&fit=crop" },
+    { title: "FLUX", category: "Development", image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop" }
+  ];
+
+  return (
+    <section id="work" className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
+      <div className="flex justify-between items-end mb-16">
+        <h2 className="text-sm font-bold tracking-[0.2em] uppercase text-[#FF6B50]">Selected Work</h2>
+        <span className="hidden md:block text-[#333333] text-sm">2023 — 2024</span>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-24">
+        {projects.map((project, index) => (
+          <ProjectCard key={index} {...project} index={index} />
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const Footer = () => {
+  return (
+    <footer id="contact" className="py-24 px-6 md:px-12 border-t border-[#222222] bg-[#050505] pb-40">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-12">
+        <div>
+          <h2 className="text-[10vw] leading-[0.8] font-black tracking-tighter text-white mb-8">
+            LET'S<br />TALK.
+          </h2>
+          <div className="flex flex-col gap-4">
+            <a href="mailto:hello@superdesign.com" className="text-xl md:text-2xl hover:text-[#FF6B50] transition-colors">hello@superdesign.com</a>
+            <p className="text-[#666666]">Los Angeles, CA</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-6">
+          <a href="#" className="p-4 border border-[#333333] rounded-full hover:bg-white hover:text-black transition-all"><Instagram size={20} /></a>
+          <a href="#" className="p-4 border border-[#333333] rounded-full hover:bg-white hover:text-black transition-all"><Twitter size={20} /></a>
+          <a href="#" className="p-4 border border-[#333333] rounded-full hover:bg-white hover:text-black transition-all"><Linkedin size={20} /></a>
+          <a href="#" className="p-4 border border-[#333333] rounded-full hover:bg-white hover:text-black transition-all"><Globe size={20} /></a>
+        </div>
+      </div>
+      
+      <div className="mt-24 pt-8 border-t border-[#111111] flex flex-col md:flex-row justify-between text-[#444444] text-xs uppercase tracking-wider">
+        <p>&copy; 2024 Superdesign Agency.</p>
+        <div className="flex gap-8 mt-4 md:mt-0">
+          <a href="#" className="hover:text-white">Privacy</a>
+          <a href="#" className="hover:text-white">Terms</a>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export function SuperdesignPortfolio() {
+  return (
+    <div className="bg-[#050505] min-h-screen text-white selection:bg-[#FF6B50] selection:text-white [font-family:Satoshi,sans-serif]">
+      <FontStyles />
+      <Navbar />
+      <FloatingNav />
+      <main>
+        <Hero />
+        <BenefitsSection />
+        <WorkGallery />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export default SuperdesignPortfolio;
+~~~
+
+Please use the above as reference and apply to our context
