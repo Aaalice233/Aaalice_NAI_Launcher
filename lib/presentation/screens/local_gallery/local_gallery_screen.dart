@@ -73,7 +73,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               prompt: img.metadata!.prompt,
               thumbnailUrl: img.path, // 本地路径
               source: ReplicationTaskSource.local,
-            ))
+            ),)
         .toList();
 
     if (tasks.isEmpty) {

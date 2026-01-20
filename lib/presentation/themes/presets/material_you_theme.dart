@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/pill_shap
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/soft_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/none_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/material_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/soft_divider_module.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Material You (MD3) theme configuration.
@@ -35,6 +36,7 @@ class MaterialYouTheme {
     shadow: SoftShadow(),
     effect: NoneEffect(),
     motion: MaterialMotion(),
+    divider: SoftDividerModule.standardBlack,
   );
 
   /// The light theme.

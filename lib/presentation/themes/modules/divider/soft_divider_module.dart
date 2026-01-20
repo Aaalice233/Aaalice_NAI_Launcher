@@ -26,20 +26,20 @@ class SoftDividerModule extends BaseDividerModule {
   }) : _dividerColor = color,
        _opacity = opacity;
 
-  /// Zen style - ultra subtle (6% opacity)
-  factory SoftDividerModule.zen(Color baseColor) {
-    return SoftDividerModule(color: baseColor, opacity: 0.06);
-  }
+  /// Zen style - ultra subtle (6% opacity) for dark themes
+  static const zenWhite = SoftDividerModule(color: Colors.white, opacity: 0.06);
+  
+  /// Zen style - ultra subtle (6% opacity) for light themes
+  static const zenBlack = SoftDividerModule(color: Colors.black, opacity: 0.06);
 
-  /// Standard soft divider (10% opacity)
-  factory SoftDividerModule.standard(Color baseColor) {
-    return SoftDividerModule(color: baseColor, opacity: 0.10);
-  }
+  /// Standard soft divider (6% opacity) for dark themes - very subtle
+  static const standardWhite = SoftDividerModule(color: Colors.white, opacity: 0.06);
+  
+  /// Standard soft divider (8% opacity) for light themes
+  static const standardBlack = SoftDividerModule(color: Colors.black, opacity: 0.08);
 
-  /// Light theme soft divider (darker, 15% opacity)
-  factory SoftDividerModule.light(Color baseColor) {
-    return SoftDividerModule(color: baseColor, opacity: 0.15);
-  }
+  /// Light theme soft divider (10% opacity)
+  static const lightBlack = SoftDividerModule(color: Colors.black, opacity: 0.10);
 
   @override
   double get thickness => 1.0;

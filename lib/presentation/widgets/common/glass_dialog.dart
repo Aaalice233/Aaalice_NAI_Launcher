@@ -48,7 +48,7 @@ class GlassDialog extends StatelessWidget {
         child: Container(
           width: width,
           height: height,
-          padding: padding ?? EdgeInsets.all(DesignTokens.spacingMd),
+          padding: padding ?? const EdgeInsets.all(DesignTokens.spacingMd),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface
                 .withOpacity(DesignTokens.glassOpacity),
@@ -142,13 +142,13 @@ class GlassAlertDialog extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: DesignTokens.spacingSm),
+            const SizedBox(height: DesignTokens.spacingSm),
           ],
           Text(
             content,
             style: theme.textTheme.bodyMedium,
           ),
-          SizedBox(height: DesignTokens.spacingLg),
+          const SizedBox(height: DesignTokens.spacingLg),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -160,7 +160,7 @@ class GlassAlertDialog extends StatelessWidget {
                   },
                   child: Text(cancelText!),
                 ),
-              SizedBox(width: DesignTokens.spacingXs),
+              const SizedBox(width: DesignTokens.spacingXs),
               FilledButton(
                 onPressed: () {
                   Navigator.of(context).pop(true);

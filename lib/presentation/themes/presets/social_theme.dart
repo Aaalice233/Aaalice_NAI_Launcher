@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/standard_
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/none_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/none_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/snappy_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/soft_divider_module.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Social theme configuration.
@@ -25,6 +26,7 @@ class SocialTheme {
     shadow: NoneShadow(),
     effect: NoneEffect(),
     motion: SnappyMotion(),
+    divider: SoftDividerModule.standardWhite,
   );
 
   static ThemeData get light => _composer.buildTheme(Brightness.light);

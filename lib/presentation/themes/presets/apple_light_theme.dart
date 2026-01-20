@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/pill_shap
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/soft_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/none_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/zen_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/soft_divider_module.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Apple Light theme configuration.
@@ -25,6 +26,7 @@ class AppleLightTheme {
     shadow: SoftShadow(),
     effect: NoneEffect(),
     motion: ZenMotion(),
+    divider: SoftDividerModule.lightBlack,
   );
 
   static ThemeData get light => _composer.buildTheme(Brightness.light);

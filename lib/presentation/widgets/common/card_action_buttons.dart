@@ -103,7 +103,8 @@ class _CardActionButtonsState extends State<CardActionButtons> with SingleTicker
         
         final buttonIndex = index;
         final reversedIndex = widget.buttons.length - 1 - index;
-        final delay = Duration(milliseconds: reversedIndex * 50);
+        // Delay calculated but applied via Interval animation below
+        // final delay = Duration(milliseconds: reversedIndex * 50);
         
         // 计算每个按钮的动画区间
         // 总时长 = 基础时长 + 最大延迟

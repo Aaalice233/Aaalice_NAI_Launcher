@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/typography/presets/hand
 import 'package:nai_launcher/presentation/themes/modules/shape/presets/wobbly_shapes.dart';
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/hard_offset_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/jitter_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/none_divider.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Hand-Drawn theme configuration.
@@ -38,6 +39,7 @@ class HandDrawnTheme {
     shadow: HardOffsetShadow(),
     effect: _paperTextureEffect,
     motion: JitterMotion(),
+    divider: NoneDividerModule(),
   );
 
   /// The light theme.

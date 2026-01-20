@@ -89,7 +89,7 @@ class AccountDetailTile extends ConsumerWidget {
                       Text(
                         account.email,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.outline,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

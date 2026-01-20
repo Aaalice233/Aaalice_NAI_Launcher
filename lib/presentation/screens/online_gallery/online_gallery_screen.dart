@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
-import 'package:url_launcher/url_launcher.dart';
+
 
 import '../../../core/cache/danbooru_image_cache_manager.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -14,14 +14,14 @@ import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
-import '../../../data/services/tag_translation_service.dart';
+
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
-import '../../widgets/tag_chip.dart';
+
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -925,7 +925,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               prompt: p.tags.join(', '),
               thumbnailUrl: p.previewUrl,
               source: ReplicationTaskSource.online,
-            ))
+            ),)
         .toList();
 
     if (tasks.isEmpty) {
@@ -1024,7 +1024,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         failCount++;
         debugPrint('Download failed for post ${post.id}: $e');
       }
-    }));
+    },),);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -66,6 +66,19 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   /// 强调分割条颜色 (herdi.ng 风格金黄色横条)
   final Color? accentBarColor;
 
+  // ============================================
+  // Divider 属性
+  // ============================================
+
+  /// 分割线颜色
+  final Color dividerColor;
+
+  /// 分割线厚度
+  final double dividerThickness;
+
+  /// 是否显示分割线
+  final bool useDivider;
+
   const AppThemeExtension({
     this.containerDecoration,
     this.blurStrength = 0.0,
@@ -83,6 +96,10 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     this.shadowIntensity = 0.0,
     this.isLightTheme = false,
     this.accentBarColor,
+    // Divider properties
+    this.dividerColor = const Color(0x1AFFFFFF),
+    this.dividerThickness = 1.0,
+    this.useDivider = true,
   });
 
   @override
@@ -103,6 +120,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     double? shadowIntensity,
     bool? isLightTheme,
     Color? accentBarColor,
+    Color? dividerColor,
+    double? dividerThickness,
+    bool? useDivider,
   }) {
     return AppThemeExtension(
       containerDecoration: containerDecoration ?? this.containerDecoration,
@@ -121,6 +141,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       shadowIntensity: shadowIntensity ?? this.shadowIntensity,
       isLightTheme: isLightTheme ?? this.isLightTheme,
       accentBarColor: accentBarColor ?? this.accentBarColor,
+      dividerColor: dividerColor ?? this.dividerColor,
+      dividerThickness: dividerThickness ?? this.dividerThickness,
+      useDivider: useDivider ?? this.useDivider,
     );
   }
 
@@ -155,6 +178,10 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
           uiLerpDouble(shadowIntensity, other.shadowIntensity, t) ?? shadowIntensity,
       isLightTheme: t < 0.5 ? isLightTheme : other.isLightTheme,
       accentBarColor: Color.lerp(accentBarColor, other.accentBarColor, t),
+      dividerColor: Color.lerp(dividerColor, other.dividerColor, t) ?? dividerColor,
+      dividerThickness:
+          uiLerpDouble(dividerThickness, other.dividerThickness, t) ?? dividerThickness,
+      useDivider: t < 0.5 ? useDivider : other.useDivider,
     );
   }
 

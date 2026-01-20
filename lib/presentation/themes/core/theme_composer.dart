@@ -1,6 +1,6 @@
 /// ThemeComposer - Modular Theme Composition
 ///
-/// The ThemeComposer takes 6 independent modules and combines them into
+/// The ThemeComposer takes 7 independent modules and combines them into
 /// a complete [ThemeData] and [AppThemeExtension].
 ///
 /// ## Usage
@@ -13,6 +13,7 @@
 ///   shadow: SoftShadow(),
 ///   effect: NoneEffect(),
 ///   motion: SnappyMotion(),
+///   divider: SoftDividerModule.standard(Colors.white),
 /// );
 ///
 /// final lightTheme = composer.buildTheme(Brightness.light);
@@ -21,6 +22,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/themes/core/divider_module.dart';
 import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
@@ -33,6 +35,7 @@ import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 /// - [shadow] - Elevation and shadow styles
 /// - [effect] - Special visual effects
 /// - [motion] - Animation parameters
+/// - [divider] - Divider and border styles
 class ThemeComposer {
   /// The color module providing ColorScheme.
   final ColorSchemeModule color;
@@ -52,6 +55,9 @@ class ThemeComposer {
   /// The motion module providing animation parameters.
   final MotionModule motion;
 
+  /// The divider module providing divider and border styles.
+  final DividerModule divider;
+
   /// Creates a ThemeComposer with all required modules.
   const ThemeComposer({
     required this.color,
@@ -60,6 +66,7 @@ class ThemeComposer {
     required this.shadow,
     required this.effect,
     required this.motion,
+    required this.divider,
   });
 
   /// Builds a complete [ThemeData] for the given brightness.
@@ -99,6 +106,14 @@ class ThemeComposer {
       brightness: effectiveBrightness,
       colorScheme: colorScheme,
       textTheme: textTheme,
+      
+      // Apply divider module colors to Flutter's built-in divider
+      dividerColor: divider.dividerColor,
+      dividerTheme: DividerThemeData(
+        color: divider.dividerColor,
+        thickness: divider.thickness,
+        space: divider.thickness,
+      ),
       
       // Apply shape module to component themes
       cardTheme: CardTheme(
@@ -171,6 +186,10 @@ class ThemeComposer {
       enableNeonGlow: effect.enableNeonGlow,
       glowColor: effect.glowColor,
       shadowIntensity: shadow.cardShadow.isNotEmpty ? 1.0 : 0.0,
+      // Divider module properties
+      dividerColor: divider.dividerColor,
+      dividerThickness: divider.thickness,
+      useDivider: divider.useDivider,
     );
   }
 

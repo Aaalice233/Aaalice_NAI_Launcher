@@ -67,7 +67,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
       parent: _controller,
       curve: DesignTokens.curveEnter,
       reverseCurve: DesignTokens.curveExit,
-    ));
+    ),);
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
@@ -75,7 +75,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: DesignTokens.curveEnter,
-    ));
+    ),);
 
     if (widget.visible) {
       _controller.forward();
@@ -109,7 +109,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: Padding(
-          padding: EdgeInsets.all(DesignTokens.spacingMd),
+          padding: const EdgeInsets.all(DesignTokens.spacingMd),
           child: ClipRRect(
             borderRadius: DesignTokens.borderRadiusLg,
             child: BackdropFilter(
@@ -118,7 +118,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                 sigmaY: DesignTokens.glassBlurRadius,
               ),
               child: Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spacingMd,
                   vertical: DesignTokens.spacingSm,
                 ),
@@ -148,13 +148,13 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                       tooltip: '退出多选',
                       iconSize: DesignTokens.iconMd,
                     ),
-                    SizedBox(width: DesignTokens.spacingXs),
+                    const SizedBox(width: DesignTokens.spacingXs),
                     
                     // 选中数量
                     Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: DesignTokens.spacingSm,
-                        vertical: DesignTokens.spacingXxs,
+                        vertical: DesignTokens.spacingXs,
                       ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer,
@@ -169,7 +169,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                       ),
                     ),
                     
-                    SizedBox(width: DesignTokens.spacingMd),
+                    const SizedBox(width: DesignTokens.spacingMd),
                     
                     // 分隔线
                     Container(
@@ -178,7 +178,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                       color: theme.colorScheme.outline.withOpacity(0.3),
                     ),
                     
-                    SizedBox(width: DesignTokens.spacingSm),
+                    const SizedBox(width: DesignTokens.spacingSm),
                     
                     // 操作按钮
                     ...widget.actions.map((action) => IconButton(
@@ -186,7 +186,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                       onPressed: action.onPressed,
                       tooltip: action.tooltip,
                       iconSize: DesignTokens.iconMd,
-                    )),
+                    ),),
                   ],
                 ),
               ),

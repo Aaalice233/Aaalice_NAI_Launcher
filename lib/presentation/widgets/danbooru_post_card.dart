@@ -1,4 +1,4 @@
-import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -92,7 +92,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
   Future<void> _handleDownload() async {
     final url = widget.post.largeFileUrl ?? widget.post.sampleUrl ?? widget.post.previewUrl;
-    if (url == null) return;
+    if (url.isEmpty) return;
 
     try {
       final result = await FilePicker.platform.getDirectoryPath();

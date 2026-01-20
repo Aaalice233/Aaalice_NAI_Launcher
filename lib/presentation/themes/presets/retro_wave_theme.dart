@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/standard_
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/glow_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/neon_glow_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/snappy_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/glow_divider.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Retro Wave theme configuration.
@@ -25,6 +26,7 @@ class RetroWaveTheme {
     shadow: GlowShadow(),
     effect: NeonGlowEffect(),
     motion: SnappyMotion(),
+    divider: GlowDividerModule.retroWave,
   );
 
   static ThemeData get light => _composer.buildTheme(Brightness.light);

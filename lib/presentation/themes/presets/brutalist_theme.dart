@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/sharp_sha
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/hard_offset_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/none_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/snappy_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/thick_divider.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Brutalist theme configuration.
@@ -25,6 +26,7 @@ class BrutalistTheme {
     shadow: HardOffsetShadow(),
     effect: NoneEffect(),
     motion: SnappyMotion(),
+    divider: ThickDividerModule.brutalist,
   );
 
   static ThemeData get light => _composer.buildTheme(Brightness.light);

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/storage_keys.dart';
@@ -94,7 +95,7 @@ class QueueSettings {
 /// - 错误重试机制
 @Riverpod(keepAlive: true)
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
-  StreamSubscription<ImageGenerationState>? _generationSubscription;
+  // Note: Generation state is monitored via ref.listen in build(), not via subscription
 
   @override
   QueueExecutionState build() {
@@ -296,7 +297,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
 /// 队列设置 Provider（从本地存储读取）
 @riverpod
-QueueSettings queueSettings(QueueSettingsRef ref) {
+QueueSettings queueSettings(Ref ref) {
   final storage = ref.watch(localStorageServiceProvider);
   return QueueSettings(
     retryCount: storage.getSetting<int>(

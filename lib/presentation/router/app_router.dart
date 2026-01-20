@@ -20,6 +20,7 @@ import '../providers/replication_queue_provider.dart';
 part 'app_router.g.dart';
 
 /// Navigator Keys for StatefulShellRoute branches
+// ignore: unused_element
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
 final _galleryKey = GlobalKey<NavigatorState>(debugLabel: 'gallery');

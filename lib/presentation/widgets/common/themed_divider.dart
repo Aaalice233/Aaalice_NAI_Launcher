@@ -3,11 +3,12 @@ import '../../themes/theme_extension.dart';
 
 /// 主题感知分割线 - 根据当前主题自动应用合适的分割线样式
 /// 
-/// 根据不同主题类型选择对应的分割线风格：
-/// - 霓虹效果主题: 发光边框
-/// - CRT/点阵效果主题: 复古扫描线
-/// - 高亮边框主题: 强调色分割
-/// - 默认: 柔和凹槽效果
+/// 使用 ThemeExtension 中的 divider 属性：
+/// - dividerColor: 分割线颜色
+/// - dividerThickness: 分割线厚度
+/// - useDivider: 是否显示分割线
+/// 
+/// 同时保留对特殊效果的支持（霓虹发光等）
 class ThemedDivider extends StatelessWidget {
   /// 分割线区域的总高度（包含上下留白）
   final double height;
@@ -35,6 +36,11 @@ class ThemedDivider extends StatelessWidget {
     final extension = theme.extension<AppThemeExtension>();
     final isDark = theme.brightness == Brightness.dark;
 
+    // 如果主题设置不显示分割线，直接返回空
+    if (extension != null && !extension.useDivider) {
+      return const SizedBox.shrink();
+    }
+
     // 根据主题扩展属性决定分割线样式
     if (extension != null) {
       // 霓虹发光效果主题 (RetroWave/CassetteFuturism)
@@ -45,66 +51,32 @@ class ThemedDivider extends StatelessWidget {
           isDark,
         );
       }
-      
-      // CRT 扫描线效果主题 (Motorola)
-      if (extension.enableCrtEffect) {
-        return _buildRetroScanline(context, isDark);
-      }
-      
-      // 强调色分割条 (Herding)
-      if (extension.accentBarColor != null) {
-        return _buildAccentDivider(context, extension.accentBarColor!);
-      }
     }
 
-    // 默认: 柔和凹槽分割线
-    return _buildSoftDivider(context, isDark);
+    // 使用新的 divider 属性
+    final dividerColor = extension?.dividerColor ?? 
+        (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1));
+    final thickness = extension?.dividerThickness ?? 1.0;
+
+    return _buildSimpleDivider(context, dividerColor, thickness);
   }
 
-  /// 柔和凹槽分割线 - 默认样式
-  Widget _buildSoftDivider(BuildContext context, bool isDark) {
-    final shadowColor = isDark
-        ? Colors.black.withOpacity(0.5)
-        : Colors.black.withOpacity(0.05);
-
-    final highlightColor = isDark
-        ? Colors.white.withOpacity(0.08)
-        : Colors.white;
-
+  /// 简单分割线 - 使用 dividerColor 和 dividerThickness
+  Widget _buildSimpleDivider(BuildContext context, Color color, double thickness) {
     return SizedBox(
       width: vertical ? height : null,
       height: vertical ? null : height,
       child: Center(
         child: Container(
-          width: vertical ? 1.0 : null,
-          height: vertical ? null : 1.0,
+          width: vertical ? thickness : null,
+          height: vertical ? null : thickness,
           margin: EdgeInsetsDirectional.only(
             start: indent,
             end: endIndent,
             top: vertical ? indent : 0,
             bottom: vertical ? endIndent : 0,
           ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: vertical ? Alignment.topCenter : Alignment.centerLeft,
-              end: vertical ? Alignment.bottomCenter : Alignment.centerRight,
-              colors: [
-                Colors.transparent,
-                shadowColor,
-                shadowColor,
-                Colors.transparent,
-              ],
-              stops: const [0.0, 0.15, 0.85, 1.0],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: highlightColor,
-                offset: vertical ? const Offset(1, 0) : const Offset(0, 1),
-                blurRadius: 0,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
+          color: color,
         ),
       ),
     );
@@ -139,73 +111,6 @@ class ThemedDivider extends StatelessWidget {
                 spreadRadius: 0,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 复古扫描线分割线
-  Widget _buildRetroScanline(BuildContext context, bool isDark) {
-    final lineColor = isDark 
-        ? const Color(0xFF00FF41).withOpacity(0.6)  // 复古绿
-        : Colors.black.withOpacity(0.2);
-
-    return SizedBox(
-      width: vertical ? height : null,
-      height: vertical ? null : height,
-      child: Center(
-        child: Container(
-          width: vertical ? 2.0 : null,
-          height: vertical ? null : 2.0,
-          margin: EdgeInsetsDirectional.only(
-            start: indent,
-            end: endIndent,
-            top: vertical ? indent : 0,
-            bottom: vertical ? endIndent : 0,
-          ),
-          decoration: BoxDecoration(
-            color: lineColor,
-            boxShadow: [
-              BoxShadow(
-                color: lineColor.withOpacity(0.5),
-                blurRadius: 2,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 强调色分割条
-  Widget _buildAccentDivider(BuildContext context, Color accentColor) {
-    return SizedBox(
-      width: vertical ? height : null,
-      height: vertical ? null : height,
-      child: Center(
-        child: Container(
-          width: vertical ? 2.0 : null,
-          height: vertical ? null : 2.0,
-          margin: EdgeInsetsDirectional.only(
-            start: indent,
-            end: endIndent,
-            top: vertical ? indent : 0,
-            bottom: vertical ? endIndent : 0,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: vertical ? Alignment.topCenter : Alignment.centerLeft,
-              end: vertical ? Alignment.bottomCenter : Alignment.centerRight,
-              colors: [
-                accentColor.withOpacity(0.0),
-                accentColor,
-                accentColor,
-                accentColor.withOpacity(0.0),
-              ],
-              stops: const [0.0, 0.2, 0.8, 1.0],
-            ),
           ),
         ),
       ),

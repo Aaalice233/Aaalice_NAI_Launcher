@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/standard_
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/soft_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/glassmorphism_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/zen_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/soft_divider_module.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// System theme configuration.
@@ -25,6 +26,7 @@ class SystemTheme {
     shadow: SoftShadow(),
     effect: GlassmorphismEffect(),
     motion: ZenMotion(),
+    divider: SoftDividerModule.standardWhite,
   );
 
   static ThemeData get light => _composer.buildTheme(Brightness.light);

@@ -174,12 +174,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               placeholder: (context, url) => const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
-              errorWidget: (context, url, error) => Center(
+              errorWidget: (context, url, error) => const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error, color: Colors.white54, size: 48),
-                    const SizedBox(height: 8),
+                    Icon(Icons.error, color: Colors.white54, size: 48),
+                    SizedBox(height: 8),
                     Text(
                       '加载失败',
                       style: TextStyle(color: Colors.white54),
@@ -228,11 +228,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                 color: Colors.black.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.zoom_in, color: Colors.white54, size: 14),
-                  const SizedBox(width: 4),
+                  Icon(Icons.zoom_in, color: Colors.white54, size: 14),
+                  SizedBox(width: 4),
                   Text(
                     '双指缩放',
                     style: TextStyle(color: Colors.white54, fontSize: 11),

@@ -77,6 +77,8 @@ class AppTrayListener extends TrayListener {
         await windowManager.setPreventClose(false);
         await windowManager.destroy();
         AppLogger.d('Application exited via tray menu', 'TrayListener');
+        // 强制退出进程，确保 dart.exe 不会残留
+        exit(0);
       }
     } catch (e) {
       AppLogger.e('Failed to handle tray menu click: $e', 'TrayListener');

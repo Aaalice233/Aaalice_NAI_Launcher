@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/standard_
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/soft_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/none_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/snappy_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/none_divider.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Bold Retro theme configuration.
@@ -35,6 +36,7 @@ class BoldRetroTheme {
     shadow: SoftShadow(),
     effect: NoneEffect(),
     motion: SnappyMotion(),
+    divider: NoneDividerModule(),
   );
 
   /// The light theme.

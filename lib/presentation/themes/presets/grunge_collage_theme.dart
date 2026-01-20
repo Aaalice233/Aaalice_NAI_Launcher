@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/themes/modules/shape/presets/standard_
 import 'package:nai_launcher/presentation/themes/modules/shadow/presets/hard_offset_shadow.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/presets/texture_effect.dart';
 import 'package:nai_launcher/presentation/themes/modules/motion/presets/jitter_motion.dart';
+import 'package:nai_launcher/presentation/themes/modules/divider/thick_divider.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
 /// Grunge Collage theme configuration.
@@ -35,6 +36,7 @@ class GrungeCollageTheme {
     shadow: HardOffsetShadow(),
     effect: TextureEffect(),
     motion: JitterMotion(),
+    divider: ThickDividerModule.grunge,
   );
 
   /// The light theme.

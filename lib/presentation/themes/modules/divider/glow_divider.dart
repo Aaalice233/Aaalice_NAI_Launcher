@@ -14,34 +14,38 @@ import '../../core/divider_module.dart';
 class GlowDividerModule extends BaseDividerModule {
   final Color _glowColor;
   final double _glowIntensity;
+  final Color _borderColor;
 
   const GlowDividerModule({
     required Color glowColor,
     double glowIntensity = 1.0,
+    Color? borderColor,
   }) : _glowColor = glowColor,
-       _glowIntensity = glowIntensity;
+       _glowIntensity = glowIntensity,
+       _borderColor = borderColor ?? const Color(0x0FFFFFFF); // 6% white default
 
   /// RetroWave style - orange/pink neon glow
-  factory GlowDividerModule.retroWave() {
-    return const GlowDividerModule(
-      glowColor: Color(0xFFFF6B35), // Warm orange
-      glowIntensity: 0.8,
-    );
-  }
+  /// Glow effect uses bright orange, but panel borders use subtle white
+  static const retroWave = GlowDividerModule(
+    glowColor: Color(0xFFFF6B35), // Warm orange for glow effect
+    glowIntensity: 0.8,
+    borderColor: Color(0x0FFFFFFF), // 6% white for panel borders
+  );
 
   /// Cyan neon glow variant
-  factory GlowDividerModule.cyan() {
-    return const GlowDividerModule(
-      glowColor: Color(0xFF00FFFF),
-      glowIntensity: 0.8,
-    );
-  }
+  static const cyan = GlowDividerModule(
+    glowColor: Color(0xFF00FFFF),
+    glowIntensity: 0.8,
+    borderColor: Color(0x0FFFFFFF), // 6% white for panel borders
+  );
 
   @override
   double get thickness => 1.0;
 
+  /// Returns a subtle border color for Flutter's theme.dividerColor.
+  /// The bright glow color is only used in horizontalDecoration/verticalDecoration.
   @override
-  Color get dividerColor => _glowColor;
+  Color get dividerColor => _borderColor;
 
   @override
   BoxDecoration? get horizontalDecoration => BoxDecoration(
