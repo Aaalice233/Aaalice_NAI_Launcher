@@ -176,12 +176,12 @@ class SettingsScreen extends ConsumerWidget {
           title: Text(context.l10n.settings_selectStyle),
           content: SizedBox(
             width: 300,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            height: 400,
+            child: ListView(
+              shrinkWrap: true,
               children: AppStyle.values.map((style) {
                 return RadioListTile<AppStyle>(
                   title: Text(style.displayName),
-                  subtitle: Text(style.description),
                   value: style,
                   groupValue: currentTheme,
                   onChanged: (value) {
