@@ -7,10 +7,10 @@ import '../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/prompt_maximize_provider.dart';
 import '../../../providers/prompt_view_mode_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/themed_scaffold.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
@@ -206,15 +206,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     return true;
   }
 
-  void _openFullScreenEditor() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const _FullScreenPromptEditor(),
-      ),
-    );
-  }
-
   /// 生成随机提示词
   Future<void> _generateRandomPrompt() async {
     try {
@@ -382,16 +373,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           },
           onRandomPressed: _generateRandomPrompt,
           onRandomLongPressed: _showRandomModeSelector,
-          // 桌面布局使用就地最大化，移动端使用全屏编辑器
-          onFullscreenPressed: () {
-            // 调试日志：追踪最大化按钮点击
-            debugPrint('[PromptInput] Fullscreen pressed, onToggleMaximize: ${widget.onToggleMaximize != null ? "PROVIDED" : "NULL"}');
-            if (widget.onToggleMaximize != null) {
-              widget.onToggleMaximize!();
-            } else {
-              _openFullScreenEditor();
-            }
-          },
+          // 使用传入的回调或 Provider 切换最大化
+          onFullscreenPressed: widget.onToggleMaximize ?? 
+              () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
           onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
           onSettingsPressed: () => _showSettingsMenu(context, theme),
         ),
@@ -774,7 +758,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             IconButton(
               icon: const Icon(Icons.fullscreen),
               tooltip: context.l10n.tooltip_fullscreenEdit,
-              onPressed: _openFullScreenEditor,
+              onPressed: widget.onToggleMaximize ?? 
+                  () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
             ),
             if (_promptController.text.isNotEmpty)
               IconButton(
@@ -789,219 +774,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       onChanged: (value) {
         ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
       },
-    );
-  }
-}
-
-class _FullScreenPromptEditor extends ConsumerStatefulWidget {
-  const _FullScreenPromptEditor();
-
-  @override
-  ConsumerState<_FullScreenPromptEditor> createState() =>
-      _FullScreenPromptEditorState();
-}
-
-class _FullScreenPromptEditorState
-    extends ConsumerState<_FullScreenPromptEditor> {
-  PromptViewMode _viewMode = PromptViewMode.text;
-  late List<PromptTag> _promptTags;
-  late List<PromptTag> _negativeTags;
-  late NaiSyntaxController _promptController;
-  late NaiSyntaxController _negativeController;
-
-  @override
-  void initState() {
-    super.initState();
-    final params = ref.read(generationParamsNotifierProvider);
-    _promptController = NaiSyntaxController(text: params.prompt);
-    _negativeController = NaiSyntaxController(text: params.negativePrompt);
-    _promptTags = NaiPromptParser.parse(params.prompt);
-    _negativeTags = NaiPromptParser.parse(params.negativePrompt);
-  }
-
-  @override
-  void dispose() {
-    _promptController.dispose();
-    _negativeController.dispose();
-    super.dispose();
-  }
-
-  void _toggleViewMode() {
-    setState(() {
-      if (_viewMode == PromptViewMode.text) {
-        _promptTags = NaiPromptParser.parse(_promptController.text);
-        _negativeTags = NaiPromptParser.parse(_negativeController.text);
-        _viewMode = PromptViewMode.tags;
-      } else {
-        _promptController.text = NaiPromptParser.toPromptString(_promptTags);
-        _negativeController.text =
-            NaiPromptParser.toPromptString(_negativeTags);
-        _viewMode = PromptViewMode.text;
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // 监听高亮设置变化，更新控制器
-    final highlightEnabled = ref.watch(highlightEmphasisSettingsProvider);
-    _promptController.highlightEnabled = highlightEnabled;
-    _negativeController.highlightEnabled = highlightEnabled;
-
-    return ThemedScaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.prompt_editPrompt),
-        actions: [
-          // 视图切换按钮
-          IconButton(
-            icon: Icon(
-              _viewMode == PromptViewMode.text
-                  ? Icons.label_outline
-                  : Icons.text_fields,
-            ),
-            tooltip: _viewMode == PromptViewMode.text
-                ? context.l10n.prompt_switchToTagView
-                : context.l10n.prompt_switchToTextView,
-            onPressed: _toggleViewMode,
-          ),
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 正向提示词
-            Row(
-              children: [
-                Text(
-                  context.l10n.prompt_positivePrompt,
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(width: 8),
-                if (_viewMode == PromptViewMode.tags)
-                  Text(
-                    context.l10n.prompt_tags(_promptTags.length.toString()),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _viewMode == PromptViewMode.text
-                ? AutocompleteTextField(
-                    controller: _promptController,
-                    maxLines: 10,
-                    minLines: 5,
-                    enableSdSyntaxAutoConvert:
-                        ref.watch(sdSyntaxAutoConvertSettingsProvider),
-                    config: const AutocompleteConfig(
-                      showTranslation: true,
-                      showCategory: true,
-                    ),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      hintText: context.l10n.prompt_inputPrompt,
-                    ),
-                    onChanged: (value) {
-                      ref
-                          .read(generationParamsNotifierProvider.notifier)
-                          .updatePrompt(value);
-                    },
-                  )
-                : Container(
-                    constraints: const BoxConstraints(minHeight: 200),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: TagView(
-                      tags: _promptTags,
-                      onTagsChanged: (tags) {
-                        setState(() => _promptTags = tags);
-                        ref
-                            .read(generationParamsNotifierProvider.notifier)
-                            .updatePrompt(NaiPromptParser.toPromptString(tags));
-                      },
-                    ),
-                  ),
-
-            const SizedBox(height: 24),
-
-            // 负向提示词
-            Row(
-              children: [
-                Text(
-                  context.l10n.prompt_negativePrompt,
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(width: 8),
-                if (_viewMode == PromptViewMode.tags)
-                  Text(
-                    context.l10n.prompt_tags(_negativeTags.length.toString()),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _viewMode == PromptViewMode.text
-                ? AutocompleteTextField(
-                    controller: _negativeController,
-                    maxLines: 5,
-                    minLines: 3,
-                    enableSdSyntaxAutoConvert:
-                        ref.watch(sdSyntaxAutoConvertSettingsProvider),
-                    config: const AutocompleteConfig(
-                      showTranslation: true,
-                    ),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      hintText: context.l10n.prompt_inputNegativePrompt,
-                    ),
-                    onChanged: (value) {
-                      ref
-                          .read(generationParamsNotifierProvider.notifier)
-                          .updateNegativePrompt(value);
-                    },
-                  )
-                : Container(
-                    constraints: const BoxConstraints(minHeight: 120),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: TagView(
-                      tags: _negativeTags,
-                      onTagsChanged: (tags) {
-                        setState(() => _negativeTags = tags);
-                        ref
-                            .read(generationParamsNotifierProvider.notifier)
-                            .updateNegativePrompt(
-                              NaiPromptParser.toPromptString(tags),
-                            );
-                      },
-                    ),
-                  ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/prompt_maximize_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import '../../widgets/common/themed_button.dart';
@@ -29,6 +30,7 @@ class _MobileGenerationLayoutState
   Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final params = ref.watch(generationParamsNotifierProvider);
+    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
     final theme = Theme.of(context);
 
     return ThemedScaffold(
@@ -78,19 +80,29 @@ class _MobileGenerationLayoutState
       ),
       body: Column(
         children: [
-          // Prompt 输入区
-          Container(
-            padding: const EdgeInsets.all(12),
-            child: const PromptInputWidget(compact: true),
-          ),
+          // Prompt 输入区（最大化时占满空间）
+          isPromptMaximized
+              ? Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: PromptInputWidget(
+                      isMaximized: isPromptMaximized,
+                    ),
+                  ),
+                )
+              : Container(
+                  padding: const EdgeInsets.all(12),
+                  child: const PromptInputWidget(compact: true),
+                ),
 
-          // 图像预览区
-          const Expanded(
-            child: ImagePreviewWidget(),
-          ),
+          // 图像预览区（最大化时隐藏）
+          if (!isPromptMaximized)
+            const Expanded(
+              child: ImagePreviewWidget(),
+            ),
 
-          // 生成状态和进度
-          if (generationState.isGenerating)
+          // 生成状态和进度（最大化时隐藏）
+          if (!isPromptMaximized && generationState.isGenerating)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
