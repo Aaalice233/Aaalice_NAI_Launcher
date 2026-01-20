@@ -18,7 +18,7 @@ class ThemeNotifier extends _$ThemeNotifier {
       return AppStyle.values[index];
     }
 
-    return AppStyle.minimalGlass; // 默认风格 - 金黄深青 (原 herdingStyle)
+    return AppStyle.retroWave; // 默认风格 - 复古未来
   }
 
   /// 设置主题
