@@ -696,10 +696,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       _storage.setSeedLocked(true);
       state = state.copyWith(seed: seedToLock);
     } else {
-      // 解锁：设为随机
+      // 解锁：保留当前种子值，只取消锁定状态
       _storage.setSeedLocked(false);
       _storage.setLockedSeedValue(null);
-      state = state.copyWith(seed: -1);
+      // 触发 state 变化以刷新 UI（保持种子值不变）
+      state = state.copyWith();
     }
   }
 

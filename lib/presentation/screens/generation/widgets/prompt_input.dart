@@ -382,7 +382,16 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           },
           onRandomPressed: _generateRandomPrompt,
           onRandomLongPressed: _showRandomModeSelector,
-          onFullscreenPressed: _openFullScreenEditor,
+          // 桌面布局使用就地最大化，移动端使用全屏编辑器
+          onFullscreenPressed: () {
+            // 调试日志：追踪最大化按钮点击
+            debugPrint('[PromptInput] Fullscreen pressed, onToggleMaximize: ${widget.onToggleMaximize != null ? "PROVIDED" : "NULL"}');
+            if (widget.onToggleMaximize != null) {
+              widget.onToggleMaximize!();
+            } else {
+              _openFullScreenEditor();
+            }
+          },
           onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
           onSettingsPressed: () => _showSettingsMenu(context, theme),
         ),

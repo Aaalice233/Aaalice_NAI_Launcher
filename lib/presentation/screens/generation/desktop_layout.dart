@@ -8,6 +8,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/prompt_maximize_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/draggable_number_input.dart';
@@ -46,9 +47,6 @@ class _DesktopGenerationLayoutState
   static const double _promptAreaMinHeight = 100;
   static const double _promptAreaMaxHeight = 500;
 
-  // 提示词最大化状态
-  bool _isPromptMaximized = false;
-
   @override
   void initState() {
     super.initState();
@@ -64,15 +62,15 @@ class _DesktopGenerationLayoutState
 
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
-    setState(() {
-      _isPromptMaximized = !_isPromptMaximized;
-    });
-    AppLogger.d('Prompt area maximized: $_isPromptMaximized', 'DesktopLayout');
+    ref.read(promptMaximizeNotifierProvider.notifier).toggle();
+    AppLogger.d('Prompt area maximize toggled', 'DesktopLayout');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 从 Provider 读取最大化状态（确保主题切换时状态不丢失）
+    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
 
     return Row(
       children: [
@@ -96,7 +94,7 @@ class _DesktopGenerationLayoutState
           child: Column(
             children: [
               // 顶部 Prompt 输入区（最大化时占满空间）
-              _isPromptMaximized
+              isPromptMaximized
                   ? Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -105,7 +103,7 @@ class _DesktopGenerationLayoutState
                         ),
                         child: PromptInputWidget(
                           onToggleMaximize: _togglePromptMaximize,
-                          isMaximized: _isPromptMaximized,
+                          isMaximized: isPromptMaximized,
                         ),
                       ),
                     )
@@ -118,16 +116,16 @@ class _DesktopGenerationLayoutState
                         ),
                         child: PromptInputWidget(
                           onToggleMaximize: _togglePromptMaximize,
-                          isMaximized: _isPromptMaximized,
+                          isMaximized: isPromptMaximized,
                         ),
                       ),
                     ),
 
               // 提示词区域拖拽分隔条（最大化时隐藏）
-              if (!_isPromptMaximized) _buildVerticalResizeHandle(theme),
+              if (!isPromptMaximized) _buildVerticalResizeHandle(theme),
 
               // 中间图像预览区（最大化时隐藏）
-              if (!_isPromptMaximized)
+              if (!isPromptMaximized)
                 const Expanded(
                   child: ImagePreviewWidget(),
                 ),

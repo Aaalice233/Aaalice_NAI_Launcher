@@ -30,6 +30,7 @@ class ParameterPanel extends ConsumerStatefulWidget {
 
 class _ParameterPanelState extends ConsumerState<ParameterPanel> {
   late final TextEditingController _seedController;
+  bool _seedControllerInitialized = false;
 
   @override
   void initState() {
@@ -49,6 +50,13 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
     final isGenerating = generationState.isGenerating;
+
+    // 首次 build 时同步 seed 到输入框
+    if (!_seedControllerInitialized) {
+      _seedControllerInitialized = true;
+      final currentSeed = params.seed;
+      _seedController.text = currentSeed == -1 ? '' : currentSeed.toString();
+    }
 
     return ListView(
       padding: EdgeInsets.all(widget.inBottomSheet ? 16 : 12),
@@ -356,6 +364,13 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                 size: 20,
               ),
               onPressed: () {
+                // 先同步输入框的值到 state（防止用户输入后 state 未更新）
+                final inputText = _seedController.text.trim();
+                final inputSeed = inputText.isEmpty ? -1 : (int.tryParse(inputText) ?? -1);
+                if (inputSeed != ref.read(generationParamsNotifierProvider).seed) {
+                  ref.read(generationParamsNotifierProvider.notifier).updateSeed(inputSeed);
+                }
+                
                 ref.read(generationParamsNotifierProvider.notifier).toggleSeedLock();
                 // 更新输入框显示
                 final newSeed = ref.read(generationParamsNotifierProvider).seed;
