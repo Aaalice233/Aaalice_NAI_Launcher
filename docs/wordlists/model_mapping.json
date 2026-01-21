@@ -1,0 +1,10 @@
+{
+  "naiDiffusionV4": "wordlists_v4.csv",
+  "naiDiffusionV4Full": "wordlists_v4.csv",
+  "naiDiffusionV4CuratedPreview": "wordlists_v4.csv",
+  "naiDiffusionFurryV3": "wordlists_furry.csv",
+  "naiDiffusionV3": "wordlists_legacy.csv",
+  "naiDiffusionV2": "wordlists_legacy.csv",
+  "naiDiffusionV1": "wordlists_legacy.csv",
+  "default": "wordlists_legacy.csv"
+}
