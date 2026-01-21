@@ -73,7 +73,9 @@ class AppTrayListener extends TrayListener {
         AppLogger.d('Window shown via tray menu', 'TrayListener');
       } else if (menuItem.key == 'exit') {
         // 退出应用（真正关闭）
-        // 先解除 preventClose，再销毁窗口
+        // 1. 先销毁托盘图标，避免残留在系统托盘中
+        await trayManager.destroy();
+        // 2. 解除 preventClose，再销毁窗口
         await windowManager.setPreventClose(false);
         await windowManager.destroy();
         AppLogger.d('Application exited via tray menu', 'TrayListener');
