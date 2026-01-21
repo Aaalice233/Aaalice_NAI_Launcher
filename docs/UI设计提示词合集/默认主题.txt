@@ -1,0 +1,368 @@
+Redesign the dashboard with a minimalist/zen aesthetic: soft color palette with lots of whitespace, subtle gradients instead of neon glows, gentle micro-animations, premium typography with refined hierarchy. Keep the same layout structure (sidebar + header + hero + projects grid + sticky footer) but simplify the design language. Use soft blues and warm grays instead of neon green. Replace harsh glows with subtle shadows. Make input box focus state elegant with soft glow instead of aggressive neon. Project cards should be minimal with soft borders and plenty of negative space. Typography should feel premium and refined. All animations should be gentle (fade in, soft scale, smooth transitions). Create a calm, sophisticated interface that feels premium and thoughtful rather than aggressive. Maintain AI model selector and all functional elements but with zen styling.
+
+Here is a reference implementation:
+
+~~~html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen - AI Design Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="view-transition" content="same-origin">
+  <style>
+    :root {
+      --primary: #60a5fa;
+      --primary-soft: rgba(96, 165, 250, 0.1);
+      --background: #050505;
+      --surface: #0e0e0f;
+      --surface-elevated: #151517;
+      --border: rgba(255, 255, 255, 0.06);
+      --text-main: #fcfcfc;
+      --text-muted: #94a3b8;
+      --accent-glow: rgba(96, 165, 250, 0.12);
+    }
+
+    @view-transition {
+      navigation: auto;
+    }
+
+    * {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--background);
+      color: var(--text-main);
+      overflow-x: hidden;
+    }
+
+    .bg-zen-gradient {
+      background: radial-gradient(circle at 50% 0%, rgba(96, 165, 250, 0.03), transparent 70%);
+    }
+
+    .soft-shadow {
+      box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--border);
+    }
+
+    .input-focus:focus-within {
+      border-color: rgba(96, 165, 250, 0.3);
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .stagger-reveal {
+      animation: reveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    @keyframes reveal {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .nav-pill-active {
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      position: relative;
+    }
+
+    .nav-pill-active::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+    }
+
+    .card-zen {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .card-zen:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-4px);
+      background: var(--surface-elevated);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen bg-zen-gradient flex">
+    
+    <!-- SIDEBAR -->
+    <aside class="w-20 lg:w-64 border-r border-[var(--border)] h-screen sticky top-0 flex flex-col items-center lg:items-start py-8 px-5 z-50 bg-[var(--background)]">
+      <div class="flex items-center gap-3 mb-12 px-2">
+        <div class="w-8 h-8 flex items-center justify-center">
+          <iconify-icon icon="lucide:wind" class="text-white text-2xl"></iconify-icon>
+        </div>
+        <span class="hidden lg:block font-semibold text-lg tracking-tight">Zen AI</span>
+      </div>
+
+      <nav class="flex flex-col gap-2 w-full">
+        <a href="#" id="sidebar-home" class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 text-white transition-all">
+          <iconify-icon icon="lucide:home" class="text-xl"></iconify-icon>
+          <span class="hidden lg:block text-sm font-medium">Dashboard</span>
+        </a>
+        <a href="#" id="sidebar-projects" class="flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--text-muted)] hover:text-white hover:bg-white/5 transition-all">
+          <iconify-icon icon="lucide:layers" class="text-xl"></iconify-icon>
+          <span class="hidden lg:block text-sm font-medium">Collections</span>
+        </a>
+        <a href="#" id="sidebar-assets" class="flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--text-muted)] hover:text-white hover:bg-white/5 transition-all">
+          <iconify-icon icon="lucide:archive" class="text-xl"></iconify-icon>
+          <span class="hidden lg:block text-sm font-medium">Archive</span>
+        </a>
+      </nav>
+
+      <div class="mt-auto w-full">
+        <a href="#" id="sidebar-settings" class="flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--text-muted)] hover:text-white transition-all">
+          <iconify-icon icon="lucide:settings" class="text-xl"></iconify-icon>
+          <span class="hidden lg:block text-sm font-medium">Settings</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="flex-1 flex flex-col">
+      
+      <!-- TOP NAVBAR -->
+      <header class="h-20 px-8 flex items-center justify-between sticky top-0 bg-[var(--background)]/70 backdrop-blur-xl z-40">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-[var(--border)] cursor-pointer hover:bg-white/10 transition-all">
+            <div class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-400 font-bold border border-emerald-500/30">P</div>
+            <span class="text-sm font-medium text-neutral-300">Personal</span>
+            <iconify-icon icon="lucide:chevron-down" class="text-xs text-[var(--text-muted)]"></iconify-icon>
+          </div>
+        </div>
+
+        <!-- Center Nav pills as per reference -->
+        <div class="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center bg-black/40 border border-[var(--border)] rounded-full p-1">
+          <a href="#" id="nav-home" class="nav-pill-active px-5 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 transition-all">
+             <iconify-icon icon="lucide:home" class="text-xs"></iconify-icon> Home
+          </a>
+          <a href="#" id="nav-projects" class="px-5 py-1.5 rounded-full text-sm font-medium text-[var(--text-muted)] hover:text-white transition-all flex items-center gap-2">
+            <iconify-icon icon="lucide:folder" class="text-xs"></iconify-icon> Projects
+          </a>
+          <a href="#" id="nav-library" class="px-5 py-1.5 rounded-full text-sm font-medium text-[var(--text-muted)] hover:text-white transition-all flex items-center gap-2">
+            <iconify-icon icon="lucide:book-open" class="text-xs"></iconify-icon> Prompt Library
+          </a>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <button id="nav-notifications" class="w-10 h-10 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-white transition-colors relative">
+            <iconify-icon icon="lucide:bell" class="text-xl"></iconify-icon>
+            <span class="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-sky-400 rounded-full"></span>
+          </button>
+          <div class="w-9 h-9 rounded-full bg-[#1a1a1b] flex items-center justify-center font-medium text-xs border border-white/5 text-[var(--text-muted)] hover:text-white transition-all cursor-pointer">
+            Z
+          </div>
+          <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+             <iconify-icon icon="lucide:zap" class="text-xs text-amber-400"></iconify-icon>
+             <span class="text-xs font-semibold text-neutral-400">100</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- SCROLL AREA -->
+      <main class="flex-1 overflow-y-auto custom-scrollbar">
+        
+        <!-- HERO -->
+        <section class="max-w-4xl mx-auto pt-20 pb-12 px-6 text-center">
+          <h1 class="stagger-reveal text-5xl lg:text-6xl font-semibold tracking-tight mb-4 text-white" style="animation-delay: 0.1s">
+            Think it. Explore it.
+          </h1>
+          <p class="stagger-reveal text-[var(--text-muted)] text-lg mb-10" style="animation-delay: 0.2s">
+            Explore freely, iterate fast. Your design, AI-powered.
+          </p>
+
+          <!-- STATUS BAR -->
+          <div class="stagger-reveal inline-flex items-center gap-4 px-4 py-2 bg-white/5 border border-[var(--border)] rounded-full mb-12" style="animation-delay: 0.3s">
+            <div class="flex items-center gap-2">
+               <div class="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] text-orange-400 font-bold border border-orange-500/30">P</div>
+               <a href="#" id="upvote-cta" class="bg-[#d63447] text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 hover:scale-105 transition-transform">
+                 <iconify-icon icon="lucide:arrow-up" class="text-[10px]"></iconify-icon> Upvote
+               </a>
+            </div>
+            <div class="w-px h-4 bg-white/10"></div>
+            <span class="text-xs font-medium text-neutral-400">Help upvote on Product Hunt! 🙏</span>
+            <button class="text-[var(--text-muted)] hover:text-white">
+              <iconify-icon icon="lucide:x" class="text-xs"></iconify-icon>
+            </button>
+          </div>
+
+          <!-- PROMPT INPUT -->
+          <div class="stagger-reveal max-w-3xl mx-auto" style="animation-delay: 0.4s">
+            <div class="bg-[var(--surface)] border border-[var(--border)] rounded-[32px] overflow-hidden soft-shadow input-focus transition-all duration-500">
+              <div class="p-6 pb-2 text-left">
+                 <textarea 
+                  placeholder="Describe what you want to create..."
+                  class="w-full bg-transparent border-none focus:ring-0 text-xl resize-none h-28 placeholder:text-neutral-600 font-light"
+                ></textarea>
+              </div>
+              
+              <div class="flex items-center justify-between px-6 py-4 bg-white/[0.02] border-t border-[var(--border)]">
+                <div class="flex items-center gap-3">
+                  <button class="p-2 text-[var(--text-muted)] hover:text-white transition-colors">
+                    <iconify-icon icon="lucide:image" class="text-lg"></iconify-icon>
+                  </button>
+                  <button class="p-2 text-[var(--text-muted)] hover:text-white transition-colors">
+                    <iconify-icon icon="lucide:pen-tool" class="text-lg"></iconify-icon>
+                  </button>
+                  <div class="w-px h-5 bg-white/10"></div>
+                  <button class="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/5 text-[var(--text-muted)] hover:text-white transition-all text-xs font-medium">
+                    <iconify-icon icon="logos:google-gemini" class="text-sm"></iconify-icon>
+                    Gemini 3 Flash
+                    <iconify-icon icon="lucide:chevron-down" class="text-[10px]"></iconify-icon>
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-4">
+                  <div class="flex items-center gap-3 px-4 py-2 bg-blue-500/5 rounded-full border border-blue-500/10">
+                     <iconify-icon icon="lucide:loader-2" class="text-blue-400 animate-spin text-sm"></iconify-icon>
+                     <span class="text-xs font-medium text-blue-300/80">Setting up your workspace...</span>
+                     <iconify-icon icon="lucide:more-horizontal" class="text-blue-400 text-sm cursor-pointer"></iconify-icon>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- QUICK ACTIONS -->
+          <div class="stagger-reveal flex flex-wrap justify-center gap-4 mt-12" style="animation-delay: 0.5s">
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-full border border-[var(--border)] bg-white/[0.02] text-xs font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-all">
+              <iconify-icon icon="lucide:camera" class="text-neutral-500"></iconify-icon>
+              Recreate Screenshot
+            </button>
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-full border border-[var(--border)] bg-white/[0.02] text-xs font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-all">
+              <iconify-icon icon="lucide:globe" class="text-neutral-500"></iconify-icon>
+              Import from Site
+            </button>
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-full border border-[var(--border)] bg-white/[0.02] text-xs font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-all">
+              <iconify-icon icon="lucide:wand-2" class="text-neutral-500"></iconify-icon>
+              Explore Effects
+            </button>
+          </div>
+        </section>
+
+        <!-- PROJECTS -->
+        <section class="max-w-6xl mx-auto px-10 pb-32">
+          <div class="flex items-center justify-between mb-8">
+            <h2 class="text-xl font-medium text-white/90">Recent Projects</h2>
+            <button class="text-xs font-medium text-[var(--text-muted)] hover:text-white transition-all">View Archive</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Create New -->
+            <div class="stagger-reveal h-72 rounded-[32px] border border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-4 hover:border-white/20 transition-all bg-[var(--surface)]/50 group cursor-pointer" style="animation-delay: 0.6s">
+              <div class="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                <iconify-icon icon="lucide:plus" class="text-2xl text-[var(--text-muted)]"></iconify-icon>
+              </div>
+              <span class="font-medium text-sm text-[var(--text-muted)] group-hover:text-white transition-colors">New Project</span>
+            </div>
+
+            <!-- Project Card -->
+            <div class="stagger-reveal group cursor-pointer overflow-hidden rounded-[32px] card-zen" style="animation-delay: 0.7s">
+              <div class="h-52 bg-neutral-900/50 relative p-6 flex items-center justify-center">
+                <div class="w-full max-w-[240px] aspect-[3/4] rounded-lg shadow-2xl overflow-hidden border border-white/10">
+                  <img src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/3f78abce-a360-45c3-8cd6-18be842b9d0c/1768468682071-16793eb2/image.png" alt="Screenshot" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-700">
+                </div>
+              </div>
+              <div class="p-6">
+                <div class="flex items-center justify-between">
+                   <div>
+                     <h3 class="text-base font-medium text-white mb-1">test</h3>
+                     <p class="text-xs text-[var(--text-muted)]">Updated 1 min ago</p>
+                   </div>
+                   <iconify-icon icon="lucide:more-vertical" class="text-neutral-600 hover:text-white transition-colors"></iconify-icon>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- STICKY FOOTER -->
+      <footer class="border-t border-[var(--border)] py-4 px-10 bg-[var(--background)]/80 backdrop-blur-xl flex items-center justify-between sticky bottom-0 z-40">
+        <div class="flex items-center gap-8">
+          <div class="flex items-center gap-1.5">
+             <iconify-icon icon="lucide:message-square-text" class="text-sky-400 text-lg"></iconify-icon>
+             <span class="text-[10px] font-medium text-neutral-500">SUPPORTS ONLINE</span>
+          </div>
+          <div class="flex items-center gap-6">
+            <a href="#" id="footer-terms" class="text-[10px] text-neutral-500 hover:text-white transition-all tracking-wider uppercase">Terms</a>
+            <a href="#" id="footer-privacy" class="text-[10px] text-neutral-500 hover:text-white transition-all tracking-wider uppercase">Privacy</a>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-4">
+            <a href="#" id="social-x" class="text-neutral-500 hover:text-white transition-all">
+              <iconify-icon icon="lucide:twitter" class="text-sm"></iconify-icon>
+            </a>
+            <a href="#" id="social-github" class="text-neutral-500 hover:text-white transition-all">
+              <iconify-icon icon="lucide:github" class="text-sm"></iconify-icon>
+            </a>
+          </div>
+          <div class="h-4 w-px bg-white/10"></div>
+          <span class="text-[10px] text-neutral-600">&copy; 2024 ZEN STUDIO</span>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    // Gentle auto-resize for textarea
+    const tx = document.getElementsByTagName('textarea')[0];
+    if (tx) {
+      tx.addEventListener("input", OnInput, false);
+      function OnInput() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+      }
+    }
+
+    // Gentle hover interaction for project cards
+    document.querySelectorAll('.card-zen').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = (y - centerY) / 40;
+        const rotateY = (centerX - x) / 40;
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)`;
+      });
+    });
+  </script>
+</body>
+</html>
+~~~

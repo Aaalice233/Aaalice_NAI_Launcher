@@ -26,8 +26,7 @@ class SavedAccount with _$SavedAccount {
     required String email,
 
     /// 昵称（用于显示和生成默认头像）
-    /// @Default 用于 freezed 构造函数，@JsonKey 用于 JSON 反序列化兼容旧数据
-    @Default('') @JsonKey(defaultValue: '') String nickname,
+    @Default('') String nickname,
 
     /// 头像本地路径（null 表示使用默认头像-昵称首字）
     String? avatarPath,

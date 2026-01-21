@@ -234,34 +234,11 @@ class AccountDetailTile extends ConsumerWidget {
     );
   }
 
-  /// 构建带装饰环的头像
+  /// 构建头像
   Widget _buildAvatarWithRing(BuildContext context, SavedAccount account) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.tertiary,
-          ],
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: theme.colorScheme.surface,
-        ),
-        child: AccountAvatar(
-          account: account,
-          size: 56,
-        ),
-      ),
+    return AccountAvatar(
+      account: account,
+      size: 64,
     );
   }
 

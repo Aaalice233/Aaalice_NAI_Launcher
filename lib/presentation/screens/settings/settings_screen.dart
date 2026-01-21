@@ -299,6 +299,11 @@ class SettingsScreen extends ConsumerWidget {
                                                 ? null
                                                 : font.fontFamily,
                                             fontSize: 16,
+                                            color: isSelected
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimaryContainer
+                                                : null,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -335,7 +340,7 @@ class SettingsScreen extends ConsumerWidget {
                                             Icons.check,
                                             color: Theme.of(context)
                                                 .colorScheme
-                                                .primary,
+                                                .onPrimaryContainer,
                                             size: 20,
                                           ),
                                         ),
