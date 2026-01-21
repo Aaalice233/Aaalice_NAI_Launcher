@@ -27,6 +27,8 @@ class FluidPalette extends BaseColorModule {
         tertiary: Color(0xFFDB2777),
         surface: Colors.white,
         onSurface: Colors.black87,
+        onSurfaceVariant: Color(0xFF6B7280), // Gray-500
+        outline: Color(0xFFD1D5DB), // Gray-300
       );
 
   @override
@@ -38,7 +40,9 @@ class FluidPalette extends BaseColorModule {
         tertiary: _tertiary,
         surface: _surface,
         onSurface: Colors.white,
+        onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400
         surfaceContainerHighest: _background,
+        outline: Color(0xFF525252), // Neutral-600
       );
 
   @override

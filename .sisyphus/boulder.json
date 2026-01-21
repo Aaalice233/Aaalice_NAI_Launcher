@@ -1,10 +1,6 @@
 {
-  "active_plan": "E:\\Aaalice_NAI_Launcher\\.sisyphus\\plans\\gallery-queue-enhancement.md",
-  "started_at": "2026-01-19T09:01:48.035Z",
-  "session_ids": [
-    "ses_42a82d782ffe14M2rle6BHj3Do",
-    "ses_42acc56d0ffeE6hZEBJdBK0h5N",
-    "ses_429e9df18ffe0Zf9ME2wZ9lJF7"
-  ],
-  "plan_name": "gallery-queue-enhancement"
+  "active_plan": "E:\\Aaalice_NAI_Launcher\\.sisyphus\\plans\\zen-default-theme.md",
+  "started_at": "2026-01-21T02:25:16.791Z",
+  "session_ids": ["ses_421bcc69fffeKI79o7H0X4PTZj"],
+  "plan_name": "zen-default-theme"
 }

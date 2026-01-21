@@ -79,6 +79,19 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   /// 是否显示分割线
   final bool useDivider;
 
+  // ============================================
+  // Inset Shadow 属性 (输入区域立体感)
+  // ============================================
+
+  /// 是否启用内阴影效果
+  final bool enableInsetShadow;
+
+  /// 内阴影深度 (0.0-1.0)
+  final double insetShadowDepth;
+
+  /// 内阴影模糊半径
+  final double insetShadowBlur;
+
   const AppThemeExtension({
     this.containerDecoration,
     this.blurStrength = 0.0,
@@ -100,6 +113,10 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     this.dividerColor = const Color(0x1AFFFFFF),
     this.dividerThickness = 1.0,
     this.useDivider = true,
+    // Inset shadow properties
+    this.enableInsetShadow = true,
+    this.insetShadowDepth = 0.12,
+    this.insetShadowBlur = 8.0,
   });
 
   @override
@@ -123,6 +140,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     Color? dividerColor,
     double? dividerThickness,
     bool? useDivider,
+    bool? enableInsetShadow,
+    double? insetShadowDepth,
+    double? insetShadowBlur,
   }) {
     return AppThemeExtension(
       containerDecoration: containerDecoration ?? this.containerDecoration,
@@ -144,6 +164,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       dividerColor: dividerColor ?? this.dividerColor,
       dividerThickness: dividerThickness ?? this.dividerThickness,
       useDivider: useDivider ?? this.useDivider,
+      enableInsetShadow: enableInsetShadow ?? this.enableInsetShadow,
+      insetShadowDepth: insetShadowDepth ?? this.insetShadowDepth,
+      insetShadowBlur: insetShadowBlur ?? this.insetShadowBlur,
     );
   }
 
@@ -182,6 +205,11 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       dividerThickness:
           uiLerpDouble(dividerThickness, other.dividerThickness, t) ?? dividerThickness,
       useDivider: t < 0.5 ? useDivider : other.useDivider,
+      enableInsetShadow: t < 0.5 ? enableInsetShadow : other.enableInsetShadow,
+      insetShadowDepth:
+          uiLerpDouble(insetShadowDepth, other.insetShadowDepth, t) ?? insetShadowDepth,
+      insetShadowBlur:
+          uiLerpDouble(insetShadowBlur, other.insetShadowBlur, t) ?? insetShadowBlur,
     );
   }
 

@@ -37,7 +37,7 @@ void main(List<String> args) async {
   print('\n=== NAI 官网元数据完整 JSON ===\n');
   
   // 格式化输出 JSON
-  final encoder = JsonEncoder.withIndent('  ');
+  const encoder = JsonEncoder.withIndent('  ');
   print(encoder.convert(metadata));
   
   print('\n=== 字段列表 ===\n');

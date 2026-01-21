@@ -35,7 +35,7 @@ class AutocompleteOverlay extends StatelessWidget {
 
     return Material(
       elevation: 8,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(4),
       color: theme.colorScheme.surfaceContainerHigh,
       child: Container(
         constraints: const BoxConstraints(
@@ -43,13 +43,13 @@ class AutocompleteOverlay extends StatelessWidget {
           maxWidth: 400,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
+            color: theme.colorScheme.outline.withOpacity(0.3),
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

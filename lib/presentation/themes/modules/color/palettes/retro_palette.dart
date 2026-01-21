@@ -29,7 +29,9 @@ class RetroPalette extends BaseColorModule {
         onTertiary: Colors.black,
         surface: _surface,
         onSurface: Color(0xFF1A1A1A),
+        onSurfaceVariant: Color(0xFF78716C), // Warm gray (Stone-500)
         surfaceContainerHighest: _background,
+        outline: Color(0xFFD6D3D1), // Stone-300
         error: Color(0xFFBA1A1A),
       );
 

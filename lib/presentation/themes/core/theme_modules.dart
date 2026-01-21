@@ -120,6 +120,9 @@ abstract class ShapeModule {
   /// Large border radius (typically 16-24px).
   double get largeRadius;
 
+  /// Menu/popup border radius (typically 4px, always small for clean look).
+  double get menuRadius;
+
   /// Shape for card components.
   ShapeBorder get cardShape;
 
@@ -128,6 +131,9 @@ abstract class ShapeModule {
 
   /// Shape for input components.
   ShapeBorder get inputShape;
+
+  /// Shape for menu/popup components.
+  ShapeBorder get menuShape;
 }
 
 // ============================================
@@ -199,6 +205,17 @@ abstract class EffectModule {
 
   /// The blur strength for glassmorphism effect.
   double get blurStrength;
+
+  /// Whether inset shadow effect is enabled for input areas.
+  /// Creates a "sunken" or "carved" appearance for text input fields.
+  bool get enableInsetShadow;
+
+  /// The depth/intensity of the inset shadow (0.0-1.0).
+  /// Higher values create more pronounced depth effect.
+  double get insetShadowDepth;
+
+  /// The blur radius for the inset shadow effect.
+  double get insetShadowBlur;
 }
 
 /// Types of texture overlays that can be applied to a theme.

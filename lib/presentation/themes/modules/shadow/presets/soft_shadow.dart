@@ -1,4 +1,8 @@
-/// Soft Shadow - Subtle, diffused shadows
+/// Soft Shadow - Zen-inspired diffused shadows
+///
+/// Design Reference: docs/UI设计提示词合集/默认主题.txt
+/// - box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2)
+/// - Very soft, large blur radius for premium feel
 library;
 
 import 'package:flutter/material.dart';
@@ -10,45 +14,42 @@ class SoftShadow extends BaseShadowModule {
   @override
   List<BoxShadow> get elevation1 => const [
         BoxShadow(
-          color: Color(0x0A000000),
-          blurRadius: 4,
-          offset: Offset(0, 1),
-        ),
-        BoxShadow(
-          color: Color(0x0A000000),
-          blurRadius: 2,
-          offset: Offset(0, 1),
+          color: Color(0x1A000000), // 0.1 opacity
+          blurRadius: 8,
+          spreadRadius: -1,
+          offset: Offset(0, 2),
         ),
       ];
 
   @override
   List<BoxShadow> get elevation2 => const [
         BoxShadow(
-          color: Color(0x0F000000),
-          blurRadius: 8,
-          offset: Offset(0, 2),
-        ),
-        BoxShadow(
-          color: Color(0x0A000000),
-          blurRadius: 4,
-          offset: Offset(0, 1),
+          color: Color(0x26000000), // 0.15 opacity
+          blurRadius: 16,
+          spreadRadius: -1,
+          offset: Offset(0, 3),
         ),
       ];
 
   @override
   List<BoxShadow> get elevation3 => const [
         BoxShadow(
-          color: Color(0x14000000),
-          blurRadius: 16,
+          color: Color(0x33000000), // 0.2 opacity - matches design spec
+          blurRadius: 24,
+          spreadRadius: -1,
           offset: Offset(0, 4),
-        ),
-        BoxShadow(
-          color: Color(0x0A000000),
-          blurRadius: 8,
-          offset: Offset(0, 2),
         ),
       ];
 
+  /// Card shadow matching design spec exactly:
+  /// box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2)
   @override
-  List<BoxShadow> get cardShadow => elevation2;
+  List<BoxShadow> get cardShadow => const [
+        BoxShadow(
+          color: Color(0x33000000), // rgba(0,0,0,0.2)
+          blurRadius: 24,
+          spreadRadius: -1,
+          offset: Offset(0, 4),
+        ),
+      ];
 }

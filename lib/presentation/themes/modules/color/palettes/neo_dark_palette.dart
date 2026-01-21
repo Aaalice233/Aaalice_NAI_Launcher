@@ -30,7 +30,9 @@ class NeoDarkPalette extends BaseColorModule {
         onTertiary: Colors.white,
         surface: _surface,
         onSurface: Color(0xFFEDEDEF),
+        onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text
         surfaceContainerHighest: _card,
+        outline: Color(0xFF52525B), // Zinc-600 for borders
         error: Color(0xFFEF4444),
       );
 

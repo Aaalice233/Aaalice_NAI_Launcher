@@ -28,7 +28,9 @@ class GrungePalette extends BaseColorModule {
         tertiary: Color(0xFF8B4513), // Rust brown
         surface: _surface,
         onSurface: _secondary,
+        onSurfaceVariant: Color(0xFF6B5B4F), // Warm brown-gray
         surfaceContainerHighest: _background,
+        outline: Color(0xFFD4CFC0), // Old paper border
         error: _accent,
       );
 
@@ -41,6 +43,8 @@ class GrungePalette extends BaseColorModule {
         tertiary: Color(0xFFD2691E),
         surface: Color(0xFF1A1A1A),
         onSurface: _primary,
+        onSurfaceVariant: Color(0xFFD4CFC0), // Old paper tint
+        outline: Color(0xFF525252), // Neutral-600
         error: _accent,
       );
 

@@ -32,7 +32,9 @@ class RetroWavePalette extends BaseColorModule {
         onTertiary: Color(0xFF1A1A1A),
         surface: _surface,
         onSurface: Color(0xFFEEEEEE),
+        onSurfaceVariant: Color(0xFFBDBDBD), // Warm light gray
         surfaceContainerHighest: _card,
+        outline: Color(0xFF6B6B6B), // Warm border gray
         error: Color(0xFFEF5350),
       );
 

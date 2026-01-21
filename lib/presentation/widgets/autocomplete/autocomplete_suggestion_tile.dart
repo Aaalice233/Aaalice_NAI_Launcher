@@ -54,63 +54,62 @@ class AutocompleteSuggestionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final categoryColor = _getCategoryColor(tag.category);
+    final filteredTranslation = _filterTranslation(tag.translation);
 
     return Material(
       color: isSelected
-          ? theme.colorScheme.primaryContainer
+          ? theme.colorScheme.primary.withOpacity(0.15)
           : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             children: [
               // 分类标签
               if (config.showCategory) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
                     color: categoryColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
                     tag.categoryName,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: categoryColor,
                       fontWeight: FontWeight.w500,
+                      fontSize: 10,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
               ],
-              // 标签名称
+              // 标签名称 + 翻译（单行显示）
               Expanded(
-                child: Builder(
-                  builder: (context) {
-                    final filteredTranslation = _filterTranslation(tag.translation);
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          tag.tag.replaceAll('_', ' '),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: tag.tag.replaceAll('_', ' '),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: isSelected ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                      if (config.showTranslation && filteredTranslation != null) ...[
+                        TextSpan(
+                          text: '  $filteredTranslation',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
-                        if (config.showTranslation && filteredTranslation != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            filteredTranslation,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                          ),
-                        ],
                       ],
-                    );
-                  },
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               // 使用次数
@@ -118,8 +117,8 @@ class AutocompleteSuggestionTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   tag.formattedCount,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

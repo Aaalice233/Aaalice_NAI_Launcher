@@ -30,7 +30,9 @@ class MinimalGlassPalette extends BaseColorModule {
         onTertiary: Color(0xFF1A1A1A),
         surface: _surface,
         onSurface: Color(0xFFA2AFB9),
+        onSurfaceVariant: Color(0xFF8BA3B5), // Cyan-tinted light gray
         surfaceContainerHighest: _card,
+        outline: Color(0xFF3D5A6C), // Cyan-tinted border
         error: Color(0xFFC62828),
       );
 

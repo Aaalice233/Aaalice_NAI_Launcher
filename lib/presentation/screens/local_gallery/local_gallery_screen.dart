@@ -247,7 +247,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 : state.isIndexing
                     ? _buildIndexingState()
                     : state.allFiles.isEmpty
-                        ? _buildEmptyState()
+                        ? _buildEmptyState(context)
                         : _buildContent(theme, state, columns, itemWidth),
           ),
           // 底部分页条
@@ -582,16 +582,17 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
   
   /// 构建空状态
-  Widget _buildEmptyState() {
-    return const Center(
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('暂无本地图片'),
-          SizedBox(height: 8),
-          Text('生成的图片将保存在此处', style: TextStyle(color: Colors.grey)),
+          Icon(Icons.image_not_supported, size: 64, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 16),
+          const Text('暂无本地图片'),
+          const SizedBox(height: 8),
+          Text('生成的图片将保存在此处', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     );

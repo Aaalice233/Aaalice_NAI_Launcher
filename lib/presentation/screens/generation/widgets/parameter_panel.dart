@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/image/resolution_preset.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
 import 'img2img_panel.dart';
@@ -113,12 +114,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
         // 模型选择
         _buildSectionTitle(theme, context.l10n.generation_model),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
+        ThemedDropdown<String>(
           value: params.model,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
           items: ImageModels.allModels.map((model) {
             return DropdownMenuItem(
               value: model,
@@ -157,35 +154,24 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
         // 采样器
         _buildSectionTitle(theme, context.l10n.generation_sampler),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: params.sampler,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                items: Samplers.allSamplers.map((sampler) {
-                  return DropdownMenuItem(
-                    value: sampler,
-                    child: Text(
-                      Samplers.samplerDisplayNames[sampler] ?? sampler,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(generationParamsNotifierProvider.notifier)
-                        .updateSampler(value);
-                  }
-                },
+        ThemedDropdown<String>(
+          value: params.sampler,
+          items: Samplers.allSamplers.map((sampler) {
+            return DropdownMenuItem(
+              value: sampler,
+              child: Text(
+                Samplers.samplerDisplayNames[sampler] ?? sampler,
+                style: const TextStyle(fontSize: 13),
               ),
-            ),
-          ],
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
+                  .updateSampler(value);
+            }
+          },
         ),
 
         const SizedBox(height: 16),
@@ -193,15 +179,11 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
         // 调度器
         _buildSectionTitle(theme, context.l10n.generation_noiseSchedule),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
+        ThemedDropdown<String>(
           // V4/V4.5 模型不支持 native，如果当前值是 native 则显示 karras
           value: params.isV4Model && params.noiseSchedule == 'native'
               ? 'karras'
               : params.noiseSchedule,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
           items: [
             // V3 模型多一个 Native 选项
             if (!params.isV4Model)
@@ -344,6 +326,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                             icon: Icons.clear_rounded,
                             tooltip: context.l10n.common_clear,
                             onPressed: () {
+                              _seedController.clear();
                               ref
                                   .read(generationParamsNotifierProvider.notifier)
                                   .updateSeed(-1);
@@ -708,14 +691,9 @@ class _SizeSelectorState extends State<_SizeSelector> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 预设下拉菜单
-        DropdownButtonFormField<String>(
+        ThemedDropdown<String>(
           value: _selectedPresetId,
-          isExpanded: true,
           focusNode: _dropdownFocusNode,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
           items: _buildDropdownItems(context),
           selectedItemBuilder: (context) {
             // 自定义选中项显示
@@ -748,20 +726,10 @@ class _SizeSelectorState extends State<_SizeSelector> {
           children: [
             // 宽度输入
             Expanded(
-              child: TextField(
+              child: ThemedTextField(
                 controller: _widthController,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  labelText: l10n.resolution_width,
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                  border: const OutlineInputBorder(),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
+                labelText: l10n.resolution_width,
                 style: const TextStyle(fontSize: 13),
                 onChanged: (_) => _onManualSizeChanged(),
               ),
@@ -779,20 +747,10 @@ class _SizeSelectorState extends State<_SizeSelector> {
             ),
             // 高度输入
             Expanded(
-              child: TextField(
+              child: ThemedTextField(
                 controller: _heightController,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  labelText: l10n.resolution_height,
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                  border: const OutlineInputBorder(),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
+                labelText: l10n.resolution_height,
                 style: const TextStyle(fontSize: 13),
                 onChanged: (_) => _onManualSizeChanged(),
               ),

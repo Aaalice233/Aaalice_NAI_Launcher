@@ -153,6 +153,46 @@ class ThemeComposer {
         ),
       ),
       
+      // Dropdown and PopupMenu - use shape module's menu radius
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(shape.menuRadius),
+            ),
+          ),
+          backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+        ),
+      ),
+      
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(shape.menuRadius),
+        ),
+        color: colorScheme.surfaceContainerHigh,
+      ),
+      
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(shape.menuRadius),
+            ),
+          ),
+          backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+        ),
+      ),
+      
+      menuButtonTheme: MenuButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(shape.menuRadius),
+            ),
+          ),
+        ),
+      ),
+      
       // Apply motion to page transitions
       pageTransitionsTheme: PageTransitionsTheme(
         builders: {
@@ -190,6 +230,10 @@ class ThemeComposer {
       dividerColor: divider.dividerColor,
       dividerThickness: divider.thickness,
       useDivider: divider.useDivider,
+      // Inset shadow properties from effect module
+      enableInsetShadow: effect.enableInsetShadow,
+      insetShadowDepth: effect.insetShadowDepth,
+      insetShadowBlur: effect.insetShadowBlur,
     );
   }
 

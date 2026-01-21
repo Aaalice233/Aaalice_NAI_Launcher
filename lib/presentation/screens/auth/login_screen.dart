@@ -573,7 +573,7 @@ class LoginScreen extends ConsumerWidget {
       trailing: IconButton(
         icon: Icon(
           Icons.delete_outline,
-          color: Colors.grey.shade500,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
         onPressed: () => _showDeleteAccountDialog(context, ref, account),
       ),

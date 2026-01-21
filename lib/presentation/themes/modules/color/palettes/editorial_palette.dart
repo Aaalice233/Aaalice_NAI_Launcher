@@ -39,8 +39,9 @@ class EditorialPalette extends BaseColorModule {
         tertiary: _tertiary,
         surface: _surface,
         onSurface: _onSurface,
+        onSurfaceVariant: Color(0xFF9CA3AF),  // Gray-400 for better contrast
         surfaceContainerHighest: _background,
-        outline: Color(0xFF262626),
+        outline: Color(0xFF525252),  // Neutral-600 for better visibility
       );
 
   @override

@@ -85,4 +85,13 @@ class _PaperTextureEffect implements EffectModule {
 
   @override
   double get blurStrength => 0.0;
+
+  @override
+  bool get enableInsetShadow => true;
+
+  @override
+  double get insetShadowDepth => 0.08;
+
+  @override
+  double get insetShadowBlur => 6.0;
 }

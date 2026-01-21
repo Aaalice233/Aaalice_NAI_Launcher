@@ -30,7 +30,9 @@ class SocialPalette extends BaseColorModule {
         onTertiary: Colors.black,
         surface: _surface,
         onSurface: Colors.white,
+        onSurfaceVariant: Color(0xFFB5BAC1), // Discord light gray
         surfaceContainerHighest: _card,
+        outline: Color(0xFF5C5E66), // Discord border gray
         error: Color(0xFFED4245),
       );
 

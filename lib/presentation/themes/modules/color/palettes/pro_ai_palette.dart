@@ -30,7 +30,9 @@ class ProAiPalette extends BaseColorModule {
         onTertiary: Color(0xFF1A1A1A),
         surface: _surface,
         onSurface: Colors.white,
+        onSurfaceVariant: Color(0xFF9B9BC0), // Purple-tinted light gray
         surfaceContainerHighest: _card,
+        outline: Color(0xFF4B4B6E), // Purple-tinted border
         error: Color(0xFFEF4444),
       );
 

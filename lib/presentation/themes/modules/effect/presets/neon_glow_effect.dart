@@ -1,4 +1,4 @@
-/// Neon Glow Effect - Cyberpunk neon
+/// Neon Glow Effect - Cyberpunk neon with deep inset shadows
 library;
 
 import 'package:flutter/material.dart';
@@ -7,9 +7,16 @@ import 'package:nai_launcher/presentation/themes/modules/effect/effect_module.da
 
 class NeonGlowEffect extends BaseEffectModule {
   final Color _glowColor;
+  final double _insetShadowDepth;
+  final double _insetShadowBlur;
 
-  const NeonGlowEffect({Color glowColor = const Color(0xFFFF2975)})
-      : _glowColor = glowColor;
+  const NeonGlowEffect({
+    Color glowColor = const Color(0xFFFF2975),
+    double insetShadowDepth = 0.2,
+    double insetShadowBlur = 10.0,
+  })  : _glowColor = glowColor,
+        _insetShadowDepth = insetShadowDepth,
+        _insetShadowBlur = insetShadowBlur;
 
   @override
   bool get enableGlassmorphism => false;
@@ -25,4 +32,13 @@ class NeonGlowEffect extends BaseEffectModule {
 
   @override
   double get blurStrength => 0.0;
+
+  @override
+  bool get enableInsetShadow => true;
+
+  @override
+  double get insetShadowDepth => _insetShadowDepth;
+
+  @override
+  double get insetShadowBlur => _insetShadowBlur;
 }

@@ -174,10 +174,10 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                         fit: BoxFit.cover,
                       )
                     : null,
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
               child: task.thumbnailUrl == null
-                  ? const Icon(Icons.image, size: 20, color: Colors.grey)
+                  ? Icon(Icons.image, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant)
                   : null,
             ),
           );
@@ -250,7 +250,7 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                 ref.read(replicationQueueNotifierProvider.notifier).remove(task.id);
               },
             ),
-            const Icon(Icons.drag_handle, color: Colors.grey),
+            Icon(Icons.drag_handle, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ],
         ),
       ),

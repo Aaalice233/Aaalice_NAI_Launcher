@@ -575,7 +575,7 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
   void _scrollToSelected() {
     if (_selectedIndex < 0) return;
 
-    const itemHeight = 48.0;
+    const itemHeight = 32.0; // 紧凑单行布局
     final targetOffset = _selectedIndex * itemHeight;
     final maxOffset = _scrollController.position.maxScrollExtent;
 

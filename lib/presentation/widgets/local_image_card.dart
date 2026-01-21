@@ -630,9 +630,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         height: 150,
-                        color: Colors.grey[300],
-                        child: const Center(
-                          child: Icon(Icons.broken_image, size: 48),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Center(
+                          child: Icon(Icons.broken_image, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       );
                     },

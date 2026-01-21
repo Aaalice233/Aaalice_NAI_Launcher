@@ -808,18 +808,19 @@ class _FullscreenViewer extends ConsumerWidget {
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  _buildMetadataRow(context.l10n.gallery_metaModel, record.params.model),
-                  _buildMetadataRow(context.l10n.gallery_metaResolution, record.resolution),
-                  _buildMetadataRow(context.l10n.gallery_metaSteps, record.params.steps.toString()),
-                  _buildMetadataRow(context.l10n.gallery_metaSampler, record.params.sampler),
+                  _buildMetadataRow(context, context.l10n.gallery_metaModel, record.params.model),
+                  _buildMetadataRow(context, context.l10n.gallery_metaResolution, record.resolution),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSteps, record.params.steps.toString()),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSampler, record.params.sampler),
                   _buildMetadataRow(
+                    context,
                     context.l10n.gallery_metaCfgScale,
                     record.params.scale.toString(),
                   ),
-                  _buildMetadataRow(context.l10n.gallery_metaSeed, record.params.seed.toString()),
-                  _buildMetadataRow(context.l10n.gallery_metaSmea, record.params.smea ? context.l10n.gallery_metaSmeaOn : context.l10n.gallery_metaSmeaOff),
-                  _buildMetadataRow(context.l10n.gallery_metaGenerationTime, record.createdAt.toString()),
-                  _buildMetadataRow(context.l10n.gallery_metaFileSize, record.formattedFileSize),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSeed, record.params.seed.toString()),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSmea, record.params.smea ? context.l10n.gallery_metaSmeaOn : context.l10n.gallery_metaSmeaOff),
+                  _buildMetadataRow(context, context.l10n.gallery_metaGenerationTime, record.createdAt.toString()),
+                  _buildMetadataRow(context, context.l10n.gallery_metaFileSize, record.formattedFileSize),
                   const SizedBox(height: 16),
                   Text(
                     context.l10n.gallery_positivePrompt,
@@ -845,7 +846,8 @@ class _FullscreenViewer extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetadataRow(String label, String value) {
+  Widget _buildMetadataRow(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -855,7 +857,7 @@ class _FullscreenViewer extends ConsumerWidget {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
           Expanded(

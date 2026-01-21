@@ -19,6 +19,9 @@ class WobblyShapes extends BaseShapeModule {
   @override
   double get largeRadius => 16.0;
 
+  @override
+  double get menuRadius => 0.0;
+
   // Placeholder - will be replaced with WobblyShapeBorder in Task 8
   @override
   ShapeBorder get cardShape => RoundedRectangleBorder(
@@ -36,5 +39,10 @@ class WobblyShapes extends BaseShapeModule {
   ShapeBorder get inputShape => RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(smallRadius),
         side: const BorderSide(color: Color(0xFF2D2D2D), width: 2),
+      );
+
+  @override
+  ShapeBorder get menuShape => RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(menuRadius),
       );
 }

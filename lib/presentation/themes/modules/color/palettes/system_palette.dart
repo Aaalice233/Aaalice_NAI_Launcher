@@ -34,7 +34,9 @@ class SystemPalette extends BaseColorModule {
         onTertiary: Colors.white,
         surface: _lightSurface,
         onSurface: Color(0xFF1D1D1F),
+        onSurfaceVariant: Color(0xFF6B7280), // Gray-500 for secondary text
         surfaceContainerHighest: _lightCard,
+        outline: Color(0xFFD1D5DB), // Gray-300 for borders
         error: Color(0xFFFF3B30),
       );
 
@@ -48,7 +50,9 @@ class SystemPalette extends BaseColorModule {
         onTertiary: Color(0xFF1A1A1A),
         surface: _darkSurface,
         onSurface: Color(0xFFA2AFB9),
+        onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text
         surfaceContainerHighest: _darkCard,
+        outline: Color(0xFF52525B), // Zinc-600 for borders
         error: Color(0xFFEF4444),
       );
 

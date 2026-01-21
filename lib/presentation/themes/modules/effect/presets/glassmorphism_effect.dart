@@ -1,4 +1,4 @@
-/// Glassmorphism Effect - Frosted glass
+/// Glassmorphism Effect - Frosted glass with subtle depth
 library;
 
 import 'package:flutter/material.dart';
@@ -6,7 +6,17 @@ import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/modules/effect/effect_module.dart';
 
 class GlassmorphismEffect extends BaseEffectModule {
-  const GlassmorphismEffect();
+  final double _blurStrength;
+  final double _insetShadowDepth;
+  final double _insetShadowBlur;
+
+  const GlassmorphismEffect({
+    double blurStrength = 12.0,
+    double insetShadowDepth = 0.1,
+    double insetShadowBlur = 6.0,
+  })  : _blurStrength = blurStrength,
+        _insetShadowDepth = insetShadowDepth,
+        _insetShadowBlur = insetShadowBlur;
 
   @override
   bool get enableGlassmorphism => true;
@@ -21,5 +31,14 @@ class GlassmorphismEffect extends BaseEffectModule {
   Color? get glowColor => null;
 
   @override
-  double get blurStrength => 12.0;
+  double get blurStrength => _blurStrength;
+
+  @override
+  bool get enableInsetShadow => true;
+
+  @override
+  double get insetShadowDepth => _insetShadowDepth;
+
+  @override
+  double get insetShadowBlur => _insetShadowBlur;
 }
