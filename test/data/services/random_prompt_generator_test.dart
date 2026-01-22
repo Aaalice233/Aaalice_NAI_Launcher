@@ -3,9 +3,12 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/datasources/local/pool_cache_service.dart';
 import 'package:nai_launcher/data/datasources/local/tag_group_cache_service.dart';
+import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
+import 'package:nai_launcher/data/models/prompt/character_count_config.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
+import 'package:nai_launcher/data/models/prompt/tag_scope.dart';
 import 'package:nai_launcher/data/models/prompt/weighted_tag.dart';
 import 'package:nai_launcher/data/services/random_prompt_generator.dart';
 import 'package:nai_launcher/data/services/sequential_state_service.dart';
@@ -353,6 +356,10 @@ void main() {
         final preset = RandomPreset(
           id: 'test',
           name: 'Test Preset',
+          // 禁用角色数标签生成
+          algorithmConfig: const AlgorithmConfig(
+            characterCountConfig: CharacterCountConfig(),
+          ),
           categories: [
             RandomCategory(
               id: 'cat1',
@@ -430,6 +437,10 @@ void main() {
         final preset = RandomPreset(
           id: 'test',
           name: 'Test Preset',
+          // 禁用角色数标签生成
+          algorithmConfig: const AlgorithmConfig(
+            characterCountConfig: CharacterCountConfig(),
+          ),
           categories: [
             RandomCategory(
               id: 'cat1',
@@ -482,6 +493,10 @@ void main() {
         final preset = RandomPreset(
           id: 'test',
           name: 'Test Preset',
+          // 禁用角色数标签生成
+          algorithmConfig: const AlgorithmConfig(
+            characterCountConfig: CharacterCountConfig(),
+          ),
           categories: [
             RandomCategory(
               id: 'cat1',
@@ -489,6 +504,8 @@ void main() {
               key: 'sequential_test',
               enabled: true,
               probability: 1.0,
+              // 设置 scope 为 global，避免在 global 和 character 阶段都被处理
+              scope: TagScope.global,
               groups: [
                 RandomTagGroup(
                   id: 'grp1',
@@ -641,6 +658,10 @@ void main() {
         const preset = RandomPreset(
           id: 'test',
           name: 'Empty Preset',
+          // 禁用角色数标签生成
+          algorithmConfig: AlgorithmConfig(
+            characterCountConfig: CharacterCountConfig(),
+          ),
           categories: [], // 空类别列表
         );
 
@@ -653,6 +674,10 @@ void main() {
         final preset = RandomPreset(
           id: 'test',
           name: 'All Disabled',
+          // 禁用角色数标签生成
+          algorithmConfig: const AlgorithmConfig(
+            characterCountConfig: CharacterCountConfig(),
+          ),
           categories: [
             RandomCategory(
               id: 'cat1',

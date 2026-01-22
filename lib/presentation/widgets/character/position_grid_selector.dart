@@ -59,9 +59,12 @@ class PositionGridSelector extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: List.generate(gridSize, (column) {
-                final position = CharacterPosition(row: row, column: column);
-                final isSelected = selectedPosition?.row == row &&
-                    selectedPosition?.column == column;
+                final rowPercent = row / (gridSize - 1).toDouble();
+                final colPercent = column / (gridSize - 1).toDouble();
+                final position = CharacterPosition(row: rowPercent, column: colPercent);
+                final isSelected = selectedPosition != null &&
+                    (selectedPosition!.row * (gridSize - 1)).round() == row &&
+                    (selectedPosition!.column * (gridSize - 1)).round() == column;
 
                 return Padding(
                   padding: EdgeInsets.only(

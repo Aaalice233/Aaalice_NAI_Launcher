@@ -7,6 +7,7 @@ import '../../core/utils/app_logger.dart';
 import '../datasources/local/pool_cache_service.dart';
 import '../datasources/local/tag_group_cache_service.dart';
 import '../models/character/character_prompt.dart';
+import '../models/prompt/algorithm_config.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/character_count_config.dart';
 import '../models/prompt/random_category.dart';
@@ -18,8 +19,10 @@ import '../models/prompt/tag_group.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
+import '../models/prompt/wordlist_entry.dart';
 import 'sequential_state_service.dart';
 import 'tag_library_service.dart';
+import 'wordlist_service.dart';
 
 part 'random_prompt_generator.g.dart';
 
@@ -32,13 +35,15 @@ class RandomPromptGenerator {
   final SequentialStateService _sequentialService;
   final TagGroupCacheService _tagGroupCacheService;
   final PoolCacheService _poolCacheService;
+  final WordlistService? _wordlistService;
 
   RandomPromptGenerator(
     this._libraryService,
     this._sequentialService,
     this._tagGroupCacheService,
-    this._poolCacheService,
-  );
+    this._poolCacheService, [
+    this._wordlistService,
+  ]);
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -1343,6 +1348,444 @@ class RandomPromptGenerator {
     if (postCount < 5000000) return 9;
     return 10;
   }
+
+  // ========== CSV 词库生成方法 ==========
+
+  /// 使用 CSV 词库生成随机提示词
+  ///
+  /// [config] 算法配置
+  /// [seed] 随机种子（可选）
+  Future<RandomPromptResult> generateFromWordlist({
+    AlgorithmConfig config = const AlgorithmConfig(),
+    int? seed,
+  }) async {
+    if (_wordlistService == null) {
+      throw StateError('WordlistService not available');
+    }
+
+    // 确保词库已加载
+    if (!_wordlistService.isInitialized) {
+      await _wordlistService.initialize();
+    }
+
+    final random = seed != null ? Random(seed) : Random();
+    final wordlistType = _getWordlistType(config.wordlistType);
+
+    AppLogger.d(
+      'Generating from wordlist: ${wordlistType.fileName}',
+      'RandomGen',
+    );
+
+    // 检查全局时间条件
+    if (!config.isGlobalTimeConditionActive()) {
+      AppLogger.d('Global time condition not active', 'RandomGen');
+    }
+
+    // 决定角色数量
+    final characterCount = _determineCharacterCountFromConfig(config, random);
+
+    AppLogger.d('Character count: $characterCount', 'RandomGen');
+
+    if (characterCount == 0) {
+      return _generateNoHumanFromWordlist(wordlistType, config, random, seed);
+    }
+
+    if (!config.isV4Model) {
+      return _generateLegacyFromWordlist(
+        wordlistType,
+        config,
+        random,
+        characterCount,
+        seed,
+      );
+    }
+
+    return _generateMultiCharacterFromWordlist(
+      wordlistType,
+      config,
+      random,
+      characterCount,
+      seed,
+    );
+  }
+
+  /// 从配置中获取词库类型
+  WordlistType _getWordlistType(String typeName) {
+    switch (typeName.toLowerCase()) {
+      case 'legacy':
+        return WordlistType.legacy;
+      case 'furry':
+        return WordlistType.furry;
+      default:
+        return WordlistType.v4;
+    }
+  }
+
+  /// 从配置决定角色数量
+  int _determineCharacterCountFromConfig(AlgorithmConfig config, Random random) {
+    final weights = config.characterCountWeights;
+    if (weights.isEmpty) {
+      return getWeightedChoiceInt(characterCountWeights, random: random);
+    }
+
+    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1]);
+    final target = random.nextInt(totalWeight) + 1;
+
+    var cumulative = 0;
+    for (final w in weights) {
+      cumulative += w[1];
+      if (target <= cumulative) {
+        return w[0];
+      }
+    }
+
+    return weights.last[0];
+  }
+
+  /// 从词库按变量和分类选择标签
+  String? _selectFromWordlist(
+    WordlistType type,
+    String variable,
+    String category,
+    Random random, {
+    Map<String, List<String>>? context,
+  }) {
+    final entries = _wordlistService!.getEntriesByVariableAndCategory(
+      type,
+      variable,
+      category,
+    );
+
+    if (entries.isEmpty) return null;
+
+    // 应用 exclude/require 规则
+    final filtered = _applyWordlistRules(entries, context);
+    if (filtered.isEmpty) return null;
+
+    // 加权随机选择
+    final selected = _wordlistService.weightedRandomSelect(
+      filtered,
+      () => random.nextInt(1 << 30),
+    );
+
+    return selected?.tag;
+  }
+
+  /// 应用词库条目的 exclude/require 规则
+  List<WordlistEntry> _applyWordlistRules(
+    List<WordlistEntry> entries,
+    Map<String, List<String>>? context,
+  ) {
+    if (context == null || context.isEmpty) return entries;
+
+    final selectedTags = context.values.expand((v) => v).toSet();
+
+    return entries.where((entry) {
+      // 检查 require 规则
+      if (entry.hasRequireRules) {
+        final hasRequired = entry.require.any(
+          (req) => selectedTags.contains(req),
+        );
+        if (!hasRequired) return false;
+      }
+
+      // 检查 exclude 规则
+      if (entry.hasExcludeRules) {
+        final hasExcluded = entry.exclude.any(
+          (exc) => selectedTags.contains(exc),
+        );
+        if (hasExcluded) return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// 从词库生成无人物场景
+  RandomPromptResult _generateNoHumanFromWordlist(
+    WordlistType type,
+    AlgorithmConfig config,
+    Random random,
+    int? seed,
+  ) {
+    final tags = <String>['no humans'];
+    final context = <String, List<String>>{};
+
+    // 添加场景
+    final scene = _selectFromWordlist(type, 'tk', 'scene', random);
+    if (scene != null) {
+      tags.add(scene);
+      context['scene'] = [scene];
+    }
+
+    // 添加背景 (90%)
+    if (random.nextDouble() < 0.9) {
+      final bg = _selectFromWordlist(
+        type,
+        'tk',
+        'background',
+        random,
+        context: context,
+      );
+      if (bg != null) {
+        tags.add(bg);
+        context['background'] = [bg];
+      }
+    }
+
+    // 添加风格 (50%)
+    if (random.nextDouble() < 0.5) {
+      final style = _selectFromWordlist(
+        type,
+        'tk',
+        'style',
+        random,
+        context: context,
+      );
+      if (style != null) {
+        tags.add(style);
+        context['style'] = [style];
+      }
+    }
+
+    // 应用全局后处理规则
+    final processedTags = config.applyGlobalPostProcessRules(tags, context);
+
+    return RandomPromptResult.noHuman(
+      prompt: processedTags.join(', '),
+      seed: seed,
+    );
+  }
+
+  /// 从词库生成传统单提示词
+  RandomPromptResult _generateLegacyFromWordlist(
+    WordlistType type,
+    AlgorithmConfig config,
+    Random random,
+    int characterCount,
+    int? seed,
+  ) {
+    final tags = <String>[];
+    final context = <String, List<String>>{};
+
+    // 添加人数标签
+    tags.add(_getCountTag(characterCount));
+
+    // 决定性别
+    final gender = config.selectGender(() => random.nextInt(1 << 30));
+    context['gender'] = [gender];
+
+    // 生成角色标签
+    final charTags = _generateCharacterTagsFromWordlist(
+      type,
+      config,
+      random,
+      gender,
+      context,
+    );
+    tags.addAll(charTags);
+
+    // 添加背景
+    if (random.nextDouble() < 0.9) {
+      final bg = _selectFromWordlist(
+        type,
+        'tk',
+        'background',
+        random,
+        context: context,
+      );
+      if (bg != null) {
+        tags.add(bg);
+        context['background'] = [bg];
+      }
+    }
+
+    // 应用全局后处理规则
+    final processedTags = config.applyGlobalPostProcessRules(tags, context);
+
+    return RandomPromptResult(
+      mainPrompt: processedTags.join(', '),
+      seed: seed,
+    );
+  }
+
+  /// 从词库生成多角色提示词
+  RandomPromptResult _generateMultiCharacterFromWordlist(
+    WordlistType type,
+    AlgorithmConfig config,
+    Random random,
+    int characterCount,
+    int? seed,
+  ) {
+    final characters = <GeneratedCharacter>[];
+    final globalContext = <String, List<String>>{};
+
+    for (var i = 0; i < characterCount; i++) {
+      final gender = config.selectGender(() => random.nextInt(1 << 30));
+      final charContext = <String, List<String>>{'gender': [gender]};
+
+      final charTags = _generateCharacterTagsFromWordlist(
+        type,
+        config,
+        random,
+        gender,
+        charContext,
+      );
+
+      // 应用强调概率
+      final emphasizedTags = _applyEmphasis(
+        charTags,
+        config.globalEmphasisProbability,
+        config.globalEmphasisBracketCount,
+        random,
+      );
+
+      characters.add(
+        GeneratedCharacter(
+          prompt: emphasizedTags.join(', '),
+          gender: _genderFromString(gender),
+        ),
+      );
+
+      // 合并到全局上下文
+      charContext.forEach((key, value) {
+        globalContext.putIfAbsent(key, () => []).addAll(value);
+      });
+    }
+
+    // 生成主提示词
+    final mainTags = <String>[];
+
+    // 添加背景
+    if (random.nextDouble() < 0.9) {
+      final bg = _selectFromWordlist(
+        type,
+        'tk',
+        'background',
+        random,
+        context: globalContext,
+      );
+      if (bg != null) mainTags.add(bg);
+    }
+
+    // 添加场景
+    if (random.nextDouble() < 0.5) {
+      final scene = _selectFromWordlist(
+        type,
+        'tk',
+        'scene',
+        random,
+        context: globalContext,
+      );
+      if (scene != null) mainTags.add(scene);
+    }
+
+    return RandomPromptResult(
+      mainPrompt: mainTags.join(', '),
+      characters: characters,
+      seed: seed,
+    );
+  }
+
+  /// 从词库生成角色标签
+  List<String> _generateCharacterTagsFromWordlist(
+    WordlistType type,
+    AlgorithmConfig config,
+    Random random,
+    String gender,
+    Map<String, List<String>> context,
+  ) {
+    final tags = <String>[];
+
+    // 角色类别列表（按优先级）
+    final categories = [
+      'hair_color',
+      'eye_color',
+      'hair_style',
+      'expression',
+      'pose',
+      'clothing',
+      'accessory',
+    ];
+
+    for (final category in categories) {
+      // 检查全局可见性
+      if (!config.isCategoryGloballyVisible(category, context)) {
+        continue;
+      }
+
+      // 根据类别概率决定是否生成
+      final prob = _getCategoryProbability(category, config);
+      if (random.nextDouble() >= prob) continue;
+
+      final tag = _selectFromWordlist(
+        type,
+        'char',
+        category,
+        random,
+        context: context,
+      );
+
+      if (tag != null) {
+        tags.add(tag);
+        context[category] = [tag];
+      }
+    }
+
+    return tags;
+  }
+
+  /// 获取类别生成概率
+  double _getCategoryProbability(String category, AlgorithmConfig config) {
+    // 可以从 config.categoryProbabilities 获取，这里使用默认值
+    switch (category) {
+      case 'hair_color':
+      case 'eye_color':
+        return 0.95;
+      case 'hair_style':
+      case 'expression':
+        return 0.8;
+      case 'pose':
+        return 0.7;
+      case 'clothing':
+        return 0.9;
+      case 'accessory':
+        return 0.5;
+      default:
+        return 0.8;
+    }
+  }
+
+  /// 应用强调括号
+  List<String> _applyEmphasis(
+    List<String> tags,
+    double probability,
+    int bracketCount,
+    Random random,
+  ) {
+    if (probability <= 0 || bracketCount <= 0) return tags;
+
+    return tags.map((tag) {
+      if (random.nextDouble() < probability) {
+        final openBrackets = '{' * bracketCount;
+        final closeBrackets = '}' * bracketCount;
+        return '$openBrackets$tag$closeBrackets';
+      }
+      return tag;
+    }).toList();
+  }
+
+  /// 从字符串转换性别枚举
+  CharacterGender _genderFromString(String gender) {
+    switch (gender.toLowerCase()) {
+      case 'male':
+        return CharacterGender.male;
+      case 'other':
+        return CharacterGender.other;
+      default:
+        return CharacterGender.female;
+    }
+  }
 }
 
 /// Provider
@@ -1352,10 +1795,12 @@ RandomPromptGenerator randomPromptGenerator(Ref ref) {
   final sequentialService = ref.watch(sequentialStateServiceProvider);
   final tagGroupCacheService = ref.watch(tagGroupCacheServiceProvider);
   final poolCacheService = ref.watch(poolCacheServiceProvider);
+  final wordlistService = ref.watch(wordlistServiceProvider);
   return RandomPromptGenerator(
     libraryService,
     sequentialService,
     tagGroupCacheService,
     poolCacheService,
+    wordlistService,
   );
 }

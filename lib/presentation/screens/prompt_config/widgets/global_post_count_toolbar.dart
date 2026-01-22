@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../widgets/prompt/diy/dialogs/diy_guide_dialog.dart';
+import '../../../widgets/prompt/diy/dialogs/nai_rules_dialog.dart';
 import '../../../widgets/prompt/global_settings_dialog.dart';
 import '../../../widgets/settings/cache_management_dialog.dart';
 
@@ -122,6 +124,22 @@ class GlobalPostCountToolbar extends StatelessWidget {
             icon: Icons.tune,
             label: context.l10n.characterCountConfig_title,
             onTap: () => GlobalSettingsDialog.show(context),
+          ),
+          const SizedBox(width: 8),
+          // NAI 规则说明按钮
+          _buildCompactButton(
+            theme: theme,
+            icon: Icons.info_outline,
+            label: 'NAI 规则',
+            onTap: () => NaiRulesDialog.show(context),
+          ),
+          const SizedBox(width: 8),
+          // DIY 指南按钮
+          _buildCompactButton(
+            theme: theme,
+            icon: Icons.help_outline,
+            label: 'DIY 指南',
+            onTap: () => DiyGuideDialog.show(context),
           ),
           // 分隔线
           Padding(

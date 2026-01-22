@@ -22,25 +22,30 @@ enum CharacterPositionMode {
   custom,
 }
 
-/// 角色位置 (5x5网格)
+/// 角色位置 (百分比坐标)
 @freezed
 class CharacterPosition with _$CharacterPosition {
   const CharacterPosition._();
 
   const factory CharacterPosition({
-    /// 行索引 (0-4)
-    required int row,
-    /// 列索引 (0-4)
-    required int column,
+    /// 位置模式
+    @Default(CharacterPositionMode.aiChoice) CharacterPositionMode mode,
+    /// 行位置 (0.0-1.0 百分比)
+    @Default(0.5) double row,
+    /// 列位置 (0.0-1.0 百分比)
+    @Default(0.5) double column,
   }) = _CharacterPosition;
 
   factory CharacterPosition.fromJson(Map<String, dynamic> json) =>
       _$CharacterPositionFromJson(json);
 
   /// 转换为NAI位置字符串 (如 "A1", "B2")
+  /// 将百分比坐标转换为5x5网格索引
   String toNaiString() {
-    final colChar = String.fromCharCode('A'.codeUnitAt(0) + column);
-    final rowNum = row + 1;
+    final colIndex = (column * 4).round().clamp(0, 4);
+    final rowIndex = (row * 4).round().clamp(0, 4);
+    final colChar = String.fromCharCode('A'.codeUnitAt(0) + colIndex);
+    final rowNum = rowIndex + 1;
     return '$colChar$rowNum';
   }
 }
@@ -196,17 +201,19 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     // 如果预定义位置都用完了，找一个未使用的网格位置
     for (int row = 0; row < 5; row++) {
       for (int col = 0; col < 5; col++) {
+        final rowPercent = row / 4.0;
+        final colPercent = col / 4.0;
         final isUsed = usedPositions.any(
-          (used) => used.row == row && used.column == col,
+          (used) => (used.row * 4).round() == row && (used.column * 4).round() == col,
         );
         if (!isUsed) {
-          return CharacterPosition(row: row, column: col);
+          return CharacterPosition(row: rowPercent, column: colPercent);
         }
       }
     }
 
     // 兜底：返回中心位置
-    return const CharacterPosition(row: 2, column: 2);
+    return const CharacterPosition(row: 0.5, column: 0.5);
   }
 
   /// 添加新角色

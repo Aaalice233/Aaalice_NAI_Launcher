@@ -1,5 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'character_count_config.dart';
+import 'time_condition.dart';
+import 'post_process_rule.dart';
+import 'visibility_rule.dart';
 
 part 'algorithm_config.freezed.dart';
 part 'algorithm_config.g.dart';
@@ -45,6 +48,50 @@ class AlgorithmConfig with _$AlgorithmConfig {
 
     /// 人数类别配置（新版：单人、双人、三人、多人、无人的角色标签配置）
     CharacterCountConfig? characterCountConfig,
+
+    // ========== DIY 全局高级配置 ==========
+
+    /// 全局强调概率 (0.0-1.0)
+    /// 对所有选中的标签有一定概率添加强调括号
+    @Default(0.02) double globalEmphasisProbability,
+
+    /// 全局强调括号层数
+    @Default(1) int globalEmphasisBracketCount,
+
+    /// 全局时间条件组
+    /// 应用于整个生成流程的时间条件
+    TimeConditionGroup? globalTimeConditions,
+
+    /// 全局后处理规则集
+    /// 在所有标签选择完成后应用
+    PostProcessRuleSet? globalPostProcessRules,
+
+    /// 全局可见性规则集
+    /// 控制类别的全局可见性
+    VisibilityRuleSet? globalVisibilityRules,
+
+    /// 性别概率配置（用于 V3/V4 模型）
+    /// 键: 'male', 'female', 'other'
+    /// 默认 V4: 60% female, 30% male, 0% other
+    @Default({'male': 30, 'female': 60, 'other': 10})
+    Map<String, int> genderWeights,
+
+    /// 服装类型权重分布（用于条件分支）
+    /// 键: 'normal', 'uniform', 'swimsuit', 'bodysuit'
+    @Default({
+      'normal': 40,
+      'uniform': 25,
+      'swimsuit': 15,
+      'bodysuit': 10,
+      'casual': 10,
+    })
+    Map<String, int> clothingTypeWeights,
+
+    /// 是否启用季节性词库
+    @Default(true) bool enableSeasonalWordlists,
+
+    /// 词库类型（v4/legacy/furry）
+    @Default('v4') String wordlistType,
   }) = _AlgorithmConfig;
 
   factory AlgorithmConfig.fromJson(Map<String, dynamic> json) =>
@@ -85,6 +132,76 @@ class AlgorithmConfig with _$AlgorithmConfig {
       return w;
     }).toList();
     return copyWith(characterCountWeights: newWeights);
+  }
+
+  // ========== DIY 能力辅助方法 ==========
+
+  /// 是否有全局 DIY 配置
+  bool get hasGlobalDiyFeatures =>
+      globalEmphasisProbability > 0 ||
+      globalTimeConditions != null ||
+      globalPostProcessRules != null ||
+      globalVisibilityRules != null;
+
+  /// 检查全局时间条件是否满足
+  bool isGlobalTimeConditionActive([DateTime? date]) {
+    if (globalTimeConditions == null) return true;
+    return globalTimeConditions!.isActive(date);
+  }
+
+  /// 应用全局后处理规则
+  List<String> applyGlobalPostProcessRules(
+    List<String> tags,
+    Map<String, List<String>> context, {
+    Map<String, String>? variables,
+  }) {
+    if (globalPostProcessRules == null) return tags;
+    return globalPostProcessRules!.applyAll(tags, context, variables: variables);
+  }
+
+  /// 检查类别全局可见性
+  bool isCategoryGloballyVisible(
+    String categoryId,
+    Map<String, List<String>> context,
+  ) {
+    if (globalVisibilityRules == null) return true;
+    return globalVisibilityRules!.isCategoryVisible(categoryId, context);
+  }
+
+  /// 根据权重随机选择性别
+  String selectGender(int Function() randomInt) {
+    final total = genderWeights.values.fold<int>(0, (sum, w) => sum + w);
+    if (total <= 0) return 'female';
+
+    final target = (randomInt() % total) + 1;
+    var cumulative = 0;
+
+    for (final entry in genderWeights.entries) {
+      cumulative += entry.value;
+      if (target <= cumulative) {
+        return entry.key;
+      }
+    }
+
+    return 'female';
+  }
+
+  /// 根据权重随机选择服装类型
+  String selectClothingType(int Function() randomInt) {
+    final total = clothingTypeWeights.values.fold<int>(0, (sum, w) => sum + w);
+    if (total <= 0) return 'normal';
+
+    final target = (randomInt() % total) + 1;
+    var cumulative = 0;
+
+    for (final entry in clothingTypeWeights.entries) {
+      cumulative += entry.value;
+      if (target <= cumulative) {
+        return entry.key;
+      }
+    }
+
+    return 'normal';
   }
 
   /// 计算总权重

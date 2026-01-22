@@ -13,6 +13,7 @@ import '../../data/models/prompt/random_preset.dart';
 import '../../data/models/prompt/random_tag_group.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
+import '../../data/services/wordlist_service.dart';
 
 part 'random_preset_provider.g.dart';
 
@@ -167,6 +168,24 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   Future<void> selectPreset(String id) async {
     state = state.copyWith(selectedPresetId: id);
     await _box.put(_selectedIdKey, id);
+  }
+
+  /// 更新词库版本
+  ///
+  /// 当用户切换模型版本时，更新默认预设以匹配新版本
+  Future<void> updateWordlistVersion(WordlistType version) async {
+    // 找到默认预设
+    final defaultIndex = state.presets.indexWhere((p) => p.isDefault);
+    if (defaultIndex == -1) return;
+
+    // 创建新版本的默认预设
+    final newDefault = RandomPreset.defaultPreset(version: version);
+
+    final newPresets = [...state.presets];
+    newPresets[defaultIndex] = newDefault;
+
+    state = state.copyWith(presets: newPresets);
+    await _savePreset(newDefault);
   }
 
   /// 创建新预设

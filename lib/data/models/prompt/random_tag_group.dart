@@ -1,8 +1,13 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'conditional_branch.dart';
+import 'dependency_config.dart';
 import 'pool_output_config.dart';
+import 'post_process_rule.dart';
 import 'tag_scope.dart';
+import 'time_condition.dart';
+import 'visibility_rule.dart';
 import 'weighted_tag.dart';
 
 part 'random_tag_group.freezed.dart';
@@ -135,6 +140,35 @@ class RandomTagGroup with _$RandomTagGroup {
 
     /// 是否继承类别设置（用于"重置为类别设置"功能）
     @Default(true) bool inheritCategorySettings,
+
+    // ========== DIY 高级能力字段 ==========
+
+    /// 条件分支配置（用于实现 switch-case 逻辑）
+    /// 例如: 服装类型选择 - uniform 10%, swimsuit 5%, normal 40%
+    ConditionalBranchConfig? conditionalBranchConfig,
+
+    /// 依赖配置（选择数量依赖其他类别）
+    /// 例如: 配饰数量根据角色总数变化
+    DependencyConfig? dependencyConfig,
+
+    /// 可见性规则列表（根据构图决定是否生成）
+    /// 例如: portrait 时不生成下装
+    @Default([]) List<VisibilityRule> visibilityRules,
+
+    /// 时间条件（特定日期范围启用）
+    /// 例如: 圣诞节词库 12月1-31日启用
+    TimeCondition? timeCondition,
+
+    /// 后处理规则列表（根据已选标签移除冲突）
+    /// 例如: sleeping 时移除眼睛颜色
+    @Default([]) List<PostProcessRule> postProcessRules,
+
+    /// 全局强调概率 (0.0-1.0)
+    /// 例如: 2% 的概率对选中标签添加强调括号
+    @Default(0.0) double emphasisProbability,
+
+    /// 强调括号层数
+    @Default(1) int emphasisBracketCount,
   }) = _RandomTagGroup;
 
   factory RandomTagGroup.fromJson(Map<String, dynamic> json) =>
@@ -278,5 +312,76 @@ class RandomTagGroup with _$RandomTagGroup {
       scope: categoryScope,
       inheritCategorySettings: true,
     );
+  }
+
+  // ========== DIY 能力辅助方法 ==========
+
+  /// 是否有条件分支配置
+  bool get hasConditionalBranch => conditionalBranchConfig != null;
+
+  /// 是否有依赖配置
+  bool get hasDependency => dependencyConfig != null;
+
+  /// 是否有可见性规则
+  bool get hasVisibilityRules => visibilityRules.isNotEmpty;
+
+  /// 是否有时间条件
+  bool get hasTimeCondition => timeCondition != null;
+
+  /// 是否有后处理规则
+  bool get hasPostProcessRules => postProcessRules.isNotEmpty;
+
+  /// 是否有任何 DIY 高级能力
+  bool get hasDiyFeatures =>
+      hasConditionalBranch ||
+      hasDependency ||
+      hasVisibilityRules ||
+      hasTimeCondition ||
+      hasPostProcessRules ||
+      emphasisProbability > 0;
+
+  /// 检查时间条件是否满足
+  bool isTimeConditionActive([DateTime? date]) {
+    if (timeCondition == null) return true;
+    return timeCondition!.isActive(date);
+  }
+
+  /// 检查可见性规则
+  ///
+  /// [context] 当前上下文，包含已选择的标签
+  bool checkVisibility(Map<String, List<String>> context) {
+    if (visibilityRules.isEmpty) return true;
+
+    // 创建规则集并检查
+    final ruleSet = VisibilityRuleSet(rules: visibilityRules);
+    return ruleSet.isCategoryVisible(id, context);
+  }
+
+  /// 应用后处理规则
+  ///
+  /// [tags] 当前标签列表
+  /// [context] 当前上下文
+  /// [variables] 当前变量值映射
+  List<String> applyPostProcessRules(
+    List<String> tags,
+    Map<String, List<String>> context, {
+    Map<String, String>? variables,
+  }) {
+    if (postProcessRules.isEmpty) return tags;
+
+    final ruleSet = PostProcessRuleSet(rules: postProcessRules);
+    return ruleSet.applyAll(tags, context, variables: variables);
+  }
+
+  /// 获取 DIY 能力图标列表（用于 UI 显示）
+  List<String> get diyFeatureIcons {
+    final icons = <String>[];
+    if (hasConditionalBranch) icons.add('🔀'); // 条件分支
+    if (hasDependency) icons.add('🔗'); // 依赖
+    if (hasVisibilityRules) icons.add('👁️'); // 可见性
+    if (hasTimeCondition) icons.add('📅'); // 时间条件
+    if (hasPostProcessRules) icons.add('🔧'); // 后处理
+    if (emphasisProbability > 0) icons.add('⚡'); // 强调
+    return icons;
   }
 }

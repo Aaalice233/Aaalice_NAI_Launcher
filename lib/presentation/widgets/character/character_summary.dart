@@ -167,8 +167,10 @@ class CharacterSummary extends ConsumerWidget {
     }
     if (character.customPosition != null) {
       final pos = character.customPosition!;
-      final col = String.fromCharCode('A'.codeUnitAt(0) + pos.column);
-      final row = (pos.row + 1).toString();
+      final colIndex = (pos.column * 4).round().clamp(0, 4);
+      final rowIndex = (pos.row * 4).round().clamp(0, 4);
+      final col = String.fromCharCode('A'.codeUnitAt(0) + colIndex);
+      final row = (rowIndex + 1).toString();
       return '$col$row';
     }
     return l10n.characterEditor_aiChoice;

@@ -108,15 +108,43 @@ void main() {
       final json = original.toJson();
       expect(json['emoji'], equals('🌟'));
 
-      // Convert tags to proper JSON format for fromJson
-      json['tags'] = (json['tags'] as List).map((tag) {
-        if (tag is WeightedTag) {
-          return tag.toJson();
-        }
-        return tag;
-      }).toList();
+      // Convert all nested objects to proper JSON format for fromJson
+      // (Freezed's toJson doesn't automatically call toJson on nested objects)
+      final jsonForFromJson = <String, dynamic>{
+        ...json,
+        'tags': (json['tags'] as List).map((tag) {
+          if (tag is WeightedTag) {
+            return tag.toJson();
+          }
+          return tag;
+        }).toList(),
+        'poolOutputConfig': json['poolOutputConfig'] != null
+            ? (json['poolOutputConfig'] as dynamic).toJson()
+            : null,
+        'conditionalBranchConfig': json['conditionalBranchConfig'] != null
+            ? (json['conditionalBranchConfig'] as dynamic).toJson()
+            : null,
+        'dependencyConfig': json['dependencyConfig'] != null
+            ? (json['dependencyConfig'] as dynamic).toJson()
+            : null,
+        'timeCondition': json['timeCondition'] != null
+            ? (json['timeCondition'] as dynamic).toJson()
+            : null,
+        'visibilityRules': (json['visibilityRules'] as List?)
+                ?.map((e) => e is Map ? e : (e as dynamic).toJson())
+                .toList() ??
+            [],
+        'postProcessRules': (json['postProcessRules'] as List?)
+                ?.map((e) => e is Map ? e : (e as dynamic).toJson())
+                .toList() ??
+            [],
+        'children': (json['children'] as List?)
+                ?.map((e) => e is Map ? e : (e as dynamic).toJson())
+                .toList() ??
+            [],
+      };
 
-      final restored = RandomTagGroup.fromJson(json);
+      final restored = RandomTagGroup.fromJson(jsonForFromJson);
       expect(restored.emoji, equals(original.emoji));
     });
   });

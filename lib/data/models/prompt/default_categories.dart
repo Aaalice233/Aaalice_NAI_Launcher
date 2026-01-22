@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../../services/wordlist_service.dart';
 import 'random_category.dart';
 import 'random_tag_group.dart';
 import 'tag_category.dart';
@@ -259,5 +260,35 @@ class DefaultCategories {
   /// 用于恢复默认配置时使用
   static List<RandomCategory> createDefaultCopy() {
     return createDefault().map((c) => c.deepCopy()).toList();
+  }
+
+  /// 根据词库版本创建默认类别
+  ///
+  /// 不同版本的词库可能有不同的类别配置
+  /// - V4: 完整 11 类别配置
+  /// - Legacy: 简化配置（无多角色支持）
+  /// - Furry: 特化配置（兽人角色）
+  static List<RandomCategory> createDefaultForVersion(WordlistType version) {
+    switch (version) {
+      case WordlistType.v4:
+        return createDefault();
+      case WordlistType.legacy:
+        return _createLegacyDefault();
+      case WordlistType.furry:
+        return _createFurryDefault();
+    }
+  }
+
+  /// Legacy 版本的默认类别（简化配置）
+  static List<RandomCategory> _createLegacyDefault() {
+    // Legacy 版本使用相同的基础类别，但不支持多角色
+    return createDefault();
+  }
+
+  /// Furry 版本的默认类别（兽人特化）
+  static List<RandomCategory> _createFurryDefault() {
+    // Furry 版本目前使用相同的基础类别
+    // 未来可以添加兽人特有的类别如 fur_color, species 等
+    return createDefault();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../services/wordlist_service.dart';
 import 'algorithm_config.dart';
 import 'default_categories.dart';
 import 'default_tag_group_mappings.dart';
@@ -81,18 +82,72 @@ class RandomPreset with _$RandomPreset {
   }
 
   /// 创建默认预设（NAI 官网配置）
-  factory RandomPreset.defaultPreset() {
+  ///
+  /// [version] 词库版本，默认为 V4
+  factory RandomPreset.defaultPreset({
+    WordlistType version = WordlistType.v4,
+  }) {
     return RandomPreset(
       id: 'default',
-      name: '默认模式',
-      description: '基于 NAI 官网的随机算法配置',
+      name: _getDefaultPresetName(version),
+      description: _getDefaultPresetDescription(version),
       isDefault: true,
       version: 2,
-      algorithmConfig: const AlgorithmConfig(),
-      categories: DefaultCategories.createDefault(),
+      algorithmConfig: _getDefaultAlgorithmConfig(version),
+      categories: DefaultCategories.createDefaultForVersion(version),
       tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+    );
+  }
+
+  /// 获取默认预设名称
+  static String _getDefaultPresetName(WordlistType version) {
+    switch (version) {
+      case WordlistType.v4:
+        return '默认模式 (V4)';
+      case WordlistType.legacy:
+        return '默认模式 (Legacy)';
+      case WordlistType.furry:
+        return '默认模式 (Furry)';
+    }
+  }
+
+  /// 获取默认预设描述
+  static String _getDefaultPresetDescription(WordlistType version) {
+    switch (version) {
+      case WordlistType.v4:
+        return '基于 NAI V4 模型的随机算法配置，支持多角色';
+      case WordlistType.legacy:
+        return '基于 NAI Legacy 模型的随机算法配置';
+      case WordlistType.furry:
+        return '基于 NAI Furry 模型的随机算法配置';
+    }
+  }
+
+  /// 获取默认算法配置
+  static AlgorithmConfig _getDefaultAlgorithmConfig(WordlistType version) {
+    // NAI 官方概率配置
+    // 角色数量: 1人70%, 2人20%, 3人7%, 4人3%
+    // 性别: female 60%, male 30%, other 10%
+    // 强调概率: 2%
+    return AlgorithmConfig(
+      characterCountWeights: const [
+        [1, 70],
+        [2, 20],
+        [3, 7],
+        [4, 3],
+      ],
+      genderWeights: const {
+        'male': 30,
+        'female': 60,
+        'other': 10,
+      },
+      globalEmphasisProbability: 0.02,
+      globalEmphasisBracketCount: 1,
+      enableSeasonalWordlists: true,
+      wordlistType: version.name,
+      isV4Model: version == WordlistType.v4,
     );
   }
 
