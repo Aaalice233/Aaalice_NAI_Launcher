@@ -155,6 +155,71 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
     ];
   }
 
+  RandomCategory addCategory(String presetId) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final newCategory = RandomCategory(
+      id: timestamp,
+      name: "新建类别",
+      key: "new_category_$timestamp",
+      groupSelectionMode: SelectionMode.single,
+      groups: const [],
+    );
+
+    state = [
+      for (final preset in state)
+        if (preset.id == presetId)
+          PresetNode(
+            preset.id,
+            preset.label,
+            children: [
+              ...preset.children,
+              CategoryNode(presetId, newCategory, children: const []),
+            ],
+          )
+        else
+          preset,
+    ];
+
+    return newCategory;
+  }
+
+  RandomTagGroup addTagGroup(String presetId, String categoryId) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final newTagGroup = RandomTagGroup(
+      id: timestamp,
+      name: "新建标签组",
+      sourceType: TagGroupSourceType.custom,
+      tags: const [],
+    );
+
+    state = [
+      for (final preset in state)
+        if (preset.id == presetId)
+          PresetNode(
+            preset.id,
+            preset.label,
+            children: [
+              for (final category in preset.children)
+                if (category.id == categoryId)
+                  CategoryNode(
+                    presetId,
+                    category.data,
+                    children: [
+                      ...category.children,
+                      TagGroupNode(presetId, categoryId, newTagGroup),
+                    ],
+                  )
+                else
+                  category,
+            ],
+          )
+        else
+          preset,
+    ];
+
+    return newTagGroup;
+  }
+
   void updateTagGroup(
     String presetId,
     String categoryId,
@@ -224,6 +289,219 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
     }
     
     state = newPresets;
+  }
+
+  void deleteNode(RandomTreeNode node) {
+    if (node is PresetNode) {
+      state = state.where((p) => p.id != node.id).toList();
+    } else if (node is CategoryNode) {
+      state = [
+        for (final preset in state)
+          if (preset.id == node.presetId)
+            PresetNode(
+              preset.id,
+              preset.label,
+              children: preset.children.where((c) => c.id != node.id).toList(),
+            )
+          else
+            preset,
+      ];
+    } else if (node is TagGroupNode) {
+      state = [
+        for (final preset in state)
+          if (preset.id == node.presetId)
+            PresetNode(
+              preset.id,
+              preset.label,
+              children: [
+                for (final category in preset.children)
+                  if (category.id == node.categoryId)
+                    CategoryNode(
+                      node.presetId,
+                      category.data,
+                      children: category.children.where((t) => t.id != node.id).toList(),
+                    )
+                  else
+                    category,
+              ],
+            )
+          else
+            preset,
+      ];
+    }
+  }
+
+  RandomTreeNode duplicateNode(RandomTreeNode node) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+
+    if (node is PresetNode) {
+      final newNode = PresetNode(
+        timestamp,
+        '${node.label} (副本)',
+        children: node.children,
+      );
+      final index = state.indexWhere((p) => p.id == node.id);
+      if (index != -1) {
+        state = [
+          ...state.sublist(0, index + 1),
+          newNode,
+          ...state.sublist(index + 1),
+        ];
+      }
+      return newNode;
+    }
+
+    if (node is CategoryNode) {
+      final newData = node.data.copyWith(
+        id: timestamp,
+        name: '${node.data.name} (副本)',
+      );
+      final newNode = CategoryNode(
+        node.presetId,
+        newData,
+        children: node.children,
+      );
+      state = [
+        for (final preset in state)
+          if (preset.id == node.presetId)
+            PresetNode(
+              preset.id,
+              preset.label,
+              children: [
+                for (final category in preset.children) ...[
+                  category,
+                  if (category.id == node.id) newNode,
+                ],
+              ],
+            )
+          else
+            preset,
+      ];
+      return newNode;
+    }
+
+    if (node is TagGroupNode) {
+      final newData = node.data.copyWith(
+        id: timestamp,
+        name: '${node.data.name} (副本)',
+      );
+      final newNode = TagGroupNode(
+        node.presetId,
+        node.categoryId,
+        newData,
+      );
+      state = [
+        for (final preset in state)
+          if (preset.id == node.presetId)
+            PresetNode(
+              preset.id,
+              preset.label,
+              children: [
+                for (final category in preset.children)
+                  if (category.id == node.categoryId)
+                    CategoryNode(
+                      node.presetId,
+                      category.data,
+                      children: [
+                        for (final tagGroup in category.children) ...[
+                          tagGroup,
+                          if (tagGroup.id == node.id) newNode,
+                        ],
+                      ],
+                    )
+                  else
+                    category,
+              ],
+            )
+          else
+            preset,
+      ];
+      return newNode;
+    }
+
+    throw Exception('Unknown node type');
+  }
+
+  void updatePreset(String presetId, String newLabel) {
+    state = [
+      for (final preset in state)
+        if (preset.id == presetId)
+          PresetNode(
+            preset.id,
+            newLabel,
+            children: preset.children,
+          )
+        else
+          preset,
+    ];
+  }
+
+  void pasteNode(RandomTreeNode targetParent, RandomTreeNode clipboardNode) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+
+    if (targetParent is PresetNode && clipboardNode is CategoryNode) {
+      final newCategoryData = clipboardNode.data.copyWith(
+        id: timestamp,
+        name: '${clipboardNode.data.name} (副本)',
+      );
+      
+      final newChildren = clipboardNode.children.map((child) {
+        final childTimestamp = DateTime.now().millisecondsSinceEpoch.toString() + child.id; 
+        final newTagGroupData = child.data.copyWith(id: childTimestamp);
+        return TagGroupNode(targetParent.id, timestamp, newTagGroupData);
+      }).toList();
+
+      final newCategoryNode = CategoryNode(
+        targetParent.id,
+        newCategoryData,
+        children: newChildren,
+      );
+
+      state = [
+        for (final preset in state)
+          if (preset.id == targetParent.id)
+            PresetNode(
+              preset.id,
+              preset.label,
+              children: [...preset.children, newCategoryNode],
+            )
+          else
+            preset,
+      ];
+    } else if (targetParent is CategoryNode && clipboardNode is TagGroupNode) {
+      final newTagGroupData = clipboardNode.data.copyWith(
+        id: timestamp,
+        name: '${clipboardNode.data.name} (副本)',
+      );
+      
+      final newTagGroupNode = TagGroupNode(
+        targetParent.presetId,
+        targetParent.id,
+        newTagGroupData,
+      );
+
+      state = [
+        for (final preset in state)
+          if (preset.id == targetParent.presetId)
+            PresetNode(
+              preset.id,
+              preset.label,
+              children: [
+                for (final category in preset.children)
+                  if (category.id == targetParent.id)
+                    CategoryNode(
+                      category.presetId,
+                      category.data,
+                      children: [...category.children, newTagGroupNode],
+                    )
+                  else
+                    category,
+              ],
+            )
+          else
+            preset,
+      ];
+    }
   }
 }
 

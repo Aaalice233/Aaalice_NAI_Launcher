@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'components/pro_context_menu.dart';
 import 'random_library_manager_state.dart';
+
+RandomTreeNode? _clipboardNode;
 
 class RandomTreeView extends ConsumerWidget {
   const RandomTreeView({super.key});
@@ -111,6 +114,7 @@ class _TreeNodeWidget extends ConsumerWidget {
               : const Border(left: BorderSide(color: Colors.transparent, width: 3)),
         ),
         child: InkWell(
+          onSecondaryTapUp: (details) => _showContextMenu(context, details.globalPosition, ref),
           onTap: () {
             ref.read(selectedNodeProvider.notifier).select(node);
             if (!isLeaf) {
@@ -280,5 +284,176 @@ class _TreeNodeWidget extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  void _showContextMenu(BuildContext context, Offset position, WidgetRef ref) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => overlayEntry.remove(),
+              behavior: HitTestBehavior.translucent,
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          ProContextMenu(
+            position: position,
+            items: _buildMenuItems(context, ref, overlayEntry),
+            onSelect: (item) {
+              overlayEntry.remove();
+            },
+          ),
+        ],
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+  }
+
+  List<ProMenuItem> _buildMenuItems(BuildContext context, WidgetRef ref, OverlayEntry overlayEntry) {
+    final items = <ProMenuItem>[];
+    final notifier = ref.read(randomTreeDataProvider.notifier);
+
+    // Add Child
+    if (node is PresetNode || node is CategoryNode) {
+      items.add(ProMenuItem(
+        id: 'add_child',
+        label: node is PresetNode ? 'Add Category' : 'Add Tag Group',
+        icon: Icons.add,
+        onTap: () {
+          if (node is PresetNode) {
+            notifier.addCategory(node.id);
+            ref.read(expandedNodesProvider.notifier).expand(node.id);
+          } else if (node is CategoryNode) {
+            notifier.addTagGroup((node as CategoryNode).presetId, node.id);
+            ref.read(expandedNodesProvider.notifier).expand(node.id);
+          }
+        },
+      ),
+    );
+  }
+
+  // Rename
+  items.add(
+    ProMenuItem(
+      id: 'rename',
+      label: 'Rename',
+      icon: Icons.edit,
+      onTap: () {
+        Future.delayed(Duration.zero, () {
+          if (context.mounted) _showRenameDialog(context, ref);
+        });
+      },
+    ),
+  );
+
+  // Copy
+  items.add(
+    ProMenuItem(
+      id: 'copy',
+      label: 'Copy',
+      icon: Icons.copy,
+      onTap: () {
+        _clipboardNode = node;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Copied ${node.label}')),
+        );
+      },
+    ),
+  );
+
+  // Paste
+  bool canPaste = false;
+  if (_clipboardNode != null) {
+    if (node is PresetNode && _clipboardNode is CategoryNode) canPaste = true;
+    if (node is CategoryNode && _clipboardNode is TagGroupNode) {
+      canPaste = true;
+    }
+  }
+
+  if (canPaste) {
+    items.add(
+      ProMenuItem(
+        id: 'paste',
+        label: 'Paste',
+        icon: Icons.paste,
+        onTap: () {
+          if (_clipboardNode != null) {
+            notifier.pasteNode(node, _clipboardNode!);
+            ref.read(expandedNodesProvider.notifier).expand(node.id);
+          }
+        },
+      ),
+    );
+  }
+
+  // Delete
+  items.add(
+    ProMenuItem(
+      id: 'delete',
+      label: 'Delete',
+      icon: Icons.delete_outline,
+      onTap: () {
+        if (ref.read(selectedNodeProvider)?.id == node.id) {
+          ref.read(selectedNodeProvider.notifier).select(null);
+        }
+        notifier.deleteNode(node);
+      },
+    ),
+  );
+
+    return items;
+  }
+
+  void _showRenameDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(text: node.label);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename'),
+        content: TextField(
+          controller: controller, 
+          autofocus: true,
+          onSubmitted: (_) {
+             _performRename(ref, controller.text);
+             Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              _performRename(ref, controller.text);
+              Navigator.pop(context);
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _performRename(WidgetRef ref, String newName) {
+    if (newName.isEmpty || newName == node.label) return;
+    final notifier = ref.read(randomTreeDataProvider.notifier);
+    
+    if (node is PresetNode) {
+      notifier.updatePreset(node.id, newName);
+    } else if (node is CategoryNode) {
+      final catNode = node as CategoryNode;
+      notifier.updateCategory(catNode.presetId, catNode.id, catNode.data.copyWith(name: newName));
+    } else if (node is TagGroupNode) {
+      final tagNode = node as TagGroupNode;
+      notifier.updateTagGroup(
+        tagNode.presetId, 
+        tagNode.categoryId, 
+        tagNode.id, 
+        tagNode.data.copyWith(name: newName),
+      );
+    }
   }
 }

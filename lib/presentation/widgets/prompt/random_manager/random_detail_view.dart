@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/weighted_tag.dart';
+import 'components/pro_empty_state.dart';
+import 'inspector_section.dart';
+import 'property_field.dart';
 import 'random_library_manager_state.dart';
 import 'variable_insertion_widget.dart';
 
@@ -34,43 +37,22 @@ class RandomDetailView extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              // Icon & Title (Breadcrumb style)
+              // Icon & Title
               Icon(
                 _getIconForNode(selectedNode),
-                color: theme.colorScheme.primary.withOpacity(0.8),
+                color: theme.colorScheme.primary,
                 size: 20,
               ),
               const SizedBox(width: 12),
               
-              // Breadcrumb: Type > Name
+              // Name
               Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      _getNodeTypeLabel(selectedNode).toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.chevron_right, 
-                      size: 16, 
-                      color: theme.colorScheme.outline.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        selectedNode.label,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  selectedNode.label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
 
@@ -119,39 +101,10 @@ class RandomDetailView extends ConsumerWidget {
   }
 
   Widget _buildNoSelectionView(BuildContext context, ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.dashboard_customize_outlined,
-              size: 48,
-              color: theme.colorScheme.outline.withOpacity(0.5),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Workspace Ready',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Select a component to configure',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-        ],
-      ),
+    return const ProEmptyState(
+      icon: Icons.dashboard_customize_outlined,
+      title: 'Workspace Ready',
+      description: 'Select a component from the sidebar to configure its properties.',
     );
   }
 
@@ -197,45 +150,39 @@ class RandomDetailView extends ConsumerWidget {
     );
   }
 
-  // Integrated Tab Strip Switcher for Toolbar
+  // Integrated Segmented Control Switcher for Toolbar
   Widget _buildToolbarSourceSwitcher(BuildContext context, TagGroupNode node, WidgetRef ref) {
     final theme = Theme.of(context);
     final currentType = node.data.sourceType;
     
-    // Mini-Tab style
-    return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+    return SegmentedButton<TagGroupSourceType>(
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: WidgetStateProperty.all(theme.textTheme.labelSmall),
       ),
-      padding: const EdgeInsets.all(2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildTabOption(context, 'Custom', TagGroupSourceType.custom, currentType, node, ref),
-          _buildTabOption(context, 'Group', TagGroupSourceType.tagGroup, currentType, node, ref),
-          _buildTabOption(context, 'Pool', TagGroupSourceType.pool, currentType, node, ref),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabOption(
-    BuildContext context, 
-    String label, 
-    TagGroupSourceType type, 
-    TagGroupSourceType current,
-    TagGroupNode node,
-    WidgetRef ref,
-  ) {
-    final theme = Theme.of(context);
-    final isSelected = type == current;
-    
-    return InkWell(
-      onTap: () {
-        if (!isSelected) {
-          // Update via provider
+      showSelectedIcon: false,
+      segments: const [
+        ButtonSegment(
+          value: TagGroupSourceType.custom, 
+          label: Text('Custom'),
+          icon: Icon(Icons.edit_note, size: 14),
+        ),
+        ButtonSegment(
+          value: TagGroupSourceType.tagGroup, 
+          label: Text('Group'),
+          icon: Icon(Icons.link, size: 14),
+        ),
+        ButtonSegment(
+          value: TagGroupSourceType.pool, 
+          label: Text('Pool'),
+          icon: Icon(Icons.numbers, size: 14),
+        ),
+      ],
+      selected: {currentType},
+      onSelectionChanged: (Set<TagGroupSourceType> newSelection) {
+        final type = newSelection.first;
+        if (type != currentType) {
           final newData = node.data.copyWith(sourceType: type);
           ref.read(randomTreeDataProvider.notifier).updateTagGroup(
             node.presetId,
@@ -252,30 +199,6 @@ class RandomDetailView extends ConsumerWidget {
           ref.read(selectedNodeProvider.notifier).select(newNode);
         }
       },
-      borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? theme.colorScheme.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: isSelected ? [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ] : null,
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: isSelected ? theme.colorScheme.onSurface : theme.colorScheme.outline,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 
@@ -284,14 +207,6 @@ class RandomDetailView extends ConsumerWidget {
       PresetNode() => Icons.folder_special,
       CategoryNode() => Icons.category,
       TagGroupNode() => Icons.list,
-    };
-  }
-  
-  String _getNodeTypeLabel(RandomTreeNode node) {
-    return switch (node) {
-      PresetNode() => 'Preset',
-      CategoryNode() => 'Category',
-      TagGroupNode() => 'Tag Group',
     };
   }
 }
@@ -430,104 +345,100 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
         // Variable Insertion Strip - positioned near the top inputs
         VariableInsertionWidget(controller: _nameController),
         
-        Text('Core Properties', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-        const SizedBox(height: 16),
-        
-        // Grid Layout for Basic Info
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        InspectorSection(
+          title: 'Core Properties',
           children: [
-            Expanded(
-              flex: 3,
-              child: TextField(
-                controller: _nameController,
-                style: theme.textTheme.bodyLarge,
-                decoration: InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'Display Name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+            // Grid Layout for Basic Info
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: PropertyField(
+                    label: 'Name',
+                    child: TextField(
+                      controller: _nameController,
+                      style: theme.textTheme.bodyLarge,
+                      decoration: const InputDecoration(
+                        hintText: 'Display Name',
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (value) => _updateCategory((c) => c.copyWith(name: value)),
+                    ),
                   ),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                onChanged: (value) => _updateCategory((c) => c.copyWith(name: value)),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 1,
+                  child: PropertyField(
+                    label: 'Emoji',
+                    child: TextField(
+                      controller: _emojiController,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        hintText: 'Icon',
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (value) => _updateCategory((c) => c.copyWith(emoji: value)),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 1,
+            const SizedBox(height: 12),
+            PropertyField(
+              label: 'Key ID',
               child: TextField(
-                controller: _emojiController,
-                textAlign: TextAlign.center,
+                controller: _keyController,
+                style: const TextStyle(fontFamily: 'monospace'),
                 decoration: InputDecoration(
-                  labelText: 'Emoji',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  hintText: 'unique_identifier',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  prefixIcon: Icon(Icons.key, size: 14, color: theme.colorScheme.outline),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 16),
                 ),
-                onChanged: (value) => _updateCategory((c) => c.copyWith(emoji: value)),
+                onChanged: (value) => _updateCategory((c) => c.copyWith(key: value)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _keyController,
-          style: const TextStyle(fontFamily: 'monospace'),
-          decoration: InputDecoration(
-            labelText: 'Key ID',
-            hintText: 'unique_identifier',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            prefixIcon: Icon(Icons.key, size: 18, color: theme.colorScheme.outline),
-          ),
-          onChanged: (value) => _updateCategory((c) => c.copyWith(key: value)),
-        ),
         
-        const SizedBox(height: 32),
-        const Divider(),
-        const SizedBox(height: 24),
-        
-        // Selection Logic
-        Text('Selection Logic', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
         const SizedBox(height: 16),
         
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<SelectionMode>(
-              value: data.groupSelectionMode,
-              isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down),
-              items: const [
-                DropdownMenuItem(value: SelectionMode.single, child: Text('Single (Weighted Random)')),
-                DropdownMenuItem(value: SelectionMode.multipleNum, child: Text('Multiple (Fixed Count)')),
-                DropdownMenuItem(value: SelectionMode.all, child: Text('Select All')),
-              ],
-              onChanged: (mode) {
-                if (mode != null) {
-                  _updateCategory((c) => c.copyWith(groupSelectionMode: mode));
-                }
-              },
+        // Selection Logic
+        InspectorSection(
+          title: 'Selection Logic',
+          children: [
+            PropertyField(
+              label: 'Mode',
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<SelectionMode>(
+                  value: data.groupSelectionMode,
+                  isExpanded: true,
+                  icon: const Icon(Icons.arrow_drop_down),
+                  isDense: true,
+                  items: const [
+                    DropdownMenuItem(value: SelectionMode.single, child: Text('Single (Weighted Random)')),
+                    DropdownMenuItem(value: SelectionMode.multipleNum, child: Text('Multiple (Fixed Count)')),
+                    DropdownMenuItem(value: SelectionMode.all, child: Text('Select All')),
+                  ],
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      _updateCategory((c) => c.copyWith(groupSelectionMode: mode));
+                    }
+                  },
+                ),
+              ),
             ),
-          ),
+          ],
         ),
+        
         const SizedBox(height: 24),
         
         // Action Buttons
@@ -625,83 +536,78 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
       children: [
         VariableInsertionWidget(controller: _nameController),
         
-        Text('Core Properties', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-        const SizedBox(height: 16),
-        
-        TextField(
-          controller: _nameController,
-          style: theme.textTheme.bodyLarge,
-          decoration: InputDecoration(
-            labelText: 'Name',
-            hintText: 'Display Name',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
+        InspectorSection(
+          title: 'Core Properties',
+          children: [
+            PropertyField(
+              label: 'Name',
+              child: TextField(
+                controller: _nameController,
+                style: theme.textTheme.bodyLarge,
+                decoration: const InputDecoration(
+                  hintText: 'Display Name',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: (value) {
+                  if (isCustom) {
+                    _updateTagGroup((t) => t.copyWith(name: value, tags: value.split('\n').where((line) => line.trim().isNotEmpty).map((line) => WeightedTag.simple(line.trim(), 1)).toList()));
+                  } else {
+                    _updateTagGroup((t) => t.copyWith(name: value, sourceId: _sourceIdController.text));
+                  }
+                },
+              ),
             ),
-            filled: true,
-            fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-          onChanged: (value) {
-            if (isCustom) {
-              _updateTagGroup((t) => t.copyWith(name: value, tags: value.split('\n').where((line) => line.trim().isNotEmpty).map((line) => WeightedTag.simple(line.trim(), 1)).toList()));
-            } else {
-              _updateTagGroup((t) => t.copyWith(name: value, sourceId: _sourceIdController.text));
-            }
-          },
+          ],
         ),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         
         // Source ID / Content
-        Text(
-          data.sourceType == TagGroupSourceType.custom ? 'Content' : '${data.sourceType.name} ID',
-          style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
-        ),
-        const SizedBox(height: 16),
-        
-        if (isCustom)
-          SizedBox(
-            height: 150,
-            child: TextField(
-              controller: _sourceIdController,
-              maxLines: null,
-              expands: true,
-              style: theme.textTheme.bodyMedium,
-              decoration: InputDecoration(
-                hintText: 'Enter tags here (one per line)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
+        InspectorSection(
+          title: data.sourceType == TagGroupSourceType.custom ? 'Content' : '${data.sourceType.name} ID',
+          children: [
+            if (isCustom)
+              SizedBox(
+                height: 150,
+                child: TextField(
+                  controller: _sourceIdController,
+                  maxLines: null,
+                  expands: true,
+                  style: theme.textTheme.bodyMedium,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter tags here (one per line)',
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: (value) => _updateTagGroup((t) => t.copyWith(tags: value.split('\n').where((line) => line.trim().isNotEmpty).map((line) => WeightedTag.simple(line.trim(), 1)).toList())),
                 ),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                contentPadding: const EdgeInsets.all(16),
+              )
+            else
+              PropertyField(
+                label: 'ID',
+                child: TextField(
+                  controller: _sourceIdController,
+                  style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+                  decoration: InputDecoration(
+                    hintText: data.sourceType == TagGroupSourceType.tagGroup ? 'e.g., touhou' : 'e.g., 12345',
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    prefixIcon: Icon(
+                      data.sourceType == TagGroupSourceType.tagGroup ? Icons.link : Icons.numbers,
+                      size: 14, 
+                      color: theme.colorScheme.outline,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 16),
+                  ),
+                  onChanged: (value) => _updateTagGroup((t) => t.copyWith(sourceId: value)),
+                ),
               ),
-              onChanged: (value) => _updateTagGroup((t) => t.copyWith(tags: value.split('\n').where((line) => line.trim().isNotEmpty).map((line) => WeightedTag.simple(line.trim(), 1)).toList())),
-            ),
-          )
-        else
-          TextField(
-            controller: _sourceIdController,
-            style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
-            decoration: InputDecoration(
-              hintText: data.sourceType == TagGroupSourceType.tagGroup ? 'e.g., touhou' : 'e.g., 12345',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              prefixIcon: Icon(
-                data.sourceType == TagGroupSourceType.tagGroup ? Icons.link : Icons.numbers,
-                size: 18, 
-                color: theme.colorScheme.outline,
-              ),
-            ),
-            onChanged: (value) => _updateTagGroup((t) => t.copyWith(sourceId: value)),
-          ),
+          ],
+        ),
       ],
     );
   }
