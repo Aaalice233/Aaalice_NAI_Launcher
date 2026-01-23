@@ -11,7 +11,7 @@ class SliderSettingTile extends StatelessWidget {
   final double max;
   final int divisions;
   final String Function(double)? valueFormatter;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
   final Widget? leading;
 
   const SliderSettingTile({
@@ -96,7 +96,7 @@ class IntSliderSettingTile extends StatelessWidget {
   final int min;
   final int max;
   final String Function(int)? valueFormatter;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<int>? onChanged;
   final Widget? leading;
 
   const IntSliderSettingTile({
@@ -121,7 +121,7 @@ class IntSliderSettingTile extends StatelessWidget {
       max: max.toDouble(),
       divisions: max - min,
       valueFormatter: (v) => valueFormatter?.call(v.round()) ?? v.round().toString(),
-      onChanged: (v) => onChanged(v.round()),
+      onChanged: onChanged != null ? (v) => onChanged!(v.round()) : null,
       leading: leading,
     );
   }
@@ -138,7 +138,7 @@ class RangeSliderSettingTile extends StatelessWidget {
   final int min;
   final int max;
   final String Function(int, int)? valueFormatter;
-  final void Function(int start, int end) onChanged;
+  final void Function(int start, int end)? onChanged;
   final Widget? leading;
 
   const RangeSliderSettingTile({
@@ -207,9 +207,11 @@ class RangeSliderSettingTile extends StatelessWidget {
               min: min.toDouble(),
               max: max.toDouble(),
               divisions: max - min,
-              onChanged: (range) {
-                onChanged(range.start.round(), range.end.round());
-              },
+              onChanged: onChanged != null
+                  ? (range) {
+                      onChanged!(range.start.round(), range.end.round());
+                    }
+                  : null,
             ),
           ),
         ],
@@ -227,7 +229,7 @@ class ChipSelectTile<T> extends StatelessWidget {
   final T value;
   final List<T> options;
   final String Function(T) labelBuilder;
-  final ValueChanged<T> onChanged;
+  final ValueChanged<T>? onChanged;
   final Widget? leading;
 
   const ChipSelectTile({
@@ -282,11 +284,13 @@ class ChipSelectTile<T> extends StatelessWidget {
               return FilterChip(
                 label: Text(labelBuilder(option)),
                 selected: isSelected,
-                onSelected: (selected) {
-                  if (selected) {
-                    onChanged(option);
-                  }
-                },
+                onSelected: onChanged != null
+                    ? (selected) {
+                        if (selected) {
+                          onChanged!(option);
+                        }
+                      }
+                    : null,
               );
             }).toList(),
           ),

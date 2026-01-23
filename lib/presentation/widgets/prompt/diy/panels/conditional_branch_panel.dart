@@ -33,8 +33,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
   @override
   void initState() {
     super.initState();
-    _config = widget.config ??
-        const ConditionalBranchConfig(id: '', name: '条件分支配置');
+    _config =
+        widget.config ?? const ConditionalBranchConfig(id: '', name: '条件分支配置');
   }
 
   @override
@@ -59,9 +59,11 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
       name: '分支 ${_config.branches.length + 1}',
       probability: 10,
     );
-    _updateConfig(_config.copyWith(
-      branches: [..._config.branches, newBranch],
-    ));
+    _updateConfig(
+      _config.copyWith(
+        branches: [..._config.branches, newBranch],
+      ),
+    );
   }
 
   void _removeBranch(int index) {
@@ -146,7 +148,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             final index = entry.key;
             final branch = entry.value;
             final color = colors[index % colors.length];
-            final percent = (branch.probability / total * 100).toStringAsFixed(0);
+            final percent =
+                (branch.probability / total * 100).toStringAsFixed(0);
 
             return Expanded(
               flex: branch.probability,

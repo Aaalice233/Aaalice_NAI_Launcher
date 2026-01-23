@@ -36,16 +36,14 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
   @override
   void initState() {
     super.initState();
-    _config = widget.config ??
-        const DependencyConfig(sourceCategoryId: '');
+    _config = widget.config ?? const DependencyConfig(sourceCategoryId: '');
   }
 
   @override
   void didUpdateWidget(DependencyConfigPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.config != widget.config) {
-      _config = widget.config ??
-          const DependencyConfig(sourceCategoryId: '');
+      _config = widget.config ?? const DependencyConfig(sourceCategoryId: '');
     }
   }
 
@@ -263,9 +261,11 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           ),
           readOnly: widget.readOnly,
           onChanged: (value) {
-            _updateConfig(_config.copyWith(
-              defaultValue: value.isEmpty ? null : value,
-            ));
+            _updateConfig(
+              _config.copyWith(
+                defaultValue: value.isEmpty ? null : value,
+              ),
+            );
           },
         ),
       ),
@@ -324,7 +324,8 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             FilledButton(
               onPressed: () {
                 if (key.isNotEmpty && value.isNotEmpty) {
-                  final newRules = Map<String, String>.from(_config.mappingRules);
+                  final newRules =
+                      Map<String, String>.from(_config.mappingRules);
                   newRules[key] = value;
                   _updateConfig(_config.copyWith(mappingRules: newRules));
                 }

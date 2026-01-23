@@ -36,8 +36,9 @@ class _MultiCharacterConfigPanelState
   @override
   void initState() {
     super.initState();
-    _characterCountWeights =
-        List.from(widget.config.characterCountWeights.map((w) => List<int>.from(w)));
+    _characterCountWeights = List.from(
+      widget.config.characterCountWeights.map((w) => List<int>.from(w)),
+    );
     _genderWeights = Map.from(widget.config.genderWeights);
   }
 
@@ -45,17 +46,20 @@ class _MultiCharacterConfigPanelState
   void didUpdateWidget(MultiCharacterConfigPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.config != widget.config) {
-      _characterCountWeights =
-          List.from(widget.config.characterCountWeights.map((w) => List<int>.from(w)));
+      _characterCountWeights = List.from(
+        widget.config.characterCountWeights.map((w) => List<int>.from(w)),
+      );
       _genderWeights = Map.from(widget.config.genderWeights);
     }
   }
 
   void _updateConfig() {
-    widget.onConfigChanged(widget.config.copyWith(
-      characterCountWeights: _characterCountWeights,
-      genderWeights: _genderWeights,
-    ));
+    widget.onConfigChanged(
+      widget.config.copyWith(
+        characterCountWeights: _characterCountWeights,
+        genderWeights: _genderWeights,
+      ),
+    );
   }
 
   @override

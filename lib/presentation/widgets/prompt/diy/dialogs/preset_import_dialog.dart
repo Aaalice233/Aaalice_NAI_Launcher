@@ -174,9 +174,13 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                             _previewPreset!.description!.isNotEmpty)
                           _buildInfoRow('描述', _previewPreset!.description!),
                         _buildInfoRow(
-                            '类别数', '${_previewPreset!.categories.length}'),
+                          '类别数',
+                          '${_previewPreset!.categories.length}',
+                        ),
                         _buildInfoRow(
-                            '总标签数', '${_previewPreset!.totalTagCount}'),
+                          '总标签数',
+                          '${_previewPreset!.totalTagCount}',
+                        ),
                       ],
                     ),
                   ),

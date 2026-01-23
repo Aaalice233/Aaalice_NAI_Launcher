@@ -1,0 +1,311 @@
+Analyzing Aaalice_NAI_Launcher...                               
+
+   info - Missing a required trailing comma - lib\core\parsers\dynamic_syntax_parser.dart:101:10 - require_trailing_commas
+   info - Missing a required trailing comma - lib\core\parsers\dynamic_syntax_parser.dart:120:8 - require_trailing_commas
+   info - Local variables should be final - lib\core\parsers\dynamic_syntax_parser.dart:131:5 - prefer_final_locals
+   info - Local variables should be final - lib\core\parsers\dynamic_syntax_parser.dart:132:5 - prefer_final_locals
+  error - The named parameter 'stackTrace' isn't defined - lib\data\services\preset_loader.dart:38:73 - undefined_named_parameter
+  error - Undefined name 'TagScope' - lib\data\services\preset_loader.dart:101:16 - undefined_identifier
+  error - The named parameter 'id' is required, but there's no corresponding argument - lib\data\services\preset_loader.dart:108:12 - missing_required_argument
+  error - The name 'AlgorithmConfig' isn't a class - lib\data\services\preset_loader.dart:111:30 - creation_with_non_type
+  error - 2 positional arguments expected by 'simple', but 1 found - lib\data\services\preset_loader.dart:119:57 - not_enough_positional_arguments
+  error - The named parameter 'id' is required, but there's no corresponding argument - lib\data\services\preset_loader.dart:161:12 - missing_required_argument
+  error - The name 'AlgorithmConfig' isn't a class - lib\data\services\preset_loader.dart:164:30 - creation_with_non_type
+  error - The named parameter 'id' is required, but there's no corresponding argument - lib\data\services\preset_loader.dart:227:14 - missing_required_argument
+  error - The name 'AlgorithmConfig' isn't a class - lib\data\services\preset_loader.dart:230:32 - creation_with_non_type
+  error - The named parameter 'stackTrace' isn't defined - lib\data\services\preset_loader.dart:234:68 - undefined_named_parameter
+warning - Unused import: 'dart:math' - lib\data\services\strategies\tag_source_delegate_impl.dart:1:8 - unused_import
+   info - Missing a required trailing comma - lib\data\services\strategies\tag_source_delegate_impl.dart:208:16 - require_trailing_commas
+warning - The value of the local variable 'library' isn't used - lib\data\services\strategies\tag_source_delegate_manager.dart:218:11 - unused_local_variable
+  error - The argument type 'void Function(double)?' can't be assigned to the parameter type 'ValueChanged<double>'.  - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:103:24 - argument_type_not_assignable
+  error - The argument type 'void Function(SelectionMode)?' can't be assigned to the parameter type 'ValueChanged<SelectionMode>'.  - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:120:24 - argument_type_not_assignable
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:124:70 - require_trailing_commas
+  error - The argument type 'void Function(int)?' can't be assigned to the parameter type 'ValueChanged<int>'.  - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:135:26 - argument_type_not_assignable
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:139:70 - require_trailing_commas
+  error - The getter 'text' isn't defined for the type 'Text' - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:189:41 - undefined_getter
+  error - The named parameter 'size' isn't defined - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:206:15 - undefined_named_parameter
+  error - Undefined name 'ChipSize' - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:206:21 - undefined_identifier
+  error - The argument type 'Color' can't be assigned to the parameter type 'MaterialStateProperty<Color?>?'.  - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:207:22 - argument_type_not_assignable
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:279:51 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:295:74 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:322:62 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:329:84 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:362:67 - require_trailing_commas
+  error - The argument type 'void Function(int, int)?' can't be assigned to the parameter type 'void Function(int, int)'.  - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:374:24 - argument_type_not_assignable
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\category_editor_panel.dart:380:22 - require_trailing_commas
+  error - The argument type 'void Function(double)?' can't be assigned to the parameter type 'ValueChanged<double>'.  - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:106:24 - argument_type_not_assignable
+  error - The argument type 'void Function(SelectionMode)?' can't be assigned to the parameter type 'ValueChanged<SelectionMode>'.  - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:123:24 - argument_type_not_assignable
+  error - The argument type 'void Function(int)?' can't be assigned to the parameter type 'ValueChanged<int>'.  - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:137:26 - argument_type_not_assignable
+  error - The argument type 'void Function(int, int)?' can't be assigned to the parameter type 'void Function(int, int)'.  - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:170:24 - argument_type_not_assignable
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:176:22 - require_trailing_commas
+  error - The named parameter 'size' isn't defined - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:230:15 - undefined_named_parameter
+  error - Undefined name 'ChipSize' - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:230:21 - undefined_identifier
+  error - The argument type 'Color' can't be assigned to the parameter type 'MaterialStateProperty<Color?>?'.  - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:231:22 - argument_type_not_assignable
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:354:51 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:370:74 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:404:75 - require_trailing_commas
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\diy\components\tag_group_editor_panel.dart:438:6 - require_trailing_commas
+   info - Local variables should be final - lib\presentation\widgets\prompt\random_manager\random_detail_view.dart:106:17 - prefer_final_locals
+   info - Local variables should be final - lib\presentation\widgets\prompt\random_manager\random_detail_view.dart:107:17 - prefer_final_locals
+   info - Local variables should be final - lib\presentation\widgets\prompt\random_manager\random_detail_view.dart:110:17 - prefer_final_locals
+   info - Use 'const' with the constructor to improve performance - lib\presentation\widgets\prompt\random_manager\random_detail_view.dart:191:9 - prefer_const_constructors
+  error - Expected an identifier - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:142:15 - missing_identifier
+  error - Expected to find ']' - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:142:15 - expected_token
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:144:11 - require_trailing_commas
+  error - Expected an identifier - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:162:21 - missing_identifier
+  error - Expected to find ']' - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:162:21 - expected_token
+   info - Missing a required trailing comma - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:164:17 - require_trailing_commas
+   info - Local variables should be final - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:177:5 - prefer_final_locals
+   info - Local variables should be final - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:181:9 - prefer_final_locals
+   info - Local variables should be final - lib\presentation\widgets\prompt\random_manager\random_library_manager_state.dart:184:12 - prefer_final_locals
+  error - Expected an identifier - test\core\parsers\dynamic_syntax_parser_test.dart:46:31 - missing_identifier
+  error - Undefined name 'A' - test\core\parsers\dynamic_syntax_parser_test.dart:46:32 - undefined_identifier
+  error - Expected an identifier - test\core\parsers\dynamic_syntax_parser_test.dart:48:40 - missing_identifier
+  error - Undefined name 'A' - test\core\parsers\dynamic_syntax_parser_test.dart:48:41 - undefined_identifier
+  error - Expected an identifier - test\core\parsers\dynamic_syntax_parser_test.dart:59:40 - missing_identifier
+  error - Undefined name 'A' - test\core\parsers\dynamic_syntax_parser_test.dart:59:41 - undefined_identifier
+  error - The static getter 'maxRecursionDepth' can't be accessed through an instance - test\core\parsers\dynamic_syntax_parser_test.dart:75:23 - instance_access_to_static_member
+warning - The value of the local variable 'result' isn't used - test\core\parsers\dynamic_syntax_parser_test.dart:83:15 - unused_local_variable
+   info - Use 'const' for final variables initialized to a constant value - test\core\parsers\dynamic_syntax_parser_test.dart:154:9 - prefer_const_declarations
+   info - Use 'const' for final variables initialized to a constant value - test\core\parsers\dynamic_syntax_parser_test.dart:176:9 - prefer_const_declarations
+  error - The named parameter 'count' isn't defined - test\core\parsers\dynamic_syntax_parser_test.dart:199:52 - undefined_named_parameter
+  error - The method 'toSet' isn't defined for the type 'String' - test\core\parsers\dynamic_syntax_parser_test.dart:201:25 - undefined_method
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:10:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:10:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:12:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:13:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:13:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:16:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:17:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:17:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:18:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:19:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:20:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:21:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:21:21 - undefined_identifier
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:42:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:42:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:44:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:45:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:45:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:48:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:49:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:49:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:50:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:51:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:52:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:53:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:53:21 - undefined_identifier
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:76:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:76:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:78:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:79:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:79:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:82:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:83:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:83:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:84:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:85:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:86:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:87:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:87:21 - undefined_identifier
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:107:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:107:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:109:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:110:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:110:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:113:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:114:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:114:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:115:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:116:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:117:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:118:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:118:21 - undefined_identifier
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:138:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:138:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:140:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:141:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:141:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:144:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:145:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:145:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:146:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:147:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:148:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:149:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:149:21 - undefined_identifier
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:172:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:172:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:174:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:175:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:175:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:178:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:179:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:179:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:180:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:181:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:182:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:183:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:183:21 - undefined_identifier
+  error - The named parameter 'key' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:206:24 - missing_required_argument
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:206:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:208:9 - undefined_named_parameter
+  error - The named parameter 'selectionMode' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:209:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:209:38 - undefined_enum_constant
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:212:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:213:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:213:28 - undefined_identifier
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:214:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:215:9 - undefined_named_parameter
+  error - The named parameter 'children' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:216:9 - undefined_named_parameter
+  error - The named parameter 'sourceType' isn't defined - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:217:9 - undefined_named_parameter
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\category_editor_panel_test.dart:217:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:10:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:12:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:13:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:17:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:18:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:19:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:20:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:20:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:22:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:43:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:45:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:46:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:50:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:51:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:52:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:53:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:53:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:55:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:76:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:78:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:79:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:83:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:84:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:85:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:86:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:86:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:88:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:110:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:112:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:113:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:117:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:118:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:119:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:120:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:120:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:122:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:142:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:144:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:145:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:149:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:150:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:151:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:152:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:152:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:154:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:176:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:178:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:179:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:183:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:184:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:185:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:186:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:186:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:188:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:208:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:210:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:211:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:215:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:216:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:217:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:218:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:218:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:220:21 - undefined_identifier
+  error - The named parameter 'name' is required, but there's no corresponding argument - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:240:24 - missing_required_argument
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:242:9 - undefined_named_parameter
+  error - There's no constant named 'random' in 'SelectionMode' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:243:38 - undefined_enum_constant
+  error - The named parameter 'minBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:247:9 - undefined_named_parameter
+  error - The named parameter 'maxBracket' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:248:9 - undefined_named_parameter
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:249:16 - undefined_identifier
+  error - The named parameter 'genderRestriction' isn't defined - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:250:9 - undefined_named_parameter
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:250:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\diy\components\tag_group_editor_panel_test.dart:252:21 - undefined_identifier
+   info - Use 'const' with the constructor to improve performance - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:11:9 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:12:18 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:13:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:14:21 - prefer_const_constructors
+  error - Const variables must be initialized with a constant value - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:25:26 - const_initialized_with_non_constant_value
+  error - Invalid constant value - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:25:26 - invalid_constant
+  error - 2 positional arguments expected by 'PresetNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:25:37 - not_enough_positional_arguments
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:25:37 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:25:52 - undefined_named_parameter
+  error - 2 positional arguments expected by 'CategoryNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:54:9 - not_enough_positional_arguments
+  error - The named parameter 'presetId' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:54:9 - undefined_named_parameter
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:55:9 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:56:9 - undefined_named_parameter
+  error - The named parameter 'data' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:57:9 - undefined_named_parameter
+  error - The function 'RandomCategory' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:57:15 - undefined_function
+  error - Undefined name 'SelectionMode' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:60:26 - undefined_identifier
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:63:18 - undefined_identifier
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:64:30 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:68:23 - undefined_identifier
+  error - 3 positional arguments expected by 'TagGroupNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:95:9 - not_enough_positional_arguments
+  error - The named parameter 'presetId' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:95:9 - undefined_named_parameter
+  error - The named parameter 'categoryId' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:96:9 - undefined_named_parameter
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:97:9 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:98:9 - undefined_named_parameter
+  error - The named parameter 'data' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:99:9 - undefined_named_parameter
+  error - The function 'RandomTagGroup' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:99:15 - undefined_function
+  error - Undefined name 'SelectionMode' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:102:26 - undefined_identifier
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:108:18 - undefined_identifier
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:109:30 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:111:23 - undefined_identifier
+  error - 2 positional arguments expected by 'CategoryNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:140:9 - not_enough_positional_arguments
+  error - The named parameter 'presetId' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:140:9 - undefined_named_parameter
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:141:9 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:142:9 - undefined_named_parameter
+  error - The named parameter 'data' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:143:9 - undefined_named_parameter
+  error - The function 'RandomCategory' isn't defined - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:143:15 - undefined_function
+  error - Undefined name 'SelectionMode' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:146:26 - undefined_identifier
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:149:18 - undefined_identifier
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:150:30 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\random_manager\random_detail_view_test.dart:154:23 - undefined_identifier
+  error - Const variables must be initialized with a constant value - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:126:20 - const_initialized_with_non_constant_value
+  error - Invalid constant value - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:126:20 - invalid_constant
+  error - 2 positional arguments expected by 'PresetNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:126:31 - not_enough_positional_arguments
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:126:31 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:126:46 - undefined_named_parameter
+  error - Const variables must be initialized with a constant value - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:132:20 - const_initialized_with_non_constant_value
+  error - The constructor being called isn't a const constructor - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:132:20 - const_with_non_const
+  error - 2 positional arguments expected by 'CategoryNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:132:33 - not_enough_positional_arguments
+  error - The named parameter 'presetId' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:132:33 - undefined_named_parameter
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:132:54 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:132:66 - undefined_named_parameter
+  error - Const variables must be initialized with a constant value - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:139:20 - const_initialized_with_non_constant_value
+  error - The constructor being called isn't a const constructor - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:139:20 - const_with_non_const
+  error - 3 positional arguments expected by 'TagGroupNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:140:9 - not_enough_positional_arguments
+  error - The named parameter 'presetId' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:140:9 - undefined_named_parameter
+  error - The named parameter 'categoryId' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:141:9 - undefined_named_parameter
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:142:9 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:143:9 - undefined_named_parameter
+  error - The method 'addPreset' isn't defined for the type 'RandomTreeDataNotifier' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:165:16 - undefined_method
+  error - Invalid constant value - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:165:26 - invalid_constant
+  error - 2 positional arguments expected by 'PresetNode.new', but 0 found - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:165:43 - not_enough_positional_arguments
+  error - The named parameter 'id' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:165:43 - undefined_named_parameter
+  error - The named parameter 'label' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:165:54 - undefined_named_parameter
+  error - The function 'RandomCategory' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:175:27 - undefined_function
+  error - Undefined name 'SelectionMode' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:178:24 - undefined_identifier
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:181:16 - undefined_identifier
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:182:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:186:21 - undefined_identifier
+  error - The function 'RandomTagGroup' isn't defined - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:201:27 - undefined_function
+  error - Undefined name 'SelectionMode' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:204:24 - undefined_identifier
+  error - Undefined name 'TagScope' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:210:16 - undefined_identifier
+  error - Undefined name 'GenderRestriction' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:211:28 - undefined_identifier
+  error - Undefined name 'TagSourceType' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:213:21 - undefined_identifier
+  error - Expected to find ';' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:247:3 - expected_token
+  error - Expected to find ')' - test\presentation\widgets\prompt\random_manager\random_library_manager_test.dart:248:1 - expected_token
+
