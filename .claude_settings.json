@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-/**)",
+      "Write(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-/**)",
+      "Edit(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-/**)",
+      "Glob(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-/**)",
+      "Grep(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-/**)",
+      "Read(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-\\.auto-claude\\specs\\001-/**)",
+      "Write(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-\\.auto-claude\\specs\\001-/**)",
+      "Edit(E:\\Aaalice_NAI_Launcher\\.auto-claude\\worktrees\\tasks\\001-\\.auto-claude\\specs\\001-/**)",
+      "Read(E:\\Aaalice_NAI_Launcher\\.auto-claude/**)",
+      "Write(E:\\Aaalice_NAI_Launcher\\.auto-claude/**)",
+      "Edit(E:\\Aaalice_NAI_Launcher\\.auto-claude/**)",
+      "Glob(E:\\Aaalice_NAI_Launcher\\.auto-claude/**)",
+      "Grep(E:\\Aaalice_NAI_Launcher\\.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}

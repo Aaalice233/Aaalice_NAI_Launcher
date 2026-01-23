@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "001-",
+  "state": "building",
+  "subtasks": {
+    "completed": 2,
+    "total": 17,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Documentation Analysis",
+    "id": 1,
+    "total": 3
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 3,
+    "started_at": "2026-01-24T00:04:22.605035"
+  },
+  "last_update": "2026-01-24T00:08:43.007696"
+}
