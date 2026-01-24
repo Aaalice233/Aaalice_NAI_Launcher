@@ -215,8 +215,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Widget _buildProgressSection(ThemeData theme, Color primaryColor, WarmupProgress progress) {
+    final warmupState = ref.watch(warmupNotifierProvider);
     final translatedTask = _translateTaskKey(context, progress.currentTask);
-    
+    final hasError = warmupState.error != null || progress.error != null;
+    final errorMessage = warmupState.error ?? progress.error;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Column(
@@ -230,14 +233,36 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: Text(
-              translatedTask,
-              key: ValueKey(progress.currentTask),
+              hasError ? (errorMessage ?? context.l10n.common_error) : translatedTask,
+              key: ValueKey(progress.currentTask + (hasError ? '_error' : '')),
               style: TextStyle(
                 fontSize: 13,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: hasError
+                    ? theme.colorScheme.error.withOpacity(0.8)
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
           ),
+
+          // 错误重试按钮
+          if (hasError) ...[
+            const SizedBox(height: 16),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: ElevatedButton(
+                key: const ValueKey('retry_button'),
+                onPressed: () {
+                  ref.read(warmupNotifierProvider.notifier).retry();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.error,
+                  foregroundColor: theme.colorScheme.onError,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Text(context.l10n.common_retry),
+              ),
+            ),
+          ],
         ],
       ),
     );
