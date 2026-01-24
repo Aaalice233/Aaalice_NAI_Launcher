@@ -155,3 +155,28 @@ Follow the dependency order - Phase 3 depends on Phases 1&2, Phase 5 depends on 
   - Documentation: subtask-5-1-test-summary.md
   - Ready for manual testing with valid NovelAI credentials
   - Committed: [pending]
+
+- Completed subtask-5-2: Test login error handling and recovery
+  - Integration & E2E Testing
+  - Added 5 new integration test cases to test/integration/login_flow_test.dart:
+    - Invalid credentials error handling (no retry button for auth errors)
+    - Network error shows retry button (structure verification)
+    - Form is preserved after authentication error
+    - Successful login after error recovery
+    - Error recovery hints are actionable
+  - Added 5 new manual test cases to test/integration/MANUAL_TEST_CHECKLIST.md:
+    - Test Case 7: Authentication Error Handling (Invalid Credentials)
+    - Test Case 8: Network Error Handling with Retry
+    - Test Case 9: Complete Error Recovery Flow
+    - Test Case 10: Error Message Accessibility and UX
+    - Test Case 11: Error Handling Edge Cases
+  - Fixed test code issues:
+    - Changed find.icon() to find.byIcon()
+    - Added missing SharedPreferences import
+    - Removed unused variable
+  - Code quality verified: flutter analyze lib/ - No issues
+  - Comprehensive documentation: subtask-5-2-test-summary.md
+  - Key clarification: Retry button only appears for network errors, not auth errors
+  - Total integration tests: 11 cases (6 from subtask-5-1 + 5 new)
+  - Total manual tests: 11 cases (6 from subtask-5-1 + 5 new)
+  - Committed: 389999b

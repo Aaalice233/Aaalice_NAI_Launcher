@@ -267,7 +267,8 @@
               "Verify successful login"
             ]
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created comprehensive integration tests for error handling: 5 new test cases covering auth errors, network errors, form preservation, recovery flow, and error hints. Added 5 manual test cases (Test Cases 7-11) with detailed verification procedures. Verified error handling implementation via code review. Fixed test issues (find.byIcon, SharedPreferences import). Source code passes flutter analyze with no issues. Ready for manual testing with valid credentials. Documentation: subtask-5-2-test-summary.md. Clarification: Retry button appears only for network errors, not for invalid credentials (auth errors)."
         },
         {
           "id": "subtask-5-3",
@@ -288,7 +289,8 @@
               "Verify successful login"
             ]
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Added 7 new integration test cases for network error handling: timeout errors, connection errors, form preservation, retry functionality, multiple errors, and complete recovery flow. Added 5 comprehensive manual test cases (Test Cases 12-16) covering network simulation, timeout handling, multiple errors, auto-login failure, and complete end-to-end recovery. Documented network simulation techniques (adapter control, proxy tools, firewall rules). Verified error detection logic in AuthState.parseError(). Confirmed retry button behavior via code review. Source code passes flutter analyze with no issues. All verification steps documented in manual test checklist. Ready for manual QA testing with valid NovelAI credentials and network control capabilities. Documentation: subtask-5-3-test-summary.md."
         }
       ]
     }
@@ -415,5 +417,5 @@
   "qa_signoff": null,
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-01-24T08:11:13.619Z"
+  "updated_at": "2026-01-24T08:16:11.403Z"
 }

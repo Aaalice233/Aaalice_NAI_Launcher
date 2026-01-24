@@ -593,6 +593,434 @@
 
 ---
 
+## Test Case 12: Network Error Simulation (Connection Failure)
+
+### Purpose:
+Verify network error handling and retry functionality when network connection fails
+
+### Prerequisites:
+- Ability to disable/enable network connection
+- Valid NovelAI test credentials
+
+### Steps:
+1. **Launch app and navigate to login screen**
+   - Run: `flutter run -d windows`
+   - Expected: Login screen appears
+
+2. **Disable network connection**
+   - Option A: Disable WiFi/Ethernet adapter
+   - Option B: Enable airplane mode
+   - Option C: Block NovelAI API via firewall
+   - Verify: Network is truly disconnected (try opening a website)
+
+3. **Enter valid credentials**
+   - Email: `your-test@example.com`
+   - Password: `your-valid-password`
+   - Expected: Credentials are accepted by form validation
+
+4. **Click login button**
+   - Action: Click "登录" (Login) button
+   - Expected: Loading overlay appears briefly
+   - Expected: After timeout (~30 seconds), loading disappears
+
+5. **Verify network error response**
+   - Expected: Red error container appears below form
+   - Expected: Error icon (Icons.error_outline) is visible
+   - Expected: Error message: "网络连接失败" (Network connection failed)
+   - Expected: Recovery hint: "💡 网络连接失败，请检查网络设置"
+   - Expected: Retry button is shown (ElevatedButton.icon with Icons.refresh)
+   - Expected: Retry button text: "重试"
+
+6. **Verify form state preservation**
+   - Expected: Email field still contains entered credentials
+   - Expected: Password field still contains entered password
+   - Expected: Form is still editable
+   - Expected: Can modify fields without re-typing everything
+
+7. **Test retry button (network still disabled)**
+   - Action: Click retry button
+   - Expected: Loading state appears again
+   - Expected: After timeout, same network error appears
+   - Expected: Retry button remains visible
+   - Expected: Form is still preserved
+
+8. **Re-enable network connection**
+   - Action: Re-enable WiFi/Ethernet or disable airplane mode
+   - Verify: Network is connected (try opening a website)
+   - Wait: 2-3 seconds for network to stabilize
+
+9. **Click retry button with restored network**
+   - Action: Click "重试" button
+   - Expected: Loading overlay appears
+   - Expected: Authentication proceeds
+   - Expected: If credentials are valid, login succeeds
+   - Expected: Redirect to home screen
+
+10. **Verify successful login**
+    - Expected: Home screen is displayed
+    - Expected: User is authenticated
+    - Expected: No error messages remain
+    - Expected: Account info is visible
+
+### Success Criteria:
+- [ ] Network error is detected correctly
+- [ ] Error message is clear and specific to network failure
+- [ ] Retry button appears (unlike auth errors)
+- [ ] Form credentials are preserved across error
+- [ ] Retry button re-attempts authentication
+- [ ] Can retry multiple times if needed
+- [ ] Successful retry works after network is restored
+- [ ] No crashes or stuck states
+- [ ] Error clears automatically on successful login
+
+---
+
+## Test Case 13: Network Timeout Error Handling
+
+### Purpose:
+Verify timeout error handling when network is slow or unresponsive
+
+### Prerequisites:
+- Ability to simulate network timeout
+- Valid NovelAI test credentials
+
+### Steps:
+1. **Launch app and navigate to login screen**
+   - Run: `flutter run -d windows`
+   - Expected: Login screen appears
+
+2. **Simulate network timeout**
+   - Option A: Use proxy tool to add 60+ second delay
+   - Option B: Throttle bandwidth to extremely slow (1 bytes/sec)
+   - Option C: Block API responses while allowing requests
+
+3. **Enter valid credentials**
+   - Email: `your-test@example.com`
+   - Password: `your-valid-password`
+   - Expected: Credentials are accepted
+
+4. **Click login button**
+   - Action: Click "登录" button
+   - Expected: Loading overlay appears
+
+5. **Wait for timeout**
+   - Wait: ~30 seconds (default timeout)
+   - Expected: Loading overlay disappears
+
+6. **Verify timeout error response**
+   - Expected: Red error container appears
+   - Expected: Error message: "网络超时" (Network timeout)
+   - Expected: Recovery hint: "💡 请求超时，请检查网络连接后重试"
+   - Expected: Retry button with Icons.refresh
+   - Expected: Form fields are preserved
+
+7. **Restore normal network**
+   - Action: Remove proxy/throttling
+   - Verify: Network is responding normally
+
+8. **Click retry button**
+   - Action: Click "重试" button
+   - Expected: Loading state appears
+   - Expected: Authentication completes within reasonable time
+   - Expected: Successful login proceeds to home screen
+
+### Success Criteria:
+- [ ] Timeout is detected and reported correctly
+- [ ] Timeout error message is distinct from connection error
+- [ ] Retry button appears
+- [ ] Form is preserved
+- [ ] Retry works after network is restored
+- [ ] No indefinite loading states
+- [ ] User can cancel retry by navigating away
+
+---
+
+## Test Case 14: Multiple Network Errors and Recovery
+
+### Purpose:
+Verify robustness when multiple network errors occur in sequence
+
+### Prerequisites:
+- Ability to toggle network connection
+- Valid NovelAI test credentials
+
+### Steps:
+1. **Launch app and navigate to login screen**
+
+2. **Enter valid credentials**
+   - Email: `your-test@example.com`
+   - Password: `your-valid-password`
+
+3. **First network error attempt**
+   - Disable network
+   - Click login
+   - Verify: Network error appears with retry button
+   - Verify: Credentials are preserved
+
+4. **Second network error attempt (retry while network still down)**
+   - Click retry button
+   - Verify: Loading appears briefly
+   - Verify: Network error appears again
+   - Verify: Retry button still visible
+   - Verify: No duplicate error messages
+   - Verify: No memory leaks or performance degradation
+
+5. **Third attempt (manual retry via login button)**
+   - Instead of clicking retry button
+   - Click main login button
+   - Verify: Works same as retry button
+   - Verify: Error updates correctly
+   - Verify: Form remains accessible
+
+6. **Fourth attempt (successful recovery)**
+   - Re-enable network connection
+   - Click retry button
+   - Verify: Login succeeds
+   - Verify: Redirect to home screen
+   - Verify: No residual error messages
+   - Verify: Clean state transition
+
+7. **Verify state cleanup**
+   - Check: No error containers visible
+   - Check: Home screen renders correctly
+   - Check: User is authenticated
+   - Check: Account info is accurate
+
+### Success Criteria:
+- [ ] Can handle multiple network errors without crashing
+- [ ] Each retry attempt works correctly
+- [ ] No duplicate or stuck error messages
+- [ ] Form state persists across all attempts
+- [ ] Both retry button and login button work
+- [ ] Successful recovery works after multiple failures
+- [ ] No memory leaks or performance issues
+- [ ] State is clean after successful login
+
+---
+
+## Test Case 15: Network Error During Auto-Login
+
+### Purpose:
+Verify network error handling during app startup with saved credentials
+
+### Prerequisites:
+- Previously logged in account (saved credentials)
+- Ability to disable network
+- NovelAI test account
+
+### Setup:
+1. **Ensure saved credentials exist**
+   - Login successfully with valid credentials
+   - Verify account is saved
+   - Close app
+
+2. **Disable network connection**
+   - Disconnect WiFi/Ethernet
+   - Or enable airplane mode
+
+### Steps:
+1. **Launch app with no network**
+   - Run: `flutter run -d windows`
+   - Expected: Splash screen appears
+
+2. **Wait for auto-login attempt**
+   - Wait: ~5-10 seconds (timeout period)
+   - Expected: Splash screen disappears
+
+3. **Verify error handling**
+   - Expected: Redirected to login screen
+   - Expected: Error state is handled gracefully
+   - Expected: No indefinite loading
+   - Expected: User can manually login
+
+4. **Re-enable network**
+   - Restore network connection
+
+5. **Login manually**
+   - Enter credentials
+   - Click login
+   - Expected: Successful login
+   - Expected: Auto-login will work next time
+
+### Success Criteria:
+- [ ] Auto-login failure is handled gracefully
+- [ ] No infinite loading on splash screen
+- [ ] User can fall back to manual login
+- [ ] Network is restored, login works
+- [ ] No crashes or stuck states
+- [ ] Error messages are appropriate
+
+---
+
+## Test Case 16: Network Error Recovery Flow (Complete End-to-End)
+
+### Purpose:
+Verify complete network error recovery flow from failure to success
+
+### Prerequisites:
+- Ability to control network connection
+- Valid NovelAI credentials
+
+### Steps:
+1. **Launch app and navigate to login**
+
+2. **Initial state: Network connected**
+   - Verify: App loads normally
+   - Verify: Login screen appears
+
+3. **Enter credentials and trigger network error**
+   - Enter: `valid@example.com` / `validpassword`
+   - Disable network
+   - Click login
+   - Verify: Network error message appears
+   - Verify: Retry button is shown
+   - Screenshot: Error state with retry button
+
+4. **Verify error state details**
+   - Check: Error icon is visible
+   - Check: Error message is clear
+   - Check: Recovery hint is actionable
+   - Check: Retry button is prominent
+   - Check: Form fields show entered values
+
+5. **Attempt retry with network still down**
+   - Click retry button
+   - Verify: Loading state appears
+   - Verify: Error reappears after timeout
+   - Verify: Retry button remains
+
+6. **Modify credentials while in error state**
+   - Edit email field
+   - Edit password field
+   - Verify: Changes are accepted
+   - Verify: Error message persists (doesn't clear on edit)
+   - Verify: Can still retry
+
+7. **Restore network and retry**
+   - Re-enable network
+   - Wait: 2-3 seconds
+   - Click retry button
+   - Verify: Loading state appears
+   - Verify: Authentication proceeds
+
+8. **Verify successful login**
+   - Expected: Redirect to home screen
+   - Expected: User is authenticated
+   - Expected: No error messages remain
+   - Screenshot: Successful home screen
+
+9. **Verify persistence**
+   - Close app
+   - Relaunch app
+   - Expected: Auto-login works (network is connected)
+   - Expected: No errors
+
+### Success Criteria:
+- [ ] Complete error recovery flow works
+- [ ] Error state is informative and actionable
+- [ ] Retry functionality is reliable
+- [ ] Can modify credentials during error state
+- [ ] Successful recovery leads to clean state
+- [ ] Persistence works after recovery
+- [ ] No residual errors or UI artifacts
+- [ ] User experience is smooth despite errors
+
+---
+
+## Network Error Testing Tools and Techniques
+
+### How to Simulate Network Errors:
+
+#### 1. **Disable Network Adapter (Windows)**
+   ```powershell
+   # Disable WiFi
+   netsh interface set interface "Wi-Fi" admin=disable
+
+   # Re-enable WiFi
+   netsh interface set interface "Wi-Fi" admin=enable
+   ```
+
+#### 2. **Use Proxy Tool (Fiddler/Charles)**
+   - Configure proxy to intercept NovelAI API requests
+   - Add rules to:
+     - Block specific endpoints (503 error)
+     - Add delays (timeout simulation)
+     - Return malformed responses
+
+#### 3. **Windows Firewall**
+   - Block outbound connections to `api.novelai.app`
+   - Temporary rule for testing only
+
+#### 4. **Network Throttling**
+   - Use Chrome DevTools (if testing web version)
+   - Set to "Offline" or "Slow 3G"
+
+#### 5. **Hosts File Modification**
+   ```
+   # Add to C:\Windows\System32\drivers\etc\hosts
+   127.0.0.1 api.novelai.app
+   ```
+   Remember to remove after testing!
+
+### Testing Best Practices:
+
+1. **Always restore network after testing**
+   - Don't leave system in disconnected state
+   - Verify network is working before moving on
+
+2. **Test both timeout and connection errors**
+   - Timeout: Network is connected but slow
+   - Connection error: Network is completely unavailable
+
+3. **Test with valid and invalid credentials**
+   - Network errors should show retry button
+   - Auth errors should NOT show retry button
+
+4. **Document actual timeout duration**
+   - Measure how long timeout takes
+   - Verify it's reasonable (not too long, not too short)
+
+5. **Screenshot key states**
+   - Network error with retry button
+   - Timeout error
+   - Successful recovery
+
+6. **Test edge cases**
+   - Rapid retry clicks
+   - Network restored during timeout
+   - Network fails during retry
+   - Switch login modes during error state
+
+---
+
+## Known Issues / Limitations
+
+### Testing Constraints:
+1. **No actual NovelAI credentials available in test environment**
+   - Solution: Mock tests or use test account
+   - Current: Integration test created but cannot run without valid API
+
+2. **Cannot manually interact with GUI in CI environment**
+   - Solution: Integration test uses widget tester
+   - Current: Manual test checklist provided for human testers
+
+3. **Network dependency**
+   - Tests require active internet connection
+   - NovelAI API must be accessible
+
+### Automation Challenges:
+1. **Simulating network failures in automated tests**
+   - Requires mocking DioException at low level
+   - Complex to simulate all network error types
+   - Manual testing recommended for full coverage
+
+2. **Testing retry functionality end-to-end**
+   - Requires stateful network simulation
+   - Mock network going down, then up
+   - Difficult to automate reliably
+
+---
+
 ## Conclusion
 
 **Status**: ✅ Implementation complete, ready for manual testing
