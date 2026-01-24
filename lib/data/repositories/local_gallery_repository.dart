@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -286,6 +287,107 @@ class LocalGalleryRepository {
     if (currentTags.contains(tag)) {
       final newTags = currentTags.where((t) => t != tag).toList();
       await setTags(filePath, newTags);
+    }
+  }
+
+  /// 批量导出图片元数据到 JSON 文件
+  ///
+  /// [records] 要导出的图片记录列表
+  /// 返回导出的文件路径，失败返回 null
+  Future<File?> exportMetadataToJson(List<LocalImageRecord> records) async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      // 1. 准备导出数据
+      final exportData = records.map((record) {
+        final map = <String, dynamic>{
+          'path': record.path,
+          'fileName': record.path.split(Platform.pathSeparator).last,
+          'size': record.size,
+          'modifiedAt': record.modifiedAt.toIso8601String(),
+          'isFavorite': record.isFavorite,
+          'tags': record.tags,
+          'metadataStatus': record.metadataStatus.name,
+        };
+
+        // 添加元数据（如果有）
+        if (record.metadata != null && record.metadata!.hasData) {
+          final meta = record.metadata!;
+          map['metadata'] = {
+            'prompt': meta.prompt,
+            'negativePrompt': meta.negativePrompt,
+            'seed': meta.seed,
+            'sampler': meta.sampler,
+            'steps': meta.steps,
+            'scale': meta.scale,
+            'width': meta.width,
+            'height': meta.height,
+            'model': meta.model,
+            'smea': meta.smea,
+            'smeaDyn': meta.smeaDyn,
+            'noiseSchedule': meta.noiseSchedule,
+            'cfgRescale': meta.cfgRescale,
+            'ucPreset': meta.ucPreset,
+            'qualityToggle': meta.qualityToggle,
+            'isImg2Img': meta.isImg2Img,
+            'strength': meta.strength,
+            'noise': meta.noise,
+            'software': meta.software,
+            'version': meta.version,
+            'source': meta.source,
+            'characterPrompts': meta.characterPrompts,
+            'characterNegativePrompts': meta.characterNegativePrompts,
+          };
+        }
+
+        return map;
+      }).toList();
+
+      // 2. 创建 JSON 对象
+      final jsonData = {
+        'exportedAt': DateTime.now().toIso8601String(),
+        'totalImages': records.length,
+        'images': exportData,
+      };
+
+      // 3. 获取下载目录
+      final downloadsDir = await getDownloadsDirectory();
+      if (downloadsDir == null) {
+        AppLogger.e(
+          'Failed to get downloads directory',
+          null,
+          null,
+          'LocalGalleryRepo',
+        );
+        return null;
+      }
+
+      // 4. 生成文件名（带时间戳）
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final fileName = 'nai_metadata_export_$timestamp.json';
+      final filePath = '${downloadsDir.path}${Platform.pathSeparator}$fileName';
+      final file = File(filePath);
+
+      // 5. 写入 JSON 文件
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(jsonData),
+      );
+
+      stopwatch.stop();
+      AppLogger.i(
+        'Exported ${records.length} images to $fileName in ${stopwatch.elapsedMilliseconds}ms',
+        'LocalGalleryRepo',
+      );
+
+      return file;
+    } catch (e) {
+      AppLogger.e(
+        'Failed to export metadata',
+        e,
+        null,
+        'LocalGalleryRepo',
+      );
+      return null;
     }
   }
 
