@@ -34,6 +34,9 @@ class LocalGalleryRepository {
   /// 元数据缓存服务
   final _cacheService = LocalMetadataCacheService();
 
+  /// 获取收藏 Box
+  Box get _favoritesBox => Hive.box(StorageKeys.localFavoritesBox);
+
   /// 获取图片保存目录（公共方法）
   ///
   /// 优先使用用户设置的自定义路径,否则使用默认路径
@@ -111,6 +114,7 @@ class LocalGalleryRepository {
             size: 0,
             modifiedAt: DateTime.now(),
             metadataStatus: MetadataStatus.none,
+            isFavorite: isFavorite(file.path),
           );
         }
 
@@ -133,6 +137,7 @@ class LocalGalleryRepository {
               metadata: meta,
               metadataStatus:
                   meta.hasData ? MetadataStatus.success : MetadataStatus.none,
+              isFavorite: isFavorite(filePath),
             );
           }
         }
@@ -157,6 +162,7 @@ class LocalGalleryRepository {
             metadataStatus: meta != null && meta.hasData
                 ? MetadataStatus.success
                 : MetadataStatus.none,
+            isFavorite: isFavorite(filePath),
           );
         } catch (e) {
           AppLogger.w(
@@ -168,6 +174,7 @@ class LocalGalleryRepository {
             size: 0,
             modifiedAt: fileModified,
             metadataStatus: MetadataStatus.failed,
+            isFavorite: isFavorite(filePath),
           );
         }
       }),
@@ -218,6 +225,28 @@ class LocalGalleryRepository {
       );
       return null;
     }
+  }
+
+  /// 获取图片的收藏状态
+  bool isFavorite(String filePath) {
+    return _favoritesBox.get(filePath, defaultValue: false) as bool;
+  }
+
+  /// 设置图片的收藏状态
+  Future<void> setFavorite(String filePath, bool isFavorite) async {
+    await _favoritesBox.put(filePath, isFavorite);
+    AppLogger.d(
+      'Set favorite: $filePath -> $isFavorite',
+      'LocalGalleryRepo',
+    );
+  }
+
+  /// 切换图片的收藏状态
+  Future<bool> toggleFavorite(String filePath) async {
+    final current = isFavorite(filePath);
+    final newState = !current;
+    await setFavorite(filePath, newState);
+    return newState;
   }
 
   /// 单例实例

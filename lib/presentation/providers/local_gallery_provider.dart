@@ -190,9 +190,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final query = state.searchQuery.toLowerCase().trim();
     final dateStart = state.dateStart;
     final dateEnd = state.dateEnd;
+    final showFavoritesOnly = state.showFavoritesOnly;
 
     // 无过滤条件：直接使用全部文件
-    if (query.isEmpty && dateStart == null && dateEnd == null) {
+    if (query.isEmpty && dateStart == null && dateEnd == null && !showFavoritesOnly) {
       state = state.copyWith(
         filteredFiles: state.allFiles,
         currentPage: 0,
@@ -222,8 +223,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }).toList();
     }
 
-    // 如果没有搜索关键词，直接使用日期过滤结果
-    if (query.isEmpty) {
+    // 如果只需要收藏过滤，直接应用
+    if (query.isEmpty && !showFavoritesOnly) {
       state = state.copyWith(
         filteredFiles: dateFiltered,
         currentPage: 0,
@@ -233,29 +234,37 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return;
     }
 
-    // 有搜索关键词：优先使用搜索索引
-    try {
-      // 如果搜索索引不为空，使用索引进行快速搜索
-      if (!_searchIndex.isEmpty) {
-        final searchedRecords = await _searchIndex.search(query, limit: 10000);
+    // 有收藏过滤或搜索关键词：需要加载记录
+    // 如果有搜索关键词：优先使用搜索索引
+    if (query.isNotEmpty) {
+      try {
+        // 如果搜索索引不为空，使用索引进行快速搜索
+        if (!_searchIndex.isEmpty) {
+          final searchedRecords = await _searchIndex.search(query, limit: 10000);
 
-        // 将搜索结果转换为 File 对象集合
-        final searchedPaths = searchedRecords.map((r) => r.path).toSet();
+          // 将搜索结果转换为 File 对象集合
+          final searchedPaths = searchedRecords.map((r) => r.path).toSet();
 
-        // 过滤出同时满足搜索结果和日期过滤的文件
-        final filtered = dateFiltered.where((file) => searchedPaths.contains(file.path)).toList();
+          // 过滤出同时满足搜索结果和日期过滤的文件
+          var filtered = dateFiltered.where((file) => searchedPaths.contains(file.path)).toList();
 
-        state = state.copyWith(
-          filteredFiles: filtered,
-          currentPage: 0,
-          isPageLoading: false,
-        );
-        await loadPage(0);
-        return;
+          // 如果需要收藏过滤，再应用收藏过滤
+          if (showFavoritesOnly) {
+            filtered = _applyFavoriteFilter(filtered);
+          }
+
+          state = state.copyWith(
+            filteredFiles: filtered,
+            currentPage: 0,
+            isPageLoading: false,
+          );
+          await loadPage(0);
+          return;
+        }
+      } catch (e) {
+        AppLogger.w('Search index query failed, falling back to manual search: $e', 'LocalGalleryNotifier');
+        // 继续使用原有的手动搜索逻辑
       }
-    } catch (e) {
-      AppLogger.w('Search index query failed, falling back to manual search: $e', 'LocalGalleryNotifier');
-      // 继续使用原有的手动搜索逻辑
     }
 
     // 回退到手动搜索（搜索索引为空或查询失败时）
@@ -264,9 +273,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final needPromptCheck = <File>[];
 
     for (final file in dateFiltered) {
-      final fileName =
-          file.path.split(Platform.pathSeparator).last.toLowerCase();
-      if (fileName.contains(query)) {
+      final fileName = file.path.split(Platform.pathSeparator).last.toLowerCase();
+      if (query.isEmpty || fileName.contains(query)) {
         fileNameMatched.add(file);
       } else {
         needPromptCheck.add(file);
@@ -313,7 +321,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
 
     // 合并结果
-    final filtered = [...fileNameMatched, ...promptMatched];
+    var filtered = [...fileNameMatched, ...promptMatched];
+
+    // 如果需要收藏过滤，应用收藏过滤
+    if (showFavoritesOnly) {
+      filtered = _applyFavoriteFilter(filtered);
+    }
 
     state = state.copyWith(
       filteredFiles: filtered,
@@ -337,6 +350,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     if (negativePrompt.contains(query)) return true;
 
     return false;
+  }
+
+  /// 应用收藏过滤
+  List<File> _applyFavoriteFilter(List<File> files) {
+    return files.where((file) => _repository.isFavorite(file.path)).toList();
   }
 
   /// 刷新画廊
@@ -382,5 +400,41 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           'LocalGalleryNotifier',);
       return false;
     }
+  }
+
+  /// 切换收藏状态
+  Future<bool> toggleFavorite(String imagePath) async {
+    try {
+      final newFavoriteStatus = await _repository.toggleFavorite(imagePath);
+
+      // 更新当前显示列表中的记录
+      final updatedCurrentImages = state.currentImages.map((img) {
+        if (img.path == imagePath) {
+          return img.copyWith(isFavorite: newFavoriteStatus);
+        }
+        return img;
+      }).toList();
+
+      state = state.copyWith(currentImages: updatedCurrentImages);
+
+      // 如果当前正在过滤收藏，需要重新应用过滤器
+      if (state.showFavoritesOnly && !newFavoriteStatus) {
+        await _applyFilters();
+      }
+
+      AppLogger.d('Toggled favorite: $imagePath -> $newFavoriteStatus', 'LocalGalleryNotifier');
+      return newFavoriteStatus;
+    } catch (e) {
+      AppLogger.e('Failed to toggle favorite: $imagePath', e, null, 'LocalGalleryNotifier');
+      return false;
+    }
+  }
+
+  /// 设置仅显示收藏
+  Future<void> setShowFavoritesOnly(bool showOnly) async {
+    if (state.showFavoritesOnly == showOnly) return;
+
+    state = state.copyWith(showFavoritesOnly: showOnly, isPageLoading: true);
+    await _applyFilters();
   }
 }
