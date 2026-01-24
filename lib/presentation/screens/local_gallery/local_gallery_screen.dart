@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -656,30 +654,35 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     // 加载中骨架屏
     if (state.isPageLoading) {
-      return MasonryGridView.count(
-        crossAxisCount: columns,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-        itemCount:
-            state.currentImages.isNotEmpty ? state.currentImages.length : 20,
+      return GridView.builder(
+        key: const PageStorageKey<String>('local_gallery_grid_loading'),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          mainAxisSpacing: 4,
+          crossAxisSpacing: 4,
+          childAspectRatio: itemWidth / 250, // 固定宽高比
+        ),
+        itemCount: state.currentImages.isNotEmpty
+            ? state.currentImages.length
+            : 20,
         itemBuilder: (c, i) {
-          final random = Random(i);
-          final height = 150.0 + random.nextInt(151);
-
-          return Card(
+          return const Card(
             clipBehavior: Clip.antiAlias,
-            child: _ShimmerSkeleton(height: height),
+            child: _ShimmerSkeleton(height: 250),
           );
         },
       );
     }
 
     // 正常内容
-    return MasonryGridView.count(
+    return GridView.builder(
       key: const PageStorageKey<String>('local_gallery_grid'),
-      crossAxisCount: columns,
-      mainAxisSpacing: 4,
-      crossAxisSpacing: 4,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: itemWidth / 250, // 固定宽高比
+      ),
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];
