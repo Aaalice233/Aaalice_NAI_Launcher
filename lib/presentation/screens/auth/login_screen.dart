@@ -764,7 +764,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Theme.of(context).colorScheme.primaryContainer,
                   child: Icon(
                     Icons.add,
-                    color: theme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 title: Text(context.l10n.auth_addAccount),
