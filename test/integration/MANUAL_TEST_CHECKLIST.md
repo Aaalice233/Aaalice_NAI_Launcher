@@ -315,6 +315,284 @@
 
 ---
 
+---
+
+## Test Case 7: Authentication Error Handling (Invalid Credentials)
+
+### Steps:
+1. **Launch app and navigate to login**
+2. **Enter invalid credentials**
+   - Email: `invalid@example.com`
+   - Password: `wrongpassword123`
+3. **Click login button**
+4. **Verify error response:**
+
+   a) **Loading state**
+      - Expected: Loading overlay appears briefly
+      - Expected: API call is attempted
+      - Expected: Loading disappears after error
+
+   b) **Error message display**
+      - Expected: Red error container appears below form
+      - Expected: Error icon (Icons.error_outline) is visible
+      - Expected: Error message: "认证失败，请检查您的凭据"
+      - Expected: Recovery hint: "💡 请检查邮箱和密码是否正确，或访问 NovelAI 重新设置密码"
+
+   c) **Retry button**
+      - Expected: No retry button shown (non-network error)
+      - Expected: Only error message and recovery hint
+
+   d) **Form state preservation**
+      - Expected: Email field still contains `invalid@example.com`
+      - Expected: Password field still contains `wrongpassword123`
+      - Expected: Form is still editable
+      - Expected: Can correct credentials without re-typing everything
+
+   e) **Error state duration**
+      - Expected: Error remains visible until user takes action
+      - Expected: Error clears when user starts typing
+      - Expected: Error clears on next login attempt
+
+5. **Attempt recovery**
+   - Correct email to: `valid@example.com`
+   - Correct password to: `correctpassword`
+   - Click login button
+   - Expected: Error message disappears
+   - Expected: New login attempt proceeds
+
+### Success Criteria:
+- [ ] Error message is clear and specific
+- [ ] Recovery hint provides actionable guidance
+- [ ] Form fields are preserved (not cleared)
+- [ ] User can edit and retry without re-entering all data
+- [ ] No retry button for auth errors (only network errors)
+- [ ] Error state is visually distinct (red container)
+- [ ] Error icon makes error immediately visible
+- [ ] App doesn't crash or freeze on error
+
+---
+
+## Test Case 8: Network Error Handling with Retry
+
+### Steps:
+1. **Prepare network failure simulation**
+   - Option A: Disconnect internet (WiFi/Ethernet)
+   - Option B: Block NovelAI API via firewall
+   - Option C: Use API proxy tool to return network errors
+
+2. **Launch app and navigate to login**
+
+3. **Enter valid credentials**
+   - Use valid test credentials
+   - Email: `test@example.com`
+   - Password: `testpassword123`
+
+4. **Click login button**
+
+5. **Verify network error response:**
+
+   a) **Loading state**
+      - Expected: Loading overlay appears
+      - Expected: Timeout after ~30 seconds (configurable)
+      - Expected: Loading overlay disappears
+
+   b) **Error message**
+      - Expected: Red error container appears
+      - Expected: Error message: "网络连接失败" OR "网络超时"
+      - Expected: Recovery hint based on error type:
+        - Timeout: "💡 请求超时，请检查网络连接后重试"
+        - Network error: "💡 网络连接失败，请检查网络设置"
+
+   c) **Retry button**
+      - Expected: Retry button is shown (ElevatedButton.icon)
+      - Expected: Icon: Icons.refresh
+      - Expected: Label: "重试" (Retry)
+      - Expected: Button is styled with error color scheme
+
+   d) **Form state**
+      - Expected: Email field preserved
+      - Expected: Password field preserved
+      - Expected: Form is still editable
+
+6. **Verify retry functionality**
+   - Re-enable network connection
+   - Click retry button
+   - Expected: Re-attempts login with preserved credentials
+   - Expected: Loading state appears again
+   - Expected: Successful login if credentials are valid
+
+7. **Alternative: Manual retry**
+   - Instead of clicking retry button
+   - Correct credentials if needed
+   - Click main login button
+   - Expected: Works same as retry button
+
+### Success Criteria:
+- [ ] Network errors are detected and displayed
+- [ ] Error message distinguishes between timeout and connection failure
+- [ ] Recovery hints are network-specific
+- [ ] Retry button appears (unlike auth errors)
+- [ ] Retry button preserves form input
+- [ ] Retry button re-triggers authentication
+- [ ] Can retry without re-entering credentials
+- [ ] Manual retry (via login button) also works
+- [ ] Successful retry proceeds to home screen
+
+---
+
+## Test Case 9: Complete Error Recovery Flow
+
+### Steps:
+1. **Launch app and navigate to login**
+
+2. **First attempt: Invalid credentials**
+   - Enter: `wrong@example.com` / `wrongpass`
+   - Click login
+   - Verify error: "认证失败，请检查您的凭据"
+   - Verify form is preserved
+   - Verify no retry button
+
+3. **Second attempt: Correct credentials**
+   - Edit email to: `valid@example.com`
+   - Edit password to: `validpass123`
+   - Click login
+   - Expected: Error clears
+   - Expected: Loading state appears
+   - Expected: Authentication proceeds
+
+4. **Third attempt (simulate): Network failure then success**
+   - Disconnect network
+   - Click login
+   - Verify network error appears
+   - Verify retry button is shown
+   - Reconnect network
+   - Click retry button
+   - Expected: Login succeeds
+
+5. **Verify error state cleanup**
+   - After successful login
+   - Expected: No error messages remain
+   - Expected: No error containers visible
+   - Expected: Home screen loads cleanly
+
+### Success Criteria:
+- [ ] Can recover from authentication errors
+- [ ] Can recover from network errors
+- [ ] Can attempt multiple times without issues
+- [ ] Form state persists across attempts
+- [ ] Error messages clear appropriately
+- [ ] Retry functionality works reliably
+- [ ] No stuck error states
+- [ ] No memory leaks from repeated attempts
+
+---
+
+## Test Case 10: Error Message Accessibility and UX
+
+### Steps:
+1. **Trigger different error types** (one at a time):
+
+   a) **Authentication error (401)**
+      - Enter invalid credentials
+      - Click login
+      - Check: Error message is readable
+      - Check: Error icon is visible
+      - Check: Recovery hint is helpful
+      - Check: Error container has good contrast
+
+   b) **Network timeout**
+      - Simulate slow network (proxy tool)
+      - Click login
+      - Check: Timeout message is clear
+      - Check: Retry button is prominent
+      - Check: Recovery hint mentions timeout
+
+   c) **Network error**
+      - Disconnect network
+      - Click login
+      - Check: Connection error message
+      - Check: Retry button is present
+      - Check: Suggests checking network
+
+2. **Evaluate UX aspects:**
+   - Error messages are in user's language (Chinese)
+   - Error icons are recognizable
+   - Recovery hints are actionable
+   - Retry buttons are easy to find (for network errors)
+   - Form fields are easy to edit after error
+   - No excessive jargon in error messages
+
+3. **Test error dismissal:**
+   - Errors should clear when:
+     - User starts typing in form
+     - User clicks retry (network errors)
+     - User submits new credentials
+   - Verify no stuck error messages
+
+### Success Criteria:
+- [ ] Error messages are clear and understandable
+- [ ] Error icons are visually distinct
+- [ ] Recovery hints provide specific guidance
+- [ ] Retry buttons are clearly visible (network errors)
+- [ ] Error state doesn't block user actions
+- [ ] Can easily recover from any error type
+- [ ] Error messages follow accessibility best practices
+- [ ] Good color contrast for error containers
+- [ ] Appropriate use of emojis/icons for visual clarity
+
+---
+
+## Test Case 11: Error Handling Edge Cases
+
+### Steps:
+1. **Rapid error triggering**
+   - Click login button multiple times rapidly
+   - Expected: Only one authentication attempt
+   - Expected: No multiple error messages
+   - Expected: No crashes
+
+2. **Error during loading state**
+   - Start login (loading appears)
+   - Trigger network failure during loading
+   - Expected: Loading overlay disappears
+   - Expected: Error message appears
+   - Expected: No stuck loading state
+
+3. **Form validation + auth error**
+   - Leave email empty
+   - Enter invalid password
+   - Click login
+   - Expected: Validation error appears first
+   - Expected: No auth API call (validation blocks it)
+   - Expected: Clear error messages
+
+4. **Switch login modes with error**
+   - Trigger error in credentials mode
+   - Switch to token login mode
+   - Expected: Error state clears
+   - Expected: Token form is clean
+   - Expected: No residual error messages
+
+5. **Error then background/foreground**
+   - Trigger auth error
+   - Minimize app (background)
+   - Restore app (foreground)
+   - Expected: Error state persists correctly
+   - Expected: Form is still accessible
+   - Expected: No state corruption
+
+### Success Criteria:
+- [ ] No crashes on rapid button clicks
+- [ ] Error handling works during loading
+- [ ] Validation takes precedence over auth errors
+- [ ] Error state clears on mode switch
+- [ ] Error state survives app lifecycle events
+- [ ] No memory leaks from error states
+- [ ] No duplicate error messages
+- [ ] Error handling is robust and reliable
+
+---
+
 ## Conclusion
 
 **Status**: ✅ Implementation complete, ready for manual testing
@@ -327,6 +605,9 @@
 5. Smooth navigation transitions
 6. Form validation
 7. Password visibility toggle
+8. Retry buttons for network errors
+9. Error recovery hints
+10. Form state preservation
 
 **Testing Status:**
 - Code review: ✅ All components implemented correctly
