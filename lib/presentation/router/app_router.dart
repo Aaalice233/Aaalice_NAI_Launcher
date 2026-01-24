@@ -15,6 +15,7 @@ import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/slideshow_screen.dart';
 import '../screens/image_comparison_screen.dart';
+import '../screens/statistics_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/replication_queue_bar.dart';
 import '../providers/replication_queue_provider.dart';
@@ -46,6 +47,7 @@ class AppRoutes {
   static const String promptConfig = '/prompt-config';
   static const String slideshow = '/slideshow';
   static const String comparison = '/comparison';
+  static const String statistics = '/statistics';
 }
 
 /// 应用路由 Provider
@@ -236,6 +238,17 @@ GoRouter appRouter(Ref ref) {
                         child: const ImageComparisonScreen(
                           images: [],
                         ),
+                      );
+                    },
+                  ),
+                  // 统计仪表盘子路由
+                  GoRoute(
+                    path: AppRoutes.statistics,
+                    name: 'statistics',
+                    pageBuilder: (context, state) {
+                      return MaterialPage(
+                        key: state.pageKey,
+                        child: const StatisticsScreen(),
                       );
                     },
                   ),

@@ -1952,6 +1952,42 @@
   "comparison_zoomHint": "捏合或滚动可独立缩放",
   "comparison_loadError": "加载图片失败",
 
+  "statistics_title": "统计仪表盘",
+  "statistics_noData": "暂无统计数据",
+  "statistics_generateFirst": "先生成一些图片吧",
+  "statistics_overview": "总览",
+  "statistics_totalImages": "总图片数",
+  "statistics_totalSize": "总大小",
+  "statistics_favorites": "收藏",
+  "statistics_tagged": "已标记",
+  "statistics_modelDistribution": "模型分布",
+  "statistics_resolutionDistribution": "分辨率分布",
+  "statistics_samplerDistribution": "采样器分布",
+  "statistics_sizeDistribution": "文件大小分布",
+  "statistics_additionalStats": "其他统计",
+  "statistics_averageFileSize": "平均文件大小",
+  "statistics_withMetadata": "有元数据的图片",
+  "statistics_calculatedAt": "计算时间",
+  "statistics_justNow": "刚刚",
+  "statistics_minutesAgo": "{count} 分钟前",
+  "@statistics_minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_hoursAgo": "{count} 小时前",
+  "@statistics_hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_daysAgo": "{count} 天前",
+  "@statistics_daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
   "layer_duplicate": "复制图层",
   "layer_delete": "删除图层",
   "layer_merge": "合并图层",

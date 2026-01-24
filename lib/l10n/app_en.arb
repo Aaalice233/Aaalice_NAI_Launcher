@@ -2361,5 +2361,41 @@
   "comparison_maxImages": "Maximum 4 images allowed for comparison",
   "comparison_close": "Close comparison",
   "comparison_zoomHint": "Pinch or scroll to zoom independently",
-  "comparison_loadError": "Failed to load image"
+  "comparison_loadError": "Failed to load image",
+
+  "statistics_title": "Statistics",
+  "statistics_noData": "No statistics available",
+  "statistics_generateFirst": "Generate some images first",
+  "statistics_overview": "Overview",
+  "statistics_totalImages": "Total Images",
+  "statistics_totalSize": "Total Size",
+  "statistics_favorites": "Favorites",
+  "statistics_tagged": "Tagged",
+  "statistics_modelDistribution": "Model Distribution",
+  "statistics_resolutionDistribution": "Resolution Distribution",
+  "statistics_samplerDistribution": "Sampler Distribution",
+  "statistics_sizeDistribution": "File Size Distribution",
+  "statistics_additionalStats": "Additional Statistics",
+  "statistics_averageFileSize": "Average File Size",
+  "statistics_withMetadata": "Images with Metadata",
+  "statistics_calculatedAt": "Calculated At",
+  "statistics_justNow": "Just now",
+  "statistics_minutesAgo": "{count} minutes ago",
+  "@statistics_minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_hoursAgo": "{count} hours ago",
+  "@statistics_hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_daysAgo": "{count} days ago",
+  "@statistics_daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }
