@@ -60,7 +60,7 @@ class SearchIndexService {
           (value as Map<String, dynamic>).map(
             (k, v) => MapEntry(k, v as int),
           ),
-        ));
+        ),);
       }
 
       if (documentsJson != null) {
