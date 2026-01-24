@@ -125,3 +125,4 @@ logs/security/
 .auto-claude-status
 .claude_settings.json
 .auto-claude/
+test/
