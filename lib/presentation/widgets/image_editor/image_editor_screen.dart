@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
 import 'core/editor_state.dart';
+import 'layers/layer.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
 import 'widgets/toolbar/desktop_toolbar.dart';
@@ -676,9 +677,32 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     );
 
     if (result != null && result.size != _state.canvasSize) {
-      // TODO: 实现画布尺寸更改（需要处理图层内容）
-      // Note: result.mode contains the content handling mode (crop/pad/stretch)
-      _state.setCanvasSize(result.size);
+      try {
+        // 将 ContentHandlingMode 转换为 CanvasResizeMode
+        final mode = _convertContentModeToResizeMode(result.mode);
+
+        // 使用新的 resizeCanvas 方法，支持图层内容变换
+        _state.resizeCanvas(result.size, mode);
+      } catch (e) {
+        // 显示错误信息
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('调整画布尺寸失败: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  /// 将内容处理模式转换为画布调整模式
+  CanvasResizeMode _convertContentModeToResizeMode(ContentHandlingMode mode) {
+    switch (mode) {
+      case ContentHandlingMode.crop:
+        return CanvasResizeMode.crop;
+      case ContentHandlingMode.pad:
+        return CanvasResizeMode.pad;
+      case ContentHandlingMode.stretch:
+        return CanvasResizeMode.stretch;
     }
   }
 
