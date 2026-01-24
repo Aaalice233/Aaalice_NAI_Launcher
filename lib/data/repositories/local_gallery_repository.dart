@@ -37,6 +37,9 @@ class LocalGalleryRepository {
   /// 获取收藏 Box
   Box get _favoritesBox => Hive.box(StorageKeys.localFavoritesBox);
 
+  /// 获取标签 Box
+  Box get _tagsBox => Hive.box(StorageKeys.tagsBox);
+
   /// 获取图片保存目录（公共方法）
   ///
   /// 优先使用用户设置的自定义路径,否则使用默认路径
@@ -115,6 +118,7 @@ class LocalGalleryRepository {
             modifiedAt: DateTime.now(),
             metadataStatus: MetadataStatus.none,
             isFavorite: isFavorite(file.path),
+            tags: getTags(file.path),
           );
         }
 
@@ -138,6 +142,7 @@ class LocalGalleryRepository {
               metadataStatus:
                   meta.hasData ? MetadataStatus.success : MetadataStatus.none,
               isFavorite: isFavorite(filePath),
+              tags: getTags(filePath),
             );
           }
         }
@@ -163,6 +168,7 @@ class LocalGalleryRepository {
                 ? MetadataStatus.success
                 : MetadataStatus.none,
             isFavorite: isFavorite(filePath),
+            tags: getTags(filePath),
           );
         } catch (e) {
           AppLogger.w(
@@ -175,6 +181,7 @@ class LocalGalleryRepository {
             modifiedAt: fileModified,
             metadataStatus: MetadataStatus.failed,
             isFavorite: isFavorite(filePath),
+            tags: getTags(filePath),
           );
         }
       }),
@@ -247,6 +254,39 @@ class LocalGalleryRepository {
     final newState = !current;
     await setFavorite(filePath, newState);
     return newState;
+  }
+
+  /// 获取图片的标签列表
+  List<String> getTags(String filePath) {
+    final tags = _tagsBox.get(filePath, defaultValue: <String>[]);
+    return List<String>.from(tags as List);
+  }
+
+  /// 设置图片的标签列表
+  Future<void> setTags(String filePath, List<String> tags) async {
+    await _tagsBox.put(filePath, tags);
+    AppLogger.d(
+      'Set tags: $filePath -> $tags',
+      'LocalGalleryRepo',
+    );
+  }
+
+  /// 添加标签到图片
+  Future<void> addTag(String filePath, String tag) async {
+    final currentTags = getTags(filePath);
+    if (!currentTags.contains(tag)) {
+      final newTags = [...currentTags, tag];
+      await setTags(filePath, newTags);
+    }
+  }
+
+  /// 从图片移除标签
+  Future<void> removeTag(String filePath, String tag) async {
+    final currentTags = getTags(filePath);
+    if (currentTags.contains(tag)) {
+      final newTags = currentTags.where((t) => t != tag).toList();
+      await setTags(filePath, newTags);
+    }
   }
 
   /// 单例实例

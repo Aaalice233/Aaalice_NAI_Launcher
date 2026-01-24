@@ -193,9 +193,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final dateStart = state.dateStart;
     final dateEnd = state.dateEnd;
     final showFavoritesOnly = state.showFavoritesOnly;
+    final selectedTags = state.selectedTags;
 
     // 无过滤条件：直接使用全部文件
-    if (query.isEmpty && dateStart == null && dateEnd == null && !showFavoritesOnly) {
+    if (query.isEmpty && dateStart == null && dateEnd == null && !showFavoritesOnly && selectedTags.isEmpty) {
       state = state.copyWith(
         filteredFiles: state.allFiles,
         currentPage: 0,
@@ -225,8 +226,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }).toList();
     }
 
-    // 如果只需要收藏过滤，直接应用
-    if (query.isEmpty && !showFavoritesOnly) {
+    // 如果只需要收藏或标签过滤，直接应用
+    if (query.isEmpty && !showFavoritesOnly && selectedTags.isEmpty) {
       state = state.copyWith(
         filteredFiles: dateFiltered,
         currentPage: 0,
@@ -253,6 +254,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           // 如果需要收藏过滤，再应用收藏过滤
           if (showFavoritesOnly) {
             filtered = _applyFavoriteFilter(filtered);
+          }
+
+          // 如果需要标签过滤，再应用标签过滤
+          if (selectedTags.isNotEmpty) {
+            filtered = _applyTagFilter(filtered);
           }
 
           state = state.copyWith(
@@ -330,6 +336,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       filtered = _applyFavoriteFilter(filtered);
     }
 
+    // 如果需要标签过滤，应用标签过滤
+    if (selectedTags.isNotEmpty) {
+      filtered = _applyTagFilter(filtered);
+    }
+
     state = state.copyWith(
       filteredFiles: filtered,
       currentPage: 0,
@@ -357,6 +368,18 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 应用收藏过滤
   List<File> _applyFavoriteFilter(List<File> files) {
     return files.where((file) => _repository.isFavorite(file.path)).toList();
+  }
+
+  /// 应用标签过滤
+  List<File> _applyTagFilter(List<File> files) {
+    final selectedTags = state.selectedTags;
+    if (selectedTags.isEmpty) return files;
+
+    return files.where((file) {
+      final tags = _repository.getTags(file.path);
+      // 检查是否包含所有选中的标签（AND 逻辑）
+      return selectedTags.every((selectedTag) => tags.contains(selectedTag));
+    }).toList();
   }
 
   /// 刷新画廊
@@ -438,5 +461,103 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     state = state.copyWith(showFavoritesOnly: showOnly, isPageLoading: true);
     await _applyFilters();
+  }
+
+  /// 添加标签到图片
+  Future<bool> addTag(String imagePath, String tag) async {
+    try {
+      // Trim and validate tag
+      final trimmedTag = tag.trim();
+      if (trimmedTag.isEmpty) return false;
+
+      // Check if tag already exists
+      final currentTags = _repository.getTags(imagePath);
+      if (currentTags.contains(trimmedTag)) {
+        return true; // Already has the tag
+      }
+
+      // Add tag via repository
+      await _repository.addTag(imagePath, trimmedTag);
+
+      // Update current images list if the image is visible
+      final updatedCurrentImages = state.currentImages.map((img) {
+        if (img.path == imagePath) {
+          return img.copyWith(tags: [...img.tags, trimmedTag]);
+        }
+        return img;
+      }).toList();
+
+      state = state.copyWith(currentImages: updatedCurrentImages);
+
+      // Update cache
+      final cached = _recordCache.get(imagePath);
+      if (cached != null) {
+        _recordCache.put(imagePath, cached.copyWith(tags: [...cached.tags, trimmedTag]));
+      }
+
+      AppLogger.d('Added tag: $trimmedTag to $imagePath', 'LocalGalleryNotifier');
+      return true;
+    } catch (e) {
+      AppLogger.e('Failed to add tag to $imagePath', e, null, 'LocalGalleryNotifier');
+      return false;
+    }
+  }
+
+  /// 从图片移除标签
+  Future<bool> removeTag(String imagePath, String tag) async {
+    try {
+      // Trim and validate tag
+      final trimmedTag = tag.trim();
+      if (trimmedTag.isEmpty) return false;
+
+      // Check if tag exists
+      final currentTags = _repository.getTags(imagePath);
+      if (!currentTags.contains(trimmedTag)) {
+        return true; // Tag doesn't exist, nothing to remove
+      }
+
+      // Remove tag via repository
+      await _repository.removeTag(imagePath, trimmedTag);
+
+      // Update current images list if the image is visible
+      final updatedCurrentImages = state.currentImages.map((img) {
+        if (img.path == imagePath) {
+          return img.copyWith(tags: img.tags.where((t) => t != trimmedTag).toList());
+        }
+        return img;
+      }).toList();
+
+      state = state.copyWith(currentImages: updatedCurrentImages);
+
+      // Update cache
+      final cached = _recordCache.get(imagePath);
+      if (cached != null) {
+        _recordCache.put(imagePath, cached.copyWith(tags: cached.tags.where((t) => t != trimmedTag).toList()));
+      }
+
+      AppLogger.d('Removed tag: $trimmedTag from $imagePath', 'LocalGalleryNotifier');
+      return true;
+    } catch (e) {
+      AppLogger.e('Failed to remove tag from $imagePath', e, null, 'LocalGalleryNotifier');
+      return false;
+    }
+  }
+
+  /// 设置选中的标签（用于过滤）
+  Future<void> setSelectedTags(List<String> tags) async {
+    // Compare lists regardless of order
+    final currentTags = state.selectedTags;
+    final isSame = currentTags.length == tags.length &&
+        currentTags.every((tag) => tags.contains(tag));
+
+    if (isSame) return;
+
+    state = state.copyWith(selectedTags: tags, isPageLoading: true);
+    await _applyFilters();
+  }
+
+  /// 清除标签过滤
+  Future<void> clearTagFilter() async {
+    await setSelectedTags([]);
   }
 }
