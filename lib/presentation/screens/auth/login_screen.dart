@@ -12,28 +12,54 @@ import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/common/app_toast.dart';
 
 /// 登录页面 - QQ 风格
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   LoginScreen({super.key});
 
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   static const double _wideScreenBreakpoint = 800;
 
   /// 头像服务实例
   final _avatarService = AvatarService();
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final accounts = ref.watch(accountManagerNotifierProvider).accounts;
+  /// Loading Overlay Entry
+  OverlayEntry? _loadingOverlayEntry;
 
-    // 监听登录错误，显示 Toast
+  @override
+  void initState() {
+    super.initState();
+    // 监听认证状态变化，控制 loading overlay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _subscribeToAuthState();
+    });
+  }
+
+  @override
+  void dispose() {
+    _removeLoadingOverlay();
+    super.dispose();
+  }
+
+  /// 订阅认证状态变化
+  void _subscribeToAuthState() {
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      AppLogger.d('[LoginScreen] ref.listen triggered: previous=${previous?.status}, next=${next.status}, hasError=${next.hasError}, errorCode=${next.errorCode}', 'LOGIN');
+      // 监听 loading 状态
+      if (next.isLoading && previous?.isLoading != true) {
+        _showLoadingOverlay();
+      } else if (!next.isLoading && previous?.isLoading == true) {
+        _removeLoadingOverlay();
+      }
+
+      // 监听登录错误，显示 Toast
       if (next.hasError && previous?.errorCode != next.errorCode) {
         AppLogger.d('[LoginScreen] Showing error Toast: ${next.errorCode}', 'LOGIN');
         final errorText =
             _getErrorText(context, next.errorCode!, next.httpStatusCode);
         final errorMessage = context.l10n.auth_error_loginFailed(errorText);
-        
+
         // 使用 Navigator.of 来获取 Overlay
         final overlayState = Navigator.of(context, rootNavigator: true).overlay;
         if (overlayState != null) {
@@ -43,7 +69,7 @@ class LoginScreen extends ConsumerWidget {
         } else {
           AppLogger.w('[LoginScreen] overlay is null!', 'LOGIN');
         }
-        
+
         // 清除错误状态（延迟，让 Toast 有时间显示）
         ref.read(authNotifierProvider.notifier).clearError(delayMs: 500);
       } else if (next.hasError && previous?.errorCode == next.errorCode) {
@@ -51,6 +77,41 @@ class LoginScreen extends ConsumerWidget {
         ref.read(authNotifierProvider.notifier).clearError();
       }
     });
+  }
+
+  /// 显示加载遮罩
+  void _showLoadingOverlay() {
+    if (_loadingOverlayEntry != null) return;
+
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      AppLogger.w('[LoginScreen] Cannot show loading overlay: no overlay found');
+      return;
+    }
+
+    _loadingOverlayEntry = OverlayEntry(
+      builder: (context) => _LoadingOverlayWidget(
+        onDismiss: _removeLoadingOverlay,
+      ),
+    );
+
+    overlay.insert(_loadingOverlayEntry!);
+    AppLogger.d('[LoginScreen] Loading overlay shown');
+  }
+
+  /// 移除加载遮罩
+  void _removeLoadingOverlay() {
+    if (_loadingOverlayEntry == null) return;
+
+    _loadingOverlayEntry?.remove();
+    _loadingOverlayEntry = null;
+    AppLogger.d('[LoginScreen] Loading overlay removed');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accounts = ref.watch(accountManagerNotifierProvider).accounts;
 
     return Scaffold(
       body: LayoutBuilder(
@@ -792,5 +853,100 @@ class LoginScreen extends ConsumerWidget {
       case AuthErrorCode.unknown:
         return l10n.auth_error_unknown;
     }
+  }
+}
+
+/// 加载遮罩 Widget
+class _LoadingOverlayWidget extends StatefulWidget {
+  final VoidCallback onDismiss;
+
+  const _LoadingOverlayWidget({
+    required this.onDismiss,
+  });
+
+  @override
+  State<_LoadingOverlayWidget> createState() => _LoadingOverlayWidgetState();
+}
+
+class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          color: theme.colorScheme.surface.withOpacity(0.7),
+          child: Center(
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      context.l10n.auth_loggingIn,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.l10n.auth_pleaseWait,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -118,6 +118,8 @@
   "auth_autoLogin": "自动登录",
   "auth_forgotPassword": "忘记密码？",
   "auth_passwordTooShort": "密码长度至少6位",
+  "auth_loggingIn": "登录中...",
+  "auth_pleaseWait": "请稍候",
 
   "common_paste": "粘贴",
   "common_default": "默认",

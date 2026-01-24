@@ -123,6 +123,8 @@
   "auth_autoLogin": "Auto login",
   "auth_forgotPassword": "Forgot password?",
   "auth_passwordTooShort": "Password must be at least 6 characters",
+  "auth_loggingIn": "Logging in...",
+  "auth_pleaseWait": "Please wait",
 
   "common_paste": "Paste",
   "common_default": "Default",
