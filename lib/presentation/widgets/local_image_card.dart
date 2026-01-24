@@ -400,12 +400,22 @@ class _LocalImageCardState extends State<LocalImageCard> {
   /// 复制图片到剪贴板
   Future<void> _copyImage(BuildContext context) async {
     try {
+      final sourceFile = File(widget.record.path);
+
+      // 检查源文件是否存在
+      if (!await sourceFile.exists()) {
+        if (context.mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
       await Clipboard.setData(const ClipboardData(text: ''));
       final tempDir = await getTemporaryDirectory();
       final file = File(
         '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
       );
-      await file.writeAsBytes(await File(widget.record.path).readAsBytes());
+      await file.writeAsBytes(await sourceFile.readAsBytes());
 
       await Process.run('powershell', [
         '-command',
@@ -426,6 +436,16 @@ class _LocalImageCardState extends State<LocalImageCard> {
   Future<void> _openInFileManager(BuildContext context) async {
     try {
       final filePath = widget.record.path;
+      final file = File(filePath);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        if (context.mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
       // 使用 explorer /select 打开文件管理器并选中文件
       await Process.run('explorer', ['/select,"$filePath"']);
 
