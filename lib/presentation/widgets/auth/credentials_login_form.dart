@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_mode_provider.dart';
@@ -124,9 +125,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
               Text(context.l10n.auth_autoLogin),
               const Spacer(),
               TextButton(
-                onPressed: () {
-                  // TODO: 忘记密码链接
-                },
+                onPressed: _openPasswordReset,
                 child: Text(context.l10n.auth_forgotPassword),
               ),
             ],
@@ -278,6 +277,14 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   bool _isNetworkError(AuthErrorCode? errorCode) {
     return errorCode == AuthErrorCode.networkTimeout ||
         errorCode == AuthErrorCode.networkError;
+  }
+
+  /// 打开密码重置页面
+  Future<void> _openPasswordReset() async {
+    const url = 'https://novelai.net/forgot-password';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
   }
 
   /// 处理登录
