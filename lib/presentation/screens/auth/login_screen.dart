@@ -35,10 +35,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // 监听认证状态变化，控制 loading overlay
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _subscribeToAuthState();
-    });
   }
 
   @override
@@ -47,8 +43,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  /// 订阅认证状态变化
-  void _subscribeToAuthState() {
+  /// 显示加载遮罩
+  void _showLoadingOverlay() {
+    if (_loadingOverlayEntry != null) return;
+
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      AppLogger.w('[LoginScreen] Cannot show loading overlay: no overlay found');
+      return;
+    }
+
+    _loadingOverlayEntry = OverlayEntry(
+      builder: (context) => _LoadingOverlayWidget(
+        onDismiss: _removeLoadingOverlay,
+      ),
+    );
+
+    overlay.insert(_loadingOverlayEntry!);
+    AppLogger.d('[LoginScreen] Loading overlay shown');
+  }
+
+  /// 移除加载遮罩
+  void _removeLoadingOverlay() {
+    if (_loadingOverlayEntry == null) return;
+
+    _loadingOverlayEntry?.remove();
+    _loadingOverlayEntry = null;
+    AppLogger.d('[LoginScreen] Loading overlay removed');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accountState = ref.watch(accountManagerNotifierProvider);
+    final accounts = accountState.accounts;
+    final isLoading = accountState.isLoading;
+
+    // 监听认证状态变化，控制 loading overlay、错误提示等
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       // 监听 loading 状态
       if (next.isLoading && previous?.isLoading != true) {
@@ -113,43 +144,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ref.read(authNotifierProvider.notifier).clearError();
       }
     });
-  }
-
-  /// 显示加载遮罩
-  void _showLoadingOverlay() {
-    if (_loadingOverlayEntry != null) return;
-
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    if (overlay == null) {
-      AppLogger.w('[LoginScreen] Cannot show loading overlay: no overlay found');
-      return;
-    }
-
-    _loadingOverlayEntry = OverlayEntry(
-      builder: (context) => _LoadingOverlayWidget(
-        onDismiss: _removeLoadingOverlay,
-      ),
-    );
-
-    overlay.insert(_loadingOverlayEntry!);
-    AppLogger.d('[LoginScreen] Loading overlay shown');
-  }
-
-  /// 移除加载遮罩
-  void _removeLoadingOverlay() {
-    if (_loadingOverlayEntry == null) return;
-
-    _loadingOverlayEntry?.remove();
-    _loadingOverlayEntry = null;
-    AppLogger.d('[LoginScreen] Loading overlay removed');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accountState = ref.watch(accountManagerNotifierProvider);
-    final accounts = accountState.accounts;
-    final isLoading = accountState.isLoading;
 
     return Scaffold(
       body: LayoutBuilder(

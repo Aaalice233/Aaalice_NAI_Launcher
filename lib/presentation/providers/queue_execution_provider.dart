@@ -95,15 +95,20 @@ class QueueSettings {
 /// - 错误重试机制
 @Riverpod(keepAlive: true)
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
-  // Note: Generation state is monitored via ref.listen in build(), not via subscription
+  // 用于跟踪上一次的生成状态，以检测状态变化
+  ImageGenerationState? _lastGenerationState;
 
   @override
   QueueExecutionState build() {
-    // 监听生成状态变化
-    ref.listen<ImageGenerationState>(
-      imageGenerationNotifierProvider,
-      (previous, next) => _onGenerationStateChanged(previous, next),
-    );
+    // 使用 ref.watch 监听生成状态变化
+    // 当状态变化时，provider 会重建，我们会检测到变化并处理
+    final generationState = ref.watch(imageGenerationNotifierProvider);
+
+    // 检测状态变化并处理（仅当状态真正改变时）
+    if (_lastGenerationState?.status != generationState.status) {
+      _onGenerationStateChanged(_lastGenerationState, generationState);
+      _lastGenerationState = generationState;
+    }
 
     return const QueueExecutionState();
   }
