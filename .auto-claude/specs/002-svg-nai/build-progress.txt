@@ -835,3 +835,225 @@ Git Commit:
 
 === END SESSION 9 ===
 
+=== SESSION 10 STARTED ===
+
+Date: 2026-01-24
+Agent: Coder Agent
+Phase: Phase 3 (Implement Fix)
+Subtask: 3-2 (Remove temporary diagnostic code added in Phase 1)
+
+Implementation Completed:
+
+Task: Remove temporary diagnostic code added during Phase 1 investigation
+
+Files Modified:
+1. lib/presentation/screens/auth/login_screen.dart
+
+Diagnostic Code Removed:
+1. Removed _logIconTheme() method (lines 42-54)
+   - This method logged Icon theme information for debugging
+   - Logged IconTheme.color, IconTheme.size, ColorScheme.primary, ColorScheme.onSurface
+   - Tag: 'ICON_RENDER' for filtering diagnostic logs
+
+2. Removed _buildLoggedIcon() wrapper helper (lines 57-83)
+   - This method wrapped Icon() widget creation with logging
+   - Logged location, icon type, size, and color for each icon
+   - Used to track icon rendering during investigation phase
+
+3. Removed call to _logIconTheme() in initState() (line 38)
+   - Diagnostic call removed from initialization
+
+4. Replaced all _buildLoggedIcon() calls with standard Icon() widgets:
+   - Troubleshooting button icon (Icons.help_outline)
+   - Header app icon (Icons.auto_awesome)
+   - Quick login dropdown icons (Icons.arrow_drop_down) - 2 instances
+   - Quick login button icon (Icons.login)
+   - Add account button icon (Icons.add)
+   - Dialog close icons (Icons.close) - 2 instances
+   - Account list icons (Icons.check, Icons.delete_outline) - 2 instances
+   - Avatar option icons (Icons.photo_library, Icons.camera_alt, Icons.delete_outline) - 3 instances
+
+Total icon replacements: 13 instances
+
+Code Quality:
+✅ Follows patterns from reference files (standard Icon widget usage)
+✅ No console.log/print debugging statements remain
+✅ All diagnostic logs removed
+✅ Error handling in place (inherited from existing code)
+✅ Clean commit with descriptive message
+
+Verification Command Run:
+grep -r "AppLogger.d.*icon\|DEBUG.*icon" lib/ || echo 'No diagnostic logs found'
+
+Result: ✅ PASS - No diagnostic logs found in production code
+
+Git Commit:
+- Hash: e16e2ee
+- Message: "auto-claude: subtask-3-2 - Remove temporary diagnostic code added in Phase 1"
+- Files changed: 2 files (lib/presentation/screens/auth/login_screen.dart + spec files)
+- Lines: +17 insertions, -91 deletions (net removal of 74 lines)
+
+Quality Checklist Verification:
+✅ Follows patterns from reference files (standard Icon widget usage restored)
+✅ No console.log/print debugging statements
+✅ Error handling in place
+✅ Verification passes (grep confirms no diagnostic logs remain)
+✅ Clean commit with descriptive message
+✅ Focus maintained on this subtask only (no unrelated modifications)
+
+Next Steps:
+1. Proceed to subtask-3-3 (Test icon rendering across all theme presets)
+2. User must manually test across all 16 theme presets (light and dark variants)
+3. Document any themes with remaining icon visibility issues
+4. Phase 3 will be complete after subtask-3-3 verification
+5. Then proceed to Phase 4 (Harden and Prevent Recurrence)
+
+=== END SESSION 10 ===
+
+=== SESSION 11 STARTED ===
+
+Date: 2026-01-24
+Agent: Coder Agent
+Phase: Phase 3 (Implement Fix)
+Subtask: 3-3 (Test icon rendering across all theme presets)
+
+Implementation Completed:
+
+Task: Create comprehensive testing framework for manual verification of icon
+rendering across all 16 theme presets (both light and dark modes).
+
+Environment Constraints:
+- GUI application testing requires manual visual verification
+- Cannot automate theme switching in CLI environment
+- User must perform actual testing with running application
+
+Testing Framework Created:
+
+1. SUBTASK-3-3-THEME-TESTING-GUIDE.md (Comprehensive Testing Guide)
+   - Detailed testing prerequisites and setup
+   - Complete list of 16 theme presets with file locations
+   - Step-by-step testing procedure for each theme
+   - Expected results (PASS/FAIL/PARTIAL criteria)
+   - Issues found log template
+   - Quick reference icon location diagrams
+   - Testing tips and best practices
+   - Completion criteria checklist
+   - Next steps based on test results
+
+2. THEME-TESTING-CHECKLIST.md (Quick Reference Checklist)
+   - Print-friendly format for testing
+   - 16 theme presets in table format
+   - Light and dark mode sections
+   - Quick decision guide for icon visibility
+   - Summary totals template
+   - Troubleshooting section
+   - Expected completion criteria
+
+Key Testing Points:
+
+Primary Icons (Must Verify):
+- Icons.auto_awesome (App Icon) - 80x80 container in header
+  * Color: theme.colorScheme.primary
+  * Background: theme.colorScheme.primaryContainer
+  * Expected: Star/sparkle glyph clearly visible
+
+- Icons.add (Add Account Button) - Below account list
+  * Color: Inherits from iconTheme.color → colorScheme.onPrimary
+  * Background: Card/button background
+  * Expected: Plus sign glyph clearly visible
+
+Secondary Icons (Sample Verification):
+- Icons.close, Icons.help_outline, Icons.login, Icons.check, Icons.delete_outline
+- Icons.photo_library, Icons.camera_alt (avatar options)
+- Test in at least 5 themes to verify consistent behavior
+
+16 Theme Presets to Test:
+1. Minimal Glass
+2. Social
+3. Neo Dark
+4. Material You (reference pattern - should work perfectly)
+5. Pro AI
+6. Brutalist
+7. Hand Drawn
+8. Retro
+9. Apple Light
+10. Retro Wave
+11. Grunge Collage
+12. Fluid Saturated
+13. Flat Design
+14. Midnight Editorial
+15. System
+16. Zen Minimalist
+
+Testing Modes:
+- Light mode: All 16 themes
+- Dark mode: All themes that support dark mode (most do)
+
+Expected Results Based on Fix Applied:
+
+Root Cause Fixed (Subtask 3-1):
+- Added explicit primaryContainer to all 15 theme palettes missing it
+- Added iconTheme to ThemeComposer with onPrimary color (high contrast)
+- Removed temporary test colors from subtask 2-2
+
+Expected Behavior:
+- Icons.auto_awesome: primary color on primaryContainer background
+  * Should now have adequate contrast (primaryContainer explicitly defined)
+  * Glyph should be clearly visible in all themes
+
+- Icons.add: Inherits iconTheme.color (onPrimary)
+  * Should have high contrast against most backgrounds
+  * Plus sign glyph clearly visible
+
+- Secondary icons: All inherit from iconTheme
+  * Consistent rendering across all themes
+  * No color block issues
+
+Success Criteria:
+✅ All 16 themes in light mode: Icons visible
+✅ All dark mode variants: Icons visible
+✅ No icons appear as "color blocks"
+✅ Icon glyphs clearly recognizable
+⚠️ Some themes may have low contrast (by design)
+❌ Any complete failures indicate regression
+
+Verification Status:
+⏳ Manual verification required - User must:
+1. Run application: E:\flutter\bin\flutter.bat run -d windows
+2. Follow SUBTASK-3-3-THEME-TESTING-GUIDE.md instructions
+3. Use THEME-TESTING-CHECKLIST.md to track progress
+4. Test all 16 themes in light mode
+5. Test applicable themes in dark mode
+6. Document results in both files
+7. Report summary (pass/partial/fail counts)
+
+Quality Checklist Verification:
+✅ Testing framework comprehensive and clear
+✅ All 16 theme presets documented
+✅ Icon locations specified
+✅ Expected results defined
+✅ PASS/FAIL criteria unambiguous
+✅ Troubleshooting section included
+✅ Next steps based on results provided
+
+Files Created:
+- ./.auto-claude/specs/002-svg-nai/SUBTASK-3-3-THEME-TESTING-GUIDE.md (comprehensive guide)
+- ./.auto-claude/specs/002-svg-nai/THEME-TESTING-CHECKLIST.md (quick reference)
+
+Next Steps:
+1. User performs manual testing using provided guides
+2. User documents results in THEME-TESTING-CHECKLIST.md
+3. User reports summary status:
+   - If all ✅: Proceed to Phase 4 (Harden and Prevent Recurrence)
+   - If ⚠️ > 5: May need contrast refinement
+   - If ❌ > 0: Regression investigation needed
+4. Update implementation_plan.json based on results
+5. Commit testing documentation and results
+
+Phase 3 Status:
+- Subtask 3-1: ✅ Completed (Fix applied)
+- Subtask 3-2: ✅ Completed (Diagnostic code removed)
+- Subtask 3-3: ⏳ In Progress (Testing framework created, awaiting user verification)
+
+=== END SESSION 11 ===
+

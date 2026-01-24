@@ -182,20 +182,23 @@
             "command": "grep -r \"AppLogger.d.*icon\\|DEBUG.*icon\" lib/ || echo 'No diagnostic logs found'",
             "expected": "No diagnostic logs remain in production code"
           },
-          "status": "pending"
+          "status": "completed"
         },
         {
           "id": "subtask-3-3",
           "description": "Test icon rendering across all theme presets",
           "service": "Flutter App",
           "files_to_modify": [],
-          "files_to_create": [],
+          "files_to_create": [
+            ".auto-claude/specs/002-svg-nai/SUBTASK-3-3-THEME-TESTING-GUIDE.md",
+            ".auto-claude/specs/002-svg-nai/THEME-TESTING-CHECKLIST.md"
+          ],
           "patterns_from": [],
           "verification": {
             "type": "manual",
-            "instructions": "1. Switch between all 16 theme presets\n2. Verify icons render correctly in each theme\n3. Test both light and dark mode variants\n4. Document any themes with remaining issues"
+            "instructions": "1. Switch between all 16 theme presets\n2. Verify icons render correctly in each theme\n3. Test both light and dark mode variants\n4. Document any themes with remaining issues\n5. Use SUBTASK-3-3-THEME-TESTING-GUIDE.md for detailed instructions\n6. Use THEME-TESTING-CHECKLIST.md to track progress"
           },
-          "status": "pending"
+          "status": "in_progress"
         }
       ]
     },
@@ -427,6 +430,6 @@
   "qa_signoff": null,
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-01-24T11:39:08.343Z",
+  "updated_at": "2026-01-24T11:42:13.628Z",
   "recoveryNote": "Task recovered from stuck state at 2026-01-24T11:38:38.452Z"
 }
