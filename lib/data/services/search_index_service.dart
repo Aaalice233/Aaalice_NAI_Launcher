@@ -1,10 +1,14 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
+
+part 'search_index_service.g.dart';
 
 /// 搜索索引服务
 ///
@@ -437,4 +441,15 @@ class SearchIndexService {
       ),
     );
   }
+}
+
+/// SearchIndexService Provider
+@riverpod
+SearchIndexService searchIndexService(Ref ref) {
+  final service = SearchIndexService();
+  // Initialize the service when provider is first read
+  ref.onDispose(() {
+    // Cleanup if needed
+  });
+  return service;
 }

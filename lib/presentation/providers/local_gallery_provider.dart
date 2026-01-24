@@ -8,6 +8,7 @@ import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/lru_cache_service.dart';
+import '../../data/services/search_index_service.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -62,12 +63,25 @@ class LocalGalleryState with _$LocalGalleryState {
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   late final LocalGalleryRepository _repository;
   late final LruCacheService _recordCache;
+  late final SearchIndexService _searchIndex;
 
   @override
   LocalGalleryState build() {
     _repository = LocalGalleryRepository.instance;
     _recordCache = ref.read(lruCacheServiceProvider);
+    _searchIndex = ref.read(searchIndexServiceProvider);
+    // Initialize search index service
+    _initSearchIndex();
     return const LocalGalleryState();
+  }
+
+  /// 初始化搜索索引服务
+  Future<void> _initSearchIndex() async {
+    try {
+      await _searchIndex.init();
+    } catch (e) {
+      AppLogger.e('Failed to initialize search index service', e, null, 'LocalGalleryNotifier');
+    }
   }
 
   /// 初始化：快速索引文件 + 加载首页
@@ -109,11 +123,26 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // 缓存记录用于搜索
       for (final record in records) {
         _recordCache.put(record.path, record);
+        // 索引记录到搜索索引（异步，不阻塞UI）
+        _indexRecordInBackground(record);
       }
 
       state = state.copyWith(currentImages: records, isPageLoading: false);
     } catch (e) {
       state = state.copyWith(isPageLoading: false, error: e.toString());
+    }
+  }
+
+  /// 在后台索引记录到搜索索引
+  Future<void> _indexRecordInBackground(LocalImageRecord record) async {
+    try {
+      // 只索引有元数据的记录
+      if (record.metadata != null && record.metadataStatus != MetadataStatus.none) {
+        await _searchIndex.indexDocument(record);
+      }
+    } catch (e) {
+      // 索引失败不影响主流程，静默处理
+      AppLogger.d('Failed to index record: ${record.path}', 'LocalGalleryNotifier');
     }
   }
 
@@ -177,10 +206,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           final modifiedAt = stat.modified;
 
           if (dateStart != null && modifiedAt.isBefore(dateStart)) return false;
-          if (dateEnd != null &&
-              modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) {
-            return false;
-          }
+          if (dateEnd != null && modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) return false;
 
           return true;
         } catch (_) {
@@ -200,7 +226,32 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return;
     }
 
-    // 有搜索关键词：需要加载记录进行 Prompt 匹配
+    // 有搜索关键词：优先使用搜索索引
+    try {
+      // 如果搜索索引不为空，使用索引进行快速搜索
+      if (!_searchIndex.isEmpty) {
+        final searchedRecords = await _searchIndex.search(query, limit: 10000);
+
+        // 将搜索结果转换为 File 对象集合
+        final searchedPaths = searchedRecords.map((r) => r.path).toSet();
+
+        // 过滤出同时满足搜索结果和日期过滤的文件
+        final filtered = dateFiltered.where((file) => searchedPaths.contains(file.path)).toList();
+
+        state = state.copyWith(
+          filteredFiles: filtered,
+          currentPage: 0,
+          isPageLoading: false,
+        );
+        await loadPage(0);
+        return;
+      }
+    } catch (e) {
+      AppLogger.w('Search index query failed, falling back to manual search: $e', 'LocalGalleryNotifier');
+      // 继续使用原有的手动搜索逻辑
+    }
+
+    // 回退到手动搜索（搜索索引为空或查询失败时）
     // 先按文件名过滤，减少需要加载的记录数
     final fileNameMatched = <File>[];
     final needPromptCheck = <File>[];
