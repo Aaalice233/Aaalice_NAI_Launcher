@@ -93,11 +93,29 @@ GoRouter appRouter(Ref ref) {
 
     // 路由配置
     routes: [
-      // 登录页
+      // 登录页 - 使用自定义页面过渡动画
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => LoginScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // 使用淡入淡出 + 轻微垂直位移的组合动画
+            // 与 login_form_container.dart 保持一致的动画风格
+            return FadeTransition(
+              opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
+                  end: Offset.zero,
+                ).animate(CurveTween(curve: Curves.easeOutCubic).animate(animation)),
+                child: child,
+              ),
+            );
+          },
+        ),
       ),
 
       // 主页 Shell - 使用 StatefulShellRoute 实现混合保活
@@ -117,12 +135,32 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: 'home',
-                builder: (context, state) => const GenerationScreen(),
+                pageBuilder: (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const GenerationScreen(),
+                  transitionDuration: const Duration(milliseconds: 300),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(
+                      opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                      child: child,
+                    );
+                  },
+                ),
               ),
               GoRoute(
                 path: AppRoutes.generation,
                 name: 'generation',
-                builder: (context, state) => const GenerationScreen(),
+                pageBuilder: (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const GenerationScreen(),
+                  transitionDuration: const Duration(milliseconds: 300),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(
+                      opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                      child: child,
+                    );
+                  },
+                ),
               ),
             ],
           ),
