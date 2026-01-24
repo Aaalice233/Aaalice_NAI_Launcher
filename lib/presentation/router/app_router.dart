@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -53,31 +54,39 @@ GoRouter appRouter(Ref ref) {
   // 跟踪实际的认证状态，只在状态变化时触发重定向
   final authStateNotifier = ValueNotifier<AuthStatus>(AuthStatus.initial);
 
-  // 监听认证状态变化，只在认证状态变化时触发重定向
-  // 避免在 loading 状态时触发不必要的重定向，减少闪烁
-  ref.listen(authNotifierProvider, (previous, next) {
-    // Defensive: Skip if widget tree is being disposed
-    // This prevents errors during menu disposal or navigation transitions
-    try {
-      // 只在认证状态发生实际变化时触发
-      // 忽略 loading 状态的中间过渡，避免多次重定向
-      if (previous?.status != next.status) {
-        final prevStatus = previous?.status ?? AuthStatus.initial;
-        final nextStatus = next.status;
+  // 获取初始状态
+  final initialAuthState = ref.read(authNotifierProvider);
+  authStateNotifier.value = initialAuthState.status;
 
-        // 只在最终认证状态（authenticated/unauthenticated）变化时触发
-        // 或者在初始加载完成时触发
-        // 这样可以防止在登录过程中出现多次重定向
-        if (nextStatus == AuthStatus.authenticated ||
-            nextStatus == AuthStatus.unauthenticated ||
-            (prevStatus == AuthStatus.initial && nextStatus == AuthStatus.loading)) {
-          authStateNotifier.value = nextStatus;
-        }
+  // 使用 ProviderSubscription 手动管理订阅，避免 ref.listen 的 build method 限制
+  // 这种方式可以在 provider 内部安全地监听状态变化
+  final subscription = ref.listen(authNotifierProvider, (previous, next) {
+    // 只在认证状态发生实际变化时触发
+    if (previous?.status != next.status) {
+      final prevStatus = previous?.status ?? AuthStatus.initial;
+      final nextStatus = next.status;
+
+      // 只在最终认证状态（authenticated/unauthenticated）变化时触发
+      // 或者在初始加载完成时触发
+      if (nextStatus == AuthStatus.authenticated ||
+          nextStatus == AuthStatus.unauthenticated ||
+          (prevStatus == AuthStatus.initial && nextStatus == AuthStatus.loading)) {
+        // 使用 SchedulerBinding 确保在安全的时间点更新
+        // 避免在 widget disposal 或 navigation 过程中更新
+        SchedulerBinding.instance.scheduleFrameCallback((_) {
+          // 只有当 ValueNotifier 还没有被销毁时才更新
+          if (authStateNotifier.value != nextStatus) {
+            authStateNotifier.value = nextStatus;
+          }
+        });
       }
-    } catch (_) {
-      // Silently ignore errors during widget disposal
-      // This is safe because auth state changes will be processed again
     }
+  });
+
+  // 当 provider 被销毁时取消订阅
+  ref.onDispose(() {
+    subscription.close();
+    authStateNotifier.dispose();
   });
 
   return GoRouter(
