@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 
@@ -272,5 +273,39 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     _recordCache.clear(); // 清除缓存
     state = const LocalGalleryState(); // Reset
     await initialize();
+  }
+
+  /// 删除图片
+  Future<bool> deleteImage(String imagePath) async {
+    try {
+      final file = File(imagePath);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        return false;
+      }
+
+      // 删除文件
+      await file.delete();
+
+      // 从缓存中移除
+      _recordCache.remove(imagePath);
+
+      // 从状态中移除文件
+      final updatedAllFiles = state.allFiles.where((f) => f.path != imagePath).toList();
+      final updatedFilteredFiles = state.filteredFiles.where((f) => f.path != imagePath).toList();
+      final updatedCurrentImages = state.currentImages.where((img) => img.path != imagePath).toList();
+
+      state = state.copyWith(
+        allFiles: updatedAllFiles,
+        filteredFiles: updatedFilteredFiles,
+        currentImages: updatedCurrentImages,
+      );
+
+      return true;
+    } catch (e) {
+      AppLogger.e('Failed to delete image: $imagePath', e, null, 'LocalGalleryNotifier');
+      return false;
+    }
   }
 }

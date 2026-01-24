@@ -672,6 +672,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               ref.read(localGallerySelectionNotifierProvider.notifier).enterAndSelect(record.path);
             }
           },
+          onDeleted: () {
+            // 刷新当前页
+            ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage);
+          },
         );
       },
     );

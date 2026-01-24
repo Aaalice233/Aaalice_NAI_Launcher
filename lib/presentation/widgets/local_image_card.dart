@@ -21,6 +21,7 @@ class LocalImageCard extends StatefulWidget {
   final bool isSelected;
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
+  final VoidCallback? onDeleted;
 
   const LocalImageCard({
     super.key,
@@ -30,6 +31,7 @@ class LocalImageCard extends StatefulWidget {
     this.isSelected = false,
     this.onSelectionToggle,
     this.onLongPress,
+    this.onDeleted,
   });
 
   @override
@@ -180,6 +182,22 @@ class _LocalImageCardState extends State<LocalImageCard> {
             Future.delayed(const Duration(milliseconds: 100), () {
               if (mounted) {
                 _showDetailsDialog();
+              }
+            });
+          },
+        ),
+        PopupMenuItem(
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: Theme.of(context).colorScheme.error),
+              const SizedBox(width: 8),
+              Text('删除图片', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
+          ),
+          onTap: () {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) {
+                _showDeleteConfirmationDialog();
               }
             });
           },
@@ -494,6 +512,65 @@ class _LocalImageCardState extends State<LocalImageCard> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, '分享失败: $e');
+      }
+    }
+  }
+
+  /// 显示删除确认对话框
+  Future<void> _showDeleteConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text(
+          '确定要删除图片「${path.basename(widget.record.path)}」吗？\n\n此操作将从文件系统中永久删除该图片，无法恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteImage();
+    }
+  }
+
+  /// 删除图片
+  Future<void> _deleteImage() async {
+    try {
+      final file = File(widget.record.path);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        if (mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      // 删除文件
+      await file.delete();
+
+      if (mounted) {
+        AppToast.success(context, '图片已删除');
+        // 通知父组件刷新
+        widget.onDeleted?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '删除失败: $e');
       }
     }
   }
