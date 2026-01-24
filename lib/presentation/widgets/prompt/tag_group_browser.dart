@@ -113,7 +113,11 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
             itemCount: enabledCategories.length,
             itemBuilder: (context, index) {
               final category = enabledCategories[index];
-              final tags = library.getCategory(category);
+              // 根据分类过滤配置获取标签，尊重 Danbooru 补充设置
+              final tags = library.getFilteredCategory(
+                category,
+                includeDanbooruSupplement: categoryFilter.isEnabled(category),
+              );
               final tagTexts = tags.map((t) => t.tag).toList();
               final tagCount = tagTexts.length;
 
