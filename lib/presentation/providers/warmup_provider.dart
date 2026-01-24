@@ -198,6 +198,20 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 9. 预加载图片缓存（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_imageCache',
+        weight: 1,
+        task: () async {
+          // Stub implementation for image cache warmup
+          AppLogger.i('Image cache warmup (stub)', 'Warmup');
+          // Placeholder for future image cache initialization (e.g., preloading common images, cache size configuration, memory limits)
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
   }
 
   /// 开始预加载
