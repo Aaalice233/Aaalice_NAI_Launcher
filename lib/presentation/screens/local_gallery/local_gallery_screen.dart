@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -269,173 +270,155 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
 
     if (selectionState.isActive) {
-      return Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          border: Border(
-            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
-          ),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => ref
-                  .read(localGallerySelectionNotifierProvider.notifier)
-                  .exit(),
-              tooltip: '退出多选',
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '已选择 ${selectionState.selectedIds.length} 项',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
+      return ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withOpacity(0.7),
+              border: Border(
+                bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
               ),
             ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.playlist_add),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _addSelectedToQueue
-                  : null,
-              tooltip: '加入队列',
+            child: Row(
+              children: [
+                _RoundedIconButton(
+                  icon: Icons.close,
+                  tooltip: '退出多选',
+                  onPressed: () => ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '已选择 ${selectionState.selectedIds.length} 项',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                _RoundedIconButton(
+                  icon: Icons.playlist_add,
+                  tooltip: '加入队列',
+                  onPressed: selectionState.selectedIds.isNotEmpty ? _addSelectedToQueue : null,
+                ),
+                // 本地画廊不需要批量下载和收藏
+              ],
             ),
-            // 本地画廊不需要批量下载和收藏
-          ],
+          ),
         ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withOpacity(0.8),
+            border: Border(
+              bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+            ),
+          ),
+          child: Column(
+            children: [
+              // 第一行：标题 + 操作按钮
+              Row(
+                children: [
+                  Text(
+                    '本地画廊',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 图片计数
+                  if (!state.isIndexing)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        state.hasFilters
+                            ? '${state.filteredCount} / ${state.totalCount}'
+                            : '${state.totalCount}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  // 多选模式切换
+                  _RoundedIconButton(
+                    icon: Icons.checklist,
+                    tooltip: '多选模式',
+                    onPressed: () {
+                      ref.read(localGallerySelectionNotifierProvider.notifier).enter();
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  // 打开文件夹按钮
+                  _RoundedTextButton(
+                    icon: Icons.folder_open,
+                    label: '打开文件夹',
+                    onPressed: _openImageFolder,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  // 刷新按钮
+                  if (state.isIndexing)
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else
+                    _RoundedTextButton(
+                      icon: Icons.refresh,
+                      label: '刷新',
+                      onPressed: () {
+                        ref.read(localGalleryNotifierProvider.notifier).refresh();
+                      },
+                      color: theme.colorScheme.secondary,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // 第二行：搜索框 + 日期过滤
+              Row(
+                children: [
+                  // 搜索框
+                  Expanded(
+                    child: _buildSearchField(theme, state),
+                  ),
+                  const SizedBox(width: 12),
+                  // 日期过滤按钮
+                  _buildDateRangeButton(theme, state),
+                  // 清除过滤按钮
+                  if (state.hasFilters) ...[
+                    const SizedBox(width: 8),
+                    _RoundedIconButton(
+                      icon: Icons.filter_alt_off,
+                      tooltip: '清除所有过滤',
+                      onPressed: () {
+                        _searchController.clear();
+                        ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+                      },
+                      color: theme.colorScheme.error,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          // 第一行：标题 + 操作按钮
-          Row(
-            children: [
-              Text(
-                '本地画廊',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // 图片计数
-              if (!state.isIndexing)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    state.hasFilters
-                        ? '${state.filteredCount} / ${state.totalCount}'
-                        : '${state.totalCount}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              const Spacer(),
-              // 多选模式切换
-              IconButton(
-                icon: const Icon(Icons.checklist),
-                tooltip: '多选模式',
-                onPressed: () {
-                  ref
-                      .read(localGallerySelectionNotifierProvider.notifier)
-                      .enter();
-                },
-              ),
-              const SizedBox(width: 8),
-              // 打开文件夹按钮
-              TextButton.icon(
-                onPressed: _openImageFolder,
-                icon: const Icon(Icons.folder_open, size: 18),
-                label: const Text('打开文件夹'),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
-                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // 刷新按钮
-              if (state.isIndexing)
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else
-                TextButton.icon(
-                  onPressed: () {
-                    ref.read(localGalleryNotifierProvider.notifier).refresh();
-                  },
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('刷新'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.secondary,
-                    backgroundColor:
-                        theme.colorScheme.secondary.withOpacity(0.1),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 第二行：搜索框 + 日期过滤
-          Row(
-            children: [
-              // 搜索框
-              Expanded(
-                child: _buildSearchField(theme, state),
-              ),
-              const SizedBox(width: 12),
-              // 日期过滤按钮
-              _buildDateRangeButton(theme, state),
-              // 清除过滤按钮
-              if (state.hasFilters) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .clearAllFilters();
-                  },
-                  icon: const Icon(Icons.filter_alt_off, size: 20),
-                  tooltip: '清除所有过滤',
-                  style: IconButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -714,6 +697,120 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           },
         );
       },
+    );
+  }
+}
+
+/// 圆角图标按钮（带悬停动画）
+class _RoundedIconButton extends StatefulWidget {
+  final IconData icon;
+  final String? tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+
+  const _RoundedIconButton({
+    required this.icon,
+    this.tooltip,
+    this.onPressed,
+    this.color,
+  });
+
+  @override
+  State<_RoundedIconButton> createState() => _RoundedIconButtonState();
+}
+
+class _RoundedIconButtonState extends State<_RoundedIconButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final effectiveColor = widget.color ?? theme.colorScheme.onSurfaceVariant;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: _isHovered
+              ? effectiveColor.withOpacity(0.15)
+              : effectiveColor.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: effectiveColor.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: IconButton(
+          icon: Icon(widget.icon),
+          tooltip: widget.tooltip,
+          onPressed: widget.onPressed,
+          color: effectiveColor,
+          style: IconButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 圆角文本按钮（带悬停动画）
+class _RoundedTextButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final Color color;
+
+  const _RoundedTextButton({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+    required this.color,
+  });
+
+  @override
+  State<_RoundedTextButton> createState() => _RoundedTextButtonState();
+}
+
+class _RoundedTextButtonState extends State<_RoundedTextButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: _isHovered
+              ? widget.color.withOpacity(0.2)
+              : widget.color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: widget.color.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: TextButton.icon(
+          onPressed: widget.onPressed,
+          icon: Icon(widget.icon, size: 18),
+          label: Text(widget.label),
+          style: TextButton.styleFrom(
+            foregroundColor: widget.color,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
