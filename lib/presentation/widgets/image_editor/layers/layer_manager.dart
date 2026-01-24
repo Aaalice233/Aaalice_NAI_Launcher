@@ -509,6 +509,28 @@ class LayerManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 变换所有图层内容以适应新画布尺寸
+  ///
+  /// [oldSize] 原画布尺寸
+  /// [newSize] 新画布尺寸
+  /// [mode] 变换模式
+  void transformAllLayers(Size oldSize, Size newSize, CanvasResizeMode mode) {
+    if (oldSize == newSize) return;
+
+    // 使用批量操作优化，只触发一次通知
+    beginBatch();
+    try {
+      for (final layer in _layers) {
+        layer.transformContent(oldSize, newSize, mode);
+      }
+      _pendingContentChange = true;
+    } finally {
+      endBatch();
+    }
+
+    invalidateSnapshot();
+  }
+
   /// 更新所有缩略图
   Future<void> updateAllThumbnails(Size canvasSize) async {
     if (_isUpdatingThumbnails) return;
