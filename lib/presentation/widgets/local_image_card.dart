@@ -5,11 +5,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
+import 'prompt/random_manager/components/pro_context_menu.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）
 class LocalImageCard extends StatefulWidget {
@@ -19,6 +22,7 @@ class LocalImageCard extends StatefulWidget {
   final bool isSelected;
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
+  final VoidCallback? onDeleted;
 
   const LocalImageCard({
     super.key,
@@ -28,6 +32,7 @@ class LocalImageCard extends StatefulWidget {
     this.isSelected = false,
     this.onSelectionToggle,
     this.onLongPress,
+    this.onDeleted,
   });
 
   @override
@@ -53,88 +58,104 @@ class _LocalImageCardState extends State<LocalImageCard> {
       return;
     }
 
-    final RenderBox? overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final menuPosition = position ?? const Offset(100, 100);
 
-    showMenu(
-      context: context,
-      position: position != null
-          ? RelativeRect.fromRect(
-              position & const Size(40, 40),
-              Offset.zero & overlay!.size,
-            )
-          : const RelativeRect.fromLTRB(100, 100, 100, 100),
-      items: [
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.content_copy, size: 18),
-              SizedBox(width: 8),
-              Text('复制 Prompt'),
-            ],
-          ),
+    final items = <ProMenuItem>[
+      ProMenuItem(
+        id: 'copy_prompt',
+        label: '复制 Prompt',
+        icon: Icons.content_copy,
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
+          if (mounted) {
+            AppToast.success(context, 'Prompt 已复制');
+          }
+        },
+      ),
+      if (metadata.negativePrompt.isNotEmpty)
+        ProMenuItem(
+          id: 'copy_negative',
+          label: '复制负向提示词',
+          icon: Icons.content_copy_outlined,
           onTap: () {
-            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                AppToast.success(context, 'Prompt 已复制');
-              }
-            });
+            Clipboard.setData(ClipboardData(text: metadata.negativePrompt));
+            if (mounted) {
+              AppToast.success(context, '负向提示词已复制');
+            }
           },
         ),
-        if (metadata.negativePrompt.isNotEmpty)
-          PopupMenuItem(
-            child: const Row(
-              children: [
-                Icon(Icons.content_copy_outlined, size: 18),
-                SizedBox(width: 8),
-                Text('复制负向提示词'),
-              ],
-            ),
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: metadata.negativePrompt));
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  AppToast.success(context, '负向提示词已复制');
-                }
-              });
-            },
-          ),
-        if (metadata.seed != null)
-          PopupMenuItem(
-            child: const Row(
-              children: [
-                Icon(Icons.tag, size: 18),
-                SizedBox(width: 8),
-                Text('复制 Seed'),
-              ],
-            ),
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: metadata.seed.toString()));
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  AppToast.success(context, 'Seed 已复制');
-                }
-              });
-            },
-          ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.info_outline, size: 18),
-              SizedBox(width: 8),
-              Text('查看详情'),
-            ],
-          ),
+      if (metadata.seed != null)
+        ProMenuItem(
+          id: 'copy_seed',
+          label: '复制 Seed',
+          icon: Icons.tag,
           onTap: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                _showDetailsDialog();
-              }
-            });
+            Clipboard.setData(ClipboardData(text: metadata.seed.toString()));
+            if (mounted) {
+              AppToast.success(context, 'Seed 已复制');
+            }
           },
         ),
-      ],
+      ProMenuItem(
+        id: 'copy_image',
+        label: '复制图片',
+        icon: Icons.copy,
+        onTap: () {
+          if (mounted) {
+            _copyImage(context);
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'open_file',
+        label: '在文件管理器中打开',
+        icon: Icons.folder_open,
+        onTap: () {
+          if (mounted) {
+            _openInFileManager(context);
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'share',
+        label: '分享图片',
+        icon: Icons.share,
+        onTap: () {
+          if (mounted) {
+            _shareImage(context);
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'details',
+        label: '查看详情',
+        icon: Icons.info_outline,
+        onTap: () {
+          if (mounted) {
+            _showDetailsDialog();
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'delete',
+        label: '删除图片',
+        icon: Icons.delete_outline,
+        onTap: () {
+          if (mounted) {
+            _showDeleteConfirmationDialog();
+          }
+        },
+      ),
+    ];
+
+    Navigator.of(context).push(
+      _ContextMenuRoute(
+        position: menuPosition,
+        items: items,
+        onSelect: (item) {
+          // Item onTap is already called
+        },
+      ),
     );
   }
 
@@ -156,7 +177,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
             child: Container(
               width: MediaQuery.of(context).size.width * 0.9,
               height: MediaQuery.of(context).size.height * 0.9,
-              constraints: const BoxConstraints(maxWidth: 1400, maxHeight: 1000),
+              constraints:
+                  const BoxConstraints(maxWidth: 1400, maxHeight: 1000),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
@@ -172,7 +194,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isDesktop = constraints.maxWidth > 800;
-                  
+
                   final closeButton = IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
@@ -220,11 +242,14 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                 Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         '图片详情',
-                                        style: Theme.of(context).textTheme.titleLarge,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge,
                                       ),
                                       closeButton,
                                     ],
@@ -235,7 +260,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                 Expanded(
                                   child: SingleChildScrollView(
                                     padding: const EdgeInsets.all(16),
-                                    child: _buildMetadataContent(context, metadata),
+                                    child: _buildMetadataContent(
+                                        context, metadata),
                                   ),
                                 ),
                                 // 底部操作栏
@@ -247,8 +273,10 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                       Expanded(
                                         child: ElevatedButton.icon(
                                           onPressed: () {
-                                            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-                                            AppToast.success(context, 'Prompt 已复制');
+                                            Clipboard.setData(ClipboardData(
+                                                text: metadata.fullPrompt));
+                                            AppToast.success(
+                                                context, 'Prompt 已复制');
                                           },
                                           icon: const Icon(Icons.copy),
                                           label: const Text('复制 Prompt'),
@@ -292,21 +320,28 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   Padding(
                                     padding: const EdgeInsets.all(8.0),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           '图片详情',
-                                          style: Theme.of(context).textTheme.titleMedium,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
                                         ),
                                         ElevatedButton.icon(
                                           onPressed: () {
-                                            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-                                            AppToast.success(context, 'Prompt 已复制');
+                                            Clipboard.setData(ClipboardData(
+                                                text: metadata.fullPrompt));
+                                            AppToast.success(
+                                                context, 'Prompt 已复制');
                                           },
-                                          icon: const Icon(Icons.copy, size: 16),
+                                          icon:
+                                              const Icon(Icons.copy, size: 16),
                                           label: const Text('复制 Prompt'),
                                           style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 8),
                                           ),
                                         ),
                                       ],
@@ -316,7 +351,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   Expanded(
                                     child: SingleChildScrollView(
                                       padding: const EdgeInsets.all(16),
-                                      child: _buildMetadataContent(context, metadata),
+                                      child: _buildMetadataContent(
+                                          context, metadata),
                                     ),
                                   ),
                                 ],
@@ -331,7 +367,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                           child: CircleAvatar(
                             backgroundColor: Colors.black54,
                             child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
+                              icon:
+                                  const Icon(Icons.close, color: Colors.white),
                               onPressed: () => Navigator.of(context).pop(),
                             ),
                           ),
@@ -360,7 +397,159 @@ class _LocalImageCardState extends State<LocalImageCard> {
     );
   }
 
-  Widget _buildMetadataContent(BuildContext context, NaiImageMetadata metadata) {
+  /// 复制图片到剪贴板
+  Future<void> _copyImage(BuildContext context) async {
+    try {
+      final sourceFile = File(widget.record.path);
+
+      // 检查源文件是否存在
+      if (!await sourceFile.exists()) {
+        if (context.mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      await Clipboard.setData(const ClipboardData(text: ''));
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(await sourceFile.readAsBytes());
+
+      await Process.run('powershell', [
+        '-command',
+        'Set-Clipboard -Path "${file.path}"',
+      ]);
+
+      if (context.mounted) {
+        AppToast.success(context, '已复制到剪贴板');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '复制失败: $e');
+      }
+    }
+  }
+
+  /// 在文件管理器中打开
+  Future<void> _openInFileManager(BuildContext context) async {
+    try {
+      final filePath = widget.record.path;
+      final file = File(filePath);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        if (context.mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      // 使用 explorer /select 打开文件管理器并选中文件
+      await Process.run('explorer', ['/select,"$filePath"']);
+
+      if (context.mounted) {
+        AppToast.success(context, '已在文件管理器中打开');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '打开失败: $e');
+      }
+    }
+  }
+
+  /// 分享图片
+  Future<void> _shareImage(BuildContext context) async {
+    try {
+      final filePath = widget.record.path;
+      final file = File(filePath);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        if (context.mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      // 使用 Share.shareXFiles 分享文件
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: '分享图片',
+      );
+
+      if (context.mounted) {
+        AppToast.success(context, '分享成功');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '分享失败: $e');
+      }
+    }
+  }
+
+  /// 显示删除确认对话框
+  Future<void> _showDeleteConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text(
+          '确定要删除图片「${path.basename(widget.record.path)}」吗？\n\n此操作将从文件系统中永久删除该图片，无法恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteImage();
+    }
+  }
+
+  /// 删除图片
+  Future<void> _deleteImage() async {
+    try {
+      final file = File(widget.record.path);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        if (mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      // 删除文件
+      await file.delete();
+
+      if (mounted) {
+        AppToast.success(context, '图片已删除');
+        // 通知父组件刷新
+        widget.onDeleted?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '删除失败: $e');
+      }
+    }
+  }
+
+  Widget _buildMetadataContent(
+      BuildContext context, NaiImageMetadata metadata) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -368,11 +557,14 @@ class _LocalImageCardState extends State<LocalImageCard> {
           context,
           title: '基本信息',
           children: [
-            _buildInfoRow(context, Icons.insert_drive_file_outlined, '文件名', path.basename(widget.record.path)),
+            _buildInfoRow(context, Icons.insert_drive_file_outlined, '文件名',
+                path.basename(widget.record.path)),
             const SizedBox(height: 8),
-            _buildInfoRow(context, Icons.folder_open_outlined, '路径', widget.record.path),
+            _buildInfoRow(
+                context, Icons.folder_open_outlined, '路径', widget.record.path),
             const SizedBox(height: 8),
-            _buildInfoRow(context, Icons.data_usage, '大小', '${(widget.record.size / 1024).toStringAsFixed(2)} KB'),
+            _buildInfoRow(context, Icons.data_usage, '大小',
+                '${(widget.record.size / 1024).toStringAsFixed(2)} KB'),
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
@@ -388,23 +580,28 @@ class _LocalImageCardState extends State<LocalImageCard> {
           title: '生成参数',
           children: [
             if (metadata.seed != null) ...[
-              _buildInfoRow(context, Icons.tag, 'Seed', metadata.seed.toString()),
+              _buildInfoRow(
+                  context, Icons.tag, 'Seed', metadata.seed.toString()),
               const SizedBox(height: 8),
             ],
             if (metadata.steps != null) ...[
-              _buildInfoRow(context, Icons.repeat, 'Steps', metadata.steps.toString()),
+              _buildInfoRow(
+                  context, Icons.repeat, 'Steps', metadata.steps.toString()),
               const SizedBox(height: 8),
             ],
             if (metadata.scale != null) ...[
-              _buildInfoRow(context, Icons.tune, 'CFG Scale', metadata.scale.toString()),
+              _buildInfoRow(
+                  context, Icons.tune, 'CFG Scale', metadata.scale.toString()),
               const SizedBox(height: 8),
             ],
             if (metadata.sampler != null) ...[
-              _buildInfoRow(context, Icons.shuffle, 'Sampler', metadata.displaySampler),
+              _buildInfoRow(
+                  context, Icons.shuffle, 'Sampler', metadata.displaySampler),
               const SizedBox(height: 8),
             ],
             if (metadata.sizeString.isNotEmpty) ...[
-              _buildInfoRow(context, Icons.aspect_ratio, '尺寸', metadata.sizeString),
+              _buildInfoRow(
+                  context, Icons.aspect_ratio, '尺寸', metadata.sizeString),
               const SizedBox(height: 8),
             ],
             if (metadata.model != null) ...[
@@ -413,19 +610,23 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ],
             if (metadata.smea == true || metadata.smeaDyn == true) ...[
               _buildInfoRow(
-                context, 
-                Icons.auto_awesome, 
-                'SMEA', 
-                metadata.smeaDyn == true ? 'DYN' : (metadata.smea == true ? 'ON' : 'OFF'),
+                context,
+                Icons.auto_awesome,
+                'SMEA',
+                metadata.smeaDyn == true
+                    ? 'DYN'
+                    : (metadata.smea == true ? 'ON' : 'OFF'),
               ),
               const SizedBox(height: 8),
             ],
             if (metadata.noiseSchedule != null) ...[
-              _buildInfoRow(context, Icons.waves, 'Noise Schedule', metadata.noiseSchedule!),
+              _buildInfoRow(context, Icons.waves, 'Noise Schedule',
+                  metadata.noiseSchedule!),
               const SizedBox(height: 8),
             ],
             if (metadata.cfgRescale != null && metadata.cfgRescale! > 0) ...[
-              _buildInfoRow(context, Icons.balance, 'CFG Rescale', metadata.cfgRescale.toString()),
+              _buildInfoRow(context, Icons.balance, 'CFG Rescale',
+                  metadata.cfgRescale.toString()),
               const SizedBox(height: 8),
             ],
             // 获取图片实际尺寸
@@ -453,9 +654,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
             SelectableText(
               metadata.fullPrompt.isNotEmpty ? metadata.fullPrompt : '(无)',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontFamily: 'monospace',
-                height: 1.5,
-              ),
+                    fontFamily: 'monospace',
+                    height: 1.5,
+                  ),
             ),
           ],
         ),
@@ -468,10 +669,11 @@ class _LocalImageCardState extends State<LocalImageCard> {
               SelectableText(
                 metadata.negativePrompt,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'monospace',
-                  height: 1.5,
-                  color: Theme.of(context).colorScheme.error.withOpacity(0.8),
-                ),
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                      color:
+                          Theme.of(context).colorScheme.error.withOpacity(0.8),
+                    ),
               ),
             ],
           ),
@@ -485,9 +687,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
               SelectableText(
                 metadata.rawJson!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                  height: 1.5,
-                ),
+                      fontFamily: 'monospace',
+                      height: 1.5,
+                    ),
               ),
             ],
           ),
@@ -502,13 +704,18 @@ class _LocalImageCardState extends State<LocalImageCard> {
     return descriptor;
   }
 
-  Widget _buildInfoCard(BuildContext context, {required String title, required List<Widget> children}) {
+  Widget _buildInfoCard(BuildContext context,
+      {required String title, required List<Widget> children}) {
     return Card(
       elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+      color: Theme.of(context)
+          .colorScheme
+          .surfaceContainerHighest
+          .withOpacity(0.3),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        borderRadius: BorderRadius.circular(4),
+        side:
+            BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -520,9 +727,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ],
             ),
@@ -534,11 +741,13 @@ class _LocalImageCardState extends State<LocalImageCard> {
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value) {
+  Widget _buildInfoRow(
+      BuildContext context, IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        Icon(icon,
+            size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -547,8 +756,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(height: 2),
               SelectableText(
@@ -613,8 +822,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
           clipBehavior: Clip.antiAlias,
           shape: widget.isSelected
               ? RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 3),
+                  borderRadius: BorderRadius.circular(4),
+                  side: BorderSide(
+                      color: Theme.of(context).colorScheme.primary, width: 3),
                 )
               : null,
           child: Column(
@@ -630,9 +840,15 @@ class _LocalImageCardState extends State<LocalImageCard> {
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         height: 150,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         child: Center(
-                          child: Icon(Icons.broken_image, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          child: Icon(Icons.broken_image,
+                              size: 48,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
                         ),
                       );
                     },
@@ -641,7 +857,10 @@ class _LocalImageCardState extends State<LocalImageCard> {
                   if (widget.selectionMode && widget.isSelected)
                     Positioned.fill(
                       child: Container(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.2),
                       ),
                     ),
                   // Checkbox
@@ -652,8 +871,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: widget.isSelected 
-                              ? Theme.of(context).colorScheme.primary 
+                          color: widget.isSelected
+                              ? Theme.of(context).colorScheme.primary
                               : Colors.black.withOpacity(0.4),
                           border: Border.all(
                             color: Colors.white,
@@ -665,8 +884,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
                           child: Icon(
                             Icons.check,
                             size: 16,
-                            color: widget.isSelected 
-                                ? Theme.of(context).colorScheme.onPrimary 
+                            color: widget.isSelected
+                                ? Theme.of(context).colorScheme.onPrimary
                                 : Colors.transparent,
                           ),
                         ),
@@ -704,7 +923,11 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   Text(
                                     timeago.format(
                                       widget.record.modifiedAt,
-                                      locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en',
+                                      locale: Localizations.localeOf(context)
+                                                  .languageCode ==
+                                              'zh'
+                                          ? 'zh'
+                                          : 'en',
                                     ),
                                     style: const TextStyle(
                                       color: Colors.white70,
@@ -743,6 +966,96 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Custom route for displaying ProContextMenu
+class _ContextMenuRoute extends PopupRoute {
+  final Offset position;
+  final List<ProMenuItem> items;
+  final void Function(ProMenuItem) onSelect;
+
+  _ContextMenuRoute({
+    required this.position,
+    required this.items,
+    required this.onSelect,
+  });
+
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  String? get barrierLabel => null;
+
+  @override
+  Widget buildPage(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation) {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      removeLeft: true,
+      removeRight: true,
+      removeBottom: true,
+      child: Builder(
+        builder: (context) {
+          // Calculate adjusted position to keep menu within screen bounds
+          final screenSize = MediaQuery.of(context).size;
+          final menuWidth = 200.0;
+          final menuHeight = items.length * 48.0;
+
+          double left = position.dx;
+          double top = position.dy;
+
+          // Adjust horizontal position if menu goes off screen
+          if (left + menuWidth > screenSize.width) {
+            left = screenSize.width - menuWidth - 16;
+          }
+
+          // Adjust vertical position if menu goes off screen
+          if (top + menuHeight > screenSize.height) {
+            top = screenSize.height - menuHeight - 16;
+          }
+
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => Navigator.of(context).pop(),
+            child: Stack(
+              children: [
+                ProContextMenu(
+                  position: Offset(left, top),
+                  items: items,
+                  onSelect: (item) {
+                    onSelect(item);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 200);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation, Widget child) {
+    return FadeTransition(
+      opacity: animation,
+      child: ScaleTransition(
+        scale: CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+        ),
+        child: child,
       ),
     );
   }
