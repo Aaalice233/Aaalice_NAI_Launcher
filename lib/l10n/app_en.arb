@@ -2448,5 +2448,25 @@
   "localGallery_group_earlier": "Earlier",
   "localGallery_group_dateFormat": "MMM dd",
   "localGallery_jumpToDate": "Jump to Date",
-  "localGallery_noImagesOnThisDate": "No images on this date"
+  "localGallery_noImagesOnThisDate": "No images on this date",
+
+  "localGallery_selectedImagesNoPrompt": "Selected images have no prompt information",
+  "localGallery_addedTasksToQueue": "Added {count} tasks to queue",
+  "@localGallery_addedTasksToQueue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_cannotOpenFolder": "Cannot open folder: {error}",
+  "@localGallery_cannotOpenFolder": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_jumpedToDate": "Jumped to {date}",
+  "@localGallery_jumpedToDate": {
+    "placeholders": {
+      "date": {}
+    }
+  }
 }

@@ -2122,5 +2122,25 @@
   "localGallery_group_earlier": "更早",
   "localGallery_group_dateFormat": "MM月dd日",
   "localGallery_jumpToDate": "跳转到日期",
-  "localGallery_noImagesOnThisDate": "该日期没有图片"
+  "localGallery_noImagesOnThisDate": "该日期没有图片",
+
+  "localGallery_selectedImagesNoPrompt": "选中的图片没有 Prompt 信息",
+  "localGallery_addedTasksToQueue": "已添加 {count} 个任务到队列",
+  "@localGallery_addedTasksToQueue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_cannotOpenFolder": "无法打开文件夹: {error}",
+  "@localGallery_cannotOpenFolder": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_jumpedToDate": "已跳转到 {date}",
+  "@localGallery_jumpedToDate": {
+    "placeholders": {
+      "date": {}
+    }
+  }
 }
