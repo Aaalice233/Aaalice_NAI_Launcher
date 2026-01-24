@@ -204,6 +204,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 tooltip: context.l10n.img2img_changeImage,
               ),
               const SizedBox(width: 8),
+              // 上传遮罩按钮
+              _IconButton(
+                icon: hasMask ? Icons.check_circle : Icons.layers,
+                onPressed: _pickMaskImage,
+                tooltip: context.l10n.img2img_maskTooltip,
+              ),
+              const SizedBox(width: 8),
               _IconButton(
                 icon: Icons.close,
                 onPressed: _removeSourceImage,
@@ -226,30 +233,34 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           // 状态指示器
           if (hasMask) ...[
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.orange.withOpacity(0.5)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.orange.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check, size: 12, color: Colors.orange),
+                  const SizedBox(width: 4),
+                  Text(
+                    context.l10n.img2img_maskEnabled,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.orange,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check, size: 12, color: Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.l10n.img2img_maskEnabled,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              context.l10n.img2img_maskHelpText,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ],
@@ -412,6 +423,39 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               .setSourceImage(bytes);
           ref.read(generationParamsNotifierProvider.notifier)
               .updateAction(ImageGenerationAction.img2img);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.img2img_selectFailed(e.toString()))),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickMaskImage() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        Uint8List? bytes;
+
+        if (file.bytes != null) {
+          bytes = file.bytes;
+        } else if (file.path != null) {
+          bytes = await File(file.path!).readAsBytes();
+        }
+
+        if (bytes != null) {
+          ref.read(generationParamsNotifierProvider.notifier)
+              .setMaskImage(bytes);
+          ref.read(generationParamsNotifierProvider.notifier)
+              .updateAction(ImageGenerationAction.infill);
         }
       }
     } catch (e) {

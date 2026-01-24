@@ -534,6 +534,8 @@
   "img2img_maskEnabled": "Inpaint Mask",
   "img2img_uploadImage": "Upload Image",
   "img2img_drawSketch": "Draw Sketch",
+  "img2img_maskTooltip": "White = modify, Black = preserve",
+  "img2img_maskHelpText": "In the mask, white areas will be modified during generation, while black areas will be preserved from the source image",
 
   "editor_title": "Image Editor",
   "editor_done": "Done",
@@ -590,6 +592,15 @@
   "editor_addToSelection": "Add to selection",
   "editor_subtractFromSelection": "Subtract from selection",
   "editor_selectionHint": "Draw selection for inpaint mask",
+
+  "layer_duplicate": "Duplicate",
+  "layer_delete": "Delete",
+  "layer_merge": "Merge Down",
+  "layer_visibility": "Toggle Visibility",
+  "layer_lock": "Toggle Lock",
+  "layer_rename": "Rename",
+  "layer_moveUp": "Move Up",
+  "layer_moveDown": "Move Down",
 
   "vibe_title": "Vibe Transfer",
   "vibe_hint": "Add reference images to transfer visual style (max 4)",

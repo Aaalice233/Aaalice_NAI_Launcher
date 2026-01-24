@@ -382,6 +382,8 @@
   "img2img_maskEnabled": "重绘遮罩",
   "img2img_uploadImage": "上传图片",
   "img2img_drawSketch": "绘制草图",
+  "img2img_maskTooltip": "重绘遮罩",
+  "img2img_maskHelpText": "上传遮罩图片来指定需要重绘的区域。白色区域会被重绘，黑色区域保持不变。",
 
   "editor_saveAndClose": "保存并关闭",
   "editor_closeWithoutSaving": "不保存关闭",
@@ -1878,5 +1880,14 @@
   "vibeEncodeConfirm": "是否继续添加并消耗点数？",
   "vibeCancel": "取消",
   "vibeConfirmEncode": "确认编码",
-  "vibeParseFailed": "无法解析 Vibe 文件"
+  "vibeParseFailed": "无法解析 Vibe 文件",
+
+  "layer_duplicate": "复制图层",
+  "layer_delete": "删除图层",
+  "layer_merge": "合并图层",
+  "layer_visibility": "显示/隐藏",
+  "layer_lock": "锁定",
+  "layer_rename": "重命名",
+  "layer_moveUp": "上移",
+  "layer_moveDown": "下移"
 }
