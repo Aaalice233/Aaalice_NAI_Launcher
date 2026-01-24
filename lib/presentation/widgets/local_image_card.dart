@@ -43,6 +43,11 @@ class _LocalImageCardState extends State<LocalImageCard> {
   Timer? _longPressTimer;
   bool _isHovering = false;
 
+  // Pinch gesture state
+  double _scale = 1.0;
+  Offset? _scaleStartPosition;
+  bool _showThumbnailPreview = false;
+
   @override
   void dispose() {
     _longPressTimer?.cancel();
@@ -818,45 +823,85 @@ class _LocalImageCardState extends State<LocalImageCard> {
           _longPressTimer?.cancel();
         },
 
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: widget.isSelected
-                ? BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
-                    width: 3,
-                  )
-                : BorderSide.none,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 图片 + 悬停叠加层
-              Stack(
+        // 双击缩放
+        onDoubleTap: () {
+          if (!widget.selectionMode) {
+            _showDetailsDialog();
+          }
+        },
+
+        // Pinch 缩放手势 - 显示缩略图预览
+        onScaleStart: (details) {
+          if (!widget.selectionMode && details.pointerCount > 1) {
+            setState(() {
+              _scale = 1.0;
+              _scaleStartPosition = details.localFocalPoint;
+              _showThumbnailPreview = true;
+            });
+          }
+        },
+        onScaleUpdate: (details) {
+          if (_showThumbnailPreview) {
+            setState(() {
+              _scale = details.scale;
+            });
+          }
+        },
+        onScaleEnd: (details) {
+          if (_showThumbnailPreview) {
+            // 如果缩放足够大，打开详情页
+            if (_scale > 1.5) {
+              _showDetailsDialog();
+            }
+            setState(() {
+              _showThumbnailPreview = false;
+              _scale = 1.0;
+              _scaleStartPosition = null;
+            });
+          }
+        },
+
+        child: Stack(
+          children: [
+            Card(
+              clipBehavior: Clip.antiAlias,
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: widget.isSelected
+                    ? BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      )
+                    : BorderSide.none,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.file(
-                    File(widget.record.path),
-                    cacheWidth: cacheWidth, // 优化内存占用
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 150,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        child: Center(
-                          child: Icon(Icons.broken_image,
-                              size: 48,
-                              color: Theme.of(context)
+                  // 图片 + 悬停叠加层
+                  Stack(
+                    children: [
+                      Image.file(
+                        File(widget.record.path),
+                        cacheWidth: cacheWidth, // 优化内存占用
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 150,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            child: Center(
+                              child: Icon(Icons.broken_image,
+                                  size: 48,
+                                  color: Theme.of(context)
                                   .colorScheme
-                                  .onSurfaceVariant,),
-                        ),
-                      );
-                    },
-                  ),
+                                  .onSurfaceVariant),
+                            ),
+                          );
+                        },
+                      ),
                   // Selection Overlay
                   if (widget.selectionMode && widget.isSelected)
                     Positioned.fill(
@@ -969,7 +1014,41 @@ class _LocalImageCardState extends State<LocalImageCard> {
               ),
             ],
           ),
-        ),
+            ),
+        // Pinch 缩略图预览 overlay
+        if (_showThumbnailPreview && _scaleStartPosition != null)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black54,
+              child: Center(
+                child: Transform.scale(
+                  scale: _scale.clamp(0.8, 2.0),
+                  child: Container(
+                    width: widget.itemWidth * 0.8,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.5),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(widget.record.path),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
       ),
     );
   }
