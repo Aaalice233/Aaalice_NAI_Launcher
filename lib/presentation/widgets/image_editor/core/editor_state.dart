@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
 import '../tools/tool_base.dart';
 import '../tools/brush_tool.dart';
@@ -348,6 +349,20 @@ class EditorState extends ChangeNotifier {
 
     historyManager.execute(
       ClearLayerAction(layerId: layer.id),
+      this,
+    );
+  }
+
+  /// 调整画布大小（支持撤销）
+  void resizeCanvas(Size newSize, CanvasResizeMode mode) {
+    // 如果新尺寸与当前尺寸相同，则不执行操作
+    if (_canvasSize == newSize) return;
+
+    historyManager.execute(
+      ResizeCanvasAction(
+        newSize: newSize,
+        mode: mode,
+      ),
       this,
     );
   }

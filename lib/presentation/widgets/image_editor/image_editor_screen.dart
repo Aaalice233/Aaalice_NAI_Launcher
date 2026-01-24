@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
 import 'core/editor_state.dart';
+import 'layers/layer.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
 import 'widgets/toolbar/desktop_toolbar.dart';
@@ -669,15 +670,77 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   /// 更改画布尺寸
   Future<void> _changeCanvasSize() async {
-    final newSize = await CanvasSizeDialog.show(
+    final result = await CanvasSizeDialog.show(
       context,
       initialSize: _state.canvasSize,
       title: '更改画布尺寸',
     );
 
-    if (newSize != null && newSize != _state.canvasSize) {
-      // TODO: 实现画布尺寸更改（需要处理图层内容）
-      _state.setCanvasSize(newSize);
+    if (result != null && result.size != _state.canvasSize) {
+      try {
+        // 验证尺寸范围
+        final newWidth = result.size.width.toInt();
+        final newHeight = result.size.height.toInt();
+        const minSize = 64;
+        const maxSize = 4096;
+
+        if (newWidth < minSize || newHeight < minSize) {
+          _showError('画布尺寸太小，最小尺寸为 $minSize x $minSize 像素');
+          return;
+        }
+
+        if (newWidth > maxSize || newHeight > maxSize) {
+          _showError('画布尺寸太大，最大尺寸为 $maxSize x $maxSize 像素');
+          return;
+        }
+
+        // 将 ContentHandlingMode 转换为 CanvasResizeMode
+        final mode = _convertContentModeToResizeMode(result.mode);
+
+        // 使用新的 resizeCanvas 方法，支持图层内容变换
+        _state.resizeCanvas(result.size, mode);
+
+        // 显示成功消息
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('画布已调整为 $newWidth x $newHeight'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        // 显示错误信息
+        _showError('调整画布尺寸失败: $e');
+        AppLogger.e('Failed to resize canvas: $e', 'ImageEditor');
+      }
+    }
+  }
+
+  /// 显示错误消息
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: '关闭',
+            onPressed: () {},
+          ),
+        ),
+      );
+    }
+  }
+
+  /// 将内容处理模式转换为画布调整模式
+  CanvasResizeMode _convertContentModeToResizeMode(ContentHandlingMode mode) {
+    switch (mode) {
+      case ContentHandlingMode.crop:
+        return CanvasResizeMode.crop;
+      case ContentHandlingMode.pad:
+        return CanvasResizeMode.pad;
+      case ContentHandlingMode.stretch:
+        return CanvasResizeMode.stretch;
     }
   }
 
