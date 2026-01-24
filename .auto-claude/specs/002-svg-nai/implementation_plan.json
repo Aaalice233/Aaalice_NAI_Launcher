@@ -1,0 +1,432 @@
+{
+  "feature": "Fix Material Icons Rendering as Color Blocks",
+  "description": "Material Icons throughout the application are failing to render properly, displaying as colored blocks instead of the actual icon graphics. Specifically affected are the homepage 'add new account' icon (Icons.add) and 'NAI launcher' icon (Icons.auto_awesome). Investigation reveals the app does NOT use SVG files for these icons - they use Flutter's built-in Material Icons. The issue is likely icon color blending with background or Material Icons font not loading properly on Windows.",
+  "workflow_type": "investigation",
+  "workflow_rationale": "This is an INVESTIGATION workflow because:\n1. Root cause is unknown - need to diagnose why icons appear as 'color blocks'\n2. Multiple possible causes: color blending, font loading, theme issues, or Windows-specific rendering\n3. Must identify root cause before fixing (Phase 2)\n4. Fix phase (Phase 3) is blocked until investigation completes\n\nAlthough spec.md classified this as 'bugfix', investigation workflow is more appropriate because the root cause must be discovered through systematic debugging.",
+  "phases": [
+    {
+      "id": "phase-1-reproduce",
+      "name": "Reproduce Icon Rendering Issue",
+      "type": "investigation",
+      "description": "Create reliable reproduction of the 'color block' icon display issue and add diagnostic logging",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Run application on Windows and verify icon display issue",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "1. Run 'E:\\flutter\\bin\\flutter.bat run -d windows'\n2. Navigate to login screen\n3. Observe Icons.add (add account button) and Icons.auto_awesome (app icon)\n4. Confirm icons appear as color blocks without visible glyphs\n5. Take screenshots for documentation"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Add diagnostic logging to track Icon widget rendering",
+          "service": "Flutter App",
+          "files_to_modify": [
+            "lib/presentation/screens/auth/login_screen.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/core/utils/app_logger.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "E:\\flutter\\bin\\flutter.bat run -d windows 2>&1 | grep -i \"icon\\|theme\\|color\"",
+            "expected": "Diagnostic logs appear showing Icon theme and color values"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-3",
+          "description": "Check Material Icons font loading status",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "E:\\flutter\\bin\\flutter.bat doctor -v",
+            "expected": "Flutter installation includes Material Icons font"
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-investigate",
+      "name": "Investigate Root Cause",
+      "type": "investigation",
+      "description": "Analyze icon rendering pipeline, form hypotheses, and identify root cause of 'color block' display",
+      "depends_on": [
+        "phase-1-reproduce"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Analyze Icon theme configuration and color inheritance",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/themes/app_theme.dart",
+            "lib/presentation/themes/presets/"
+          ],
+          "expected_output": "Document with:\n1. Icon theme color values (iconTheme.color)\n2. Background colors where icons appear as blocks\n3. Whether icon color matches background (causing invisibility)\n4. Theme preset being used when issue occurs",
+          "verification": {
+            "type": "manual",
+            "instructions": "Create ROOT_CAUSE_ANALYSIS.md documenting:\n- Theme color analysis\n- Icon color vs background color comparison\n- Screenshot evidence of color blending\n- Hypothesis: Is it color blending or font loading?"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Test hypothesis: Icon color blending with background",
+          "service": "Flutter App",
+          "files_to_modify": [
+            "lib/presentation/screens/auth/login_screen.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "expected_output": "Test results showing:\n1. Icons with hardcoded contrasting colors (e.g., Colors.red, Colors.blue)\n2. Whether visible glyph appears with forced color\n3. Confirmation if color blending is the cause",
+          "verification": {
+            "type": "manual",
+            "instructions": "1. Temporarily modify Icons.add to use color: Colors.red\n2. Modify Icons.auto_awesome to use color: Colors.blue\n3. Hot reload and observe if icons become visible\n4. Document results in ROOT_CAUSE_ANALYSIS.md"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Test hypothesis: Material Icons font not loaded",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "expected_output": "Test results showing:\n1. Whether Material Icons font is bundled in Windows build\n2. Font loading errors in console logs\n3. Comparison with other Flutter apps on same machine",
+          "verification": {
+            "type": "command",
+            "command": "find build/windows -name \"*.ttf\" -o -name \"*.otf\" | grep -i material",
+            "expected": "MaterialIcons.ttf file exists in build output"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "Document root cause and proposed fix",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [
+            "ROOT_CAUSE_ANALYSIS.md"
+          ],
+          "patterns_from": [],
+          "expected_output": "ROOT_CAUSE_ANALYSIS.md containing:\n1. **Root Cause**: [Color blending / Font loading / Theme bug / Other]\n2. **Evidence**: Screenshots, test results, diagnostic logs\n3. **Affected Components**: List of all Icon widgets affected\n4. **Proposed Fix**: Specific code changes needed\n5. **Fix Rationale**: Why this fix will solve the issue",
+          "verification": {
+            "type": "manual",
+            "instructions": "Review ROOT_CAUSE_ANALYSIS.md for completeness\n- Root cause clearly identified\n- Evidence provided\n- Fix strategy defined\n- Ready for implementation in Phase 3"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-fix",
+      "name": "Implement Fix",
+      "type": "implementation",
+      "description": "Apply fix based on root cause identified in Phase 2. This phase is BLOCKED until phase-2-investigate completes and documents the root cause.",
+      "depends_on": [
+        "phase-2-investigate"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Fix icon rendering based on root cause analysis",
+          "service": "Flutter App",
+          "files_to_modify": [
+            "To be determined based on root cause:\n- If color blending: fix theme icon colors or add explicit colors\n- If font issue: fix font bundling or loading\n- If theme bug: fix ThemeData configuration\n- If Windows-specific: add platform-specific fixes"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/themes/app_theme.dart"
+          ],
+          "verification": {
+            "type": "browser",
+            "url": "windows://app",
+            "checks": [
+              "Icons.add (add account button) displays visible glyph",
+              "Icons.auto_awesome (NAI launcher icon) displays visible glyph",
+              "Icons are not color blocks - actual icon shapes visible",
+              "Icon colors contrast properly with background"
+            ]
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Remove temporary diagnostic code added in Phase 1",
+          "service": "Flutter App",
+          "files_to_modify": [
+            "lib/presentation/screens/auth/login_screen.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "grep -r \"AppLogger.d.*icon\\|DEBUG.*icon\" lib/ || echo 'No diagnostic logs found'",
+            "expected": "No diagnostic logs remain in production code"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Test icon rendering across all theme presets",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "1. Switch between all 16 theme presets\n2. Verify icons render correctly in each theme\n3. Test both light and dark mode variants\n4. Document any themes with remaining issues"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-harden",
+      "name": "Harden and Prevent Recurrence",
+      "type": "cleanup",
+      "description": "Add safeguards to prevent icon rendering issues from recurring",
+      "depends_on": [
+        "phase-3-fix"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Add widget tests for icon rendering",
+          "service": "Flutter App",
+          "files_to_modify": [
+            "test/presentation/screens/auth/login_screen_test.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "test/presentation/widgets/"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "E:\\flutter\\bin\\flutter.bat test test/presentation/screens/auth/login_screen_test.dart",
+            "expected": "All tests pass"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Add regression test for Material Icons font loading",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [
+            "test/integration/icon_rendering_test.dart"
+          ],
+          "patterns_from": [
+            "test/integration/"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "E:\\flutter\\bin\\flutter.bat test test/integration/icon_rendering_test.dart",
+            "expected": "Integration test passes, confirms icons render with visible glyphs"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Document icon usage guidelines for developers",
+          "service": "Flutter App",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/ICON_USAGE_GUIDELINES.md"
+          ],
+          "patterns_from": [
+            "CLAUDE.md"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review ICON_USAGE_GUIDELINES.md for:\n- How to properly use Icons widgets\n- Theme-aware icon color configuration\n- Common pitfalls to avoid\n- Platform-specific considerations (Windows)"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 4,
+    "total_subtasks": 13,
+    "services_involved": [
+      "Flutter App"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 2,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-1-reproduce",
+            "phase-2-investigate"
+          ],
+          "reason": "Sequential investigation phases - must reproduce before investigating"
+        },
+        {
+          "phases": [
+            "phase-3-fix",
+            "phase-4-harden"
+          ],
+          "reason": "Both depend on investigation completing, but can run in parallel after phase-2"
+        }
+      ],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential execution required for investigation workflow"
+    },
+    "startup_command": "cd E:\\Aaalice_NAI_Launcher && E:\\flutter\\bin\\flutter.bat run -d windows"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit",
+      "integration"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All investigation phases complete with documented root cause",
+      "Icons.add and Icons.auto_awesome display visible glyphs on login screen",
+      "Icons render correctly across all 16 theme presets",
+      "No 'color block' icon displays anywhere in app",
+      "Widget tests pass for icon rendering",
+      "Integration test confirms Material Icons font loads correctly",
+      "Documentation updated with icon usage guidelines"
+    ],
+    "verification_steps": [
+      {
+        "name": "Visual Inspection - Login Screen Icons",
+        "command": "E:\\flutter\\bin\\flutter.bat run -d windows",
+        "expected_outcome": "Icons.add and Icons.auto_awesome display with visible glyphs, not color blocks",
+        "type": "manual",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Theme Compatibility Test",
+        "command": "Manual test across all 16 theme presets",
+        "expected_outcome": "Icons render correctly in all themes (light and dark variants)",
+        "type": "manual",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Unit Tests",
+        "command": "E:\\flutter\\bin\\flutter.bat test test/presentation/screens/auth/login_screen_test.dart",
+        "expected_outcome": "All icon rendering tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Integration Test - Icon Font Loading",
+        "command": "E:\\flutter\\bin\\flutter.bat test test/integration/icon_rendering_test.dart",
+        "expected_outcome": "Integration test confirms Material Icons font loads and renders visible glyphs",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Windows Build Verification",
+        "command": "E:\\flutter\\bin\\flutter.bat build windows --release",
+        "expected_outcome": "Build succeeds without errors, icons render correctly in release build",
+        "type": "command",
+        "required": true,
+        "blocking": false
+      }
+    ],
+    "reasoning": "Medium risk - UI rendering bug affecting user experience. Root cause investigation required before fix can be applied. Requires testing across 16 theme presets to ensure systematic fix."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "E:\\flutter\\bin\\flutter.bat test test/presentation/screens/auth/login_screen_test.dart"
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": true,
+      "commands": [
+        "E:\\flutter\\bin\\flutter.bat test test/integration/icon_rendering_test.dart"
+      ],
+      "services_to_test": [
+        "Flutter App"
+      ]
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": true,
+      "pages": [
+        {
+          "url": "windows://app/login",
+          "checks": [
+            "Icons.add (add account button) displays visible glyph",
+            "Icons.auto_awesome (NAI launcher icon) displays visible glyph",
+            "Icons are not color blocks - actual shapes visible",
+            "Icon colors contrast with background",
+            "No console errors about font loading"
+          ]
+        },
+        {
+          "url": "windows://app/home",
+          "checks": [
+            "Navigation rail icons display correctly",
+            "GitHub icon renders (CustomPainter or Icon widget)",
+            "All icons in navigation rail visible"
+          ]
+        }
+      ]
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    },
+    "investigation_results": {
+      "required": true,
+      "findings": [
+        {
+          "finding": "Root cause identified",
+          "status": "Documented in ROOT_CAUSE_ANALYSIS.md"
+        },
+        {
+          "finding": "Affected icons listed",
+          "status": "All Icon widgets with color block issue documented"
+        },
+        {
+          "finding": "Fix strategy defined",
+          "status": "Specific code changes documented"
+        }
+      ]
+    }
+  },
+  "qa_signoff": null,
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "updated_at": "2026-01-24T10:56:16.644Z",
+  "recoveryNote": "Task recovered from stuck state at 2026-01-24T10:55:56.729Z"
+}
