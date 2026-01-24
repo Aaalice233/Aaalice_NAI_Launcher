@@ -50,11 +50,27 @@ class AppRoutes {
 @riverpod
 GoRouter appRouter(Ref ref) {
   // 使用 ValueNotifier 桥接 Riverpod 到 GoRouter 的 refreshListenable
-  final authStateNotifier = ValueNotifier<bool>(false);
+  // 跟踪实际的认证状态，只在状态变化时触发重定向
+  final authStateNotifier = ValueNotifier<AuthStatus>(AuthStatus.initial);
 
-  // 监听认证状态变化，触发 GoRouter 刷新（但不会重建 GoRouter 实例）
-  ref.listen(authNotifierProvider, (_, __) {
-    authStateNotifier.value = !authStateNotifier.value;
+  // 监听认证状态变化，只在认证状态变化时触发重定向
+  // 避免在 loading 状态时触发不必要的重定向，减少闪烁
+  ref.listen(authNotifierProvider, (previous, next) {
+    // 只在认证状态发生实际变化时触发
+    // 忽略 loading 状态的中间过渡，避免多次重定向
+    if (previous?.status != next.status) {
+      final prevStatus = previous?.status ?? AuthStatus.initial;
+      final nextStatus = next.status;
+
+      // 只在最终认证状态（authenticated/unauthenticated）变化时触发
+      // 或者在初始加载完成时触发
+      // 这样可以防止在登录过程中出现多次重定向
+      if (nextStatus == AuthStatus.authenticated ||
+          nextStatus == AuthStatus.unauthenticated ||
+          (prevStatus == AuthStatus.initial && nextStatus == AuthStatus.loading)) {
+        authStateNotifier.value = nextStatus;
+      }
+    }
   });
 
   return GoRouter(
