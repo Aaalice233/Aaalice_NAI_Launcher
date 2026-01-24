@@ -799,14 +799,26 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         }
 
         if (bytes != null) {
-          // TODO: 在 subtask-2-2 中将蒙版添加为图层
-          AppLogger.i('Mask file loaded: ${file.name}', 'ImageEditor');
+          // 将蒙版添加为新图层
+          final layer = await _state.layerManager.addLayerFromImage(
+            bytes,
+            name: '蒙版',
+          );
 
-          // 临时显示成功消息
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('蒙版文件已加载: ${file.name}')),
-            );
+          if (layer != null) {
+            AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('蒙版图层已添加')),
+              );
+            }
+          } else {
+            AppLogger.w('Failed to add mask as layer', 'ImageEditor');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('添加蒙版图层失败')),
+              );
+            }
           }
         }
       }
