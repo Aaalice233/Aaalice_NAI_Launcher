@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "001-complete-login-navigation-flow",
+  "state": "building",
+  "subtasks": {
+    "completed": 1,
+    "total": 11,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Error Retry UX Enhancement",
+    "id": null,
+    "total": 2
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 3,
+    "started_at": "2026-01-24T15:22:12.289886"
+  },
+  "last_update": "2026-01-24T15:34:39.706135"
+}
