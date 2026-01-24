@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -281,7 +282,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
 
   /// 打开密码重置页面
   Future<void> _openPasswordReset() async {
-    const url = 'https://novelai.net/forgot-password';
+    const url = ApiConstants.passwordResetUrl;
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     }
