@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "001-complete-login-navigation-flow",
+  "spec": "004-image-editor-mask-loading",
   "state": "building",
   "subtasks": {
-    "completed": 10,
-    "total": 11,
+    "completed": 1,
+    "total": 10,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Integration & E2E Testing",
+    "current": "Add Mask Loading UI Buttons",
     "id": null,
-    "total": 3
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 12,
-    "started_at": "2026-01-24T15:22:12.289886"
+    "number": 3,
+    "started_at": "2026-01-24T18:16:57.375915"
   },
-  "last_update": "2026-01-24T16:16:11.460293"
+  "last_update": "2026-01-24T18:22:38.750860"
 }

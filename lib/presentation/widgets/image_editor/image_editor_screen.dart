@@ -254,11 +254,19 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           IconButton(
             icon: const Icon(Icons.layers),
             onPressed: _showMobileLayerSheet,
+            tooltip: '图层',
+          ),
+          // 加载蒙版按钮
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            onPressed: _loadMask,
+            tooltip: '加载蒙版',
           ),
           // 导出按钮
           IconButton(
             icon: const Icon(Icons.check),
             onPressed: _exportAndClose,
+            tooltip: '完成',
           ),
         ],
       ),
