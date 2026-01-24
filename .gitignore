@@ -119,6 +119,8 @@ nai_web_copy/
 .worktrees/
 .security-key
 logs/security/
+.sisyphus/
+.opencode/
 .auto-claude-security.json
 .auto-claude-status
 .claude_settings.json
