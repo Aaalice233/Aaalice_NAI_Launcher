@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/main.dart' as app;
+import 'package:nai_launcher/main.dart' as app_bootstrap;
+import 'package:nai_launcher/presentation/screens/splash/app_bootstrap.dart';
+import 'package:nai_launcher/presentation/screens/splash/splash_screen.dart';
+import 'package:nai_launcher/presentation/screens/auth/login_screen.dart';
+import 'package:nai_launcher/presentation/screens/generation/generation_screen.dart';
+import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
-import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// End-to-End Integration Test for Complete Login Flow with Credentials
@@ -32,15 +35,15 @@ void main() {
 
     testWidgets('Complete login flow with email and password', (WidgetTester tester) async {
       // Step 1: Launch app
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Step 2: Wait for auth check and splash screen
-      expect(find.byType(app.SplashScreen), findsOneWidget);
+      expect(find.byType(SplashScreen), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
 
       // Step 3: Verify redirect to login screen (when unauthenticated)
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
       expect(find.text('登录'), findsOneWidget);
 
       // Step 4: Enter email
@@ -67,12 +70,12 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 5));
 
       // Step 9: Verify successful redirect to home screen
-      expect(find.byType(app.HomeScreen), findsOneWidget);
+      expect(find.byType(GenerationScreen), findsOneWidget);
     });
 
     testWidgets('Authentication persists across app restart', (WidgetTester tester) async {
       // First run - Login
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Perform login
@@ -80,19 +83,19 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify we're on home screen
-      expect(find.byType(app.HomeScreen), findsOneWidget);
+      expect(find.byType(GenerationScreen), findsOneWidget);
 
       // Restart app
-      await tester.pumpWidget(app.MyApp());
+      await tester.pumpWidget(const AppBootstrap());
       await tester.pumpAndSettle();
 
       // Verify auto-login worked - should be on home screen, not login
-      expect(find.byType(app.HomeScreen), findsOneWidget);
-      expect(find.byType(app.LoginScreen), findsNothing);
+      expect(find.byType(GenerationScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
     });
 
     testWidgets('Loading overlay appears during authentication', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Trigger login
@@ -112,7 +115,7 @@ void main() {
     });
 
     testWidgets('Error message displays on invalid credentials', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Enter invalid credentials
@@ -126,11 +129,11 @@ void main() {
 
       // Verify error message is displayed
       expect(find.text('登录失败'), findsOneWidget);
-      expect(find.byType(app.AppToast), findsOneWidget);
+      expect(find.byType(AppToast), findsOneWidget);
     });
 
     testWidgets('Form validation prevents empty fields', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Try to login with empty fields
@@ -144,7 +147,7 @@ void main() {
     });
 
     testWidgets('Invalid credentials show error without retry button', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Enter invalid credentials
@@ -168,7 +171,7 @@ void main() {
     });
 
     testWidgets('Network error shows retry button', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // This test would require mocking network failures
@@ -182,15 +185,15 @@ void main() {
       // 6. Click retry and verify it re-attempts login
 
       // Verifying error container structure exists
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('Network timeout error handling', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Verify login screen structure
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
 
       // Test would verify:
       // 1. Network timeout triggers correct error code (networkTimeout)
@@ -201,15 +204,15 @@ void main() {
 
       // Verify timeout error message exists in localization
       expect(find.text('网络超时'), findsNothing); // Error not shown yet
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('Network connection error handling', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Verify login screen structure
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
 
       // Test would verify:
       // 1. Connection error triggers correct error code (networkError)
@@ -220,11 +223,11 @@ void main() {
 
       // Verify connection error message exists in localization
       expect(find.text('网络连接失败'), findsNothing); // Error not shown yet
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('Network error preserves form input', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Enter credentials
@@ -251,11 +254,11 @@ void main() {
     });
 
     testWidgets('Retry button functionality on network error', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Verify login screen
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
 
       // Test would verify:
       // 1. Network error occurs during login
@@ -266,11 +269,11 @@ void main() {
 
       // Verify retry button exists in UI structure
       // Note: Button only appears when error state is active
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('Multiple network errors are handled gracefully', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Test would verify:
@@ -282,11 +285,11 @@ void main() {
       // 6. No memory leaks or state corruption
       // 7. Can continue retrying until network is restored
 
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('Network error recovery with successful login', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Test would verify complete flow:
@@ -299,11 +302,11 @@ void main() {
       // 7. Verify successful login
       // 8. Verify redirect to home screen
 
-      expect(find.byType(app.LoginScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('Form is preserved after authentication error', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Enter credentials
@@ -335,7 +338,7 @@ void main() {
     });
 
     testWidgets('Successful login after error recovery', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Attempt 1: Invalid credentials
@@ -367,7 +370,7 @@ void main() {
     });
 
     testWidgets('Error recovery hints are actionable', (WidgetTester tester) async {
-      app.main();
+      app_bootstrap.main();
       await tester.pumpAndSettle();
 
       // Trigger auth error
