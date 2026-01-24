@@ -68,10 +68,12 @@ class GroupedGridView extends ConsumerStatefulWidget {
   final void Function(ImageDateGroup category)? onScrollToGroup;
 
   @override
-  ConsumerState<GroupedGridView> createState() => _GroupedGridViewState();
+  ConsumerState<GroupedGridView> createState() => GroupedGridViewState();
 }
 
-class _GroupedGridViewState extends ConsumerState<GroupedGridView> {
+/// Public state class for accessing scrollToGroup method
+/// 用于访问 scrollToGroup 方法的公共状态类
+class GroupedGridViewState extends ConsumerState<GroupedGridView> {
   final ScrollController _scrollController = ScrollController();
   final Map<ImageDateGroup, GlobalKey> _groupKeys = {};
 

@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +17,7 @@ import '../../providers/local_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
+import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
 
 /// 本地画廊屏幕
@@ -29,6 +31,10 @@ class LocalGalleryScreen extends ConsumerStatefulWidget {
 class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
+
+  /// Key for accessing GroupedGridView's scrollToGroup method
+  /// 用于访问 GroupedGridView 的 scrollToGroup 方法的键
+  final GlobalKey<GroupedGridViewState> _groupedGridViewKey = GlobalKey<GroupedGridViewState>();
 
   @override
   void initState() {
@@ -399,8 +405,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                     child: _buildSearchField(theme, state),
                   ),
                   const SizedBox(width: 12),
-                  // 日期过滤按钮
+                  // 日期范围过滤按钮
                   _buildDateRangeButton(theme, state),
+                  const SizedBox(width: 8),
+                  // 日期选择器按钮（跳转到指定日期）
+                  _buildDatePickerButton(theme),
                   // 清除过滤按钮
                   if (state.hasFilters) ...[
                     const SizedBox(width: 8),
@@ -515,6 +524,27 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     return '';
   }
 
+  /// 构建日期选择器按钮（跳转到指定日期）
+  Widget _buildDatePickerButton(ThemeData theme) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return OutlinedButton.icon(
+      onPressed: () => _pickDateAndJump(context),
+      icon: const Icon(
+        Icons.calendar_today,
+        size: 16,
+      ),
+      label: Text(
+        l10n.localGallery_jumpToDate,
+        style: const TextStyle(fontSize: 12),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+
   /// 选择日期范围
   Future<void> _selectDateRange(
       BuildContext context, LocalGalleryState state,) async {
@@ -546,6 +576,81 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             picked.start,
             picked.end,
           );
+    }
+  }
+
+  /// 选择日期并跳转到对应分组
+  /// Select date and jump to corresponding group
+  Future<void> _pickDateAndJump(BuildContext context) async {
+    final now = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      builder: (pickerContext, child) {
+        return Theme(
+          data: Theme.of(pickerContext).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      // 确保分组视图已激活
+      // Ensure grouped view is activated
+      final currentState = ref.read(localGalleryNotifierProvider);
+      final notifier = ref.read(localGalleryNotifierProvider.notifier);
+      if (!currentState.isGroupedView) {
+        notifier.setGroupedView(true);
+      }
+
+      // 等待分组数据加载完成
+      // Wait for grouped data to load
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) return;
+
+      // 计算选中日期属于哪个分组
+      // Calculate which group the selected date belongs to
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
+      final selectedDate = DateTime(picked.year, picked.month, picked.day);
+
+      ImageDateGroup? targetGroup;
+
+      if (selectedDate == today) {
+        targetGroup = ImageDateGroup.today;
+      } else if (selectedDate == yesterday) {
+        targetGroup = ImageDateGroup.yesterday;
+      } else if (selectedDate.isAfter(thisWeekStart) && selectedDate.isBefore(today)) {
+        targetGroup = ImageDateGroup.thisWeek;
+      } else {
+        targetGroup = ImageDateGroup.earlier;
+      }
+
+      // 跳转到对应分组
+      // Jump to corresponding group
+      _groupedGridViewKey.currentState?.scrollToGroup(targetGroup);
+
+      // 显示提示消息
+      // Show hint message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -603,8 +708,87 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   /// 构建内容区
-  Widget _buildContent(
-      ThemeData theme, LocalGalleryState state, int columns, double itemWidth,) {
+  Widget _buildContent(ThemeData theme, LocalGalleryState state, int columns, double itemWidth) {
+    // 分组视图
+    // Grouped view
+    if (state.isGroupedView) {
+      // 分组视图中加载骨架屏
+      // Loading skeleton in grouped view
+      if (state.isGroupedLoading) {
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('加载分组图片中...'),
+            ],
+          ),
+        );
+      }
+
+      // 分组视图无结果
+      // No results in grouped view
+      if (state.groupedImages.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off, size: 48, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5)),
+              const SizedBox(height: 12),
+              Text(
+                '无匹配结果',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+                },
+                icon: const Icon(Icons.filter_alt_off, size: 16),
+                label: const Text('清除过滤'),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // 显示分组视图
+      // Show grouped view
+      final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+
+      return GroupedGridView(
+        key: _groupedGridViewKey,
+        images: state.groupedImages,
+        columns: columns,
+        itemWidth: itemWidth,
+        selectionMode: selectionState.isActive,
+        buildSelected: (path) => selectionState.selectedIds.contains(path),
+        buildCard: (record) {
+          final isSelected = selectionState.selectedIds.contains(record.path);
+          return LocalImageCard(
+            record: record,
+            itemWidth: itemWidth,
+            selectionMode: selectionState.isActive,
+            isSelected: isSelected,
+            onSelectionToggle: () {
+              ref.read(localGallerySelectionNotifierProvider.notifier).toggle(record.path);
+            },
+            onLongPress: () {
+              if (!selectionState.isActive) {
+                ref.read(localGallerySelectionNotifierProvider.notifier).enterAndSelect(record.path);
+              }
+            },
+            onDeleted: () {
+              // 刷新分组视图
+              ref.read(localGalleryNotifierProvider.notifier).refresh();
+            },
+          );
+        },
+      );
+    }
+
     // 过滤后无结果
     if (state.filteredFiles.isEmpty && state.hasFilters) {
       return Center(
