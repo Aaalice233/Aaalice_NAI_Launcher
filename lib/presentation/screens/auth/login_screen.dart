@@ -278,7 +278,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: _buildLoggedIcon(
             Icons.auto_awesome,
             size: 40,
-            color: theme.colorScheme.primary,
+            color: Colors.blue, // TEST: Hypothesis - color blending with background
             location: 'header_app_icon',
           ),
         ),
@@ -715,6 +715,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       onPressed: () => _showAddAccountDialog(context),
       icon: _buildLoggedIcon(
         Icons.add,
+        color: Colors.red, // TEST: Hypothesis - color blending with background
         location: 'add_account_button',
       ),
       label: Text(context.l10n.auth_addAccount),
@@ -825,7 +826,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Theme.of(context).colorScheme.primaryContainer,
                   child: _buildLoggedIcon(
                     Icons.add,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: Colors.red, // TEST: Hypothesis - color blending with background
                     location: 'account_list_add',
                   ),
                 ),
