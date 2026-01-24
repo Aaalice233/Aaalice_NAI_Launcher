@@ -125,26 +125,47 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   /// 显示权限被拒绝对话框
   void _showPermissionDeniedDialog() {
+    final theme = Theme.of(context);
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('需要存储权限'),
-        content: const Text(
+        backgroundColor: theme.colorScheme.surfaceContainerHigh,
+        title: Text(
+          '需要存储权限',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        content: Text(
           '本地画廊需要访问存储权限才能扫描您生成的图片。\n\n'
           '请在设置中授予权限后重试。',
+          style: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(
+              '取消',
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
               PermissionUtils.openAppSettings();
             },
-            child: const Text('打开设置'),
+            child: Text(
+              '打开设置',
+              style: TextStyle(
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
           ),
         ],
       ),
@@ -167,20 +188,36 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (!mounted) return;
 
+    final theme = Theme.of(context);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('💡 使用提示'),
-        content: const Text(
+        backgroundColor: theme.colorScheme.surfaceContainerHigh,
+        title: Text(
+          '💡 使用提示',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        content: Text(
           '右键点击（桌面端）或长按（移动端）图片可以：\n\n'
           '• 复制 Prompt\n'
           '• 复制 Seed\n'
           '• 查看完整元数据',
+          style: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('知道了'),
+            child: Text(
+              '知道了',
+              style: TextStyle(
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
           ),
         ],
       ),
@@ -274,6 +311,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// 构建顶部工具栏
   Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (selectionState.isActive) {
       return ClipRRect(
@@ -282,9 +320,13 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.7),
+              color: isDark
+                  ? theme.colorScheme.primaryContainer.withOpacity(0.85)
+                  : theme.colorScheme.primaryContainer.withOpacity(0.7),
               border: Border(
-                bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+                bottom: BorderSide(
+                  color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.3),
+                ),
               ),
             ),
             child: Row(
@@ -322,9 +364,13 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withOpacity(0.8),
+            color: isDark
+                ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.9)
+                : theme.colorScheme.surface.withOpacity(0.8),
             border: Border(
-              bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+              bottom: BorderSide(
+                color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.3),
+              ),
             ),
           ),
           child: Column(
@@ -344,7 +390,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                        color: isDark
+                            ? theme.colorScheme.primaryContainer.withOpacity(0.4)
+                            : theme.colorScheme.primaryContainer.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -352,7 +400,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                             ? '${state.filteredCount} / ${state.totalCount}'
                             : '${state.totalCount}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface,
+                          color: isDark
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurface,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -434,30 +484,39 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   /// 构建搜索框
   Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       height: 36,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.6)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
         borderRadius: BorderRadius.circular(18),
       ),
       child: TextField(
         controller: _searchController,
-        style: theme.textTheme.bodyMedium,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurface,
+        ),
         decoration: InputDecoration(
           hintText: '搜索文件名或 Prompt...',
           hintStyle: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.6 : 0.5),
             fontSize: 13,
           ),
           prefixIcon: Icon(
             Icons.search,
             size: 18,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.7 : 0.6),
           ),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.close,
-                      size: 16, color: theme.colorScheme.onSurfaceVariant,),
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.7 : 0.6),
+                  ),
                   onPressed: () {
                     _searchController.clear();
                     ref
@@ -660,14 +719,27 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          Icon(
+            Icons.error_outline,
+            size: 48,
+            color: theme.colorScheme.error,
+          ),
           const SizedBox(height: 16),
-          Text('加载失败: ${state.error}'),
+          Text(
+            '加载失败: ${state.error}',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () =>
-                ref.read(localGalleryNotifierProvider.notifier).refresh(),
-            child: const Text('重试'),
+            onPressed: () => ref.read(localGalleryNotifierProvider.notifier).refresh(),
+            child: Text(
+              '重试',
+              style: TextStyle(
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
           ),
         ],
       ),
@@ -676,13 +748,22 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   /// 构建索引状态
   Widget _buildIndexingState() {
-    return const Center(
+    final theme = Theme.of(context);
+
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('索引本地图片中...'),
+          CircularProgressIndicator(
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '索引本地图片中...',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
         ],
       ),
     );
@@ -691,17 +772,31 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// 构建空状态
   Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_not_supported,
-              size: 64, color: theme.colorScheme.onSurfaceVariant,),
+          Icon(
+            Icons.image_not_supported,
+            size: 64,
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.6 : 1.0),
+          ),
           const SizedBox(height: 16),
-          const Text('暂无本地图片'),
+          Text(
+            '暂无本地图片',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('生成的图片将保存在此处',
-              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),),
+          Text(
+            '生成的图片将保存在此处',
+            style: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.7 : 1.0),
+            ),
+          ),
         ],
       ),
     );
@@ -715,13 +810,20 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       // 分组视图中加载骨架屏
       // Loading skeleton in grouped view
       if (state.isGroupedLoading) {
-        return const Center(
+        return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('加载分组图片中...'),
+              CircularProgressIndicator(
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '加载分组图片中...',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
             ],
           ),
         );
@@ -730,15 +832,23 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       // 分组视图无结果
       // No results in grouped view
       if (state.groupedImages.isEmpty) {
+        final isDark = theme.brightness == Brightness.dark;
+
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.search_off, size: 48, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5)),
+              Icon(
+                Icons.search_off,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.6 : 0.5),
+              ),
               const SizedBox(height: 12),
               Text(
                 '无匹配结果',
-                style: theme.textTheme.titleMedium,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 8),
               TextButton.icon(
@@ -748,6 +858,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 },
                 icon: const Icon(Icons.filter_alt_off, size: 16),
                 label: const Text('清除过滤'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                ),
               ),
             ],
           ),
@@ -791,17 +904,23 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     // 过滤后无结果
     if (state.filteredFiles.isEmpty && state.hasFilters) {
+      final isDark = theme.brightness == Brightness.dark;
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off,
-                size: 48,
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),),
+            Icon(
+              Icons.search_off,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.6 : 0.5),
+            ),
             const SizedBox(height: 12),
             Text(
               '无匹配结果',
-              style: theme.textTheme.titleMedium,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
@@ -813,6 +932,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               },
               icon: const Icon(Icons.filter_alt_off, size: 16),
               label: const Text('清除过滤'),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -909,6 +1031,7 @@ class _RoundedIconButtonState extends State<_RoundedIconButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final effectiveColor = widget.color ?? theme.colorScheme.onSurfaceVariant;
 
     return MouseRegion(
@@ -919,11 +1042,11 @@ class _RoundedIconButtonState extends State<_RoundedIconButton> {
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: _isHovered
-              ? effectiveColor.withOpacity(0.15)
-              : effectiveColor.withOpacity(0.05),
+              ? effectiveColor.withOpacity(isDark ? 0.2 : 0.15)
+              : effectiveColor.withOpacity(isDark ? 0.08 : 0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: effectiveColor.withOpacity(0.2),
+            color: effectiveColor.withOpacity(isDark ? 0.15 : 0.2),
             width: 1,
           ),
         ),
@@ -966,6 +1089,9 @@ class _RoundedTextButtonState extends State<_RoundedTextButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -974,11 +1100,11 @@ class _RoundedTextButtonState extends State<_RoundedTextButton> {
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: _isHovered
-              ? widget.color.withOpacity(0.2)
-              : widget.color.withOpacity(0.1),
+              ? widget.color.withOpacity(isDark ? 0.25 : 0.2)
+              : widget.color.withOpacity(isDark ? 0.12 : 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: widget.color.withOpacity(0.3),
+            color: widget.color.withOpacity(isDark ? 0.25 : 0.3),
             width: 1,
           ),
         ),
@@ -1031,8 +1157,16 @@ class _ShimmerSkeletonState extends State<_ShimmerSkeleton>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final baseColor = colorScheme.surfaceContainerHighest.withOpacity(0.3);
-    final highlightColor = colorScheme.surfaceContainerHighest.withOpacity(0.6);
+    final isDark = colorScheme.brightness == Brightness.dark;
+
+    // Dark mode: use lighter shimmer on dark surface
+    // Light mode: use darker shimmer on light surface
+    final baseColor = isDark
+        ? colorScheme.surfaceContainerHighest.withOpacity(0.2)
+        : colorScheme.surfaceContainerHighest.withOpacity(0.3);
+    final highlightColor = isDark
+        ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
+        : colorScheme.surfaceContainerHighest.withOpacity(0.6);
 
     return AnimatedBuilder(
       animation: _controller,
