@@ -93,6 +93,12 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 当前标签列表（标签模式下使用）
   List<PromptTag> _tags = [];
 
+  /// 缓存：上次解析的文本（用于避免重复解析）
+  String? _lastParsedText;
+
+  /// 缓存：上次序列化的标签哈希（用于避免重复序列化）
+  int? _lastSerializedTagsHash;
+
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
     if (widget.config.enableSyntaxHighlight) {
@@ -133,8 +139,11 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     // 监听外部控制器变化
     widget.controller?.addListener(_syncFromExternalController);
 
-    // 初始化标签列表
-    _updateTagsFromText();
+    // 性能优化：仅在标签模式下才预先解析标签
+    // 文本模式下延迟解析，直到首次切换到标签模式
+    if (_viewMode == PromptViewMode.tags) {
+      _updateTagsFromText();
+    }
   }
 
   @override
@@ -190,25 +199,44 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   }
 
   /// 从文本更新标签列表
+  ///
+  /// 性能优化：仅在文本实际变化时才重新解析
   void _updateTagsFromText() {
     final text = widget.controller?.text ??
         _syntaxController?.text ??
         _internalController?.text ??
         '';
+
+    // 如果文本未变化，跳过解析
+    if (_lastParsedText == text) return;
+
+    _lastParsedText = text;
     _tags = NaiPromptParser.parse(text);
   }
 
   /// 切换视图模式
+  ///
+  /// 性能优化：使用缓存避免重复解析和序列化
   void _toggleViewMode() {
     setState(() {
       if (_viewMode == PromptViewMode.text) {
-        // 文本 -> 标签：解析文本
-        _tags = NaiPromptParser.parse(_effectiveController.text);
+        // 文本 -> 标签：使用缓存的标签列表（如果有效）
+        final currentText = _effectiveController.text;
+        if (_lastParsedText != currentText) {
+          // 文本已变化，需要重新解析
+          _updateTagsFromText();
+        }
+        // _tags 已经是最新的（来自缓存或刚解析）
         _viewMode = PromptViewMode.tags;
       } else {
-        // 标签 -> 文本：序列化标签
-        final text = NaiPromptParser.toPromptString(_tags);
-        _updateControllerText(text);
+        // 标签 -> 文本：仅在标签实际变化时才序列化
+        final currentHash = _tags.hashCode;
+        if (_lastSerializedTagsHash != currentHash) {
+          final text = NaiPromptParser.toPromptString(_tags);
+          _updateControllerText(text);
+          _lastSerializedTagsHash = currentHash;
+          _lastParsedText = text; // 同步缓存
+        }
         _viewMode = PromptViewMode.text;
       }
     });
@@ -229,14 +257,23 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   }
 
   /// 处理文本变化
+  ///
+  /// 性能优化：延迟解析，仅在需要时（切换到标签模式）才解析
   void _handleTextChanged(String text) {
     // 同步到外部控制器
     if (widget.controller != null && widget.controller!.text != text) {
       widget.controller!.text = text;
     }
 
-    // 更新标签列表
-    _tags = NaiPromptParser.parse(text);
+    // 性能优化：仅在标签模式下才实时解析
+    // 文本模式下延迟解析，直到切换到标签模式
+    if (_viewMode == PromptViewMode.tags) {
+      _tags = NaiPromptParser.parse(text);
+      _lastParsedText = text;
+    } else {
+      // 文本模式下，仅标记缓存失效
+      _lastParsedText = null;
+    }
 
     // 触发回调
     widget.onChanged?.call(text);

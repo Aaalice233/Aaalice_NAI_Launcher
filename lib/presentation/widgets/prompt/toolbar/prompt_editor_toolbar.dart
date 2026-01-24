@@ -173,7 +173,8 @@ class PromptEditorToolbar extends StatelessWidget {
             children: [
               // 文本模式图标
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 100),
+                curve: Curves.easeOut, // 性能优化：使用更快的曲线
                 width: itemSize,
                 height: itemSize,
                 decoration: BoxDecoration(
@@ -193,7 +194,8 @@ class PromptEditorToolbar extends StatelessWidget {
               SizedBox(width: spacing),
               // 标签模式图标
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 100),
+                curve: Curves.easeOut, // 性能优化：使用更快的曲线
                 width: itemSize,
                 height: itemSize,
                 decoration: BoxDecoration(
