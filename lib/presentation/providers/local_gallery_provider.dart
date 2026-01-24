@@ -38,18 +38,25 @@ class LocalGalleryState with _$LocalGalleryState {
 
     /// 日期过滤：结束日期
     DateTime? dateEnd,
+    /// 仅显示收藏
+    @Default(false) bool showFavoritesOnly,
+    /// 标签过滤（选中的标签列表）
+    @Default([]) List<String> selectedTags,
     String? error,
   }) = _LocalGalleryState;
 
   const LocalGalleryState._();
 
   /// 总页数（基于过滤后的文件）
-  int get totalPages =>
-      filteredFiles.isEmpty ? 0 : (filteredFiles.length / pageSize).ceil();
+  int get totalPages => filteredFiles.isEmpty ? 0 : (filteredFiles.length / pageSize).ceil();
 
   /// 是否有过滤条件
   bool get hasFilters =>
-      searchQuery.isNotEmpty || dateStart != null || dateEnd != null;
+      searchQuery.isNotEmpty ||
+      dateStart != null ||
+      dateEnd != null ||
+      showFavoritesOnly ||
+      selectedTags.isNotEmpty;
 
   /// 过滤后的图片数量
   int get filteredCount => filteredFiles.length;
