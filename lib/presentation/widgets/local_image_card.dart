@@ -507,7 +507,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
       elevation: 0,
       color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
         side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
       ),
       child: Padding(
@@ -613,7 +613,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
           clipBehavior: Clip.antiAlias,
           shape: widget.isSelected
               ? RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 3),
                 )
               : null,
