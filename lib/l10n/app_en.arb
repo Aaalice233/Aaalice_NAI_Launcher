@@ -2235,5 +2235,44 @@
     "placeholders": {
       "tag": {}
     }
+  },
+
+  "tag_templatesTitle": "Tag Templates",
+  "tag_templatesEmpty": "No tag templates yet",
+  "tag_templatesEmptyHint": "Select tags and click the + button to create a template",
+  "tag_templateCreate": "Create Template",
+  "tag_templateNameLabel": "Template Name",
+  "tag_templateNameHint": "Enter template name",
+  "tag_templateNameRequired": "Please enter a template name",
+  "tag_templateDescLabel": "Description (Optional)",
+  "tag_templateDescHint": "Enter template description",
+  "tag_templatePreview": "Tag Preview",
+  "tag_templateTagCount": "{count} tags",
+  "@tag_templateTagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateMoreTags": "{count} more tags...",
+  "@tag_templateMoreTags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateInserted": "Inserted template \"{name}\"",
+  "@tag_templateInserted": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tag_templateNoTags": "No tags to save",
+  "tag_templateSaved": "Template saved",
+  "tag_templateNameExists": "Template name already exists",
+  "tag_templateDeleteTitle": "Delete Template",
+  "tag_templateDeleteMessage": "Delete template \"{name}\"?",
+  "@tag_templateDeleteMessage": {
+    "placeholders": {
+      "name": {}
+    }
   }
 }
