@@ -59,7 +59,8 @@ class TagView extends ConsumerStatefulWidget {
   ConsumerState<TagView> createState() => _TagViewState();
 }
 
-class _TagViewState extends ConsumerState<TagView> with SingleTickerProviderStateMixin {
+class _TagViewState extends ConsumerState<TagView>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool _isAddingTag = false;
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocusNode = FocusNode();
@@ -73,13 +74,32 @@ class _TagViewState extends ConsumerState<TagView> with SingleTickerProviderStat
   // Tab 控制
   late TabController _tabController;
 
+  // Tab 状态持久化
+  int _currentTabIndex = 0;
+
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _updateTagKeys();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: _currentTabIndex,
+    );
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
   }
 
   @override
@@ -101,6 +121,7 @@ class _TagViewState extends ConsumerState<TagView> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _addTagController.dispose();
     _addTagFocusNode.dispose();
     _selectionController.dispose();
@@ -266,6 +287,7 @@ class _TagViewState extends ConsumerState<TagView> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final hasSelection = widget.tags.any((t) => t.selected);
 
@@ -286,16 +308,28 @@ class _TagViewState extends ConsumerState<TagView> with SingleTickerProviderStat
               controller: _tabController,
               children: [
                 // Tags Tab - 现有的标签视图
-                _buildTagsTabContent(theme, hasSelection),
+                KeyedSubtree(
+                  key: const ValueKey('tags_tab'),
+                  child: _buildTagsTabContent(theme, hasSelection),
+                ),
 
                 // Groups Tab - 标签分组浏览器
-                _buildGroupsTabContent(theme),
+                KeyedSubtree(
+                  key: const ValueKey('groups_tab'),
+                  child: _buildGroupsTabContent(theme),
+                ),
 
                 // Favorites Tab - 收藏面板
-                _buildFavoritesTabContent(theme),
+                KeyedSubtree(
+                  key: const ValueKey('favorites_tab'),
+                  child: _buildFavoritesTabContent(theme),
+                ),
 
                 // Templates Tab - 模板面板
-                _buildTemplatesTabContent(theme),
+                KeyedSubtree(
+                  key: const ValueKey('templates_tab'),
+                  child: _buildTemplatesTabContent(theme),
+                ),
               ],
             ),
           ),
