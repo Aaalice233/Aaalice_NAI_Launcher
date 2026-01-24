@@ -180,6 +180,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       searchQuery: '',
       dateStart: null,
       dateEnd: null,
+      showFavoritesOnly: false,
+      selectedTags: [],
       isPageLoading: true,
     );
     await _applyFilters();
