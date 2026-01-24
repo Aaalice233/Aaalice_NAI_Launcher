@@ -202,6 +202,9 @@
   "settings_avatarFileMissing": "头像文件已丢失，是否重新选择？",
   "settings_setAsDefaultSuccess": "已设为默认账号",
 
+  "settings_startupPerformance": "启动性能",
+  "settings_startupPerformanceSubtitle": "配置启动性能设置",
+
   "generation_title": "生成",
   "generation_generate": "生成",
   "generation_cancel": "取消",

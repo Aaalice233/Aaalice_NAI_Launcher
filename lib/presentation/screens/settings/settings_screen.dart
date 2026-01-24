@@ -555,6 +555,16 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
         ),
+        ListTile(
+          leading: const Icon(Icons.speed_outlined),
+          title: Text(context.l10n.settings_startupPerformance),
+          subtitle: Text(context.l10n.settings_startupPerformanceSubtitle),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            // TODO: Navigate to startup performance settings
+            AppToast.info(context, '功能开发中...');
+          },
+        ),
       ],
     );
   }

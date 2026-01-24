@@ -217,6 +217,9 @@
   "settings_avatarFileMissing": "Avatar file missing, select again?",
   "settings_setAsDefaultSuccess": "Set as default account",
 
+  "settings_startupPerformance": "Startup Performance",
+  "settings_startupPerformanceSubtitle": "Configure startup performance settings",
+
   "generation_title": "Generate",
   "generation_generate": "Generate",
   "generation_cancel": "Cancel",
