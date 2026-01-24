@@ -2203,5 +2203,25 @@
   "vibeEncodeConfirm": "Continue and consume Anlas?",
   "vibeCancel": "Cancel",
   "vibeConfirmEncode": "Encode",
-  "vibeParseFailed": "Failed to parse Vibe file"
+  "vibeParseFailed": "Failed to parse Vibe file",
+
+  "tagGroupBrowser_searchHint": "Search tags...",
+  "tagGroupBrowser_tagCount": "{count} tags",
+  "@tagGroupBrowser_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupBrowser_filteredTagCount": "Showing {filtered} of {total} tags",
+  "@tagGroupBrowser_filteredTagCount": {
+    "placeholders": {
+      "filtered": {},
+      "total": {}
+    }
+  },
+  "tagGroupBrowser_noTags": "No tags",
+  "tagGroupBrowser_noLibrary": "Tag library not loaded",
+  "tagGroupBrowser_importLibraryHint": "Please import a tag library first",
+  "tagGroupBrowser_noCategories": "No enabled tag categories",
+  "tagGroupBrowser_enableCategoriesHint": "Please enable tag categories in settings"
 }
