@@ -58,7 +58,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         AppLogger.d('[LoginScreen] Showing error Toast: ${next.errorCode}', 'LOGIN');
         final errorText =
             _getErrorText(context, next.errorCode!, next.httpStatusCode);
-        final errorMessage = context.l10n.auth_error_loginFailed(errorText);
+        final recoveryHint = _getErrorRecoveryHint(context, next.errorCode!, next.httpStatusCode);
+
+        // 构建错误消息，包含恢复建议
+        String errorMessage;
+        if (recoveryHint != null) {
+          errorMessage = '$errorText\n\n💡 $recoveryHint';
+        } else {
+          errorMessage = context.l10n.auth_error_loginFailed(errorText);
+        }
 
         // 使用 Navigator.of 来获取 Overlay
         final overlayState = Navigator.of(context, rootNavigator: true).overlay;
@@ -1009,6 +1017,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return l10n.auth_error_serverError;
       case AuthErrorCode.unknown:
         return l10n.auth_error_unknown;
+    }
+  }
+
+  /// 获取错误恢复建议
+  String? _getErrorRecoveryHint(
+    BuildContext context,
+    AuthErrorCode errorCode,
+    int? httpStatusCode,
+  ) {
+    final l10n = context.l10n;
+
+    switch (errorCode) {
+      case AuthErrorCode.networkTimeout:
+        return l10n.api_error_timeout_hint;
+      case AuthErrorCode.networkError:
+        return l10n.api_error_network_hint;
+      case AuthErrorCode.authFailed:
+        if (httpStatusCode == 401) {
+          return l10n.api_error_401_hint;
+        }
+        return l10n.api_error_401_hint;
+      case AuthErrorCode.tokenInvalid:
+        return l10n.api_error_401_hint;
+      case AuthErrorCode.serverError:
+        if (httpStatusCode == 503) {
+          return l10n.api_error_503_hint;
+        }
+        return l10n.api_error_500_hint;
+      case AuthErrorCode.unknown:
+        return null;
     }
   }
 }

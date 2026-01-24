@@ -185,11 +185,26 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                               _getErrorMessage(authState.errorCode),
                               style: TextStyle(
                                 color: theme.colorScheme.error,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ],
                       ),
+                      // 显示恢复建议
+                      if (_getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode) != null) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 32),
+                          child: Text(
+                            _getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode)!,
+                            style: TextStyle(
+                              color: theme.colorScheme.error.withOpacity(0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                       // 网络错误显示重试按钮
                       if (_isNetworkError(authState.errorCode)) ...[
                         const SizedBox(height: 12),
@@ -308,18 +323,30 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
           switch (authState.errorCode) {
             case AuthErrorCode.tokenInvalid:
               errorMessage = context.l10n.auth_tokenInvalid;
+              final recoveryHint = context.l10n.api_error_401_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.authFailed:
               errorMessage = context.l10n.auth_error_authFailed;
+              final recoveryHint = context.l10n.api_error_401_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.networkTimeout:
               errorMessage = context.l10n.auth_error_networkTimeout;
+              final recoveryHint = context.l10n.api_error_timeout_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.networkError:
               errorMessage = context.l10n.auth_error_networkError;
+              final recoveryHint = context.l10n.api_error_network_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.serverError:
               errorMessage = context.l10n.auth_error_serverError;
+              final recoveryHint = authState.httpStatusCode == 503
+                  ? context.l10n.api_error_503_hint
+                  : context.l10n.api_error_500_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             default:
               errorMessage = context.l10n.auth_error_unknown;
@@ -348,6 +375,31 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
       case AuthErrorCode.unknown:
       default:
         return context.l10n.auth_error_unknown;
+    }
+  }
+
+  /// 获取错误恢复建议
+  String? _getErrorRecoveryHint(AuthErrorCode? errorCode, int? httpStatusCode) {
+    switch (errorCode) {
+      case AuthErrorCode.networkTimeout:
+        return context.l10n.api_error_timeout_hint;
+      case AuthErrorCode.networkError:
+        return context.l10n.api_error_network_hint;
+      case AuthErrorCode.authFailed:
+        if (httpStatusCode == 401) {
+          return context.l10n.api_error_401_hint;
+        }
+        return context.l10n.api_error_401_hint;
+      case AuthErrorCode.tokenInvalid:
+        return context.l10n.api_error_401_hint;
+      case AuthErrorCode.serverError:
+        if (httpStatusCode == 503) {
+          return context.l10n.api_error_503_hint;
+        }
+        return context.l10n.api_error_500_hint;
+      case AuthErrorCode.unknown:
+      default:
+        return null;
     }
   }
 
