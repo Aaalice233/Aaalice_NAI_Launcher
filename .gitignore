@@ -100,9 +100,10 @@ nul
 .qoder/
 .kiro
 .sisyphus/
-CLAUDE.md
 AGENTS.md
 .claude/
+.auto-claude-security.json
+.claude_settings.json
 
 # Local folders
 logs/
