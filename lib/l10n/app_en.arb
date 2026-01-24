@@ -1391,6 +1391,7 @@
   "naiMode_title": "Default Mode",
   "naiMode_subtitle": "Replicate NovelAI official random algorithm",
   "naiMode_syncLibrary": "Manage Extended Library",
+  "manageLibrary": "Manage Library",
   "naiMode_algorithmInfo": "Algorithm Info",
   "naiMode_tagCountBadge": "{count} tags",
   "@naiMode_tagCountBadge": {

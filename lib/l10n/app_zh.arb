@@ -1057,6 +1057,7 @@
   "naiMode_title": "默认模式",
   "naiMode_subtitle": "复刻 NovelAI 官方随机算法",
   "naiMode_syncLibrary": "管理扩展词库",
+  "manageLibrary": "管理词库",
   "naiMode_algorithmInfo": "算法说明",
   "naiMode_tagCountBadge": "{count} 个标签",
   "@naiMode_tagCountBadge": {

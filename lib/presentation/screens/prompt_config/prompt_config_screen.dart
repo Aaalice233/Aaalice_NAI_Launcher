@@ -21,6 +21,7 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/prompt/random_manager/random_library_manager.dart';
 import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
@@ -222,6 +223,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onToggleExpand: _toggleAllExpand,
             onResetPreset: () => _showResetPresetConfirmDialog(context),
             onAddCategory: () => _showAddCategoryDialog(context),
+            onManageLibrary: () => RandomLibraryManager.show(context),
           ),
 
           // 同步进度（TagLibrary 或 TagGroup 同步）
