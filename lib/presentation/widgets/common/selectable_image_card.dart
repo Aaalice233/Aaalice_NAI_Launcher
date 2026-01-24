@@ -48,7 +48,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             border: Border.all(
               color: widget.isSelected
                   ? theme.colorScheme.primary
@@ -68,7 +68,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(4),
             child: Stack(
               fit: StackFit.expand,
               children: [
