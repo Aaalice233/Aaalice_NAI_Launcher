@@ -334,6 +334,7 @@ class _LayerTileState extends State<_LayerTile>
         child: InkWell(
           onTap: widget.onTap,
           onLongPress: () => _showContextMenu(context),
+          onSecondaryTap: () => _showContextMenu(context),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             height: widget.showThumbnail ? 56 : null,
