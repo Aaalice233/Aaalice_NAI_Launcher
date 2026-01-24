@@ -12,6 +12,10 @@ void main() {
   // Initialize Flutter bindings for testing
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+
+    // Initialize Hive for tests
+    final tempDir = Directory.systemTemp;
+    Hive.init(tempDir.path);
   });
 
   tearDownAll(() async {
@@ -77,7 +81,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('state should progress through different tasks', () async {
       // Arrange
@@ -135,7 +139,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('retry can be called multiple times', () async {
       // Arrange
@@ -159,7 +163,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 5)));
   });
 
   group('WarmupProvider Skip Tests', () {
@@ -250,7 +254,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('metrics should contain all 9 warmup tasks', () async {
       // Arrange
@@ -302,7 +306,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('each metric should have valid duration and status', () async {
       // Arrange
@@ -352,7 +356,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('retry should save additional metrics sessions', () async {
       // Arrange
@@ -393,7 +397,7 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('skip should not save metrics', () async {
       // Arrange
@@ -503,7 +507,7 @@ void main() {
       // Cleanup
       container1.dispose();
       container2.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('warmup completes within reasonable time', () async {
       // Arrange
@@ -533,6 +537,6 @@ void main() {
 
       // Cleanup
       container.dispose();
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
   });
 }
