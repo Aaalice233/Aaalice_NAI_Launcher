@@ -352,6 +352,17 @@ class EditorState extends ChangeNotifier {
     );
   }
 
+  /// 调整画布大小（支持撤销）
+  void resizeCanvas(Size newSize) {
+    // 如果新尺寸与当前尺寸相同，则不执行操作
+    if (_canvasSize == newSize) return;
+
+    historyManager.execute(
+      ResizeCanvasAction(newSize: newSize),
+      this,
+    );
+  }
+
   // ===== 内部方法 =====
 
   void _onLayerChanged() {
