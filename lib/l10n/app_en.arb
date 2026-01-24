@@ -2354,5 +2354,12 @@
     "placeholders": {
       "seconds": {}
     }
-  }
+  },
+  "comparison_title": "Image Comparison",
+  "comparison_noImages": "No images to display",
+  "comparison_tooManyImages": "Too many images",
+  "comparison_maxImages": "Maximum 4 images allowed for comparison",
+  "comparison_close": "Close comparison",
+  "comparison_zoomHint": "Pinch or scroll to zoom independently",
+  "comparison_loadError": "Failed to load image"
 }

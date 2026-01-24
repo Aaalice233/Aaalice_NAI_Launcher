@@ -14,6 +14,7 @@ import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/slideshow_screen.dart';
+import '../screens/image_comparison_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/replication_queue_bar.dart';
 import '../providers/replication_queue_provider.dart';
@@ -44,6 +45,7 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String promptConfig = '/prompt-config';
   static const String slideshow = '/slideshow';
+  static const String comparison = '/comparison';
 }
 
 /// 应用路由 Provider
@@ -218,6 +220,21 @@ GoRouter appRouter(Ref ref) {
                         child: SlideshowScreen(
                           images: const [],
                           initialIndex: initialIndex,
+                        ),
+                      );
+                    },
+                  ),
+                  // 图片对比子路由
+                  GoRoute(
+                    path: AppRoutes.comparison,
+                    name: 'comparison',
+                    pageBuilder: (context, state) {
+                      // TODO: 从状态获取图片列表
+                      // 目前使用空列表进行测试
+                      return MaterialPage(
+                        key: state.pageKey,
+                        child: const ImageComparisonScreen(
+                          images: [],
                         ),
                       );
                     },
