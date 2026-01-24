@@ -350,13 +350,12 @@ class Layer {
 
     // 检查未光栅化的笔画中是否有橡皮擦
     // BlendMode.clear 需要在隔离的 layer 中绘制，否则会擦穿到下层
-    final hasEraserInPending = _strokes
-        .skip(_rasterizedStrokeCount)
-        .any((s) => s.isEraser);
+    final hasEraserInPending =
+        _strokes.skip(_rasterizedStrokeCount).any((s) => s.isEraser);
 
     final needsLayer = opacity < 1.0 ||
-                       blendMode != LayerBlendMode.normal ||
-                       hasEraserInPending;
+        blendMode != LayerBlendMode.normal ||
+        hasEraserInPending;
     if (needsLayer) {
       canvas.saveLayer(
         Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
@@ -422,7 +421,7 @@ class Layer {
 
     final paint = Paint()
       ..color = stroke.isEraser
-          ? const Color(0xFFFFFFFF)  // 颜色无所谓，clear 模式会忽略
+          ? const Color(0xFFFFFFFF) // 颜色无所谓，clear 模式会忽略
           : stroke.color.withOpacity(stroke.opacity)
       ..strokeWidth = stroke.size
       ..strokeCap = StrokeCap.round
@@ -506,12 +505,12 @@ class Layer {
       } else {
         // 检查待光栅化的笔画中是否有橡皮擦
         // BlendMode.clear 需要在已有内容上操作，所以橡皮擦需要完整重绘
-        final hasEraserInPending = _strokes
-            .skip(_rasterizedStrokeCount)
-            .any((s) => s.isEraser);
+        final hasEraserInPending =
+            _strokes.skip(_rasterizedStrokeCount).any((s) => s.isEraser);
 
         // 如果有橡皮擦，需要完整重绘（不能增量）
-        final needsFullRedraw = hasEraserInPending || _rasterizedStrokeCount == 0;
+        final needsFullRedraw =
+            hasEraserInPending || _rasterizedStrokeCount == 0;
 
         if (needsFullRedraw) {
           // 完整重绘所有笔画
@@ -749,10 +748,12 @@ class Layer {
             return Offset(point.dx * scaleX, point.dy * scaleY);
           }).toList();
 
-          transformedStrokes.add(stroke.copyWith(
-            points: transformedPoints,
-            size: stroke.size * ((scaleX + scaleY) / 2), // 平均缩放笔刷大小
-          ),);
+          transformedStrokes.add(
+            stroke.copyWith(
+              points: transformedPoints,
+              size: stroke.size * ((scaleX + scaleY) / 2), // 平均缩放笔刷大小
+            ),
+          );
         }
 
         _strokes.clear();

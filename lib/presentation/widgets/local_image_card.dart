@@ -261,7 +261,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   child: SingleChildScrollView(
                                     padding: const EdgeInsets.all(16),
                                     child: _buildMetadataContent(
-                                        context, metadata),
+                                        context, metadata,),
                                   ),
                                 ),
                                 // 底部操作栏
@@ -274,9 +274,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                         child: ElevatedButton.icon(
                                           onPressed: () {
                                             Clipboard.setData(ClipboardData(
-                                                text: metadata.fullPrompt));
+                                                text: metadata.fullPrompt,),);
                                             AppToast.success(
-                                                context, 'Prompt 已复制');
+                                                context, 'Prompt 已复制',);
                                           },
                                           icon: const Icon(Icons.copy),
                                           label: const Text('复制 Prompt'),
@@ -332,16 +332,16 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                         ElevatedButton.icon(
                                           onPressed: () {
                                             Clipboard.setData(ClipboardData(
-                                                text: metadata.fullPrompt));
+                                                text: metadata.fullPrompt,),);
                                             AppToast.success(
-                                                context, 'Prompt 已复制');
+                                                context, 'Prompt 已复制',);
                                           },
                                           icon:
                                               const Icon(Icons.copy, size: 16),
                                           label: const Text('复制 Prompt'),
                                           style: ElevatedButton.styleFrom(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 8),
+                                                horizontal: 12, vertical: 8,),
                                           ),
                                         ),
                                       ],
@@ -352,7 +352,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                     child: SingleChildScrollView(
                                       padding: const EdgeInsets.all(16),
                                       child: _buildMetadataContent(
-                                          context, metadata),
+                                          context, metadata,),
                                     ),
                                   ),
                                 ],
@@ -549,7 +549,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   Widget _buildMetadataContent(
-      BuildContext context, NaiImageMetadata metadata) {
+      BuildContext context, NaiImageMetadata metadata,) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -558,13 +558,13 @@ class _LocalImageCardState extends State<LocalImageCard> {
           title: '基本信息',
           children: [
             _buildInfoRow(context, Icons.insert_drive_file_outlined, '文件名',
-                path.basename(widget.record.path)),
+                path.basename(widget.record.path),),
             const SizedBox(height: 8),
             _buildInfoRow(
-                context, Icons.folder_open_outlined, '路径', widget.record.path),
+                context, Icons.folder_open_outlined, '路径', widget.record.path,),
             const SizedBox(height: 8),
             _buildInfoRow(context, Icons.data_usage, '大小',
-                '${(widget.record.size / 1024).toStringAsFixed(2)} KB'),
+                '${(widget.record.size / 1024).toStringAsFixed(2)} KB',),
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
@@ -581,27 +581,27 @@ class _LocalImageCardState extends State<LocalImageCard> {
           children: [
             if (metadata.seed != null) ...[
               _buildInfoRow(
-                  context, Icons.tag, 'Seed', metadata.seed.toString()),
+                  context, Icons.tag, 'Seed', metadata.seed.toString(),),
               const SizedBox(height: 8),
             ],
             if (metadata.steps != null) ...[
               _buildInfoRow(
-                  context, Icons.repeat, 'Steps', metadata.steps.toString()),
+                  context, Icons.repeat, 'Steps', metadata.steps.toString(),),
               const SizedBox(height: 8),
             ],
             if (metadata.scale != null) ...[
               _buildInfoRow(
-                  context, Icons.tune, 'CFG Scale', metadata.scale.toString()),
+                  context, Icons.tune, 'CFG Scale', metadata.scale.toString(),),
               const SizedBox(height: 8),
             ],
             if (metadata.sampler != null) ...[
               _buildInfoRow(
-                  context, Icons.shuffle, 'Sampler', metadata.displaySampler),
+                  context, Icons.shuffle, 'Sampler', metadata.displaySampler,),
               const SizedBox(height: 8),
             ],
             if (metadata.sizeString.isNotEmpty) ...[
               _buildInfoRow(
-                  context, Icons.aspect_ratio, '尺寸', metadata.sizeString),
+                  context, Icons.aspect_ratio, '尺寸', metadata.sizeString,),
               const SizedBox(height: 8),
             ],
             if (metadata.model != null) ...[
@@ -621,12 +621,12 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ],
             if (metadata.noiseSchedule != null) ...[
               _buildInfoRow(context, Icons.waves, 'Noise Schedule',
-                  metadata.noiseSchedule!),
+                  metadata.noiseSchedule!,),
               const SizedBox(height: 8),
             ],
             if (metadata.cfgRescale != null && metadata.cfgRescale! > 0) ...[
               _buildInfoRow(context, Icons.balance, 'CFG Rescale',
-                  metadata.cfgRescale.toString()),
+                  metadata.cfgRescale.toString(),),
               const SizedBox(height: 8),
             ],
             // 获取图片实际尺寸
@@ -705,7 +705,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   Widget _buildInfoCard(BuildContext context,
-      {required String title, required List<Widget> children}) {
+      {required String title, required List<Widget> children,}) {
     return Card(
       elevation: 0,
       color: Theme.of(context)
@@ -742,12 +742,12 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   Widget _buildInfoRow(
-      BuildContext context, IconData icon, String label, String value) {
+      BuildContext context, IconData icon, String label, String value,) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon,
-            size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant,),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -824,7 +824,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
               ? RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                   side: BorderSide(
-                      color: Theme.of(context).colorScheme.primary, width: 3),
+                      color: Theme.of(context).colorScheme.primary, width: 3,),
                 )
               : null,
           child: Column(
@@ -848,7 +848,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                               size: 48,
                               color: Theme.of(context)
                                   .colorScheme
-                                  .onSurfaceVariant),
+                                  .onSurfaceVariant,),
                         ),
                       );
                     },
@@ -994,7 +994,7 @@ class _ContextMenuRoute extends PopupRoute {
 
   @override
   Widget buildPage(BuildContext context, Animation<double> animation,
-      Animation<double> secondaryAnimation) {
+      Animation<double> secondaryAnimation,) {
     return MediaQuery.removePadding(
       context: context,
       removeTop: true,
@@ -1005,7 +1005,7 @@ class _ContextMenuRoute extends PopupRoute {
         builder: (context) {
           // Calculate adjusted position to keep menu within screen bounds
           final screenSize = MediaQuery.of(context).size;
-          final menuWidth = 200.0;
+          const menuWidth = 200.0;
           final menuHeight = items.length * 48.0;
 
           double left = position.dx;
@@ -1047,7 +1047,7 @@ class _ContextMenuRoute extends PopupRoute {
 
   @override
   Widget buildTransitions(BuildContext context, Animation<double> animation,
-      Animation<double> secondaryAnimation, Widget child) {
+      Animation<double> secondaryAnimation, Widget child,) {
     return FadeTransition(
       opacity: animation,
       child: ScaleTransition(

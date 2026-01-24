@@ -756,6 +756,8 @@
   "presetEdit_newConfigGroup": "新配置组",
   "presetEdit_enterPresetName": "请输入预设名称",
   "presetEdit_saveSuccess": "保存成功",
+  "presetEdit_saveError": "保存预设失败",
+  "presetEdit_deleteConfigConfirm": "删除配置组 \"{name}\"？",
   "presetEdit_previewTitle": "预览生成结果",
   "presetEdit_emptyResult": "(空结果，请检查配置)",
   "presetEdit_regenerate": "重新生成",
@@ -1057,6 +1059,7 @@
   "naiMode_title": "默认模式",
   "naiMode_subtitle": "复刻 NovelAI 官方随机算法",
   "naiMode_syncLibrary": "管理扩展词库",
+  "manageLibrary": "管理词库",
   "naiMode_algorithmInfo": "算法说明",
   "naiMode_tagCountBadge": "{count} 个标签",
   "@naiMode_tagCountBadge": {

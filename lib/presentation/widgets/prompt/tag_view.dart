@@ -235,8 +235,7 @@ class _TagViewState extends ConsumerState<TagView> {
     final rects = <Rect>[];
     for (var i = 0; i < _tagKeys.length; i++) {
       final key = _tagKeys[i];
-      final renderBox =
-          key.currentContext?.findRenderObject() as RenderBox?;
+      final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
         final position = renderBox.localToGlobal(Offset.zero);
         rects.add(position & renderBox.size);
@@ -246,10 +245,14 @@ class _TagViewState extends ConsumerState<TagView> {
   }
 
   void _handleBoxSelection(Set<int> indices) {
-    final newTags = widget.tags.asMap().map((index, tag) {
-      final isSelected = indices.contains(index);
-      return MapEntry(index, tag.copyWith(selected: isSelected));
-    }).values.toList();
+    final newTags = widget.tags
+        .asMap()
+        .map((index, tag) {
+          final isSelected = indices.contains(index);
+          return MapEntry(index, tag.copyWith(selected: isSelected));
+        })
+        .values
+        .toList();
     widget.onTagsChanged(newTags);
   }
 
@@ -370,7 +373,9 @@ class _TagViewState extends ConsumerState<TagView> {
           const Spacer(),
           _buildActionButton(
             icon: hasEnabledSelected ? Icons.visibility_off : Icons.visibility,
-            label: hasEnabledSelected ? context.l10n.tag_disable : context.l10n.tag_enable,
+            label: hasEnabledSelected
+                ? context.l10n.tag_disable
+                : context.l10n.tag_enable,
             onTap: _toggleSelectedEnabled,
             theme: theme,
           ),
@@ -713,8 +718,8 @@ class _TagViewState extends ConsumerState<TagView> {
                       fontSize: 12,
                       color: theme.colorScheme.onSurface.withOpacity(0.4),
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 10,),
                     border: InputBorder.none,
                     isDense: true,
                   ),

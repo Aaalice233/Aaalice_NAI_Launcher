@@ -67,7 +67,9 @@ class GalleryRepository {
       final migrationService = GalleryMigrationService();
       final (success, count, error) = await migrationService.migrate();
       if (success) {
-        AppLogger.i('GalleryRepository initialized with $count migrated records', 'Gallery');
+        AppLogger.i(
+            'GalleryRepository initialized with $count migrated records',
+            'Gallery',);
       } else {
         AppLogger.e('Migration failed: $error', null, null, 'Gallery');
       }
@@ -83,7 +85,8 @@ class GalleryRepository {
   /// - 提示词片段：前30个字符，移除特殊字符
   String _generateFileName(String? prompt, {String prefix = 'nai'}) {
     // 生成时间戳（ISO 8601 格式，移除冒号以兼容文件系统）
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').substring(0, 19);
+    final timestamp =
+        DateTime.now().toIso8601String().replaceAll(':', '-').substring(0, 19);
 
     // 如果没有提示词，使用纯时间戳格式
     if (prompt == null || prompt.isEmpty) {
@@ -270,7 +273,8 @@ class GalleryRepository {
       final imageData = await getImageData(record);
       if (imageData == null) return null;
 
-      final fileName = _generateFileName(record.params.prompt, prefix: 'nai_export');
+      final fileName =
+          _generateFileName(record.params.prompt, prefix: 'nai_export');
       final file = File('$targetDir/$fileName');
       await file.writeAsBytes(imageData);
 
@@ -319,15 +323,18 @@ class GalleryRepository {
 
     // 模型筛选
     if (filter.modelFilter != null && filter.modelFilter!.isNotEmpty) {
-      records = records.where((r) => r.params.model == filter.modelFilter).toList();
+      records =
+          records.where((r) => r.params.model == filter.modelFilter).toList();
     }
 
     // 日期筛选
     if (filter.dateFrom != null) {
-      records = records.where((r) => r.createdAt.isAfter(filter.dateFrom!)).toList();
+      records =
+          records.where((r) => r.createdAt.isAfter(filter.dateFrom!)).toList();
     }
     if (filter.dateTo != null) {
-      records = records.where((r) => r.createdAt.isBefore(filter.dateTo!)).toList();
+      records =
+          records.where((r) => r.createdAt.isBefore(filter.dateTo!)).toList();
     }
 
     // 标签筛选
@@ -360,7 +367,12 @@ class GalleryRepository {
   /// 获取统计信息
   Map<String, dynamic> getStats() {
     if (_newBox == null) {
-      return {'totalCount': 0, 'favoritesCount': 0, 'totalSize': 0, 'maxRecords': maxRecords};
+      return {
+        'totalCount': 0,
+        'favoritesCount': 0,
+        'totalSize': 0,
+        'maxRecords': maxRecords,
+      };
     }
 
     final records = _newBox!.values.toList();

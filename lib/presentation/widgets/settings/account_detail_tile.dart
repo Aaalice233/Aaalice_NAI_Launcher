@@ -114,7 +114,8 @@ class AccountDetailTile extends ConsumerWidget {
                             Text(
                               account.email,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.6),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -164,7 +165,8 @@ class AccountDetailTile extends ConsumerWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                          color: theme.colorScheme.secondaryContainer
+                              .withOpacity(0.5),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(

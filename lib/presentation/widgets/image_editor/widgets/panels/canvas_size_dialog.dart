@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 enum ContentHandlingMode {
   /// 裁剪 - 保持比例，裁剪多余部分
   crop('裁剪'),
+
   /// 填充 - 保持比例，填充空白区域
   pad('填充'),
+
   /// 拉伸 - 拉伸至填满画布
   stretch('拉伸');
 
@@ -180,12 +182,14 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
                 labelText: '内容处理',
                 isDense: true,
               ),
-              items: ContentHandlingMode.values.map(
-                (mode) => DropdownMenuItem(
-                  value: mode,
-                  child: Text(mode.toString()),
-                ),
-              ).toList(),
+              items: ContentHandlingMode.values
+                  .map(
+                    (mode) => DropdownMenuItem(
+                      value: mode,
+                      child: Text(mode.toString()),
+                    ),
+                  )
+                  .toList(),
               onChanged: (mode) {
                 if (mode != null) {
                   setState(() {
@@ -475,9 +479,8 @@ class _SizeComparison extends StatelessWidget {
     const maxPreviewHeight = 120.0;
 
     // 找出两个尺寸中最大的宽高
-    final maxWidth = originalSize.width > newSize.width
-        ? originalSize.width
-        : newSize.width;
+    final maxWidth =
+        originalSize.width > newSize.width ? originalSize.width : newSize.width;
     final maxHeight = originalSize.height > newSize.height
         ? originalSize.height
         : newSize.height;
@@ -540,8 +543,7 @@ class _SizeComparisonPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..isAntiAlias = true;
 
-    final originalDashPath = Path()
-      ..addRect(originalRect);
+    final originalDashPath = Path()..addRect(originalRect);
 
     // 绘制虚线效果
     final dashPath = _createDashedPath(originalDashPath);
@@ -627,7 +629,9 @@ class _SizeComparisonPainter extends CustomPainter {
     // 下方填充区域
     if (outerRect.bottom > innerRect.bottom) {
       for (double x = outerRect.left; x <= outerRect.right; x += dotSpacing) {
-        for (double y = innerRect.bottom; y <= outerRect.bottom; y += dotSpacing) {
+        for (double y = innerRect.bottom;
+            y <= outerRect.bottom;
+            y += dotSpacing) {
           canvas.drawCircle(Offset(x, y), dotRadius, patternPaint);
         }
       }

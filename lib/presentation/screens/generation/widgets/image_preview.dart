@@ -520,26 +520,31 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final saveDir = await _getSaveDirectory();
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
-      
+
       // 获取当前生成参数
       final params = ref.read(generationParamsNotifierProvider);
       final characterConfig = ref.read(characterPromptNotifierProvider);
-      
+
       // 构建 V4 多角色提示词结构
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
-      
-      for (final char in characterConfig.characters.where((c) => c.enabled && c.prompt.isNotEmpty)) {
+
+      for (final char in characterConfig.characters
+          .where((c) => c.enabled && c.prompt.isNotEmpty)) {
         charCaptions.add({
           'char_caption': char.prompt,
-          'centers': [{'x': 0.5, 'y': 0.5}],
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
         });
         charNegCaptions.add({
           'char_caption': char.negativePrompt,
-          'centers': [{'x': 0.5, 'y': 0.5}],
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
         });
       }
-      
+
       // 构造 NAI Comment 格式的元数据 JSON（与官网格式完全对齐）
       final commentJson = <String, dynamic>{
         'prompt': params.prompt,
@@ -557,7 +562,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         'sm': params.smea,
         'sm_dyn': params.smeaDyn,
       };
-      
+
       // 如果有角色提示词，添加 V4 格式
       if (charCaptions.isNotEmpty) {
         commentJson['v4_prompt'] = {
@@ -577,7 +582,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           'use_order': false,
         };
       }
-      
+
       // 构造完整的官网格式元数据
       final metadata = {
         'Description': params.prompt,
@@ -585,13 +590,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         'Source': _getModelSourceName(params.model),
         'Comment': jsonEncode(commentJson),
       };
-      
+
       // 嵌入元数据
       final embeddedBytes = await NaiMetadataParser.embedMetadata(
         imageBytes,
         jsonEncode(metadata),
       );
-      
+
       await file.writeAsBytes(embeddedBytes);
 
       // 通知本地画廊刷新
@@ -606,7 +611,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       }
     }
   }
-  
+
   /// 获取模型的 Source 名称
   String _getModelSourceName(String model) {
     if (model.contains('diffusion-4-5')) {
@@ -670,7 +675,8 @@ class _FullscreenImageView extends ConsumerStatefulWidget {
   const _FullscreenImageView({required this.imageBytes});
 
   @override
-  ConsumerState<_FullscreenImageView> createState() => _FullscreenImageViewState();
+  ConsumerState<_FullscreenImageView> createState() =>
+      _FullscreenImageViewState();
 }
 
 class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
@@ -780,26 +786,31 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
       final saveDir = await _getSaveDirectory();
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
-      
+
       // 获取当前生成参数
       final params = ref.read(generationParamsNotifierProvider);
       final characterConfig = ref.read(characterPromptNotifierProvider);
-      
+
       // 构建 V4 多角色提示词结构
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
-      
-      for (final char in characterConfig.characters.where((c) => c.enabled && c.prompt.isNotEmpty)) {
+
+      for (final char in characterConfig.characters
+          .where((c) => c.enabled && c.prompt.isNotEmpty)) {
         charCaptions.add({
           'char_caption': char.prompt,
-          'centers': [{'x': 0.5, 'y': 0.5}],
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
         });
         charNegCaptions.add({
           'char_caption': char.negativePrompt,
-          'centers': [{'x': 0.5, 'y': 0.5}],
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
         });
       }
-      
+
       // 构造 NAI Comment 格式的元数据 JSON（与官网格式完全对齐）
       final commentJson = <String, dynamic>{
         'prompt': params.prompt,
@@ -817,7 +828,7 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
         'sm': params.smea,
         'sm_dyn': params.smeaDyn,
       };
-      
+
       // 如果有角色提示词，添加 V4 格式
       if (charCaptions.isNotEmpty) {
         commentJson['v4_prompt'] = {
@@ -837,7 +848,7 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
           'use_order': false,
         };
       }
-      
+
       // 构造完整的官网格式元数据
       final metadata = {
         'Description': params.prompt,
@@ -845,13 +856,13 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
         'Source': _getModelSourceName(params.model),
         'Comment': jsonEncode(commentJson),
       };
-      
+
       // 嵌入元数据
       final embeddedBytes = await NaiMetadataParser.embedMetadata(
         widget.imageBytes,
         jsonEncode(metadata),
       );
-      
+
       await file.writeAsBytes(embeddedBytes);
 
       // 通知本地画廊刷新
@@ -866,7 +877,7 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
       }
     }
   }
-  
+
   /// 获取模型的 Source 名称
   String _getModelSourceName(String model) {
     if (model.contains('diffusion-4-5')) {

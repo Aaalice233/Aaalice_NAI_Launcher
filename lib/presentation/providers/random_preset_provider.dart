@@ -36,7 +36,8 @@ class RandomPresetState {
     if (selectedPresetId == null) return null;
     return presets.firstWhere(
       (p) => p.id == selectedPresetId,
-      orElse: () => presets.isNotEmpty ? presets.first : RandomPreset.defaultPreset(),
+      orElse: () =>
+          presets.isNotEmpty ? presets.first : RandomPreset.defaultPreset(),
     );
   }
 
@@ -440,7 +441,8 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   ///
   /// [categoryKey] 类别的 key（如 'hairColor'）
   /// [group] 要添加的分组
-  Future<void> addGroupToCategory(String categoryKey, RandomTagGroup group) async {
+  Future<void> addGroupToCategory(
+      String categoryKey, RandomTagGroup group,) async {
     final preset = state.selectedPreset;
     if (preset == null) {
       return;
@@ -456,7 +458,8 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 
   /// 从指定类别移除分组
-  Future<void> removeGroupFromCategory(String categoryKey, String groupId) async {
+  Future<void> removeGroupFromCategory(
+      String categoryKey, String groupId,) async {
     final preset = state.selectedPreset;
     if (preset == null) return;
 
@@ -468,7 +471,8 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 
   /// 更新自定义词组（在所有预设的所有类别中查找并更新）
-  Future<void> updateCustomGroup(String groupId, RandomTagGroup newGroup) async {
+  Future<void> updateCustomGroup(
+      String groupId, RandomTagGroup newGroup,) async {
     // 遍历所有预设，找到并更新匹配的词组
     for (final preset in state.presets) {
       var presetUpdated = false;
@@ -512,12 +516,20 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   /// 批量更新选中的组（完整版本，包含添加新映射）
   Future<void> updateSelectedGroupsWithTree(
     Set<String> selectedGroupTitles,
-    Map<String, ({String displayName, TagSubCategory category, bool includeChildren})> groupInfoMap,
+    Map<
+            String,
+            ({
+              String displayName,
+              TagSubCategory category,
+              bool includeChildren
+            })>
+        groupInfoMap,
   ) async {
     final preset = state.selectedPreset;
     if (preset == null) return;
 
-    final existingGroupTitles = preset.tagGroupMappings.map((m) => m.groupTitle).toSet();
+    final existingGroupTitles =
+        preset.tagGroupMappings.map((m) => m.groupTitle).toSet();
 
     // 更新现有映射的 enabled 状态
     final updatedMappings = preset.tagGroupMappings.map((m) {
@@ -529,21 +541,24 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     }).toList();
 
     // 添加新的映射
-    final newGroupTitles = selectedGroupTitles.difference(existingGroupTitles).toList();
+    final newGroupTitles =
+        selectedGroupTitles.difference(existingGroupTitles).toList();
 
     if (newGroupTitles.isNotEmpty) {
       for (final groupTitle in newGroupTitles) {
         final info = groupInfoMap[groupTitle];
         if (info != null) {
-          updatedMappings.add(TagGroupMapping(
-            id: const Uuid().v4(),
-            groupTitle: groupTitle,
-            displayName: info.displayName,
-            targetCategory: info.category,
-            createdAt: DateTime.now(),
-            includeChildren: info.includeChildren,
-            enabled: true,
-          ),);
+          updatedMappings.add(
+            TagGroupMapping(
+              id: const Uuid().v4(),
+              groupTitle: groupTitle,
+              displayName: info.displayName,
+              targetCategory: info.category,
+              createdAt: DateTime.now(),
+              includeChildren: info.includeChildren,
+              enabled: true,
+            ),
+          );
         }
       }
     }

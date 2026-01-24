@@ -8,8 +8,10 @@ part 'prompt_tag.g.dart';
 enum WeightSyntaxType {
   /// 无权重修饰 (weight = 1.0)
   none,
+
   /// 括号语法: {content}, [content]
   bracket,
+
   /// 数值语法: weight::content::
   numeric,
 }
@@ -116,7 +118,10 @@ class PromptTag with _$PromptTag {
         // 数值语法: weight::content::
         final weightStr = weight == weight.truncateToDouble()
             ? weight.toInt().toString()
-            : weight.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+            : weight
+                .toStringAsFixed(2)
+                .replaceAll(RegExp(r'0+$'), '')
+                .replaceAll(RegExp(r'\.$'), '');
         return '$weightStr::$text::';
 
       case WeightSyntaxType.bracket:
@@ -211,12 +216,15 @@ extension PromptTagListExtension on List<PromptTag> {
 
   /// 禁用选中的标签
   List<PromptTag> disableSelected() {
-    return map((tag) => tag.selected ? tag.copyWith(enabled: false, selected: false) : tag).toList();
+    return map((tag) =>
+            tag.selected ? tag.copyWith(enabled: false, selected: false) : tag,)
+        .toList();
   }
 
   /// 启用选中的标签
   List<PromptTag> enableSelected() {
-    return map((tag) => tag.selected ? tag.copyWith(enabled: true, selected: false) : tag).toList();
+    return map((tag) =>
+            tag.selected ? tag.copyWith(enabled: true, selected: false) : tag,)
+        .toList();
   }
 }
-

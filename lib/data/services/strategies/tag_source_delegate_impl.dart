@@ -200,10 +200,12 @@ class BuiltinSourceDelegate implements TagSourceDelegate {
       final tags = library.getCategory(subCategory);
       return tags
           .where((t) => !t.isDanbooruSupplement)
-          .map((t) => WeightedTag(
-                tag: t.tag,
-                weight: t.weight,
-              ),)
+          .map(
+            (t) => WeightedTag(
+              tag: t.tag,
+              weight: t.weight,
+            ),
+          )
           .toList();
     } catch (e) {
       return [];

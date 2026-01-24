@@ -151,4 +151,3 @@ class AutocompleteConfig {
     this.replaceUnderscoreWithSpace = false,
   });
 }
-

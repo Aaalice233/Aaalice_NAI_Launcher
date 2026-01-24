@@ -44,7 +44,7 @@ class RandomDetailView extends ConsumerWidget {
                 size: 20,
               ),
               const SizedBox(width: 12),
-              
+
               // Name
               Expanded(
                 child: Text(
@@ -62,7 +62,7 @@ class RandomDetailView extends ConsumerWidget {
             ],
           ),
         ),
-        
+
         // Editor Content
         Expanded(
           child: AnimatedSwitcher(
@@ -74,7 +74,7 @@ class RandomDetailView extends ConsumerWidget {
                 opacity: animation,
                 child: SlideTransition(
                   position: Tween<Offset>(
-                    begin: const Offset(0.02, 0), 
+                    begin: const Offset(0.02, 0),
                     end: Offset.zero,
                   ).animate(animation),
                   child: child,
@@ -104,7 +104,8 @@ class RandomDetailView extends ConsumerWidget {
     return const ProEmptyState(
       icon: Icons.dashboard_customize_outlined,
       title: 'Workspace Ready',
-      description: 'Select a component from the sidebar to configure its properties.',
+      description:
+          'Select a component from the sidebar to configure its properties.',
     );
   }
 
@@ -121,15 +122,17 @@ class RandomDetailView extends ConsumerWidget {
                 color: theme.colorScheme.primaryContainer.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.folder_special, size: 32, color: theme.colorScheme.primary),
+              child: Icon(Icons.folder_special,
+                  size: 32, color: theme.colorScheme.primary,),
             ),
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Preset Configuration', style: theme.textTheme.headlineSmall),
+                Text('Preset Configuration',
+                    style: theme.textTheme.headlineSmall,),
                 Text(
-                  'ID: ${node.id}', 
+                  'ID: ${node.id}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
                     color: theme.colorScheme.outline,
@@ -140,21 +143,22 @@ class RandomDetailView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 32),
-        
         const _InfoCard(
           icon: Icons.lightbulb_outline,
           title: 'Getting Started',
-          content: 'Select a category or tag group from the sidebar to edit its contents. Drag and drop items in the tree to reorganize.',
+          content:
+              'Select a category or tag group from the sidebar to edit its contents. Drag and drop items in the tree to reorganize.',
         ),
       ],
     );
   }
 
   // Integrated Segmented Control Switcher for Toolbar
-  Widget _buildToolbarSourceSwitcher(BuildContext context, TagGroupNode node, WidgetRef ref) {
+  Widget _buildToolbarSourceSwitcher(
+      BuildContext context, TagGroupNode node, WidgetRef ref,) {
     final theme = Theme.of(context);
     final currentType = node.data.sourceType;
-    
+
     return SegmentedButton<TagGroupSourceType>(
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
@@ -164,17 +168,17 @@ class RandomDetailView extends ConsumerWidget {
       showSelectedIcon: false,
       segments: const [
         ButtonSegment(
-          value: TagGroupSourceType.custom, 
+          value: TagGroupSourceType.custom,
           label: Text('Custom'),
           icon: Icon(Icons.edit_note, size: 14),
         ),
         ButtonSegment(
-          value: TagGroupSourceType.tagGroup, 
+          value: TagGroupSourceType.tagGroup,
           label: Text('Group'),
           icon: Icon(Icons.link, size: 14),
         ),
         ButtonSegment(
-          value: TagGroupSourceType.pool, 
+          value: TagGroupSourceType.pool,
           label: Text('Pool'),
           icon: Icon(Icons.numbers, size: 14),
         ),
@@ -185,15 +189,15 @@ class RandomDetailView extends ConsumerWidget {
         if (type != currentType) {
           final newData = node.data.copyWith(sourceType: type);
           ref.read(randomTreeDataProvider.notifier).updateTagGroup(
-            node.presetId,
-            node.categoryId,
-            node.id,
-            newData,
-          );
+                node.presetId,
+                node.categoryId,
+                node.id,
+                newData,
+              );
           // Update selection
           final newNode = TagGroupNode(
-            node.presetId, 
-            node.categoryId, 
+            node.presetId,
+            node.categoryId,
             newData,
           );
           ref.read(selectedNodeProvider.notifier).select(newNode);
@@ -279,7 +283,8 @@ class _CategoryEditorPanel extends ConsumerStatefulWidget {
   const _CategoryEditorPanel({required this.node});
 
   @override
-  ConsumerState<_CategoryEditorPanel> createState() => _CategoryEditorPanelState();
+  ConsumerState<_CategoryEditorPanel> createState() =>
+      _CategoryEditorPanelState();
 }
 
 class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
@@ -317,18 +322,18 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
 
   void _updateCategory(RandomCategory Function(RandomCategory) update) {
     final newData = update(widget.node.data);
-    
+
     // 1. Update the tree data
     ref.read(randomTreeDataProvider.notifier).updateCategory(
-      widget.node.presetId,
-      widget.node.id,
-      newData,
-    );
-    
+          widget.node.presetId,
+          widget.node.id,
+          newData,
+        );
+
     // 2. Update the selection to reflect changes (e.g. name change in header)
     final newNode = CategoryNode(
-      widget.node.presetId, 
-      newData, 
+      widget.node.presetId,
+      newData,
       children: widget.node.children,
     );
     ref.read(selectedNodeProvider.notifier).select(newNode);
@@ -344,7 +349,7 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
       children: [
         // Variable Insertion Strip - positioned near the top inputs
         VariableInsertionWidget(controller: _nameController),
-        
+
         InspectorSection(
           title: 'Core Properties',
           children: [
@@ -365,7 +370,8 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      onChanged: (value) => _updateCategory((c) => c.copyWith(name: value)),
+                      onChanged: (value) =>
+                          _updateCategory((c) => c.copyWith(name: value)),
                     ),
                   ),
                 ),
@@ -383,7 +389,8 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      onChanged: (value) => _updateCategory((c) => c.copyWith(emoji: value)),
+                      onChanged: (value) =>
+                          _updateCategory((c) => c.copyWith(emoji: value)),
                     ),
                   ),
                 ),
@@ -400,17 +407,20 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
-                  prefixIcon: Icon(Icons.key, size: 14, color: theme.colorScheme.outline),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 16),
+                  prefixIcon: Icon(Icons.key,
+                      size: 14, color: theme.colorScheme.outline,),
+                  prefixIconConstraints:
+                      const BoxConstraints(minWidth: 24, minHeight: 16),
                 ),
-                onChanged: (value) => _updateCategory((c) => c.copyWith(key: value)),
+                onChanged: (value) =>
+                    _updateCategory((c) => c.copyWith(key: value)),
               ),
             ),
           ],
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Selection Logic
         InspectorSection(
           title: 'Selection Logic',
@@ -424,13 +434,19 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                   icon: const Icon(Icons.arrow_drop_down),
                   isDense: true,
                   items: const [
-                    DropdownMenuItem(value: SelectionMode.single, child: Text('Single (Weighted Random)')),
-                    DropdownMenuItem(value: SelectionMode.multipleNum, child: Text('Multiple (Fixed Count)')),
-                    DropdownMenuItem(value: SelectionMode.all, child: Text('Select All')),
+                    DropdownMenuItem(
+                        value: SelectionMode.single,
+                        child: Text('Single (Weighted Random)'),),
+                    DropdownMenuItem(
+                        value: SelectionMode.multipleNum,
+                        child: Text('Multiple (Fixed Count)'),),
+                    DropdownMenuItem(
+                        value: SelectionMode.all, child: Text('Select All'),),
                   ],
                   onChanged: (mode) {
                     if (mode != null) {
-                      _updateCategory((c) => c.copyWith(groupSelectionMode: mode));
+                      _updateCategory(
+                          (c) => c.copyWith(groupSelectionMode: mode),);
                     }
                   },
                 ),
@@ -438,9 +454,9 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
             ),
           ],
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Action Buttons
         Row(
           children: [
@@ -469,7 +485,8 @@ class _TagGroupEditorPanel extends ConsumerStatefulWidget {
   const _TagGroupEditorPanel({required this.node});
 
   @override
-  ConsumerState<_TagGroupEditorPanel> createState() => _TagGroupEditorPanelState();
+  ConsumerState<_TagGroupEditorPanel> createState() =>
+      _TagGroupEditorPanelState();
 }
 
 class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
@@ -485,7 +502,8 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
   void _initControllers() {
     _nameController = TextEditingController(text: widget.node.data.name);
     final data = widget.node.data;
-    if (data.sourceType == TagGroupSourceType.tagGroup || data.sourceType == TagGroupSourceType.pool) {
+    if (data.sourceType == TagGroupSourceType.tagGroup ||
+        data.sourceType == TagGroupSourceType.pool) {
       _sourceIdController = TextEditingController(text: data.sourceId ?? '');
     } else {
       _sourceIdController = TextEditingController(text: '');
@@ -510,12 +528,12 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
   void _updateTagGroup(RandomTagGroup Function(RandomTagGroup) update) {
     final newData = update(widget.node.data);
     ref.read(randomTreeDataProvider.notifier).updateTagGroup(
-      widget.node.presetId,
-      widget.node.categoryId,
-      widget.node.id,
-      newData,
-    );
-    
+          widget.node.presetId,
+          widget.node.categoryId,
+          widget.node.id,
+          newData,
+        );
+
     // Update selection
     final newNode = TagGroupNode(
       widget.node.presetId,
@@ -535,7 +553,7 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         VariableInsertionWidget(controller: _nameController),
-        
+
         InspectorSection(
           title: 'Core Properties',
           children: [
@@ -552,21 +570,30 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
                 ),
                 onChanged: (value) {
                   if (isCustom) {
-                    _updateTagGroup((t) => t.copyWith(name: value, tags: value.split('\n').where((line) => line.trim().isNotEmpty).map((line) => WeightedTag.simple(line.trim(), 1)).toList()));
+                    _updateTagGroup((t) => t.copyWith(
+                        name: value,
+                        tags: value
+                            .split('\n')
+                            .where((line) => line.trim().isNotEmpty)
+                            .map((line) => WeightedTag.simple(line.trim(), 1))
+                            .toList(),),);
                   } else {
-                    _updateTagGroup((t) => t.copyWith(name: value, sourceId: _sourceIdController.text));
+                    _updateTagGroup((t) => t.copyWith(
+                        name: value, sourceId: _sourceIdController.text,),);
                   }
                 },
               ),
             ),
           ],
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Source ID / Content
         InspectorSection(
-          title: data.sourceType == TagGroupSourceType.custom ? 'Content' : '${data.sourceType.name} ID',
+          title: data.sourceType == TagGroupSourceType.custom
+              ? 'Content'
+              : '${data.sourceType.name} ID',
           children: [
             if (isCustom)
               SizedBox(
@@ -582,7 +609,12 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  onChanged: (value) => _updateTagGroup((t) => t.copyWith(tags: value.split('\n').where((line) => line.trim().isNotEmpty).map((line) => WeightedTag.simple(line.trim(), 1)).toList())),
+                  onChanged: (value) => _updateTagGroup((t) => t.copyWith(
+                      tags: value
+                          .split('\n')
+                          .where((line) => line.trim().isNotEmpty)
+                          .map((line) => WeightedTag.simple(line.trim(), 1))
+                          .toList(),),),
                 ),
               )
             else
@@ -590,20 +622,27 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
                 label: 'ID',
                 child: TextField(
                   controller: _sourceIdController,
-                  style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontFamily: 'monospace'),
                   decoration: InputDecoration(
-                    hintText: data.sourceType == TagGroupSourceType.tagGroup ? 'e.g., touhou' : 'e.g., 12345',
+                    hintText: data.sourceType == TagGroupSourceType.tagGroup
+                        ? 'e.g., touhou'
+                        : 'e.g., 12345',
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                     prefixIcon: Icon(
-                      data.sourceType == TagGroupSourceType.tagGroup ? Icons.link : Icons.numbers,
-                      size: 14, 
+                      data.sourceType == TagGroupSourceType.tagGroup
+                          ? Icons.link
+                          : Icons.numbers,
+                      size: 14,
                       color: theme.colorScheme.outline,
                     ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 16),
+                    prefixIconConstraints:
+                        const BoxConstraints(minWidth: 24, minHeight: 16),
                   ),
-                  onChanged: (value) => _updateTagGroup((t) => t.copyWith(sourceId: value)),
+                  onChanged: (value) =>
+                      _updateTagGroup((t) => t.copyWith(sourceId: value)),
                 ),
               ),
           ],

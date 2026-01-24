@@ -53,8 +53,8 @@ class DanbooruTagGroupService {
         final lastTag = cachedGroup.tags.last;
         AppLogger.d(
           'getTagGroup cache hit: $title, tags=${cachedGroup.tagCount}, '
-          'firstTag=${firstTag.name}(postCount=${firstTag.postCount}, hasPostCount=${firstTag.hasPostCount}), '
-          'lastTag=${lastTag.name}(postCount=${lastTag.postCount}), fetchPostCounts=$fetchPostCounts',
+              'firstTag=${firstTag.name}(postCount=${firstTag.postCount}, hasPostCount=${firstTag.hasPostCount}), '
+              'lastTag=${lastTag.name}(postCount=${lastTag.postCount}), fetchPostCounts=$fetchPostCounts',
           'TagGroup',
         );
       } else {
@@ -139,10 +139,13 @@ class DanbooruTagGroupService {
 
     // 获取未缓存或缓存为0的标签热度
     if (uncachedTags.isNotEmpty) {
-      AppLogger.d('Fetching post counts for ${uncachedTags.length} tags...', 'TagGroup');
+      AppLogger.d('Fetching post counts for ${uncachedTags.length} tags...',
+          'TagGroup',);
       final postCounts = await _apiService.batchGetTagPostCounts(uncachedTags);
       _postCountCache.addAll(postCounts);
-      AppLogger.d('Fetched post counts, sample: ${postCounts.entries.take(3).map((e) => "${e.key}=${e.value}").join(", ")}', 'TagGroup');
+      AppLogger.d(
+          'Fetched post counts, sample: ${postCounts.entries.take(3).map((e) => "${e.key}=${e.value}").join(", ")}',
+          'TagGroup',);
     }
 
     // 更新标签的热度信息
@@ -260,7 +263,8 @@ class DanbooruTagGroupService {
     if (includeChildren && group.hasChildren) {
       for (final childTitle in group.childGroupTitles) {
         if (_groupCache.containsKey(childTitle)) {
-          await _cacheService.saveTagGroup(childTitle, _groupCache[childTitle]!);
+          await _cacheService.saveTagGroup(
+              childTitle, _groupCache[childTitle]!,);
         }
       }
     }

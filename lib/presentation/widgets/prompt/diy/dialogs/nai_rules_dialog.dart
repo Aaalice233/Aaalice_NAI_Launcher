@@ -58,7 +58,8 @@ class NaiRulesDialog extends StatelessWidget {
                   const ListTile(
                     dense: true,
                     title: Text('标签权重动态调整'),
-                    subtitle: Text('包含动作、服饰、表情、背景等多个维度的随机组合，根据画面主题动态调整各类别的抽取权重'),
+                    subtitle:
+                        Text('包含动作、服饰、表情、背景等多个维度的随机组合，根据画面主题动态调整各类别的抽取权重'),
                   ),
                 ],
               ),
@@ -67,7 +68,8 @@ class NaiRulesDialog extends StatelessWidget {
                 title: '特殊机制',
                 icon: Icons.auto_awesome,
                 children: [
-                  _buildProbabilityItem(context, '强调机制 (Tag Strengthening)', '2%'),
+                  _buildProbabilityItem(
+                      context, '强调机制 (Tag Strengthening)', '2%',),
                   const ListTile(
                     dense: true,
                     title: Text('季节词库'),
@@ -83,7 +85,8 @@ class NaiRulesDialog extends StatelessWidget {
                   const ListTile(
                     dense: true,
                     title: Text('智能位置分配'),
-                    subtitle: Text('在 V4 模型下，使用 character positioning 语法精确控制多角色站位'),
+                    subtitle:
+                        Text('在 V4 模型下，使用 character positioning 语法精确控制多角色站位'),
                   ),
                 ],
               ),
@@ -128,7 +131,8 @@ class NaiRulesDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildProbabilityItem(BuildContext context, String label, String probability) {
+  Widget _buildProbabilityItem(
+      BuildContext context, String label, String probability,) {
     return ListTile(
       dense: true,
       visualDensity: VisualDensity.compact,

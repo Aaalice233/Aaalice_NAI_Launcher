@@ -72,6 +72,5 @@ class ZenMinimalistTheme {
   static String get displayName => 'Zen Minimalist';
 
   /// Theme description.
-  static String get description =>
-      '禅意极简风格 - 柔和蓝色调、大量留白、平静冥想的设计哲学';
+  static String get description => '禅意极简风格 - 柔和蓝色调、大量留白、平静冥想的设计哲学';
 }

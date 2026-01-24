@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +22,6 @@ void main() {
 
     test('execute should update canvas size', () {
       // Arrange
-      const oldSize = Size(1024, 1024);
       const newSize = Size(2048, 2048);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -35,7 +33,7 @@ void main() {
 
       // Assert
       expect(editorState.canvasSize, equals(newSize),
-          reason: 'Canvas size should be updated to new size');
+          reason: 'Canvas size should be updated to new size',);
     });
 
     test('execute should store previous size for undo', () {
@@ -56,7 +54,7 @@ void main() {
 
       action.undo(editorState);
       expect(editorState.canvasSize, equals(oldSize),
-          reason: 'Undo should restore previous size');
+          reason: 'Undo should restore previous size',);
     });
 
     test('undo should restore previous canvas size', () {
@@ -76,12 +74,11 @@ void main() {
 
       // Assert
       expect(editorState.canvasSize, equals(oldSize),
-          reason: 'Canvas size should be restored to original size after undo');
+          reason: 'Canvas size should be restored to original size after undo',);
     });
 
     test('execute should transform all layers with crop mode', () {
       // Arrange
-      const oldSize = Size(1024, 1024);
       const newSize = Size(512, 512);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -107,19 +104,18 @@ void main() {
 
       // Assert
       expect(editorState.canvasSize, equals(newSize),
-          reason: 'Canvas size should be updated');
+          reason: 'Canvas size should be updated',);
       expect(layer.strokes.length, equals(1),
-          reason: 'Stroke count should remain the same in crop mode');
+          reason: 'Stroke count should remain the same in crop mode',);
       // In crop mode, stroke positions remain unchanged
       expect(layer.strokes.first.points.first.dx, equals(100.0),
-          reason: 'Stroke X position should remain unchanged in crop mode');
+          reason: 'Stroke X position should remain unchanged in crop mode',);
       expect(layer.strokes.first.points.first.dy, equals(100.0),
-          reason: 'Stroke Y position should remain unchanged in crop mode');
+          reason: 'Stroke Y position should remain unchanged in crop mode',);
     });
 
     test('execute should transform all layers with pad mode', () {
       // Arrange
-      const oldSize = Size(512, 512);
       const newSize = Size(1024, 1024);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -145,19 +141,18 @@ void main() {
 
       // Assert
       expect(editorState.canvasSize, equals(newSize),
-          reason: 'Canvas size should be updated');
+          reason: 'Canvas size should be updated',);
       expect(layer.strokes.length, equals(1),
-          reason: 'Stroke count should remain the same in pad mode');
+          reason: 'Stroke count should remain the same in pad mode',);
       // In pad mode, stroke positions remain unchanged
       expect(layer.strokes.first.points.first.dx, equals(100.0),
-          reason: 'Stroke X position should remain unchanged in pad mode');
+          reason: 'Stroke X position should remain unchanged in pad mode',);
       expect(layer.strokes.first.points.first.dy, equals(100.0),
-          reason: 'Stroke Y position should remain unchanged in pad mode');
+          reason: 'Stroke Y position should remain unchanged in pad mode',);
     });
 
     test('execute should transform all layers with stretch mode', () {
       // Arrange - EditorState starts at 1024x1024
-      const oldSize = Size(1024, 1024);
       const newSize = Size(2048, 2048);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -183,16 +178,16 @@ void main() {
 
       // Assert
       expect(editorState.canvasSize, equals(newSize),
-          reason: 'Canvas size should be updated');
+          reason: 'Canvas size should be updated',);
       expect(layer.strokes.length, equals(1),
-          reason: 'Stroke count should remain the same in stretch mode');
+          reason: 'Stroke count should remain the same in stretch mode',);
       // In stretch mode (2x scale), stroke positions should be scaled
       expect(layer.strokes.first.points.first.dx, equals(200.0),
-          reason: 'Stroke X position should be scaled by 2x in stretch mode');
+          reason: 'Stroke X position should be scaled by 2x in stretch mode',);
       expect(layer.strokes.first.points.first.dy, equals(200.0),
-          reason: 'Stroke Y position should be scaled by 2x in stretch mode');
+          reason: 'Stroke Y position should be scaled by 2x in stretch mode',);
       expect(layer.strokes.first.size, equals(20.0),
-          reason: 'Stroke size should be scaled by 2x in stretch mode');
+          reason: 'Stroke size should be scaled by 2x in stretch mode',);
     });
 
     test('undo with stretch mode should restore original positions', () {
@@ -228,15 +223,15 @@ void main() {
 
       // Assert - Positions should be restored
       expect(editorState.canvasSize, equals(oldSize),
-          reason: 'Canvas size should be restored');
+          reason: 'Canvas size should be restored',);
       expect(layer.strokes.length, equals(1),
-          reason: 'Stroke count should remain the same after undo');
+          reason: 'Stroke count should remain the same after undo',);
       expect(layer.strokes.first.points.first.dx, equals(100.0),
-          reason: 'Stroke X position should be restored to original');
+          reason: 'Stroke X position should be restored to original',);
       expect(layer.strokes.first.points.first.dy, equals(100.0),
-          reason: 'Stroke Y position should be restored to original');
+          reason: 'Stroke Y position should be restored to original',);
       expect(layer.strokes.first.size, equals(10.0),
-          reason: 'Stroke size should be restored to original');
+          reason: 'Stroke size should be restored to original',);
     });
 
     test('undo should reverse crop mode to pad mode', () {
@@ -269,7 +264,7 @@ void main() {
       // Assert
       expect(editorState.canvasSize, equals(oldSize));
       expect(layer.strokes.first.points.first.dx, equals(100.0),
-          reason: 'Stroke position should remain unchanged after undo crop');
+          reason: 'Stroke position should remain unchanged after undo crop',);
     });
 
     test('undo should reverse pad mode to crop mode', () {
@@ -302,12 +297,11 @@ void main() {
       // Assert
       expect(editorState.canvasSize, equals(oldSize));
       expect(layer.strokes.first.points.first.dx, equals(100.0),
-          reason: 'Stroke position should remain unchanged after undo pad');
+          reason: 'Stroke position should remain unchanged after undo pad',);
     });
 
     test('execute should handle multiple layers', () {
       // Arrange - EditorState starts at 1024x1024
-      const oldSize = Size(1024, 1024);
       const newSize = Size(2048, 2048);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -341,14 +335,13 @@ void main() {
 
       // Assert - Both layers should be transformed (2x scale)
       expect(layer1.strokes.first.points.first.dx, equals(200.0),
-          reason: 'Layer 1 stroke should be scaled');
+          reason: 'Layer 1 stroke should be scaled',);
       expect(layer2.strokes.first.points.first.dx, equals(400.0),
-          reason: 'Layer 2 stroke should be scaled');
+          reason: 'Layer 2 stroke should be scaled',);
     });
 
     test('execute should handle empty layers', () {
       // Arrange
-      const oldSize = Size(1024, 1024);
       const newSize = Size(512, 512);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -367,7 +360,6 @@ void main() {
 
     test('execute should handle no layers', () {
       // Arrange
-      const oldSize = Size(1024, 1024);
       const newSize = Size(512, 512);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -410,11 +402,11 @@ void main() {
 
       // Assert
       expect(cropAction.description, contains('裁剪'),
-          reason: 'Description should include crop mode label');
+          reason: 'Description should include crop mode label',);
       expect(padAction.description, contains('填充'),
-          reason: 'Description should include pad mode label');
+          reason: 'Description should include pad mode label',);
       expect(stretchAction.description, contains('拉伸'),
-          reason: 'Description should include stretch mode label');
+          reason: 'Description should include stretch mode label',);
     });
 
     test('execute with same size should not transform layers', () {
@@ -441,14 +433,13 @@ void main() {
 
       // Assert - Stroke should remain unchanged
       expect(layer.strokes.first.points.first.dx, equals(100.0),
-          reason: 'Stroke position should not change when size is the same');
+          reason: 'Stroke position should not change when size is the same',);
       expect(layer.strokes.first.size, equals(10.0),
-          reason: 'Stroke size should not change when size is the same');
+          reason: 'Stroke size should not change when size is the same',);
     });
 
     test('execute and undo should be idempotent', () {
       // Arrange - EditorState starts at 1024x1024
-      const oldSize = Size(1024, 1024);
       const newSize = Size(2048, 2048);
       final action = ResizeCanvasAction(
         newSize: newSize,
@@ -477,7 +468,7 @@ void main() {
 
       // Assert - Both executes should produce the same result
       expect(firstExecuteX, equals(secondExecuteX),
-          reason: 'Execute should be idempotent');
+          reason: 'Execute should be idempotent',);
     });
   });
 }

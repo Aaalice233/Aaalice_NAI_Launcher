@@ -110,14 +110,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (randomMode) {
       final randomPrompt = await generateAndApplyRandomPrompt();
       if (randomPrompt.isNotEmpty) {
-        AppLogger.d('Random prompt before generation: $randomPrompt', 'RandomMode');
+        AppLogger.d(
+            'Random prompt before generation: $randomPrompt', 'RandomMode',);
         // 重新读取角色配置（已被 generateAndApplyRandomPrompt 更新）
         final characterConfig = ref.read(characterPromptNotifierProvider);
         final apiCharacters = _convertCharactersToApiFormat(characterConfig);
         effectiveParams = params.copyWith(
           prompt: randomPrompt,
           characters: apiCharacters,
-          useCoords: apiCharacters.isNotEmpty && !characterConfig.globalAiChoice,
+          useCoords:
+              apiCharacters.isNotEmpty && !characterConfig.globalAiChoice,
         );
       }
     }
@@ -193,11 +195,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           );
           // 重新读取角色配置并更新参数
           final newCharacterConfig = ref.read(characterPromptNotifierProvider);
-          final newApiCharacters = _convertCharactersToApiFormat(newCharacterConfig);
+          final newApiCharacters =
+              _convertCharactersToApiFormat(newCharacterConfig);
           currentParams = currentParams.copyWith(
             prompt: randomPrompt,
             characters: newApiCharacters,
-            useCoords: newApiCharacters.isNotEmpty && !newCharacterConfig.globalAiChoice,
+            useCoords: newApiCharacters.isNotEmpty &&
+                !newCharacterConfig.globalAiChoice,
           );
         }
       }
@@ -617,7 +621,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         .generateRandomPrompt(isV4Model: isV4Model, seed: seed);
 
     // 应用主提示词
-    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(result.mainPrompt);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updatePrompt(result.mainPrompt);
 
     // 应用角色提示词
     if (result.hasCharacters && isV4Model) {
@@ -632,7 +638,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           'RandomMode',
         );
       }
-      ref.read(characterPromptNotifierProvider.notifier).replaceAll(characterPrompts);
+      ref
+          .read(characterPromptNotifierProvider.notifier)
+          .replaceAll(characterPrompts);
 
       AppLogger.d(
         'Applied ${result.characterCount} characters from random generation',
@@ -691,7 +699,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     if (newLocked) {
       // 锁定：保存当前种子值（如果是-1则生成新种子）
       final currentSeed = state.seed;
-      final seedToLock = currentSeed == -1 ? Random().nextInt(4294967295) : currentSeed;
+      final seedToLock =
+          currentSeed == -1 ? Random().nextInt(4294967295) : currentSeed;
       _storage.setLockedSeedValue(seedToLock);
       _storage.setSeedLocked(true);
       state = state.copyWith(seed: seedToLock);

@@ -35,7 +35,8 @@ class CardActionButtons extends StatefulWidget {
   State<CardActionButtons> createState() => _CardActionButtonsState();
 }
 
-class _CardActionButtonsState extends State<CardActionButtons> with SingleTickerProviderStateMixin {
+class _CardActionButtonsState extends State<CardActionButtons>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   Timer? _hoverTimer;
   bool _shouldShow = false;
@@ -100,23 +101,23 @@ class _CardActionButtonsState extends State<CardActionButtons> with SingleTicker
         // index 3 (D) delay 1
         // ...
         // delay = (length - 1 - index) * 50ms
-        
+
         final buttonIndex = index;
         final reversedIndex = widget.buttons.length - 1 - index;
         // Delay calculated but applied via Interval animation below
         // final delay = Duration(milliseconds: reversedIndex * 50);
-        
+
         // 计算每个按钮的动画区间
         // 总时长 = 基础时长 + 最大延迟
         // 这里简化处理：使用 SlideTransition/ScaleTransition 配合 Interval
-        
+
         // 实际上，为了简单的 staggered 效果，我们可以让每个按钮有自己的动画进度
         // 或者使用同一个 controller 但不同的 Interval
-        
+
         final startTime = reversedIndex * 0.1; // 0.0, 0.1, 0.2...
         final endTime = startTime + 0.6; // 持续 0.6 的时间片段
         // 归一化到 0.0 - 1.0
-        
+
         final animation = CurvedAnimation(
           parent: _controller,
           curve: Interval(

@@ -18,6 +18,7 @@ class GlobalPostCountToolbar extends StatelessWidget {
   final VoidCallback onToggleExpand;
   final VoidCallback onResetPreset;
   final VoidCallback? onAddCategory;
+  final VoidCallback? onManageLibrary;
 
   const GlobalPostCountToolbar({
     super.key,
@@ -29,6 +30,7 @@ class GlobalPostCountToolbar extends StatelessWidget {
     required this.onToggleExpand,
     required this.onResetPreset,
     this.onAddCategory,
+    this.onManageLibrary,
   });
 
   @override
@@ -141,6 +143,15 @@ class GlobalPostCountToolbar extends StatelessWidget {
             label: 'DIY 指南',
             onTap: () => DiyGuideDialog.show(context),
           ),
+          const SizedBox(width: 8),
+          // 管理词库按钮
+          if (onManageLibrary != null)
+            _buildCompactButton(
+              theme: theme,
+              icon: Icons.library_books_outlined,
+              label: context.l10n.manageLibrary,
+              onTap: onManageLibrary!,
+            ),
           // 分隔线
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),

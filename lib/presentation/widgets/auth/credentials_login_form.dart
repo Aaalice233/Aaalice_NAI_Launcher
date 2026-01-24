@@ -18,7 +18,8 @@ class CredentialsLoginForm extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CredentialsLoginForm> createState() => _CredentialsLoginFormState();
+  ConsumerState<CredentialsLoginForm> createState() =>
+      _CredentialsLoginFormState();
 }
 
 class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
@@ -76,7 +77,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
             },
           ),
           const SizedBox(height: 16),
-          
+
           // 密码输入
           TextFormField(
             controller: passwordController,
@@ -86,12 +87,14 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
               prefixIcon: const Icon(Icons.lock_outlined),
               suffixIcon: IconButton(
                 icon: Icon(
-                  obscurePassword 
-                      ? Icons.visibility_outlined 
+                  obscurePassword
+                      ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
                 ),
                 onPressed: () {
-                  ref.read(authModeNotifierProvider.notifier).togglePasswordVisibility();
+                  ref
+                      .read(authModeNotifierProvider.notifier)
+                      .togglePasswordVisibility();
                 },
               ),
               border: const OutlineInputBorder(
@@ -113,7 +116,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
             },
           ),
           const SizedBox(height: 16),
-          
+
           // 自动登录开关
           Row(
             children: [
@@ -132,7 +135,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
             ],
           ),
           const SizedBox(height: 24),
-          
+
           // 登录按钮
           SizedBox(
             height: 56,
@@ -163,7 +166,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     ),
             ),
           ),
-          
+
           // 错误提示
           if (authState.hasError) ...[
             const SizedBox(height: 16),
@@ -195,14 +198,20 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     ],
                   ),
                   // 显示恢复建议
-                  if (_getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode) != null) ...[
+                  if (_getErrorRecoveryHint(
+                          authState.errorCode, authState.httpStatusCode,) !=
+                      null) ...[
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
-                        _getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode)!,
+                        _getErrorRecoveryHint(
+                            authState.errorCode, authState.httpStatusCode,)!,
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.8),
                           fontSize: 12,
                         ),
                       ),

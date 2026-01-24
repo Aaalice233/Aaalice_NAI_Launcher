@@ -179,7 +179,8 @@ void main() {
       expect(
         iconWidget.size,
         equals(40),
-        reason: 'Icons.auto_awesome should have size 40 to prevent color block appearance',
+        reason:
+            'Icons.auto_awesome should have size 40 to prevent color block appearance',
       );
 
       // Verify icon data is correct
@@ -238,7 +239,8 @@ void main() {
               seedColor: Colors.deepOrange,
               brightness: Brightness.light,
               primary: Colors.deepOrange,
-              primaryContainer: Color.lerp(Colors.deepOrange, Colors.white, 0.8)!,
+              primaryContainer:
+                  Color.lerp(Colors.deepOrange, Colors.white, 0.8)!,
             ),
             iconTheme: const IconThemeData(
               color: Colors.deepOrange,
@@ -354,7 +356,8 @@ void main() {
         expect(
           finder,
           findsAtLeastNWidgets(1),
-          reason: '$iconData should render with visible glyph, not as color block',
+          reason:
+              '$iconData should render with visible glyph, not as color block',
         );
 
         // Verify each icon has proper configuration
@@ -362,7 +365,8 @@ void main() {
         expect(
           iconWidget.size,
           greaterThan(0),
-          reason: '$iconData must have size > 0 to prevent color block rendering',
+          reason:
+              '$iconData must have size > 0 to prevent color block rendering',
         );
         expect(
           iconWidget.icon,
@@ -400,7 +404,7 @@ void main() {
                         icon,
                         color: Colors.blue,
                         size: 24,
-                      ))
+                      ),)
                   .toList(),
             ),
           ),

@@ -222,7 +222,7 @@ class AppToast {
 class _ActiveToast {
   final int id;
   OverlayEntry entry;
-  
+
   _ActiveToast({required this.id, required this.entry});
 }
 

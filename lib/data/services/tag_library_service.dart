@@ -489,13 +489,15 @@ class TagLibraryService {
       return library;
     }
 
-    final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
+    final mergedCategories =
+        Map<String, List<WeightedTag>>.from(library.categories);
     var addedCount = 0;
 
     for (final entry in poolTags.entries) {
       final categoryName = entry.key.name;
       final existingTags = mergedCategories[categoryName] ?? [];
-      final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
+      final existingNames =
+          existingTags.map((t) => t.tag.toLowerCase()).toSet();
 
       // 添加不重复的标签
       for (final tag in entry.value) {
@@ -572,13 +574,15 @@ class TagLibraryService {
       return library;
     }
 
-    final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
+    final mergedCategories =
+        Map<String, List<WeightedTag>>.from(library.categories);
     var addedCount = 0;
 
     for (final entry in tagGroupTags.entries) {
       final categoryName = entry.key.name;
       final existingTags = mergedCategories[categoryName] ?? [];
-      final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
+      final existingNames =
+          existingTags.map((t) => t.tag.toLowerCase()).toSet();
 
       // 添加不重复的标签
       for (final tag in entry.value) {

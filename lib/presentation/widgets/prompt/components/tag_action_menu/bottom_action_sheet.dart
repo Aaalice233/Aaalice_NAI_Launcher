@@ -385,7 +385,9 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
               icon: widget.tag.enabled
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              label: widget.tag.enabled ? context.l10n.tag_disable : context.l10n.tag_enable,
+              label: widget.tag.enabled
+                  ? context.l10n.tag_disable
+                  : context.l10n.tag_enable,
               onTap: () {
                 widget.onToggleEnabled?.call();
                 Navigator.pop(context);

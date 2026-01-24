@@ -1,4 +1,3 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
@@ -19,8 +18,8 @@ class CategoryNode extends RandomTreeNode {
   final String presetId;
   final RandomCategory data;
   final List<TagGroupNode> children;
-  
-  CategoryNode(this.presetId, this.data, {this.children = const []}) 
+
+  CategoryNode(this.presetId, this.data, {this.children = const []})
       : super(data.id, data.name);
 }
 
@@ -28,8 +27,8 @@ class TagGroupNode extends RandomTreeNode {
   final String presetId;
   final String categoryId;
   final RandomTagGroup data;
-  
-  TagGroupNode(this.presetId, this.categoryId, this.data) 
+
+  TagGroupNode(this.presetId, this.categoryId, this.data)
       : super(data.id, data.name);
 }
 
@@ -42,7 +41,8 @@ class SelectedNodeNotifier extends StateNotifier<RandomTreeNode?> {
   }
 }
 
-final selectedNodeProvider = StateNotifierProvider<SelectedNodeNotifier, RandomTreeNode?>((ref) {
+final selectedNodeProvider =
+    StateNotifierProvider<SelectedNodeNotifier, RandomTreeNode?>((ref) {
   return SelectedNodeNotifier();
 });
 
@@ -71,7 +71,8 @@ class ExpandedNodesNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final expandedNodesProvider = StateNotifierProvider<ExpandedNodesNotifier, Set<String>>((ref) {
+final expandedNodesProvider =
+    StateNotifierProvider<ExpandedNodesNotifier, Set<String>>((ref) {
   return ExpandedNodesNotifier();
 });
 
@@ -85,53 +86,91 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
     // Helper to create sample data
     final tagGroup1 = RandomTagGroup.custom(name: 'Main Character');
     final tagGroup2 = RandomTagGroup.custom(name: 'Side Characters');
-    final category1 = RandomCategory.create(name: 'Characters', key: 'chars', groups: [tagGroup1, tagGroup2],);
-    
+    final category1 = RandomCategory.create(
+      name: 'Characters',
+      key: 'chars',
+      groups: [tagGroup1, tagGroup2],
+    );
+
     final tagGroup3 = RandomTagGroup.custom(name: 'Location');
     final tagGroup4 = RandomTagGroup.custom(name: 'Weather');
     final tagGroup5 = RandomTagGroup.custom(name: 'Time of Day');
-    final category2 = RandomCategory.create(name: 'Environment', key: 'env', groups: [tagGroup3, tagGroup4, tagGroup5],);
+    final category2 = RandomCategory.create(
+      name: 'Environment',
+      key: 'env',
+      groups: [tagGroup3, tagGroup4, tagGroup5],
+    );
 
     final tagGroup6 = RandomTagGroup.custom(name: 'Elves');
     final tagGroup7 = RandomTagGroup.custom(name: 'Dwarves');
-    final category3 = RandomCategory.create(name: 'Race', key: 'race', groups: [tagGroup6, tagGroup7],);
+    final category3 = RandomCategory.create(
+      name: 'Race',
+      key: 'race',
+      groups: [tagGroup6, tagGroup7],
+    );
 
     final tagGroup8 = RandomTagGroup.custom(name: 'Weapons');
     final tagGroup9 = RandomTagGroup.custom(name: 'Armor');
-    final category4 = RandomCategory.create(name: 'Equipment', key: 'equip', groups: [tagGroup8, tagGroup9],);
+    final category4 = RandomCategory.create(
+      name: 'Equipment',
+      key: 'equip',
+      groups: [tagGroup8, tagGroup9],
+    );
 
     state = [
-      PresetNode('preset1', 'Official Preset (V4)', children: [
-        CategoryNode('preset1', category1, children: [
-          TagGroupNode('preset1', category1.id, tagGroup1),
-          TagGroupNode('preset1', category1.id, tagGroup2),
+      PresetNode(
+        'preset1',
+        'Official Preset (V4)',
+        children: [
+          CategoryNode(
+            'preset1',
+            category1,
+            children: [
+              TagGroupNode('preset1', category1.id, tagGroup1),
+              TagGroupNode('preset1', category1.id, tagGroup2),
+            ],
+          ),
+          CategoryNode(
+            'preset1',
+            category2,
+            children: [
+              TagGroupNode('preset1', category2.id, tagGroup3),
+              TagGroupNode('preset1', category2.id, tagGroup4),
+              TagGroupNode('preset1', category2.id, tagGroup5),
+            ],
+          ),
         ],
-        ),
-        CategoryNode('preset1', category2, children: [
-          TagGroupNode('preset1', category2.id, tagGroup3),
-          TagGroupNode('preset1', category2.id, tagGroup4),
-          TagGroupNode('preset1', category2.id, tagGroup5),
-        ],
-        ),
-      ],
       ),
-      PresetNode('preset2', 'Fantasy Custom', children: [
-        CategoryNode('preset2', category3, children: [
-          TagGroupNode('preset2', category3.id, tagGroup6),
-          TagGroupNode('preset2', category3.id, tagGroup7),
+      PresetNode(
+        'preset2',
+        'Fantasy Custom',
+        children: [
+          CategoryNode(
+            'preset2',
+            category3,
+            children: [
+              TagGroupNode('preset2', category3.id, tagGroup6),
+              TagGroupNode('preset2', category3.id, tagGroup7),
+            ],
+          ),
+          CategoryNode(
+            'preset2',
+            category4,
+            children: [
+              TagGroupNode('preset2', category4.id, tagGroup8),
+              TagGroupNode('preset2', category4.id, tagGroup9),
+            ],
+          ),
         ],
-        ),
-        CategoryNode('preset2', category4, children: [
-          TagGroupNode('preset2', category4.id, tagGroup8),
-          TagGroupNode('preset2', category4.id, tagGroup9),
-        ],
-        ),
-      ],
       ),
     ];
   }
 
-  void updateCategory(String presetId, String categoryId, RandomCategory newCategory,) {
+  void updateCategory(
+    String presetId,
+    String categoryId,
+    RandomCategory newCategory,
+  ) {
     state = [
       for (final preset in state)
         if (preset.id == presetId)
@@ -258,36 +297,45 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
   void moveTagGroup(TagGroupNode node, String targetCategoryId) {
     // Reconstruct the tree with the node moved
     final List<PresetNode> newPresets = [];
-    
+
     for (final preset in state) {
       if (preset.id == node.presetId) {
         final List<CategoryNode> newCategories = [];
-        
+
         for (final category in preset.children) {
-           final List<TagGroupNode> newTagGroups = [...category.children];
-           
-           // Remove from old category
-           if (category.id == node.categoryId) {
-             newTagGroups.removeWhere((t) => t.id == node.id);
-           }
-           
-           // Add to new category
-           if (category.id == targetCategoryId) {
-             if (!newTagGroups.any((t) => t.id == node.id)) {
-                // Update the categoryId in the node
-                newTagGroups.add(TagGroupNode(node.presetId, targetCategoryId, node.data),);
-             }
-           }
-           
-           newCategories.add(CategoryNode(category.presetId, category.data, children: newTagGroups,),);
+          final List<TagGroupNode> newTagGroups = [...category.children];
+
+          // Remove from old category
+          if (category.id == node.categoryId) {
+            newTagGroups.removeWhere((t) => t.id == node.id);
+          }
+
+          // Add to new category
+          if (category.id == targetCategoryId) {
+            if (!newTagGroups.any((t) => t.id == node.id)) {
+              // Update the categoryId in the node
+              newTagGroups.add(
+                TagGroupNode(node.presetId, targetCategoryId, node.data),
+              );
+            }
+          }
+
+          newCategories.add(
+            CategoryNode(
+              category.presetId,
+              category.data,
+              children: newTagGroups,
+            ),
+          );
         }
-        
-        newPresets.add(PresetNode(preset.id, preset.label, children: newCategories));
+
+        newPresets
+            .add(PresetNode(preset.id, preset.label, children: newCategories));
       } else {
         newPresets.add(preset);
       }
     }
-    
+
     state = newPresets;
   }
 
@@ -319,7 +367,9 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
                     CategoryNode(
                       node.presetId,
                       category.data,
-                      children: category.children.where((t) => t.id != node.id).toList(),
+                      children: category.children
+                          .where((t) => t.id != node.id)
+                          .toList(),
                     )
                   else
                     category,
@@ -444,9 +494,10 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
         id: timestamp,
         name: '${clipboardNode.data.name} (副本)',
       );
-      
+
       final newChildren = clipboardNode.children.map((child) {
-        final childTimestamp = DateTime.now().millisecondsSinceEpoch.toString() + child.id; 
+        final childTimestamp =
+            DateTime.now().millisecondsSinceEpoch.toString() + child.id;
         final newTagGroupData = child.data.copyWith(id: childTimestamp);
         return TagGroupNode(targetParent.id, timestamp, newTagGroupData);
       }).toList();
@@ -473,7 +524,7 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
         id: timestamp,
         name: '${clipboardNode.data.name} (副本)',
       );
-      
+
       final newTagGroupNode = TagGroupNode(
         targetParent.presetId,
         targetParent.id,
@@ -505,6 +556,7 @@ class RandomTreeDataNotifier extends StateNotifier<List<PresetNode>> {
   }
 }
 
-final randomTreeDataProvider = StateNotifierProvider<RandomTreeDataNotifier, List<PresetNode>>((ref) {
+final randomTreeDataProvider =
+    StateNotifierProvider<RandomTreeDataNotifier, List<PresetNode>>((ref) {
   return RandomTreeDataNotifier();
 });

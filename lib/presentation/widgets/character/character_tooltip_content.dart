@@ -260,7 +260,8 @@ class _CharacterItem extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isEnabled ? colorScheme.primary : colorScheme.outline,
+                    color:
+                        isEnabled ? colorScheme.primary : colorScheme.outline,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -463,7 +464,8 @@ class _PromptSummary extends StatelessWidget {
         // 负面提示词
         _PromptLine(
           label: l10n.characterTooltip_negativeLabel,
-          content: negativePrompt.isNotEmpty ? _truncate(negativePrompt, 25) : null,
+          content:
+              negativePrompt.isNotEmpty ? _truncate(negativePrompt, 25) : null,
           notSetText: l10n.characterTooltip_notSet,
           colorScheme: colorScheme,
         ),

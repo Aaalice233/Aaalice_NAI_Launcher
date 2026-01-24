@@ -162,14 +162,15 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
       // 调试：输出生成结果详情
       AppLogger.d(
         'generateFromPreset result: ${result.characterCount} characters, '
-        'mainPrompt: ${result.mainPrompt}',
+            'mainPrompt: ${result.mainPrompt}',
         'RandomGen',
       );
       return result;
     }
 
     // 如果没有配置类别，使用原有 TagLibrary 方式
-    final filterConfig = ref.read(tagLibraryNotifierProvider).categoryFilterConfig;
+    final filterConfig =
+        ref.read(tagLibraryNotifierProvider).categoryFilterConfig;
     return generator.generateNaiStyle(
       seed: seed,
       isV4Model: isV4Model,

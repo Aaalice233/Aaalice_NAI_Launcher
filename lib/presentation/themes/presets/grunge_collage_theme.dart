@@ -60,6 +60,5 @@ class GrungeCollageTheme {
   static String get displayName => 'Grunge Collage';
 
   /// Theme description.
-  static String get description =>
-      '复古拼贴风格 - 做旧纹理、硬阴影、高对比度的朋克美学';
+  static String get description => '复古拼贴风格 - 做旧纹理、硬阴影、高对比度的朋克美学';
 }

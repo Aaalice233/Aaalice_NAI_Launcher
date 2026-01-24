@@ -124,12 +124,14 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 ActionChip(
                   avatar: const Text('😴'),
                   label: const Text('睡眠规则'),
-                  onPressed: () => _addPresetRule(PostProcessRule.sleepingRule()),
+                  onPressed: () =>
+                      _addPresetRule(PostProcessRule.sleepingRule()),
                 ),
                 ActionChip(
                   avatar: const Text('🧜'),
                   label: const Text('美人鱼规则'),
-                  onPressed: () => _addPresetRule(PostProcessRule.mermaidRule()),
+                  onPressed: () =>
+                      _addPresetRule(PostProcessRule.mermaidRule()),
                 ),
               ],
             ),
@@ -366,9 +368,8 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
   }
 
   String _getActionDescription(PostProcessRule rule) {
-    final triggers = rule.triggerTags.isNotEmpty
-        ? rule.triggerTags.join(', ')
-        : '无触发条件';
+    final triggers =
+        rule.triggerTags.isNotEmpty ? rule.triggerTags.join(', ') : '无触发条件';
     return '当 [$triggers] 时 ${_getActionLabel(rule.action)}';
   }
 }

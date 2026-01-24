@@ -38,33 +38,33 @@ import 'package:flutter/material.dart';
 /// ```
 abstract class DividerModule {
   /// Whether this theme uses visible dividers.
-  /// 
+  ///
   /// If false, ThemedDivider will render nothing (SizedBox.shrink).
   /// Themes like Flat Design use whitespace instead of lines.
   bool get useDivider;
 
   /// The thickness of the divider line.
-  /// 
+  ///
   /// For themes without dividers, this can return 0.
   double get thickness;
 
   /// Decoration for horizontal dividers.
-  /// 
+  ///
   /// Used for separating vertical sections (e.g., between list items).
   /// Returns null if no decoration is needed.
   BoxDecoration? get horizontalDecoration;
 
   /// Decoration for vertical dividers.
-  /// 
+  ///
   /// Used for separating horizontal sections (e.g., between columns).
   /// Returns null if no decoration is needed.
   BoxDecoration? get verticalDecoration;
 
   /// Decoration for panel borders.
-  /// 
+  ///
   /// Used for the borders of major UI panels (sidebar, main content, etc.).
   /// This can be more elaborate than simple dividers (e.g., glow effects).
-  /// 
+  ///
   /// [sides] indicates which sides should have borders:
   /// - top, right, bottom, left
   BoxDecoration panelBorder({
@@ -75,13 +75,13 @@ abstract class DividerModule {
   });
 
   /// The color of the divider/border.
-  /// 
+  ///
   /// This is a convenience getter for simple border styling.
   Color get dividerColor;
 }
 
 /// Base implementation of DividerModule with common functionality.
-/// 
+///
 /// Provides default implementations that can be overridden by specific presets.
 abstract class BaseDividerModule implements DividerModule {
   const BaseDividerModule();
@@ -94,23 +94,23 @@ abstract class BaseDividerModule implements DividerModule {
 
   @override
   BoxDecoration? get horizontalDecoration => BoxDecoration(
-    border: Border(
-      bottom: BorderSide(
-        color: dividerColor,
-        width: thickness,
-      ),
-    ),
-  );
+        border: Border(
+          bottom: BorderSide(
+            color: dividerColor,
+            width: thickness,
+          ),
+        ),
+      );
 
   @override
   BoxDecoration? get verticalDecoration => BoxDecoration(
-    border: Border(
-      right: BorderSide(
-        color: dividerColor,
-        width: thickness,
-      ),
-    ),
-  );
+        border: Border(
+          right: BorderSide(
+            color: dividerColor,
+            width: thickness,
+          ),
+        ),
+      );
 
   @override
   BoxDecoration panelBorder({
@@ -121,10 +121,18 @@ abstract class BaseDividerModule implements DividerModule {
   }) {
     return BoxDecoration(
       border: Border(
-        top: top ? BorderSide(color: dividerColor, width: thickness) : BorderSide.none,
-        right: right ? BorderSide(color: dividerColor, width: thickness) : BorderSide.none,
-        bottom: bottom ? BorderSide(color: dividerColor, width: thickness) : BorderSide.none,
-        left: left ? BorderSide(color: dividerColor, width: thickness) : BorderSide.none,
+        top: top
+            ? BorderSide(color: dividerColor, width: thickness)
+            : BorderSide.none,
+        right: right
+            ? BorderSide(color: dividerColor, width: thickness)
+            : BorderSide.none,
+        bottom: bottom
+            ? BorderSide(color: dividerColor, width: thickness)
+            : BorderSide.none,
+        left: left
+            ? BorderSide(color: dividerColor, width: thickness)
+            : BorderSide.none,
       ),
     );
   }

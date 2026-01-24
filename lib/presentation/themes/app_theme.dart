@@ -22,23 +22,23 @@ import 'theme_extension.dart';
 /// 风格类型枚举 - 16 套主题
 enum AppStyle {
   // 8 套新设计主题
-  boldRetro,         // 复古现代主义
-  grungeCollage,     // 拼贴朋克
-  fluidSaturated,    // 流体饱和
-  materialYou,       // Material You
-  flatDesign,        // 扁平设计
-  handDrawn,         // 手绘风格
+  boldRetro, // 复古现代主义
+  grungeCollage, // 拼贴朋克
+  fluidSaturated, // 流体饱和
+  materialYou, // Material You
+  flatDesign, // 扁平设计
+  handDrawn, // 手绘风格
   midnightEditorial, // 午夜编辑
-  zenMinimalist,     // 禅意极简
+  zenMinimalist, // 禅意极简
   // 8 套重构主题 (原 styles/ 目录)
-  minimalGlass,      // 原 herdingStyle - 金黄深青
-  neoDark,           // 原 linearStyle - Linear 风格
-  proAi,             // 原 invokeStyle - InvokeAI 风格
-  social,            // 原 discordStyle - Discord 风格
-  retroWave,         // 原 cassetteFuturism - 复古未来
-  brutalist,         // 原 motorolaFixBeeper - LCD 电子
-  appleLight,        // 原 pureLight - 纯净白
-  system,            // 跟随系统
+  minimalGlass, // 原 herdingStyle - 金黄深青
+  neoDark, // 原 linearStyle - Linear 风格
+  proAi, // 原 invokeStyle - InvokeAI 风格
+  social, // 原 discordStyle - Discord 风格
+  retroWave, // 原 cassetteFuturism - 复古未来
+  brutalist, // 原 motorolaFixBeeper - LCD 电子
+  appleLight, // 原 pureLight - 纯净白
+  system, // 跟随系统
 }
 
 extension AppStyleExtension on AppStyle {
@@ -163,7 +163,8 @@ class AppTheme {
   ///
   /// [fontFamily] 为空字符串或 null 时，保留主题原生字体；
   /// 有值时用用户选择覆盖主题字体。
-  static ThemeData getTheme(AppStyle style, Brightness brightness, {String? fontFamily}) {
+  static ThemeData getTheme(AppStyle style, Brightness brightness,
+      {String? fontFamily,}) {
     // 判断是否使用主题原生字体：fontFamily 为 null 或空字符串时保留主题字体
     final useThemeFont = fontFamily == null || fontFamily.isEmpty;
 
@@ -196,15 +197,12 @@ class AppTheme {
       AppStyle.minimalGlass => brightness == Brightness.light
           ? MinimalGlassTheme.light
           : MinimalGlassTheme.dark,
-      AppStyle.neoDark => brightness == Brightness.light
-          ? NeoDarkTheme.light
-          : NeoDarkTheme.dark,
-      AppStyle.proAi => brightness == Brightness.light
-          ? ProAiTheme.light
-          : ProAiTheme.dark,
-      AppStyle.social => brightness == Brightness.light
-          ? SocialTheme.light
-          : SocialTheme.dark,
+      AppStyle.neoDark =>
+        brightness == Brightness.light ? NeoDarkTheme.light : NeoDarkTheme.dark,
+      AppStyle.proAi =>
+        brightness == Brightness.light ? ProAiTheme.light : ProAiTheme.dark,
+      AppStyle.social =>
+        brightness == Brightness.light ? SocialTheme.light : SocialTheme.dark,
       AppStyle.retroWave => brightness == Brightness.light
           ? RetroWaveTheme.light
           : RetroWaveTheme.dark,
@@ -214,9 +212,8 @@ class AppTheme {
       AppStyle.appleLight => brightness == Brightness.light
           ? AppleLightTheme.light
           : AppleLightTheme.dark,
-      AppStyle.system => brightness == Brightness.light
-          ? SystemTheme.light
-          : SystemTheme.dark,
+      AppStyle.system =>
+        brightness == Brightness.light ? SystemTheme.light : SystemTheme.dark,
     };
 
     // 如果使用主题原生字体，直接返回，只添加统一的 Tooltip 样式

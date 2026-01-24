@@ -125,7 +125,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
     final preset = presetState.selectedPreset;
     if (preset == null) return false;
 
-    final enabledMappings = preset.tagGroupMappings.where((m) => m.enabled).toList();
+    final enabledMappings =
+        preset.tagGroupMappings.where((m) => m.enabled).toList();
     if (enabledMappings.isEmpty) {
       return true;
     }
@@ -156,7 +157,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
           (c) => c.name == entry.key,
           orElse: () => TagSubCategory.other,
         );
-        tagsByCategory[category] = _libraryService.tagGroupEntriesToWeightedTags(
+        tagsByCategory[category] =
+            _libraryService.tagGroupEntriesToWeightedTags(
           entry.value,
         );
       }
@@ -170,7 +172,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       final updatedMappings = preset.tagGroupMappings.map((m) {
         if (!m.enabled) return m;
         final tagCount = syncResult.tagCountByGroup[m.groupTitle] ?? 0;
-        final originalCount = syncResult.originalTagCountByGroup[m.groupTitle] ?? 0;
+        final originalCount =
+            syncResult.originalTagCountByGroup[m.groupTitle] ?? 0;
 
         return m.copyWith(
           lastSyncedAt: now,
@@ -180,7 +183,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       }).toList();
 
       // 更新预设
-      await ref.read(randomPresetNotifierProvider.notifier)
+      await ref
+          .read(randomPresetNotifierProvider.notifier)
           .updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
 
       // 同步完成后计算过滤数量
@@ -253,7 +257,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       final updatedMappings = preset.tagGroupMappings.map((m) {
         if (!m.enabled || m.targetCategory != category) return m;
         final tagCount = syncResult.tagCountByGroup[m.groupTitle] ?? 0;
-        final originalCount = syncResult.originalTagCountByGroup[m.groupTitle] ?? 0;
+        final originalCount =
+            syncResult.originalTagCountByGroup[m.groupTitle] ?? 0;
         return m.copyWith(
           lastSyncedAt: now,
           lastSyncedTagCount: tagCount,
@@ -262,7 +267,8 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       }).toList();
 
       // 更新预设
-      await ref.read(randomPresetNotifierProvider.notifier)
+      await ref
+          .read(randomPresetNotifierProvider.notifier)
           .updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
 
       // 同步完成后计算过滤数量

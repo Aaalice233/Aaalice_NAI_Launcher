@@ -1059,6 +1059,8 @@
   "presetEdit_newConfigGroup": "New Config Group",
   "presetEdit_enterPresetName": "Please enter preset name",
   "presetEdit_saveSuccess": "Saved successfully",
+  "presetEdit_saveError": "Failed to save preset",
+  "presetEdit_deleteConfigConfirm": "Delete config group \"{name}\"?",
   "presetEdit_previewTitle": "Preview Generation Result",
   "presetEdit_emptyResult": "(Empty result, please check config)",
   "presetEdit_regenerate": "Regenerate",
@@ -1391,6 +1393,7 @@
   "naiMode_title": "Default Mode",
   "naiMode_subtitle": "Replicate NovelAI official random algorithm",
   "naiMode_syncLibrary": "Manage Extended Library",
+  "manageLibrary": "Manage Library",
   "naiMode_algorithmInfo": "Algorithm Info",
   "naiMode_tagCountBadge": "{count} tags",
   "@naiMode_tagCountBadge": {

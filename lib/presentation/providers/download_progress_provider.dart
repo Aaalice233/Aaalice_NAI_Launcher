@@ -152,7 +152,8 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
     // 缓存不存在，需要下载
     // 添加下载任务
-    _addTask('cooccurrence', _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data');
+    _addTask('cooccurrence',
+        _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data',);
 
     // 设置下载进度回调
     cooccurrenceService.onDownloadProgress = (progress, message) {
@@ -283,4 +284,3 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     );
   }
 }
-

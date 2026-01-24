@@ -226,8 +226,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
         taskFunctions.add(() => _refreshTagGroupWithProgress(groupTitle));
       }
       for (final entry in poolEntries) {
-        taskFunctions
-            .add(() => _refreshPoolWithProgress(entry.key, entry.value.poolName));
+        taskFunctions.add(
+            () => _refreshPoolWithProgress(entry.key, entry.value.poolName),);
       }
 
       // 并行执行，限制并发数为 3
@@ -475,7 +475,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                color:
+                    theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -509,7 +510,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                                 child: LinearProgressIndicator(
                                   value: _refreshCurrent / _refreshTotal,
                                   minHeight: 4,
-                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                  backgroundColor:
+                                      theme.colorScheme.surfaceContainerHighest,
                                 ),
                               ),
                             ],
@@ -543,7 +545,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.refresh, size: 16),
                           label: Text(l10n.cache_refreshAll),
@@ -738,8 +741,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child:
-                                        CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,),
                                   )
                                 : const Icon(Icons.refresh, size: 20),
                             tooltip: l10n.cache_refresh,
@@ -844,13 +847,14 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                           IconButton(
                             onPressed: isRefreshing
                                 ? null
-                                : () => _refreshPool(pool.poolId, pool.poolName),
+                                : () =>
+                                    _refreshPool(pool.poolId, pool.poolName),
                             icon: isRefreshing
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child:
-                                        CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,),
                                   )
                                 : const Icon(Icons.refresh, size: 20),
                             tooltip: l10n.cache_refresh,

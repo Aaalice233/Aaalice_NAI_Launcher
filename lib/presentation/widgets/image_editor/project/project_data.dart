@@ -138,7 +138,8 @@ class LayerProjectData {
       blendMode: json['blendMode'] as String? ?? 'normal',
       imageData: json['imageData'] as String?,
       strokes: (json['strokes'] as List?)
-              ?.map((s) => StrokeProjectData.fromJson(s as Map<String, dynamic>))
+              ?.map(
+                  (s) => StrokeProjectData.fromJson(s as Map<String, dynamic>),)
               .toList() ??
           [],
     );
@@ -191,7 +192,8 @@ class StrokeProjectData {
   /// 从JSON创建
   factory StrokeProjectData.fromJson(Map<String, dynamic> json) {
     return StrokeProjectData(
-      points: (json['points'] as List).map((p) => (p as num).toDouble()).toList(),
+      points:
+          (json['points'] as List).map((p) => (p as num).toDouble()).toList(),
       size: (json['size'] as num).toDouble(),
       color: json['color'] as int,
       opacity: (json['opacity'] as num).toDouble(),

@@ -41,7 +41,8 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentPreset = ref.watch(ucPresetSettingsProvider);
-    final presetContent = UcPresets.getPresetContent(widget.model, currentPreset);
+    final presetContent =
+        UcPresets.getPresetContent(widget.model, currentPreset);
     final isEnabled = currentPreset != UcPresetType.none;
 
     return MouseRegion(
@@ -95,7 +96,8 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
                   Text(
                     _getPresetDisplayName(context, type),
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
                       color: isSelected ? theme.colorScheme.primary : null,
                     ),
                   ),
@@ -158,7 +160,8 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     );
   }
 
-  Widget _buildTooltipWidget(ThemeData theme, String presetContent, bool isEnabled) {
+  Widget _buildTooltipWidget(
+      ThemeData theme, String presetContent, bool isEnabled,) {
     if (!isEnabled) {
       return Text(
         context.l10n.ucPreset_disabled,
@@ -216,4 +219,3 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     );
   }
 }
-

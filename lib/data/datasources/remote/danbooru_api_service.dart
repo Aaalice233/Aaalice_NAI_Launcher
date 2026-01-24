@@ -98,7 +98,8 @@ class DanbooruApiService {
   ///
   /// [credentials] Danbooru凭据
   /// 返回用户信息，失败返回null
-  Future<DanbooruUser?> verifyCredentials(DanbooruCredentials credentials) async {
+  Future<DanbooruUser?> verifyCredentials(
+      DanbooruCredentials credentials,) async {
     try {
       AppLogger.i(
         'Verifying Danbooru credentials for: ${credentials.username}',
@@ -124,7 +125,8 @@ class DanbooruApiService {
 
       if (response.statusCode == 200) {
         if (response.data is Map<String, dynamic>) {
-          final user = DanbooruUser.fromJson(response.data as Map<String, dynamic>);
+          final user =
+              DanbooruUser.fromJson(response.data as Map<String, dynamic>);
           AppLogger.i(
             'Danbooru credential verification successful: ${user.name}',
             'Danbooru',
@@ -162,7 +164,8 @@ class DanbooruApiService {
       }
       return null;
     } catch (e, stack) {
-      AppLogger.e('Danbooru credential verification failed', e, stack, 'Danbooru');
+      AppLogger.e(
+          'Danbooru credential verification failed', e, stack, 'Danbooru',);
       return null;
     }
   }
@@ -956,7 +959,8 @@ DanbooruApiService danbooruApiService(Ref ref) {
   final authState = ref.watch(danbooruAuthProvider);
 
   // 设置当前认证头（当 authState 变化时会自动重建并重新设置）
-  service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
+  service
+      .setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
 
   return service;
 }

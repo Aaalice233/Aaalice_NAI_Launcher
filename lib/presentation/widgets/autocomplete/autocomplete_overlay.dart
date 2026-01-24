@@ -160,4 +160,3 @@ class AutocompleteOverlay extends StatelessWidget {
     );
   }
 }
-

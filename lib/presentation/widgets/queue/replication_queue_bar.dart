@@ -8,7 +8,8 @@ class ReplicationQueueBar extends ConsumerStatefulWidget {
   const ReplicationQueueBar({super.key});
 
   @override
-  ConsumerState<ReplicationQueueBar> createState() => _ReplicationQueueBarState();
+  ConsumerState<ReplicationQueueBar> createState() =>
+      _ReplicationQueueBarState();
 }
 
 class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
@@ -66,26 +67,26 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                           // Badge
                           _buildBadge(context, tasks.length),
                           const SizedBox(width: 12),
-                          
-                          // Thumbnails Preview (only in collapsed or expanded? 
+
+                          // Thumbnails Preview (only in collapsed or expanded?
                           // Prompt says: "Collapsed: Badge + Thumbnails + Expand Btn")
                           // In expanded, we show the full list. So maybe hide thumbnails in header when expanded?
-                          // Or keep them? The prompt says "Expanded: Show full list". 
-                          // Usually header stays or transforms. 
-                          // Let's keep the header simple: 
+                          // Or keep them? The prompt says "Expanded: Show full list".
+                          // Usually header stays or transforms.
+                          // Let's keep the header simple:
                           // If expanded, maybe change the header to "Queue (N)" title?
-                          // Let's stick to the prompt: "Collapsed: ... thumbnails ...". 
+                          // Let's stick to the prompt: "Collapsed: ... thumbnails ...".
                           // I will fade out thumbnails when expanded to keep it clean.
                           Expanded(
                             child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 200),
                               opacity: _isExpanded ? 0.0 : 1.0,
-                              child: _isExpanded 
-                                ? const SizedBox() 
-                                : _buildThumbnailsPreview(tasks),
+                              child: _isExpanded
+                                  ? const SizedBox()
+                                  : _buildThumbnailsPreview(tasks),
                             ),
                           ),
-                          
+
                           // Controls
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -95,14 +96,19 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                                   icon: const Icon(Icons.delete_sweep_outlined),
                                   tooltip: '清空队列',
                                   onPressed: () {
-                                    ref.read(replicationQueueNotifierProvider.notifier).clear();
+                                    ref
+                                        .read(replicationQueueNotifierProvider
+                                            .notifier,)
+                                        .clear();
                                     setState(() {
                                       _isExpanded = false;
                                     });
                                   },
                                 ),
                               IconButton(
-                                icon: Icon(_isExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
+                                icon: Icon(_isExpanded
+                                    ? Icons.keyboard_arrow_down
+                                    : Icons.keyboard_arrow_up,),
                                 onPressed: _toggleExpand,
                               ),
                             ],
@@ -148,7 +154,7 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
   Widget _buildThumbnailsPreview(List<ReplicationTask> tasks) {
     // Show max 5 thumbnails
     final previewTasks = tasks.take(5).toList();
-    
+
     return SizedBox(
       height: 40,
       child: Stack(
@@ -165,7 +171,7 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   width: 2,
                 ),
                 image: task.thumbnailUrl != null
@@ -177,7 +183,9 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
               child: task.thumbnailUrl == null
-                  ? Icon(Icons.image, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant)
+                  ? Icon(Icons.image,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,)
                   : null,
             ),
           );
@@ -191,7 +199,9 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
       padding: const EdgeInsets.only(bottom: 16),
       itemCount: tasks.length,
       onReorder: (oldIndex, newIndex) {
-        ref.read(replicationQueueNotifierProvider.notifier).reorder(oldIndex, newIndex);
+        ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .reorder(oldIndex, newIndex);
       },
       itemBuilder: (context, index) {
         final task = tasks[index];
@@ -202,7 +212,7 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
 
   Widget _buildListItem(BuildContext context, ReplicationTask task, int index) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Dismissible(
       key: ValueKey(task.id),
       direction: DismissDirection.endToStart,
@@ -247,10 +257,13 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
             IconButton(
               icon: const Icon(Icons.close, size: 20),
               onPressed: () {
-                ref.read(replicationQueueNotifierProvider.notifier).remove(task.id);
+                ref
+                    .read(replicationQueueNotifierProvider.notifier)
+                    .remove(task.id);
               },
             ),
-            Icon(Icons.drag_handle, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(Icons.drag_handle,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,),
           ],
         ),
       ),

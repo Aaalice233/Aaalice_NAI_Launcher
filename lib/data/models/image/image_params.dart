@@ -182,8 +182,7 @@ class ImageParams with _$ImageParams {
     // ========== Inpainting 参数 ==========
 
     /// 蒙版图像 (白色区域为修补区域)
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    Uint8List? maskImage,
+    @JsonKey(includeFromJson: false, includeToJson: false) Uint8List? maskImage,
 
     // ========== Vibe Transfer 参数 ==========
 
@@ -312,9 +311,12 @@ class ImageGenerationParameters with _$ImageGenerationParameters {
     // inpainting 参数
     String? mask,
     // vibe transfer 参数
-    @JsonKey(name: 'reference_image_multiple') List<String>? referenceImageMultiple,
-    @JsonKey(name: 'reference_strength_multiple') List<double>? referenceStrengthMultiple,
-    @JsonKey(name: 'reference_information_extracted_multiple') List<double>? referenceInformationExtractedMultiple,
+    @JsonKey(name: 'reference_image_multiple')
+    List<String>? referenceImageMultiple,
+    @JsonKey(name: 'reference_strength_multiple')
+    List<double>? referenceStrengthMultiple,
+    @JsonKey(name: 'reference_information_extracted_multiple')
+    List<double>? referenceInformationExtractedMultiple,
   }) = _ImageGenerationParameters;
 
   factory ImageGenerationParameters.fromJson(Map<String, dynamic> json) =>

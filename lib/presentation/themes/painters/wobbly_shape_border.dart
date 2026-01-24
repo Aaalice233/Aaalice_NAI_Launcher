@@ -62,7 +62,8 @@ class WobblyShapeBorder extends ShapeBorder {
     const pointsPerEdge = 8;
 
     // Calculate wobble amount based on rect size
-    final wobbleAmount = math.min(rect.width, rect.height) * 0.02 * wobbleFactor;
+    final wobbleAmount =
+        math.min(rect.width, rect.height) * 0.02 * wobbleFactor;
 
     // Generate wobbled corners (asymmetric like hand-drawn)
     final topLeftRadius = baseRadius + _wobble(random, wobbleAmount * 2);
@@ -71,12 +72,15 @@ class WobblyShapeBorder extends ShapeBorder {
     final bottomLeftRadius = baseRadius + _wobble(random, wobbleAmount * 2);
 
     // Start at top-left corner (after radius)
-    path.moveTo(rect.left + topLeftRadius, rect.top + _wobble(random, wobbleAmount));
+    path.moveTo(
+        rect.left + topLeftRadius, rect.top + _wobble(random, wobbleAmount),);
 
     // Top edge (left to right)
     for (int i = 1; i < pointsPerEdge; i++) {
       final t = i / pointsPerEdge;
-      final x = rect.left + topLeftRadius + (rect.width - topLeftRadius - topRightRadius) * t;
+      final x = rect.left +
+          topLeftRadius +
+          (rect.width - topLeftRadius - topRightRadius) * t;
       final y = rect.top + _wobble(random, wobbleAmount);
       path.lineTo(x, y);
     }
@@ -93,7 +97,9 @@ class WobblyShapeBorder extends ShapeBorder {
     for (int i = 1; i < pointsPerEdge; i++) {
       final t = i / pointsPerEdge;
       final x = rect.right + _wobble(random, wobbleAmount);
-      final y = rect.top + topRightRadius + (rect.height - topRightRadius - bottomRightRadius) * t;
+      final y = rect.top +
+          topRightRadius +
+          (rect.height - topRightRadius - bottomRightRadius) * t;
       path.lineTo(x, y);
     }
 
@@ -108,7 +114,9 @@ class WobblyShapeBorder extends ShapeBorder {
     // Bottom edge (right to left)
     for (int i = 1; i < pointsPerEdge; i++) {
       final t = i / pointsPerEdge;
-      final x = rect.right - bottomRightRadius - (rect.width - bottomRightRadius - bottomLeftRadius) * t;
+      final x = rect.right -
+          bottomRightRadius -
+          (rect.width - bottomRightRadius - bottomLeftRadius) * t;
       final y = rect.bottom + _wobble(random, wobbleAmount);
       path.lineTo(x, y);
     }
@@ -125,7 +133,9 @@ class WobblyShapeBorder extends ShapeBorder {
     for (int i = 1; i < pointsPerEdge; i++) {
       final t = i / pointsPerEdge;
       final x = rect.left + _wobble(random, wobbleAmount);
-      final y = rect.bottom - bottomLeftRadius - (rect.height - bottomLeftRadius - topLeftRadius) * t;
+      final y = rect.bottom -
+          bottomLeftRadius -
+          (rect.height - bottomLeftRadius - topLeftRadius) * t;
       path.lineTo(x, y);
     }
 

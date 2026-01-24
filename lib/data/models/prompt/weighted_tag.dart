@@ -65,7 +65,8 @@ class WeightedTag with _$WeightedTag {
   }
 
   /// 简单创建（用于内置词库，默认为 NAI 来源）
-  factory WeightedTag.simple(String tag, int weight, [TagSource source = TagSource.nai]) {
+  factory WeightedTag.simple(String tag, int weight,
+      [TagSource source = TagSource.nai,]) {
     return WeightedTag(tag: tag, weight: weight, source: source);
   }
 

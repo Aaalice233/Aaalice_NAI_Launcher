@@ -189,18 +189,21 @@ class _CustomGroupSearchDialogState
         final cacheService = ref.read(tagGroupCacheServiceProvider);
         final service = ref.read(danbooruTagGroupServiceProvider);
 
-        final details = await service.syncTagGroup(groupTitle: _selectedTagGroup!.title);
+        final details =
+            await service.syncTagGroup(groupTitle: _selectedTagGroup!.title);
         if (details != null) {
           await cacheService.saveTagGroup(_selectedTagGroup!.title, details);
         }
 
         if (mounted) {
-          Navigator.of(context).pop(CustomGroupResult(
-            type: CustomGroupType.tagGroup,
-            name: name,
-            emoji: _selectedEmoji,
-            groupTitle: _selectedTagGroup!.title,
-          ),);
+          Navigator.of(context).pop(
+            CustomGroupResult(
+              type: CustomGroupType.tagGroup,
+              name: name,
+              emoji: _selectedEmoji,
+              groupTitle: _selectedTagGroup!.title,
+            ),
+          );
         }
       } else if (_selectedPool != null) {
         // 拉取 Pool 数据并缓存
@@ -220,13 +223,15 @@ class _CustomGroupSearchDialogState
         );
 
         if (mounted) {
-          Navigator.of(context).pop(CustomGroupResult(
-            type: CustomGroupType.pool,
-            name: name,
-            emoji: _selectedEmoji,
-            poolId: _selectedPool!.id,
-            postCount: posts.length,
-          ),);
+          Navigator.of(context).pop(
+            CustomGroupResult(
+              type: CustomGroupType.pool,
+              name: name,
+              emoji: _selectedEmoji,
+              poolId: _selectedPool!.id,
+              postCount: posts.length,
+            ),
+          );
         }
       }
     } catch (e) {
@@ -277,9 +282,8 @@ class _CustomGroupSearchDialogState
                         _poolResults = [];
                         _selectedTagGroup = null;
                         _selectedPool = null;
-                        _selectedEmoji = _searchType == CustomGroupType.pool
-                            ? '🖼️'
-                            : '✨';
+                        _selectedEmoji =
+                            _searchType == CustomGroupType.pool ? '🖼️' : '✨';
                       });
                     },
                   ),
@@ -415,7 +419,8 @@ class _CustomGroupSearchDialogState
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 8),
-            Text(_searchError!, style: TextStyle(color: theme.colorScheme.error)),
+            Text(_searchError!,
+                style: TextStyle(color: theme.colorScheme.error),),
           ],
         ),
       );
@@ -462,7 +467,8 @@ class _CustomGroupSearchDialogState
               },
             ),
             selected: isSelected,
-            selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.3),
+            selectedTileColor:
+                theme.colorScheme.primaryContainer.withOpacity(0.3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -511,7 +517,8 @@ class _CustomGroupSearchDialogState
               },
             ),
             selected: isSelected,
-            selectedTileColor: theme.colorScheme.primaryContainer.withOpacity(0.3),
+            selectedTileColor:
+                theme.colorScheme.primaryContainer.withOpacity(0.3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),

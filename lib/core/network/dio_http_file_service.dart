@@ -13,7 +13,8 @@ class DioHttpFileService extends FileService {
   DioHttpFileService(this._dio);
 
   @override
-  Future<FileServiceResponse> get(String url, {Map<String, String>? headers}) async {
+  Future<FileServiceResponse> get(String url,
+      {Map<String, String>? headers,}) async {
     try {
       final response = await _dio.get<ResponseBody>(
         url,
@@ -47,7 +48,8 @@ class DioFileServiceResponse implements FileServiceResponse {
 
   @override
   String get fileExtension {
-    final contentType = _response.headers['content-type']?.first ?? 'image/jpeg';
+    final contentType =
+        _response.headers['content-type']?.first ?? 'image/jpeg';
     final extension = contentType.split('/').last;
     switch (extension.toLowerCase()) {
       case 'jpeg':

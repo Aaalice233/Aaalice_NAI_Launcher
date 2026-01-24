@@ -124,7 +124,8 @@ class WordlistService {
         'Wordlist',
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to load wordlist: ${type.fileName}', e, stack, 'Wordlist');
+      AppLogger.e(
+          'Failed to load wordlist: ${type.fileName}', e, stack, 'Wordlist',);
       rethrow;
     } finally {
       _loadingStatus[type] = false;
@@ -159,10 +160,8 @@ class WordlistService {
     final entries = <WordlistEntry>[];
 
     // 跳过标题行
-    final startIndex = lines.isNotEmpty &&
-            lines[0].toLowerCase().contains('variable')
-        ? 1
-        : 0;
+    final startIndex =
+        lines.isNotEmpty && lines[0].toLowerCase().contains('variable') ? 1 : 0;
 
     for (var i = startIndex; i < lines.length; i++) {
       final line = lines[i].trim();

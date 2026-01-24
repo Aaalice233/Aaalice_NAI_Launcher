@@ -319,7 +319,8 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
                         onTap: () {
                           setState(() {
                             widget.tool.applyPreset(preset, index);
-                            _sizeController.text = preset.size.round().toString();
+                            _sizeController.text =
+                                preset.size.round().toString();
                           });
                           widget.onSettingsChanged();
                         },

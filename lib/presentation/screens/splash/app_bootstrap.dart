@@ -42,7 +42,7 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
 
     // SplashScreen 需要 MaterialApp 提供基础上下文
     final locale = ref.watch(localeNotifierProvider);
-    
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),

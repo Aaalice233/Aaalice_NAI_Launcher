@@ -97,7 +97,8 @@ class TagLibrarySettings extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 library != null
-                    ? context.l10n.tagLibrary_tagCount(library.totalTagCount.toString())
+                    ? context.l10n
+                        .tagLibrary_tagCount(library.totalTagCount.toString())
                     : context.l10n.tagLibrary_usingBuiltin,
                 style: theme.textTheme.bodyMedium,
               ),
@@ -106,7 +107,8 @@ class TagLibrarySettings extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             config.lastSyncTime != null
-                ? context.l10n.tagLibrary_lastSync(config.formatLastSyncTime(context))
+                ? context.l10n
+                    .tagLibrary_lastSync(config.formatLastSyncTime(context))
                 : context.l10n.tagLibrary_neverSynced,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
@@ -130,7 +132,8 @@ class TagLibrarySettings extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(context.l10n.tagLibrary_autoSync, style: theme.textTheme.bodyLarge),
+              Text(context.l10n.tagLibrary_autoSync,
+                  style: theme.textTheme.bodyLarge,),
               Text(
                 context.l10n.tagLibrary_autoSyncHint,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -143,7 +146,9 @@ class TagLibrarySettings extends ConsumerWidget {
         Switch(
           value: state.syncConfig.autoSyncEnabled,
           onChanged: (value) {
-            ref.read(tagLibraryNotifierProvider.notifier).setAutoSyncEnabled(value);
+            ref
+                .read(tagLibraryNotifierProvider.notifier)
+                .setAutoSyncEnabled(value);
           },
         ),
       ],
@@ -161,14 +166,17 @@ class TagLibrarySettings extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.l10n.tagLibrary_syncInterval, style: theme.textTheme.bodyLarge),
+        Text(context.l10n.tagLibrary_syncInterval,
+            style: theme.textTheme.bodyLarge,),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: List.generate(intervals.length, (index) {
-            final selected = state.syncConfig.syncIntervalDays == intervals[index];
+            final selected =
+                state.syncConfig.syncIntervalDays == intervals[index];
             return ChoiceChip(
-              label: Text(context.l10n.tagLibrary_syncIntervalDays(intervals[index].toString())),
+              label: Text(context.l10n
+                  .tagLibrary_syncIntervalDays(intervals[index].toString()),),
               selected: selected,
               onSelected: (value) {
                 if (value) {
@@ -193,7 +201,8 @@ class TagLibrarySettings extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.l10n.tagLibrary_dataRange, style: theme.textTheme.bodyLarge),
+        Text(context.l10n.tagLibrary_dataRange,
+            style: theme.textTheme.bodyLarge,),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -209,7 +218,9 @@ class TagLibrarySettings extends ConsumerWidget {
               selected: selected,
               onSelected: (value) {
                 if (value) {
-                  ref.read(tagLibraryNotifierProvider.notifier).setDataRange(range);
+                  ref
+                      .read(tagLibraryNotifierProvider.notifier)
+                      .setDataRange(range);
                 }
               },
             );
@@ -243,7 +254,8 @@ class TagLibrarySettings extends ConsumerWidget {
                     .syncLibrary();
                 if (context.mounted) {
                   if (success) {
-                    AppToast.success(context, context.l10n.tagLibrary_syncSuccess);
+                    AppToast.success(
+                        context, context.l10n.tagLibrary_syncSuccess,);
                   } else {
                     AppToast.error(
                       context,
@@ -259,7 +271,9 @@ class TagLibrarySettings extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.sync),
-        label: Text(state.isSyncing ? context.l10n.tagLibrary_syncing : context.l10n.tagLibrary_syncNow),
+        label: Text(state.isSyncing
+            ? context.l10n.tagLibrary_syncing
+            : context.l10n.tagLibrary_syncNow,),
       ),
     );
   }

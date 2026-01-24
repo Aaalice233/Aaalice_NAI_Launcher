@@ -427,6 +427,7 @@ class _CategorySettingsDialogState extends State<CategorySettingsDialog> {
       if (v > 0) return '+$v (${l10n.bracket_enhance})';
       return '0';
     }
+
     if (start == end) return formatValue(start);
     return '${formatValue(start)} ~ ${formatValue(end)}';
   }

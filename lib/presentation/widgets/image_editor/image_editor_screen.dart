@@ -178,7 +178,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       );
 
       if (layer != null) {
-        AppLogger.i('Existing mask loaded as layer: ${layer.id}', 'ImageEditor');
+        AppLogger.i(
+            'Existing mask loaded as layer: ${layer.id}', 'ImageEditor',);
       } else {
         AppLogger.w('Failed to load existing mask as layer', 'ImageEditor');
       }
@@ -883,7 +884,14 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       // 验证文件扩展名（额外的安全检查）
       if (file.path != null) {
         final extension = file.path!.split('.').last.toLowerCase();
-        const validImageExtensions = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'];
+        const validImageExtensions = [
+          'png',
+          'jpg',
+          'jpeg',
+          'webp',
+          'bmp',
+          'gif',
+        ];
 
         if (!validImageExtensions.contains(extension)) {
           AppLogger.w('Invalid file extension: $extension', 'ImageEditor');
@@ -966,7 +974,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         }
       } else {
         // 图像解码失败或格式不支持
-        AppLogger.w('Failed to decode image or unsupported format', 'ImageEditor');
+        AppLogger.w(
+            'Failed to decode image or unsupported format', 'ImageEditor',);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

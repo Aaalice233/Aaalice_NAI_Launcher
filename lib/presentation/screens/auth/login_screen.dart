@@ -49,7 +49,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
-      AppLogger.w('[LoginScreen] Cannot show loading overlay: no overlay found');
+      AppLogger.w(
+          '[LoginScreen] Cannot show loading overlay: no overlay found',);
       return;
     }
 
@@ -105,14 +106,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       // 监听登录错误，显示 Toast
       if (next.hasError && previous?.errorCode != next.errorCode) {
-        AppLogger.d('[LoginScreen] Showing error Toast: ${next.errorCode}', 'LOGIN');
+        AppLogger.d(
+            '[LoginScreen] Showing error Toast: ${next.errorCode}', 'LOGIN',);
         final errorText =
             _getErrorText(context, next.errorCode!, next.httpStatusCode);
-        final recoveryHint = _getErrorRecoveryHint(context, next.errorCode!, next.httpStatusCode);
+        final recoveryHint = _getErrorRecoveryHint(
+            context, next.errorCode!, next.httpStatusCode,);
 
         // 检查是否为网络错误，显示故障排除按钮
         final isNetworkError = next.errorCode == AuthErrorCode.networkTimeout ||
-                               next.errorCode == AuthErrorCode.networkError;
+            next.errorCode == AuthErrorCode.networkError;
         if (isNetworkError && mounted) {
           setState(() {
             _showTroubleshootingButton = true;
@@ -130,7 +133,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // 使用 Navigator.of 来获取 Overlay
         final overlayState = Navigator.of(context, rootNavigator: true).overlay;
         if (overlayState != null) {
-          AppLogger.d('[LoginScreen] overlay exists, showing toast...', 'LOGIN');
+          AppLogger.d(
+              '[LoginScreen] overlay exists, showing toast...', 'LOGIN',);
           AppToast.error(context, errorMessage);
           AppLogger.d('[LoginScreen] toast shown', 'LOGIN');
         } else {
@@ -696,7 +700,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     // 执行登录 - 根据账号类型选择验证方式
-    AppLogger.d('[LoginScreen] _handleQuickLogin: switching account with type ${account.accountType}...', 'LOGIN');
+    AppLogger.d(
+        '[LoginScreen] _handleQuickLogin: switching account with type ${account.accountType}...',
+        'LOGIN',);
     final success = await ref.read(authNotifierProvider.notifier).switchAccount(
           account.id,
           token,
@@ -707,9 +713,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // 检查 widget 是否仍然 mounted
     if (!context.mounted) return;
 
-    AppLogger.d('[LoginScreen] _handleQuickLogin: loginWithToken result=$success', 'LOGIN');
+    AppLogger.d(
+        '[LoginScreen] _handleQuickLogin: loginWithToken result=$success',
+        'LOGIN',);
     final authState = ref.read(authNotifierProvider);
-    AppLogger.d('[LoginScreen] _handleQuickLogin: after login, state=${authState.status}, hasError=${authState.hasError}', 'LOGIN');
+    AppLogger.d(
+        '[LoginScreen] _handleQuickLogin: after login, state=${authState.status}, hasError=${authState.hasError}',
+        'LOGIN',);
 
     if (success) {
       // 登录成功，更新最后使用时间
@@ -985,7 +995,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-  
+
   /// 从相册/文件选择头像
   Future<void> _pickImageFromGallery(
     BuildContext context,
@@ -997,14 +1007,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (result.isSuccess && result.path != null) {
         final updatedAccount = account.copyWith(avatarPath: result.path);
-        await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+        await ref
+            .read(accountManagerNotifierProvider.notifier)
+            .updateAccount(updatedAccount);
 
         if (context.mounted) {
           AppToast.success(context, context.l10n.common_success);
         }
       } else if (result.isFailure && context.mounted) {
         // 显示错误信息
-        AppToast.error(context, result.errorMessage ?? context.l10n.common_error);
+        AppToast.error(
+            context, result.errorMessage ?? context.l10n.common_error,);
       }
       // 取消操作不需要提示
     } catch (e) {
@@ -1025,7 +1038,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       // 更新账号信息（清除头像路径）
       final updatedAccount = account.copyWith(avatarPath: null);
-      await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+      await ref
+          .read(accountManagerNotifierProvider.notifier)
+          .updateAccount(updatedAccount);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.common_success);

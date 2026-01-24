@@ -88,10 +88,12 @@ class HistoryManager extends ChangeNotifier {
   }
 
   /// 获取撤销操作描述
-  String? get undoDescription => _undoStack.isNotEmpty ? _undoStack.last.description : null;
+  String? get undoDescription =>
+      _undoStack.isNotEmpty ? _undoStack.last.description : null;
 
   /// 获取重做操作描述
-  String? get redoDescription => _redoStack.isNotEmpty ? _redoStack.last.description : null;
+  String? get redoDescription =>
+      _redoStack.isNotEmpty ? _redoStack.last.description : null;
 }
 
 /// 添加笔画操作
@@ -233,8 +235,11 @@ class MergeLayerAction extends EditorAction {
 
   @override
   void undo(EditorState state) {
-    if (!_executed || _topLayerData == null || _bottomLayerData == null ||
-        _topIndex == null || _bottomIndex == null) {
+    if (!_executed ||
+        _topLayerData == null ||
+        _bottomLayerData == null ||
+        _topIndex == null ||
+        _bottomIndex == null) {
       return;
     }
 
