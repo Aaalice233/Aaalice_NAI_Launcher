@@ -100,6 +100,7 @@ nul
 .qoder/
 .kiro
 .sisyphus/
+.opencode/
 AGENTS.md
 .claude/
 .auto-claude-security.json
@@ -119,3 +120,10 @@ nai_web_copy/
 .worktrees/
 .security-key
 logs/security/
+.sisyphus/
+.opencode/
+test/
+NAI COPY/
+CLAUDE.md
+analyze_report.txt
+install-log.txt

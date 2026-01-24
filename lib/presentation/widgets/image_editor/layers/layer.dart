@@ -7,6 +7,31 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../core/history_manager.dart';
 
+/// 画布调整模式
+enum CanvasResizeMode {
+  /// 裁剪模式：画布变小时裁剪内容，变大时保持内容位置
+  crop,
+
+  /// 填充模式：保持内容位置，画布变化不影响内容位置
+  pad,
+
+  /// 拉伸模式：缩放内容以适应新画布尺寸
+  stretch,
+}
+
+extension CanvasResizeModeExtension on CanvasResizeMode {
+  String get label {
+    switch (this) {
+      case CanvasResizeMode.crop:
+        return '裁剪';
+      case CanvasResizeMode.pad:
+        return '填充';
+      case CanvasResizeMode.stretch:
+        return '拉伸';
+    }
+  }
+}
+
 /// 图层混合模式
 enum LayerBlendMode {
   normal,
@@ -692,6 +717,59 @@ class Layer {
     }
 
     return cloned;
+  }
+
+  /// 变换图层内容以适应新画布尺寸
+  ///
+  /// [oldSize] 原画布尺寸
+  /// [newSize] 新画布尺寸
+  /// [mode] 变换模式
+  void transformContent(Size oldSize, Size newSize, CanvasResizeMode mode) {
+    if (oldSize == newSize) return;
+    if (_strokes.isEmpty && _baseImage == null) return;
+
+    switch (mode) {
+      case CanvasResizeMode.crop:
+      case CanvasResizeMode.pad:
+        // 裁剪和填充模式：保持笔画原位置，渲染时自动裁剪
+        // 不需要变换笔画坐标
+        _needsRasterize = true;
+        _needsComposite = true;
+        _needsThumbnailUpdate = true;
+        break;
+
+      case CanvasResizeMode.stretch:
+        // 拉伸模式：缩放所有笔画坐标
+        final scaleX = newSize.width / oldSize.width;
+        final scaleY = newSize.height / oldSize.height;
+
+        final transformedStrokes = <StrokeData>[];
+        for (final stroke in _strokes) {
+          final transformedPoints = stroke.points.map((point) {
+            return Offset(point.dx * scaleX, point.dy * scaleY);
+          }).toList();
+
+          transformedStrokes.add(stroke.copyWith(
+            points: transformedPoints,
+            size: stroke.size * ((scaleX + scaleY) / 2), // 平均缩放笔刷大小
+          ),);
+        }
+
+        _strokes.clear();
+        _strokes.addAll(transformedStrokes);
+        _strokeGeneration++;
+        _rasterizedStrokeCount = 0;
+        _needsRasterize = true;
+        _needsComposite = true;
+        _needsThumbnailUpdate = true;
+
+        // 清除缓存，强制重新生成
+        _rasterizedImage?.dispose();
+        _rasterizedImage = null;
+        _compositedCache?.dispose();
+        _compositedCache = null;
+        break;
+    }
   }
 
   /// 释放资源

@@ -132,6 +132,13 @@
   "auth_troubleshoot_serverStatus_title": "检查服务器状态",
   "auth_troubleshoot_serverStatus_desc": "访问 NovelAI 状态页面或社区查看服务中断情况",
 
+  "auth_passwordResetHelp_title": "密码重置",
+  "auth_passwordResetHelp_desc": "点击「忘记密码」将在浏览器中打开 NovelAI 密码重置页面，您可以在那里重置密码",
+  "auth_passwordResetAfterReset_title": "重置密码后",
+  "auth_passwordResetAfterReset_desc": "在 NovelAI 网站上重置密码后，返回此应用并使用新密码登录",
+  "auth_passwordResetNoEmail_title": "未收到重置邮件？",
+  "auth_passwordResetNoEmail_desc": "如果几分钟内未收到密码重置邮件，请检查垃圾邮件文件夹或联系 NovelAI 客服",
+
   "common_paste": "粘贴",
   "common_default": "默认",
 

@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
 import 'core/editor_state.dart';
+import 'layers/layer.dart';
 import 'tools/tool_base.dart';
 import 'canvas/editor_canvas.dart';
 import 'widgets/toolbar/desktop_toolbar.dart';
@@ -110,6 +113,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       // 显示尺寸选择对话框或使用默认尺寸
       final size = widget.initialSize ?? const Size(1024, 1024);
       _state.initNewCanvas(size);
+
+      // 加载已有蒙版（如果有）
+      await _loadExistingMask();
     }
 
     setState(() {
@@ -149,9 +155,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       );
       _state.layerManager.setActiveLayer(layer1.id);
 
-      // TODO: 加载已有蒙版 (widget.existingMask)
-      // 需要将位图蒙版转换为 Path，这是一个复杂操作
-      // 可考虑使用轮廓检测算法或简单地将蒙版显示为图层
+      // 加载已有蒙版
+      await _loadExistingMask();
 
       image.dispose();
     } catch (e) {
@@ -159,6 +164,26 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       _state.initNewCanvas(widget.initialSize ?? const Size(1024, 1024));
     } finally {
       codec?.dispose();
+    }
+  }
+
+  Future<void> _loadExistingMask() async {
+    if (widget.existingMask == null) return;
+
+    try {
+      // 将已有蒙版添加为图层
+      final layer = await _state.layerManager.addLayerFromImage(
+        widget.existingMask!,
+        name: '已有蒙版',
+      );
+
+      if (layer != null) {
+        AppLogger.i('Existing mask loaded as layer: ${layer.id}', 'ImageEditor');
+      } else {
+        AppLogger.w('Failed to load existing mask as layer', 'ImageEditor');
+      }
+    } catch (e) {
+      AppLogger.e('Error loading existing mask: $e', 'ImageEditor');
     }
   }
 
@@ -254,11 +279,19 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           IconButton(
             icon: const Icon(Icons.layers),
             onPressed: _showMobileLayerSheet,
+            tooltip: '图层',
+          ),
+          // 加载蒙版按钮
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            onPressed: _loadMask,
+            tooltip: '加载蒙版',
           ),
           // 导出按钮
           IconButton(
             icon: const Icon(Icons.check),
             onPressed: _exportAndClose,
+            tooltip: '完成',
           ),
         ],
       ),
@@ -317,6 +350,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               ),
             ),
             onPressed: _changeCanvasSize,
+          ),
+
+          // 加载蒙版按钮
+          IconButton(
+            icon: const Icon(Icons.upload_file, size: 20),
+            onPressed: _loadMask,
+            tooltip: '加载蒙版',
           ),
 
           const VerticalDivider(width: 1, indent: 8, endIndent: 8),
@@ -630,15 +670,77 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   /// 更改画布尺寸
   Future<void> _changeCanvasSize() async {
-    final newSize = await CanvasSizeDialog.show(
+    final result = await CanvasSizeDialog.show(
       context,
       initialSize: _state.canvasSize,
       title: '更改画布尺寸',
     );
 
-    if (newSize != null && newSize != _state.canvasSize) {
-      // TODO: 实现画布尺寸更改（需要处理图层内容）
-      _state.setCanvasSize(newSize);
+    if (result != null && result.size != _state.canvasSize) {
+      try {
+        // 验证尺寸范围
+        final newWidth = result.size.width.toInt();
+        final newHeight = result.size.height.toInt();
+        const minSize = 64;
+        const maxSize = 4096;
+
+        if (newWidth < minSize || newHeight < minSize) {
+          _showError('画布尺寸太小，最小尺寸为 $minSize x $minSize 像素');
+          return;
+        }
+
+        if (newWidth > maxSize || newHeight > maxSize) {
+          _showError('画布尺寸太大，最大尺寸为 $maxSize x $maxSize 像素');
+          return;
+        }
+
+        // 将 ContentHandlingMode 转换为 CanvasResizeMode
+        final mode = _convertContentModeToResizeMode(result.mode);
+
+        // 使用新的 resizeCanvas 方法，支持图层内容变换
+        _state.resizeCanvas(result.size, mode);
+
+        // 显示成功消息
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('画布已调整为 $newWidth x $newHeight'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        // 显示错误信息
+        _showError('调整画布尺寸失败: $e');
+        AppLogger.e('Failed to resize canvas: $e', 'ImageEditor');
+      }
+    }
+  }
+
+  /// 显示错误消息
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: '关闭',
+            onPressed: () {},
+          ),
+        ),
+      );
+    }
+  }
+
+  /// 将内容处理模式转换为画布调整模式
+  CanvasResizeMode _convertContentModeToResizeMode(ContentHandlingMode mode) {
+    switch (mode) {
+      case ContentHandlingMode.crop:
+        return CanvasResizeMode.crop;
+      case ContentHandlingMode.pad:
+        return CanvasResizeMode.pad;
+      case ContentHandlingMode.stretch:
+        return CanvasResizeMode.stretch;
     }
   }
 
@@ -761,5 +863,130 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         );
       }
     }
+  }
+
+  /// 加载蒙版文件
+  Future<void> _loadMaskFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        // 用户取消了文件选择
+        return;
+      }
+
+      final file = result.files.first;
+
+      // 验证文件扩展名（额外的安全检查）
+      if (file.path != null) {
+        final extension = file.path!.split('.').last.toLowerCase();
+        const validImageExtensions = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'];
+
+        if (!validImageExtensions.contains(extension)) {
+          AppLogger.w('Invalid file extension: $extension', 'ImageEditor');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP等）'),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // 读取文件字节数据
+      Uint8List? bytes;
+      if (file.bytes != null) {
+        bytes = file.bytes;
+      } else if (file.path != null) {
+        try {
+          bytes = await File(file.path!).readAsBytes();
+        } catch (e) {
+          AppLogger.e('Failed to read file: $e', 'ImageEditor');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('无法读取文件: $e')),
+            );
+          }
+          return;
+        }
+      }
+
+      // 验证字节数据
+      if (bytes == null) {
+        AppLogger.w('File bytes is null', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('无法获取文件数据')),
+          );
+        }
+        return;
+      }
+
+      // 检查文件是否为空
+      if (bytes.isEmpty) {
+        AppLogger.w('File is empty (0 bytes)', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('文件为空，请选择有效的图像文件')),
+          );
+        }
+        return;
+      }
+
+      // 检查文件大小（限制为 50MB 以防止内存问题）
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      if (bytes.length > maxFileSize) {
+        final sizeMB = (bytes.length / (1024 * 1024)).toStringAsFixed(1);
+        AppLogger.w('File too large: ${bytes.length} bytes', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('文件过大（$sizeMB MB），请选择小于 50MB 的图像')),
+          );
+        }
+        return;
+      }
+
+      // 将蒙版添加为新图层
+      final layer = await _state.layerManager.addLayerFromImage(
+        bytes,
+        name: '蒙版',
+      );
+
+      if (layer != null) {
+        AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('蒙版图层已添加')),
+          );
+        }
+      } else {
+        // 图像解码失败或格式不支持
+        AppLogger.w('Failed to decode image or unsupported format', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('无法解析图像文件\n请确保文件未损坏且格式受支持'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.e('Unexpected error loading mask file: $e', 'ImageEditor');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载蒙版时发生错误: $e')),
+        );
+      }
+    }
+  }
+
+  /// 加载蒙版
+  Future<void> _loadMask() async {
+    await _loadMaskFile();
   }
 }
