@@ -9,6 +9,7 @@ import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
+import '../../widgets/auth/network_troubleshooting_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 
 /// 登录页面 - QQ 风格
@@ -27,6 +28,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// Loading Overlay Entry
   OverlayEntry? _loadingOverlayEntry;
+
+  /// 是否显示网络故障排除按钮
+  bool _showTroubleshootingButton = false;
 
   @override
   void initState() {
@@ -49,8 +53,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // 监听 loading 状态
       if (next.isLoading && previous?.isLoading != true) {
         _showLoadingOverlay();
+        // 新登录尝试开始时，隐藏故障排除按钮
+        if (mounted && _showTroubleshootingButton) {
+          setState(() {
+            _showTroubleshootingButton = false;
+          });
+        }
       } else if (!next.isLoading && previous?.isLoading == true) {
         _removeLoadingOverlay();
+      }
+
+      // 监听登录成功，隐藏故障排除按钮
+      if (next.isAuthenticated && !previous!.isAuthenticated) {
+        if (mounted && _showTroubleshootingButton) {
+          setState(() {
+            _showTroubleshootingButton = false;
+          });
+        }
       }
 
       // 监听登录错误，显示 Toast
@@ -59,6 +78,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final errorText =
             _getErrorText(context, next.errorCode!, next.httpStatusCode);
         final recoveryHint = _getErrorRecoveryHint(context, next.errorCode!, next.httpStatusCode);
+
+        // 检查是否为网络错误，显示故障排除按钮
+        final isNetworkError = next.errorCode == AuthErrorCode.networkTimeout ||
+                               next.errorCode == AuthErrorCode.networkError;
+        if (isNetworkError && mounted) {
+          setState(() {
+            _showTroubleshootingButton = true;
+          });
+        }
 
         // 构建错误消息，包含恢复建议
         String errorMessage;
@@ -150,6 +178,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       theme,
                       isWideScreen,
                       accounts,
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // 网络故障排除按钮（仅在网络错误时显示）
+                  if (_showTroubleshootingButton)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          NetworkTroubleshootingDialog.show(context);
+                        },
+                        icon: const Icon(Icons.help_outline, size: 18),
+                        label: Text(context.l10n.auth_viewTroubleshootingTips),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
                     ),
 
                   const SizedBox(height: 24),
