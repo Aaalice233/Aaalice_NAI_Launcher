@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/tag_data_service.dart';
+import '../../core/services/warmup_metrics_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/tag_translation_service.dart';
@@ -49,6 +50,7 @@ class WarmupState {
 @riverpod
 class WarmupNotifier extends _$WarmupNotifier {
   late AppWarmupService _warmupService;
+  late WarmupMetricsService _metricsService;
   StreamSubscription<WarmupProgress>? _subscription;
 
   @override
@@ -60,6 +62,7 @@ class WarmupNotifier extends _$WarmupNotifier {
 
     // 初始化服务并开始预加载
     _warmupService = AppWarmupService();
+    _metricsService = ref.read(warmupMetricsServiceProvider);
     _registerTasks();
     _startWarmup();
 
@@ -134,6 +137,13 @@ class WarmupNotifier extends _$WarmupNotifier {
   void _startWarmup() {
     _subscription = _warmupService.run().listen(
       (progress) {
+        // 保存指标数据
+        if (progress.isComplete && progress.metrics != null) {
+          _metricsService.saveSession(progress.metrics!).catchError((e) {
+            AppLogger.e('Failed to save warmup metrics: $e', 'Warmup');
+          });
+        }
+
         state = state.copyWith(
           progress: progress,
           isComplete: progress.isComplete,
