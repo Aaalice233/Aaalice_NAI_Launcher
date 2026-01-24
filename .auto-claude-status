@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "003-in-app-password-recovery",
+  "spec": "004-image-editor-mask-loading",
   "state": "building",
   "subtasks": {
-    "completed": 4,
-    "total": 5,
+    "completed": 7,
+    "total": 10,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Implement Password Recovery Link",
+    "current": "Testing and Verification",
     "id": null,
-    "total": 5
+    "total": 4
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 6,
-    "started_at": "2026-01-24T18:17:13.793318"
+    "number": 9,
+    "started_at": "2026-01-24T18:16:57.375915"
   },
-  "last_update": "2026-01-24T18:34:03.739152"
+  "last_update": "2026-01-24T18:43:18.772877"
 }
