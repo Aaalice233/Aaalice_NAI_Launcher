@@ -452,6 +452,8 @@ class _LayerTileState extends State<_LayerTile>
     final layerIndex = layers.indexWhere((l) => l.id == widget.layer.id);
     final canMoveUp = layerIndex > 0;
     final canMoveDown = layerIndex < layers.length - 1;
+    final canMergeDown = layerIndex > 0;
+    final canDelete = widget.onDelete != null && !widget.layer.locked;
 
     // 获取按钮位置用于定位菜单
     final RenderBox button = context.findRenderObject() as RenderBox;
@@ -484,30 +486,30 @@ class _LayerTileState extends State<_LayerTile>
         ),
 
         // 删除图层
-        if (widget.onDelete != null)
-          PopupMenuItem<String>(
-            value: 'delete',
-            child: Row(
-              children: [
-                Icon(Icons.delete_outlined, size: 18, color: theme.colorScheme.error),
-                const SizedBox(width: 12),
-                Text('删除', style: TextStyle(color: theme.colorScheme.error)),
-              ],
-            ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          enabled: canDelete,
+          child: Row(
+            children: [
+              Icon(Icons.delete_outlined, size: 18, color: theme.colorScheme.error),
+              const SizedBox(width: 12),
+              Text('删除', style: TextStyle(color: theme.colorScheme.error)),
+            ],
           ),
+        ),
 
         // 向下合并
-        if (layerIndex > 0)
-          PopupMenuItem<String>(
-            value: 'merge_down',
-            child: Row(
-              children: [
-                const Icon(Icons.merge_type, size: 18),
-                const SizedBox(width: 12),
-                const Text('向下合并'),
-              ],
-            ),
+        PopupMenuItem<String>(
+          value: 'merge_down',
+          enabled: canMergeDown,
+          child: Row(
+            children: [
+              const Icon(Icons.merge_type, size: 18),
+              const SizedBox(width: 12),
+              const Text('向下合并'),
+            ],
           ),
+        ),
 
         const PopupMenuDivider(),
 
