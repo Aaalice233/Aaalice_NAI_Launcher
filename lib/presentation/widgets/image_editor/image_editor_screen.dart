@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
 import 'core/editor_state.dart';
@@ -779,9 +781,47 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   /// 加载蒙版文件
-  /// TODO: 在后续子任务中实现文件选择和加载逻辑
+  Future<void> _loadMaskFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        Uint8List? bytes;
+
+        if (file.bytes != null) {
+          bytes = file.bytes;
+        } else if (file.path != null) {
+          bytes = await File(file.path!).readAsBytes();
+        }
+
+        if (bytes != null) {
+          // TODO: 在 subtask-2-2 中将蒙版添加为图层
+          AppLogger.i('Mask file loaded: ${file.name}', 'ImageEditor');
+
+          // 临时显示成功消息
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('蒙版文件已加载: ${file.name}')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.e('Failed to load mask file: $e', 'ImageEditor');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载蒙版失败: $e')),
+        );
+      }
+    }
+  }
+
+  /// 加载蒙版
   Future<void> _loadMask() async {
-    // 实现将在 subtask-2-1 和 subtask-2-2 中完成
-    AppLogger.i('Load Mask button pressed', 'ImageEditor');
+    await _loadMaskFile();
   }
 }
