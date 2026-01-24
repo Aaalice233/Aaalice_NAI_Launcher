@@ -669,15 +669,16 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   /// 更改画布尺寸
   Future<void> _changeCanvasSize() async {
-    final newSize = await CanvasSizeDialog.show(
+    final result = await CanvasSizeDialog.show(
       context,
       initialSize: _state.canvasSize,
       title: '更改画布尺寸',
     );
 
-    if (newSize != null && newSize != _state.canvasSize) {
+    if (result != null && result.size != _state.canvasSize) {
       // TODO: 实现画布尺寸更改（需要处理图层内容）
-      _state.setCanvasSize(newSize);
+      // Note: result.mode contains the content handling mode (crop/pad/stretch)
+      _state.setCanvasSize(result.size);
     }
   }
 

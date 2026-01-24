@@ -1,6 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// 内容处理模式
+enum ContentHandlingMode {
+  /// 裁剪 - 保持比例，裁剪多余部分
+  crop('裁剪'),
+  /// 填充 - 保持比例，填充空白区域
+  pad('填充'),
+  /// 拉伸 - 拉伸至填满画布
+  stretch('拉伸');
+
+  final String label;
+  const ContentHandlingMode(this.label);
+
+  @override
+  String toString() => label;
+}
+
+/// 画布尺寸调整结果
+class CanvasSizeResult {
+  final Size size;
+  final ContentHandlingMode mode;
+
+  const CanvasSizeResult({
+    required this.size,
+    required this.mode,
+  });
+}
+
 /// 画布尺寸预设
 class CanvasSizePreset {
   final int width;
@@ -30,27 +57,31 @@ const canvasPresets = [
 /// 画布尺寸对话框
 class CanvasSizeDialog extends StatefulWidget {
   final Size? initialSize;
+  final ContentHandlingMode? initialMode;
   final String title;
   final String confirmText;
 
   const CanvasSizeDialog({
     super.key,
     this.initialSize,
+    this.initialMode,
     this.title = '画布尺寸',
     this.confirmText = '确定',
   });
 
   /// 显示对话框
-  static Future<Size?> show(
+  static Future<CanvasSizeResult?> show(
     BuildContext context, {
     Size? initialSize,
+    ContentHandlingMode? initialMode,
     String title = '画布尺寸',
     String confirmText = '确定',
   }) {
-    return showDialog<Size>(
+    return showDialog<CanvasSizeResult>(
       context: context,
       builder: (context) => CanvasSizeDialog(
         initialSize: initialSize,
+        initialMode: initialMode,
         title: title,
         confirmText: confirmText,
       ),
@@ -65,6 +96,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
   late TextEditingController _widthController;
   late TextEditingController _heightController;
   CanvasSizePreset? _selectedPreset;
+  ContentHandlingMode _selectedMode = ContentHandlingMode.crop;
   bool _linkDimensions = false;
   double _aspectRatio = 1.0;
 
@@ -76,6 +108,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
     _widthController = TextEditingController(text: initialWidth.toString());
     _heightController = TextEditingController(text: initialHeight.toString());
     _aspectRatio = initialWidth / initialHeight;
+    _selectedMode = widget.initialMode ?? ContentHandlingMode.crop;
 
     // 检查是否匹配预设
     for (final preset in canvasPresets) {
@@ -133,6 +166,30 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
                     _aspectRatio = preset.width / preset.height;
                   }
                 });
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // 内容处理模式选择
+            DropdownButtonFormField<ContentHandlingMode>(
+              value: _selectedMode,
+              decoration: const InputDecoration(
+                labelText: '内容处理',
+                isDense: true,
+              ),
+              items: ContentHandlingMode.values.map(
+                (mode) => DropdownMenuItem(
+                  value: mode,
+                  child: Text(mode.toString()),
+                ),
+              ).toList(),
+              onChanged: (mode) {
+                if (mode != null) {
+                  setState(() {
+                    _selectedMode = mode;
+                  });
+                }
               },
             ),
 
@@ -305,7 +362,13 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
     final width = int.tryParse(_widthController.text);
     final height = int.tryParse(_heightController.text);
     if (width != null && height != null) {
-      Navigator.pop(context, Size(width.toDouble(), height.toDouble()));
+      Navigator.pop(
+        context,
+        CanvasSizeResult(
+          size: Size(width.toDouble(), height.toDouble()),
+          mode: _selectedMode,
+        ),
+      );
     }
   }
 }
