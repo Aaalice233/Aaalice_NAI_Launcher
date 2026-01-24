@@ -112,6 +112,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       // 显示尺寸选择对话框或使用默认尺寸
       final size = widget.initialSize ?? const Size(1024, 1024);
       _state.initNewCanvas(size);
+
+      // 加载已有蒙版（如果有）
+      await _loadExistingMask();
     }
 
     setState(() {
@@ -151,9 +154,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       );
       _state.layerManager.setActiveLayer(layer1.id);
 
-      // TODO: 加载已有蒙版 (widget.existingMask)
-      // 需要将位图蒙版转换为 Path，这是一个复杂操作
-      // 可考虑使用轮廓检测算法或简单地将蒙版显示为图层
+      // 加载已有蒙版
+      await _loadExistingMask();
 
       image.dispose();
     } catch (e) {
@@ -161,6 +163,26 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       _state.initNewCanvas(widget.initialSize ?? const Size(1024, 1024));
     } finally {
       codec?.dispose();
+    }
+  }
+
+  Future<void> _loadExistingMask() async {
+    if (widget.existingMask == null) return;
+
+    try {
+      // 将已有蒙版添加为图层
+      final layer = await _state.layerManager.addLayerFromImage(
+        widget.existingMask!,
+        name: '已有蒙版',
+      );
+
+      if (layer != null) {
+        AppLogger.i('Existing mask loaded as layer: ${layer.id}', 'ImageEditor');
+      } else {
+        AppLogger.w('Failed to load existing mask as layer', 'ImageEditor');
+      }
+    } catch (e) {
+      AppLogger.e('Error loading existing mask: $e', 'ImageEditor');
     }
   }
 
