@@ -278,7 +278,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
       // 应用元数据过滤
       if (_hasMetadataFilters) {
-        filtered = _applyMetadataFilter(filtered);
+        filtered = await _applyMetadataFilter(filtered);
       }
 
       state = state.copyWith(
@@ -316,7 +316,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
           // 如果需要元数据过滤，再应用元数据过滤
           if (_hasMetadataFilters) {
-            filtered = _applyMetadataFilter(filtered);
+            filtered = await _applyMetadataFilter(filtered);
           }
 
           state = state.copyWith(
@@ -401,7 +401,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     // 如果需要元数据过滤，应用元数据过滤
     if (_hasMetadataFilters) {
-      filtered = _applyMetadataFilter(filtered);
+      filtered = await _applyMetadataFilter(filtered);
     }
 
     state = state.copyWith(
@@ -446,7 +446,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   }
 
   /// 应用元数据过滤（模型、采样器、步数、CFG、分辨率）
-  List<File> _applyMetadataFilter(List<File> files) {
+  /// 这是一个异步方法，因为可能需要加载未缓存的记录
+  Future<List<File>> _applyMetadataFilter(List<File> files) async {
     final filterModel = state.filterModel;
     final filterSampler = state.filterSampler;
     final filterMinSteps = state.filterMinSteps;
@@ -466,59 +467,107 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return files;
     }
 
-    return files.where((file) {
+    // 分离已缓存和未缓存的文件
+    final cachedMatched = <File>[];
+    final uncached = <File>[];
+
+    for (final file in files) {
       final cached = _recordCache.get(file.path);
-      if (cached == null || cached.metadata == null) {
-        return false; // 没有元数据的文件不匹配
+      if (cached != null && cached.metadata != null) {
+        // 检查缓存的记录是否匹配
+        if (_matchesMetadataFilters(cached.metadata!)) {
+          cachedMatched.add(file);
+        }
+      } else {
+        uncached.add(file);
       }
+    }
 
-      final metadata = cached.metadata!;
+    // 如果没有未缓存的文件，直接返回结果
+    if (uncached.isEmpty) {
+      return cachedMatched;
+    }
 
-      // 检查模型
-      if (filterModel != null && metadata.model != filterModel) {
-        return false;
+    // 分批加载未缓存的记录
+    const batchSize = 100;
+    for (var i = 0; i < uncached.length; i += batchSize) {
+      final end = min(i + batchSize, uncached.length);
+      final batch = uncached.sublist(i, end);
+
+      try {
+        final records = await _repository.loadRecords(batch);
+        for (final record in records) {
+          // 缓存记录
+          _recordCache.put(record.path, record);
+
+          // 检查元数据是否匹配
+          if (record.metadata != null && _matchesMetadataFilters(record.metadata!)) {
+            cachedMatched.add(File(record.path));
+          }
+        }
+      } catch (e) {
+        // 忽略加载错误，这些文件将被排除在过滤结果之外
+        AppLogger.d('Failed to load records for metadata filtering: $e', 'LocalGalleryNotifier');
       }
+    }
 
-      // 检查采样器
-      if (filterSampler != null && metadata.sampler != filterSampler) {
-        return false;
-      }
+    return cachedMatched;
+  }
 
-      // 检查步数范围
-      if (filterMinSteps != null || filterMaxSteps != null) {
-        final steps = metadata.steps;
-        if (steps == null) return false;
-        if (filterMinSteps != null && steps < filterMinSteps) return false;
-        if (filterMaxSteps != null && steps > filterMaxSteps) return false;
-      }
+  /// 检查元数据是否匹配所有过滤器
+  bool _matchesMetadataFilters(dynamic metadata) {
+    final filterModel = state.filterModel;
+    final filterSampler = state.filterSampler;
+    final filterMinSteps = state.filterMinSteps;
+    final filterMaxSteps = state.filterMaxSteps;
+    final filterMinCfg = state.filterMinCfg;
+    final filterMaxCfg = state.filterMaxCfg;
+    final filterResolution = state.filterResolution;
 
-      // 检查 CFG 范围
-      if (filterMinCfg != null || filterMaxCfg != null) {
-        final cfg = metadata.scale;
-        if (cfg == null) return false;
-        if (filterMinCfg != null && cfg < filterMinCfg) return false;
-        if (filterMaxCfg != null && cfg > filterMaxCfg) return false;
-      }
+    // 检查模型
+    if (filterModel != null && metadata.model != filterModel) {
+      return false;
+    }
 
-      // 检查分辨率
-      if (filterResolution != null) {
-        final width = metadata.width;
-        final height = metadata.height;
-        if (width == null || height == null) return false;
+    // 检查采样器
+    if (filterSampler != null && metadata.sampler != filterSampler) {
+      return false;
+    }
 
-        // 解析分辨率字符串（格式：宽度x高度，如 "1024x1024"）
-        final parts = filterResolution.toLowerCase().split('x');
-        if (parts.length != 2) return false;
+    // 检查步数范围
+    if (filterMinSteps != null || filterMaxSteps != null) {
+      final steps = metadata.steps;
+      if (steps == null) return false;
+      if (filterMinSteps != null && steps < filterMinSteps) return false;
+      if (filterMaxSteps != null && steps > filterMaxSteps) return false;
+    }
 
-        final filterWidth = int.tryParse(parts[0]);
-        final filterHeight = int.tryParse(parts[1]);
-        if (filterWidth == null || filterHeight == null) return false;
+    // 检查 CFG 范围
+    if (filterMinCfg != null || filterMaxCfg != null) {
+      final cfg = metadata.scale;
+      if (cfg == null) return false;
+      if (filterMinCfg != null && cfg < filterMinCfg) return false;
+      if (filterMaxCfg != null && cfg > filterMaxCfg) return false;
+    }
 
-        if (width != filterWidth || height != filterHeight) return false;
-      }
+    // 检查分辨率
+    if (filterResolution != null) {
+      final width = metadata.width;
+      final height = metadata.height;
+      if (width == null || height == null) return false;
 
-      return true;
-    }).toList();
+      // 解析分辨率字符串（格式：宽度x高度，如 "1024x1024"）
+      final parts = filterResolution.toLowerCase().split('x');
+      if (parts.length != 2) return false;
+
+      final filterWidth = int.tryParse(parts[0]);
+      final filterHeight = int.tryParse(parts[1]);
+      if (filterWidth == null || filterHeight == null) return false;
+
+      if (width != filterWidth || height != filterHeight) return false;
+    }
+
+    return true;
   }
 
   /// 检查是否有元数据过滤条件
