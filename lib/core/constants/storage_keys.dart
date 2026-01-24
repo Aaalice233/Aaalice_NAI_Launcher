@@ -17,6 +17,8 @@ class StorageKeys {
   static const String tagCacheBox = 'tag_cache';
   static const String galleryBox = 'gallery';
   static const String localMetadataCacheBox = 'local_metadata_cache';
+  static const String tagFavoritesBox = 'tag_favorites';
+  static const String tagTemplatesBox = 'tag_templates';
 
   // Settings Keys
   static const String themeType = 'theme_type';
@@ -68,6 +70,12 @@ class StorageKeys {
 
   // Tag Cache Keys (标签缓存相关)
   static const String tagCacheData = 'tag_cache_data';
+
+  // Tag Favorites Keys (标签收藏相关)
+  static const String tagFavoritesData = 'tag_favorites_data';
+
+  // Tag Templates Keys (标签模板相关)
+  static const String tagTemplatesData = 'tag_templates_data';
 
   // Local Gallery Keys (本地画廊相关)
   static const String hasSeenLocalGalleryTip = 'has_seen_local_gallery_tip';
