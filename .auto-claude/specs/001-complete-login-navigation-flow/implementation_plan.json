@@ -451,9 +451,9 @@
     "ready_for_qa_revalidation": true,
     "fix_timestamp": "2026-01-24T09:00:00.000000+00:00"
   },
-  "status": "ai_review",
-  "planStatus": "review",
-  "updated_at": "2026-01-24T11:14:56.233Z",
+  "status": "done",
+  "planStatus": "completed",
+  "updated_at": "2026-01-24T11:26:46.570Z",
   "qa_iteration_history": [
     {
       "iteration": 1,
