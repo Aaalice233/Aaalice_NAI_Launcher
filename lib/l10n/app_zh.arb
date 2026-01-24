@@ -382,6 +382,8 @@
   "img2img_maskEnabled": "重绘遮罩",
   "img2img_uploadImage": "上传图片",
   "img2img_drawSketch": "绘制草图",
+  "img2img_maskTooltip": "重绘遮罩",
+  "img2img_maskHelpText": "上传遮罩图片来指定需要重绘的区域。白色区域会被重绘，黑色区域保持不变。",
 
   "editor_saveAndClose": "保存并关闭",
   "editor_closeWithoutSaving": "不保存关闭",
