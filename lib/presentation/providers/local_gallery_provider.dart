@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/services/lru_cache_service.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -59,13 +60,13 @@ class LocalGalleryState with _$LocalGalleryState {
 /// 本地画廊 Notifier
 @Riverpod(keepAlive: true)
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
-  final _repository = LocalGalleryRepository.instance;
-
-  /// 缓存：文件路径 -> LocalImageRecord（用于搜索 Prompt）
-  final Map<String, LocalImageRecord> _recordCache = {};
+  late final LocalGalleryRepository _repository;
+  late final LruCacheService _recordCache;
 
   @override
   LocalGalleryState build() {
+    _repository = LocalGalleryRepository.instance;
+    _recordCache = ref.read(lruCacheServiceProvider);
     return const LocalGalleryState();
   }
 
@@ -107,7 +108,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
       // 缓存记录用于搜索
       for (final record in records) {
-        _recordCache[record.path] = record;
+        _recordCache.put(record.path, record);
       }
 
       state = state.copyWith(currentImages: records, isPageLoading: false);
@@ -226,7 +227,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // 优先使用缓存
       final uncached = <File>[];
       for (final file in batch) {
-        final cached = _recordCache[file.path];
+        final cached = _recordCache.get(file.path);
         if (cached != null) {
           // 检查 Prompt
           if (_matchesPrompt(cached, query)) {
@@ -242,7 +243,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         try {
           final records = await _repository.loadRecords(uncached);
           for (final record in records) {
-            _recordCache[record.path] = record;
+            _recordCache.put(record.path, record);
             if (_matchesPrompt(record, query)) {
               promptMatched.add(File(record.path));
             }
