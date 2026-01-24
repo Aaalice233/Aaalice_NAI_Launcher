@@ -127,3 +127,6 @@ logs/security/
 .auto-claude/
 test/
 NAI COPY/
+CLAUDE.md
+analyze_report.txt
+install-log.txt
