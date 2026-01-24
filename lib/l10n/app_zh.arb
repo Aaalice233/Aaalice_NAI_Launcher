@@ -756,6 +756,8 @@
   "presetEdit_newConfigGroup": "新配置组",
   "presetEdit_enterPresetName": "请输入预设名称",
   "presetEdit_saveSuccess": "保存成功",
+  "presetEdit_saveError": "保存预设失败",
+  "presetEdit_deleteConfigConfirm": "删除配置组 \"{name}\"？",
   "presetEdit_previewTitle": "预览生成结果",
   "presetEdit_emptyResult": "(空结果，请检查配置)",
   "presetEdit_regenerate": "重新生成",
