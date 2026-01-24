@@ -1911,5 +1911,17 @@
   "tagGroupBrowser_noLibrary": "词库未加载",
   "tagGroupBrowser_importLibraryHint": "请先导入标签词库",
   "tagGroupBrowser_noCategories": "没有启用的标签分类",
-  "tagGroupBrowser_enableCategoriesHint": "请在设置中启用标签分类"
+  "tagGroupBrowser_enableCategoriesHint": "请在设置中启用标签分类",
+
+  "tag_favoritesTitle": "收藏标签",
+  "tag_favoritesEmpty": "暂无收藏标签",
+  "tag_favoritesEmptyHint": "长按标签即可添加到收藏",
+  "tag_alreadyAdded": "该标签已在当前提示词中",
+  "tag_removeFavoriteTitle": "移除收藏",
+  "tag_removeFavoriteMessage": "确定要移除收藏的标签「{tag}」吗？",
+  "@tag_removeFavoriteMessage": {
+    "placeholders": {
+      "tag": {}
+    }
+  }
 }
