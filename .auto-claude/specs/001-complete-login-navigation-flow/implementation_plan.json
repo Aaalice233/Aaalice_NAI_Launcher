@@ -453,7 +453,7 @@
   },
   "status": "ai_review",
   "planStatus": "review",
-  "updated_at": "2026-01-24T08:56:46.275Z",
+  "updated_at": "2026-01-24T11:14:56.233Z",
   "qa_iteration_history": [
     {
       "iteration": 1,
@@ -492,5 +492,6 @@
       "critical": 1
     }
   },
-  "last_updated": "2026-01-24T16:45:00.000000+00:00"
+  "last_updated": "2026-01-24T16:45:00.000000+00:00",
+  "recoveryNote": "Task recovered from stuck state at 2026-01-24T11:14:48.424Z"
 }
