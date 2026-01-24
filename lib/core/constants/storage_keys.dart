@@ -20,6 +20,9 @@ class StorageKeys {
   static const String warmupMetricsBox = 'warmup_metrics';
   static const String tagFavoritesBox = 'tag_favorites';
   static const String tagTemplatesBox = 'tag_templates';
+  static const String searchIndexBox = 'search_index';
+  static const String favoritesBox = 'favorites';
+  static const String tagsBox = 'tags';
 
   // Settings Keys
   static const String themeType = 'theme_type';
