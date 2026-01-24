@@ -12,6 +12,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
+import 'prompt/random_manager/components/pro_context_menu.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）
 class LocalImageCard extends StatefulWidget {
@@ -57,152 +58,104 @@ class _LocalImageCardState extends State<LocalImageCard> {
       return;
     }
 
-    final RenderBox? overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final menuPosition = position ?? const Offset(100, 100);
 
-    showMenu(
-      context: context,
-      position: position != null
-          ? RelativeRect.fromRect(
-              position & const Size(40, 40),
-              Offset.zero & overlay!.size,
-            )
-          : const RelativeRect.fromLTRB(100, 100, 100, 100),
-      items: [
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.content_copy, size: 18),
-              SizedBox(width: 8),
-              Text('复制 Prompt'),
-            ],
-          ),
+    final items = <ProMenuItem>[
+      ProMenuItem(
+        id: 'copy_prompt',
+        label: '复制 Prompt',
+        icon: Icons.content_copy,
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
+          if (mounted) {
+            AppToast.success(context, 'Prompt 已复制');
+          }
+        },
+      ),
+      if (metadata.negativePrompt.isNotEmpty)
+        ProMenuItem(
+          id: 'copy_negative',
+          label: '复制负向提示词',
+          icon: Icons.content_copy_outlined,
           onTap: () {
-            Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                AppToast.success(context, 'Prompt 已复制');
-              }
-            });
+            Clipboard.setData(ClipboardData(text: metadata.negativePrompt));
+            if (mounted) {
+              AppToast.success(context, '负向提示词已复制');
+            }
           },
         ),
-        if (metadata.negativePrompt.isNotEmpty)
-          PopupMenuItem(
-            child: const Row(
-              children: [
-                Icon(Icons.content_copy_outlined, size: 18),
-                SizedBox(width: 8),
-                Text('复制负向提示词'),
-              ],
-            ),
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: metadata.negativePrompt));
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  AppToast.success(context, '负向提示词已复制');
-                }
-              });
-            },
-          ),
-        if (metadata.seed != null)
-          PopupMenuItem(
-            child: const Row(
-              children: [
-                Icon(Icons.tag, size: 18),
-                SizedBox(width: 8),
-                Text('复制 Seed'),
-              ],
-            ),
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: metadata.seed.toString()));
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  AppToast.success(context, 'Seed 已复制');
-                }
-              });
-            },
-          ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.copy, size: 18),
-              SizedBox(width: 8),
-              Text('复制图片'),
-            ],
-          ),
+      if (metadata.seed != null)
+        ProMenuItem(
+          id: 'copy_seed',
+          label: '复制 Seed',
+          icon: Icons.tag,
           onTap: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                _copyImage(context);
-              }
-            });
+            Clipboard.setData(ClipboardData(text: metadata.seed.toString()));
+            if (mounted) {
+              AppToast.success(context, 'Seed 已复制');
+            }
           },
         ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.folder_open, size: 18),
-              SizedBox(width: 8),
-              Text('在文件管理器中打开'),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                _openInFileManager(context);
-              }
-            });
-          },
-        ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.share, size: 18),
-              SizedBox(width: 8),
-              Text('分享图片'),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                _shareImage(context);
-              }
-            });
-          },
-        ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.info_outline, size: 18),
-              SizedBox(width: 8),
-              Text('查看详情'),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                _showDetailsDialog();
-              }
-            });
-          },
-        ),
-        PopupMenuItem(
-          child: Row(
-            children: [
-              Icon(Icons.delete_outline, size: 18, color: Theme.of(context).colorScheme.error),
-              const SizedBox(width: 8),
-              Text('删除图片', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) {
-                _showDeleteConfirmationDialog();
-              }
-            });
-          },
-        ),
-      ],
+      ProMenuItem(
+        id: 'copy_image',
+        label: '复制图片',
+        icon: Icons.copy,
+        onTap: () {
+          if (mounted) {
+            _copyImage(context);
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'open_file',
+        label: '在文件管理器中打开',
+        icon: Icons.folder_open,
+        onTap: () {
+          if (mounted) {
+            _openInFileManager(context);
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'share',
+        label: '分享图片',
+        icon: Icons.share,
+        onTap: () {
+          if (mounted) {
+            _shareImage(context);
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'details',
+        label: '查看详情',
+        icon: Icons.info_outline,
+        onTap: () {
+          if (mounted) {
+            _showDetailsDialog();
+          }
+        },
+      ),
+      ProMenuItem(
+        id: 'delete',
+        label: '删除图片',
+        icon: Icons.delete_outline,
+        onTap: () {
+          if (mounted) {
+            _showDeleteConfirmationDialog();
+          }
+        },
+      ),
+    ];
+
+    Navigator.of(context).push(
+      _ContextMenuRoute(
+        position: menuPosition,
+        items: items,
+        onSelect: (item) {
+          // Item onTap is already called
+        },
+      ),
     );
   }
 
@@ -993,6 +946,96 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Custom route for displaying ProContextMenu
+class _ContextMenuRoute extends PopupRoute {
+  final Offset position;
+  final List<ProMenuItem> items;
+  final void Function(ProMenuItem) onSelect;
+
+  _ContextMenuRoute({
+    required this.position,
+    required this.items,
+    required this.onSelect,
+  });
+
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  String? get barrierLabel => null;
+
+  @override
+  Widget buildPage(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation) {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      removeLeft: true,
+      removeRight: true,
+      removeBottom: true,
+      child: Builder(
+        builder: (context) {
+          // Calculate adjusted position to keep menu within screen bounds
+          final screenSize = MediaQuery.of(context).size;
+          final menuWidth = 200.0;
+          final menuHeight = items.length * 48.0;
+
+          double left = position.dx;
+          double top = position.dy;
+
+          // Adjust horizontal position if menu goes off screen
+          if (left + menuWidth > screenSize.width) {
+            left = screenSize.width - menuWidth - 16;
+          }
+
+          // Adjust vertical position if menu goes off screen
+          if (top + menuHeight > screenSize.height) {
+            top = screenSize.height - menuHeight - 16;
+          }
+
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => Navigator.of(context).pop(),
+            child: Stack(
+              children: [
+                ProContextMenu(
+                  position: Offset(left, top),
+                  items: items,
+                  onSelect: (item) {
+                    onSelect(item);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 200);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation, Widget child) {
+    return FadeTransition(
+      opacity: animation,
+      child: ScaleTransition(
+        scale: CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+        ),
+        child: child,
       ),
     );
   }
