@@ -2397,5 +2397,48 @@
     "placeholders": {
       "count": {}
     }
+  },
+
+  "localGallery_favoritesOnly": "Favorites Only",
+  "localGallery_noFavorites": "No favorites yet",
+  "localGallery_markAsFavorite": "Mark as Favorite",
+  "localGallery_removeFromFavorites": "Remove from Favorites",
+  "localGallery_tags": "Tags",
+  "localGallery_addTag": "Add Tag",
+  "localGallery_removeTag": "Remove Tag",
+  "localGallery_noTags": "No tags",
+  "localGallery_filterByTags": "Filter by Tags",
+  "localGallery_selectTags": "Select Tags",
+  "localGallery_tagFilterMatchAll": "Match All Tags",
+  "localGallery_tagFilterMatchAny": "Match Any Tag",
+  "localGallery_clearTagFilter": "Clear Tag Filter",
+  "localGallery_noTagsFound": "No tags found",
+  "localGallery_advancedFilters": "Advanced Filters",
+  "localGallery_filterByModel": "Filter by Model",
+  "localGallery_filterBySampler": "Filter by Sampler",
+  "localGallery_filterBySteps": "Filter by Steps",
+  "localGallery_filterByCfg": "Filter by CFG Scale",
+  "localGallery_filterByResolution": "Filter by Resolution",
+  "localGallery_model": "Model",
+  "localGallery_sampler": "Sampler",
+  "localGallery_steps": "Steps",
+  "localGallery_cfgScale": "CFG Scale",
+  "localGallery_resolution": "Resolution",
+  "localGallery_any": "Any",
+  "localGallery_custom": "Custom",
+  "localGallery_to": "to",
+  "localGallery_applyFilters": "Apply Filters",
+  "localGallery_resetAdvancedFilters": "Reset Advanced Filters",
+  "localGallery_exportMetadata": "Export Metadata",
+  "localGallery_exportSelected": "Export Selected",
+  "localGallery_exportFailed": "Export failed",
+  "localGallery_exporting": "Exporting...",
+  "localGallery_selectToExport": "Select images to export",
+  "localGallery_noImagesSelected": "No images selected",
+  "localGallery_exportSuccessDetail": "Exported {count} images with metadata",
+  "@localGallery_exportSuccessDetail": {
+    "placeholders": {
+      "count": {}
+    }
   }
 }
