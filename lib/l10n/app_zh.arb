@@ -1905,6 +1905,30 @@
   "vibeConfirmEncode": "确认编码",
   "vibeParseFailed": "无法解析 Vibe 文件",
 
+  "localGallery_searchIndexing": "正在构建搜索索引...",
+  "localGallery_searchIndexComplete": "搜索索引就绪",
+  "localGallery_searchIndexFailed": "搜索索引错误",
+  "localGallery_cacheStatus": "缓存：{current}/{max} 张图片",
+  "@localGallery_cacheStatus": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "localGallery_cacheHitRate": "命中率：{rate}%",
+  "@localGallery_cacheHitRate": {
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "localGallery_preloading": "正在预加载图片...",
+  "localGallery_preloadComplete": "预加载完成",
+  "localGallery_progressiveLoadError": "图片加载失败",
+  "localGallery_noImagesFound": "未找到图片",
+  "localGallery_searchPlaceholder": "搜索提示词、模型、采样器...",
+  "localGallery_filterByDate": "按日期筛选",
+  "localGallery_clearFilters": "清除筛选",
+
   "layer_duplicate": "复制图层",
   "layer_delete": "删除图层",
   "layer_merge": "合并图层",

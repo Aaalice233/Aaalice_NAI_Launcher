@@ -2314,5 +2314,29 @@
   "tag_tabTags": "Tags",
   "tag_tabGroups": "Groups",
   "tag_tabFavorites": "Favorites",
-  "tag_tabTemplates": "Templates"
+  "tag_tabTemplates": "Templates",
+
+  "localGallery_searchIndexing": "Building search index...",
+  "localGallery_searchIndexComplete": "Search index ready",
+  "localGallery_searchIndexFailed": "Search index error",
+  "localGallery_cacheStatus": "Cache: {current}/{max} images",
+  "@localGallery_cacheStatus": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "localGallery_cacheHitRate": "Hit rate: {rate}%",
+  "@localGallery_cacheHitRate": {
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "localGallery_preloading": "Preloading images...",
+  "localGallery_preloadComplete": "Preload complete",
+  "localGallery_progressiveLoadError": "Failed to load image",
+  "localGallery_noImagesFound": "No images found",
+  "localGallery_searchPlaceholder": "Search prompts, models, samplers...",
+  "localGallery_filterByDate": "Filter by date",
+  "localGallery_clearFilters": "Clear filters"
 }
