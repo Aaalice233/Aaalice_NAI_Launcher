@@ -591,6 +591,15 @@
   "editor_subtractFromSelection": "Subtract from selection",
   "editor_selectionHint": "Draw selection for inpaint mask",
 
+  "layer_duplicate": "Duplicate",
+  "layer_delete": "Delete",
+  "layer_merge": "Merge Down",
+  "layer_visibility": "Toggle Visibility",
+  "layer_lock": "Toggle Lock",
+  "layer_rename": "Rename",
+  "layer_moveUp": "Move Up",
+  "layer_moveDown": "Move Down",
+
   "vibe_title": "Vibe Transfer",
   "vibe_hint": "Add reference images to transfer visual style (max 4)",
   "vibe_description": "Change the image, keep the vision.",
