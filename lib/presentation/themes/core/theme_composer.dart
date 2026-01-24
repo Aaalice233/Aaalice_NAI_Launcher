@@ -106,7 +106,14 @@ class ThemeComposer {
       brightness: effectiveBrightness,
       colorScheme: colorScheme,
       textTheme: textTheme,
-      
+
+      // Icon theme - ensures icons have good visibility by default
+      // Uses onPrimary for high contrast against most backgrounds
+      iconTheme: IconThemeData(
+        color: colorScheme.onPrimary,
+        size: 24,
+      ),
+
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: divider.dividerColor,
       dividerTheme: DividerThemeData(

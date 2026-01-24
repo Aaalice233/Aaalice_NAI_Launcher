@@ -23,6 +23,8 @@ class GrungePalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _secondary, // Invert: dark primary on light bg
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFE8E4DC), // Light warm gray for contrast
+        onPrimaryContainer: Color(0xFF1A1A1A), // Dark gray for text/icons
         secondary: _accent,
         onSecondary: Colors.white,
         tertiary: Color(0xFF8B4513), // Rust brown
@@ -38,6 +40,8 @@ class GrungePalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: _secondary,
+        primaryContainer: Color(0xFF5C4A3D), // Dark warm brown for contrast
+        onPrimaryContainer: Color(0xFFFFF5EE), // Light cream for text/icons
         secondary: _accent,
         onSecondary: Colors.white,
         tertiary: Color(0xFFD2691E),

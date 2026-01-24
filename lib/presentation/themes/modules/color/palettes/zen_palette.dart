@@ -30,6 +30,8 @@ class ZenPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: Color(0xFF3B82F6),
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
+        onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
         secondary: Color(0xFF64748B),
         onSecondary: Colors.white,
         tertiary: Color(0xFF8B5CF6),
@@ -43,6 +45,8 @@ class ZenPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.black,
+        primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
+        onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
         secondary: _secondary,
         onSecondary: Colors.black,
         tertiary: _tertiary,

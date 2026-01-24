@@ -967,7 +967,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             if (account.avatarPath != null)
               ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Colors.red.shade400,
+                ),
                 title: Text(
                   context.l10n.auth_removeAvatar,
                   style: TextStyle(color: Colors.red.shade400),
