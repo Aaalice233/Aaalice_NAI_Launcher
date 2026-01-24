@@ -950,15 +950,13 @@ DanbooruApiService danbooruApiService(Ref ref) {
 
   final service = DanbooruApiService(dio);
 
-  // 监听认证状态变化
-  ref.listen(danbooruAuthProvider, (previous, next) {
-    service
-        .setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
-  });
+  // 使用 ref.watch 监听认证状态变化
+  // 当状态变化时，provider 会重建，auth header 也会更新
+  // ignore: unused_local_variable
+  final authState = ref.watch(danbooruAuthProvider);
 
-  // 初始化时设置认证头
-  service
-      .setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
+  // 设置当前认证头（当 authState 变化时会自动重建并重新设置）
+  service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
 
   return service;
 }

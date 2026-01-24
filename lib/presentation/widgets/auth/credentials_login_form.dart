@@ -99,14 +99,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
               fillColor: Colors.transparent,
             ),
             textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) async {
-              if (formKey.currentState!.validate()) {
-                await ref.read(authNotifierProvider.notifier).loginWithCredentials(
-                  emailController.text,
-                  passwordController.text,
-                );
-              }
-            },
+            onFieldSubmitted: (_) => _handleLogin(),
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return context.l10n.auth_passwordRequired;
@@ -144,21 +137,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           SizedBox(
             height: 56,
             child: ElevatedButton(
-              onPressed: authState.isLoading
-                  ? null
-                  : () async {
-                      if (formKey.currentState!.validate()) {
-                        final success = await ref
-                            .read(authNotifierProvider.notifier)
-                            .loginWithCredentials(
-                              emailController.text,
-                              passwordController.text,
-                            );
-                        if (success && widget.onLoginSuccess != null) {
-                          widget.onLoginSuccess!();
-                        }
-                      }
-                    },
+              onPressed: authState.isLoading ? null : _handleLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -194,21 +173,55 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                 color: Theme.of(context).colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _getErrorMessage(authState.errorCode),
-                      style: TextStyle(
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
                         color: Theme.of(context).colorScheme.error,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getErrorMessage(authState.errorCode),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  // 显示恢复建议
+                  if (_getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode) != null) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: Text(
+                        _getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode)!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                  // 网络错误显示重试按钮
+                  if (_isNetworkError(authState.errorCode)) ...[
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: authState.isLoading ? null : _handleLogin,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: Text(context.l10n.common_retry),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -233,6 +246,55 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
       case AuthErrorCode.unknown:
       default:
         return context.l10n.auth_loginFailed;
+    }
+  }
+
+  /// 获取错误恢复建议
+  String? _getErrorRecoveryHint(AuthErrorCode? errorCode, int? httpStatusCode) {
+    switch (errorCode) {
+      case AuthErrorCode.networkTimeout:
+        return context.l10n.api_error_timeout_hint;
+      case AuthErrorCode.networkError:
+        return context.l10n.api_error_network_hint;
+      case AuthErrorCode.authFailed:
+        if (httpStatusCode == 401) {
+          return context.l10n.api_error_401_hint;
+        }
+        return context.l10n.api_error_401_hint;
+      case AuthErrorCode.tokenInvalid:
+        return context.l10n.api_error_401_hint;
+      case AuthErrorCode.serverError:
+        if (httpStatusCode == 503) {
+          return context.l10n.api_error_503_hint;
+        }
+        return context.l10n.api_error_500_hint;
+      case AuthErrorCode.unknown:
+      default:
+        return null;
+    }
+  }
+
+  /// 检查是否为网络错误
+  bool _isNetworkError(AuthErrorCode? errorCode) {
+    return errorCode == AuthErrorCode.networkTimeout ||
+        errorCode == AuthErrorCode.networkError;
+  }
+
+  /// 处理登录
+  Future<void> _handleLogin() async {
+    if (!formKey.currentState!.validate()) return;
+
+    // 保存 notifier 引用，避免 widget disposed 后使用 ref
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+
+    final success = await authNotifier.loginWithCredentials(
+      emailController.text,
+      passwordController.text,
+    );
+
+    // 检查 widget 是否仍然 mounted
+    if (mounted && success && widget.onLoginSuccess != null) {
+      widget.onLoginSuccess!();
     }
   }
 }

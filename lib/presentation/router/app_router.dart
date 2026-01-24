@@ -45,16 +45,21 @@ class AppRoutes {
 
 /// 应用路由 Provider
 ///
-/// 注意：使用 refreshListenable 而非 ref.watch 来监听认证状态，
-/// 这样可以保持 GoRouter 实例稳定，避免每次状态变化都重建 Navigator 和 Overlay。
+/// 使用 ref.watch + ValueNotifier 桥接认证状态到 GoRouter 的 refreshListenable
+/// 注意：不要使用 ref.listen 在 provider 中，因为这会触发 AssertionError
+/// ref.listen 只能在 ConsumerWidget 的 build 方法中使用
 @riverpod
 GoRouter appRouter(Ref ref) {
-  // 使用 ValueNotifier 桥接 Riverpod 到 GoRouter 的 refreshListenable
-  final authStateNotifier = ValueNotifier<bool>(false);
+  // 使用 ref.watch 监听认证状态变化
+  // 当状态变化时，provider 会重建，ValueNotifier 也会更新
+  final authState = ref.watch(authNotifierProvider);
 
-  // 监听认证状态变化，触发 GoRouter 刷新（但不会重建 GoRouter 实例）
-  ref.listen(authNotifierProvider, (_, __) {
-    authStateNotifier.value = !authStateNotifier.value;
+  // 创建 ValueNotifier 桥接到 GoRouter 的 refreshListenable
+  final authStateNotifier = ValueNotifier<AuthStatus>(authState.status);
+
+  // 当 provider 被销毁时清理
+  ref.onDispose(() {
+    authStateNotifier.dispose();
   });
 
   return GoRouter(
@@ -93,11 +98,29 @@ GoRouter appRouter(Ref ref) {
 
     // 路由配置
     routes: [
-      // 登录页
+      // 登录页 - 使用自定义页面过渡动画
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => LoginScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // 使用淡入淡出 + 轻微垂直位移的组合动画
+            // 与 login_form_container.dart 保持一致的动画风格
+            return FadeTransition(
+              opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
+                  end: Offset.zero,
+                ).animate(CurveTween(curve: Curves.easeOutCubic).animate(animation)),
+                child: child,
+              ),
+            );
+          },
+        ),
       ),
 
       // 主页 Shell - 使用 StatefulShellRoute 实现混合保活
@@ -117,12 +140,32 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: 'home',
-                builder: (context, state) => const GenerationScreen(),
+                pageBuilder: (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const GenerationScreen(),
+                  transitionDuration: const Duration(milliseconds: 300),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(
+                      opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                      child: child,
+                    );
+                  },
+                ),
               ),
               GoRoute(
                 path: AppRoutes.generation,
                 name: 'generation',
-                builder: (context, state) => const GenerationScreen(),
+                pageBuilder: (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const GenerationScreen(),
+                  transitionDuration: const Duration(milliseconds: 300),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(
+                      opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                      child: child,
+                    );
+                  },
+                ),
               ),
             ],
           ),

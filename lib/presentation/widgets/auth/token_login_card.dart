@@ -160,6 +160,69 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
+
+              // 错误提示
+              if (authState.hasError) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: theme.colorScheme.error,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _getErrorMessage(authState.errorCode),
+                              style: TextStyle(
+                                color: theme.colorScheme.error,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // 显示恢复建议
+                      if (_getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode) != null) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 32),
+                          child: Text(
+                            _getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode)!,
+                            style: TextStyle(
+                              color: theme.colorScheme.error.withOpacity(0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                      // 网络错误显示重试按钮
+                      if (_isNetworkError(authState.errorCode)) ...[
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: authState.isLoading ? null : _handleLogin,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: Text(context.l10n.common_retry),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.colorScheme.error,
+                            foregroundColor: theme.colorScheme.onError,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
 
               // Token 获取指引
@@ -260,18 +323,30 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
           switch (authState.errorCode) {
             case AuthErrorCode.tokenInvalid:
               errorMessage = context.l10n.auth_tokenInvalid;
+              final recoveryHint = context.l10n.api_error_401_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.authFailed:
               errorMessage = context.l10n.auth_error_authFailed;
+              final recoveryHint = context.l10n.api_error_401_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.networkTimeout:
               errorMessage = context.l10n.auth_error_networkTimeout;
+              final recoveryHint = context.l10n.api_error_timeout_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.networkError:
               errorMessage = context.l10n.auth_error_networkError;
+              final recoveryHint = context.l10n.api_error_network_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             case AuthErrorCode.serverError:
               errorMessage = context.l10n.auth_error_serverError;
+              final recoveryHint = authState.httpStatusCode == 503
+                  ? context.l10n.api_error_503_hint
+                  : context.l10n.api_error_500_hint;
+              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
               break;
             default:
               errorMessage = context.l10n.auth_error_unknown;
@@ -283,5 +358,54 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
         AppToast.error(context, errorMessage);
       }
     }
+  }
+
+  String _getErrorMessage(AuthErrorCode? errorCode) {
+    switch (errorCode) {
+      case AuthErrorCode.networkTimeout:
+        return context.l10n.auth_error_networkTimeout;
+      case AuthErrorCode.networkError:
+        return context.l10n.auth_error_networkError;
+      case AuthErrorCode.authFailed:
+        return context.l10n.auth_error_authFailed;
+      case AuthErrorCode.tokenInvalid:
+        return context.l10n.auth_tokenInvalid;
+      case AuthErrorCode.serverError:
+        return context.l10n.auth_error_serverError;
+      case AuthErrorCode.unknown:
+      default:
+        return context.l10n.auth_error_unknown;
+    }
+  }
+
+  /// 获取错误恢复建议
+  String? _getErrorRecoveryHint(AuthErrorCode? errorCode, int? httpStatusCode) {
+    switch (errorCode) {
+      case AuthErrorCode.networkTimeout:
+        return context.l10n.api_error_timeout_hint;
+      case AuthErrorCode.networkError:
+        return context.l10n.api_error_network_hint;
+      case AuthErrorCode.authFailed:
+        if (httpStatusCode == 401) {
+          return context.l10n.api_error_401_hint;
+        }
+        return context.l10n.api_error_401_hint;
+      case AuthErrorCode.tokenInvalid:
+        return context.l10n.api_error_401_hint;
+      case AuthErrorCode.serverError:
+        if (httpStatusCode == 503) {
+          return context.l10n.api_error_503_hint;
+        }
+        return context.l10n.api_error_500_hint;
+      case AuthErrorCode.unknown:
+      default:
+        return null;
+    }
+  }
+
+  /// 检查是否为网络错误
+  bool _isNetworkError(AuthErrorCode? errorCode) {
+    return errorCode == AuthErrorCode.networkTimeout ||
+        errorCode == AuthErrorCode.networkError;
   }
 }
