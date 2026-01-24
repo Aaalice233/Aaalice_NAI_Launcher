@@ -431,3 +431,54 @@ Next Steps:
 - Subtask 6-2: Write unit tests for AppWarmupService timing accuracy
 - Subtask 6-3: Write integration test for full warmup flow
 
+
+[2026-01-24 23:XX] Subtask 6-4: End-to-end manual verification of warmup flow
+Status: ISSUES FOUND ⚠️
+
+Verification Summary:
+- Code review completed: All 9 warmup tasks verified present
+- Performance monitoring: ✅ Implemented with Stopwatch timing
+- Metrics persistence: ✅ WarmupMetricsService working
+- Splash screen UI: ✅ Progress bar, translations, error handling, skip button (debug mode)
+- Performance report screen: ✅ Fully implemented
+- Localization: ✅ All 11 translations present in EN and ZH
+- Data models: ✅ WarmupTaskMetrics with JSON serialization
+
+Issues Found:
+1. CRITICAL: Settings navigation to PerformanceReportScreen is MISSING
+   - Expected: ListTile in settings screen
+   - Actual: No navigation item found
+   - Impact: Users cannot access performance report from app
+   - Recommendation: Add navigation after Queue section in settings_screen.dart
+
+2. MEDIUM: 19/125 tests failing (106 passed)
+   - Root cause: Hive not initialized in test environment
+   - Error: "HiveError: You need to initialize Hive"
+   - Tests affected: Metrics persistence, warmup completion validation
+   - Recommendation: Add Hive.initFlutter() in test setup
+
+3. LOW: 4 tasks use stub implementations
+   - warmup_imageEditor, warmup_database, warmup_fonts, warmup_imageCache
+   - Each simulates work with 100ms delay
+   - Impact: No real performance benefit from these tasks yet
+   - Status: Acceptable for MVP, needs real implementation later
+
+4. COSMETIC: 207 lint issues (trailing commas, const constructors)
+   - No functional impact
+   - Can be fixed with: dart fix --apply
+
+Acceptance Criteria Status:
+✅ All 9 tasks execute with timing captured
+⚠️ Performance report exists but navigation missing (BLOCKER)
+✅ Progress bar shows percentage (weight-based)
+⚠️ Cannot measure editor/history load times (stub implementations)
+✅ Total warmup < 3 seconds (estimated ~1-2s with stubs)
+✅ Skip Warmup button in debug mode
+✅ Error handling and retry implemented
+✅ No console errors (graceful error handling)
+❌ Tests: 19 failures (Hive initialization)
+⚠️ Manual testing: Code review complete, device testing needed
+
+Verification Report Created: manual_verification_report.md
+Status: CONDITIONALLY COMPLETE - Requires fixes before sign-off
+
