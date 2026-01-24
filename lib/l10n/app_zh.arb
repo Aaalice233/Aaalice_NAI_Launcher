@@ -1892,5 +1892,81 @@
   "layer_lock": "锁定",
   "layer_rename": "重命名",
   "layer_moveUp": "上移",
-  "layer_moveDown": "下移"
+  "layer_moveDown": "下移",
+  "tagGroupBrowser_searchHint": "搜索标签...",
+  "tagGroupBrowser_tagCount": "{count}个标签",
+  "@tagGroupBrowser_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupBrowser_filteredTagCount": "显示 {filtered} 个，共 {total} 个标签",
+  "@tagGroupBrowser_filteredTagCount": {
+    "placeholders": {
+      "filtered": {},
+      "total": {}
+    }
+  },
+  "tagGroupBrowser_noTags": "暂无标签",
+  "tagGroupBrowser_noLibrary": "词库未加载",
+  "tagGroupBrowser_importLibraryHint": "请先导入标签词库",
+  "tagGroupBrowser_noCategories": "没有启用的标签分类",
+  "tagGroupBrowser_enableCategoriesHint": "请在设置中启用标签分类",
+  "tagGroupBrowser_danbooruSuggestions": "Danbooru 建议",
+
+  "tag_favoritesTitle": "收藏标签",
+  "tag_favoritesEmpty": "暂无收藏标签",
+  "tag_favoritesEmptyHint": "长按标签即可添加到收藏",
+  "tag_alreadyAdded": "该标签已在当前提示词中",
+  "tag_removeFavoriteTitle": "移除收藏",
+  "tag_removeFavoriteMessage": "确定要移除收藏的标签「{tag}」吗？",
+  "@tag_removeFavoriteMessage": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+
+  "tag_templatesTitle": "标签模板",
+  "tag_templatesEmpty": "暂无标签模板",
+  "tag_templatesEmptyHint": "选择标签后点击右上角的 + 按钮创建模板",
+  "tag_templateCreate": "创建模板",
+  "tag_templateNameLabel": "模板名称",
+  "tag_templateNameHint": "输入模板名称",
+  "tag_templateNameRequired": "请输入模板名称",
+  "tag_templateDescLabel": "模板描述（可选）",
+  "tag_templateDescHint": "输入模板描述",
+  "tag_templatePreview": "标签预览",
+  "tag_templateTagCount": "{count} 个标签",
+  "@tag_templateTagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateMoreTags": "还有 {count} 个标签...",
+  "@tag_templateMoreTags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateInserted": "已插入模板「{name}」",
+  "@tag_templateInserted": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tag_templateNoTags": "没有可保存的标签",
+  "tag_templateSaved": "模板已保存",
+  "tag_templateNameExists": "模板名称已存在",
+  "tag_templateDeleteTitle": "删除模板",
+  "tag_templateDeleteMessage": "确定要删除模板「{name}」吗？",
+  "@tag_templateDeleteMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
+  "tag_tabTags": "标签",
+  "tag_tabGroups": "分组",
+  "tag_tabFavorites": "收藏",
+  "tag_tabTemplates": "模板"
 }
