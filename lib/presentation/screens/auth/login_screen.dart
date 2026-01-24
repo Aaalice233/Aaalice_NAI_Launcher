@@ -13,7 +13,7 @@ import '../../widgets/common/app_toast.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerStatefulWidget {
-  LoginScreen({super.key});
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -111,7 +111,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accounts = ref.watch(accountManagerNotifierProvider).accounts;
+    final accountState = ref.watch(accountManagerNotifierProvider);
+    final accounts = accountState.accounts;
+    final isLoading = accountState.isLoading;
 
     return Scaffold(
       body: LayoutBuilder(
@@ -128,8 +130,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _buildHeader(context, theme),
                   const SizedBox(height: 32),
 
-                  // 根据是否有账号显示不同界面
-                  if (accounts.isEmpty)
+                  // 根据加载状态和账号情况显示不同界面
+                  if (isLoading)
+                    _buildAccountSwitcherSkeleton(context, theme, isWideScreen)
+                  else if (accounts.isEmpty)
                     _buildFirstTimeLoginForm(context, theme, isWideScreen)
                   else
                     _buildQuickLoginView(
@@ -210,6 +214,159 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
       child: const LoginFormContainer(),
+    );
+  }
+
+  /// 账号切换器骨架加载屏
+  Widget _buildAccountSwitcherSkeleton(
+    BuildContext context,
+    ThemeData theme,
+    bool isWideScreen,
+  ) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.2),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: isWideScreen
+              ? _buildWideScreenSkeleton(context, theme)
+              : _buildMobileSkeleton(context, theme),
+        ),
+      ),
+    );
+  }
+
+  /// PC 端骨架布局（水平）
+  Widget _buildWideScreenSkeleton(BuildContext context, ThemeData theme) {
+    return Row(
+      children: [
+        // 左侧：头像骨架
+        _buildShimmerCircleAvatar(100),
+        const SizedBox(width: 24),
+
+        // 右侧：信息骨架
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 账号名骨架
+              _buildShimmerText(
+                width: 150,
+                height: 24,
+                theme: theme,
+              ),
+              const SizedBox(height: 4),
+              _buildShimmerText(
+                width: 80,
+                height: 14,
+                theme: theme,
+              ),
+              const SizedBox(height: 16),
+
+              // 登录按钮骨架
+              _buildShimmerButton(theme),
+              const SizedBox(height: 16),
+
+              // 分割线
+              Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
+              const SizedBox(height: 8),
+
+              // 添加账号按钮骨架
+              _buildShimmerText(
+                width: 100,
+                height: 16,
+                theme: theme,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 移动端骨架布局（垂直）
+  Widget _buildMobileSkeleton(BuildContext context, ThemeData theme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 头像骨架（居中）
+        Center(child: _buildShimmerCircleAvatar(100)),
+        const SizedBox(height: 16),
+
+        // 账号名骨架
+        Center(
+          child: _buildShimmerText(
+            width: 150,
+            height: 24,
+            theme: theme,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Center(
+          child: _buildShimmerText(
+            width: 80,
+            height: 14,
+            theme: theme,
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // 登录按钮骨架
+        _buildShimmerButton(theme),
+        const SizedBox(height: 16),
+
+        // 分割线
+        Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
+        const SizedBox(height: 8),
+
+        // 添加账号按钮骨架
+        Center(
+          child: _buildShimmerText(
+            width: 100,
+            height: 16,
+            theme: theme,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 闪烁圆形头像骨架
+  Widget _buildShimmerCircleAvatar(double size) {
+    return _ShimmerCircleAvatar(size: size);
+  }
+
+  /// 闪烁文本骨架
+  Widget _buildShimmerText({
+    required double width,
+    required double height,
+    required ThemeData theme,
+  }) {
+    return _ShimmerContainer(
+      width: width,
+      height: height,
+      borderRadius: 4,
+      baseColor: theme.colorScheme.surfaceContainerHighest,
+      highlightColor: theme.colorScheme.surface,
+    );
+  }
+
+  /// 闪烁按钮骨架
+  Widget _buildShimmerButton(ThemeData theme) {
+    return _ShimmerContainer(
+      width: double.infinity,
+      height: 48,
+      borderRadius: 12,
+      baseColor: theme.colorScheme.primary.withOpacity(0.3),
+      highlightColor: theme.colorScheme.primary.withOpacity(0.1),
     );
   }
 
@@ -947,6 +1104,156 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 闪烁容器 - 用于骨架加载动画
+class _ShimmerContainer extends StatefulWidget {
+  final double width;
+  final double height;
+  final double borderRadius;
+  final Color baseColor;
+  final Color highlightColor;
+
+  const _ShimmerContainer({
+    required this.width,
+    required this.height,
+    required this.borderRadius,
+    required this.baseColor,
+    required this.highlightColor,
+  });
+
+  @override
+  State<_ShimmerContainer> createState() => _ShimmerContainerState();
+}
+
+class _ShimmerContainerState extends State<_ShimmerContainer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _shimmerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    _shimmerAnimation = Tween<double>(
+      begin: -2.0,
+      end: 2.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOutSine,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _shimmerAnimation,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            gradient: LinearGradient(
+              begin: Alignment(-1.0 + _shimmerAnimation.value, 0.0),
+              end: Alignment(1.0 + _shimmerAnimation.value, 0.0),
+              colors: [
+                widget.baseColor,
+                widget.highlightColor,
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 闪烁圆形头像骨架
+class _ShimmerCircleAvatar extends StatefulWidget {
+  final double size;
+
+  const _ShimmerCircleAvatar({
+    required this.size,
+  });
+
+  @override
+  State<_ShimmerCircleAvatar> createState() => _ShimmerCircleAvatarState();
+}
+
+class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _shimmerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    _shimmerAnimation = Tween<double>(
+      begin: -2.0,
+      end: 2.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOutSine,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = theme.colorScheme.surfaceContainerHighest;
+    final highlightColor = theme.colorScheme.surface;
+
+    return AnimatedBuilder(
+      animation: _shimmerAnimation,
+      builder: (context, child) {
+        return Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment(-1.0 + _shimmerAnimation.value, 0.0),
+              end: Alignment(1.0 + _shimmerAnimation.value, 0.0),
+              colors: [
+                baseColor,
+                highlightColor,
+                baseColor,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+        );
+      },
     );
   }
 }
