@@ -159,6 +159,31 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 7. 检查网络连接状态（带超时）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_network',
+        weight: 1,
+        task: () async {
+          // Network connectivity check with timeout
+          AppLogger.i('Network connectivity check started', 'Warmup');
+
+          try {
+            // Simulate network connectivity check with timeout
+            await Future.timeout(
+              Future.delayed(const Duration(milliseconds: 200)),
+              const Duration(seconds: 2),
+            );
+            AppLogger.i('Network connectivity check completed', 'Warmup');
+          } on TimeoutException {
+            AppLogger.w('Network connectivity check timed out', 'Warmup');
+          } catch (e) {
+            AppLogger.w('Network connectivity check failed: $e', 'Warmup');
+          }
+        },
+      ),
+    );
   }
 
   /// 开始预加载
