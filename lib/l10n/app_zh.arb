@@ -1892,5 +1892,24 @@
   "layer_lock": "锁定",
   "layer_rename": "重命名",
   "layer_moveUp": "上移",
-  "layer_moveDown": "下移"
+  "layer_moveDown": "下移",
+  "tagGroupBrowser_searchHint": "搜索标签...",
+  "tagGroupBrowser_tagCount": "{count}个标签",
+  "@tagGroupBrowser_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupBrowser_filteredTagCount": "显示 {filtered} 个，共 {total} 个标签",
+  "@tagGroupBrowser_filteredTagCount": {
+    "placeholders": {
+      "filtered": {},
+      "total": {}
+    }
+  },
+  "tagGroupBrowser_noTags": "暂无标签",
+  "tagGroupBrowser_noLibrary": "词库未加载",
+  "tagGroupBrowser_importLibraryHint": "请先导入标签词库",
+  "tagGroupBrowser_noCategories": "没有启用的标签分类",
+  "tagGroupBrowser_enableCategoriesHint": "请在设置中启用标签分类"
 }
