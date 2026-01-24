@@ -590,10 +590,10 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         _showAddAccountDialog(context);
       }
     } else if (value == 'logout') {
-      // Wait for menu to fully close before logging out
+      // Use addPostFrameCallback to ensure logout happens after menu disposal completes
       // This prevents the "ref.listen can only be used within build method" error
       // that occurs when ref.listen in app_router.dart is triggered during menu disposal
-      Future.delayed(const Duration(milliseconds: 150), () {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           widget.ref.read(authNotifierProvider.notifier).logout();
         }
