@@ -13,24 +13,29 @@ part 'subscription_provider.g.dart';
 /// 管理用户订阅信息和 Anlas 余额
 @riverpod
 class SubscriptionNotifier extends _$SubscriptionNotifier {
+  AuthState? _previousAuthState;
+
   @override
   SubscriptionState build() {
-    // 监听认证状态变化
-    ref.listen(authNotifierProvider, (previous, next) {
-      if (next.isAuthenticated && previous?.isAuthenticated != true) {
-        // 登录成功后自动获取订阅信息
-        fetchSubscription();
-      } else if (!next.isAuthenticated && previous?.isAuthenticated == true) {
-        // 登出后清除订阅信息
+    // Watch authentication state changes
+    final authState = ref.watch(authNotifierProvider);
+
+    // React to authentication state changes
+    if (_previousAuthState != null) {
+      if (authState.isAuthenticated && !_previousAuthState!.isAuthenticated) {
+        // Login succeeded - fetch subscription info
+        Future.microtask(() => fetchSubscription());
+      } else if (!authState.isAuthenticated && _previousAuthState!.isAuthenticated) {
+        // Logged out - clear subscription info
         state = const SubscriptionState.initial();
       }
-    });
-
-    // 如果已认证，立即获取订阅信息
-    final authState = ref.read(authNotifierProvider);
-    if (authState.isAuthenticated) {
+    } else if (authState.isAuthenticated) {
+      // First build and already authenticated - fetch subscription
       Future.microtask(() => fetchSubscription());
     }
+
+    // Store current auth state for next comparison
+    _previousAuthState = authState;
 
     return const SubscriptionState.initial();
   }
