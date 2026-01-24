@@ -137,6 +137,13 @@
   "auth_troubleshoot_serverStatus_title": "Check Server Status",
   "auth_troubleshoot_serverStatus_desc": "Visit NovelAI status page or community to check for outages",
 
+  "auth_passwordResetHelp_title": "Password Reset",
+  "auth_passwordResetHelp_desc": "Clicking 'Forgot password?' will open NovelAI's password reset page in your browser where you can reset your password",
+  "auth_passwordResetAfterReset_title": "After Password Reset",
+  "auth_passwordResetAfterReset_desc": "After resetting your password on NovelAI website, return to this app and login with your new password",
+  "auth_passwordResetNoEmail_title": "Didn't receive reset email?",
+  "auth_passwordResetNoEmail_desc": "Check your spam folder or contact NovelAI support if you don't receive the password reset email within a few minutes",
+
   "common_paste": "Paste",
   "common_default": "Default",
 
