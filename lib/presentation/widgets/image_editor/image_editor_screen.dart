@@ -678,19 +678,57 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
     if (result != null && result.size != _state.canvasSize) {
       try {
+        // 验证尺寸范围
+        final newWidth = result.size.width.toInt();
+        final newHeight = result.size.height.toInt();
+        const minSize = 64;
+        const maxSize = 4096;
+
+        if (newWidth < minSize || newHeight < minSize) {
+          _showError('画布尺寸太小，最小尺寸为 $minSize x $minSize 像素');
+          return;
+        }
+
+        if (newWidth > maxSize || newHeight > maxSize) {
+          _showError('画布尺寸太大，最大尺寸为 $maxSize x $maxSize 像素');
+          return;
+        }
+
         // 将 ContentHandlingMode 转换为 CanvasResizeMode
         final mode = _convertContentModeToResizeMode(result.mode);
 
         // 使用新的 resizeCanvas 方法，支持图层内容变换
         _state.resizeCanvas(result.size, mode);
-      } catch (e) {
-        // 显示错误信息
+
+        // 显示成功消息
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('调整画布尺寸失败: $e')),
+            SnackBar(
+              content: Text('画布已调整为 $newWidth x $newHeight'),
+              duration: const Duration(seconds: 2),
+            ),
           );
         }
+      } catch (e) {
+        // 显示错误信息
+        _showError('调整画布尺寸失败: $e');
+        AppLogger.e('Failed to resize canvas: $e', 'ImageEditor');
       }
+    }
+  }
+
+  /// 显示错误消息
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: '关闭',
+            onPressed: () {},
+          ),
+        ),
+      );
     }
   }
 
