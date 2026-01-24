@@ -2274,5 +2274,10 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+
+  "tag_tabTags": "Tags",
+  "tag_tabGroups": "Groups",
+  "tag_tabFavorites": "Favorites",
+  "tag_tabTemplates": "Templates"
 }
