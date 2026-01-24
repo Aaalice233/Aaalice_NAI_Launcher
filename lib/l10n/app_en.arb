@@ -2238,6 +2238,7 @@
   "tagGroupBrowser_importLibraryHint": "Please import a tag library first",
   "tagGroupBrowser_noCategories": "No enabled tag categories",
   "tagGroupBrowser_enableCategoriesHint": "Please enable tag categories in settings",
+  "tagGroupBrowser_danbooruSuggestions": "Danbooru Suggestions",
 
   "tag_favoritesTitle": "Favorite Tags",
   "tag_favoritesEmpty": "No favorite tags yet",
