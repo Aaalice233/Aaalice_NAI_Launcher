@@ -788,45 +788,113 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         allowMultiple: false,
       );
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        Uint8List? bytes;
+      if (result == null || result.files.isEmpty) {
+        // 用户取消了文件选择
+        return;
+      }
 
-        if (file.bytes != null) {
-          bytes = file.bytes;
-        } else if (file.path != null) {
-          bytes = await File(file.path!).readAsBytes();
-        }
+      final file = result.files.first;
 
-        if (bytes != null) {
-          // 将蒙版添加为新图层
-          final layer = await _state.layerManager.addLayerFromImage(
-            bytes,
-            name: '蒙版',
-          );
+      // 验证文件扩展名（额外的安全检查）
+      if (file.path != null) {
+        final extension = file.path!.split('.').last.toLowerCase();
+        const validImageExtensions = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'];
 
-          if (layer != null) {
-            AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('蒙版图层已添加')),
-              );
-            }
-          } else {
-            AppLogger.w('Failed to add mask as layer', 'ImageEditor');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('添加蒙版图层失败')),
-              );
-            }
+        if (!validImageExtensions.contains(extension)) {
+          AppLogger.w('Invalid file extension: $extension', 'ImageEditor');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP等）'),
+              ),
+            );
           }
+          return;
+        }
+      }
+
+      // 读取文件字节数据
+      Uint8List? bytes;
+      if (file.bytes != null) {
+        bytes = file.bytes;
+      } else if (file.path != null) {
+        try {
+          bytes = await File(file.path!).readAsBytes();
+        } catch (e) {
+          AppLogger.e('Failed to read file: $e', 'ImageEditor');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('无法读取文件: $e')),
+            );
+          }
+          return;
+        }
+      }
+
+      // 验证字节数据
+      if (bytes == null) {
+        AppLogger.w('File bytes is null', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('无法获取文件数据')),
+          );
+        }
+        return;
+      }
+
+      // 检查文件是否为空
+      if (bytes.isEmpty) {
+        AppLogger.w('File is empty (0 bytes)', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('文件为空，请选择有效的图像文件')),
+          );
+        }
+        return;
+      }
+
+      // 检查文件大小（限制为 50MB 以防止内存问题）
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      if (bytes.length > maxFileSize) {
+        final sizeMB = (bytes.length / (1024 * 1024)).toStringAsFixed(1);
+        AppLogger.w('File too large: ${bytes.length} bytes', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('文件过大（$sizeMB MB），请选择小于 50MB 的图像')),
+          );
+        }
+        return;
+      }
+
+      // 将蒙版添加为新图层
+      final layer = await _state.layerManager.addLayerFromImage(
+        bytes,
+        name: '蒙版',
+      );
+
+      if (layer != null) {
+        AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('蒙版图层已添加')),
+          );
+        }
+      } else {
+        // 图像解码失败或格式不支持
+        AppLogger.w('Failed to decode image or unsupported format', 'ImageEditor');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('无法解析图像文件\n请确保文件未损坏且格式受支持'),
+            ),
+          );
         }
       }
     } catch (e) {
-      AppLogger.e('Failed to load mask file: $e', 'ImageEditor');
+      AppLogger.e('Unexpected error loading mask file: $e', 'ImageEditor');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载蒙版失败: $e')),
+          SnackBar(content: Text('加载蒙版时发生错误: $e')),
         );
       }
     }
