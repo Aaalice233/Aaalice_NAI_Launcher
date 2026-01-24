@@ -590,7 +590,13 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         _showAddAccountDialog(context);
       }
     } else if (value == 'logout') {
-      widget.ref.read(authNotifierProvider.notifier).logout();
+      // Defer logout to avoid conflict with menu disposal
+      // This prevents the "ref.listen can only be used within build method" error
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.ref.read(authNotifierProvider.notifier).logout();
+        }
+      });
     } else if (value.startsWith('switch_')) {
       final accountId = value.substring(7);
       _switchAccount(accountId);
