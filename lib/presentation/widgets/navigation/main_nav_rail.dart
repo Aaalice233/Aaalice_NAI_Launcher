@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -590,10 +591,12 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         _showAddAccountDialog(context);
       }
     } else if (value == 'logout') {
-      // Use addPostFrameCallback to ensure logout happens after menu disposal completes
-      // This prevents the "ref.listen can only be used within build method" error
-      // that occurs when ref.listen in app_router.dart is triggered during menu disposal
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Use SchedulerBinding.endOfFrame to ensure logout happens AFTER the menu is fully disposed
+      // This prevents the "ref.listen can only be used within build method" error that occurs when
+      // ref.listen in app_router.dart is triggered during menu disposal. endOfFrame is more reliable
+      // than addPostFrameCallback because it waits for the entire frame to complete, including all
+      // post-frame callbacks and microtasks, ensuring the widget tree is stable.
+      SchedulerBinding.instance.endOfFrame.then((_) {
         if (mounted) {
           widget.ref.read(authNotifierProvider.notifier).logout();
         }
