@@ -1929,6 +1929,22 @@
   "localGallery_filterByDate": "按日期筛选",
   "localGallery_clearFilters": "清除筛选",
 
+  "slideshow_title": "幻灯片",
+  "slideshow_of": "/",
+  "slideshow_play": "播放",
+  "slideshow_pause": "暂停",
+  "slideshow_previous": "上一张",
+  "slideshow_next": "下一张",
+  "slideshow_exit": "退出 (Esc)",
+  "slideshow_noImages": "没有可显示的图片",
+  "slideshow_keyboardHint": "使用 ← → 导航，空格键播放/暂停，Esc 退出",
+  "slideshow_autoPlayInterval": "自动播放间隔：{seconds}秒",
+  "@slideshow_autoPlayInterval": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+
   "layer_duplicate": "复制图层",
   "layer_delete": "删除图层",
   "layer_merge": "合并图层",

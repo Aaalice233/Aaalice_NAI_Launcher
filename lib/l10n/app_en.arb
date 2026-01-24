@@ -2338,5 +2338,21 @@
   "localGallery_noImagesFound": "No images found",
   "localGallery_searchPlaceholder": "Search prompts, models, samplers...",
   "localGallery_filterByDate": "Filter by date",
-  "localGallery_clearFilters": "Clear filters"
+  "localGallery_clearFilters": "Clear filters",
+
+  "slideshow_title": "Slideshow",
+  "slideshow_of": "of",
+  "slideshow_play": "Play",
+  "slideshow_pause": "Pause",
+  "slideshow_previous": "Previous",
+  "slideshow_next": "Next",
+  "slideshow_exit": "Exit (Esc)",
+  "slideshow_noImages": "No images to display",
+  "slideshow_keyboardHint": "Use ← → to navigate, Space to play/pause, Esc to exit",
+  "slideshow_autoPlayInterval": "Auto-play interval: {seconds}s",
+  "@slideshow_autoPlayInterval": {
+    "placeholders": {
+      "seconds": {}
+    }
+  }
 }
