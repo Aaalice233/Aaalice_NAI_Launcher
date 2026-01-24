@@ -1878,5 +1878,14 @@
   "vibeEncodeConfirm": "是否继续添加并消耗点数？",
   "vibeCancel": "取消",
   "vibeConfirmEncode": "确认编码",
-  "vibeParseFailed": "无法解析 Vibe 文件"
+  "vibeParseFailed": "无法解析 Vibe 文件",
+
+  "layer_duplicate": "复制图层",
+  "layer_delete": "删除图层",
+  "layer_merge": "合并图层",
+  "layer_visibility": "显示/隐藏",
+  "layer_lock": "锁定",
+  "layer_rename": "重命名",
+  "layer_moveUp": "上移",
+  "layer_moveDown": "下移"
 }
