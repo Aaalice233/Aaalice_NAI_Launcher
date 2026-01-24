@@ -131,6 +131,20 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 5. 预加载图片编辑器资源（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_imageEditor',
+        weight: 1,
+        task: () async {
+          // Stub implementation for future image editor resource preloading
+          AppLogger.i('Image editor resources warmup (stub)', 'Warmup');
+          // Placeholder for future image editor resource initialization
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
   }
 
   /// 开始预加载
