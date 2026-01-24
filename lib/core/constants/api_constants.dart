@@ -8,6 +8,9 @@ class ApiConstants {
   /// 图像生成 API 基础 URL
   static const String imageBaseUrl = 'https://image.novelai.net';
 
+  /// 密码重置 URL
+  static const String passwordResetUrl = 'https://novelai.net/forgot-password';
+
   /// API 端点
   static const String loginEndpoint = '/user/login';
   static const String generateImageEndpoint = '/ai/generate-image';
