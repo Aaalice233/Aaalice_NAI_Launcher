@@ -138,6 +138,22 @@ class _LocalImageCardState extends State<LocalImageCard> {
         PopupMenuItem(
           child: const Row(
             children: [
+              Icon(Icons.folder_open, size: 18),
+              SizedBox(width: 8),
+              Text('在文件管理器中打开'),
+            ],
+          ),
+          onTap: () {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) {
+                _openInFileManager(context);
+              }
+            });
+          },
+        ),
+        PopupMenuItem(
+          child: const Row(
+            children: [
               Icon(Icons.info_outline, size: 18),
               SizedBox(width: 8),
               Text('查看详情'),
@@ -414,6 +430,23 @@ class _LocalImageCardState extends State<LocalImageCard> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, '复制失败: $e');
+      }
+    }
+  }
+
+  /// 在文件管理器中打开
+  Future<void> _openInFileManager(BuildContext context) async {
+    try {
+      final filePath = widget.record.path;
+      // 使用 explorer /select 打开文件管理器并选中文件
+      await Process.run('explorer', ['/select,"$filePath"']);
+
+      if (context.mounted) {
+        AppToast.success(context, '已在文件管理器中打开');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '打开失败: $e');
       }
     }
   }
