@@ -280,6 +280,29 @@ class ReorderLayerAction extends EditorAction {
   String get description => '重排图层';
 }
 
+/// 画布调整大小操作
+class ResizeCanvasAction extends EditorAction {
+  final Size newSize;
+  Size? _previousSize;
+
+  ResizeCanvasAction({required this.newSize});
+
+  @override
+  void execute(EditorState state) {
+    _previousSize = state.canvasSize;
+    state.setCanvasSize(newSize);
+  }
+
+  @override
+  void undo(EditorState state) {
+    if (_previousSize == null) return;
+    state.setCanvasSize(_previousSize!);
+  }
+
+  @override
+  String get description => '调整画布大小';
+}
+
 /// 笔画数据（用于历史记录）
 class StrokeData {
   final List<Offset> points;
