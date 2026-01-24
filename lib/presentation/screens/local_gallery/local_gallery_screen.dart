@@ -658,8 +658,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         key: const PageStorageKey<String>('local_gallery_grid_loading'),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
-          mainAxisSpacing: 4,
-          crossAxisSpacing: 4,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
           childAspectRatio: itemWidth / 250, // 固定宽高比
         ),
         itemCount: state.currentImages.isNotEmpty
@@ -679,8 +679,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       key: const PageStorageKey<String>('local_gallery_grid'),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
         childAspectRatio: itemWidth / 250, // 固定宽高比
       ),
       itemCount: state.currentImages.length,

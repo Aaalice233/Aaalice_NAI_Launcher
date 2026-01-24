@@ -820,13 +820,17 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
         child: Card(
           clipBehavior: Clip.antiAlias,
-          shape: widget.isSelected
-              ? RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  side: BorderSide(
-                      color: Theme.of(context).colorScheme.primary, width: 3,),
-                )
-              : null,
+          elevation: 2,
+          shadowColor: Colors.black.withOpacity(0.15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: widget.isSelected
+                ? BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 3,
+                  )
+                : BorderSide.none,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
