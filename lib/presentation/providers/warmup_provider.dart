@@ -184,6 +184,20 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 8. 预加载字体和图标（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_fonts',
+        weight: 1,
+        task: () async {
+          // Stub implementation for fonts and icons preloading
+          AppLogger.i('Fonts and icons warmup (stub)', 'Warmup');
+          // Placeholder for future fonts and icons initialization (e.g., custom fonts, icon packs, font caching)
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
   }
 
   /// 开始预加载
