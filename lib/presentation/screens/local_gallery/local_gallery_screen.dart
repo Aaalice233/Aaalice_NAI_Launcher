@@ -19,6 +19,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
+import '../../widgets/gallery_filter_panel.dart';
 
 /// 本地画廊屏幕
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -460,6 +461,13 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                   const SizedBox(width: 8),
                   // 日期选择器按钮（跳转到指定日期）
                   _buildDatePickerButton(theme),
+                  const SizedBox(width: 8),
+                  // 高级筛选按钮
+                  _RoundedIconButton(
+                    icon: Icons.tune,
+                    tooltip: '高级筛选',
+                    onPressed: () => showGalleryFilterPanel(context),
+                  ),
                   // 清除过滤按钮
                   if (state.hasFilters) ...[
                     const SizedBox(width: 8),
