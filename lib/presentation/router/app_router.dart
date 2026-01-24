@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -46,46 +45,20 @@ class AppRoutes {
 
 /// 应用路由 Provider
 ///
-/// 注意：使用 refreshListenable 而非 ref.watch 来监听认证状态，
-/// 这样可以保持 GoRouter 实例稳定，避免每次状态变化都重建 Navigator 和 Overlay。
+/// 使用 ref.watch + ValueNotifier 桥接认证状态到 GoRouter 的 refreshListenable
+/// 注意：不要使用 ref.listen 在 provider 中，因为这会触发 AssertionError
+/// ref.listen 只能在 ConsumerWidget 的 build 方法中使用
 @riverpod
 GoRouter appRouter(Ref ref) {
-  // 使用 ValueNotifier 桥接 Riverpod 到 GoRouter 的 refreshListenable
-  // 跟踪实际的认证状态，只在状态变化时触发重定向
-  final authStateNotifier = ValueNotifier<AuthStatus>(AuthStatus.initial);
+  // 使用 ref.watch 监听认证状态变化
+  // 当状态变化时，provider 会重建，ValueNotifier 也会更新
+  final authState = ref.watch(authNotifierProvider);
 
-  // 获取初始状态
-  final initialAuthState = ref.read(authNotifierProvider);
-  authStateNotifier.value = initialAuthState.status;
+  // 创建 ValueNotifier 桥接到 GoRouter 的 refreshListenable
+  final authStateNotifier = ValueNotifier<AuthStatus>(authState.status);
 
-  // 使用 ProviderSubscription 手动管理订阅，避免 ref.listen 的 build method 限制
-  // 这种方式可以在 provider 内部安全地监听状态变化
-  final subscription = ref.listen(authNotifierProvider, (previous, next) {
-    // 只在认证状态发生实际变化时触发
-    if (previous?.status != next.status) {
-      final prevStatus = previous?.status ?? AuthStatus.initial;
-      final nextStatus = next.status;
-
-      // 只在最终认证状态（authenticated/unauthenticated）变化时触发
-      // 或者在初始加载完成时触发
-      if (nextStatus == AuthStatus.authenticated ||
-          nextStatus == AuthStatus.unauthenticated ||
-          (prevStatus == AuthStatus.initial && nextStatus == AuthStatus.loading)) {
-        // 使用 SchedulerBinding 确保在安全的时间点更新
-        // 避免在 widget disposal 或 navigation 过程中更新
-        SchedulerBinding.instance.scheduleFrameCallback((_) {
-          // 只有当 ValueNotifier 还没有被销毁时才更新
-          if (authStateNotifier.value != nextStatus) {
-            authStateNotifier.value = nextStatus;
-          }
-        });
-      }
-    }
-  });
-
-  // 当 provider 被销毁时取消订阅
+  // 当 provider 被销毁时清理
   ref.onDispose(() {
-    subscription.close();
     authStateNotifier.dispose();
   });
 
