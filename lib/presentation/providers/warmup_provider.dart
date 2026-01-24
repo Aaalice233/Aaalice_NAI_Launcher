@@ -145,6 +145,20 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 6. 预加载数据库内容（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_database',
+        weight: 1,
+        task: () async {
+          // Stub implementation for future database content warmup
+          AppLogger.i('Database content warmup (stub)', 'Warmup');
+          // Placeholder for future database content initialization (e.g., frequently accessed queries, indexes, cached data)
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
   }
 
   /// 开始预加载
