@@ -319,6 +319,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             onPressed: _changeCanvasSize,
           ),
 
+          // 加载蒙版按钮
+          IconButton(
+            icon: const Icon(Icons.upload_file, size: 20),
+            onPressed: _loadMask,
+            tooltip: '加载蒙版',
+          ),
+
           const VerticalDivider(width: 1, indent: 8, endIndent: 8),
 
           // 切换面板
@@ -761,5 +768,12 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         );
       }
     }
+  }
+
+  /// 加载蒙版文件
+  /// TODO: 在后续子任务中实现文件选择和加载逻辑
+  Future<void> _loadMask() async {
+    // 实现将在 subtask-2-1 和 subtask-2-2 中完成
+    AppLogger.i('Load Mask button pressed', 'ImageEditor');
   }
 }
