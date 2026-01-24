@@ -35,6 +35,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _logIconTheme(context, 'initState');
+  }
+
+  /// 记录 Icon 主题信息
+  void _logIconTheme(BuildContext context, String location) {
+    final theme = Theme.of(context);
+    final iconTheme = theme.iconTheme;
+
+    AppLogger.d(
+      '[Icon] Location: $location | '
+      'IconTheme.color: ${iconTheme.color} | '
+      'IconTheme.size: ${iconTheme.size} | '
+      'ColorScheme.primary: ${theme.colorScheme.primary} | '
+      'ColorScheme.onSurface: ${theme.colorScheme.onSurface}',
+      'ICON_RENDER'
+    );
+  }
+
+  /// 创建带日志记录的 Icon
+  Widget _buildLoggedIcon(
+    IconData icon, {
+    Key? key,
+    double? size,
+    Color? color,
+    String? semanticLabel,
+    TextDirection? textDirection,
+    String? location,
+  }) {
+    if (location != null) {
+      AppLogger.d(
+        '[Icon] Location: $location | '
+        'Icon: ${icon.runtimeType} | '
+        'Size: ${size ?? "default"} | '
+        'Color: ${color ?? "default (from theme)"}',
+        'ICON_RENDER'
+      );
+    }
+    return Icon(
+      icon,
+      key: key,
+      size: size,
+      color: color,
+      semanticLabel: semanticLabel,
+      textDirection: textDirection,
+    );
   }
 
   @override
@@ -184,7 +229,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: () {
                           NetworkTroubleshootingDialog.show(context);
                         },
-                        icon: const Icon(Icons.help_outline, size: 18),
+                        icon: _buildLoggedIcon(
+                          Icons.help_outline,
+                          size: 18,
+                          location: 'troubleshooting_button',
+                        ),
                         label: Text(context.l10n.auth_viewTroubleshootingTips),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -226,10 +275,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: theme.colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Icon(
+          child: _buildLoggedIcon(
             Icons.auto_awesome,
             size: 40,
             color: theme.colorScheme.primary,
+            location: 'header_app_icon',
           ),
         ),
         const SizedBox(height: 20),
@@ -517,9 +567,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(
+                      _buildLoggedIcon(
                         Icons.arrow_drop_down,
                         color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        location: 'quick_login_dropdown_wide',
                       ),
                     ],
                   ),
@@ -591,9 +642,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(
+                _buildLoggedIcon(
                   Icons.arrow_drop_down,
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  location: 'quick_login_dropdown_mobile',
                 ),
               ],
             ),
@@ -646,7 +698,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 color: Colors.white,
               ),
             )
-          : const Icon(Icons.login),
+          : _buildLoggedIcon(
+              Icons.login,
+              location: 'quick_login_button',
+            ),
       label: Text(context.l10n.auth_quickLogin),
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -658,7 +713,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildAddAccountButton(BuildContext context, ThemeData theme) {
     return TextButton.icon(
       onPressed: () => _showAddAccountDialog(context),
-      icon: const Icon(Icons.add),
+      icon: _buildLoggedIcon(
+        Icons.add,
+        location: 'add_account_button',
+      ),
       label: Text(context.l10n.auth_addAccount),
     );
   }
@@ -735,7 +793,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Text(context.l10n.auth_selectAccount),
             const Spacer(),
             IconButton(
-              icon: const Icon(Icons.close),
+              icon: _buildLoggedIcon(
+                Icons.close,
+                location: 'account_selector_close',
+              ),
               onPressed: () => Navigator.pop(dialogContext),
             ),
           ],
@@ -762,9 +823,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 leading: CircleAvatar(
                   backgroundColor:
                       Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(
+                  child: _buildLoggedIcon(
                     Icons.add,
                     color: Theme.of(context).colorScheme.primary,
+                    location: 'account_list_add',
                   ),
                 ),
                 title: Text(context.l10n.auth_addAccount),
@@ -825,10 +887,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           if (isSelected)
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child: Icon(
+              child: _buildLoggedIcon(
                 Icons.check,
                 color: theme.colorScheme.primary,
                 size: 20,
+                location: 'account_list_check',
               ),
             ),
         ],
@@ -840,9 +903,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
       trailing: IconButton(
-        icon: Icon(
+        icon: _buildLoggedIcon(
           Icons.delete_outline,
           color: theme.colorScheme.onSurfaceVariant,
+          location: 'account_list_delete',
         ),
         onPressed: () => _showDeleteAccountDialog(context, ref, account),
       ),
@@ -919,7 +983,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: _buildLoggedIcon(
+                        Icons.close,
+                        location: 'add_account_dialog_close',
+                      ),
                       onPressed: () => Navigator.pop(dialogContext),
                     ),
                   ],
@@ -949,7 +1016,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library),
+              leading: _buildLoggedIcon(
+                Icons.photo_library,
+                location: 'avatar_options_gallery',
+              ),
               title: Text(context.l10n.auth_selectFromGallery),
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -957,7 +1027,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
+              leading: _buildLoggedIcon(
+                Icons.camera_alt,
+                location: 'avatar_options_camera',
+              ),
               title: Text(context.l10n.auth_takePhoto),
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -967,7 +1040,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             if (account.avatarPath != null)
               ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                leading: _buildLoggedIcon(
+                  Icons.delete_outline,
+                  color: Colors.red.shade400,
+                  location: 'avatar_options_delete',
+                ),
                 title: Text(
                   context.l10n.auth_removeAvatar,
                   style: TextStyle(color: Colors.red.shade400),
