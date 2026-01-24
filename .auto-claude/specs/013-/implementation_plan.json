@@ -447,7 +447,7 @@
             "expected": "All tests passed"
           },
           "implementation_notes": "Test Stopwatch captures start/end within ±5ms margin, test duration calculation, test error handling (task failure sets success=false), test timeout logic (task > 5s marked failed), test metrics list accumulation during run(). Mock tasks with Future.delayed for predictable timing.",
-          "status": "pending"
+          "status": "completed"
         },
         {
           "id": "subtask-6-3",

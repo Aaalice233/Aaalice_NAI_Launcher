@@ -171,10 +171,8 @@ class WarmupNotifier extends _$WarmupNotifier {
 
           try {
             // Simulate network connectivity check with timeout
-            await Future.timeout(
-              Future.delayed(const Duration(milliseconds: 200)),
-              const Duration(seconds: 2),
-            );
+            await Future.delayed(const Duration(milliseconds: 200))
+                .timeout(const Duration(seconds: 2));
             AppLogger.i('Network connectivity check completed', 'Warmup');
           } on TimeoutException {
             AppLogger.w('Network connectivity check timed out', 'Warmup');
