@@ -17,14 +17,12 @@ void main() {
   group('New Preset Button Tests', () {
     testWidgets('OutlinedButton.icon with add icon renders correctly',
         (tester) async {
-      var buttonPressed = false;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Center(
               child: OutlinedButton.icon(
-                onPressed: () => buttonPressed = true,
+                onPressed: () {},
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('New Preset'),
                 style: OutlinedButton.styleFrom(
@@ -151,14 +149,12 @@ void main() {
   group('Manage Library Button Tests', () {
     testWidgets('Manage Library button with library icon renders correctly',
         (tester) async {
-      var buttonPressed = false;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: IconButton(
               icon: const Icon(Icons.library_books_outlined),
-              onPressed: () => buttonPressed = true,
+              onPressed: () {},
               tooltip: 'Manage Library',
             ),
           ),
@@ -293,12 +289,12 @@ void main() {
       // Verify all critical icons are present
       for (final iconData in criticalIcons) {
         expect(find.byIcon(iconData), findsOneWidget,
-            reason: '$iconData should render correctly');
+            reason: '$iconData should render correctly',);
 
         // Verify each icon has proper configuration
         final iconWidget = tester.widget<Icon>(find.byIcon(iconData));
         expect(iconWidget.icon, equals(iconData),
-            reason: '$iconData should have correct IconData');
+            reason: '$iconData should have correct IconData',);
       }
 
       // Verify all buttons are tappable
@@ -308,7 +304,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(buttonPressedCount, equals(criticalIcons.length),
-          reason: 'All buttons should be tappable');
+          reason: 'All buttons should be tappable',);
     });
 
     testWidgets('buttons should have proper padding and sizing',
@@ -347,12 +343,12 @@ void main() {
       // Verify icons have proper sizes
       final addIcon = tester.widget<Icon>(find.byIcon(Icons.add));
       expect(addIcon.size, equals(18),
-          reason: 'New Preset icon should have size 18');
+          reason: 'New Preset icon should have size 18',);
 
       final libraryIcon =
           tester.widget<Icon>(find.byIcon(Icons.library_books_outlined));
       expect(libraryIcon.size, isNull,
-          reason: 'IconButton icon should inherit theme size');
+          reason: 'IconButton icon should inherit theme size',);
     });
 
     testWidgets('buttons render without color blocks in light mode',
