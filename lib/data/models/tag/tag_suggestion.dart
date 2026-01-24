@@ -7,12 +7,16 @@ part 'tag_suggestion.g.dart';
 enum TagCategory {
   /// 通用标签
   general(0),
+
   /// 角色标签
   character(1),
+
   /// 版权标签
   copyright(3),
+
   /// 艺术家标签
   artist(4),
+
   /// 元数据标签
   meta(5);
 

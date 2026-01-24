@@ -19,12 +19,14 @@ class PresetLoader {
   ///
   /// 解析 NAI 官方标签 JSON 文件并生成 RandomPreset
   Future<RandomPreset> loadOfficialPreset() async {
-    AppLogger.i('Loading official preset from $defaultPresetFile', 'PresetLoader');
+    AppLogger.i(
+        'Loading official preset from $defaultPresetFile', 'PresetLoader',);
 
     try {
       final file = File(defaultPresetFile);
       if (!file.existsSync()) {
-        AppLogger.w('Official preset file not found: $defaultPresetFile', 'PresetLoader');
+        AppLogger.w('Official preset file not found: $defaultPresetFile',
+            'PresetLoader',);
         return _createDefaultPreset();
       }
 
@@ -34,10 +36,13 @@ class PresetLoader {
       final categories = json['categories'] as Map<String, dynamic>;
       final preset = _buildPresetFromJson(json, categories);
 
-      AppLogger.i('Official preset loaded: ${preset.categories.length} categories', 'PresetLoader');
+      AppLogger.i(
+          'Official preset loaded: ${preset.categories.length} categories',
+          'PresetLoader',);
       return preset;
     } catch (e, stack) {
-      AppLogger.e('Failed to load official preset: $e', e, stack, 'PresetLoader');
+      AppLogger.e(
+          'Failed to load official preset: $e', e, stack, 'PresetLoader',);
       return _createDefaultPreset();
     }
   }

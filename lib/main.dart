@@ -24,18 +24,21 @@ class WindowStateObserver extends WidgetsBindingObserver {
     }
 
     // 应用暂停或即将退出时保存窗口状态
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       try {
         final size = await windowManager.getSize();
         final position = await windowManager.getPosition();
         final box = Hive.box(StorageKeys.settingsBox);
-        
+
         await box.put(StorageKeys.windowWidth, size.width);
         await box.put(StorageKeys.windowHeight, size.height);
         await box.put(StorageKeys.windowX, position.dx);
         await box.put(StorageKeys.windowY, position.dy);
-        
-        AppLogger.i('Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})', 'Main');
+
+        AppLogger.i(
+            'Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+            'Main',);
       } catch (e) {
         AppLogger.e('Failed to save window state: $e', 'Main');
       }
@@ -142,8 +145,10 @@ void main() async {
 
     // 从 Hive 读取保存的窗口状态
     final box = Hive.box(StorageKeys.settingsBox);
-    final savedWidth = box.get(StorageKeys.windowWidth, defaultValue: 1400.0) as double;
-    final savedHeight = box.get(StorageKeys.windowHeight, defaultValue: 900.0) as double;
+    final savedWidth =
+        box.get(StorageKeys.windowWidth, defaultValue: 1400.0) as double;
+    final savedHeight =
+        box.get(StorageKeys.windowHeight, defaultValue: 900.0) as double;
     final savedX = box.get(StorageKeys.windowX) as double?;
     final savedY = box.get(StorageKeys.windowY) as double?;
 
@@ -161,11 +166,15 @@ void main() async {
       // 如果有保存的位置，恢复窗口位置
       if (savedX != null && savedY != null) {
         await windowManager.setPosition(Offset(savedX, savedY));
-        AppLogger.d('Window state restored: ${savedWidth}x$savedHeight at ($savedX, $savedY)', 'Main');
+        AppLogger.d(
+            'Window state restored: ${savedWidth}x$savedHeight at ($savedX, $savedY)',
+            'Main',);
       } else {
-        AppLogger.d('Window initialized with default state: ${savedWidth}x$savedHeight (centered)', 'Main');
+        AppLogger.d(
+            'Window initialized with default state: ${savedWidth}x$savedHeight (centered)',
+            'Main',);
       }
-      
+
       await windowManager.show();
       await windowManager.focus();
     });
@@ -177,7 +186,7 @@ void main() async {
         // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
         await trayManager.setIcon('assets/icons/app_icon.ico');
         await trayManager.setToolTip('NAI Launcher');
-        
+
         final menu = Menu(
           items: [
             MenuItem(
@@ -192,13 +201,13 @@ void main() async {
           ],
         );
         await trayManager.setContextMenu(menu);
-        
+
         // 设置阻止关闭（关闭时隐藏到托盘）
         await windowManager.setPreventClose(true);
-        
+
         trayManager.addListener(AppTrayListener());
         windowManager.addListener(AppWindowListener());
-        
+
         AppLogger.d('System tray initialized', 'Main');
       } catch (e) {
         AppLogger.e('Failed to initialize system tray: $e', 'Main');

@@ -47,12 +47,16 @@ class TagSuggestionState {
 enum TagSuggestionSource {
   /// 无数据
   none,
+
   /// L1 内存缓存
   memoryCache,
+
   /// L2 本地存储缓存
   storageCache,
+
   /// Danbooru API
   danbooru,
+
   /// NovelAI API (降级)
   novelai,
 }
@@ -155,7 +159,8 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       // L1/L2: 先查缓存
       final cachedTags = _cacheService.get(query);
       if (cachedTags != null && cachedTags.isNotEmpty) {
-        AppLogger.d('Using cached tags for: $query (${cachedTags.length} tags)', 'Provider');
+        AppLogger.d('Using cached tags for: $query (${cachedTags.length} tags)',
+            'Provider',);
         state = TagSuggestionState(
           suggestions: cachedTags,
           isLoading: false,

@@ -49,14 +49,16 @@ class TagTranslationService {
         'TagTranslation',
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to load tag translations', e, stack, 'TagTranslation');
+      AppLogger.e(
+          'Failed to load tag translations', e, stack, 'TagTranslation',);
     }
   }
 
   /// 加载通用标签翻译
   Future<void> _loadTagTranslations() async {
     try {
-      final csvData = await rootBundle.loadString('assets/translations/danbooru.csv');
+      final csvData =
+          await rootBundle.loadString('assets/translations/danbooru.csv');
       final lines = csvData.split('\n');
 
       for (final line in lines) {
@@ -85,7 +87,8 @@ class TagTranslationService {
   /// 加载角色名翻译
   Future<void> _loadCharacterTranslations() async {
     try {
-      final csvData = await rootBundle.loadString('assets/translations/wai_characters.csv');
+      final csvData =
+          await rootBundle.loadString('assets/translations/wai_characters.csv');
       final lines = csvData.split('\n');
 
       for (final line in lines) {
@@ -191,7 +194,8 @@ class TagTranslationService {
   /// [query] 搜索词
   /// [limit] 最大返回数量
   /// 返回 Map<英文标签, 中文翻译>
-  Map<String, String> searchByChineseTranslation(String query, {int limit = 20}) {
+  Map<String, String> searchByChineseTranslation(String query,
+      {int limit = 20,}) {
     if (query.isEmpty) return {};
 
     final results = <String, String>{};
@@ -234,7 +238,8 @@ class TagTranslationService {
   /// 批量翻译标签
   ///
   /// 返回 Map<原始标签, 翻译>（只包含有翻译的标签）
-  Map<String, String> translateBatch(List<String> tags, {bool isCharacter = false}) {
+  Map<String, String> translateBatch(List<String> tags,
+      {bool isCharacter = false,}) {
     final result = <String, String>{};
     for (final tag in tags) {
       final translation = translate(tag, isCharacter: isCharacter);
@@ -260,7 +265,8 @@ class TagTranslationService {
   }
 
   /// 获取翻译数量
-  int get translationCount => _tagTranslations.length + _characterTranslations.length;
+  int get translationCount =>
+      _tagTranslations.length + _characterTranslations.length;
 
   /// 检查是否有某个标签的翻译
   bool hasTranslation(String tag) {

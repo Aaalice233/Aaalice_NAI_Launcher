@@ -128,7 +128,8 @@ abstract class DesignTokens {
   // ============================================
 
   /// 获取圆角 BorderRadius
-  static BorderRadius borderRadius(double radius) => BorderRadius.circular(radius);
+  static BorderRadius borderRadius(double radius) =>
+      BorderRadius.circular(radius);
 
   /// 小圆角 BorderRadius
   static BorderRadius get borderRadiusSm => BorderRadius.circular(radiusSm);

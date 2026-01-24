@@ -550,12 +550,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           if (bytes != null) {
             try {
               final vibes = await VibeFileParser.parseFile(fileName, bytes);
-              
+
               // 检查是否需要编码
               final needsEncoding = vibes.any(
                 (v) => v.sourceType == VibeSourceType.rawImage,
               );
-              
+
               // 如果需要编码，显示确认对话框
               if (needsEncoding && mounted) {
                 final confirm = await showDialog<bool>(
@@ -594,12 +594,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     ],
                   ),
                 );
-                
+
                 if (confirm != true) {
                   continue; // 用户取消，跳过此文件
                 }
               }
-              
+
               notifier.addVibeReferencesV4(vibes);
             } catch (e) {
               if (mounted) {

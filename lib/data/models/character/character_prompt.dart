@@ -30,8 +30,10 @@ class CharacterPosition with _$CharacterPosition {
   const factory CharacterPosition({
     /// 位置模式
     @Default(CharacterPositionMode.aiChoice) CharacterPositionMode mode,
+
     /// 行位置 (0.0-1.0 百分比)
     @Default(0.5) double row,
+
     /// 列位置 (0.0-1.0 百分比)
     @Default(0.5) double column,
   }) = _CharacterPosition;
@@ -50,7 +52,6 @@ class CharacterPosition with _$CharacterPosition {
   }
 }
 
-
 /// 单个角色提示词模型
 @freezed
 class CharacterPrompt with _$CharacterPrompt {
@@ -59,18 +60,25 @@ class CharacterPrompt with _$CharacterPrompt {
   const factory CharacterPrompt({
     /// 唯一标识
     required String id,
+
     /// 角色名称
     required String name,
+
     /// 角色性别
     @Default(CharacterGender.female) CharacterGender gender,
+
     /// 正向提示词
     @Default('') String prompt,
+
     /// 负面提示词 (Undesired Content)
     @Default('') String negativePrompt,
+
     /// 位置模式
     @Default(CharacterPositionMode.aiChoice) CharacterPositionMode positionMode,
+
     /// 自定义位置 (仅当positionMode为custom时有效)
     CharacterPosition? customPosition,
+
     /// 是否启用
     @Default(true) bool enabled,
   }) = _CharacterPrompt;
@@ -138,7 +146,6 @@ class CharacterPrompt with _$CharacterPrompt {
   }
 }
 
-
 /// 多角色提示词配置
 @freezed
 class CharacterPromptConfig with _$CharacterPromptConfig {
@@ -147,6 +154,7 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
   const factory CharacterPromptConfig({
     /// 角色列表
     @Default([]) List<CharacterPrompt> characters,
+
     /// 全局AI选择位置（覆盖所有角色的位置设置）
     @Default(false) bool globalAiChoice,
   }) = _CharacterPromptConfig;
@@ -156,7 +164,8 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
 
   /// 生成NAI格式的多角色提示词
   String toNaiPrompt() {
-    final enabledCharacters = characters.where((c) => c.enabled && c.prompt.isNotEmpty);
+    final enabledCharacters =
+        characters.where((c) => c.enabled && c.prompt.isNotEmpty);
     if (enabledCharacters.isEmpty) return '';
 
     return enabledCharacters
@@ -204,7 +213,8 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
         final rowPercent = row / 4.0;
         final colPercent = col / 4.0;
         final isUsed = usedPositions.any(
-          (used) => (used.row * 4).round() == row && (used.column * 4).round() == col,
+          (used) =>
+              (used.row * 4).round() == row && (used.column * 4).round() == col,
         );
         if (!isUsed) {
           return CharacterPosition(row: rowPercent, column: colPercent);
@@ -251,7 +261,8 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
   /// 更新角色
   CharacterPromptConfig updateCharacter(CharacterPrompt character) {
     return copyWith(
-      characters: characters.map((c) => c.id == character.id ? character : c).toList(),
+      characters:
+          characters.map((c) => c.id == character.id ? character : c).toList(),
     );
   }
 

@@ -91,14 +91,16 @@ class DynamicSyntaxParser {
       // 添加语法块之前的文本作为单独的纯文本结果
       final before = remaining.substring(0, match.start);
       if (before.isNotEmpty) {
-        results.add(ParseResult(
-          original: before,
-          options: [],
-          count: 1,
-          beforeSyntax: before,
-          afterSyntax: '',
-          isValidSyntax: false,
-        ),);
+        results.add(
+          ParseResult(
+            original: before,
+            options: [],
+            count: 1,
+            beforeSyntax: before,
+            afterSyntax: '',
+            isValidSyntax: false,
+          ),
+        );
       }
 
       // 解析语法块
@@ -110,14 +112,16 @@ class DynamicSyntaxParser {
 
     // 添加剩余的纯文本
     if (remaining.isNotEmpty) {
-      results.add(ParseResult(
-        original: remaining,
-        options: [],
-        count: 1,
-        beforeSyntax: remaining,
-        afterSyntax: '',
-        isValidSyntax: false,
-      ),);
+      results.add(
+        ParseResult(
+          original: remaining,
+          options: [],
+          count: 1,
+          beforeSyntax: remaining,
+          afterSyntax: '',
+          isValidSyntax: false,
+        ),
+      );
     }
 
     return results;
@@ -175,7 +179,8 @@ class DynamicSyntaxParser {
   /// 返回展开后的字符串
   String resolveNested(String input, [int depth = 0]) {
     if (depth > maxRecursionDepth) {
-      AppLogger.w('Max recursion depth exceeded in DynamicSyntaxParser', 'Parser');
+      AppLogger.w(
+          'Max recursion depth exceeded in DynamicSyntaxParser', 'Parser',);
       return input;
     }
 

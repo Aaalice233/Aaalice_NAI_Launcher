@@ -71,4 +71,3 @@ class DanbooruCredentials with _$DanbooruCredentials {
   factory DanbooruCredentials.fromJson(Map<String, dynamic> json) =>
       _$DanbooruCredentialsFromJson(json);
 }
-

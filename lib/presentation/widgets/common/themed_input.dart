@@ -38,9 +38,10 @@ class ThemedInput extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final extension = theme.extension<AppThemeExtension>();
-    
+
     // 某些风格下的特殊处理
-    final isDigital = extension?.interactionStyle == AppInteractionStyle.digital;
+    final isDigital =
+        extension?.interactionStyle == AppInteractionStyle.digital;
 
     return InsetShadowContainer(
       borderRadius: 8,
@@ -56,8 +57,8 @@ class ThemedInput extends StatelessWidget {
         autofocus: autofocus,
         // 移除硬编码的 monospace，让全局 Theme 的 fontFamily 生效 (例如 VT323)
         // 但如果是 Digital 风格，我们可以增加字间距以模拟 LCD
-        style: isDigital 
-            ? const TextStyle(letterSpacing: 2.0, fontWeight: FontWeight.bold) 
+        style: isDigital
+            ? const TextStyle(letterSpacing: 2.0, fontWeight: FontWeight.bold)
             : null,
         cursorColor: theme.colorScheme.primary,
         decoration: InputDecoration(
@@ -70,10 +71,13 @@ class ThemedInput extends StatelessWidget {
           focusedBorder: InputBorder.none,
           errorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           // Digital 风格特殊 Hint 样式
-          hintStyle: isDigital 
-              ? TextStyle(color: theme.colorScheme.primary.withOpacity(0.5), letterSpacing: 1.0)
+          hintStyle: isDigital
+              ? TextStyle(
+                  color: theme.colorScheme.primary.withOpacity(0.5),
+                  letterSpacing: 1.0,)
               : null,
         ),
       ),

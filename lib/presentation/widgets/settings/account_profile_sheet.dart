@@ -89,7 +89,8 @@ class _AccountProfileBottomSheetState
         }
       } else if (result.isFailure && mounted) {
         // 显示错误信息
-        AppToast.error(context, result.errorMessage ?? context.l10n.common_error);
+        AppToast.error(
+            context, result.errorMessage ?? context.l10n.common_error,);
       }
       // 取消操作不需要提示
     } catch (e) {
@@ -476,8 +477,9 @@ class _AccountProfileBottomSheetState
             Text(
               context.l10n.settings_setAsDefault,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color:
-                    isDefault ? theme.colorScheme.primary : theme.colorScheme.outline,
+                color: isDefault
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline,
               ),
             ),
             const Spacer(),
@@ -588,7 +590,8 @@ class _AccountProfileBottomSheetState
               else
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: _getColorFromName(account.displayName, theme),
+                  backgroundColor:
+                      _getColorFromName(account.displayName, theme),
                   child: Text(
                     account.displayName.isNotEmpty
                         ? account.displayName.characters.first.toUpperCase()
@@ -611,7 +614,9 @@ class _AccountProfileBottomSheetState
                           child: Text(
                             account.displayName,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: isCurrent
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -620,7 +625,8 @@ class _AccountProfileBottomSheetState
                         if (account.isDefault) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1,),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(4),

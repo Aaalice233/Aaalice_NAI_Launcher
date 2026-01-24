@@ -56,7 +56,9 @@ class NAICryptoService {
       // 参考 Python: int(2000000 / 1024) = 1953 KiB
       // Dart cryptography 包的 memory 参数单位是 KB
       const memoryKB = 2000000 ~/ 1024; // = 1953 KB
-      AppLogger.d('Argon2id params: memory=$memoryKB KB, iterations=2, parallelism=1, hashLength=64', 'Crypto');
+      AppLogger.d(
+          'Argon2id params: memory=$memoryKB KB, iterations=2, parallelism=1, hashLength=64',
+          'Crypto',);
 
       final argon2id = Argon2id(
         parallelism: 1,
@@ -82,7 +84,8 @@ class NAICryptoService {
       final accessKey = encoded.replaceAll('=', '');
       final result = accessKey.substring(0, min(64, accessKey.length));
 
-      AppLogger.crypto('deriveAccessKey completed', email: email, keyLength: result.length, success: true);
+      AppLogger.crypto('deriveAccessKey completed',
+          email: email, keyLength: result.length, success: true,);
       return result;
     } catch (e, stackTrace) {
       AppLogger.e('deriveAccessKey failed', e, stackTrace, 'Crypto');
@@ -91,7 +94,8 @@ class NAICryptoService {
   }
 
   /// 生成加密密钥的盐值（用于用户数据加密）
-  Future<Uint8List> generateEncryptionKeySalt(String email, String password) async {
+  Future<Uint8List> generateEncryptionKeySalt(
+      String email, String password,) async {
     final passwordPrefix = password.substring(0, min(6, password.length));
     final preSalt = '$passwordPrefix$email${ApiConstants.encryptionKeySuffix}';
 

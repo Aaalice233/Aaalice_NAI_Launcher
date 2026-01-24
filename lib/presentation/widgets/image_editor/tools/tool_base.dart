@@ -59,7 +59,8 @@ abstract class EditorTool {
 
   /// 构建光标预览
   /// [screenCursorPosition] 是屏幕坐标系中的光标位置，用于定位覆盖层UI
-  Widget? buildCursor(EditorState state, {Offset? screenCursorPosition}) => null;
+  Widget? buildCursor(EditorState state, {Offset? screenCursorPosition}) =>
+      null;
 
   /// 获取光标半径（用于画布显示）
   double getCursorRadius(EditorState state) => 10.0;
@@ -123,10 +124,13 @@ class BrushSettings {
 enum SelectionMode {
   /// 新建（替换现有选区）
   replace,
+
   /// 添加
   add,
+
   /// 减去
   subtract,
+
   /// 交叉
   intersect,
 }

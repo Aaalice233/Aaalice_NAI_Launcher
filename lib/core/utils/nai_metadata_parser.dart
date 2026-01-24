@@ -21,16 +21,18 @@ class NaiMetadataParser {
   /// 返回解析后的元数据，如果解析失败返回 null
   static Future<NaiImageMetadata?> extractFromBytes(Uint8List bytes) async {
     try {
-      AppLogger.d('Extracting metadata from ${bytes.length} bytes', 'NaiMetadataParser');
-      
+      AppLogger.d('Extracting metadata from ${bytes.length} bytes',
+          'NaiMetadataParser',);
+
       // 解码 PNG 图片
       final image = img.decodePng(bytes);
       if (image == null) {
         AppLogger.w('Failed to decode PNG image', 'NaiMetadataParser');
         return null;
       }
-      
-      AppLogger.d('PNG decoded: ${image.width}x${image.height}', 'NaiMetadataParser');
+
+      AppLogger.d(
+          'PNG decoded: ${image.width}x${image.height}', 'NaiMetadataParser',);
 
       // 提取隐写数据
       final jsonString = await _extractStealthData(image);
@@ -38,17 +40,22 @@ class NaiMetadataParser {
         AppLogger.d('No stealth data found in image', 'NaiMetadataParser');
         return null;
       }
-      
-      AppLogger.d('Stealth data extracted: ${jsonString.length} chars', 'NaiMetadataParser');
+
+      AppLogger.d('Stealth data extracted: ${jsonString.length} chars',
+          'NaiMetadataParser',);
 
       // 解析 JSON
       final Map<String, dynamic> json = jsonDecode(jsonString);
-      final metadata = NaiImageMetadata.fromNaiComment(json, rawJson: jsonString);
-      AppLogger.d('Metadata parsed: prompt=${metadata.prompt.length} chars, seed=${metadata.seed}', 'NaiMetadataParser');
+      final metadata =
+          NaiImageMetadata.fromNaiComment(json, rawJson: jsonString);
+      AppLogger.d(
+          'Metadata parsed: prompt=${metadata.prompt.length} chars, seed=${metadata.seed}',
+          'NaiMetadataParser',);
       return metadata;
     } catch (e, stack) {
       if (kDebugMode) {
-        AppLogger.e('Failed to extract NAI metadata', e, stack, 'NaiMetadataParser');
+        AppLogger.e(
+            'Failed to extract NAI metadata', e, stack, 'NaiMetadataParser',);
       }
       return null;
     }
@@ -97,7 +104,8 @@ class NaiMetadataParser {
 
     // 读取数据长度（位数）
     final bitLengthBytes = extractedBytes.sublist(magicLength, magicLength + 4);
-    final bitLength = ByteData.sublistView(Uint8List.fromList(bitLengthBytes)).getInt32(0);
+    final bitLength =
+        ByteData.sublistView(Uint8List.fromList(bitLengthBytes)).getInt32(0);
     final dataLength = (bitLength / 8).ceil();
 
     // 检查数据长度是否有效
@@ -129,7 +137,8 @@ class NaiMetadataParser {
   ///
   /// [data] 包含 'bytes' 键的 Map
   /// 返回解析后的元数据
-  static Future<NaiImageMetadata?> parseInIsolate(Map<String, dynamic> data) async {
+  static Future<NaiImageMetadata?> parseInIsolate(
+      Map<String, dynamic> data,) async {
     try {
       final bytes = data['bytes'] as Uint8List;
       return await extractFromBytes(bytes);

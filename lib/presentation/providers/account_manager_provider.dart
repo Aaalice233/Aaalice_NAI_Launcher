@@ -119,7 +119,8 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
     AccountType accountType = AccountType.token,
   }) async {
     // 检查是否已存在相同标识符的账号
-    final existingIndex = state.accounts.indexWhere((a) => a.email == identifier);
+    final existingIndex =
+        state.accounts.indexWhere((a) => a.email == identifier);
     if (existingIndex >= 0) {
       // 更新已有账号
       final existing = state.accounts[existingIndex];

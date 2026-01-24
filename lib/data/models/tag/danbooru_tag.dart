@@ -47,7 +47,7 @@ enum DanbooruCategory {
 }
 
 /// Danbooru API 返回的标签数据模型
-/// API 端点: 
+/// API 端点:
 ///   - GET https://danbooru.donmai.us/autocomplete.json (自动补全)
 ///   - GET https://danbooru.donmai.us/tags.json (标签搜索)
 @freezed
@@ -75,12 +75,15 @@ class DanbooruTag with _$DanbooruTag {
       _$DanbooruTagFromJson(json);
 
   /// 从 autocomplete 端点响应创建
-  /// autocomplete 端点返回格式: 
+  /// autocomplete 端点返回格式:
   /// { "type": "tag", "label": "1girl", "value": "1girl", "category": 0, "post_count": 123 }
   factory DanbooruTag.fromAutocomplete(Map<String, dynamic> json) {
     return DanbooruTag(
       id: json['id'] as int? ?? 0,
-      name: (json['value'] as String?) ?? (json['label'] as String?) ?? (json['name'] as String?) ?? '',
+      name: (json['value'] as String?) ??
+          (json['label'] as String?) ??
+          (json['name'] as String?) ??
+          '',
       postCount: json['post_count'] as int? ?? 0,
       category: json['category'] as int? ?? 0,
       antecedentName: json['antecedent'] as String?,

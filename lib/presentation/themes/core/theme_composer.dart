@@ -76,11 +76,11 @@ class ThemeComposer {
   /// match the fallback scheme to avoid assertion errors.
   ThemeData buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    
+
     // Get the appropriate color scheme and effective brightness
     ColorScheme colorScheme;
     Brightness effectiveBrightness;
-    
+
     if (isDark && color.supportsDarkMode) {
       colorScheme = color.darkScheme;
       effectiveBrightness = Brightness.dark;
@@ -121,31 +121,31 @@ class ThemeComposer {
         thickness: divider.thickness,
         space: divider.thickness,
       ),
-      
+
       // Apply shape module to component themes
       cardTheme: CardTheme(
         shape: shape.cardShape,
         elevation: 0, // We handle shadows manually via BoxShadow
       ),
-      
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
         ),
       ),
-      
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
         ),
       ),
-      
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
         ),
       ),
-      
+
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
@@ -159,7 +159,7 @@ class ThemeComposer {
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
       ),
-      
+
       // Dropdown and PopupMenu - use shape module's menu radius
       dropdownMenuTheme: DropdownMenuThemeData(
         menuStyle: MenuStyle(
@@ -168,17 +168,18 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor:
+              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
         ),
       ),
-      
+
       popupMenuTheme: PopupMenuThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.menuRadius),
         ),
         color: colorScheme.surfaceContainerHigh,
       ),
-      
+
       menuTheme: MenuThemeData(
         style: MenuStyle(
           shape: WidgetStatePropertyAll(
@@ -186,10 +187,11 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor:
+              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
         ),
       ),
-      
+
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
           shape: WidgetStatePropertyAll(
@@ -199,7 +201,7 @@ class ThemeComposer {
           ),
         ),
       ),
-      
+
       // Apply motion to page transitions
       pageTransitionsTheme: PageTransitionsTheme(
         builders: {
@@ -219,7 +221,7 @@ class ThemeComposer {
   /// by standard [ThemeData].
   AppThemeExtension buildExtension(Brightness brightness) {
     final isLight = brightness == Brightness.light;
-    
+
     // Determine container decoration based on shadow module
     final containerDecoration = BoxDecoration(
       borderRadius: BorderRadius.circular(shape.mediumRadius),

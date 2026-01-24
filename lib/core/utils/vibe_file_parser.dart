@@ -82,7 +82,7 @@ class VibeFileParser {
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
-  }  ) async {
+  }) async {
     String? vibeEncoding;
 
     try {
@@ -115,7 +115,7 @@ class VibeFileParser {
         // 没有找到预编码数据 - 作为原始图片处理
         AppLogger.i(
           'No pre-encoded Vibe data found in PNG: $fileName, '
-          'will be encoded on demand (2 Anlas per image)',
+              'will be encoded on demand (2 Anlas per image)',
           'VibeParser',
         );
 
@@ -132,7 +132,7 @@ class VibeFileParser {
       // 解析失败 - 记录错误日志，作为原始图片处理
       AppLogger.e(
         'Failed to parse Vibe from PNG: $fileName, '
-        'falling back to raw image mode',
+            'falling back to raw image mode',
         e,
         stack,
         'VibeParser',
@@ -297,7 +297,8 @@ class VibeFileParser {
         }
       } catch (e) {
         if (kDebugMode) {
-          AppLogger.d('Error parsing vibe entry $i in bundle: $e', 'VibeParser');
+          AppLogger.d(
+              'Error parsing vibe entry $i in bundle: $e', 'VibeParser',);
         }
         // 继续处理其他条目
       }

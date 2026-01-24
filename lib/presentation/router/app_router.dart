@@ -25,7 +25,8 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
 final _galleryKey = GlobalKey<NavigatorState>(debugLabel: 'gallery');
 final _localGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'localGallery');
-final _onlineGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
+final _onlineGalleryKey =
+    GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
 
@@ -73,8 +74,8 @@ GoRouter appRouter(Ref ref) {
     redirect: (context, state) {
       // 在 redirect 内部使用 ref.read 获取最新状态
       final authState = ref.read(authNotifierProvider);
-      final isLoading = authState.status == AuthStatus.loading || 
-                        authState.status == AuthStatus.initial;
+      final isLoading = authState.status == AuthStatus.loading ||
+          authState.status == AuthStatus.initial;
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
 
@@ -110,12 +111,14 @@ GoRouter appRouter(Ref ref) {
             // 使用淡入淡出 + 轻微垂直位移的组合动画
             // 与 login_form_container.dart 保持一致的动画风格
             return FadeTransition(
-              opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+              opacity:
+                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
               child: SlideTransition(
                 position: Tween<Offset>(
                   begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
                   end: Offset.zero,
-                ).animate(CurveTween(curve: Curves.easeOutCubic).animate(animation)),
+                ).animate(
+                    CurveTween(curve: Curves.easeOutCubic).animate(animation),),
                 child: child,
               ),
             );
@@ -144,9 +147,11 @@ GoRouter appRouter(Ref ref) {
                   key: state.pageKey,
                   child: const GenerationScreen(),
                   transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
                     return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                      opacity: CurveTween(curve: Curves.easeOutCubic)
+                          .animate(animation),
                       child: child,
                     );
                   },
@@ -159,9 +164,11 @@ GoRouter appRouter(Ref ref) {
                   key: state.pageKey,
                   child: const GenerationScreen(),
                   transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
                     return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                      opacity: CurveTween(curve: Curves.easeOutCubic)
+                          .animate(animation),
                       child: child,
                     );
                   },
@@ -243,7 +250,7 @@ GoRouter appRouter(Ref ref) {
 }
 
 /// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
-/// 
+///
 /// 使用混合保活策略：
 /// - 画廊页面（索引 2, 3）使用 Offstage 保活
 /// - 其他页面不保活
@@ -278,15 +285,16 @@ class _MainShellState extends ConsumerState<MainShell> {
     _initialized = true;
 
     // 现在 Overlay 已经准备好了，可以安全地初始化下载服务
-    final downloadNotifier = ref.read(downloadProgressNotifierProvider.notifier);
-    
+    final downloadNotifier =
+        ref.read(downloadProgressNotifierProvider.notifier);
+
     if (mounted) {
       downloadNotifier.setContext(context);
     }
 
     // 后台初始化标签数据
     await downloadNotifier.initializeTagData();
-    
+
     // 下载共现标签数据（100MB）
     if (mounted) {
       downloadNotifier.downloadCooccurrenceData();
@@ -296,7 +304,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
-    
+
     // 构建混合保活内容栈
     // - 索引 2 (localGallery) 和 3 (onlineGallery) 使用 Offstage 保活
     // - 其他索引不保活，切换时销毁重建
@@ -306,7 +314,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         final index = entry.key;
         final child = entry.value;
         final isActive = index == currentIndex;
-        
+
         // 画廊索引（2: localGallery, 3: onlineGallery）始终保持在树中
         // 通过 TickerMode 控制动画
         if (index == 2 || index == 3) {
@@ -315,7 +323,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             child: child,
           );
         }
-        
+
         // 其他索引：非活动时显示空容器（不保活）
         if (!isActive) {
           return const SizedBox.shrink();
@@ -323,7 +331,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         return child;
       }).toList(),
     );
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // 桌面端：使用侧边导航
@@ -359,7 +367,8 @@ class DesktopShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = navigationShell.currentIndex;
     // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
-    final showQueueBar = currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
+    final showQueueBar =
+        currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
     final queueState = ref.watch(replicationQueueNotifierProvider);
     final hasQueueItems = !queueState.isEmpty;
 
@@ -406,7 +415,8 @@ class MobileShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = navigationShell.currentIndex;
     // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
-    final showQueueBar = currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
+    final showQueueBar =
+        currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
     final queueState = ref.watch(replicationQueueNotifierProvider);
     final hasQueueItems = !queueState.isEmpty;
 

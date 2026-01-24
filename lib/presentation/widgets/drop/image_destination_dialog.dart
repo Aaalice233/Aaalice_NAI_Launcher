@@ -144,8 +144,8 @@ class ImageDestinationDialog extends StatelessWidget {
                       label: '提取元数据并应用',
                       subtitle: '读取图片中的 Prompt、Seed 等参数',
                       isPrimary: true,
-                      onTap: () =>
-                          Navigator.of(context).pop(ImageDestination.extractMetadata),
+                      onTap: () => Navigator.of(context)
+                          .pop(ImageDestination.extractMetadata),
                     ),
                     const SizedBox(height: 16),
                     const Divider(height: 1),
@@ -161,8 +161,8 @@ class ImageDestinationDialog extends StatelessWidget {
                   _DestinationButton(
                     icon: Icons.auto_awesome,
                     label: context.l10n.drop_vibeTransfer,
-                    onTap: () =>
-                        Navigator.of(context).pop(ImageDestination.vibeTransfer),
+                    onTap: () => Navigator.of(context)
+                        .pop(ImageDestination.vibeTransfer),
                   ),
                   const SizedBox(height: 12),
                   _DestinationButton(
@@ -202,7 +202,7 @@ class _DestinationButton extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: isPrimary 
+      color: isPrimary
           ? theme.colorScheme.primaryContainer
           : theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
@@ -219,7 +219,7 @@ class _DestinationButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 24,
-                color: isPrimary 
+                color: isPrimary
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.primary,
               ),
@@ -231,7 +231,7 @@ class _DestinationButton extends StatelessWidget {
                     Text(
                       label,
                       style: theme.textTheme.labelLarge?.copyWith(
-                        color: isPrimary 
+                        color: isPrimary
                             ? theme.colorScheme.onPrimaryContainer
                             : theme.colorScheme.onSurface,
                         fontWeight: isPrimary ? FontWeight.bold : null,
@@ -242,8 +242,9 @@ class _DestinationButton extends StatelessWidget {
                       Text(
                         subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: isPrimary 
-                              ? theme.colorScheme.onPrimaryContainer.withOpacity(0.7)
+                          color: isPrimary
+                              ? theme.colorScheme.onPrimaryContainer
+                                  .withOpacity(0.7)
                               : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -254,7 +255,7 @@ class _DestinationButton extends StatelessWidget {
               Icon(
                 Icons.chevron_right,
                 size: 20,
-                color: isPrimary 
+                color: isPrimary
                     ? theme.colorScheme.onPrimaryContainer.withOpacity(0.5)
                     : theme.colorScheme.outline,
               ),

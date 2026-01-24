@@ -35,7 +35,8 @@ class _PoolMapperPanelState extends ConsumerState<PoolMapperPanel> {
   @override
   void didUpdateWidget(PoolMapperPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.poolId != oldWidget.poolId && widget.poolId != _idController.text) {
+    if (widget.poolId != oldWidget.poolId &&
+        widget.poolId != _idController.text) {
       _idController.text = widget.poolId;
     }
   }
@@ -77,11 +78,15 @@ class _PoolMapperPanelState extends ConsumerState<PoolMapperPanel> {
             const SizedBox(width: 16),
             Padding(
               padding: const EdgeInsets.only(top: 4.0),
-                child: OutlinedButton(
+              child: OutlinedButton(
                 onPressed: widget.isVerifying ? null : widget.onVerify,
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  side: BorderSide(color: widget.isVerifying ? Colors.transparent : colorScheme.primary.withOpacity(0.5)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  side: BorderSide(
+                      color: widget.isVerifying
+                          ? Colors.transparent
+                          : colorScheme.primary.withOpacity(0.5),),
                 ),
                 child: widget.isVerifying
                     ? SizedBox(

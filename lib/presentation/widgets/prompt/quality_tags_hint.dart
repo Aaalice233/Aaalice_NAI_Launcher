@@ -32,7 +32,7 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final qualityTags = QualityTags.getQualityTags(widget.model) ?? 
+    final qualityTags = QualityTags.getQualityTags(widget.model) ??
         'very aesthetic, masterpiece, no text';
 
     return MouseRegion(
@@ -155,4 +155,3 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
     );
   }
 }
-

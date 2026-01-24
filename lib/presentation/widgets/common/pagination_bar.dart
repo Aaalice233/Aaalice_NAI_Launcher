@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// 分页导航栏
-/// 
+///
 /// 支持可输入页码功能：
 /// - 点击页码文本进入编辑模式
 /// - Enter 确认跳转
@@ -144,7 +144,8 @@ class _PaginationBarState extends State<PaginationBar> {
   }
 
   /// 可点击的页码显示
-  Widget _buildClickablePageDisplay(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildClickablePageDisplay(
+      ColorScheme colorScheme, TextTheme textTheme,) {
     return InkWell(
       onTap: widget.totalPages > 1 ? _startEditing : null,
       borderRadius: BorderRadius.circular(4),
@@ -191,7 +192,8 @@ class _PaginationBarState extends State<PaginationBar> {
         ),
         decoration: InputDecoration(
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(4),
           ),

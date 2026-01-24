@@ -334,11 +334,13 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   }
 
   void _selectBuiltin(_BuiltinCategoryItem item) {
-    Navigator.of(context).pop(AddGroupResult.builtin(
-      categoryKey: item.key,
-      displayName: item.name,
-      emoji: item.emoji,
-    ),);
+    Navigator.of(context).pop(
+      AddGroupResult.builtin(
+        categoryKey: item.key,
+        displayName: item.name,
+        emoji: item.emoji,
+      ),
+    );
   }
 
   void _selectTagGroup(TagGroup group) {
@@ -365,7 +367,8 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
   }
 
   /// 获取过滤后的内置类别
-  List<_BuiltinCategoryItem> _getFilteredBuiltinCategories(TagLibrary? library) {
+  List<_BuiltinCategoryItem> _getFilteredBuiltinCategories(
+      TagLibrary? library,) {
     final items = <_BuiltinCategoryItem>[];
     if (library == null) return items;
 
@@ -628,7 +631,8 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final isExisting = widget.existingGroupTitles.contains('builtin:${item.key}');
+        final isExisting =
+            widget.existingGroupTitles.contains('builtin:${item.key}');
 
         return ListTile(
           leading: Text(
@@ -910,7 +914,8 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
           onTap: isExisting
               ? null
               : () {
-                  Navigator.of(context).pop(AddGroupResult.custom(group: group));
+                  Navigator.of(context)
+                      .pop(AddGroupResult.custom(group: group));
                 },
         );
       },

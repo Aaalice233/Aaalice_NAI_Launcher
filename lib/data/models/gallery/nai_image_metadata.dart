@@ -70,7 +70,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     /// 版本信息
     String? version,
-    
+
     /// 模型来源 (如 "NovelAI Diffusion V4.5")
     String? source,
 
@@ -95,16 +95,18 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 支持两种格式：
   /// 1. 官网格式：顶层有 Description, Software, Source, Comment (JSON 字符串)
   /// 2. 直接格式：顶层就是生成参数
-  factory NaiImageMetadata.fromNaiComment(Map<String, dynamic> json, {String? rawJson}) {
+  factory NaiImageMetadata.fromNaiComment(Map<String, dynamic> json,
+      {String? rawJson,}) {
     // 检测是否为官网格式（有 Comment 字段且是字符串）
     Map<String, dynamic> commentData;
     String? software;
     String? source;
-    
+
     if (json.containsKey('Comment') && json['Comment'] is String) {
       // 官网格式：解析嵌套的 Comment JSON
       try {
-        commentData = jsonDecode(json['Comment'] as String) as Map<String, dynamic>;
+        commentData =
+            jsonDecode(json['Comment'] as String) as Map<String, dynamic>;
       } catch (e) {
         // 解析失败，使用原始 json
         commentData = json;
@@ -116,11 +118,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
       commentData = json;
       software = json['Software'] as String?;
     }
-    
+
     // 提取 V4 多角色提示词
     final characterPrompts = <String>[];
     final characterNegativePrompts = <String>[];
-    
+
     final v4Prompt = commentData['v4_prompt'];
     if (v4Prompt is Map<String, dynamic>) {
       final caption = v4Prompt['caption'];
@@ -136,7 +138,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         }
       }
     }
-    
+
     final v4NegativePrompt = commentData['v4_negative_prompt'];
     if (v4NegativePrompt is Map<String, dynamic>) {
       final caption = v4NegativePrompt['caption'];
@@ -152,7 +154,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         }
       }
     }
-    
+
     return NaiImageMetadata(
       prompt: commentData['prompt'] as String? ?? '',
       negativePrompt: commentData['uc'] as String? ?? '',
@@ -183,15 +185,15 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   /// 是否有有效数据
   bool get hasData => prompt.isNotEmpty || seed != null;
-  
+
   /// 是否有角色提示词
   bool get hasCharacters => characterPrompts.isNotEmpty;
-  
+
   /// 获取完整的提示词（包含角色提示词）
   /// 格式：主提示词\n\n| 角色1提示词\n\n| 角色2提示词
   String get fullPrompt {
     if (!hasCharacters) return prompt;
-    
+
     final buffer = StringBuffer(prompt);
     for (var i = 0; i < characterPrompts.length; i++) {
       if (characterPrompts[i].isNotEmpty) {
@@ -220,9 +222,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
         .replaceAll('k_', '')
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word.isNotEmpty 
-            ? '${word[0].toUpperCase()}${word.substring(1)}'
-            : '',)
+        .map(
+          (word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1)}'
+              : '',
+        )
         .join(' ');
   }
 }

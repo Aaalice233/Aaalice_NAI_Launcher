@@ -79,9 +79,9 @@ class LayerManager extends ChangeNotifier {
 
     // 使用 firstWhere 的 orElse 避免异常
     final layer = _layers.cast<Layer?>().firstWhere(
-      (l) => l?.id == _activeLayerId,
-      orElse: () => null,
-    );
+          (l) => l?.id == _activeLayerId,
+          orElse: () => null,
+        );
 
     if (layer != null) return layer;
 
@@ -118,7 +118,8 @@ class LayerManager extends ChangeNotifier {
 
   /// 从数据插入图层
   /// [setActive] 为 true 时将新图层设为活动图层
-  Layer insertLayerFromData(LayerData data, int index, {bool setActive = false}) {
+  Layer insertLayerFromData(LayerData data, int index,
+      {bool setActive = false,}) {
     final layer = Layer.fromData(data);
     if (index >= 0 && index <= _layers.length) {
       _layers.insert(index, layer);
@@ -138,7 +139,8 @@ class LayerManager extends ChangeNotifier {
   /// 从图像数据创建图层
   ///
   /// 如果图像解码失败，返回 null 并清理资源
-  Future<Layer?> addLayerFromImage(Uint8List imageBytes, {String? name, int? index}) async {
+  Future<Layer?> addLayerFromImage(Uint8List imageBytes,
+      {String? name, int? index,}) async {
     final layerName = name ?? '导入的图像 ${_layers.length + 1}';
     final layer = Layer(name: layerName);
 
@@ -193,7 +195,8 @@ class LayerManager extends ChangeNotifier {
     // 如果删除的是活动图层，选择相邻图层
     if (_activeLayerId == layerId) {
       if (_layers.isNotEmpty) {
-        _setActiveLayerIdInternal(_layers[index.clamp(0, _layers.length - 1)].id);
+        _setActiveLayerIdInternal(
+            _layers[index.clamp(0, _layers.length - 1)].id,);
       } else {
         _setActiveLayerIdInternal(null);
       }
@@ -639,11 +642,13 @@ class LayerManager extends ChangeNotifier {
   Color? getPixelColor(int x, int y) => _snapshotManager.getPixelColor(x, y);
 
   /// 同步获取放大镜网格像素
-  List<List<Color>>? getMagnifierPixels(int centerX, int centerY, int gridSize) =>
+  List<List<Color>>? getMagnifierPixels(
+          int centerX, int centerY, int gridSize,) =>
       _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
 
   /// 更新区域快照（仅渲染光标周围的小区域）
-  Future<bool> updateRegionalSnapshot(int centerX, int centerY, Size canvasSize) =>
+  Future<bool> updateRegionalSnapshot(
+          int centerX, int centerY, Size canvasSize,) =>
       _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
 
   /// 获取区域缓存中的像素颜色（同步，O(1)）
@@ -651,7 +656,8 @@ class LayerManager extends ChangeNotifier {
       _snapshotManager.getRegionalPixel(x, y);
 
   /// 获取区域缓存中的放大镜像素网格（同步）
-  List<List<Color>>? getRegionalMagnifierPixels(int centerX, int centerY, int gridSize) =>
+  List<List<Color>>? getRegionalMagnifierPixels(
+          int centerX, int centerY, int gridSize,) =>
       _snapshotManager.getRegionalMagnifierPixels(centerX, centerY, gridSize);
 
   @override

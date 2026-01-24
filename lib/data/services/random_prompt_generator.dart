@@ -170,16 +170,19 @@ class RandomPromptGenerator {
 
     if (characterCount == 0) {
       // 无人物场景
-      return _generateNoHumanPrompt(library, random, seed, categoryFilterConfig);
+      return _generateNoHumanPrompt(
+          library, random, seed, categoryFilterConfig,);
     }
 
     if (!isV4Model) {
       // 传统模式：生成合并的单提示词
-      return _generateLegacyPrompt(library, random, characterCount, seed, categoryFilterConfig);
+      return _generateLegacyPrompt(
+          library, random, characterCount, seed, categoryFilterConfig,);
     }
 
     // V4+ 模式：生成主提示词 + 角色提示词
-    return _generateMultiCharacterPrompt(library, random, characterCount, seed, categoryFilterConfig);
+    return _generateMultiCharacterPrompt(
+        library, random, characterCount, seed, categoryFilterConfig,);
   }
 
   /// 生成无人物场景提示词
@@ -192,14 +195,16 @@ class RandomPromptGenerator {
     final tags = <String>['no humans'];
 
     // 添加场景（必选）
-    final sceneTags = _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
+    final sceneTags =
+        _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
     if (sceneTags.isNotEmpty) {
       tags.add(getWeightedChoice(sceneTags, random: random));
     }
 
     // 添加背景（90%）
     if (random.nextDouble() < 0.9) {
-      final bgTags = _getFilteredCategory(library, TagSubCategory.background, filterConfig);
+      final bgTags = _getFilteredCategory(
+          library, TagSubCategory.background, filterConfig,);
       if (bgTags.isNotEmpty) {
         tags.add(getWeightedChoice(bgTags, random: random));
       }
@@ -207,7 +212,8 @@ class RandomPromptGenerator {
 
     // 添加风格（50%）
     if (random.nextDouble() < 0.5) {
-      final styleTags = _getFilteredCategory(library, TagSubCategory.style, filterConfig);
+      final styleTags =
+          _getFilteredCategory(library, TagSubCategory.style, filterConfig);
       if (styleTags.isNotEmpty) {
         tags.add(getWeightedChoice(styleTags, random: random));
       }
@@ -215,11 +221,14 @@ class RandomPromptGenerator {
 
     // 额外添加1-3个场景元素（50%）
     if (random.nextDouble() < 0.5) {
-      final sceneTagsExtra = _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
+      final sceneTagsExtra =
+          _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
       if (sceneTagsExtra.length > 1) {
         final count = random.nextInt(3) + 1;
         final selected = <String>{};
-        for (var i = 0; i < count && selected.length < sceneTagsExtra.length; i++) {
+        for (var i = 0;
+            i < count && selected.length < sceneTagsExtra.length;
+            i++) {
           final tag = getWeightedChoice(sceneTagsExtra, random: random);
           if (!tags.contains(tag)) {
             selected.add(tag);
@@ -249,13 +258,14 @@ class RandomPromptGenerator {
     tags.add(_getCountTag(characterCount));
 
     // 添加角色特征
-    final charTags =
-        _generateCharacterTags(library, random, CharacterGender.female, filterConfig);
+    final charTags = _generateCharacterTags(
+        library, random, CharacterGender.female, filterConfig,);
     tags.addAll(charTags);
 
     // 添加背景
     if (random.nextDouble() < 0.9) {
-      final bgTags = _getFilteredCategory(library, TagSubCategory.background, filterConfig);
+      final bgTags = _getFilteredCategory(
+          library, TagSubCategory.background, filterConfig,);
       if (bgTags.isNotEmpty) {
         tags.add(getWeightedChoice(bgTags, random: random));
       }
@@ -263,7 +273,8 @@ class RandomPromptGenerator {
 
     // 添加场景
     if (random.nextDouble() < 0.5) {
-      final sceneTags = _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
+      final sceneTags =
+          _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
       if (sceneTags.isNotEmpty) {
         tags.add(getWeightedChoice(sceneTags, random: random));
       }
@@ -322,12 +333,14 @@ class RandomPromptGenerator {
             : CharacterGender.male;
       } else {
         // 默认逻辑：随机分配性别
-        gender = random.nextBool() ? CharacterGender.female : CharacterGender.male;
+        gender =
+            random.nextBool() ? CharacterGender.female : CharacterGender.male;
         genderTag = gender == CharacterGender.female ? '1girl' : '1boy';
       }
 
       genders.add(gender);
-      final charTags = _generateCharacterTags(library, random, gender, filterConfig);
+      final charTags =
+          _generateCharacterTags(library, random, gender, filterConfig);
 
       // 添加人物标签到开头
       charTags.insert(0, genderTag);
@@ -344,7 +357,8 @@ class RandomPromptGenerator {
     final mainTags = <String>[];
 
     // 使用配置中的主提示词标签，或根据性别组合生成
-    if (selectedTagOption != null && selectedTagOption.mainPromptTags.isNotEmpty) {
+    if (selectedTagOption != null &&
+        selectedTagOption.mainPromptTags.isNotEmpty) {
       mainTags.add(selectedTagOption.mainPromptTags);
     } else {
       mainTags.add(_getCountTagForCharacters(genders));
@@ -352,7 +366,8 @@ class RandomPromptGenerator {
 
     // 添加风格（30%）
     if (random.nextDouble() < 0.3) {
-      final styleTags = _getFilteredCategory(library, TagSubCategory.style, filterConfig);
+      final styleTags =
+          _getFilteredCategory(library, TagSubCategory.style, filterConfig);
       if (styleTags.isNotEmpty) {
         mainTags.add(getWeightedChoice(styleTags, random: random));
       }
@@ -360,14 +375,16 @@ class RandomPromptGenerator {
 
     // 添加背景（90%）
     if (random.nextDouble() < 0.9) {
-      final bgTags = _getFilteredCategory(library, TagSubCategory.background, filterConfig);
+      final bgTags = _getFilteredCategory(
+          library, TagSubCategory.background, filterConfig,);
       if (bgTags.isNotEmpty) {
         final bg = getWeightedChoice(bgTags, random: random);
         mainTags.add(bg);
 
         // 如果是详细背景，添加额外场景元素
         if (bg.contains('detailed') || bg.contains('amazing')) {
-          final sceneTags = _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
+          final sceneTags =
+              _getFilteredCategory(library, TagSubCategory.scene, filterConfig);
           if (sceneTags.isNotEmpty) {
             final count = random.nextInt(2) + 1;
             for (var i = 0; i < count; i++) {
@@ -442,7 +459,8 @@ class RandomPromptGenerator {
 
     // 发色（80%）
     if (random.nextDouble() < 0.8) {
-      final hairColors = _getFilteredCategory(library, TagSubCategory.hairColor, filterConfig);
+      final hairColors =
+          _getFilteredCategory(library, TagSubCategory.hairColor, filterConfig);
       if (hairColors.isNotEmpty) {
         tags.add(getWeightedChoice(hairColors, random: random));
       }
@@ -450,7 +468,8 @@ class RandomPromptGenerator {
 
     // 瞳色（80%）
     if (random.nextDouble() < 0.8) {
-      final eyeColors = _getFilteredCategory(library, TagSubCategory.eyeColor, filterConfig);
+      final eyeColors =
+          _getFilteredCategory(library, TagSubCategory.eyeColor, filterConfig);
       if (eyeColors.isNotEmpty) {
         tags.add(getWeightedChoice(eyeColors, random: random));
       }
@@ -458,7 +477,8 @@ class RandomPromptGenerator {
 
     // 发型（50%）
     if (random.nextDouble() < 0.5) {
-      final hairStyles = _getFilteredCategory(library, TagSubCategory.hairStyle, filterConfig);
+      final hairStyles =
+          _getFilteredCategory(library, TagSubCategory.hairStyle, filterConfig);
       if (hairStyles.isNotEmpty) {
         tags.add(getWeightedChoice(hairStyles, random: random));
       }
@@ -466,7 +486,8 @@ class RandomPromptGenerator {
 
     // 表情（60%）
     if (random.nextDouble() < 0.6) {
-      final expressions = _getFilteredCategory(library, TagSubCategory.expression, filterConfig);
+      final expressions = _getFilteredCategory(
+          library, TagSubCategory.expression, filterConfig,);
       if (expressions.isNotEmpty) {
         tags.add(getWeightedChoice(expressions, random: random));
       }
@@ -474,7 +495,8 @@ class RandomPromptGenerator {
 
     // 姿势（50%）
     if (random.nextDouble() < 0.5) {
-      final poses = _getFilteredCategory(library, TagSubCategory.pose, filterConfig);
+      final poses =
+          _getFilteredCategory(library, TagSubCategory.pose, filterConfig);
       if (poses.isNotEmpty) {
         tags.add(getWeightedChoice(poses, random: random));
       }
@@ -491,7 +513,7 @@ class RandomPromptGenerator {
   String _getCountTag(int count) {
     return switch (count) {
       1 => 'solo',
-      2 => '2girls',  // 默认使用 2girls，V4模式会根据实际性别生成
+      2 => '2girls', // 默认使用 2girls，V4模式会根据实际性别生成
       3 => 'multiple girls',
       _ => 'group',
     };
@@ -517,7 +539,8 @@ class RandomPromptGenerator {
     if (genders.isEmpty) return 'no humans';
     if (genders.length == 1) return 'solo';
 
-    final femaleCount = genders.where((g) => g == CharacterGender.female).length;
+    final femaleCount =
+        genders.where((g) => g == CharacterGender.female).length;
     final maleCount = genders.where((g) => g == CharacterGender.male).length;
 
     // 2人组合
@@ -581,7 +604,7 @@ class RandomPromptGenerator {
 
     AppLogger.d(
       'Selected character count: ${category.count} (${category.label}), '
-      'tag: ${tagOption?.mainPromptTags ?? "none"}',
+          'tag: ${tagOption?.mainPromptTags ?? "none"}',
       'RandomGen',
     );
 
@@ -967,7 +990,8 @@ class RandomPromptGenerator {
     };
 
     // 从缓存随机获取帖子
-    final selectedPosts = _poolCacheService.getRandomPosts(poolId, postCount, random);
+    final selectedPosts =
+        _poolCacheService.getRandomPosts(poolId, postCount, random);
     if (selectedPosts.isEmpty) {
       AppLogger.w('No posts selected from pool: $sourceId', 'RandomGen');
       return [];
@@ -1068,16 +1092,19 @@ class RandomPromptGenerator {
     return switch (mode) {
       SelectionMode.single => [_weightedSelect(items, random, weightGetter)],
       SelectionMode.all => List.from(items),
-      SelectionMode.multipleNum => _selectByCount(items, count, random, weightGetter),
+      SelectionMode.multipleNum =>
+        _selectByCount(items, count, random, weightGetter),
       SelectionMode.multipleProb => _selectByProbability(items, random, (item) {
-        // 对于 RandomTagGroup 使用其 probability 属性
-        if (item is RandomTagGroup) return item.probability;
-        // 对于 WeightedTag 使用归一化的权重作为概率
-        if (item is WeightedTag) return item.weight / 10.0;
-        // 其他类型默认 50%
-        return 0.5;
-      }),
-      SelectionMode.sequential => [_getSequentialItem(items, sequentialKey ?? 'default')],
+          // 对于 RandomTagGroup 使用其 probability 属性
+          if (item is RandomTagGroup) return item.probability;
+          // 对于 WeightedTag 使用归一化的权重作为概率
+          if (item is WeightedTag) return item.weight / 10.0;
+          // 其他类型默认 50%
+          return 0.5;
+        }),
+      SelectionMode.sequential => [
+          _getSequentialItem(items, sequentialKey ?? 'default'),
+        ],
     };
   }
 
@@ -1089,7 +1116,8 @@ class RandomPromptGenerator {
   ) {
     if (items.length == 1) return items.first;
 
-    final totalWeight = items.fold<double>(0, (sum, t) => sum + weightGetter(t));
+    final totalWeight =
+        items.fold<double>(0, (sum, t) => sum + weightGetter(t));
     if (totalWeight <= 0) return items[random.nextInt(items.length)];
 
     final target = random.nextDouble() * totalWeight;
@@ -1135,7 +1163,9 @@ class RandomPromptGenerator {
     Random random,
     double Function(T) probabilityGetter,
   ) {
-    return items.where((item) => random.nextDouble() < probabilityGetter(item)).toList();
+    return items
+        .where((item) => random.nextDouble() < probabilityGetter(item))
+        .toList();
   }
 
   /// 顺序轮替选择（使用持久化服务）
@@ -1150,7 +1180,8 @@ class RandomPromptGenerator {
   /// [bracketMax] 最大括号层数（可为负数）
   /// 正数使用 {} 增强权重
   /// 负数使用 [] 降低权重
-  String _applyBrackets(String tag, int bracketMin, int bracketMax, Random random) {
+  String _applyBrackets(
+      String tag, int bracketMin, int bracketMax, Random random,) {
     if (bracketMin == 0 && bracketMax == 0) return tag;
 
     // 确保 min <= max
@@ -1187,7 +1218,8 @@ class RandomPromptGenerator {
   ///
   /// 支持格式：__变量名__
   /// 会在预设的类别和词组中查找匹配项并生成内容
-  Future<String> _replaceVariables(String text, RandomPreset preset, Random random) async {
+  Future<String> _replaceVariables(
+      String text, RandomPreset preset, Random random,) async {
     if (!text.contains('__')) return text;
 
     // 由于 replaceAllMapped 不支持 async，需要手动处理
@@ -1321,7 +1353,8 @@ class RandomPromptGenerator {
   }
 
   /// 将 TagGroupEntry 列表转换为 WeightedTag 列表
-  List<WeightedTag> _convertTagGroupEntriesToWeightedTags(List<TagGroupEntry> entries) {
+  List<WeightedTag> _convertTagGroupEntriesToWeightedTags(
+      List<TagGroupEntry> entries,) {
     return entries.map((entry) {
       // 根据热度计算权重 (1-10)
       final weight = _calculateWeightFromPostCount(entry.postCount);
@@ -1422,7 +1455,8 @@ class RandomPromptGenerator {
   }
 
   /// 从配置决定角色数量
-  int _determineCharacterCountFromConfig(AlgorithmConfig config, Random random) {
+  int _determineCharacterCountFromConfig(
+      AlgorithmConfig config, Random random,) {
     final weights = config.characterCountWeights;
     if (weights.isEmpty) {
       return getWeightedChoiceInt(characterCountWeights, random: random);
@@ -1622,7 +1656,9 @@ class RandomPromptGenerator {
 
     for (var i = 0; i < characterCount; i++) {
       final gender = config.selectGender(() => random.nextInt(1 << 30));
-      final charContext = <String, List<String>>{'gender': [gender]};
+      final charContext = <String, List<String>>{
+        'gender': [gender],
+      };
 
       final charTags = _generateCharacterTagsFromWordlist(
         type,

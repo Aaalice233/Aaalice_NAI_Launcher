@@ -71,7 +71,7 @@ class _CommandPaletteState extends State<CommandPalette> {
   final TextEditingController _searchController = TextEditingController();
   late FocusNode _focusNode;
   final ScrollController _scrollController = ScrollController();
-  
+
   List<CommandItem> _filteredCommands = [];
   int _selectedIndex = 0;
 
@@ -80,9 +80,9 @@ class _CommandPaletteState extends State<CommandPalette> {
     super.initState();
     _filteredCommands = widget.commands;
     _searchController.addListener(_onSearchChanged);
-    
+
     _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
-    
+
     // Auto-focus the input
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
@@ -108,7 +108,8 @@ class _CommandPaletteState extends State<CommandPalette> {
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       setState(() {
-        _selectedIndex = (_selectedIndex - 1 + _filteredCommands.length) % _filteredCommands.length;
+        _selectedIndex = (_selectedIndex - 1 + _filteredCommands.length) %
+            _filteredCommands.length;
         _scrollToSelected();
       });
       return KeyEventResult.handled;
@@ -139,54 +140,62 @@ class _CommandPaletteState extends State<CommandPalette> {
 
   List<CommandItem> _fuzzySearch(String query, List<CommandItem> items) {
     query = query.toLowerCase();
-    
+
     // Calculate score for each item
-    final scoredItems = items.map((item) {
-      final text = item.label.toLowerCase();
-      int score = 0;
-      int queryIdx = 0;
-      int textIdx = 0;
-      
-      // Simple subsequence matching
-      while (queryIdx < query.length && textIdx < text.length) {
-        if (query[queryIdx] == text[textIdx]) {
-          score += 10;
-          // Bonus for consecutive matches
-          if (textIdx > 0 && queryIdx > 0 && query[queryIdx-1] == text[textIdx-1]) {
-            score += 5;
+    final scoredItems = items
+        .map((item) {
+          final text = item.label.toLowerCase();
+          int score = 0;
+          int queryIdx = 0;
+          int textIdx = 0;
+
+          // Simple subsequence matching
+          while (queryIdx < query.length && textIdx < text.length) {
+            if (query[queryIdx] == text[textIdx]) {
+              score += 10;
+              // Bonus for consecutive matches
+              if (textIdx > 0 &&
+                  queryIdx > 0 &&
+                  query[queryIdx - 1] == text[textIdx - 1]) {
+                score += 5;
+              }
+              // Bonus for start of word (simplified)
+              if (textIdx == 0 || text[textIdx - 1] == ' ') {
+                score += 10;
+              }
+              queryIdx++;
+            }
+            textIdx++;
           }
-          // Bonus for start of word (simplified)
-          if (textIdx == 0 || text[textIdx-1] == ' ') {
-            score += 10;
-          }
-          queryIdx++;
-        }
-        textIdx++;
-      }
-      
-      // Only include if full query is found as subsequence
-      final isMatch = queryIdx == query.length;
-      return MapEntry(item, isMatch ? score : -1);
-    }).where((e) => e.value > -1).toList();
+
+          // Only include if full query is found as subsequence
+          final isMatch = queryIdx == query.length;
+          return MapEntry(item, isMatch ? score : -1);
+        })
+        .where((e) => e.value > -1)
+        .toList();
 
     // Sort by score descending
     scoredItems.sort((a, b) => b.value.compareTo(a.value));
-    
+
     return scoredItems.map((e) => e.key).toList();
   }
 
   void _scrollToSelected() {
     if (_filteredCommands.isEmpty) return;
-    
+
     // Approximate item height - this is a simple estimation
     // For production, referencing GlobalKeys or using Scrollable.ensureVisible is better
-    const itemHeight = 56.0; 
+    const itemHeight = 56.0;
     final offset = _selectedIndex * itemHeight;
-    
+
     if (offset < _scrollController.offset) {
       _scrollController.jumpTo(offset);
-    } else if (offset + itemHeight > _scrollController.offset + _scrollController.position.viewportDimension) {
-      _scrollController.jumpTo(offset + itemHeight - _scrollController.position.viewportDimension);
+    } else if (offset + itemHeight >
+        _scrollController.offset +
+            _scrollController.position.viewportDimension) {
+      _scrollController.jumpTo(
+          offset + itemHeight - _scrollController.position.viewportDimension,);
     }
   }
 
@@ -221,13 +230,15 @@ class _CommandPaletteState extends State<CommandPalette> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              color: (isDark ? const Color(0xFF1E1E1E) : Colors.white).withOpacity(0.95),
+              color: (isDark ? const Color(0xFF1E1E1E) : Colors.white)
+                  .withOpacity(0.95),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Search Input
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
@@ -251,7 +262,8 @@ class _CommandPaletteState extends State<CommandPalette> {
                               hintText: 'Type a command or search...',
                               border: InputBorder.none,
                               hintStyle: TextStyle(
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                color: colorScheme.onSurfaceVariant
+                                    .withOpacity(0.5),
                               ),
                             ),
                             style: TextStyle(
@@ -267,9 +279,11 @@ class _CommandPaletteState extends State<CommandPalette> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2,),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest, // Changed from surfaceContainerHighest
+                            color: colorScheme
+                                .surfaceContainerHighest, // Changed from surfaceContainerHighest
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -309,8 +323,10 @@ class _CommandPaletteState extends State<CommandPalette> {
                               return GestureDetector(
                                 onTap: () => _selectItem(item),
                                 child: Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2,),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 12,),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? colorScheme.primary.withOpacity(0.1)
@@ -334,23 +350,30 @@ class _CommandPaletteState extends State<CommandPalette> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               item.label,
                                               style: TextStyle(
                                                 color: isSelected
                                                     ? colorScheme.onSurface
-                                                    : colorScheme.onSurface.withOpacity(0.9),
-                                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                                    : colorScheme.onSurface
+                                                        .withOpacity(0.9),
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
                                               ),
                                             ),
-                                            if (item.category.isNotEmpty && item.category != 'General')
+                                            if (item.category.isNotEmpty &&
+                                                item.category != 'General')
                                               Text(
                                                 item.category,
                                                 style: TextStyle(
                                                   fontSize: 10,
-                                                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                                  color: colorScheme
+                                                      .onSurfaceVariant
+                                                      .withOpacity(0.7),
                                                 ),
                                               ),
                                           ],
@@ -369,17 +392,19 @@ class _CommandPaletteState extends State<CommandPalette> {
                             },
                           ),
                   ),
-                  
+
                   // Footer
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
                           color: colorScheme.outline.withOpacity(0.1),
                         ),
                       ),
-                      color: colorScheme.surfaceContainerHighest.withOpacity(0.5), // Changed from surfaceContainer
+                      color: colorScheme.surfaceContainerHighest
+                          .withOpacity(0.5), // Changed from surfaceContainer
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -397,7 +422,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                             ),
                           ],
                         ),
-                         Row(
+                        Row(
                           children: [
                             _buildKeyHint(context, '↵'),
                             const SizedBox(width: 8),
@@ -421,13 +446,14 @@ class _CommandPaletteState extends State<CommandPalette> {
       ),
     );
   }
-  
+
   Widget _buildKeyHint(BuildContext context, String label) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest, // Changed from surfaceContainerHighest
+        color: colorScheme
+            .surfaceContainerHighest, // Changed from surfaceContainerHighest
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

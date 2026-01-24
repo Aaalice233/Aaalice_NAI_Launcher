@@ -22,13 +22,13 @@ class StorageKeys {
   static const String themeType = 'theme_type';
   static const String fontFamily = 'font_family';
   static const String locale = 'locale';
-  
+
   // Window State Keys (窗口状态)
   static const String windowWidth = 'window_width';
   static const String windowHeight = 'window_height';
   static const String windowX = 'window_x';
   static const String windowY = 'window_y';
-  
+
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';
@@ -37,7 +37,8 @@ class StorageKeys {
   static const String defaultScale = 'default_scale';
   static const String defaultWidth = 'default_width';
   static const String defaultHeight = 'default_height';
-  static const String selectedResolutionPresetId = 'selected_resolution_preset_id';
+  static const String selectedResolutionPresetId =
+      'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
   static const String addQualityTags = 'add_quality_tags';
@@ -48,7 +49,7 @@ class StorageKeys {
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
   static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';
-  
+
   // Seed Lock Keys (种子锁定相关)
   static const String seedLocked = 'seed_locked';
   static const String lockedSeedValue = 'locked_seed_value';

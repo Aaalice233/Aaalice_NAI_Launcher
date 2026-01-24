@@ -236,7 +236,10 @@ class _TagChipState extends ConsumerState<TagChip>
         // 数值语法: 显示 weight::name::
         final weightStr = weight == weight.truncateToDouble()
             ? weight.toInt().toString()
-            : weight.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+            : weight
+                .toStringAsFixed(2)
+                .replaceAll(RegExp(r'0+$'), '')
+                .replaceAll(RegExp(r'\.$'), '');
         return '$weightStr::$name::';
 
       case WeightSyntaxType.bracket:
@@ -565,7 +568,7 @@ class _DeleteButtonState extends State<_DeleteButton> {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              color: _isHovering 
+              color: _isHovering
                   ? widget.theme.colorScheme.error.withOpacity(0.15)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(4),

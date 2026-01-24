@@ -16,7 +16,7 @@ class SelectionAction {
 }
 
 /// 多选工具栏组件
-/// 
+///
 /// 特性：
 /// - 底部浮动
 /// - 毛玻璃效果
@@ -24,13 +24,13 @@ class SelectionAction {
 class SelectionToolbar extends StatefulWidget {
   /// 是否显示
   final bool visible;
-  
+
   /// 选中数量
   final int selectedCount;
-  
+
   /// 退出多选回调
   final VoidCallback onExit;
-  
+
   /// 操作按钮列表
   final List<SelectionAction> actions;
 
@@ -63,19 +63,23 @@ class _SelectionToolbarState extends State<SelectionToolbar>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: DesignTokens.curveEnter,
-      reverseCurve: DesignTokens.curveExit,
-    ),);
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: DesignTokens.curveEnter,
+        reverseCurve: DesignTokens.curveExit,
+      ),
+    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: DesignTokens.curveEnter,
-    ),);
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: DesignTokens.curveEnter,
+      ),
+    );
 
     if (widget.visible) {
       _controller.forward();
@@ -149,7 +153,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                       iconSize: DesignTokens.iconMd,
                     ),
                     const SizedBox(width: DesignTokens.spacingXs),
-                    
+
                     // 选中数量
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -168,25 +172,27 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(width: DesignTokens.spacingMd),
-                    
+
                     // 分隔线
                     Container(
                       width: 1,
                       height: 24,
                       color: theme.colorScheme.outline.withOpacity(0.3),
                     ),
-                    
+
                     const SizedBox(width: DesignTokens.spacingSm),
-                    
+
                     // 操作按钮
-                    ...widget.actions.map((action) => IconButton(
-                      icon: Icon(action.icon),
-                      onPressed: action.onPressed,
-                      tooltip: action.tooltip,
-                      iconSize: DesignTokens.iconMd,
-                    ),),
+                    ...widget.actions.map(
+                      (action) => IconButton(
+                        icon: Icon(action.icon),
+                        onPressed: action.onPressed,
+                        tooltip: action.tooltip,
+                        iconSize: DesignTokens.iconMd,
+                      ),
+                    ),
                   ],
                 ),
               ),

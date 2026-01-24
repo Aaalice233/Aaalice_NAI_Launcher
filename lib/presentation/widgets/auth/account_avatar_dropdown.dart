@@ -29,7 +29,8 @@ class AccountAvatarDropdown extends ConsumerWidget {
     // 监听账号状态变化以触发重建
     ref.watch(accountManagerNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
-    final accounts = ref.read(accountManagerNotifierProvider.notifier).sortedAccounts;
+    final accounts =
+        ref.read(accountManagerNotifierProvider.notifier).sortedAccounts;
 
     if (accounts.isEmpty) {
       return const SizedBox.shrink();
@@ -93,14 +94,16 @@ class AccountAvatarDropdown extends ConsumerWidget {
                       account: accounts[i],
                       isFirst: i == 0,
                       isLast: i == accounts.length - 1 || i == 4,
-                      isSelected: currentAccount?.id == accounts[i].id && authState.isAuthenticated,
+                      isSelected: currentAccount?.id == accounts[i].id &&
+                          authState.isAuthenticated,
                       onTap: () => _onAccountTap(context, ref, accounts[i]),
                     ),
                   if (accounts.length > 5)
                     ListTile(
                       dense: true,
                       leading: const Icon(Icons.more_horiz),
-                      title: Text(context.l10n.auth_moreAccounts(accounts.length - 5)),
+                      title: Text(
+                          context.l10n.auth_moreAccounts(accounts.length - 5),),
                       onTap: onManageAccounts,
                     ),
                 ],

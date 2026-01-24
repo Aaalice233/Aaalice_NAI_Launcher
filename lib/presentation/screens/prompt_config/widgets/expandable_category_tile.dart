@@ -263,7 +263,8 @@ class _ExpandableCategoryTileState
                     height: 36,
                     child: Center(
                       child: Text(
-                        DefaultCategoryEmojis.getTagSubCategoryEmoji(widget.category),
+                        DefaultCategoryEmojis.getTagSubCategoryEmoji(
+                            widget.category,),
                         style: const TextStyle(fontSize: 24),
                       ),
                     ),
@@ -314,7 +315,8 @@ class _ExpandableCategoryTileState
                       ),
                       onPressed: widget.onSettings,
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8,),
                         minimumSize: const Size(0, 36),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -336,7 +338,8 @@ class _ExpandableCategoryTileState
                       ),
                       onPressed: widget.onRemove,
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8,),
                         minimumSize: const Size(0, 36),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -420,8 +423,7 @@ class _ExpandableCategoryTileState
     final categoryGroups = randomCategory?.groups ?? [];
 
     // 计算分组总数（builtin分组 + TagGroup 映射数量 + Pool 映射数量）
-    final totalGroupCount =
-        categoryGroups.length +
+    final totalGroupCount = categoryGroups.length +
         categoryMappings.length +
         categoryPoolMappings.length;
 
@@ -549,13 +551,13 @@ class _ExpandableCategoryTileState
                     }),
                     // TagGroup 映射分组
                     ...categoryMappings.map((mapping) {
-                      final tagCount =
-                          syncState.filteredTagCounts[mapping.groupTitle] ??
-                              (mapping.lastSyncedTagCount > 0
-                                  ? mapping.lastSyncedTagCount
-                                  : null) ??
-                              TagGroupPresetCache.getCount(mapping.groupTitle) ??
-                              0;
+                      final tagCount = syncState
+                              .filteredTagCounts[mapping.groupTitle] ??
+                          (mapping.lastSyncedTagCount > 0
+                              ? mapping.lastSyncedTagCount
+                              : null) ??
+                          TagGroupPresetCache.getCount(mapping.groupTitle) ??
+                          0;
                       return _buildTagGroupMappingCard(
                         theme,
                         mapping,
@@ -604,8 +606,7 @@ class _ExpandableCategoryTileState
       ),
       child: ListTile(
         dense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
         leading: SizedBox(
           width: 32,
           child: Center(
@@ -647,7 +648,8 @@ class _ExpandableCategoryTileState
                 ),
                 onPressed: onSettings,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   minimumSize: const Size(0, 36),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -668,7 +670,8 @@ class _ExpandableCategoryTileState
               ),
               onPressed: onDelete,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 minimumSize: const Size(0, 36),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -696,10 +699,11 @@ class _ExpandableCategoryTileState
 
     if (group.sourceType == TagGroupSourceType.builtin) {
       // builtin 类型：从 TagLibrary 获取标签数量
-      final sourceCategory = TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-        (c) => c?.name == group.sourceId,
-        orElse: () => null,
-      );
+      final sourceCategory =
+          TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+                (c) => c?.name == group.sourceId,
+                orElse: () => null,
+              );
       if (sourceCategory != null && library != null) {
         tagCount = library
             .getCategory(sourceCategory)
@@ -731,16 +735,20 @@ class _ExpandableCategoryTileState
       countLabel: '$tagCount ${context.l10n.promptConfig_tagCountUnit}',
       isEnabled: group.enabled,
       onToggleEnabled: (enabled) async {
-        await ref.read(randomPresetNotifierProvider.notifier).toggleGroupEnabled(
-          widget.category.name,
-          group.id,
-        );
+        await ref
+            .read(randomPresetNotifierProvider.notifier)
+            .toggleGroupEnabled(
+              widget.category.name,
+              group.id,
+            );
       },
       onDelete: () async {
-        await ref.read(randomPresetNotifierProvider.notifier).removeGroupFromCategory(
-          widget.category.name,
-          group.id,
-        );
+        await ref
+            .read(randomPresetNotifierProvider.notifier)
+            .removeGroupFromCategory(
+              widget.category.name,
+              group.id,
+            );
       },
       onSettings: randomCategory != null
           ? () => _showTagGroupSettings(randomCategory, group)
@@ -754,9 +762,9 @@ class _ExpandableCategoryTileState
     RandomTagGroup tagGroup,
   ) {
     final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
-    final customSlotOptions = preset?.algorithmConfig.characterCountConfig
-            ?.customSlotOptions ??
-        defaultSlotOptions;
+    final customSlotOptions =
+        preset?.algorithmConfig.characterCountConfig?.customSlotOptions ??
+            defaultSlotOptions;
 
     TagGroupSettingsDialog.show(
       context: context,
@@ -959,7 +967,8 @@ class _ExpandableCategoryTileState
       title: poolMapping.poolDisplayName,
       subtitle: context.l10n.promptConfig_danbooruPool,
       emoji: '🖼️',
-      countLabel: '${poolMapping.lastSyncedPostCount} ${context.l10n.cache_posts}',
+      countLabel:
+          '${poolMapping.lastSyncedPostCount} ${context.l10n.cache_posts}',
       isEnabled: poolMapping.enabled,
       onToggleEnabled: (enabled) =>
           _togglePoolMappingEnabled(poolMapping, enabled),
@@ -1191,7 +1200,11 @@ class _ExpandableCategoryTileState
     } catch (e) {
       if (!mounted) return;
       // ignore: use_build_context_synchronously
-      AppToast.error(currentContext, currentContext.l10n.addGroup_addFailed(e.toString()));
+      AppToast.error(
+          // ignore: use_build_context_synchronously
+          currentContext,
+          // ignore: use_build_context_synchronously
+          currentContext.l10n.addGroup_addFailed(e.toString()),);
     }
   }
 }

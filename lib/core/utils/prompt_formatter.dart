@@ -71,7 +71,8 @@ class PromptFormatter {
     processedPrompt = processedPrompt.replaceAll(RegExp(r',\s*$'), '');
 
     // 3. 恢复保护的区域
-    processedPrompt = _restoreProtectedRegions(processedPrompt, protectedRegions);
+    processedPrompt =
+        _restoreProtectedRegions(processedPrompt, protectedRegions);
 
     return processedPrompt;
   }
@@ -202,4 +203,3 @@ class ValidationResult {
 
   bool get hasWarnings => warnings.isNotEmpty;
 }
-

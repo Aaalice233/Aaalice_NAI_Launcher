@@ -2,7 +2,7 @@
 class _BracketPos {
   final String char;
   final int position;
-  
+
   _BracketPos(this.char, this.position);
 }
 
@@ -110,15 +110,15 @@ class NaiPromptFormatter {
     // 第一遍：标记所有已配对的括号位置
     final pairedPositions = <int>{};
     final stack = <_BracketPos>[];
-    
+
     for (var i = 0; i < prompt.length; i++) {
       final char = prompt[i];
-      
+
       if (char == '{' || char == '[' || char == '(') {
         stack.add(_BracketPos(char, i));
       } else if (char == '}' || char == ']' || char == ')') {
         final expectedOpen = _getMatchingOpen(char);
-        
+
         // 从栈顶找匹配的开括号
         for (var j = stack.length - 1; j >= 0; j--) {
           if (stack[j].char == expectedOpen) {
@@ -131,15 +131,15 @@ class NaiPromptFormatter {
         }
       }
     }
-    
+
     // 第二遍：遍历字符串，遇到逗号时闭合未配对的开括号
     final result = StringBuffer();
     final unclosedStack = <String>[]; // 未闭合的开括号
     final prependOpens = <String>[]; // 需要在开头添加的开括号
-    
+
     for (var i = 0; i < prompt.length; i++) {
       final char = prompt[i];
-      
+
       if (char == '{' || char == '[' || char == '(') {
         if (!pairedPositions.contains(i)) {
           // 这是一个未配对的开括号
@@ -163,38 +163,46 @@ class NaiPromptFormatter {
         result.write(char);
       }
     }
-    
+
     // 在末尾闭合剩余的未配对开括号
     for (var j = unclosedStack.length - 1; j >= 0; j--) {
       result.write(_getMatchingClose(unclosedStack[j]));
     }
-    
+
     // 在开头添加多余闭括号对应的开括号
     var finalResult = result.toString();
     for (final open in prependOpens.reversed) {
       finalResult = open + finalResult;
     }
-    
+
     return finalResult;
   }
-  
+
   /// 获取匹配的开括号
   static String _getMatchingOpen(String close) {
     switch (close) {
-      case '}': return '{';
-      case ']': return '[';
-      case ')': return '(';
-      default: return '';
+      case '}':
+        return '{';
+      case ']':
+        return '[';
+      case ')':
+        return '(';
+      default:
+        return '';
     }
   }
-  
+
   /// 获取匹配的闭括号
   static String _getMatchingClose(String open) {
     switch (open) {
-      case '{': return '}';
-      case '[': return ']';
-      case '(': return ')';
-      default: return '';
+      case '{':
+        return '}';
+      case '[':
+        return ']';
+      case '(':
+        return ')';
+      default:
+        return '';
     }
   }
 
@@ -250,4 +258,3 @@ class NaiPromptFormatter {
     return result;
   }
 }
-

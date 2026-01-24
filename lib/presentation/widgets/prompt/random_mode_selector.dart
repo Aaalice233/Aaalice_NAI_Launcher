@@ -119,7 +119,8 @@ class RandomModeSelector extends ConsumerWidget {
 
   String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
     return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficialDesc,
+      RandomGenerationMode.naiOfficial =>
+        context.l10n.randomMode_naiOfficialDesc,
       RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
       RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
     };
@@ -233,7 +234,8 @@ class RandomModePopupMenu extends ConsumerWidget {
 
   String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
     return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficialDesc,
+      RandomGenerationMode.naiOfficial =>
+        context.l10n.randomMode_naiOfficialDesc,
       RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
       RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
     };
@@ -353,7 +355,8 @@ class RandomModeIndicator extends ConsumerWidget {
 
   String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
     return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficialDesc,
+      RandomGenerationMode.naiOfficial =>
+        context.l10n.randomMode_naiOfficialDesc,
       RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
       RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
     };

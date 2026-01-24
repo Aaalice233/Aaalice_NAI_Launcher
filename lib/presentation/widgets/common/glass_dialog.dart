@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../themes/design_tokens.dart';
 
 /// 毛玻璃弹窗容器
-/// 
+///
 /// 统一的毛玻璃样式弹窗，特性：
 /// - BackdropFilter 模糊效果
 /// - 半透明背景
@@ -12,16 +12,16 @@ import '../../themes/design_tokens.dart';
 class GlassDialog extends StatelessWidget {
   /// 弹窗内容
   final Widget child;
-  
+
   /// 弹窗宽度（null 时自适应）
   final double? width;
-  
+
   /// 弹窗高度（null 时自适应）
   final double? height;
-  
+
   /// 内边距
   final EdgeInsetsGeometry? padding;
-  
+
   /// 是否使用全屏覆盖
   final bool fullScreen;
 
@@ -37,9 +37,10 @@ class GlassDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     final content = ClipRRect(
-      borderRadius: fullScreen ? BorderRadius.zero : DesignTokens.borderRadiusLg,
+      borderRadius:
+          fullScreen ? BorderRadius.zero : DesignTokens.borderRadiusLg,
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: DesignTokens.glassBlurRadius,
@@ -53,17 +54,21 @@ class GlassDialog extends StatelessWidget {
             color: theme.colorScheme.surface
                 .withOpacity(DesignTokens.glassOpacity),
             borderRadius: fullScreen ? null : DesignTokens.borderRadiusLg,
-            border: fullScreen ? null : Border.all(
-              color: theme.colorScheme.outline
-                  .withOpacity(DesignTokens.glassBorderOpacity),
-            ),
-            boxShadow: fullScreen ? null : [
-              BoxShadow(
-                color: theme.shadowColor.withOpacity(0.2),
-                blurRadius: DesignTokens.spacingLg,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            border: fullScreen
+                ? null
+                : Border.all(
+                    color: theme.colorScheme.outline
+                        .withOpacity(DesignTokens.glassBorderOpacity),
+                  ),
+            boxShadow: fullScreen
+                ? null
+                : [
+                    BoxShadow(
+                      color: theme.shadowColor.withOpacity(0.2),
+                      blurRadius: DesignTokens.spacingLg,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
           ),
           child: child,
         ),
@@ -128,7 +133,7 @@ class GlassAlertDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return GlassDialog(
       width: 320,
       child: Column(

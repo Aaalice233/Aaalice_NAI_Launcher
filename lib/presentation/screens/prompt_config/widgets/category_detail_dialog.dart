@@ -159,8 +159,7 @@ class CategoryDetailDialog extends StatelessWidget {
       TagSubCategory.background => context.l10n.naiMode_desc_background,
       TagSubCategory.scene => context.l10n.naiMode_desc_scene,
       TagSubCategory.style => context.l10n.naiMode_desc_style,
-      TagSubCategory.characterCount =>
-        context.l10n.naiMode_desc_characterCount,
+      TagSubCategory.characterCount => context.l10n.naiMode_desc_characterCount,
       _ => '',
     };
   }

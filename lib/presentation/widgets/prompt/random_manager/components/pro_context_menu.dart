@@ -57,7 +57,8 @@ class ProContextMenu extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: items.map((item) => _buildMenuItem(context, item)).toList(),
+              children:
+                  items.map((item) => _buildMenuItem(context, item)).toList(),
             ),
           ),
         ),

@@ -76,9 +76,13 @@ class AuthInterceptor extends Interceptor {
 
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
-      AppLogger.d('Added auth header from storage, token length: ${token.length}', 'DIO');
+      AppLogger.d(
+          'Added auth header from storage, token length: ${token.length}',
+          'DIO',);
     } else {
-      AppLogger.w('No token available for request! Token is ${token == null ? "null" : "empty"}', 'DIO');
+      AppLogger.w(
+          'No token available for request! Token is ${token == null ? "null" : "empty"}',
+          'DIO',);
     }
 
     handler.next(options);
@@ -88,21 +92,28 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     // Token 过期处理
     if (err.response?.statusCode == 401) {
-      AppLogger.w('[AuthInterceptor] onError: 401 received, path: ${err.requestOptions.path}', 'DIO');
-      
+      AppLogger.w(
+          '[AuthInterceptor] onError: 401 received, path: ${err.requestOptions.path}',
+          'DIO',);
+
       final authState = _ref.read(authNotifierProvider);
-      AppLogger.w('[AuthInterceptor] current authState: status=${authState.status}, isAuthenticated=${authState.isAuthenticated}, hasError=${authState.hasError}', 'DIO');
-      
+      AppLogger.w(
+          '[AuthInterceptor] current authState: status=${authState.status}, isAuthenticated=${authState.isAuthenticated}, hasError=${authState.hasError}',
+          'DIO',);
+
       // 只有在当前是已登录状态时才触发登出逻辑，避免并发请求导致多次重定向
       if (authState.isAuthenticated) {
-        AppLogger.w('[AuthInterceptor] Calling logout with error code...', 'DIO');
+        AppLogger.w(
+            '[AuthInterceptor] Calling logout with error code...', 'DIO',);
         await _ref.read(authNotifierProvider.notifier).logout(
-          errorCode: AuthErrorCode.authFailed,
-          httpStatusCode: 401,
-        );
+              errorCode: AuthErrorCode.authFailed,
+              httpStatusCode: 401,
+            );
         AppLogger.w('[AuthInterceptor] logout() completed', 'DIO');
       } else {
-        AppLogger.w('[AuthInterceptor] Skipping logout because not authenticated', 'DIO');
+        AppLogger.w(
+            '[AuthInterceptor] Skipping logout because not authenticated',
+            'DIO',);
       }
     }
 
@@ -117,9 +128,9 @@ class ErrorInterceptor extends Interceptor {
     // 详细记录错误信息
     AppLogger.e(
       'DIO Error: ${err.type.name}\n'
-      'Status: ${err.response?.statusCode}\n'
-      'URL: ${err.requestOptions.uri}\n'
-      'Response Data: ${err.response?.data}',
+          'Status: ${err.response?.statusCode}\n'
+          'URL: ${err.requestOptions.uri}\n'
+          'Response Data: ${err.response?.data}',
       'DIO',
     );
 

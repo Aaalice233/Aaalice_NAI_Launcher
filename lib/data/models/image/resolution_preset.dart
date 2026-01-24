@@ -145,7 +145,10 @@ class ResolutionPreset {
   static ResolutionPreset? findBySize(int width, int height) {
     try {
       return presets.firstWhere(
-        (p) => p.width == width && p.height == height && p.type != ResolutionType.custom,
+        (p) =>
+            p.width == width &&
+            p.height == height &&
+            p.type != ResolutionType.custom,
       );
     } catch (_) {
       return null;

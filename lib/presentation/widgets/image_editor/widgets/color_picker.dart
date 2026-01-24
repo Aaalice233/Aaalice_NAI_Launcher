@@ -163,8 +163,10 @@ class _SVPanel extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
-          onPanStart: (details) => _handleTouch(details.localPosition, constraints),
-          onPanUpdate: (details) => _handleTouch(details.localPosition, constraints),
+          onPanStart: (details) =>
+              _handleTouch(details.localPosition, constraints),
+          onPanUpdate: (details) =>
+              _handleTouch(details.localPosition, constraints),
           child: Stack(
             children: [
               // 背景渐变
@@ -243,8 +245,10 @@ class _HueSlider extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
-          onPanStart: (details) => _handleTouch(details.localPosition, constraints),
-          onPanUpdate: (details) => _handleTouch(details.localPosition, constraints),
+          onPanStart: (details) =>
+              _handleTouch(details.localPosition, constraints),
+          onPanUpdate: (details) =>
+              _handleTouch(details.localPosition, constraints),
           child: Stack(
             children: [
               // 色相渐变

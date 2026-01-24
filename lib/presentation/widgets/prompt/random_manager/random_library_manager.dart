@@ -28,7 +28,8 @@ class RandomLibraryManager extends ConsumerWidget {
         color: Colors.transparent,
         child: CallbackShortcuts(
           bindings: {
-            const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.of(context).pop(),
+            const SingleActivator(LogicalKeyboardKey.escape): () =>
+                Navigator.of(context).pop(),
           },
           child: Focus(
             autofocus: true,
@@ -69,7 +70,8 @@ class RandomLibraryManager extends ConsumerWidget {
                             color: colorScheme.surfaceContainerLow,
                             border: Border(
                               right: BorderSide(
-                                color: colorScheme.outlineVariant.withOpacity(0.2),
+                                color:
+                                    colorScheme.outlineVariant.withOpacity(0.2),
                               ),
                             ),
                           ),

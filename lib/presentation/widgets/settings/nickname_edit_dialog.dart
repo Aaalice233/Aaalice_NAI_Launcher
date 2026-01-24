@@ -186,7 +186,8 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
                 labelText: context.l10n.settings_nickname,
                 hintText: context.l10n.settings_nicknameHint,
                 errorText: error,
-                counterText: '${_controller.text.characters.length}/$_maxLength',
+                counterText:
+                    '${_controller.text.characters.length}/$_maxLength',
                 prefixIcon: const Icon(Icons.person_outline),
               ),
               textInputAction: TextInputAction.done,
