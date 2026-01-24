@@ -1180,6 +1180,7 @@
   "warmup_loadingTranslation": "Loading translation data...",
   "warmup_initTagSystem": "Initializing tag system...",
   "warmup_loadingPromptConfig": "Loading prompt config...",
+  "warmup_skip": "Skip Warmup",
 
   "copyName": " (Copy)",
 

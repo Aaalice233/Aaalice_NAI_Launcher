@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -85,6 +86,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 // 进度区域
                 _buildProgressSection(theme, primaryColor, progress),
+
+                // 跳过预热按钮 (仅调试模式)
+                if (kDebugMode) ...[
+                  const SizedBox(height: 24),
+                  _buildSkipButton(theme, primaryColor),
+                ],
 
                 const SizedBox(height: 48),
               ],
@@ -238,7 +245,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Widget _buildProgressBar(ThemeData theme, Color primaryColor, double value) {
     final lighterColor = Color.lerp(primaryColor, Colors.white, 0.4)!;
-    
+
     return Container(
       height: 4,
       constraints: const BoxConstraints(maxWidth: 300),
@@ -275,6 +282,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSkipButton(ThemeData theme, Color primaryColor) {
+    return TextButton(
+      onPressed: () {
+        ref.read(warmupNotifierProvider.notifier).skip();
+      },
+      style: TextButton.styleFrom(
+        foregroundColor: theme.colorScheme.onSurface.withOpacity(0.6),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+      child: Text(context.l10n.warmup_skip),
     );
   }
 }
