@@ -48,9 +48,10 @@ class _LayerPanelState extends State<LayerPanel> {
 
   /// 调度缩略图更新（带防抖）
   /// 仅在图层内容变化时调用（不在 UI 变化如锁定/重命名时调用）
+  /// 使用 500ms 防抖以在图层切换时提供额外安全裕度
   void _scheduleThumbnailUpdate() {
     _thumbnailUpdateTimer?.cancel();
-    _thumbnailUpdateTimer = Timer(const Duration(milliseconds: 300), () {
+    _thumbnailUpdateTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         _updateThumbnails();
       }
@@ -130,77 +131,80 @@ class _LayerPanelState extends State<LayerPanel> {
               const Divider(height: 1),
 
               // 图层列表
+              // 使用 RepaintBoundary 隔离整个图层列表，防止父组件更新触发重绘
               Expanded(
-                child: layers.isEmpty
-                    ? Center(
-                        child: Text(
-                          '无图层',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                child: RepaintBoundary(
+                  child: layers.isEmpty
+                      ? Center(
+                          child: Text(
+                            '无图层',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
+                        )
+                      : ReorderableListView.builder(
+                          buildDefaultDragHandles: false,
+                          // Krita 风格：顶部图层在列表顶部
+                          itemCount: layers.length,
+                          onReorder: (oldIndex, newIndex) {
+                            // UI索引转换为实际图层索引
+                            // UI index 0 = 顶部图层 = layers[length-1]
+                            if (oldIndex < newIndex) {
+                              newIndex -= 1;
+                            }
+                            final actualOldIndex = layers.length - 1 - oldIndex;
+                            final actualNewIndex = layers.length - 1 - newIndex;
+                            state.layerManager.reorderLayer(
+                              actualOldIndex,
+                              actualNewIndex,
+                            );
+                          },
+                          itemBuilder: (context, index) {
+                            // UI index 0 = 顶部图层 = layers[length-1]
+                            final actualIndex = layers.length - 1 - index;
+                            final layer = layers[actualIndex];
+                            // 使用 layer.isActiveNotifier 单独监听活动状态
+                            // 切换活动图层时仅重建新旧活动图层的 tile（O(1)），而非所有图层（O(n)）
+                            return ValueListenableBuilder<bool>(
+                              key: ValueKey(layer.id),
+                              valueListenable: layer.isActiveNotifier,
+                              builder: (context, isActive, _) {
+                                return _LayerTile(
+                                  layer: layer,
+                                  isActive: isActive,
+                                  index: index,
+                                  showThumbnail: true,
+                                  onTap: () {
+                                    state.layerManager.setActiveLayer(layer.id);
+                                  },
+                                  onVisibilityToggle: () {
+                                    state.layerManager.toggleVisibility(layer.id);
+                                  },
+                                  onLockToggle: () {
+                                    state.layerManager.toggleLock(layer.id);
+                                  },
+                                  onDelete: layers.length > 1
+                                      ? () =>
+                                          state.layerManager.removeLayer(layer.id)
+                                      : null,
+                                  onDuplicate: () {
+                                    state.layerManager.duplicateLayer(layer.id);
+                                  },
+                                  onRename: (newName) {
+                                    state.layerManager
+                                        .renameLayer(layer.id, newName);
+                                  },
+                                  onOpacityChanged: (opacity) {
+                                    state.layerManager
+                                        .setLayerOpacity(layer.id, opacity);
+                                  },
+                                );
+                              },
+                            );
+                          },
                         ),
-                      )
-                    : ReorderableListView.builder(
-                        buildDefaultDragHandles: false,
-                        // Krita 风格：顶部图层在列表顶部
-                        itemCount: layers.length,
-                        onReorder: (oldIndex, newIndex) {
-                          // UI索引转换为实际图层索引
-                          // UI index 0 = 顶部图层 = layers[length-1]
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
-                          final actualOldIndex = layers.length - 1 - oldIndex;
-                          final actualNewIndex = layers.length - 1 - newIndex;
-                          state.layerManager.reorderLayer(
-                            actualOldIndex,
-                            actualNewIndex,
-                          );
-                        },
-                        itemBuilder: (context, index) {
-                          // UI index 0 = 顶部图层 = layers[length-1]
-                          final actualIndex = layers.length - 1 - index;
-                          final layer = layers[actualIndex];
-                          // 使用 layer.isActiveNotifier 单独监听活动状态
-                          // 切换活动图层时仅重建新旧活动图层的 tile（O(1)），而非所有图层（O(n)）
-                          return ValueListenableBuilder<bool>(
-                            key: ValueKey(layer.id),
-                            valueListenable: layer.isActiveNotifier,
-                            builder: (context, isActive, _) {
-                              return _LayerTile(
-                                layer: layer,
-                                isActive: isActive,
-                                index: index,
-                                showThumbnail: true,
-                                onTap: () {
-                                  state.layerManager.setActiveLayer(layer.id);
-                                },
-                                onVisibilityToggle: () {
-                                  state.layerManager.toggleVisibility(layer.id);
-                                },
-                                onLockToggle: () {
-                                  state.layerManager.toggleLock(layer.id);
-                                },
-                                onDelete: layers.length > 1
-                                    ? () =>
-                                        state.layerManager.removeLayer(layer.id)
-                                    : null,
-                                onDuplicate: () {
-                                  state.layerManager.duplicateLayer(layer.id);
-                                },
-                                onRename: (newName) {
-                                  state.layerManager
-                                      .renameLayer(layer.id, newName);
-                                },
-                                onOpacityChanged: (opacity) {
-                                  state.layerManager
-                                      .setLayerOpacity(layer.id, opacity);
-                                },
-                              );
-                            },
-                          );
-                        },
-                      ),
+                ),
               ),
             ],
           ),
