@@ -2440,5 +2440,13 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+
+  "localGallery_group_today": "Today",
+  "localGallery_group_yesterday": "Yesterday",
+  "localGallery_group_thisWeek": "This Week",
+  "localGallery_group_earlier": "Earlier",
+  "localGallery_group_dateFormat": "MMM dd",
+  "localGallery_jumpToDate": "Jump to Date",
+  "localGallery_noImagesOnThisDate": "No images on this date"
 }

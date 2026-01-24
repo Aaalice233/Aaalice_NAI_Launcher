@@ -2114,5 +2114,13 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+
+  "localGallery_group_today": "今天",
+  "localGallery_group_yesterday": "昨天",
+  "localGallery_group_thisWeek": "本周",
+  "localGallery_group_earlier": "更早",
+  "localGallery_group_dateFormat": "MM月dd日",
+  "localGallery_jumpToDate": "跳转到日期",
+  "localGallery_noImagesOnThisDate": "该日期没有图片"
 }
