@@ -23,6 +23,8 @@ class RetroPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFFFE6E6), // Light red for contrast
+        onPrimaryContainer: Color(0xFF5C1616), // Dark red for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: _tertiary,

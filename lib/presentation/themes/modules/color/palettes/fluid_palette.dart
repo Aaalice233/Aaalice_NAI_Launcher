@@ -22,6 +22,8 @@ class FluidPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: Color(0xFFEAB308), // Darker yellow for light mode
         onPrimary: Colors.black,
+        primaryContainer: Color(0xFFFFF8DC), // Light yellow for contrast
+        onPrimaryContainer: Color(0xFF5C4A00), // Dark yellow for text/icons
         secondary: Color(0xFF0891B2),
         onSecondary: Colors.white,
         tertiary: Color(0xFFDB2777),
@@ -35,6 +37,8 @@ class FluidPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.black,
+        primaryContainer: Color(0xFF5C4A00), // Dark yellow for contrast
+        onPrimaryContainer: Color(0xFFFFF8DC), // Light yellow for text/icons
         secondary: _secondary,
         onSecondary: Colors.black,
         tertiary: _tertiary,

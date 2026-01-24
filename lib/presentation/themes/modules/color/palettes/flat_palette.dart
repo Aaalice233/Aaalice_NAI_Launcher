@@ -22,6 +22,8 @@ class FlatPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
+        onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: _tertiary,
@@ -37,6 +39,8 @@ class FlatPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: Color(0xFF60A5FA),
         onPrimary: Color(0xFF1E3A8A),
+        primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
+        onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
         secondary: Color(0xFF34D399),
         onSecondary: Color(0xFF064E3B),
         tertiary: Color(0xFFFBBF24),

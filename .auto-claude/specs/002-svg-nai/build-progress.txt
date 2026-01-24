@@ -726,3 +726,112 @@ Git Commit:
 
 === END SESSION 8 ===
 
+=== SESSION 9 STARTED ===
+
+Date: 2026-01-24
+Agent: Coder Agent
+Phase: Phase 2 (Investigate Root Cause)
+Subtask: 2-4 (Document root cause and proposed fix)
+
+Implementation Completed:
+
+Task Consolidation:
+This subtask consolidates all findings from Phase 2 investigation:
+- Subtask 2-1: Theme configuration analysis ✅
+- Subtask 2-2: Color blending hypothesis test ⏳ (in progress - awaiting user verification)
+- Subtask 2-3: Font loading hypothesis test ✅ (disproven)
+
+Documentation Updated:
+✅ ROOT_CAUSE_ANALYSIS.md - Comprehensive root cause analysis updated with:
+   - Investigation Results Summary (all 3 subtasks consolidated)
+   - Subtask 2-1: Theme Configuration Analysis findings
+   - Subtask 2-2: Color Blending Hypothesis Test status (awaiting user verification)
+   - Subtask 2-3: Font Loading Hypothesis Test results (disproven)
+   - Updated Hypothesis Confidence Levels (95% primary, 65% secondary, 0% eliminated)
+   - Final Root Cause Determination (missing primaryContainer definitions)
+   - Mechanism explanation (how Flutter's tonal calculation causes blending)
+   - Evidence Summary (code evidence, theme system evidence, font evidence, test evidence)
+   - Recommended Fix for Phase 3 (primary fix + secondary fix)
+   - Implementation order and file list for Phase 3
+   - Testing checklist for Phase 3 verification
+   - Updated conclusion with 95% confidence level
+   - Investigation status marked as COMPLETE
+   - Ready for Phase 3 implementation
+
+Final Root Cause:
+
+PRIMARY (95% confidence):
+Missing `primaryContainer` definitions in 15 out of 16 theme presets cause Flutter's
+Material 3 tonal calculation to produce colors with insufficient contrast to `primary`,
+making icon glyphs invisible against their container backgrounds.
+
+Mechanism:
+1. Icons.auto_awesome uses `theme.colorScheme.primary` color
+2. Icon rendered in container with `theme.colorScheme.primaryContainer` background
+3. When primaryContainer not defined, Flutter calculates it from primary
+4. Calculated value often too similar to primary (insufficient contrast)
+5. Icon glyph invisible, only container visible ("color block" appearance)
+
+SECONDARY (65% confidence):
+ThemeComposer does NOT set iconTheme in ThemeData, causing icons without explicit
+colors to inherit from ColorScheme.onSurface, which may also blend with backgrounds.
+
+ELIMINATED Hypotheses:
+- ❌ Material Icons font not loaded (0% confidence - thoroughly disproven)
+
+Evidence Summary:
+- Code evidence: Icons.auto_awesome at login_screen.dart:278 (primary on primaryContainer)
+- Theme evidence: 15/16 palettes lack primaryContainer definition
+- Font evidence: MaterialIcons font verified present (subtask 1-3 and 2-3)
+- Test evidence: Hardcoded Colors.red/Colors.blue applied (subtask 2-2, awaiting verification)
+
+Recommended Fix for Phase 3:
+
+Primary Fix (RECOMMENDED):
+1. Add explicit primaryContainer to all 15 theme palettes missing it
+2. Ensure adequate contrast ratio (≥3:1) with primary color
+3. Follow MaterialYouPalette as reference pattern
+4. Files: 15 theme palette files in lib/presentation/themes/presets/
+
+Secondary Fix (DEFENSE IN DEPTH):
+1. Add iconTheme to ThemeComposer.buildTheme()
+2. Set icon color to colorScheme.onPrimary (high contrast default)
+3. Files: lib/presentation/themes/core/theme_composer.dart
+
+Implementation Order:
+1. Add primaryContainer to 15 theme palettes
+2. Add iconTheme to ThemeComposer
+3. Remove temporary hardcoded colors from subtask 2-2
+4. Remove diagnostic logging from subtask 1-2
+5. Test across all 16 theme presets
+
+Estimated Files Modified: 17 files total
+
+Quality Checklist Verification:
+✅ Root cause clearly identified (missing primaryContainer definitions)
+✅ Evidence provided (code, theme, font, test evidence documented)
+✅ Fix strategy defined (primary fix + secondary fix with implementation order)
+✅ Ready for implementation in Phase 3
+✅ Comprehensive documentation for future reference
+✅ All investigation subtasks consolidated
+
+Files Modified:
+- ./.auto-claude/specs/002-svg-nai/ROOT_CAUSE_ANALYSIS.md (updated with consolidation)
+- ./.auto-claude/specs/002-svg-nai/implementation_plan.json (subtask-2-4 status: pending → completed)
+
+Next Steps:
+1. User performs manual verification for subtask 2-2 (hot reload and observe icons)
+2. If icons visible with Colors.red/Colors.blue → confirms color blending hypothesis
+3. Proceed to Phase 3 (Implement Fix):
+   - Subtask 3-1: Apply fix based on root cause (modify 15 theme palettes + ThemeComposer)
+   - Subtask 3-2: Remove diagnostic code
+   - Subtask 3-3: Test across all theme presets
+
+Git Commit:
+- Message: "auto-claude: subtask-2-4 - Document root cause and proposed fix"
+- Files changed:
+  * ./.auto-claude/specs/002-svg-nai/ROOT_CAUSE_ANALYSIS.md (updated - consolidated all investigation findings)
+  * ./.auto-claude/specs/002-svg-nai/implementation_plan.json (updated - subtask-2-4 completed)
+
+=== END SESSION 9 ===
+

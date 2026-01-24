@@ -28,6 +28,8 @@ class SystemPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _lightPrimary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFD1E2FF), // Light iOS blue for contrast
+        onPrimaryContainer: Color(0xFF00256A), // Dark blue for text/icons
         secondary: _lightSecondary,
         onSecondary: Colors.white,
         tertiary: Color(0xFFFF9500),
@@ -44,6 +46,8 @@ class SystemPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _darkPrimary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFF2A2A5E), // Dark indigo for contrast
+        onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
         secondary: _darkSecondary,
         onSecondary: Colors.white,
         tertiary: Color(0xFF22D3EE),

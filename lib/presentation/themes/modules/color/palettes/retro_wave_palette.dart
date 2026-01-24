@@ -26,6 +26,8 @@ class RetroWavePalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFF5C3A30), // Dark orange for contrast
+        onPrimaryContainer: Color(0xFFFFCCBC), // Light orange for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: _tertiary,

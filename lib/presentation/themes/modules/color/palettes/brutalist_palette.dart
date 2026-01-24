@@ -21,6 +21,8 @@ class BrutalistPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFF9AA99A), // Light LCD green for contrast
+        onPrimaryContainer: Color(0xFF0F1F0F), // Dark green for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: Color(0xFF37474F),

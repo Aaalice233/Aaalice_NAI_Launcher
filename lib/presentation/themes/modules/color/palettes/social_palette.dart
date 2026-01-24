@@ -24,6 +24,8 @@ class SocialPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFF2C2D5F), // Dark blurple for contrast
+        onPrimaryContainer: Color(0xFFD3D6FF), // Light blurple for text/icons
         secondary: _secondary,
         onSecondary: Colors.black,
         tertiary: Color(0xFFFEE75C),

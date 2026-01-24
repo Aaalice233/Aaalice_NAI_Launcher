@@ -23,6 +23,8 @@ class EditorialPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: Color(0xFFDC4A30),
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFFFE6DE), // Light coral for contrast
+        onPrimaryContainer: Color(0xFF5C1A10), // Dark coral for text/icons
         secondary: Color(0xFF2563EB),
         onSecondary: Colors.white,
         tertiary: Color(0xFFD97706),
@@ -34,6 +36,8 @@ class EditorialPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.black,
+        primaryContainer: Color(0xFF5C2A20), // Dark coral for contrast
+        onPrimaryContainer: Color(0xFFFFE6DE), // Light coral for text/icons
         secondary: _secondary,
         onSecondary: Colors.black,
         tertiary: _tertiary,
