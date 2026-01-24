@@ -56,6 +56,12 @@ class LocalGalleryState with _$LocalGalleryState {
     double? filterMaxCfg,
     /// 分辨率过滤（格式：宽度x高度，如 "1024x1024"）
     String? filterResolution,
+    /// 是否启用分组视图
+    @Default(false) bool isGroupedView,
+    /// 分组视图的所有图片记录（用于分组显示）
+    @Default([]) List<LocalImageRecord> groupedImages,
+    /// 是否正在加载分组图片
+    @Default(false) bool isGroupedLoading,
     String? error,
   }) = _LocalGalleryState;
 
@@ -248,7 +254,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         currentPage: 0,
         isPageLoading: false,
       );
-      await loadPage(0);
+
+      if (state.isGroupedView) {
+        await _loadGroupedImages();
+      } else {
+        await loadPage(0);
+      }
       return;
     }
 
@@ -286,7 +297,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         currentPage: 0,
         isPageLoading: false,
       );
-      await loadPage(0);
+
+      if (state.isGroupedView) {
+        await _loadGroupedImages();
+      } else {
+        await loadPage(0);
+      }
       return;
     }
 
@@ -324,7 +340,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
             currentPage: 0,
             isPageLoading: false,
           );
-          await loadPage(0);
+
+          if (state.isGroupedView) {
+            await _loadGroupedImages();
+          } else {
+            await loadPage(0);
+          }
           return;
         }
       } catch (e) {
@@ -409,7 +430,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       currentPage: 0,
       isPageLoading: false,
     );
-    await loadPage(0);
+
+    // 如果启用分组视图，刷新分组图片
+    if (state.isGroupedView) {
+      await _loadGroupedImages();
+    } else {
+      await loadPage(0);
+    }
   }
 
   /// 检查记录的 Prompt 是否匹配搜索词
@@ -583,8 +610,15 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 刷新画廊
   Future<void> refresh() async {
     _recordCache.clear(); // 清除缓存
+    final wasGroupedView = state.isGroupedView;
     state = const LocalGalleryState(); // Reset
+
     await initialize();
+
+    // 如果之前是分组视图模式，恢复它
+    if (wasGroupedView) {
+      await setGroupedView(true);
+    }
   }
 
   /// 删除图片
@@ -812,5 +846,156 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 清除分辨率过滤
   Future<void> clearFilterResolution() async {
     await setFilterResolution(null);
+  }
+
+  /// 切换分组视图模式
+  Future<void> setGroupedView(bool enable) async {
+    if (state.isGroupedView == enable) return;
+
+    state = state.copyWith(isGroupedView: enable);
+
+    if (enable) {
+      // 启用分组视图：加载所有过滤后的图片
+      await _loadGroupedImages();
+    } else {
+      // 禁用分组视图：清除分组图片，加载当前页
+      state = state.copyWith(groupedImages: []);
+      await loadPage(state.currentPage);
+    }
+  }
+
+  /// 加载所有过滤后的图片（用于分组视图）
+  Future<void> _loadGroupedImages() async {
+    if (state.filteredFiles.isEmpty) {
+      state = state.copyWith(groupedImages: [], isGroupedLoading: false);
+      return;
+    }
+
+    state = state.copyWith(isGroupedLoading: true);
+
+    try {
+      // 分批加载所有图片，避免一次性加载过多
+      const batchSize = 100;
+      final allRecords = <LocalImageRecord>[];
+
+      for (var i = 0; i < state.filteredFiles.length; i += batchSize) {
+        final end = min(i + batchSize, state.filteredFiles.length);
+        final batch = state.filteredFiles.sublist(i, end);
+
+        final records = await _repository.loadRecords(batch);
+
+        // 缓存记录
+        for (final record in records) {
+          _recordCache.put(record.path, record);
+          // 索引记录到搜索索引（异步，不阻塞UI）
+          _indexRecordInBackground(record);
+        }
+
+        allRecords.addAll(records);
+      }
+
+      // 按日期排序（最新的在前）
+      allRecords.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+
+      state = state.copyWith(groupedImages: allRecords, isGroupedLoading: false);
+    } catch (e) {
+      state = state.copyWith(isGroupedLoading: false, error: e.toString());
+    }
+  }
+
+  /// 刷新分组视图（当过滤条件改变时调用）
+  Future<void> refreshGroupedView() async {
+    if (!state.isGroupedView) return;
+
+    await _loadGroupedImages();
+  }
+
+  /// 获取特定日期的图片列表
+  List<LocalImageRecord> getImagesForDate(DateTime date) {
+    if (!state.isGroupedView) return [];
+
+    final targetDate = DateTime(date.year, date.month, date.day);
+
+    return state.groupedImages.where((image) {
+      final imageDate = DateTime(
+        image.modifiedAt.year,
+        image.modifiedAt.month,
+        image.modifiedAt.day,
+      );
+      return imageDate == targetDate;
+    }).toList();
+  }
+
+  /// 获取今天的图片
+  List<LocalImageRecord> getTodayImages() {
+    if (!state.isGroupedView) return [];
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    return state.groupedImages.where((image) {
+      final imageDate = DateTime(
+        image.modifiedAt.year,
+        image.modifiedAt.month,
+        image.modifiedAt.day,
+      );
+      return imageDate == today;
+    }).toList();
+  }
+
+  /// 获取昨天的图片
+  List<LocalImageRecord> getYesterdayImages() {
+    if (!state.isGroupedView) return [];
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    return state.groupedImages.where((image) {
+      final imageDate = DateTime(
+        image.modifiedAt.year,
+        image.modifiedAt.month,
+        image.modifiedAt.day,
+      );
+      return imageDate == yesterday;
+    }).toList();
+  }
+
+  /// 获取本周的图片（不包括今天和昨天）
+  List<LocalImageRecord> getThisWeekImages() {
+    if (!state.isGroupedView) return [];
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
+
+    return state.groupedImages.where((image) {
+      final imageDate = DateTime(
+        image.modifiedAt.year,
+        image.modifiedAt.month,
+        image.modifiedAt.day,
+      );
+      return imageDate.isAfter(thisWeekStart) &&
+          imageDate.isBefore(yesterday);
+    }).toList();
+  }
+
+  /// 获取更早的图片
+  List<LocalImageRecord> getEarlierImages() {
+    if (!state.isGroupedView) return [];
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
+
+    return state.groupedImages.where((image) {
+      final imageDate = DateTime(
+        image.modifiedAt.year,
+        image.modifiedAt.month,
+        image.modifiedAt.day,
+      );
+      return imageDate.isBefore(thisWeekStart);
+    }).toList();
   }
 }
