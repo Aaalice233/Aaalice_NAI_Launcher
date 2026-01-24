@@ -1899,6 +1899,7 @@
   "tagGroupBrowser_importLibraryHint": "请先导入标签词库",
   "tagGroupBrowser_noCategories": "没有启用的标签分类",
   "tagGroupBrowser_enableCategoriesHint": "请在设置中启用标签分类",
+  "tagGroupBrowser_danbooruSuggestions": "Danbooru 建议",
 
   "tag_favoritesTitle": "收藏标签",
   "tag_favoritesEmpty": "暂无收藏标签",

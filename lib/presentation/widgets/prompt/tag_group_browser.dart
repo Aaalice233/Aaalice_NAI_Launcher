@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/tag_category.dart';
+import '../../../data/models/tag/tag_suggestion.dart';
+import '../../providers/danbooru_suggestion_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../autocomplete/autocomplete.dart';
 
@@ -45,13 +47,29 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
     _expandedCategories[TagSubCategory.hairColor] = true;
     _expandedCategories[TagSubCategory.clothing] = true;
     _expandedCategories[TagSubCategory.expression] = true;
+
+    // 监听搜索变化，触发 Danbooru 搜索
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  /// 搜索变化处理
+  void _onSearchChanged() {
+    final query = _searchController.text.trim();
+    if (query.isNotEmpty) {
+      // 触发 Danbooru 搜索
+      ref.read(danbooruSuggestionNotifierProvider.notifier).search(query);
+    } else {
+      // 清空建议
+      ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
+    }
   }
 
   /// 切换分类展开状态
@@ -85,6 +103,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
     final libraryState = ref.watch(tagLibraryNotifierProvider);
     final library = libraryState.library;
     final categoryFilter = libraryState.categoryFilterConfig;
+    final danbooruState = ref.watch(danbooruSuggestionNotifierProvider);
 
     // 如果没有词库，显示空状态
     if (library == null) {
@@ -101,10 +120,20 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       return _buildNoCategoriesEnabledState(theme);
     }
 
+    final searchQuery = _searchController.text.trim();
+    final hasSearch = searchQuery.isNotEmpty;
+    final showDanbooruSuggestions = hasSearch &&
+        danbooruState.suggestions.isNotEmpty &&
+        danbooruState.currentQuery == searchQuery;
+
     return Column(
       children: [
         // 搜索栏
         _buildSearchBar(theme),
+
+        // Danbooru 建议区域（有搜索且有结果时显示）
+        if (showDanbooruSuggestions)
+          _buildDanbooruSuggestionsSection(theme, danbooruState.suggestions),
 
         // 分类列表
         Expanded(
@@ -183,6 +212,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
                   ),
                   onPressed: () {
                     _searchController.clear();
+                    ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
                     setState(() {});
                   },
                 )
@@ -205,6 +235,126 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
         onChanged: (_) {
           setState(() {});
         },
+      ),
+    );
+  }
+
+  /// 构建 Danbooru 建议区域
+  Widget _buildDanbooruSuggestionsSection(
+    ThemeData theme,
+    List<TagSuggestion> suggestions,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withOpacity(0.1),
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.2),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题
+          Row(
+            children: [
+              Icon(
+                Icons.cloud_outlined,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                context.l10n.tagGroupBrowser_danbooruSuggestions,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${suggestions.length}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 建议列表
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: suggestions.take(10).map((suggestion) {
+              return _buildDanbooruSuggestionChip(theme, suggestion);
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建 Danbooru 建议芯片
+  Widget _buildDanbooruSuggestionChip(
+    ThemeData theme,
+    TagSuggestion suggestion,
+  ) {
+    final isSelected = _isTagSelected(suggestion.tag);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _handleTagTap(suggestion.tag),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withOpacity(0.15)
+                : theme.colorScheme.primaryContainer.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary.withOpacity(0.5)
+                  : theme.colorScheme.primary.withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                suggestion.tag,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.primary,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                ),
+              ),
+              if (suggestion.count > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    suggestion.formattedCount,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
