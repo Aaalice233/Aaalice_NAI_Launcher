@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
@@ -147,6 +148,22 @@ class _LocalImageCardState extends State<LocalImageCard> {
             Future.delayed(const Duration(milliseconds: 100), () {
               if (mounted) {
                 _openInFileManager(context);
+              }
+            });
+          },
+        ),
+        PopupMenuItem(
+          child: const Row(
+            children: [
+              Icon(Icons.share, size: 18),
+              SizedBox(width: 8),
+              Text('分享图片'),
+            ],
+          ),
+          onTap: () {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) {
+                _shareImage(context);
               }
             });
           },
@@ -447,6 +464,36 @@ class _LocalImageCardState extends State<LocalImageCard> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, '打开失败: $e');
+      }
+    }
+  }
+
+  /// 分享图片
+  Future<void> _shareImage(BuildContext context) async {
+    try {
+      final filePath = widget.record.path;
+      final file = File(filePath);
+
+      // 检查文件是否存在
+      if (!await file.exists()) {
+        if (context.mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      // 使用 Share.shareXFiles 分享文件
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: '分享图片',
+      );
+
+      if (context.mounted) {
+        AppToast.success(context, '分享成功');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '分享失败: $e');
       }
     }
   }
