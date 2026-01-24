@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/app_logger.dart';
+import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
 
@@ -480,7 +481,7 @@ class _LayerTileState extends State<_LayerTile>
             children: [
               const Icon(Icons.copy_outlined, size: 18),
               const SizedBox(width: 12),
-              const Text('复制'),
+              Text(context.l10n.layer_duplicate),
             ],
           ),
         ),
@@ -493,7 +494,7 @@ class _LayerTileState extends State<_LayerTile>
             children: [
               Icon(Icons.delete_outlined, size: 18, color: theme.colorScheme.error),
               const SizedBox(width: 12),
-              Text('删除', style: TextStyle(color: theme.colorScheme.error)),
+              Text(context.l10n.layer_delete, style: TextStyle(color: theme.colorScheme.error)),
             ],
           ),
         ),
@@ -506,7 +507,7 @@ class _LayerTileState extends State<_LayerTile>
             children: [
               const Icon(Icons.merge_type, size: 18),
               const SizedBox(width: 12),
-              const Text('向下合并'),
+              Text(context.l10n.layer_merge),
             ],
           ),
         ),
@@ -523,7 +524,7 @@ class _LayerTileState extends State<_LayerTile>
                 size: 18,
               ),
               const SizedBox(width: 12),
-              Text(widget.layer.visible ? '隐藏' : '显示'),
+              Text(widget.layer.visible ? context.l10n.layer_visibility : context.l10n.layer_visibility),
             ],
           ),
         ),
@@ -538,7 +539,7 @@ class _LayerTileState extends State<_LayerTile>
                 size: 18,
               ),
               const SizedBox(width: 12),
-              Text(widget.layer.locked ? '解锁' : '锁定'),
+              Text(widget.layer.locked ? context.l10n.layer_lock : context.l10n.layer_lock),
             ],
           ),
         ),
@@ -550,7 +551,7 @@ class _LayerTileState extends State<_LayerTile>
             children: [
               const Icon(Icons.edit_outlined, size: 18),
               const SizedBox(width: 12),
-              const Text('重命名'),
+              Text(context.l10n.layer_rename),
             ],
           ),
         ),
@@ -565,7 +566,7 @@ class _LayerTileState extends State<_LayerTile>
             children: [
               const Icon(Icons.arrow_upward, size: 18),
               const SizedBox(width: 12),
-              const Text('上移'),
+              Text(context.l10n.layer_moveUp),
             ],
           ),
         ),
@@ -578,7 +579,7 @@ class _LayerTileState extends State<_LayerTile>
             children: [
               const Icon(Icons.arrow_downward, size: 18),
               const SizedBox(width: 12),
-              const Text('下移'),
+              Text(context.l10n.layer_moveDown),
             ],
           ),
         ),
