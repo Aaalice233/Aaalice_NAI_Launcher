@@ -42,6 +42,20 @@ class LocalGalleryState with _$LocalGalleryState {
     @Default(false) bool showFavoritesOnly,
     /// 标签过滤（选中的标签列表）
     @Default([]) List<String> selectedTags,
+    /// 模型过滤
+    String? filterModel,
+    /// 采样器过滤
+    String? filterSampler,
+    /// 步数过滤：最小值
+    int? filterMinSteps,
+    /// 步数过滤：最大值
+    int? filterMaxSteps,
+    /// CFG 过滤：最小值
+    double? filterMinCfg,
+    /// CFG 过滤：最大值
+    double? filterMaxCfg,
+    /// 分辨率过滤（格式：宽度x高度，如 "1024x1024"）
+    String? filterResolution,
     String? error,
   }) = _LocalGalleryState;
 
@@ -56,7 +70,14 @@ class LocalGalleryState with _$LocalGalleryState {
       dateStart != null ||
       dateEnd != null ||
       showFavoritesOnly ||
-      selectedTags.isNotEmpty;
+      selectedTags.isNotEmpty ||
+      filterModel != null ||
+      filterSampler != null ||
+      filterMinSteps != null ||
+      filterMaxSteps != null ||
+      filterMinCfg != null ||
+      filterMaxCfg != null ||
+      filterResolution != null;
 
   /// 过滤后的图片数量
   int get filteredCount => filteredFiles.length;
@@ -182,6 +203,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       dateEnd: null,
       showFavoritesOnly: false,
       selectedTags: [],
+      filterModel: null,
+      filterSampler: null,
+      filterMinSteps: null,
+      filterMaxSteps: null,
+      filterMinCfg: null,
+      filterMaxCfg: null,
+      filterResolution: null,
       isPageLoading: true,
     );
     await _applyFilters();
@@ -194,9 +222,27 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final dateEnd = state.dateEnd;
     final showFavoritesOnly = state.showFavoritesOnly;
     final selectedTags = state.selectedTags;
+    final filterModel = state.filterModel;
+    final filterSampler = state.filterSampler;
+    final filterMinSteps = state.filterMinSteps;
+    final filterMaxSteps = state.filterMaxSteps;
+    final filterMinCfg = state.filterMinCfg;
+    final filterMaxCfg = state.filterMaxCfg;
+    final filterResolution = state.filterResolution;
 
     // 无过滤条件：直接使用全部文件
-    if (query.isEmpty && dateStart == null && dateEnd == null && !showFavoritesOnly && selectedTags.isEmpty) {
+    if (query.isEmpty &&
+        dateStart == null &&
+        dateEnd == null &&
+        !showFavoritesOnly &&
+        selectedTags.isEmpty &&
+        filterModel == null &&
+        filterSampler == null &&
+        filterMinSteps == null &&
+        filterMaxSteps == null &&
+        filterMinCfg == null &&
+        filterMaxCfg == null &&
+        filterResolution == null) {
       state = state.copyWith(
         filteredFiles: state.allFiles,
         currentPage: 0,
@@ -226,10 +272,17 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }).toList();
     }
 
-    // 如果只需要收藏或标签过滤，直接应用
+    // 如果只需要收藏、标签或元数据过滤，直接应用
     if (query.isEmpty && !showFavoritesOnly && selectedTags.isEmpty) {
+      var filtered = dateFiltered;
+
+      // 应用元数据过滤
+      if (_hasMetadataFilters) {
+        filtered = _applyMetadataFilter(filtered);
+      }
+
       state = state.copyWith(
-        filteredFiles: dateFiltered,
+        filteredFiles: filtered,
         currentPage: 0,
         isPageLoading: false,
       );
@@ -259,6 +312,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           // 如果需要标签过滤，再应用标签过滤
           if (selectedTags.isNotEmpty) {
             filtered = _applyTagFilter(filtered);
+          }
+
+          // 如果需要元数据过滤，再应用元数据过滤
+          if (_hasMetadataFilters) {
+            filtered = _applyMetadataFilter(filtered);
           }
 
           state = state.copyWith(
@@ -341,6 +399,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       filtered = _applyTagFilter(filtered);
     }
 
+    // 如果需要元数据过滤，应用元数据过滤
+    if (_hasMetadataFilters) {
+      filtered = _applyMetadataFilter(filtered);
+    }
+
     state = state.copyWith(
       filteredFiles: filtered,
       currentPage: 0,
@@ -381,6 +444,92 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return selectedTags.every((selectedTag) => tags.contains(selectedTag));
     }).toList();
   }
+
+  /// 应用元数据过滤（模型、采样器、步数、CFG、分辨率）
+  List<File> _applyMetadataFilter(List<File> files) {
+    final filterModel = state.filterModel;
+    final filterSampler = state.filterSampler;
+    final filterMinSteps = state.filterMinSteps;
+    final filterMaxSteps = state.filterMaxSteps;
+    final filterMinCfg = state.filterMinCfg;
+    final filterMaxCfg = state.filterMaxCfg;
+    final filterResolution = state.filterResolution;
+
+    // 如果没有元数据过滤条件，直接返回
+    if (filterModel == null &&
+        filterSampler == null &&
+        filterMinSteps == null &&
+        filterMaxSteps == null &&
+        filterMinCfg == null &&
+        filterMaxCfg == null &&
+        filterResolution == null) {
+      return files;
+    }
+
+    return files.where((file) {
+      final cached = _recordCache.get(file.path);
+      if (cached == null || cached.metadata == null) {
+        return false; // 没有元数据的文件不匹配
+      }
+
+      final metadata = cached.metadata!;
+
+      // 检查模型
+      if (filterModel != null && metadata.model != filterModel) {
+        return false;
+      }
+
+      // 检查采样器
+      if (filterSampler != null && metadata.sampler != filterSampler) {
+        return false;
+      }
+
+      // 检查步数范围
+      if (filterMinSteps != null || filterMaxSteps != null) {
+        final steps = metadata.steps;
+        if (steps == null) return false;
+        if (filterMinSteps != null && steps < filterMinSteps) return false;
+        if (filterMaxSteps != null && steps > filterMaxSteps) return false;
+      }
+
+      // 检查 CFG 范围
+      if (filterMinCfg != null || filterMaxCfg != null) {
+        final cfg = metadata.scale;
+        if (cfg == null) return false;
+        if (filterMinCfg != null && cfg < filterMinCfg) return false;
+        if (filterMaxCfg != null && cfg > filterMaxCfg) return false;
+      }
+
+      // 检查分辨率
+      if (filterResolution != null) {
+        final width = metadata.width;
+        final height = metadata.height;
+        if (width == null || height == null) return false;
+
+        // 解析分辨率字符串（格式：宽度x高度，如 "1024x1024"）
+        final parts = filterResolution.toLowerCase().split('x');
+        if (parts.length != 2) return false;
+
+        final filterWidth = int.tryParse(parts[0]);
+        final filterHeight = int.tryParse(parts[1]);
+        if (filterWidth == null || filterHeight == null) return false;
+
+        if (width != filterWidth || height != filterHeight) return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// 检查是否有元数据过滤条件
+  bool get _hasMetadataFilters =>
+      state.filterModel != null ||
+      state.filterSampler != null ||
+      state.filterMinSteps != null ||
+      state.filterMaxSteps != null ||
+      state.filterMinCfg != null ||
+      state.filterMaxCfg != null ||
+      state.filterResolution != null;
 
   /// 刷新画廊
   Future<void> refresh() async {
@@ -559,5 +708,60 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 清除标签过滤
   Future<void> clearTagFilter() async {
     await setSelectedTags([]);
+  }
+
+  /// 设置模型过滤
+  Future<void> setFilterModel(String? model) async {
+    if (state.filterModel == model) return;
+
+    state = state.copyWith(filterModel: model, isPageLoading: true);
+    await _applyFilters();
+  }
+
+  /// 设置采样器过滤
+  Future<void> setFilterSampler(String? sampler) async {
+    if (state.filterSampler == sampler) return;
+
+    state = state.copyWith(filterSampler: sampler, isPageLoading: true);
+    await _applyFilters();
+  }
+
+  /// 设置步数过滤范围
+  Future<void> setFilterSteps(int? min, int? max) async {
+    if (state.filterMinSteps == min && state.filterMaxSteps == max) return;
+
+    state = state.copyWith(filterMinSteps: min, filterMaxSteps: max, isPageLoading: true);
+    await _applyFilters();
+  }
+
+  /// 清除步数过滤
+  Future<void> clearFilterSteps() async {
+    await setFilterSteps(null, null);
+  }
+
+  /// 设置 CFG 过滤范围
+  Future<void> setFilterCfg(double? min, double? max) async {
+    if (state.filterMinCfg == min && state.filterMaxCfg == max) return;
+
+    state = state.copyWith(filterMinCfg: min, filterMaxCfg: max, isPageLoading: true);
+    await _applyFilters();
+  }
+
+  /// 清除 CFG 过滤
+  Future<void> clearFilterCfg() async {
+    await setFilterCfg(null, null);
+  }
+
+  /// 设置分辨率过滤
+  Future<void> setFilterResolution(String? resolution) async {
+    if (state.filterResolution == resolution) return;
+
+    state = state.copyWith(filterResolution: resolution, isPageLoading: true);
+    await _applyFilters();
+  }
+
+  /// 清除分辨率过滤
+  Future<void> clearFilterResolution() async {
+    await setFilterResolution(null);
   }
 }
