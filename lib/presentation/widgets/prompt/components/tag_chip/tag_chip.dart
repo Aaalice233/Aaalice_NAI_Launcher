@@ -9,7 +9,9 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
+import '../../../../../data/models/prompt/tag_favorite.dart';
 import '../../../../../data/services/tag_translation_service.dart';
+import '../../../../providers/tag_favorite_provider.dart';
 import '../../core/prompt_tag_colors.dart';
 import '../../core/prompt_tag_config.dart';
 import '../tag_action_menu/bottom_action_sheet.dart';
@@ -129,6 +131,17 @@ class _TagChipState extends ConsumerState<TagChip>
     super.dispose();
   }
 
+  /// 切换收藏状态
+  void _toggleFavorite() {
+    final notifier = ref.read(tagFavoriteNotifierProvider.notifier);
+    notifier.toggleFavorite(widget.tag);
+  }
+
+  /// 检查标签是否已收藏
+  bool _isFavorite(List<TagFavorite> favorites) {
+    return favorites.any((f) => f.tag.text == widget.tag.text);
+  }
+
   void _fetchTranslation() {
     if (widget.tag.translation != null) {
       _translation = widget.tag.translation;
@@ -193,6 +206,8 @@ class _TagChipState extends ConsumerState<TagChip>
         Clipboard.setData(ClipboardData(text: widget.tag.toSyntaxString()));
         AppToast.success(context, context.l10n.tag_copiedToClipboard);
       },
+      onToggleFavorite: _toggleFavorite,
+      isFavorite: _isFavorite(ref.watch(tagFavoriteNotifierProvider).favorites),
     );
   }
 
@@ -281,6 +296,7 @@ class _TagChipState extends ConsumerState<TagChip>
     final tagColor = PromptTagColors.getByCategory(widget.tag.category);
     final isEnabled = widget.tag.enabled;
     final isSelected = widget.tag.selected;
+    final favorites = ref.watch(tagFavoriteNotifierProvider).favorites;
 
     // 检测特殊标签类型颜色
     final specialColor = PromptTagColors.getSpecialTypeColor(widget.tag.text);
@@ -353,6 +369,13 @@ class _TagChipState extends ConsumerState<TagChip>
               decoration: isEnabled ? null : TextDecoration.lineThrough,
             ),
           ),
+          // 收藏按钮（常驻显示，在标签内部）
+          if (!widget.compact)
+            _FavoriteButton(
+              isFavorite: _isFavorite(favorites),
+              onTap: _toggleFavorite,
+              theme: theme,
+            ),
           // 删除按钮（常驻显示，在标签内部）
           if (widget.onDelete != null && !widget.compact)
             _DeleteButton(
@@ -565,7 +588,7 @@ class _DeleteButtonState extends State<_DeleteButton> {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              color: _isHovering 
+              color: _isHovering
                   ? widget.theme.colorScheme.error.withOpacity(0.15)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
@@ -576,6 +599,64 @@ class _DeleteButtonState extends State<_DeleteButton> {
               color: _isHovering
                   ? widget.theme.colorScheme.error
                   : widget.theme.colorScheme.onSurface.withOpacity(0.4),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 带 hover 效果的收藏按钮
+class _FavoriteButton extends StatefulWidget {
+  final bool isFavorite;
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  const _FavoriteButton({
+    required this.isFavorite,
+    required this.onTap,
+    required this.theme,
+  });
+
+  @override
+  State<_FavoriteButton> createState() => _FavoriteButtonState();
+}
+
+class _FavoriteButtonState extends State<_FavoriteButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.only(left: 4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _isHovering
+                  ? (widget.isFavorite
+                      ? Colors.red.withOpacity(0.15)
+                      : widget.theme.colorScheme.primary.withOpacity(0.15))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(
+              widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+              size: 12,
+              color: widget.isFavorite
+                  ? (_isHovering
+                      ? Colors.red.shade400
+                      : Colors.red.shade300)
+                  : (_isHovering
+                      ? widget.theme.colorScheme.primary
+                      : widget.theme.colorScheme.onSurface.withOpacity(0.4)),
             ),
           ),
         ),
