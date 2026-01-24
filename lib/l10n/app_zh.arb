@@ -1962,5 +1962,10 @@
     "placeholders": {
       "name": {}
     }
-  }
+  },
+
+  "tag_tabTags": "标签",
+  "tag_tabGroups": "分组",
+  "tag_tabFavorites": "收藏",
+  "tag_tabTemplates": "模板"
 }
