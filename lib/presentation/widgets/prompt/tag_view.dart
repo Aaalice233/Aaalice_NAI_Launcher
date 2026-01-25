@@ -738,8 +738,8 @@ class _TagViewState extends ConsumerState<TagView>
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: TagSpacing.horizontal,
+          runSpacing: TagSpacing.vertical,
           children: [
             // 现有标签
             for (var i = 0; i < widget.tags.length; i++)
