@@ -605,32 +605,112 @@ class _TagViewState extends ConsumerState<TagView>
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.auto_awesome_outlined,
-              size: 32,
-              color: theme.colorScheme.primary.withOpacity(0.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              widget.emptyHint ?? context.l10n.tag_emptyHint,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 插画图标容器
+                    _buildEmptyStateIllustration(theme, value),
+                    const SizedBox(height: 24),
+
+                    // 主提示文本
+                    Text(
+                      widget.emptyHint ?? context.l10n.tag_emptyHint,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // 次要提示文本
+                    Text(
+                      context.l10n.tag_emptyHintSub,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+
+                    // 添加按钮
+                    if (widget.showAddButton && !widget.readOnly) ...[
+                      const SizedBox(height: 24),
+                      _buildAddTagButton(theme),
+                    ],
+                  ],
+                ),
               ),
             ),
-            if (widget.showAddButton && !widget.readOnly) ...[
-              const SizedBox(height: 16),
-              _buildAddTagButton(theme),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyStateIllustration(ThemeData theme, double animValue) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 0.8,
+                colors: [
+                  theme.colorScheme.primary.withOpacity(0.15),
+                  theme.colorScheme.primary.withOpacity(0.05),
+                  theme.colorScheme.primary.withOpacity(0.02),
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 1000),
+                curve: Curves.easeOutBack,
+                builder: (context, iconValue, child) {
+                  return Transform.rotate(
+                    angle: (1 - iconValue) * 0.3,
+                    child: Opacity(
+                      opacity: iconValue,
+                      child: Icon(
+                        Icons.label_outline_rounded,
+                        size: 56,
+                        color: theme.colorScheme.primary.withOpacity(0.6),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

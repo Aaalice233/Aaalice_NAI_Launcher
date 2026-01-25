@@ -694,6 +694,7 @@
   "tag_inputHint": "输入标签...",
   "tag_copiedToClipboard": "已复制到剪贴板",
   "tag_emptyHint": "添加标签来描述你想要的画面",
+  "tag_emptyHintSub": "你可以浏览、搜索或手动添加标签",
 
   "tagCategory_artist": "艺术家",
   "tagCategory_copyright": "版权",
