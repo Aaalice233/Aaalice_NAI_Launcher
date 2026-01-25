@@ -313,6 +313,205 @@ class _TagChipState extends ConsumerState<TagChip>
     }
   }
 
+  /// 构建带语法高亮的文本组件
+  Widget _buildSyntaxHighlightedText(ThemeData theme, Color effectiveColor, bool isEnabled) {
+    final displayText = _displayText;
+    final name = widget.tag.displayName;
+    final weight = _currentWeight;
+    final syntaxType = widget.tag.syntaxType;
+
+    // 权重为 1.0 时，直接显示名称（无语法高亮）
+    if ((weight - 1.0).abs() < 0.001) {
+      return Text(
+        displayText,
+        style: TextStyle(
+          fontSize: widget.compact
+              ? TagChipSizes.compactFontSize
+              : TagChipSizes.normalFontSize,
+          fontWeight: FontWeight.w500,
+          height: 1.2,
+          color: isEnabled
+              ? theme.colorScheme.onSurface.withOpacity(0.9)
+              : theme.colorScheme.onSurface.withOpacity(0.35),
+          decoration: isEnabled ? null : TextDecoration.lineThrough,
+        ),
+      );
+    }
+
+    // 构建文本片段列表
+    final List<TextSpan> spans = [];
+
+    switch (syntaxType) {
+      case WeightSyntaxType.numeric:
+        // 数值语法: weight::name::
+        final weightStr = weight == weight.truncateToDouble()
+            ? weight.toInt().toString()
+            : weight
+                .toStringAsFixed(2)
+                .replaceAll(RegExp(r'0+$'), '')
+                .replaceAll(RegExp(r'\.$'), '');
+
+        // 权重数字（等宽字体）
+        spans.add(TextSpan(
+          text: weightStr,
+          style: TextStyle(
+            fontSize: widget.compact
+                ? TagChipSizes.compactFontSize
+                : TagChipSizes.normalFontSize,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            fontFamily: 'monospace',
+            color: isEnabled
+                ? effectiveColor.withOpacity(0.9)
+                : theme.colorScheme.onSurface.withOpacity(0.35),
+            decoration: isEnabled ? null : TextDecoration.lineThrough,
+          ),
+        ));
+
+        // 双冒号（括号颜色）
+        spans.add(TextSpan(
+          text: '::',
+          style: TextStyle(
+            fontSize: widget.compact
+                ? TagChipSizes.compactFontSize
+                : TagChipSizes.normalFontSize,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            color: isEnabled
+                ? effectiveColor.withOpacity(0.6)
+                : theme.colorScheme.onSurface.withOpacity(0.2),
+            decoration: isEnabled ? null : TextDecoration.lineThrough,
+          ),
+        ));
+
+        // 标签名称
+        spans.add(TextSpan(
+          text: name,
+          style: TextStyle(
+            fontSize: widget.compact
+                ? TagChipSizes.compactFontSize
+                : TagChipSizes.normalFontSize,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            color: isEnabled
+                ? theme.colorScheme.onSurface.withOpacity(0.9)
+                : theme.colorScheme.onSurface.withOpacity(0.35),
+            decoration: isEnabled ? null : TextDecoration.lineThrough,
+          ),
+        ));
+
+        // 结尾双冒号（括号颜色）
+        spans.add(TextSpan(
+          text: '::',
+          style: TextStyle(
+            fontSize: widget.compact
+                ? TagChipSizes.compactFontSize
+                : TagChipSizes.normalFontSize,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            color: isEnabled
+                ? effectiveColor.withOpacity(0.6)
+                : theme.colorScheme.onSurface.withOpacity(0.2),
+            decoration: isEnabled ? null : TextDecoration.lineThrough,
+          ),
+        ));
+        break;
+
+      case WeightSyntaxType.bracket:
+      case WeightSyntaxType.none:
+        // 括号语法: {{{name}}} 或 [[[name]]]
+        final layers = widget.tag.bracketLayers;
+        if (layers > 0) {
+          // 开括号
+          spans.add(TextSpan(
+            text: '{' * layers,
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.6)
+                  : theme.colorScheme.onSurface.withOpacity(0.2),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
+          ));
+        } else if (layers < 0) {
+          // 开括号
+          spans.add(TextSpan(
+            text: '[' * (-layers),
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.6)
+                  : theme.colorScheme.onSurface.withOpacity(0.2),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
+          ));
+        }
+
+        // 标签名称
+        spans.add(TextSpan(
+          text: name,
+          style: TextStyle(
+            fontSize: widget.compact
+                ? TagChipSizes.compactFontSize
+                : TagChipSizes.normalFontSize,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            color: isEnabled
+                ? theme.colorScheme.onSurface.withOpacity(0.9)
+                : theme.colorScheme.onSurface.withOpacity(0.35),
+            decoration: isEnabled ? null : TextDecoration.lineThrough,
+          ),
+        ));
+
+        if (layers > 0) {
+          // 闭括号
+          spans.add(TextSpan(
+            text: '}' * layers,
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.6)
+                  : theme.colorScheme.onSurface.withOpacity(0.2),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
+          ));
+        } else if (layers < 0) {
+          // 闭括号
+          spans.add(TextSpan(
+            text: ']' * (-layers),
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.6)
+                  : theme.colorScheme.onSurface.withOpacity(0.2),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
+          ));
+        }
+        break;
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 如果处于编辑模式，显示编辑组件
@@ -447,20 +646,7 @@ class _TagChipState extends ConsumerState<TagChip>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            _displayText,
-            style: TextStyle(
-              fontSize: widget.compact
-                  ? TagChipSizes.compactFontSize
-                  : TagChipSizes.normalFontSize,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
-              color: isEnabled
-                  ? theme.colorScheme.onSurface.withOpacity(0.9)
-                  : theme.colorScheme.onSurface.withOpacity(0.35),
-              decoration: isEnabled ? null : TextDecoration.lineThrough,
-            ),
-          ),
+          _buildSyntaxHighlightedText(theme, effectiveColor, isEnabled),
           // 收藏按钮（常驻显示，在标签内部）
           if (!widget.compact)
             _FavoriteButton(
@@ -532,9 +718,10 @@ class _TagChipState extends ConsumerState<TagChip>
                 style: TextStyle(
                   fontSize: TagChipSizes.normalTranslationFontSize,
                   height: 1.2,
+                  fontStyle: FontStyle.italic,
                   color: isEnabled
-                      ? theme.colorScheme.onSurface.withOpacity(0.5)
-                      : theme.colorScheme.onSurface.withOpacity(0.25),
+                      ? theme.colorScheme.onSurface.withOpacity(0.4)
+                      : theme.colorScheme.onSurface.withOpacity(0.2),
                 ),
               ),
             ),
@@ -704,8 +891,36 @@ class _DeleteButton extends StatefulWidget {
   State<_DeleteButton> createState() => _DeleteButtonState();
 }
 
-class _DeleteButtonState extends State<_DeleteButton> {
+class _DeleteButtonState extends State<_DeleteButton>
+    with SingleTickerProviderStateMixin {
   bool _isHovering = false;
+  late AnimationController _shrinkController;
+  late Animation<double> _shrinkAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shrinkController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _shrinkAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _shrinkController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _shrinkController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _shrinkController.forward().then((_) {
+      widget.onTap();
+      _shrinkController.reset();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -713,28 +928,39 @@ class _DeleteButtonState extends State<_DeleteButton> {
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: _handleTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           padding: const EdgeInsets.only(left: 6),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: _isHovering
-                  ? widget.theme.colorScheme.error.withOpacity(0.15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(
-              Icons.close,
-              size: 12,
-              color: _isHovering
-                  ? widget.theme.colorScheme.error
-                  : widget.theme.colorScheme.onSurface.withOpacity(0.4),
-            ),
+          child: AnimatedBuilder(
+            animation: _shrinkAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _shrinkAnimation.value,
+                child: Opacity(
+                  opacity: _shrinkAnimation.value,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: _isHovering
+                          ? widget.theme.colorScheme.error.withOpacity(0.15)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      size: 12,
+                      color: _isHovering
+                          ? widget.theme.colorScheme.error
+                          : widget.theme.colorScheme.onSurface.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -758,8 +984,34 @@ class _FavoriteButton extends StatefulWidget {
   State<_FavoriteButton> createState() => _FavoriteButtonState();
 }
 
-class _FavoriteButtonState extends State<_FavoriteButton> {
+class _FavoriteButtonState extends State<_FavoriteButton>
+    with SingleTickerProviderStateMixin {
   bool _isHovering = false;
+  late AnimationController _jumpController;
+  late Animation<double> _jumpAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _jumpController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _jumpAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _jumpController, curve: Curves.elasticOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _jumpController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _jumpController.forward(from: 0);
+    widget.onTap();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -767,34 +1019,42 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: _handleTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           padding: const EdgeInsets.only(left: 4),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: _isHovering
-                  ? (widget.isFavorite
-                      ? Colors.red.withOpacity(0.15)
-                      : widget.theme.colorScheme.primary.withOpacity(0.15))
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(
-              widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-              size: 12,
-              color: widget.isFavorite
-                  ? (_isHovering
-                      ? Colors.red.shade400
-                      : Colors.red.shade300)
-                  : (_isHovering
-                      ? widget.theme.colorScheme.primary
-                      : widget.theme.colorScheme.onSurface.withOpacity(0.4)),
-            ),
+          child: AnimatedBuilder(
+            animation: _jumpAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _jumpAnimation.value,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: _isHovering
+                        ? (widget.isFavorite
+                            ? Colors.red.withOpacity(0.15)
+                            : widget.theme.colorScheme.primary.withOpacity(0.15))
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    size: 12,
+                    color: widget.isFavorite
+                        ? (_isHovering
+                            ? Colors.red.shade400
+                            : Colors.red.shade300)
+                        : (_isHovering
+                            ? widget.theme.colorScheme.primary
+                            : widget.theme.colorScheme.onSurface.withOpacity(0.4)),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
