@@ -523,16 +523,13 @@ class _TagChipState extends ConsumerState<TagChip>
   }
 
   Widget _buildEditMode() {
-    final tagColor = PromptTagColors.getByCategory(widget.tag.category);
-
     return TagChipEditMode(
       initialText: widget.tag.text,
       onTextChanged: _handleTextChanged,
       onEditComplete: _exitEditMode,
       onEditCancel: _exitEditMode,
       compact: widget.compact,
-      backgroundColor: tagColor.withOpacity(0.12),
-      borderColor: tagColor,
+      category: widget.tag.category,
     );
   }
 
