@@ -2142,5 +2142,16 @@
     "placeholders": {
       "date": {}
     }
-  }
+  },
+
+  "brushPreset_selectHint": "双击选择此笔刷预设",
+  "brushPreset_selected": "已选择",
+  "brushPreset_pencil": "铅笔",
+  "brushPreset_fine": "细笔",
+  "brushPreset_standard": "标准笔刷",
+  "brushPreset_soft": "软笔刷",
+  "brushPreset_airbrush": "喷枪",
+  "brushPreset_marker": "马克笔",
+  "brushPreset_thick": "粗笔刷",
+  "brushPreset_smudge": "涂抹笔"
 }
