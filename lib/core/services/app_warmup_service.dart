@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../utils/app_logger.dart';
+import '../../data/models/warmup/warmup_metrics.dart';
 
 /// 预加载任务
 class WarmupTask {
@@ -34,11 +35,15 @@ class WarmupProgress {
   /// 错误信息
   final String? error;
 
+  /// 任务指标列表
+  final List<WarmupTaskMetrics>? metrics;
+
   const WarmupProgress({
     required this.progress,
     required this.currentTask,
     this.isComplete = false,
     this.error,
+    this.metrics,
   });
 
   factory WarmupProgress.initial() => const WarmupProgress(
@@ -46,10 +51,12 @@ class WarmupProgress {
         currentTask: 'warmup_preparing',
       );
 
-  factory WarmupProgress.complete() => const WarmupProgress(
+  factory WarmupProgress.complete({List<WarmupTaskMetrics>? metrics}) =>
+      WarmupProgress(
         progress: 1.0,
         currentTask: 'warmup_complete',
         isComplete: true,
+        metrics: metrics,
       );
 
   factory WarmupProgress.error(String message) => WarmupProgress(
@@ -62,6 +69,13 @@ class WarmupProgress {
 /// 应用预加载服务
 /// 管理预加载任务的注册和执行
 class AppWarmupService {
+  /// 任务超时时间
+  static const _taskTimeout = Duration(seconds: 5);
+
+  /// 网络任务超时时间
+  // ignore: unused_field
+  static const _networkTimeout = Duration(seconds: 2);
+
   final List<WarmupTask> _tasks = [];
 
   /// 注册预加载任务
@@ -92,6 +106,7 @@ class AppWarmupService {
 
     final totalWeight = _totalWeight;
     int completedWeight = 0;
+    final List<WarmupTaskMetrics> metrics = [];
 
     yield WarmupProgress.initial();
 
@@ -102,13 +117,38 @@ class AppWarmupService {
         currentTask: task.name,
       );
 
+      // 创建计时器
+      final stopwatch = Stopwatch()..start();
+
       try {
         // 执行任务
-        await task.task();
+        await task.task().timeout(_taskTimeout);
+
+        stopwatch.stop();
+
+        // 记录成功的任务指标
+        metrics.add(
+          WarmupTaskMetrics.create(
+            taskName: task.name,
+            durationMs: stopwatch.elapsedMilliseconds,
+            status: WarmupTaskStatus.success,
+          ),
+        );
       } catch (e) {
-        // 任务失败时继续执行其他任务，但记录错误
-        // 可以根据需求改为失败时停止
+        stopwatch.stop();
+
+        // 任务失败时继续执行其他任务，但记录错误和指标
         AppLogger.w('Warmup task "${task.name}" failed: $e', 'AppWarmup');
+
+        // 记录失败的任务指标
+        metrics.add(
+          WarmupTaskMetrics.create(
+            taskName: task.name,
+            durationMs: stopwatch.elapsedMilliseconds,
+            status: WarmupTaskStatus.failed,
+            errorMessage: e.toString(),
+          ),
+        );
       }
 
       // 更新完成权重
@@ -121,8 +161,8 @@ class AppWarmupService {
       );
     }
 
-    // 完成
-    yield WarmupProgress.complete();
+    // 完成，传递指标
+    yield WarmupProgress.complete(metrics: metrics);
   }
 
   /// 同步执行所有预加载任务（不返回进度）

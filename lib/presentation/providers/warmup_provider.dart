@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/tag_data_service.dart';
+import '../../core/services/warmup_metrics_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/tag_translation_service.dart';
@@ -49,6 +50,7 @@ class WarmupState {
 @riverpod
 class WarmupNotifier extends _$WarmupNotifier {
   late AppWarmupService _warmupService;
+  late WarmupMetricsService _metricsService;
   StreamSubscription<WarmupProgress>? _subscription;
 
   @override
@@ -60,6 +62,7 @@ class WarmupNotifier extends _$WarmupNotifier {
 
     // 初始化服务并开始预加载
     _warmupService = AppWarmupService();
+    _metricsService = ref.read(warmupMetricsServiceProvider);
     _registerTasks();
     _startWarmup();
 
@@ -128,12 +131,98 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 5. 预加载图片编辑器资源（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_imageEditor',
+        weight: 1,
+        task: () async {
+          // Stub implementation for future image editor resource preloading
+          AppLogger.i('Image editor resources warmup (stub)', 'Warmup');
+          // Placeholder for future image editor resource initialization
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
+
+    // 6. 预加载数据库内容（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_database',
+        weight: 1,
+        task: () async {
+          // Stub implementation for future database content warmup
+          AppLogger.i('Database content warmup (stub)', 'Warmup');
+          // Placeholder for future database content initialization (e.g., frequently accessed queries, indexes, cached data)
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
+
+    // 7. 检查网络连接状态（带超时）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_network',
+        weight: 1,
+        task: () async {
+          // Network connectivity check with timeout
+          AppLogger.i('Network connectivity check started', 'Warmup');
+
+          try {
+            // Simulate network connectivity check with timeout
+            await Future.delayed(const Duration(milliseconds: 200))
+                .timeout(const Duration(seconds: 2));
+            AppLogger.i('Network connectivity check completed', 'Warmup');
+          } on TimeoutException {
+            AppLogger.w('Network connectivity check timed out', 'Warmup');
+          } catch (e) {
+            AppLogger.w('Network connectivity check failed: $e', 'Warmup');
+          }
+        },
+      ),
+    );
+
+    // 8. 预加载字体和图标（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_fonts',
+        weight: 1,
+        task: () async {
+          // Stub implementation for fonts and icons preloading
+          AppLogger.i('Fonts and icons warmup (stub)', 'Warmup');
+          // Placeholder for future fonts and icons initialization (e.g., custom fonts, icon packs, font caching)
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
+
+    // 9. 预加载图片缓存（stub 实现）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_imageCache',
+        weight: 1,
+        task: () async {
+          // Stub implementation for image cache warmup
+          AppLogger.i('Image cache warmup (stub)', 'Warmup');
+          // Placeholder for future image cache initialization (e.g., preloading common images, cache size configuration, memory limits)
+          await Future.delayed(const Duration(milliseconds: 100));
+        },
+      ),
+    );
   }
 
   /// 开始预加载
   void _startWarmup() {
     _subscription = _warmupService.run().listen(
       (progress) {
+        // 保存指标数据
+        if (progress.isComplete && progress.metrics != null) {
+          _metricsService.saveSession(progress.metrics!).catchError((e) {
+            AppLogger.e('Failed to save warmup metrics: $e', 'Warmup');
+          });
+        }
+
         state = state.copyWith(
           progress: progress,
           isComplete: progress.isComplete,

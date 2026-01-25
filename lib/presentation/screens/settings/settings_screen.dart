@@ -17,6 +17,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
+import 'performance_report_screen.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerWidget {
@@ -560,6 +561,18 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.speed_outlined),
+          title: Text(context.l10n.settings_startupPerformance),
+          subtitle: Text(context.l10n.settings_startupPerformanceSubtitle),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PerformanceReportScreen()),
+            );
+          },
         ),
       ],
     );

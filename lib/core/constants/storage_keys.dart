@@ -17,6 +17,7 @@ class StorageKeys {
   static const String tagCacheBox = 'tag_cache';
   static const String galleryBox = 'gallery';
   static const String localMetadataCacheBox = 'local_metadata_cache';
+  static const String warmupMetricsBox = 'warmup_metrics';
   static const String tagFavoritesBox = 'tag_favorites';
   static const String tagTemplatesBox = 'tag_templates';
 
