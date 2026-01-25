@@ -103,7 +103,7 @@ class _TagChipState extends ConsumerState<TagChip>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
     );
   }
@@ -346,7 +346,7 @@ class _TagChipState extends ConsumerState<TagChip>
         : null;
 
     // 标签芯片（包含文本和删除按钮）
-    final tagChip = Container(
+    final tagChipContent = Container(
       padding: EdgeInsets.only(
         left: widget.compact
             ? TagChipSizes.compactHorizontalPadding
@@ -428,6 +428,22 @@ class _TagChipState extends ConsumerState<TagChip>
             ),
         ],
       ),
+    );
+
+    // Apply brightness overlay on hover
+    final tagChip = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      foregroundDecoration: BoxDecoration(
+        color: _isHovering && !TagChip.isMobile
+            ? Colors.white.withOpacity(0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(
+          widget.compact
+              ? TagChipSizes.compactBorderRadius
+              : TagChipSizes.normalBorderRadius,
+        ),
+      ),
+      child: tagChipContent,
     );
 
     Widget chipContent = AnimatedBuilder(
