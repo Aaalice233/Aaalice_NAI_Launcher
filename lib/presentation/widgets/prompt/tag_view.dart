@@ -12,6 +12,8 @@ import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
+import 'components/tag_chip/tag_chip_animations.dart';
+import 'core/prompt_tag_config.dart';
 
 /// 重构后的提示词标签视图组件
 /// 支持框选、拖拽排序、批量操作、内联编辑等
@@ -60,6 +62,8 @@ class TagView extends ConsumerStatefulWidget {
   ConsumerState<TagView> createState() => _TagViewState();
 }
 
+class _TagViewState extends ConsumerState<TagView>
+    with TickerProviderStateMixin {
   bool _isAddingTag = false;
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocusNode = FocusNode();
@@ -70,12 +74,26 @@ class TagView extends ConsumerStatefulWidget {
   final List<GlobalKey> _tagKeys = [];
   final BoxSelectionController _selectionController = BoxSelectionController();
 
+  // 动画控制器
+  late AnimationController _entranceController;
+  late AnimationController _shimmerController;
+
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
   @override
   void initState() {
     super.initState();
     _updateTagKeys();
+    _entranceController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _entranceController.forward();
+    _shimmerController.repeat();
   }
 
   @override
@@ -97,6 +115,8 @@ class TagView extends ConsumerStatefulWidget {
 
   @override
   void dispose() {
+    _entranceController.dispose();
+    _shimmerController.dispose();
     _addTagController.dispose();
     _addTagFocusNode.dispose();
     _selectionController.dispose();
