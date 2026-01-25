@@ -171,18 +171,32 @@ class RandomPromptGenerator {
     if (characterCount == 0) {
       // 无人物场景
       return _generateNoHumanPrompt(
-          library, random, seed, categoryFilterConfig,);
+        library,
+        random,
+        seed,
+        categoryFilterConfig,
+      );
     }
 
     if (!isV4Model) {
       // 传统模式：生成合并的单提示词
       return _generateLegacyPrompt(
-          library, random, characterCount, seed, categoryFilterConfig,);
+        library,
+        random,
+        characterCount,
+        seed,
+        categoryFilterConfig,
+      );
     }
 
     // V4+ 模式：生成主提示词 + 角色提示词
     return _generateMultiCharacterPrompt(
-        library, random, characterCount, seed, categoryFilterConfig,);
+      library,
+      random,
+      characterCount,
+      seed,
+      categoryFilterConfig,
+    );
   }
 
   /// 生成无人物场景提示词
@@ -204,7 +218,10 @@ class RandomPromptGenerator {
     // 添加背景（90%）
     if (random.nextDouble() < 0.9) {
       final bgTags = _getFilteredCategory(
-          library, TagSubCategory.background, filterConfig,);
+        library,
+        TagSubCategory.background,
+        filterConfig,
+      );
       if (bgTags.isNotEmpty) {
         tags.add(getWeightedChoice(bgTags, random: random));
       }
@@ -259,13 +276,20 @@ class RandomPromptGenerator {
 
     // 添加角色特征
     final charTags = _generateCharacterTags(
-        library, random, CharacterGender.female, filterConfig,);
+      library,
+      random,
+      CharacterGender.female,
+      filterConfig,
+    );
     tags.addAll(charTags);
 
     // 添加背景
     if (random.nextDouble() < 0.9) {
       final bgTags = _getFilteredCategory(
-          library, TagSubCategory.background, filterConfig,);
+        library,
+        TagSubCategory.background,
+        filterConfig,
+      );
       if (bgTags.isNotEmpty) {
         tags.add(getWeightedChoice(bgTags, random: random));
       }
@@ -376,7 +400,10 @@ class RandomPromptGenerator {
     // 添加背景（90%）
     if (random.nextDouble() < 0.9) {
       final bgTags = _getFilteredCategory(
-          library, TagSubCategory.background, filterConfig,);
+        library,
+        TagSubCategory.background,
+        filterConfig,
+      );
       if (bgTags.isNotEmpty) {
         final bg = getWeightedChoice(bgTags, random: random);
         mainTags.add(bg);
@@ -487,7 +514,10 @@ class RandomPromptGenerator {
     // 表情（60%）
     if (random.nextDouble() < 0.6) {
       final expressions = _getFilteredCategory(
-          library, TagSubCategory.expression, filterConfig,);
+        library,
+        TagSubCategory.expression,
+        filterConfig,
+      );
       if (expressions.isNotEmpty) {
         tags.add(getWeightedChoice(expressions, random: random));
       }
@@ -1181,7 +1211,11 @@ class RandomPromptGenerator {
   /// 正数使用 {} 增强权重
   /// 负数使用 [] 降低权重
   String _applyBrackets(
-      String tag, int bracketMin, int bracketMax, Random random,) {
+    String tag,
+    int bracketMin,
+    int bracketMax,
+    Random random,
+  ) {
     if (bracketMin == 0 && bracketMax == 0) return tag;
 
     // 确保 min <= max
@@ -1219,7 +1253,10 @@ class RandomPromptGenerator {
   /// 支持格式：__变量名__
   /// 会在预设的类别和词组中查找匹配项并生成内容
   Future<String> _replaceVariables(
-      String text, RandomPreset preset, Random random,) async {
+    String text,
+    RandomPreset preset,
+    Random random,
+  ) async {
     if (!text.contains('__')) return text;
 
     // 由于 replaceAllMapped 不支持 async，需要手动处理
@@ -1354,7 +1391,8 @@ class RandomPromptGenerator {
 
   /// 将 TagGroupEntry 列表转换为 WeightedTag 列表
   List<WeightedTag> _convertTagGroupEntriesToWeightedTags(
-      List<TagGroupEntry> entries,) {
+    List<TagGroupEntry> entries,
+  ) {
     return entries.map((entry) {
       // 根据热度计算权重 (1-10)
       final weight = _calculateWeightFromPostCount(entry.postCount);
@@ -1456,7 +1494,9 @@ class RandomPromptGenerator {
 
   /// 从配置决定角色数量
   int _determineCharacterCountFromConfig(
-      AlgorithmConfig config, Random random,) {
+    AlgorithmConfig config,
+    Random random,
+  ) {
     final weights = config.characterCountWeights;
     if (weights.isEmpty) {
       return getWeightedChoiceInt(characterCountWeights, random: random);

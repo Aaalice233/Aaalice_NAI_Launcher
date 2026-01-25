@@ -111,9 +111,11 @@ class _TreeNodeWidget extends ConsumerWidget {
               : Colors.transparent,
           border: isSelected
               ? Border(
-                  left: BorderSide(color: theme.colorScheme.primary, width: 3),)
+                  left: BorderSide(color: theme.colorScheme.primary, width: 3),
+                )
               : const Border(
-                  left: BorderSide(color: Colors.transparent, width: 3),),
+                  left: BorderSide(color: Colors.transparent, width: 3),
+                ),
         ),
         child: InkWell(
           onSecondaryTapUp: (details) =>
@@ -167,8 +169,11 @@ class _TreeNodeWidget extends ConsumerWidget {
                   Tooltip(
                     message: tooltipMessage,
                     waitDuration: const Duration(milliseconds: 500),
-                    child: Icon(icon,
-                        size: 18, color: iconColor ?? theme.iconTheme.color,),
+                    child: Icon(
+                      icon,
+                      size: 18,
+                      color: iconColor ?? theme.iconTheme.color,
+                    ),
                   ),
                   const SizedBox(width: 8),
 
@@ -298,8 +303,8 @@ class _TreeNodeWidget extends ConsumerWidget {
                       .toList(),
                 )
               : const SizedBox(
-                  width: double
-                      .infinity,), // Empty container instead of nothing for animation
+                  width: double.infinity,
+                ), // Empty container instead of nothing for animation
         ),
       ],
     );
@@ -334,7 +339,10 @@ class _TreeNodeWidget extends ConsumerWidget {
   }
 
   List<ProMenuItem> _buildMenuItems(
-      BuildContext context, WidgetRef ref, OverlayEntry overlayEntry,) {
+    BuildContext context,
+    WidgetRef ref,
+    OverlayEntry overlayEntry,
+  ) {
     final items = <ProMenuItem>[];
     final notifier = ref.read(randomTreeDataProvider.notifier);
 
@@ -446,8 +454,9 @@ class _TreeNodeWidget extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               _performRename(ref, controller.text);
@@ -469,7 +478,10 @@ class _TreeNodeWidget extends ConsumerWidget {
     } else if (node is CategoryNode) {
       final catNode = node as CategoryNode;
       notifier.updateCategory(
-          catNode.presetId, catNode.id, catNode.data.copyWith(name: newName),);
+        catNode.presetId,
+        catNode.id,
+        catNode.data.copyWith(name: newName),
+      );
     } else if (node is TagGroupNode) {
       final tagNode = node as TagGroupNode;
       notifier.updateTagGroup(

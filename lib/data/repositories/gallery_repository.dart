@@ -68,8 +68,9 @@ class GalleryRepository {
       final (success, count, error) = await migrationService.migrate();
       if (success) {
         AppLogger.i(
-            'GalleryRepository initialized with $count migrated records',
-            'Gallery',);
+          'GalleryRepository initialized with $count migrated records',
+          'Gallery',
+        );
       } else {
         AppLogger.e('Migration failed: $error', null, null, 'Gallery');
       }

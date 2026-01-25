@@ -274,6 +274,7 @@ class InputHandler {
   /// 处理鼠标悬停
   void handlePointerHover(PointerHoverEvent event) {
     gesture.cursorPosition = event.localPosition;
+    state.cursorNotifier.value = gesture.cursorPosition;
     onStateChanged();
 
     // 触发工具的悬停事件
@@ -380,6 +381,7 @@ class InputHandler {
       state.canvasController.pan(delta);
       gesture.lastPanPosition = event.position;
       gesture.cursorPosition = event.localPosition;
+      state.cursorNotifier.value = gesture.cursorPosition;
       onStateChanged();
       return;
     }
@@ -392,12 +394,14 @@ class InputHandler {
       final newSize = (gesture.initialBrushSize * sizeFactor).clamp(1.0, 500.0);
       state.setBrushSize(newSize);
       gesture.cursorPosition = gesture.brushSizeStartPosition;
+      state.cursorNotifier.value = gesture.cursorPosition;
       onStateChanged();
       return;
     }
 
     // 正常模式 - 更新光标位置
     gesture.cursorPosition = event.localPosition;
+    state.cursorNotifier.value = gesture.cursorPosition;
     onStateChanged();
 
     // 直接调用工具的 onPointerMove（使用原始指针事件，避免 GestureDetector 延迟）
@@ -422,6 +426,7 @@ class InputHandler {
   void handleMouseExit(PointerExitEvent event) {
     if (HardwareKeyboard.instance.isAltPressed) return;
     gesture.cursorPosition = null;
+    state.cursorNotifier.value = gesture.cursorPosition;
     onStateChanged();
   }
 
@@ -457,6 +462,7 @@ class InputHandler {
 
     // 更新光标位置
     gesture.cursorPosition = details.localFocalPoint;
+    state.cursorNotifier.value = gesture.cursorPosition;
     onStateChanged();
     // 工具事件已移至 handlePointerDown 直接处理
   }
@@ -473,6 +479,7 @@ class InputHandler {
             (gesture.initialBrushSize * sizeFactor).clamp(1.0, 500.0);
         state.setBrushSize(newSize);
         gesture.cursorPosition = gesture.brushSizeStartPosition;
+        state.cursorNotifier.value = gesture.cursorPosition;
         onStateChanged();
       }
       return;
@@ -499,6 +506,7 @@ class InputHandler {
 
     // 更新光标位置
     gesture.cursorPosition = details.localFocalPoint;
+    state.cursorNotifier.value = gesture.cursorPosition;
     onStateChanged();
     // 工具事件已移至 handlePointerMove 直接处理
   }

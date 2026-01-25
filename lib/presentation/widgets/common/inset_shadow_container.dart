@@ -199,7 +199,11 @@ class _InsetShadowPainter extends CustomPainter {
       );
 
       final bottomRect = Rect.fromLTWH(
-          0, size.height - shadowBlur * 0.5, size.width, shadowBlur * 0.5,);
+        0,
+        size.height - shadowBlur * 0.5,
+        size.width,
+        shadowBlur * 0.5,
+      );
       final bottomPaint = Paint()
         ..shader = bottomHighlight.createShader(bottomRect);
       canvas.drawRect(bottomRect, bottomPaint);

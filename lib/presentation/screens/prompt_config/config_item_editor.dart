@@ -79,9 +79,11 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isNew
-              ? context.l10n.configEditor_newConfigGroup
-              : context.l10n.configEditor_editConfigGroup,),
+          title: Text(
+            widget.isNew
+                ? context.l10n.configEditor_newConfigGroup
+                : context.l10n.configEditor_editConfigGroup,
+          ),
           actions: [
             TextButton.icon(
               onPressed: _saveConfig,
@@ -253,7 +255,9 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
 
             // 权重括号
             _buildSectionHeader(
-                theme, context.l10n.configEditor_weightBrackets,),
+              theme,
+              context.l10n.configEditor_weightBrackets,
+            ),
             const SizedBox(height: 8),
             Text(
               context.l10n.configEditor_weightBracketsHint,
@@ -321,8 +325,10 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.l10n.configEditor_effectPreview,
-                          style: theme.textTheme.labelSmall,),
+                      Text(
+                        context.l10n.configEditor_effectPreview,
+                        style: theme.textTheme.labelSmall,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         _getBracketPreview(),
@@ -465,7 +471,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                       ? context.l10n
                           .configEditor_itemCount(nested.stringContents.length)
                       : context.l10n.configEditor_subConfigCount(
-                          nested.nestedConfigs.length,),
+                          nested.nestedConfigs.length,
+                        ),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

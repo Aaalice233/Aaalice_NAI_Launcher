@@ -163,8 +163,11 @@ class AppTheme {
   ///
   /// [fontFamily] 为空字符串或 null 时，保留主题原生字体；
   /// 有值时用用户选择覆盖主题字体。
-  static ThemeData getTheme(AppStyle style, Brightness brightness,
-      {String? fontFamily,}) {
+  static ThemeData getTheme(
+    AppStyle style,
+    Brightness brightness, {
+    String? fontFamily,
+  }) {
     // 判断是否使用主题原生字体：fontFamily 为 null 或空字符串时保留主题字体
     final useThemeFont = fontFamily == null || fontFamily.isEmpty;
 

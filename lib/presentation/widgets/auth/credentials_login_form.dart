@@ -199,14 +199,18 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                   ),
                   // 显示恢复建议
                   if (_getErrorRecoveryHint(
-                          authState.errorCode, authState.httpStatusCode,) !=
+                        authState.errorCode,
+                        authState.httpStatusCode,
+                      ) !=
                       null) ...[
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
                         _getErrorRecoveryHint(
-                            authState.errorCode, authState.httpStatusCode,)!,
+                          authState.errorCode,
+                          authState.httpStatusCode,
+                        )!,
                         style: TextStyle(
                           color: Theme.of(context)
                               .colorScheme

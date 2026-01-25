@@ -296,9 +296,13 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   Expanded(
                     child: GestureDetector(
                       onPanDown: (details) => _updateSV(
-                          details.localPosition, const Size(200, 200),),
+                        details.localPosition,
+                        const Size(200, 200),
+                      ),
                       onPanUpdate: (details) => _updateSV(
-                          details.localPosition, const Size(200, 200),),
+                        details.localPosition,
+                        const Size(200, 200),
+                      ),
                       child: CustomPaint(
                         painter: _SVPicker(hue: _hsvColor.hue),
                         child: Stack(

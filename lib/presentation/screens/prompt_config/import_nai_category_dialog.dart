@@ -105,8 +105,10 @@ class _ImportNaiCategoryDialogState
               ...(_availableCategories.map((category) {
                 final includeSupplement =
                     libraryState.categoryFilterConfig.isEnabled(category);
-                final tags = library.getFilteredCategory(category,
-                    includeDanbooruSupplement: includeSupplement,);
+                final tags = library.getFilteredCategory(
+                  category,
+                  includeDanbooruSupplement: includeSupplement,
+                );
                 final isSelected = _selectedCategories.contains(category);
                 final categoryName =
                     TagSubCategoryHelper.getDisplayName(category);
@@ -182,9 +184,11 @@ class _ImportNaiCategoryDialogState
                             _selectedCategories.clear();
                             for (final cat in _availableCategories) {
                               if (library
-                                  .getFilteredCategory(cat,
-                                      includeDanbooruSupplement:
-                                          filterConfig.isEnabled(cat),)
+                                  .getFilteredCategory(
+                                    cat,
+                                    includeDanbooruSupplement:
+                                        filterConfig.isEnabled(cat),
+                                  )
                                   .isNotEmpty) {
                                 _selectedCategories.add(cat);
                               }
@@ -229,8 +233,10 @@ class _ImportNaiCategoryDialogState
 
     for (final category in _selectedCategories) {
       final includeSupplement = filterConfig.isEnabled(category);
-      final tags = library.getFilteredCategory(category,
-          includeDanbooruSupplement: includeSupplement,) as List<WeightedTag>;
+      final tags = library.getFilteredCategory(
+        category,
+        includeDanbooruSupplement: includeSupplement,
+      ) as List<WeightedTag>;
       if (tags.isEmpty) continue;
 
       // 按权重排序后取标签名称

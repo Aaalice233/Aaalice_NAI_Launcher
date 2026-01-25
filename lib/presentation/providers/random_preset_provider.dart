@@ -442,7 +442,9 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   /// [categoryKey] 类别的 key（如 'hairColor'）
   /// [group] 要添加的分组
   Future<void> addGroupToCategory(
-      String categoryKey, RandomTagGroup group,) async {
+    String categoryKey,
+    RandomTagGroup group,
+  ) async {
     final preset = state.selectedPreset;
     if (preset == null) {
       return;
@@ -459,7 +461,9 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
 
   /// 从指定类别移除分组
   Future<void> removeGroupFromCategory(
-      String categoryKey, String groupId,) async {
+    String categoryKey,
+    String groupId,
+  ) async {
     final preset = state.selectedPreset;
     if (preset == null) return;
 
@@ -472,7 +476,9 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
 
   /// 更新自定义词组（在所有预设的所有类别中查找并更新）
   Future<void> updateCustomGroup(
-      String groupId, RandomTagGroup newGroup,) async {
+    String groupId,
+    RandomTagGroup newGroup,
+  ) async {
     // 遍历所有预设，找到并更新匹配的词组
     for (final preset in state.presets) {
       var presetUpdated = false;

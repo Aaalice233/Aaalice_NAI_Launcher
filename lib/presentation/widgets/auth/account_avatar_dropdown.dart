@@ -103,7 +103,8 @@ class AccountAvatarDropdown extends ConsumerWidget {
                       dense: true,
                       leading: const Icon(Icons.more_horiz),
                       title: Text(
-                          context.l10n.auth_moreAccounts(accounts.length - 5),),
+                        context.l10n.auth_moreAccounts(accounts.length - 5),
+                      ),
                       onTap: onManageAccounts,
                     ),
                 ],

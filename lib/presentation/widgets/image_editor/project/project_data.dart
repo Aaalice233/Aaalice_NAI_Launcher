@@ -139,7 +139,8 @@ class LayerProjectData {
       imageData: json['imageData'] as String?,
       strokes: (json['strokes'] as List?)
               ?.map(
-                  (s) => StrokeProjectData.fromJson(s as Map<String, dynamic>),)
+                (s) => StrokeProjectData.fromJson(s as Map<String, dynamic>),
+              )
               .toList() ??
           [],
     );

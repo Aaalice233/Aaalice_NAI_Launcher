@@ -134,7 +134,9 @@ class AvatarService {
           await tempFile.delete();
         }
         AppLogger.e(
-            'Failed to rename temp file: $renameError', 'AvatarService',);
+          'Failed to rename temp file: $renameError',
+          'AvatarService',
+        );
         return AvatarResult.failure('无法保存头像：$renameError');
       }
 
@@ -148,7 +150,9 @@ class AvatarService {
           }
         } catch (deleteError) {
           AppLogger.w(
-              'Failed to delete old avatar: $deleteError', 'AvatarService',);
+            'Failed to delete old avatar: $deleteError',
+            'AvatarService',
+          );
           // 旧头像删除失败不影响新头像生效
         }
       }
@@ -171,7 +175,9 @@ class AvatarService {
         if (await file.exists()) {
           await file.delete();
           AppLogger.i(
-              'Deleted avatar file: ${account.avatarPath}', 'AvatarService',);
+            'Deleted avatar file: ${account.avatarPath}',
+            'AvatarService',
+          );
         }
       }
 

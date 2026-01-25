@@ -195,6 +195,14 @@ class Layer {
   /// 笔画版本号（每次笔画变化时递增，用于检测竞态）
   int _strokeGeneration = 0;
 
+  /// 图层边界（用于空间剔除优化）
+  /// 当笔画或基础图像变化时需要更新
+  Rect? _bounds;
+
+  /// 图层边界（缓存值，用于空间剔除优化）
+  /// 如果图层与视口不相交，则可以跳过渲染
+  Rect? get bounds => _bounds;
+
   Layer({
     String? id,
     this.name = '新图层',
@@ -234,6 +242,7 @@ class Layer {
       _baseImageBytes = bytes;
       _needsComposite = true;
       _needsThumbnailUpdate = true;
+      _bounds = null; // 清除边界缓存，下次渲染时重新计算
     } catch (e) {
       AppLogger.w('Failed to decode base image: $e', 'ImageEditor');
       rethrow;
@@ -248,6 +257,7 @@ class Layer {
     _baseImage = image;
     _needsComposite = true;
     _needsThumbnailUpdate = true;
+    _bounds = null; // 清除边界缓存
   }
 
   /// 清除基础图像
@@ -257,6 +267,7 @@ class Layer {
     _baseImageBytes = null;
     _needsComposite = true;
     _needsThumbnailUpdate = true;
+    _bounds = null; // 清除边界缓存
   }
 
   /// 添加笔画
@@ -267,6 +278,7 @@ class Layer {
     _needsRasterize = true;
     _needsComposite = true;
     _needsThumbnailUpdate = true;
+    _bounds = null; // 清除边界缓存，下次渲染时重新计算
 
     // 如果待处理笔画过多，标记需要强制光栅化
     if (pendingStrokeCount > _maxPendingStrokes) {
@@ -282,6 +294,7 @@ class Layer {
     _needsRasterize = true;
     _needsComposite = true;
     _needsThumbnailUpdate = true;
+    _bounds = null; // 清除边界缓存
   }
 
   /// 移除最后一个笔画
@@ -311,6 +324,7 @@ class Layer {
     _needsRasterize = true; // 总是标记需要重新光栅化
     _needsComposite = true;
     _needsThumbnailUpdate = true;
+    _bounds = null; // 清除边界缓存
     return stroke;
   }
 
@@ -323,6 +337,7 @@ class Layer {
     _needsRasterize = true;
     _needsComposite = true;
     _needsThumbnailUpdate = true;
+    _bounds = null; // 清除边界缓存
     if (!_isRasterizing) {
       _rasterizedImage?.dispose();
       _rasterizedImage = null;
@@ -391,8 +406,20 @@ class Layer {
   }
 
   /// 使用缓存渲染（优先使用缓存，性能更好）
-  void renderWithCache(Canvas canvas, Size canvasSize) {
+  void renderWithCache(Canvas canvas, Size canvasSize, {Rect? viewportBounds}) {
     if (!visible) return;
+
+    // 空间剔除优化：如果图层边界与视口不相交，则跳过渲染
+    // 这在放大查看画布的某一部分时特别有效，可以避免渲染不可见的图层
+    if (viewportBounds != null) {
+      // 确保边界已计算
+      _bounds ??= _calculateBounds(canvasSize);
+
+      // 如果图层边界存在且与视口不相交，则跳过渲染
+      if (_bounds != null && !_bounds!.overlaps(viewportBounds)) {
+        return;
+      }
+    }
 
     canvas.save();
 
@@ -413,6 +440,50 @@ class Layer {
     }
 
     canvas.restore();
+  }
+
+  /// 计算图层边界
+  Rect _calculateBounds(Size canvasSize) {
+    // 如果没有内容，边界为空
+    if (!hasContent) {
+      return Rect.zero;
+    }
+
+    // 如果有基础图像，使用画布尺寸作为边界
+    if (_baseImage != null) {
+      return Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height);
+    }
+
+    // 否则根据笔画计算边界
+    if (_strokes.isEmpty) {
+      return Rect.zero;
+    }
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+
+    for (final stroke in _strokes) {
+      for (final point in stroke.points) {
+        if (point.dx < minX) minX = point.dx;
+        if (point.dy < minY) minY = point.dy;
+        if (point.dx > maxX) maxX = point.dx;
+        if (point.dy > maxY) maxY = point.dy;
+      }
+    }
+
+    // 添加笔画半径的边距
+    final maxRadius = _strokes
+        .map((s) => s.size / 2)
+        .fold<double>(0.0, (max, radius) => radius > max ? radius : max);
+
+    return Rect.fromLTRB(
+      minX - maxRadius,
+      minY - maxRadius,
+      maxX + maxRadius,
+      maxY + maxRadius,
+    );
   }
 
   /// 绘制单个笔画

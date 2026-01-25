@@ -2316,6 +2316,7 @@
   "tag_tabGroups": "Groups",
   "tag_tabFavorites": "Favorites",
   "tag_tabTemplates": "Templates",
+
   "tag_categoryGeneral": "General",
   "tag_categoryArtist": "Artist",
   "tag_categoryCopyright": "Copyright",
@@ -2334,4 +2335,171 @@
       "count": {}
     }
   }
+
+
+  "localGallery_searchIndexing": "Building search index...",
+  "localGallery_searchIndexComplete": "Search index ready",
+  "localGallery_searchIndexFailed": "Search index error",
+  "localGallery_cacheStatus": "Cache: {current}/{max} images",
+  "@localGallery_cacheStatus": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "localGallery_cacheHitRate": "Hit rate: {rate}%",
+  "@localGallery_cacheHitRate": {
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "localGallery_preloading": "Preloading images...",
+  "localGallery_preloadComplete": "Preload complete",
+  "localGallery_progressiveLoadError": "Failed to load image",
+  "localGallery_noImagesFound": "No images found",
+  "localGallery_searchPlaceholder": "Search prompts, models, samplers...",
+  "localGallery_filterByDate": "Filter by date",
+  "localGallery_clearFilters": "Clear filters",
+
+  "slideshow_title": "Slideshow",
+  "slideshow_of": "of",
+  "slideshow_play": "Play",
+  "slideshow_pause": "Pause",
+  "slideshow_previous": "Previous",
+  "slideshow_next": "Next",
+  "slideshow_exit": "Exit (Esc)",
+  "slideshow_noImages": "No images to display",
+  "slideshow_keyboardHint": "Use ← → to navigate, Space to play/pause, Esc to exit",
+  "slideshow_autoPlayInterval": "Auto-play interval: {seconds}s",
+  "@slideshow_autoPlayInterval": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "comparison_title": "Image Comparison",
+  "comparison_noImages": "No images to display",
+  "comparison_tooManyImages": "Too many images",
+  "comparison_maxImages": "Maximum 4 images allowed for comparison",
+  "comparison_close": "Close comparison",
+  "comparison_zoomHint": "Pinch or scroll to zoom independently",
+  "comparison_loadError": "Failed to load image",
+
+  "statistics_title": "Statistics",
+  "statistics_noData": "No statistics available",
+  "statistics_generateFirst": "Generate some images first",
+  "statistics_overview": "Overview",
+  "statistics_totalImages": "Total Images",
+  "statistics_totalSize": "Total Size",
+  "statistics_favorites": "Favorites",
+  "statistics_tagged": "Tagged",
+  "statistics_modelDistribution": "Model Distribution",
+  "statistics_resolutionDistribution": "Resolution Distribution",
+  "statistics_samplerDistribution": "Sampler Distribution",
+  "statistics_sizeDistribution": "File Size Distribution",
+  "statistics_additionalStats": "Additional Statistics",
+  "statistics_averageFileSize": "Average File Size",
+  "statistics_withMetadata": "Images with Metadata",
+  "statistics_calculatedAt": "Calculated At",
+  "statistics_justNow": "Just now",
+  "statistics_minutesAgo": "{count} minutes ago",
+  "@statistics_minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_hoursAgo": "{count} hours ago",
+  "@statistics_hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_daysAgo": "{count} days ago",
+  "@statistics_daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "localGallery_favoritesOnly": "Favorites Only",
+  "localGallery_noFavorites": "No favorites yet",
+  "localGallery_markAsFavorite": "Mark as Favorite",
+  "localGallery_removeFromFavorites": "Remove from Favorites",
+  "localGallery_tags": "Tags",
+  "localGallery_addTag": "Add Tag",
+  "localGallery_removeTag": "Remove Tag",
+  "localGallery_noTags": "No tags",
+  "localGallery_filterByTags": "Filter by Tags",
+  "localGallery_selectTags": "Select Tags",
+  "localGallery_tagFilterMatchAll": "Match All Tags",
+  "localGallery_tagFilterMatchAny": "Match Any Tag",
+  "localGallery_clearTagFilter": "Clear Tag Filter",
+  "localGallery_noTagsFound": "No tags found",
+  "localGallery_advancedFilters": "Advanced Filters",
+  "localGallery_filterByModel": "Filter by Model",
+  "localGallery_filterBySampler": "Filter by Sampler",
+  "localGallery_filterBySteps": "Filter by Steps",
+  "localGallery_filterByCfg": "Filter by CFG Scale",
+  "localGallery_filterByResolution": "Filter by Resolution",
+  "localGallery_model": "Model",
+  "localGallery_sampler": "Sampler",
+  "localGallery_steps": "Steps",
+  "localGallery_cfgScale": "CFG Scale",
+  "localGallery_resolution": "Resolution",
+  "localGallery_any": "Any",
+  "localGallery_custom": "Custom",
+  "localGallery_to": "to",
+  "localGallery_applyFilters": "Apply Filters",
+  "localGallery_resetAdvancedFilters": "Reset Advanced Filters",
+  "localGallery_exportMetadata": "Export Metadata",
+  "localGallery_exportSelected": "Export Selected",
+  "localGallery_exportFailed": "Export failed",
+  "localGallery_exporting": "Exporting...",
+  "localGallery_selectToExport": "Select images to export",
+  "localGallery_noImagesSelected": "No images selected",
+  "localGallery_exportSuccessDetail": "Exported {count} images with metadata",
+  "@localGallery_exportSuccessDetail": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "localGallery_group_today": "Today",
+  "localGallery_group_yesterday": "Yesterday",
+  "localGallery_group_thisWeek": "This Week",
+  "localGallery_group_earlier": "Earlier",
+  "localGallery_group_dateFormat": "MMM dd",
+  "localGallery_jumpToDate": "Jump to Date",
+  "localGallery_noImagesOnThisDate": "No images on this date",
+
+  "localGallery_selectedImagesNoPrompt": "Selected images have no prompt information",
+  "localGallery_addedTasksToQueue": "Added {count} tasks to queue",
+  "@localGallery_addedTasksToQueue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_cannotOpenFolder": "Cannot open folder: {error}",
+  "@localGallery_cannotOpenFolder": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_jumpedToDate": "Jumped to {date}",
+  "@localGallery_jumpedToDate": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+
+  "brushPreset_selectHint": "Double tap to select this brush preset",
+  "brushPreset_selected": "Selected",
+  "brushPreset_pencil": "Pencil",
+  "brushPreset_fine": "Fine Brush",
+  "brushPreset_standard": "Standard Brush",
+  "brushPreset_soft": "Soft Brush",
+  "brushPreset_airbrush": "Airbrush",
+  "brushPreset_marker": "Marker",
+  "brushPreset_thick": "Thick Brush",
+  "brushPreset_smudge": "Smudge Brush"
+
 }

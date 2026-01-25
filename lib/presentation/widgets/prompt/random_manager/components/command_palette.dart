@@ -195,7 +195,8 @@ class _CommandPaletteState extends State<CommandPalette> {
         _scrollController.offset +
             _scrollController.position.viewportDimension) {
       _scrollController.jumpTo(
-          offset + itemHeight - _scrollController.position.viewportDimension,);
+        offset + itemHeight - _scrollController.position.viewportDimension,
+      );
     }
   }
 
@@ -280,7 +281,9 @@ class _CommandPaletteState extends State<CommandPalette> {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2,),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: colorScheme
                                 .surfaceContainerHighest, // Changed from surfaceContainerHighest
@@ -324,9 +327,13 @@ class _CommandPaletteState extends State<CommandPalette> {
                                 onTap: () => _selectItem(item),
                                 child: Container(
                                   margin: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2,),
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 12,),
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? colorScheme.primary.withOpacity(0.1)

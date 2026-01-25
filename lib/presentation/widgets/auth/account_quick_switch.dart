@@ -48,7 +48,9 @@ class AccountQuickSwitch extends ConsumerWidget {
                     if (token == null) {
                       if (context.mounted) {
                         AppToast.error(
-                            context, context.l10n.auth_tokenNotFound,);
+                          context,
+                          context.l10n.auth_tokenNotFound,
+                        );
                       }
                       return;
                     }
@@ -93,8 +95,10 @@ class AccountQuickSwitch extends ConsumerWidget {
                       context: context,
                       builder: (context) => AlertDialog(
                         title: Text(context.l10n.auth_deleteAccount),
-                        content: Text(context.l10n
-                            .auth_deleteAccountConfirm(account.displayName),),
+                        content: Text(
+                          context.l10n
+                              .auth_deleteAccountConfirm(account.displayName),
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),

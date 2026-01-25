@@ -73,7 +73,9 @@ class WobblyShapeBorder extends ShapeBorder {
 
     // Start at top-left corner (after radius)
     path.moveTo(
-        rect.left + topLeftRadius, rect.top + _wobble(random, wobbleAmount),);
+      rect.left + topLeftRadius,
+      rect.top + _wobble(random, wobbleAmount),
+    );
 
     // Top edge (left to right)
     for (int i = 1; i < pointsPerEdge; i++) {

@@ -102,7 +102,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('开始下载...'), duration: Duration(seconds: 1),),
+          content: Text('开始下载...'),
+          duration: Duration(seconds: 1),
+        ),
       );
 
       final file = await DanbooruImageCacheManager.instance.getSingleFile(url);
@@ -170,13 +172,16 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                 boxShadow: _isHovering && !widget.selectionMode
                     ? [
                         BoxShadow(
-                            color: theme.colorScheme.primary.withOpacity(0.4),
-                            blurRadius: 12,
-                            spreadRadius: 1,),
+                          color: theme.colorScheme.primary.withOpacity(0.4),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
                       ]
                     : [
                         BoxShadow(
-                            color: Colors.black.withOpacity(0.2), blurRadius: 4,),
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                        ),
                       ],
                 border: widget.isSelected
                     ? Border.all(color: theme.colorScheme.primary, width: 3)
@@ -195,12 +200,15 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       placeholder: (context, url) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        child: Icon(Icons.broken_image,
-                            color: theme.colorScheme.onSurfaceVariant,),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     if (widget.selectionMode) ...[
@@ -253,7 +261,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           left: 4,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 2,),
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: widget.post.isVideo
                                   ? Colors.purple
@@ -264,17 +274,21 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                    widget.post.isVideo
-                                        ? Icons.play_circle_fill
-                                        : Icons.gif_box,
-                                    size: 10,
-                                    color: Colors.white,),
+                                  widget.post.isVideo
+                                      ? Icons.play_circle_fill
+                                      : Icons.gif_box,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
                                 const SizedBox(width: 2),
-                                Text(widget.post.mediaTypeLabel!,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,),),
+                                Text(
+                                  widget.post.mediaTypeLabel!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -285,15 +299,21 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           right: 4,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 2,),
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                                color: _getRatingColor(widget.post.rating),
-                                borderRadius: BorderRadius.circular(3),),
-                            child: Text(widget.post.rating.toUpperCase(),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,),),
+                              color: _getRatingColor(widget.post.rating),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              widget.post.rating.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                       Positioned(
@@ -319,14 +339,18 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   tooltip: '复制标签',
                                   onPressed: () async {
                                     try {
-                                      await Clipboard.setData(ClipboardData(
-                                          text: widget.post.tags.join(', '),),);
+                                      await Clipboard.setData(
+                                        ClipboardData(
+                                          text: widget.post.tags.join(', '),
+                                        ),
+                                      );
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           const SnackBar(
-                                              content: Text('已复制'),
-                                              duration: Duration(seconds: 1),),
+                                            content: Text('已复制'),
+                                            duration: Duration(seconds: 1),
+                                          ),
                                         );
                                       }
                                     } catch (e) {
@@ -339,20 +363,25 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   tooltip: '发送到文生图',
                                   onPressed: () {
                                     ref
-                                        .read(characterPromptNotifierProvider
-                                            .notifier,)
+                                        .read(
+                                          characterPromptNotifierProvider
+                                              .notifier,
+                                        )
                                         .clearAll();
                                     ref
-                                        .read(pendingPromptNotifierProvider
-                                            .notifier,)
+                                        .read(
+                                          pendingPromptNotifierProvider
+                                              .notifier,
+                                        )
                                         .set(
-                                            prompt:
-                                                widget.post.tags.join(', '),);
+                                          prompt: widget.post.tags.join(', '),
+                                        );
                                     context.go('/');
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                          content: Text('已发送到文生图'),
-                                          duration: Duration(seconds: 1),),
+                                        content: Text('已发送到文生图'),
+                                        duration: Duration(seconds: 1),
+                                      ),
                                     );
                                   },
                                 ),
@@ -389,17 +418,31 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.arrow_upward,
-                                  size: 10, color: Colors.white70,),
-                              Text('${widget.post.score}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 10,),),
+                              const Icon(
+                                Icons.arrow_upward,
+                                size: 10,
+                                color: Colors.white70,
+                              ),
+                              Text(
+                                '${widget.post.score}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                ),
+                              ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.favorite,
-                                  size: 10, color: Colors.white70,),
-                              Text('${widget.post.favCount}',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 10,),),
+                              const Icon(
+                                Icons.favorite,
+                                size: 10,
+                                color: Colors.white70,
+                              ),
+                              Text(
+                                '${widget.post.favCount}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -465,9 +508,10 @@ class _HoverPreviewCardInner extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                spreadRadius: 2,),
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
           ],
         ),
         child: Column(
@@ -492,7 +536,8 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                       placeholder: (context, url) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
                       errorWidget: (context, url, error) => CachedNetworkImage(
                         imageUrl: post.previewUrl,
@@ -505,12 +550,14 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              shape: BoxShape.circle,),
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
                           child: Icon(
-                              post.isVideo ? Icons.play_arrow : Icons.gif,
-                              color: Colors.white,
-                              size: 32,),
+                            post.isVideo ? Icons.play_arrow : Icons.gif,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
                       ),
                   ],
@@ -526,52 +573,64 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                     Row(
                       children: [
                         _StatItem(
-                            icon: Icons.photo_size_select_actual,
-                            value: '${post.width}×${post.height}',),
+                          icon: Icons.photo_size_select_actual,
+                          value: '${post.width}×${post.height}',
+                        ),
                         const SizedBox(width: 12),
                         _StatItem(icon: Icons.thumb_up, value: '${post.score}'),
                         const SizedBox(width: 12),
                         _StatItem(
-                            icon: Icons.favorite, value: '${post.favCount}',),
+                          icon: Icons.favorite,
+                          value: '${post.favCount}',
+                        ),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2,),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                              color: _getRatingColor(post.rating),
-                              borderRadius: BorderRadius.circular(4),),
-                          child: Text(post.rating.toUpperCase(),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,),),
+                            color: _getRatingColor(post.rating),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            post.rating.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     if (post.artistTags.isNotEmpty) ...[
                       _TagRow(
-                          icon: Icons.brush,
-                          color: const Color(0xFFFF8A8A),
-                          tags: post.artistTags.take(3).toList(),
-                          translationService: translationService,),
+                        icon: Icons.brush,
+                        color: const Color(0xFFFF8A8A),
+                        tags: post.artistTags.take(3).toList(),
+                        translationService: translationService,
+                      ),
                       const SizedBox(height: 6),
                     ],
                     if (post.characterTags.isNotEmpty) ...[
                       _TagRow(
-                          icon: Icons.person,
-                          color: const Color(0xFF8AFF8A),
-                          tags: post.characterTags.take(4).toList(),
-                          translationService: translationService,
-                          isCharacter: true,),
+                        icon: Icons.person,
+                        color: const Color(0xFF8AFF8A),
+                        tags: post.characterTags.take(4).toList(),
+                        translationService: translationService,
+                        isCharacter: true,
+                      ),
                       const SizedBox(height: 6),
                     ],
                     if (post.copyrightTags.isNotEmpty) ...[
                       _TagRow(
-                          icon: Icons.movie,
-                          color: const Color(0xFFCC8AFF),
-                          tags: post.copyrightTags.take(2).toList(),
-                          translationService: translationService,),
+                        icon: Icons.movie,
+                        color: const Color(0xFFCC8AFF),
+                        tags: post.copyrightTags.take(2).toList(),
+                        translationService: translationService,
+                      ),
                     ],
                   ],
                 ),
@@ -613,9 +672,13 @@ class _StatItem extends StatelessWidget {
       children: [
         Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 3),
-        Text(value,
-            style: TextStyle(
-                fontSize: 11, color: theme.colorScheme.onSurfaceVariant,),),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }

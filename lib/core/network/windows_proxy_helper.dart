@@ -77,7 +77,10 @@ class WindowsProxyHelper {
       }
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to read Windows proxy settings: $e', 'PROXY', stackTrace,);
+        'Failed to read Windows proxy settings: $e',
+        'PROXY',
+        stackTrace,
+      );
       return 'DIRECT';
     }
   }
@@ -124,8 +127,9 @@ class WindowsProxyHelper {
 
           if (protocol == 'socks' && hostPort.isNotEmpty) {
             AppLogger.w(
-                'SOCKS proxy detected but Dart HttpClient has limited SOCKS support',
-                'PROXY',);
+              'SOCKS proxy detected but Dart HttpClient has limited SOCKS support',
+              'PROXY',
+            );
             return hostPort;
           }
         }

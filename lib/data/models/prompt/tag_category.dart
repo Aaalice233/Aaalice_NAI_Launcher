@@ -228,8 +228,10 @@ class TagSubCategoryHelper {
   }
 
   /// 获取子分类的显示名称
-  static String getDisplayName(TagSubCategory category,
-      {String locale = 'zh',}) {
+  static String getDisplayName(
+    TagSubCategory category, {
+    String locale = 'zh',
+  }) {
     if (locale == 'zh') {
       return switch (category) {
         TagSubCategory.hairColor => '发色',

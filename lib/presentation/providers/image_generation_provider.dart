@@ -111,7 +111,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       final randomPrompt = await generateAndApplyRandomPrompt();
       if (randomPrompt.isNotEmpty) {
         AppLogger.d(
-            'Random prompt before generation: $randomPrompt', 'RandomMode',);
+          'Random prompt before generation: $randomPrompt',
+          'RandomMode',
+        );
         // 重新读取角色配置（已被 generateAndApplyRandomPrompt 更新）
         final characterConfig = ref.read(characterPromptNotifierProvider);
         final apiCharacters = _convertCharactersToApiFormat(characterConfig);

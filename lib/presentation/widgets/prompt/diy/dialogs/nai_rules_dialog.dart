@@ -69,7 +69,10 @@ class NaiRulesDialog extends StatelessWidget {
                 icon: Icons.auto_awesome,
                 children: [
                   _buildProbabilityItem(
-                      context, '强调机制 (Tag Strengthening)', '2%',),
+                    context,
+                    '强调机制 (Tag Strengthening)',
+                    '2%',
+                  ),
                   const ListTile(
                     dense: true,
                     title: Text('季节词库'),
@@ -132,7 +135,10 @@ class NaiRulesDialog extends StatelessWidget {
   }
 
   Widget _buildProbabilityItem(
-      BuildContext context, String label, String probability,) {
+    BuildContext context,
+    String label,
+    String probability,
+  ) {
     return ListTile(
       dense: true,
       visualDensity: VisualDensity.compact,

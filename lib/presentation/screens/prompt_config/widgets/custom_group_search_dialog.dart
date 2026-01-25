@@ -419,8 +419,10 @@ class _CustomGroupSearchDialogState
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 8),
-            Text(_searchError!,
-                style: TextStyle(color: theme.colorScheme.error),),
+            Text(
+              _searchError!,
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
           ],
         ),
       );

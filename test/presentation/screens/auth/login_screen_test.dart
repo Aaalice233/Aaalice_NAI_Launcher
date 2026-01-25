@@ -149,11 +149,13 @@ void main() {
           home: Scaffold(
             body: Column(
               children: criticalIcons
-                  .map((iconData) => Icon(
-                        iconData,
-                        color: Colors.blue,
-                        size: 24,
-                      ),)
+                  .map(
+                    (iconData) => Icon(
+                      iconData,
+                      color: Colors.blue,
+                      size: 24,
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -164,18 +166,30 @@ void main() {
 
       // Verify all critical icons are present
       for (final iconData in criticalIcons) {
-        expect(find.byIcon(iconData), findsOneWidget,
-            reason: '$iconData should render correctly',);
+        expect(
+          find.byIcon(iconData),
+          findsOneWidget,
+          reason: '$iconData should render correctly',
+        );
 
         // Verify each icon has proper configuration
         final iconWidget = tester.widget<Icon>(find.byIcon(iconData));
-        expect(iconWidget.color, isNotNull,
-            reason:
-                '$iconData should have a color to prevent color block appearance',);
-        expect(iconWidget.size, isNotNull,
-            reason: '$iconData should have a size',);
-        expect(iconWidget.icon, equals(iconData),
-            reason: '$iconData should have correct IconData',);
+        expect(
+          iconWidget.color,
+          isNotNull,
+          reason:
+              '$iconData should have a color to prevent color block appearance',
+        );
+        expect(
+          iconWidget.size,
+          isNotNull,
+          reason: '$iconData should have a size',
+        );
+        expect(
+          iconWidget.icon,
+          equals(iconData),
+          reason: '$iconData should have correct IconData',
+        );
       }
     });
 
@@ -229,9 +243,12 @@ void main() {
       await tester.pumpAndSettle();
 
       final iconWidget = tester.widget<Icon>(find.byType(Icon));
-      expect(iconWidget.color, equals(Colors.purple),
-          reason:
-              'Icon with explicit color should not be null, preventing color block rendering',);
+      expect(
+        iconWidget.color,
+        equals(Colors.purple),
+        reason:
+            'Icon with explicit color should not be null, preventing color block rendering',
+      );
     });
 
     testWidgets('multiple icons with different colors should all render',
@@ -322,10 +339,16 @@ void main() {
       await tester.pumpAndSettle();
 
       final iconWidget = tester.widget<Icon>(find.byIcon(Icons.menu));
-      expect(iconWidget.color, Colors.cyan,
-          reason: 'Explicit color should override theme color',);
-      expect(iconWidget.size, 48,
-          reason: 'Explicit size should override theme size',);
+      expect(
+        iconWidget.color,
+        Colors.cyan,
+        reason: 'Explicit color should override theme color',
+      );
+      expect(
+        iconWidget.size,
+        48,
+        reason: 'Explicit size should override theme size',
+      );
     });
   });
 }

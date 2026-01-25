@@ -179,7 +179,8 @@ class GalleryNotifier extends _$GalleryNotifier {
   /// 切换只显示收藏
   void toggleFavoritesOnly() {
     updateFilter(
-        state.filter.copyWith(favoritesOnly: !state.filter.favoritesOnly),);
+      state.filter.copyWith(favoritesOnly: !state.filter.favoritesOnly),
+    );
   }
 
   /// 设置排序方式

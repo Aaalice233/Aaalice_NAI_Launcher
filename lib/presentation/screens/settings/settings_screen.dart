@@ -17,7 +17,6 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
-import 'performance_report_screen.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerWidget {
@@ -68,9 +67,11 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.language),
             title: Text(context.l10n.settings_language),
-            subtitle: Text(currentLocale.languageCode == 'zh'
-                ? context.l10n.settings_languageChinese
-                : context.l10n.settings_languageEnglish,),
+            subtitle: Text(
+              currentLocale.languageCode == 'zh'
+                  ? context.l10n.settings_languageChinese
+                  : context.l10n.settings_languageEnglish,
+            ),
             onTap: () => _showLanguageDialog(context, ref, currentLocale),
           ),
           const ThemedDivider(),
@@ -141,7 +142,8 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.open_in_new),
             onTap: () async {
               final uri = Uri.parse(
-                  'https://github.com/Aaalice233/Aaalice_NAI_Launcher',);
+                'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
+              );
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
@@ -229,8 +231,10 @@ class SettingsScreen extends ConsumerWidget {
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Center(
-                      child: Text(
-                          context.l10n.settings_loadFailed(err.toString()),),),
+                    child: Text(
+                      context.l10n.settings_loadFailed(err.toString()),
+                    ),
+                  ),
                   data: (fontGroups) {
                     return ListView.builder(
                       itemCount: fontGroups.length,
@@ -561,18 +565,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.speed_outlined),
-          title: Text(context.l10n.settings_startupPerformance),
-          subtitle: Text(context.l10n.settings_startupPerformanceSubtitle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const PerformanceReportScreen()),
-            );
-          },
         ),
       ],
     );

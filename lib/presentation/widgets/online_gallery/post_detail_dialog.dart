@@ -120,7 +120,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 宽屏布局（左图右信息）
   Widget _buildWideLayout(
-      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Row(
       children: [
         // 媒体区域
@@ -142,7 +145,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 窄屏布局（上图下信息）
   Widget _buildNarrowLayout(
-      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Column(
       children: [
         // 媒体区域
@@ -252,7 +258,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 信息面板
   Widget _buildInfoPanel(
-      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -278,7 +287,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 标题栏
   Widget _buildTitleBar(
-      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       child: Row(
@@ -312,7 +324,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               if (!authState.isLoggedIn) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text(context.l10n.onlineGallery_pleaseLogin),),
+                    content: Text(context.l10n.onlineGallery_pleaseLogin),
+                  ),
                 );
                 return;
               }

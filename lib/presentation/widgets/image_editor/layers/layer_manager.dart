@@ -118,8 +118,11 @@ class LayerManager extends ChangeNotifier {
 
   /// 从数据插入图层
   /// [setActive] 为 true 时将新图层设为活动图层
-  Layer insertLayerFromData(LayerData data, int index,
-      {bool setActive = false,}) {
+  Layer insertLayerFromData(
+    LayerData data,
+    int index, {
+    bool setActive = false,
+  }) {
     final layer = Layer.fromData(data);
     if (index >= 0 && index <= _layers.length) {
       _layers.insert(index, layer);
@@ -139,8 +142,11 @@ class LayerManager extends ChangeNotifier {
   /// 从图像数据创建图层
   ///
   /// 如果图像解码失败，返回 null 并清理资源
-  Future<Layer?> addLayerFromImage(Uint8List imageBytes,
-      {String? name, int? index,}) async {
+  Future<Layer?> addLayerFromImage(
+    Uint8List imageBytes, {
+    String? name,
+    int? index,
+  }) async {
     final layerName = name ?? '导入的图像 ${_layers.length + 1}';
     final layer = Layer(name: layerName);
 
@@ -196,7 +202,8 @@ class LayerManager extends ChangeNotifier {
     if (_activeLayerId == layerId) {
       if (_layers.isNotEmpty) {
         _setActiveLayerIdInternal(
-            _layers[index.clamp(0, _layers.length - 1)].id,);
+          _layers[index.clamp(0, _layers.length - 1)].id,
+        );
       } else {
         _setActiveLayerIdInternal(null);
       }
@@ -554,11 +561,12 @@ class LayerManager extends ChangeNotifier {
   /// 渲染所有可见图层到画布
   /// 面板下方的图层渲染在上层（覆盖面板上方的图层）
   /// 使用 renderWithCache 优先利用缓存提升性能
-  void renderAll(Canvas canvas, Size canvasSize) {
+  /// [viewportBounds] 视口边界，用于空间剔除优化（可选）
+  void renderAll(Canvas canvas, Size canvasSize, {Rect? viewportBounds}) {
     // 反向遍历：面板上方的图层先画（底层），面板下方的图层后画（顶层）
     for (final layer in _layers.reversed) {
       if (layer.visible) {
-        layer.renderWithCache(canvas, canvasSize);
+        layer.renderWithCache(canvas, canvasSize, viewportBounds: viewportBounds);
       }
     }
   }
@@ -643,12 +651,18 @@ class LayerManager extends ChangeNotifier {
 
   /// 同步获取放大镜网格像素
   List<List<Color>>? getMagnifierPixels(
-          int centerX, int centerY, int gridSize,) =>
+    int centerX,
+    int centerY,
+    int gridSize,
+  ) =>
       _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
 
   /// 更新区域快照（仅渲染光标周围的小区域）
   Future<bool> updateRegionalSnapshot(
-          int centerX, int centerY, Size canvasSize,) =>
+    int centerX,
+    int centerY,
+    Size canvasSize,
+  ) =>
       _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
 
   /// 获取区域缓存中的像素颜色（同步，O(1)）
@@ -657,7 +671,10 @@ class LayerManager extends ChangeNotifier {
 
   /// 获取区域缓存中的放大镜像素网格（同步）
   List<List<Color>>? getRegionalMagnifierPixels(
-          int centerX, int centerY, int gridSize,) =>
+    int centerX,
+    int centerY,
+    int gridSize,
+  ) =>
       _snapshotManager.getRegionalMagnifierPixels(centerX, centerY, gridSize);
 
   @override

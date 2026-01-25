@@ -263,7 +263,8 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   ///
   /// 由 PoolMappingProvider 调用
   Future<void> mergePoolTags(
-      Map<TagSubCategory, List<WeightedTag>> poolTags,) async {
+    Map<TagSubCategory, List<WeightedTag>> poolTags,
+  ) async {
     if (state.library == null || poolTags.isEmpty) return;
 
     final mergedLibrary =
@@ -276,7 +277,8 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   ///
   /// 由 TagGroupMappingProvider 调用
   Future<void> mergeTagGroupTags(
-      Map<TagSubCategory, List<WeightedTag>> tagGroupTags,) async {
+    Map<TagSubCategory, List<WeightedTag>> tagGroupTags,
+  ) async {
     if (state.library == null || tagGroupTags.isEmpty) return;
 
     final mergedLibrary =

@@ -37,8 +37,9 @@ class WindowStateObserver extends WidgetsBindingObserver {
         await box.put(StorageKeys.windowY, position.dy);
 
         AppLogger.i(
-            'Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
-            'Main',);
+          'Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+          'Main',
+        );
       } catch (e) {
         AppLogger.e('Failed to save window state: $e', 'Main');
       }
@@ -122,6 +123,10 @@ void main() async {
   await Hive.openBox(StorageKeys.tagCacheBox);
   await Hive.openBox(StorageKeys.galleryBox);
   await Hive.openBox(StorageKeys.localMetadataCacheBox);
+  // Local Gallery 新功能所需的 Hive boxes
+  await Hive.openBox(StorageKeys.localFavoritesBox);
+  await Hive.openBox(StorageKeys.tagsBox);
+  await Hive.openBox(StorageKeys.searchIndexBox);
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
@@ -167,12 +172,14 @@ void main() async {
       if (savedX != null && savedY != null) {
         await windowManager.setPosition(Offset(savedX, savedY));
         AppLogger.d(
-            'Window state restored: ${savedWidth}x$savedHeight at ($savedX, $savedY)',
-            'Main',);
+          'Window state restored: ${savedWidth}x$savedHeight at ($savedX, $savedY)',
+          'Main',
+        );
       } else {
         AppLogger.d(
-            'Window initialized with default state: ${savedWidth}x$savedHeight (centered)',
-            'Main',);
+          'Window initialized with default state: ${savedWidth}x$savedHeight (centered)',
+          'Main',
+        );
       }
 
       await windowManager.show();

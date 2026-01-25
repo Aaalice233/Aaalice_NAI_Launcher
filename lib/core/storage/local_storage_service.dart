@@ -77,8 +77,10 @@ class LocalStorageService {
 
   /// 获取默认模型
   String getDefaultModel() {
-    return getSetting<String>(StorageKeys.defaultModel,
-            defaultValue: 'nai-diffusion-3',) ??
+    return getSetting<String>(
+          StorageKeys.defaultModel,
+          defaultValue: 'nai-diffusion-3',
+        ) ??
         'nai-diffusion-3';
   }
 
@@ -89,8 +91,10 @@ class LocalStorageService {
 
   /// 获取默认采样器
   String getDefaultSampler() {
-    return getSetting<String>(StorageKeys.defaultSampler,
-            defaultValue: 'k_euler_ancestral',) ??
+    return getSetting<String>(
+          StorageKeys.defaultSampler,
+          defaultValue: 'k_euler_ancestral',
+        ) ??
         'k_euler_ancestral';
   }
 
@@ -207,8 +211,10 @@ class LocalStorageService {
 
   /// 获取抽卡模式 (默认关闭)
   bool getRandomPromptMode() {
-    return getSetting<bool>(StorageKeys.randomPromptMode,
-            defaultValue: false,) ??
+    return getSetting<bool>(
+          StorageKeys.randomPromptMode,
+          defaultValue: false,
+        ) ??
         false;
   }
 
@@ -231,8 +237,10 @@ class LocalStorageService {
 
   /// 获取是否启用自动补全 (默认开启)
   bool getEnableAutocomplete() {
-    return getSetting<bool>(StorageKeys.enableAutocomplete,
-            defaultValue: true,) ??
+    return getSetting<bool>(
+          StorageKeys.enableAutocomplete,
+          defaultValue: true,
+        ) ??
         true;
   }
 
@@ -256,8 +264,10 @@ class LocalStorageService {
 
   /// 获取是否启用高亮强调 (默认开启)
   bool getHighlightEmphasis() {
-    return getSetting<bool>(StorageKeys.highlightEmphasis,
-            defaultValue: true,) ??
+    return getSetting<bool>(
+          StorageKeys.highlightEmphasis,
+          defaultValue: true,
+        ) ??
         true;
   }
 
@@ -270,8 +280,10 @@ class LocalStorageService {
 
   /// 获取是否启用SD语法自动转换 (默认关闭)
   bool getSdSyntaxAutoConvert() {
-    return getSetting<bool>(StorageKeys.sdSyntaxAutoConvert,
-            defaultValue: false,) ??
+    return getSetting<bool>(
+          StorageKeys.sdSyntaxAutoConvert,
+          defaultValue: false,
+        ) ??
         false;
   }
 
@@ -294,8 +306,10 @@ class LocalStorageService {
 
   /// 获取上次的负向提示词
   String getLastNegativePrompt() {
-    return getSetting<String>(StorageKeys.lastNegativePrompt,
-            defaultValue: '',) ??
+    return getSetting<String>(
+          StorageKeys.lastNegativePrompt,
+          defaultValue: '',
+        ) ??
         '';
   }
 
@@ -338,8 +352,10 @@ class LocalStorageService {
 
   /// 获取上次的噪声计划
   String getLastNoiseSchedule() {
-    return getSetting<String>(StorageKeys.lastNoiseSchedule,
-            defaultValue: 'native',) ??
+    return getSetting<String>(
+          StorageKeys.lastNoiseSchedule,
+          defaultValue: 'native',
+        ) ??
         'native';
   }
 

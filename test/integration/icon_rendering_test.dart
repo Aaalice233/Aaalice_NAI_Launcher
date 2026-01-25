@@ -400,11 +400,13 @@ void main() {
           home: Scaffold(
             body: Column(
               children: testIcons
-                  .map((icon) => Icon(
-                        icon,
-                        color: Colors.blue,
-                        size: 24,
-                      ),)
+                  .map(
+                    (icon) => Icon(
+                      icon,
+                      color: Colors.blue,
+                      size: 24,
+                    ),
+                  )
                   .toList(),
             ),
           ),

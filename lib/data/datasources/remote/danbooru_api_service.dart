@@ -99,7 +99,8 @@ class DanbooruApiService {
   /// [credentials] Danbooru凭据
   /// 返回用户信息，失败返回null
   Future<DanbooruUser?> verifyCredentials(
-      DanbooruCredentials credentials,) async {
+    DanbooruCredentials credentials,
+  ) async {
     try {
       AppLogger.i(
         'Verifying Danbooru credentials for: ${credentials.username}',
@@ -165,7 +166,11 @@ class DanbooruApiService {
       return null;
     } catch (e, stack) {
       AppLogger.e(
-          'Danbooru credential verification failed', e, stack, 'Danbooru',);
+        'Danbooru credential verification failed',
+        e,
+        stack,
+        'Danbooru',
+      );
       return null;
     }
   }
