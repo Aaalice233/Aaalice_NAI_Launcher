@@ -123,6 +123,10 @@ void main() async {
   await Hive.openBox(StorageKeys.tagCacheBox);
   await Hive.openBox(StorageKeys.galleryBox);
   await Hive.openBox(StorageKeys.localMetadataCacheBox);
+  // Local Gallery 新功能所需的 Hive boxes
+  await Hive.openBox(StorageKeys.favoritesBox);
+  await Hive.openBox(StorageKeys.tagsBox);
+  await Hive.openBox(StorageKeys.searchIndexBox);
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
