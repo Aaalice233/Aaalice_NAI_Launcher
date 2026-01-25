@@ -84,7 +84,7 @@ class TagChip extends ConsumerStatefulWidget {
 }
 
 class _TagChipState extends ConsumerState<TagChip>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _isHovering = false;
   bool _showMenu = false;
   String? _translation;
@@ -94,10 +94,16 @@ class _TagChipState extends ConsumerState<TagChip>
   late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
 
+  // Weight animation
+  late AnimationController _weightController;
+  late Animation<double> _weightAnimation;
+  double _currentWeight = 1.0;
+
   @override
   void initState() {
     super.initState();
     _fetchTranslation();
+    _currentWeight = widget.tag.weight;
 
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 150),
@@ -106,6 +112,24 @@ class _TagChipState extends ConsumerState<TagChip>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
     );
+
+    _weightController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _weightAnimation = Tween<double>(
+      begin: _currentWeight,
+      end: _currentWeight,
+    ).animate(CurvedAnimation(
+      parent: _weightController,
+      curve: Curves.easeOut,
+    ));
+
+    _weightAnimation.addListener(() {
+      setState(() {
+        _currentWeight = _weightAnimation.value;
+      });
+    });
   }
 
   @override
@@ -121,6 +145,11 @@ class _TagChipState extends ConsumerState<TagChip>
         _scaleController.animateTo(1.0);
       }
     }
+
+    // Animate weight changes
+    if (oldWidget.tag.weight != widget.tag.weight) {
+      _animateWeightChange(oldWidget.tag.weight, widget.tag.weight);
+    }
   }
 
   @override
@@ -128,7 +157,21 @@ class _TagChipState extends ConsumerState<TagChip>
     _menuShowTimer?.cancel();
     _menuHideTimer?.cancel();
     _scaleController.dispose();
+    _weightController.dispose();
     super.dispose();
+  }
+
+  /// Animate weight change from old value to new value
+  void _animateWeightChange(double oldValue, double newValue) {
+    _weightAnimation = Tween<double>(
+      begin: oldValue,
+      end: newValue,
+    ).animate(CurvedAnimation(
+      parent: _weightController,
+      curve: Curves.easeOut,
+    ));
+
+    _weightController.forward(from: 0);
   }
 
   /// 切换收藏状态
@@ -239,7 +282,7 @@ class _TagChipState extends ConsumerState<TagChip>
   /// 生成带权重语法的显示文本
   String get _displayText {
     final name = widget.tag.displayName;
-    final weight = widget.tag.weight;
+    final weight = _currentWeight; // Use animated weight value
     final syntaxType = widget.tag.syntaxType;
 
     // 权重为 1.0 时，直接显示名称
