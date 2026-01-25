@@ -13,6 +13,7 @@ import '../autocomplete/autocomplete.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
 import 'components/tag_chip/tag_chip_animations.dart';
+import 'core/prompt_tag_config.dart';
 import 'tag_group_browser.dart';
 import 'tag_favorite_panel.dart';
 import 'tag_template_panel.dart';
@@ -44,6 +45,9 @@ class TagView extends ConsumerStatefulWidget {
   /// 是否启用框选（桌面端）
   final bool enableBoxSelection;
 
+  /// 是否显示加载骨架屏
+  final bool isLoading;
+
   const TagView({
     super.key,
     required this.tags,
@@ -54,6 +58,7 @@ class TagView extends ConsumerStatefulWidget {
     this.emptyHint,
     this.maxHeight,
     this.enableBoxSelection = true,
+    this.isLoading = false,
   });
 
   @override
@@ -81,6 +86,9 @@ class _TagViewState extends ConsumerState<TagView>
   // 入场动画相关
   late AnimationController _entranceController;
 
+  // 骨架屏加载动画相关
+  late AnimationController _shimmerController;
+
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
   @override
@@ -100,6 +108,10 @@ class _TagViewState extends ConsumerState<TagView>
     // 初始化入场动画控制器
     _entranceController = TagChipAnimationControllerFactory.createEntranceController(this);
     _entranceController.forward();
+
+    // 初始化骨架屏shimmer动画控制器
+    _shimmerController = TagChipAnimationControllerFactory.createShimmerController(this);
+    _shimmerController.repeat();
   }
 
   void _handleTabChange() {
@@ -135,6 +147,7 @@ class _TagViewState extends ConsumerState<TagView>
     _selectionController.dispose();
     _tabController.dispose();
     _entranceController.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -427,16 +440,22 @@ class _TagViewState extends ConsumerState<TagView>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 批量操作工具栏
-            if (hasSelection && !widget.readOnly) _buildBatchActionBar(theme),
+            // 批量操作工具栏（加载状态不显示）
+            if (hasSelection && !widget.readOnly && !widget.isLoading)
+              _buildBatchActionBar(theme),
 
             // 标签区域
             Flexible(
-              child: widget.tags.isEmpty && !_isAddingTag
-                  ? _buildEmptyState(theme)
-                  : widget.tags.isEmpty && _isAddingTag
-                      ? Center(child: _buildAddTagInput(theme))
-                      : _buildTagsArea(theme),
+              child: widget.isLoading
+                  ? _buildSkeletonLoading(theme)
+                  : widget.tags.isEmpty && !_isAddingTag
+                      ? _buildEmptyState(theme)
+                      : widget.tags.isEmpty && _isAddingTag
+                          ? Center(child: _buildAddTagInput(theme))
+                          : AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: _buildTagsArea(theme),
+                            ),
             ),
           ],
         ),
@@ -1017,6 +1036,47 @@ class _TagViewState extends ConsumerState<TagView>
           child: Icon(icon, size: 18, color: color),
         ),
       ),
+    );
+  }
+
+  /// 构建骨架屏加载视图
+  Widget _buildSkeletonLoading(ThemeData theme) {
+    // 生成不同宽度的骨架芯片以模拟真实标签
+    final skeletonWidths = [80.0, 120.0, 100.0, 90.0, 110.0, 85.0, 95.0, 105.0];
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Wrap(
+                spacing: TagSpacing.horizontal,
+                runSpacing: TagSpacing.vertical,
+                children: skeletonWidths.map((width) {
+                  return SizedBox(
+                    width: width,
+                    height: widget.compact ? 28.0 : 32.0,
+                    child: TagChipShimmerBuilder(
+                      shimmerAnimation: _shimmerController,
+                      width: width,
+                      height: widget.compact ? 28.0 : 32.0,
+                      borderRadius: BorderRadius.circular(
+                        widget.compact
+                            ? TagBorderRadius.small
+                            : TagBorderRadius.small,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

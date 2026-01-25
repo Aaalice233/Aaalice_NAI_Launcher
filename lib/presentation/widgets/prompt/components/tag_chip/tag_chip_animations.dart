@@ -461,4 +461,73 @@ class TagChipAnimationControllerFactory {
       vsync: vsync,
     );
   }
+
+  /// Creates an animation controller for shimmer loading animation
+  static AnimationController createShimmerController(TickerProvider vsync) {
+    return AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: vsync,
+    );
+  }
+}
+
+/// Builder for skeleton loading shimmer animation
+///
+/// Displays a shimmering loading placeholder that mimics tag chip appearance
+/// Use this for loading states in tag views
+class TagChipShimmerBuilder extends StatelessWidget {
+  final Animation<double> shimmerAnimation;
+  final double width;
+  final double height;
+  final BorderRadius? borderRadius;
+  final Color? baseColor;
+  final Color? highlightColor;
+
+  const TagChipShimmerBuilder({
+    super.key,
+    required this.shimmerAnimation,
+    this.width = 80,
+    this.height = 32,
+    this.borderRadius,
+    this.baseColor,
+    this.highlightColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final defaultBaseColor = baseColor ?? theme.colorScheme.surfaceContainerHighest.withOpacity(0.3);
+    final defaultHighlightColor = highlightColor ?? theme.colorScheme.onSurface.withOpacity(0.1);
+
+    return AnimatedBuilder(
+      animation: shimmerAnimation,
+      builder: (context, child) {
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: borderRadius ?? BorderRadius.circular(6),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              stops: [
+                -1.0,
+                shimmerAnimation.value - 0.3,
+                shimmerAnimation.value,
+                shimmerAnimation.value + 0.3,
+                1.0,
+              ],
+              colors: [
+                defaultBaseColor,
+                defaultBaseColor,
+                defaultHighlightColor,
+                defaultBaseColor,
+                defaultBaseColor,
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
