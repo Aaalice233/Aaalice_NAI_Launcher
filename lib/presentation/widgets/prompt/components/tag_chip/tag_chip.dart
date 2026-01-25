@@ -107,37 +107,64 @@ class _TagChipState extends ConsumerState<TagChip>
   late Animation<double> _weightAnimation;
   double _currentWeight = 1.0;
 
+  // Check if reduced motion is enabled
+  bool get _reducedMotion => MediaQuery.of(context).disableAnimations;
+
   @override
   void initState() {
     super.initState();
     _fetchTranslation();
     _currentWeight = widget.tag.weight;
 
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
-    );
+    // Only initialize animation controllers if reduced motion is disabled
+    if (!_reducedMotion) {
+      _scaleController = AnimationController(
+        duration: const Duration(milliseconds: 150),
+        vsync: this,
+      );
+      _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+        CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
+      );
 
-    _weightController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _weightAnimation = Tween<double>(
-      begin: _currentWeight,
-      end: _currentWeight,
-    ).animate(CurvedAnimation(
-      parent: _weightController,
-      curve: Curves.easeOut,
-    ));
+      _weightController = AnimationController(
+        duration: const Duration(milliseconds: 300),
+        vsync: this,
+      );
+      _weightAnimation = Tween<double>(
+        begin: _currentWeight,
+        end: _currentWeight,
+      ).animate(CurvedAnimation(
+        parent: _weightController,
+        curve: Curves.easeOut,
+      ));
 
-    _weightAnimation.addListener(() {
-      setState(() {
-        _currentWeight = _weightAnimation.value;
+      _weightAnimation.addListener(() {
+        setState(() {
+          _currentWeight = _weightAnimation.value;
+        });
       });
-    });
+    } else {
+      // Initialize controllers with zero duration for reduced motion
+      _scaleController = AnimationController(
+        duration: Duration.zero,
+        vsync: this,
+      );
+      _scaleAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(
+        CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
+      );
+
+      _weightController = AnimationController(
+        duration: Duration.zero,
+        vsync: this,
+      );
+      _weightAnimation = Tween<double>(
+        begin: _currentWeight,
+        end: _currentWeight,
+      ).animate(CurvedAnimation(
+        parent: _weightController,
+        curve: Curves.easeOut,
+      ));
+    }
   }
 
   @override
@@ -208,7 +235,10 @@ class _TagChipState extends ConsumerState<TagChip>
 
   void _onMouseEnter() {
     setState(() => _isHovering = true);
-    _scaleController.forward();
+    // Skip scale animation when reduced motion is enabled
+    if (!_reducedMotion) {
+      _scaleController.forward();
+    }
 
     if (!TagChip.isMobile && widget.showControls) {
       _menuHideTimer?.cancel();
@@ -225,7 +255,10 @@ class _TagChipState extends ConsumerState<TagChip>
 
   void _onMouseExit() {
     setState(() => _isHovering = false);
-    _scaleController.reverse();
+    // Skip scale animation when reduced motion is enabled
+    if (!_reducedMotion) {
+      _scaleController.reverse();
+    }
 
     _menuShowTimer?.cancel();
     // 立即隐藏菜单，避免多个菜单同时显示
@@ -603,7 +636,7 @@ class _TagChipState extends ConsumerState<TagChip>
 
     // 标签芯片（包含文本和删除按钮）- 使用 AnimatedContainer 实现平滑颜色过渡
     final tagChipContent = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       padding: EdgeInsets.only(
         left: widget.compact
@@ -691,10 +724,10 @@ class _TagChipState extends ConsumerState<TagChip>
 
     // Apply brightness overlay on hover - 使用 200ms 实现平滑过渡
     final tagChip = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       foregroundDecoration: BoxDecoration(
-        color: _isHovering && !TagChip.isMobile
+        color: _isHovering && !TagChip.isMobile && !_reducedMotion
             ? Colors.white.withOpacity(0.08)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(
@@ -709,8 +742,12 @@ class _TagChipState extends ConsumerState<TagChip>
     Widget chipContent = AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
+        // Skip scale animation when reduced motion is enabled
+        final scale = _reducedMotion
+            ? 1.0
+            : (widget.isDragging ? 1.05 : _scaleAnimation.value);
         return Transform.scale(
-          scale: widget.isDragging ? 1.05 : _scaleAnimation.value,
+          scale: scale,
           child: child,
         );
       },
@@ -925,11 +962,15 @@ class _DeleteButtonState extends State<_DeleteButton>
   late AnimationController _shrinkController;
   late Animation<double> _shrinkAnimation;
 
+  // Check if reduced motion is enabled
+  bool get _reducedMotion => MediaQuery.of(context).disableAnimations;
+
   @override
   void initState() {
     super.initState();
+    final duration = _reducedMotion ? Duration.zero : const Duration(milliseconds: 300);
     _shrinkController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: duration,
       vsync: this,
     );
     _shrinkAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
@@ -944,10 +985,15 @@ class _DeleteButtonState extends State<_DeleteButton>
   }
 
   void _handleTap() {
-    _shrinkController.forward().then((_) {
+    if (_reducedMotion) {
+      // Skip animation when reduced motion is enabled
       widget.onTap();
-      _shrinkController.reset();
-    });
+    } else {
+      _shrinkController.forward().then((_) {
+        widget.onTap();
+        _shrinkController.reset();
+      });
+    }
   }
 
   @override
@@ -959,18 +1005,21 @@ class _DeleteButtonState extends State<_DeleteButton>
         child: GestureDetector(
           onTap: _handleTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
             padding: const EdgeInsets.only(left: 6),
             child: AnimatedBuilder(
               animation: _shrinkAnimation,
               builder: (context, child) {
+                // Skip shrink animation when reduced motion is enabled
+                final scale = _reducedMotion ? 1.0 : _shrinkAnimation.value;
+                final opacity = _reducedMotion ? 1.0 : _shrinkAnimation.value;
                 return Transform.scale(
-                  scale: _shrinkAnimation.value,
+                  scale: scale,
                   child: Opacity(
-                    opacity: _shrinkAnimation.value,
+                    opacity: opacity,
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
@@ -1020,11 +1069,15 @@ class _FavoriteButtonState extends State<_FavoriteButton>
   late AnimationController _jumpController;
   late Animation<double> _jumpAnimation;
 
+  // Check if reduced motion is enabled
+  bool get _reducedMotion => MediaQuery.of(context).disableAnimations;
+
   @override
   void initState() {
     super.initState();
+    final duration = _reducedMotion ? Duration.zero : const Duration(milliseconds: 300);
     _jumpController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: duration,
       vsync: this,
     );
     _jumpAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
@@ -1039,7 +1092,9 @@ class _FavoriteButtonState extends State<_FavoriteButton>
   }
 
   void _handleTap() {
-    _jumpController.forward(from: 0);
+    if (!_reducedMotion) {
+      _jumpController.forward(from: 0);
+    }
     widget.onTap();
   }
 
@@ -1052,16 +1107,18 @@ class _FavoriteButtonState extends State<_FavoriteButton>
         child: GestureDetector(
           onTap: _handleTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
             padding: const EdgeInsets.only(left: 4),
             child: AnimatedBuilder(
               animation: _jumpAnimation,
               builder: (context, child) {
+                // Skip jump animation when reduced motion is enabled
+                final scale = _reducedMotion ? 1.0 : _jumpAnimation.value;
                 return Transform.scale(
-                  scale: _jumpAnimation.value,
+                  scale: scale,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
                     curve: Curves.easeInOut,
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(

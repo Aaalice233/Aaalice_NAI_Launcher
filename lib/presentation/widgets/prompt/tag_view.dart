@@ -91,6 +91,9 @@ class _TagViewState extends ConsumerState<TagView>
 
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
+  // Check if reduced motion is enabled
+  bool get _reducedMotion => MediaQuery.of(context).disableAnimations;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -105,13 +108,31 @@ class _TagViewState extends ConsumerState<TagView>
     );
     _tabController.addListener(_handleTabChange);
 
-    // 初始化入场动画控制器
-    _entranceController = TagChipAnimationControllerFactory.createEntranceController(this);
-    _entranceController.forward();
+    // 初始化入场动画控制器 (skip if reduced motion is enabled)
+    if (!_reducedMotion) {
+      _entranceController = TagChipAnimationControllerFactory.createEntranceController(this);
+      _entranceController.forward();
+    } else {
+      // Initialize with zero duration for reduced motion
+      _entranceController = AnimationController(
+        duration: Duration.zero,
+        vsync: this,
+      );
+      _entranceController.forward();
+    }
 
-    // 初始化骨架屏shimmer动画控制器
-    _shimmerController = TagChipAnimationControllerFactory.createShimmerController(this);
-    _shimmerController.repeat();
+    // 初始化骨架屏shimmer动画控制器 (skip if reduced motion is enabled)
+    if (!_reducedMotion) {
+      _shimmerController = TagChipAnimationControllerFactory.createShimmerController(this);
+      _shimmerController.repeat();
+    } else {
+      // Initialize with zero duration for reduced motion
+      _shimmerController = AnimationController(
+        duration: Duration.zero,
+        vsync: this,
+      );
+      _shimmerController.forward();
+    }
   }
 
   void _handleTabChange() {
@@ -699,6 +720,46 @@ class _TagViewState extends ConsumerState<TagView>
   }
 
   Widget _buildEmptyState(ThemeData theme) {
+    // Skip animation when reduced motion is enabled
+    if (_reducedMotion) {
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 插画图标容器
+              _buildEmptyStateIllustration(theme, 1.0),
+              const SizedBox(height: 24),
+
+              // 主提示文本
+              Text(
+                widget.emptyHint ?? context.l10n.tag_emptyHint,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // 次要提示文本
+              Text(
+                context.l10n.tag_emptyHintSub,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 600),
@@ -835,13 +896,17 @@ class _TagViewState extends ConsumerState<TagView>
     final isEditing = _editingTagId == tag.id;
     final hasSelection = widget.tags.any((t) => t.selected);
 
-    // 创建错峰入场动画
-    final opacityAnimation = createStaggeredEntranceAnimation(
-      index: index,
-      controller: _entranceController,
-    );
+    // 创建错峰入场动画 (skip when reduced motion is enabled)
+    final opacityAnimation = _reducedMotion
+        ? null
+        : createStaggeredEntranceAnimation(
+            index: index,
+            controller: _entranceController,
+          );
 
-    final slideAnimation = createEntranceSlideAnimation(_entranceController);
+    final slideAnimation = _reducedMotion
+        ? null
+        : createEntranceSlideAnimation(_entranceController);
 
     if (widget.readOnly) {
       final tagChip = TagChip(
@@ -853,13 +918,18 @@ class _TagViewState extends ConsumerState<TagView>
         isBatchSelectionMode: hasSelection,
       );
 
+      // Skip entrance animation when reduced motion is enabled
+      final childWidget = _reducedMotion
+          ? tagChip
+          : TagChipEntranceBuilder(
+              opacityAnimation: opacityAnimation!,
+              slideAnimation: slideAnimation!,
+              child: tagChip,
+            );
+
       return Container(
         key: _tagKeys.length > index ? _tagKeys[index] : null,
-        child: TagChipEntranceBuilder(
-          opacityAnimation: opacityAnimation,
-          slideAnimation: slideAnimation,
-          child: tagChip,
-        ),
+        child: childWidget,
       );
     }
 
@@ -879,7 +949,7 @@ class _TagViewState extends ConsumerState<TagView>
         final isTarget = _dragTargetIndex == index && candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
           padding: EdgeInsets.only(left: isTarget ? 28 : 0),
           child: Stack(
             children: [
@@ -914,27 +984,45 @@ class _TagViewState extends ConsumerState<TagView>
               // 标签卡片
               Container(
                 key: _tagKeys.length > index ? _tagKeys[index] : null,
-                child: TagChipEntranceBuilder(
-                  opacityAnimation: opacityAnimation,
-                  slideAnimation: slideAnimation,
-                  child: DraggableTagChip(
-                    tag: tag,
-                    index: index,
-                    onDelete: () => _handleDeleteTag(tag.id),
-                    onTap: () => _handleTagTap(tag.id),
-                    onToggleEnabled: () => _handleToggleEnabled(tag.id),
-                    onWeightChanged: (weight) =>
-                        _handleWeightChanged(tag.id, weight),
-                    onTextChanged: (text) => _handleTextChanged(tag.id, text),
-                    showControls: !widget.compact,
-                    compact: widget.compact,
-                    isEditing: isEditing,
-                    onEnterEdit: () => _enterEditMode(tag.id),
-                    onExitEdit: _exitEditMode,
-                    showCheckbox: hasSelection,
-                    isBatchSelectionMode: hasSelection,
-                  ),
-                ),
+                child: _reducedMotion
+                    ? DraggableTagChip(
+                        tag: tag,
+                        index: index,
+                        onDelete: () => _handleDeleteTag(tag.id),
+                        onTap: () => _handleTagTap(tag.id),
+                        onToggleEnabled: () => _handleToggleEnabled(tag.id),
+                        onWeightChanged: (weight) =>
+                            _handleWeightChanged(tag.id, weight),
+                        onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                        showControls: !widget.compact,
+                        compact: widget.compact,
+                        isEditing: isEditing,
+                        onEnterEdit: () => _enterEditMode(tag.id),
+                        onExitEdit: _exitEditMode,
+                        showCheckbox: hasSelection,
+                        isBatchSelectionMode: hasSelection,
+                      )
+                    : TagChipEntranceBuilder(
+                        opacityAnimation: opacityAnimation!,
+                        slideAnimation: slideAnimation!,
+                        child: DraggableTagChip(
+                          tag: tag,
+                          index: index,
+                          onDelete: () => _handleDeleteTag(tag.id),
+                          onTap: () => _handleTagTap(tag.id),
+                          onToggleEnabled: () => _handleToggleEnabled(tag.id),
+                          onWeightChanged: (weight) =>
+                              _handleWeightChanged(tag.id, weight),
+                          onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                          showControls: !widget.compact,
+                          compact: widget.compact,
+                          isEditing: isEditing,
+                          onEnterEdit: () => _enterEditMode(tag.id),
+                          onExitEdit: _exitEditMode,
+                          showCheckbox: hasSelection,
+                          isBatchSelectionMode: hasSelection,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -1123,6 +1211,35 @@ class _TagViewState extends ConsumerState<TagView>
   Widget _buildSkeletonLoading(ThemeData theme) {
     // 生成不同宽度的骨架芯片以模拟真实标签
     final skeletonWidths = [80.0, 120.0, 100.0, 90.0, 110.0, 85.0, 95.0, 105.0];
+
+    // Skip animation when reduced motion is enabled
+    if (_reducedMotion) {
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Wrap(
+            spacing: TagSpacing.horizontal,
+            runSpacing: TagSpacing.vertical,
+            children: skeletonWidths.map((width) {
+              return SizedBox(
+                width: width,
+                height: widget.compact ? 28.0 : 32.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(
+                      widget.compact
+                          ? TagBorderRadius.small
+                          : TagBorderRadius.small,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      );
+    }
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
