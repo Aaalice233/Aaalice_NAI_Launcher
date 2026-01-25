@@ -323,4 +323,20 @@ class CanvasController extends ChangeNotifier {
       ..translate(_offset.dx, _offset.dy)
       ..scale(_scale);
   }
+
+  /// 获取视口边界（用于空间剔除优化）
+  ///
+  /// 返回当前视口在画布坐标系中的矩形边界
+  /// 图层如果与这个矩形不相交，则可以被跳过渲染
+  Rect get viewportBounds {
+    if (_viewportSize == Size.zero) {
+      return Rect.zero;
+    }
+
+    // 将视口左上角和右下角转换为画布坐标
+    final topLeft = screenToCanvas(Offset.zero);
+    final bottomRight = screenToCanvas(Offset(_viewportSize.width, _viewportSize.height));
+
+    return Rect.fromPoints(topLeft, bottomRight);
+  }
 }

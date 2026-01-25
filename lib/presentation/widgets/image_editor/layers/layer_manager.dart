@@ -561,11 +561,12 @@ class LayerManager extends ChangeNotifier {
   /// 渲染所有可见图层到画布
   /// 面板下方的图层渲染在上层（覆盖面板上方的图层）
   /// 使用 renderWithCache 优先利用缓存提升性能
-  void renderAll(Canvas canvas, Size canvasSize) {
+  /// [viewportBounds] 视口边界，用于空间剔除优化（可选）
+  void renderAll(Canvas canvas, Size canvasSize, {Rect? viewportBounds}) {
     // 反向遍历：面板上方的图层先画（底层），面板下方的图层后画（顶层）
     for (final layer in _layers.reversed) {
       if (layer.visible) {
-        layer.renderWithCache(canvas, canvasSize);
+        layer.renderWithCache(canvas, canvasSize, viewportBounds: viewportBounds);
       }
     }
   }

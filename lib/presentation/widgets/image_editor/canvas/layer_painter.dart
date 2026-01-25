@@ -144,8 +144,12 @@ class LayerPainter extends CustomPainter {
     // 裁剪到画布范围，防止笔画超出边界
     canvas.clipRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height));
 
-    // 绘制所有图层
-    state.layerManager.renderAll(canvas, canvasSize);
+    // 获取视口边界用于空间剔除优化
+    // 这可以避免渲染不在视口内的图层，提高性能（特别是放大查看时）
+    final viewportBounds = controller.viewportBounds;
+
+    // 绘制所有图层（传入视口边界以启用空间剔除优化）
+    state.layerManager.renderAll(canvas, canvasSize, viewportBounds: viewportBounds);
 
     // 绘制当前正在绘制的笔画
     if (state.isDrawing && state.currentStrokePoints.isNotEmpty) {
