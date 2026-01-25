@@ -66,7 +66,7 @@ class TagView extends ConsumerStatefulWidget {
 }
 
 class _TagViewState extends ConsumerState<TagView>
-    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool _isAddingTag = false;
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocusNode = FocusNode();
