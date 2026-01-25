@@ -694,6 +694,7 @@
   "tag_inputHint": "输入标签...",
   "tag_copiedToClipboard": "已复制到剪贴板",
   "tag_emptyHint": "添加标签来描述你想要的画面",
+  "tag_emptyHintSub": "你可以浏览、搜索或手动添加标签",
 
   "tagCategory_artist": "艺术家",
   "tagCategory_copyright": "版权",
@@ -2073,6 +2074,26 @@
   "tag_tabFavorites": "收藏",
   "tag_tabTemplates": "模板",
 
+  "tag_categoryGeneral": "通用",
+  "tag_categoryArtist": "画师",
+  "tag_categoryCopyright": "版权",
+  "tag_categoryCharacter": "角色",
+  "tag_categoryMeta": "元数据",
+  "tag_countBadgeTooltip": "共 {total} 个标签",
+  "@tag_countBadgeTooltip": {
+    "placeholders": {
+      "total": {}
+    }
+  },
+  "tag_countBadgeBreakdown": "标签分类统计",
+  "tag_countEnabled": "{count} 个已启用",
+  "@tag_countEnabled": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+
   "localGallery_favoritesOnly": "仅显示收藏",
   "localGallery_noFavorites": "暂无收藏",
   "localGallery_markAsFavorite": "添加到收藏",
@@ -2154,4 +2175,5 @@
   "brushPreset_marker": "马克笔",
   "brushPreset_thick": "粗笔刷",
   "brushPreset_smudge": "涂抹笔"
+
 }

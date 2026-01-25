@@ -12,6 +12,8 @@ import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
+import 'components/tag_chip/tag_chip_animations.dart';
+import 'core/prompt_tag_config.dart';
 
 /// 重构后的提示词标签视图组件
 /// 支持框选、拖拽排序、批量操作、内联编辑等
@@ -40,6 +42,9 @@ class TagView extends ConsumerStatefulWidget {
   /// 是否启用框选（桌面端）
   final bool enableBoxSelection;
 
+  /// 是否显示加载骨架屏
+  final bool isLoading;
+
   const TagView({
     super.key,
     required this.tags,
@@ -50,13 +55,15 @@ class TagView extends ConsumerStatefulWidget {
     this.emptyHint,
     this.maxHeight,
     this.enableBoxSelection = true,
+    this.isLoading = false,
   });
 
   @override
   ConsumerState<TagView> createState() => _TagViewState();
 }
 
-class _TagViewState extends ConsumerState<TagView> {
+class _TagViewState extends ConsumerState<TagView>
+    with TickerProviderStateMixin {
   bool _isAddingTag = false;
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocusNode = FocusNode();
@@ -67,12 +74,26 @@ class _TagViewState extends ConsumerState<TagView> {
   final List<GlobalKey> _tagKeys = [];
   final BoxSelectionController _selectionController = BoxSelectionController();
 
+  // 动画控制器
+  late AnimationController _entranceController;
+  late AnimationController _shimmerController;
+
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
   @override
   void initState() {
     super.initState();
     _updateTagKeys();
+    _entranceController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _entranceController.forward();
+    _shimmerController.repeat();
   }
 
   @override
@@ -94,6 +115,8 @@ class _TagViewState extends ConsumerState<TagView> {
 
   @override
   void dispose() {
+    _entranceController.dispose();
+    _shimmerController.dispose();
     _addTagController.dispose();
     _addTagFocusNode.dispose();
     _selectionController.dispose();
@@ -260,6 +283,7 @@ class _TagViewState extends ConsumerState<TagView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasSelection = widget.tags.any((t) => t.selected);
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     Widget content = Focus(
       autofocus: false,
@@ -305,16 +329,22 @@ class _TagViewState extends ConsumerState<TagView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 批量操作工具栏
-            if (hasSelection && !widget.readOnly) _buildBatchActionBar(theme),
+            // 批量操作工具栏（加载状态不显示）
+            if (hasSelection && !widget.readOnly && !widget.isLoading)
+              _buildBatchActionBar(theme),
 
             // 标签区域
             Flexible(
-              child: widget.tags.isEmpty && !_isAddingTag
-                  ? _buildEmptyState(theme)
-                  : widget.tags.isEmpty && _isAddingTag
-                      ? Center(child: _buildAddTagInput(theme))
-                      : _buildTagsArea(theme),
+              child: widget.isLoading
+                  ? _buildSkeletonLoading(theme)
+                  : widget.tags.isEmpty && !_isAddingTag
+                      ? _buildEmptyState(theme)
+                      : widget.tags.isEmpty && _isAddingTag
+                          ? Center(child: _buildAddTagInput(theme))
+                          : AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: _buildTagsArea(theme),
+                            ),
             ),
           ],
         ),
@@ -336,6 +366,7 @@ class _TagViewState extends ConsumerState<TagView> {
 
   Widget _buildBatchActionBar(ThemeData theme) {
     final selectedCount = widget.tags.selectedTags.length;
+    final allSelected = widget.tags.every((t) => t.selected);
     final hasEnabledSelected = widget.tags.selectedTags.any((t) => t.enabled);
 
     return Container(
@@ -355,6 +386,9 @@ class _TagViewState extends ConsumerState<TagView> {
       ),
       child: Row(
         children: [
+          // Master checkbox
+          _buildMasterCheckbox(theme, allSelected),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -408,6 +442,45 @@ class _TagViewState extends ConsumerState<TagView> {
     );
   }
 
+  Widget _buildMasterCheckbox(ThemeData theme, bool allSelected) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _selectAll,
+        borderRadius: BorderRadius.circular(4),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: allSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: allSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline.withOpacity(0.5),
+              width: 1.5,
+            ),
+          ),
+          child: allSelected
+              ? Icon(
+                  Icons.check,
+                  size: 14,
+                  color: theme.colorScheme.onPrimary,
+                )
+              : Icon(
+                  Icons.check_box_outline_blank,
+                  size: 18,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -447,32 +520,154 @@ class _TagViewState extends ConsumerState<TagView> {
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.auto_awesome_outlined,
-              size: 32,
-              color: theme.colorScheme.primary.withOpacity(0.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              widget.emptyHint ?? context.l10n.tag_emptyHint,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+    // Check reduced motion here - can't use MediaQuery in initState
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
+    // Skip animation when reduced motion is enabled
+    if (reducedMotion) {
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 插画图标容器
+              _buildEmptyStateIllustration(theme, 1.0),
+              const SizedBox(height: 24),
+
+              // 主提示文本
+              Text(
+                widget.emptyHint ?? context.l10n.tag_emptyHint,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // 次要提示文本
+              Text(
+                context.l10n.tag_emptyHintSub,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 插画图标容器
+                    _buildEmptyStateIllustration(theme, value),
+                    const SizedBox(height: 24),
+
+                    // 主提示文本
+                    Text(
+                      widget.emptyHint ?? context.l10n.tag_emptyHint,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // 次要提示文本
+                    Text(
+                      context.l10n.tag_emptyHintSub,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+
+                    // 添加按钮
+                    if (widget.showAddButton && !widget.readOnly) ...[
+                      const SizedBox(height: 24),
+                      _buildAddTagButton(theme),
+                    ],
+                  ],
+                ),
               ),
             ),
-            if (widget.showAddButton && !widget.readOnly) ...[
-              const SizedBox(height: 16),
-              _buildAddTagButton(theme),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyStateIllustration(ThemeData theme, double animValue) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.8 + (0.2 * value),
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 0.8,
+                colors: [
+                  theme.colorScheme.primary.withOpacity(0.15),
+                  theme.colorScheme.primary.withOpacity(0.05),
+                  theme.colorScheme.primary.withOpacity(0.02),
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 1000),
+                curve: Curves.easeOutBack,
+                builder: (context, iconValue, child) {
+                  return Transform.rotate(
+                    angle: (1 - iconValue) * 0.3,
+                    child: Opacity(
+                      opacity: iconValue,
+                      child: Icon(
+                        Icons.label_outline_rounded,
+                        size: 56,
+                        color: theme.colorScheme.primary.withOpacity(0.6),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -481,8 +676,8 @@ class _TagViewState extends ConsumerState<TagView> {
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: TagSpacing.horizontal,
+          runSpacing: TagSpacing.vertical,
           children: [
             // 现有标签
             for (var i = 0; i < widget.tags.length; i++)
@@ -501,16 +696,43 @@ class _TagViewState extends ConsumerState<TagView> {
 
   Widget _buildDragTarget(int index, PromptTag tag, ThemeData theme) {
     final isEditing = _editingTagId == tag.id;
+    final hasSelection = widget.tags.any((t) => t.selected);
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
+
+    // 创建错峰入场动画 (skip when reduced motion is enabled)
+    final opacityAnimation = reducedMotion
+        ? null
+        : createStaggeredEntranceAnimation(
+            index: index,
+            controller: _entranceController,
+          );
+
+    final slideAnimation = reducedMotion
+        ? null
+        : createEntranceSlideAnimation(_entranceController);
 
     if (widget.readOnly) {
+      final tagChip = TagChip(
+        tag: tag,
+        compact: widget.compact,
+        showControls: false,
+        onTap: () => _handleTagTap(tag.id),
+        showCheckbox: hasSelection,
+        isBatchSelectionMode: hasSelection,
+      );
+
+      // Skip entrance animation when reduced motion is enabled
+      final childWidget = reducedMotion
+          ? tagChip
+          : TagChipEntranceBuilder(
+              opacityAnimation: opacityAnimation!,
+              slideAnimation: slideAnimation!,
+              child: tagChip,
+            );
+
       return Container(
         key: _tagKeys.length > index ? _tagKeys[index] : null,
-        child: TagChip(
-          tag: tag,
-          compact: widget.compact,
-          showControls: false,
-          onTap: () => _handleTagTap(tag.id),
-        ),
+        child: childWidget,
       );
     }
 
@@ -530,7 +752,7 @@ class _TagViewState extends ConsumerState<TagView> {
         final isTarget = _dragTargetIndex == index && candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
           padding: EdgeInsets.only(left: isTarget ? 28 : 0),
           child: Stack(
             children: [
@@ -565,21 +787,45 @@ class _TagViewState extends ConsumerState<TagView> {
               // 标签卡片
               Container(
                 key: _tagKeys.length > index ? _tagKeys[index] : null,
-                child: DraggableTagChip(
-                  tag: tag,
-                  index: index,
-                  onDelete: () => _handleDeleteTag(tag.id),
-                  onTap: () => _handleTagTap(tag.id),
-                  onToggleEnabled: () => _handleToggleEnabled(tag.id),
-                  onWeightChanged: (weight) =>
-                      _handleWeightChanged(tag.id, weight),
-                  onTextChanged: (text) => _handleTextChanged(tag.id, text),
-                  showControls: !widget.compact,
-                  compact: widget.compact,
-                  isEditing: isEditing,
-                  onEnterEdit: () => _enterEditMode(tag.id),
-                  onExitEdit: _exitEditMode,
-                ),
+                child: reducedMotion
+                    ? DraggableTagChip(
+                        tag: tag,
+                        index: index,
+                        onDelete: () => _handleDeleteTag(tag.id),
+                        onTap: () => _handleTagTap(tag.id),
+                        onToggleEnabled: () => _handleToggleEnabled(tag.id),
+                        onWeightChanged: (weight) =>
+                            _handleWeightChanged(tag.id, weight),
+                        onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                        showControls: !widget.compact,
+                        compact: widget.compact,
+                        isEditing: isEditing,
+                        onEnterEdit: () => _enterEditMode(tag.id),
+                        onExitEdit: _exitEditMode,
+                        showCheckbox: hasSelection,
+                        isBatchSelectionMode: hasSelection,
+                      )
+                    : TagChipEntranceBuilder(
+                        opacityAnimation: opacityAnimation!,
+                        slideAnimation: slideAnimation!,
+                        child: DraggableTagChip(
+                          tag: tag,
+                          index: index,
+                          onDelete: () => _handleDeleteTag(tag.id),
+                          onTap: () => _handleTagTap(tag.id),
+                          onToggleEnabled: () => _handleToggleEnabled(tag.id),
+                          onWeightChanged: (weight) =>
+                              _handleWeightChanged(tag.id, weight),
+                          onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                          showControls: !widget.compact,
+                          compact: widget.compact,
+                          isEditing: isEditing,
+                          onEnterEdit: () => _enterEditMode(tag.id),
+                          onExitEdit: _exitEditMode,
+                          showCheckbox: hasSelection,
+                          isBatchSelectionMode: hasSelection,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -762,6 +1008,371 @@ class _TagViewState extends ConsumerState<TagView> {
           alignment: Alignment.center,
           child: Icon(icon, size: 18, color: color),
         ),
+      ),
+    );
+  }
+
+  /// 构建骨架屏加载视图
+  Widget _buildSkeletonLoading(ThemeData theme) {
+    // 生成不同宽度的骨架芯片以模拟真实标签
+    final skeletonWidths = [80.0, 120.0, 100.0, 90.0, 110.0, 85.0, 95.0, 105.0];
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
+
+    // Skip animation when reduced motion is enabled
+    if (reducedMotion) {
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Wrap(
+            spacing: TagSpacing.horizontal,
+            runSpacing: TagSpacing.vertical,
+            children: skeletonWidths.map((width) {
+              return SizedBox(
+                width: width,
+                height: widget.compact ? 28.0 : 32.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(
+                      widget.compact
+                          ? TagBorderRadius.small
+                          : TagBorderRadius.small,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      );
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Wrap(
+                spacing: TagSpacing.horizontal,
+                runSpacing: TagSpacing.vertical,
+                children: skeletonWidths.map((width) {
+                  return SizedBox(
+                    width: width,
+                    height: widget.compact ? 28.0 : 32.0,
+                    child: TagChipShimmerBuilder(
+                      shimmerAnimation: _shimmerController,
+                      width: width,
+                      height: widget.compact ? 28.0 : 32.0,
+                      borderRadius: BorderRadius.circular(
+                        widget.compact
+                            ? TagBorderRadius.small
+                            : TagBorderRadius.small,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 标签计数徽章组件
+/// 显示总标签数，悬停/点击时显示分类统计
+class _TagCountBadge extends StatefulWidget {
+  final int totalCount;
+  final int enabledCount;
+  final List<PromptTag> tags;
+  final ThemeData theme;
+
+  const _TagCountBadge({
+    required this.totalCount,
+    required this.enabledCount,
+    required this.tags,
+    required this.theme,
+  });
+
+  @override
+  State<_TagCountBadge> createState() => _TagCountBadgeState();
+}
+
+class _TagCountBadgeState extends State<_TagCountBadge> {
+  bool _isHovering = false;
+  OverlayEntry? _overlayEntry;
+
+  Map<int, int> _getCategoryBreakdown() {
+    final breakdown = <int, int>{};
+    for (final tag in widget.tags) {
+      breakdown[tag.category] = (breakdown[tag.category] ?? 0) + 1;
+    }
+    return breakdown;
+  }
+
+  String _getCategoryName(int category) {
+    return switch (category) {
+      0 => context.l10n.tag_categoryGeneral,
+      1 => context.l10n.tag_categoryArtist,
+      3 => context.l10n.tag_categoryCopyright,
+      4 => context.l10n.tag_categoryCharacter,
+      5 => context.l10n.tag_categoryMeta,
+      _ => 'Unknown',
+    };
+  }
+
+  void _showBreakdownMenu() {
+    _hideOverlay();
+
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _BreakdownMenu(
+        position: Rect.fromLTWH(
+          position.dx,
+          position.dy + size.height + 4,
+          size.width,
+          size.height,
+        ),
+        breakdown: _getCategoryBreakdown(),
+        getCategoryName: _getCategoryName,
+        onDismiss: _hideOverlay,
+        theme: widget.theme,
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  @override
+  void dispose() {
+    _hideOverlay();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) {
+        setState(() => _isHovering = false);
+        _hideOverlay();
+      },
+      child: GestureDetector(
+        onTap: () {
+          if (_overlayEntry == null) {
+            _showBreakdownMenu();
+          } else {
+            _hideOverlay();
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                widget.theme.colorScheme.primary.withOpacity(0.2),
+                widget.theme.colorScheme.primary.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: widget.theme.colorScheme.primary.withOpacity(_isHovering ? 0.5 : 0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.totalCount.toString(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: widget.theme.colorScheme.primary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              if (widget.enabledCount < widget.totalCount) ...[
+                const SizedBox(width: 2),
+                Text(
+                  '(${widget.enabledCount})',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    color: widget.theme.colorScheme.onSurface.withOpacity(0.6),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 分类统计弹出菜单
+class _BreakdownMenu extends StatelessWidget {
+  final Rect position;
+  final Map<int, int> breakdown;
+  final String Function(int) getCategoryName;
+  final VoidCallback onDismiss;
+  final ThemeData theme;
+
+  const _BreakdownMenu({
+    required this.position,
+    required this.breakdown,
+    required this.getCategoryName,
+    required this.onDismiss,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedCategories = breakdown.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return GestureDetector(
+      onTap: onDismiss,
+      behavior: HitTestBehavior.translucent,
+      child: Stack(
+        children: [
+          Positioned(
+            left: position.left - 50,
+            top: position.top,
+            child: GestureDetector(
+              onTap: () {},
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 180, maxWidth: 220),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          theme.colorScheme.surfaceContainerHighest.withOpacity(0.9),
+                          theme.colorScheme.surfaceContainerHigh.withOpacity(0.85),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withOpacity(0.2),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.shadow.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 标题
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            context.l10n.tag_countBadgeBreakdown,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        // 分类统计列表
+                        ...sortedCategories.map((entry) {
+                          final categoryName = getCategoryName(entry.key);
+                          final count = entry.value;
+                          final percentage = (count / breakdown.values.reduce((a, b) => a + b) * 100);
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                // 分类名称
+                                Expanded(
+                                  child: Text(
+                                    categoryName,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ),
+                                // 数量
+                                Text(
+                                  count.toString(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // 百分比条
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: percentage / 100,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            theme.colorScheme.primary,
+                                            theme.colorScheme.primary.withOpacity(0.7),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
