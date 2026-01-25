@@ -2142,5 +2142,8 @@
     "placeholders": {
       "date": {}
     }
-  }
+  },
+
+  "brushPreset_selectHint": "双击选择此笔刷预设",
+  "brushPreset_selected": "已选择"
 }

@@ -2468,5 +2468,8 @@
     "placeholders": {
       "date": {}
     }
-  }
+  },
+
+  "brushPreset_selectHint": "Double tap to select this brush preset",
+  "brushPreset_selected": "Selected"
 }
