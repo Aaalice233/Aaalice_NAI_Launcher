@@ -948,30 +948,31 @@ class _LocalImageCardState extends State<LocalImageCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 图片 + 悬停叠加层
-                  Stack(
-                    children: [
-                      Image.file(
-                        File(widget.record.path),
-                        cacheWidth: cacheWidth, // 优化内存占用
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 150,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            child: Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                size: 48,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Image.file(
+                          File(widget.record.path),
+                          cacheWidth: cacheWidth, // 优化内存占用
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              child: Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  size: 48,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
                       // Selection Overlay
                       if (widget.selectionMode && widget.isSelected)
                         Positioned.fill(
@@ -1082,6 +1083,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                           ),
                         ),
                     ],
+                  ),
                   ),
                 ],
               ),
