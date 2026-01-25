@@ -119,7 +119,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 宽屏布局（左图右信息）
-  Widget _buildWideLayout(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildWideLayout(
+      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
     return Row(
       children: [
         // 媒体区域
@@ -140,7 +141,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 窄屏布局（上图下信息）
-  Widget _buildNarrowLayout(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildNarrowLayout(
+      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
     return Column(
       children: [
         // 媒体区域
@@ -169,7 +171,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             minScale: 0.5,
             maxScale: 4.0,
             child: CachedNetworkImage(
-              imageUrl: widget.post.sampleUrl ?? widget.post.fileUrl ?? widget.post.previewUrl,
+              imageUrl: widget.post.sampleUrl ??
+                  widget.post.fileUrl ??
+                  widget.post.previewUrl,
               fit: BoxFit.contain,
               placeholder: (context, url) => const Center(
                 child: CircularProgressIndicator(color: Colors.white),
@@ -247,7 +251,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 信息面板
-  Widget _buildInfoPanel(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildInfoPanel(
+      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -272,14 +277,16 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 标题栏
-  Widget _buildTitleBar(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildTitleBar(
+      ThemeData theme, DanbooruAuthState authState, bool isFavorited,) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       child: Row(
         children: [
           Text(
             'Post #${widget.post.id}',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 8),
           // 评级徽章
@@ -304,11 +311,14 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             onPressed: () {
               if (!authState.isLoggedIn) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(context.l10n.onlineGallery_pleaseLogin)),
+                  SnackBar(
+                      content: Text(context.l10n.onlineGallery_pleaseLogin),),
                 );
                 return;
               }
-              ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(widget.post.id);
+              ref
+                  .read(onlineGalleryNotifierProvider.notifier)
+                  .toggleFavorite(widget.post.id);
             },
             icon: Icon(
               isFavorited ? Icons.favorite : Icons.favorite_border,
@@ -337,8 +347,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           icon: Icons.star,
           label: context.l10n.onlineGallery_score,
           value: '${widget.post.score}',
-          valueColor: widget.post.score > 0 ? Colors.green : 
-                      widget.post.score < 0 ? Colors.red : null,
+          valueColor: widget.post.score > 0
+              ? Colors.green
+              : widget.post.score < 0
+                  ? Colors.red
+                  : null,
         ),
         const SizedBox(height: 6),
         _InfoRow(
@@ -362,7 +375,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
     final translationService = ref.watch(tagTranslationServiceProvider);
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -370,7 +383,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         children: [
           Text(
             context.l10n.onlineGallery_tags,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           // 艺术家标签
@@ -513,16 +527,16 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
     // 清空角色提示词
     ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
-    
+
     // 设置待填充提示词
     ref.read(pendingPromptNotifierProvider.notifier).set(
-      prompt: widget.post.tags.join(', '),
-    );
+          prompt: widget.post.tags.join(', '),
+        );
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
     context.go('/generate');
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('提示词已发送到生成页面')),
     );
@@ -543,8 +557,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       source: ReplicationTaskSource.online,
     );
 
-    final added = await ref.read(replicationQueueNotifierProvider.notifier).add(task);
-    
+    final added =
+        await ref.read(replicationQueueNotifierProvider.notifier).add(task);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(added ? '已加入队列' : '队列已满（最多50项）')),

@@ -65,7 +65,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               // 标题栏
               InkWell(
                 onTap: () => setState(() => _isExpanded = !_isExpanded),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -119,7 +120,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                             ? Icons.keyboard_arrow_up
                             : Icons.keyboard_arrow_down,
                         size: 20,
-                        color: hasSourceImage && _isExpanded ? Colors.white : null,
+                        color:
+                            hasSourceImage && _isExpanded ? Colors.white : null,
                       ),
                     ],
                   ),
@@ -336,7 +338,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             max: 1.0,
             divisions: 100,
             onChanged: (value) {
-              ref.read(generationParamsNotifierProvider.notifier)
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
                   .updateStrength(value);
             },
           ),
@@ -386,7 +389,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             max: 1.0,
             divisions: 100,
             onChanged: (value) {
-              ref.read(generationParamsNotifierProvider.notifier)
+              ref
+                  .read(generationParamsNotifierProvider.notifier)
                   .updateNoise(value);
             },
           ),
@@ -419,16 +423,19 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         }
 
         if (bytes != null) {
-          ref.read(generationParamsNotifierProvider.notifier)
+          ref
+              .read(generationParamsNotifierProvider.notifier)
               .setSourceImage(bytes);
-          ref.read(generationParamsNotifierProvider.notifier)
+          ref
+              .read(generationParamsNotifierProvider.notifier)
               .updateAction(ImageGenerationAction.img2img);
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.img2img_selectFailed(e.toString()))),
+          SnackBar(
+              content: Text(context.l10n.img2img_selectFailed(e.toString())),),
         );
       }
     }
@@ -452,16 +459,19 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         }
 
         if (bytes != null) {
-          ref.read(generationParamsNotifierProvider.notifier)
+          ref
+              .read(generationParamsNotifierProvider.notifier)
               .setMaskImage(bytes);
-          ref.read(generationParamsNotifierProvider.notifier)
+          ref
+              .read(generationParamsNotifierProvider.notifier)
               .updateAction(ImageGenerationAction.infill);
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.img2img_selectFailed(e.toString()))),
+          SnackBar(
+              content: Text(context.l10n.img2img_selectFailed(e.toString())),),
         );
       }
     }
@@ -469,7 +479,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
   void _removeSourceImage() {
     ref.read(generationParamsNotifierProvider.notifier).setSourceImage(null);
-    ref.read(generationParamsNotifierProvider.notifier)
+    ref
+        .read(generationParamsNotifierProvider.notifier)
         .updateAction(ImageGenerationAction.generate);
   }
 
@@ -615,9 +626,8 @@ class _SourceOptionCardState extends State<_SourceOptionCard> {
               width: _isHovered ? 1.5 : 1.0,
             ),
             borderRadius: BorderRadius.circular(8),
-            color: _isHovered
-                ? theme.colorScheme.primary.withOpacity(0.05)
-                : null,
+            color:
+                _isHovered ? theme.colorScheme.primary.withOpacity(0.05) : null,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

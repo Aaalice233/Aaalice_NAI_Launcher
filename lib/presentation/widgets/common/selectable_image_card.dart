@@ -30,7 +30,8 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SelectableImageCard> createState() => _SelectableImageCardState();
+  ConsumerState<SelectableImageCard> createState() =>
+      _SelectableImageCardState();
 }
 
 class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {

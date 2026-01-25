@@ -44,7 +44,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
     _selectionMode = widget.config.selectionMode;
     _contentType = widget.config.contentType;
     _selectCount = widget.config.selectCount ?? 1;
-    _selectProbability = (widget.config.selectProbability ?? 0.5).clamp(0.1, 1.0);
+    _selectProbability =
+        (widget.config.selectProbability ?? 0.5).clamp(0.1, 1.0);
     _bracketMin = widget.config.bracketMin;
     _bracketMax = widget.config.bracketMax;
     _shuffle = widget.config.shuffle;
@@ -78,7 +79,9 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isNew ? context.l10n.configEditor_newConfigGroup : context.l10n.configEditor_editConfigGroup),
+          title: Text(widget.isNew
+              ? context.l10n.configEditor_newConfigGroup
+              : context.l10n.configEditor_editConfigGroup,),
           actions: [
             TextButton.icon(
               onPressed: _saveConfig,
@@ -249,7 +252,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
             const Divider(height: 32),
 
             // 权重括号
-            _buildSectionHeader(theme, context.l10n.configEditor_weightBrackets),
+            _buildSectionHeader(
+                theme, context.l10n.configEditor_weightBrackets,),
             const SizedBox(height: 8),
             Text(
               context.l10n.configEditor_weightBracketsHint,
@@ -317,7 +321,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.l10n.configEditor_effectPreview, style: theme.textTheme.labelSmall),
+                      Text(context.l10n.configEditor_effectPreview,
+                          style: theme.textTheme.labelSmall,),
                       const SizedBox(height: 4),
                       Text(
                         _getBracketPreview(),
@@ -358,7 +363,10 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
   }
 
   Widget _buildStringContentsEditor(ThemeData theme) {
-    final lineCount = _contentsController.text.split('\n').where((s) => s.trim().isNotEmpty).length;
+    final lineCount = _contentsController.text
+        .split('\n')
+        .where((s) => s.trim().isNotEmpty)
+        .length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -374,7 +382,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
           maxLines: 15,
           minLines: 5,
           decoration: const InputDecoration(
-            hintText: 'Enter tags, one per line...\ne.g.:\n1girl\nbeautiful eyes\nlong hair',
+            hintText:
+                'Enter tags, one per line...\ne.g.:\n1girl\nbeautiful eyes\nlong hair',
             border: OutlineInputBorder(),
           ),
           style: const TextStyle(fontFamily: 'monospace'),
@@ -453,8 +462,10 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                 title: Text(nested.name),
                 subtitle: Text(
                   nested.contentType == ContentType.string
-                      ? context.l10n.configEditor_itemCount(nested.stringContents.length)
-                      : context.l10n.configEditor_subConfigCount(nested.nestedConfigs.length),
+                      ? context.l10n
+                          .configEditor_itemCount(nested.stringContents.length)
+                      : context.l10n.configEditor_subConfigCount(
+                          nested.nestedConfigs.length,),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -522,7 +533,8 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
   }
 
   void _addNestedConfig() async {
-    final newConfig = PromptConfig.create(name: context.l10n.configEditor_subConfig);
+    final newConfig =
+        PromptConfig.create(name: context.l10n.configEditor_subConfig);
     final result = await Navigator.of(context).push<PromptConfig>(
       MaterialPageRoute(
         builder: (context) => ConfigItemEditor(config: newConfig, isNew: true),

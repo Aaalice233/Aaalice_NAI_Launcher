@@ -389,8 +389,7 @@ class InputHandler {
       final deltaX =
           event.localPosition.dx - gesture.brushSizeStartPosition!.dx;
       final sizeFactor = 1.0 + deltaX / 200.0;
-      final newSize =
-          (gesture.initialBrushSize * sizeFactor).clamp(1.0, 500.0);
+      final newSize = (gesture.initialBrushSize * sizeFactor).clamp(1.0, 500.0);
       state.setBrushSize(newSize);
       gesture.cursorPosition = gesture.brushSizeStartPosition;
       onStateChanged();
@@ -402,7 +401,9 @@ class InputHandler {
     onStateChanged();
 
     // 直接调用工具的 onPointerMove（使用原始指针事件，避免 GestureDetector 延迟）
-    if (gesture.isPrimaryButtonDown && !gesture.isPanning && !keyboard.isSpacePressed) {
+    if (gesture.isPrimaryButtonDown &&
+        !gesture.isPanning &&
+        !keyboard.isSpacePressed) {
       final tool = state.currentTool;
       if (tool != null) {
         final canvasPosition = state.canvasController.screenToCanvas(

@@ -117,13 +117,15 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   QueueSettings _getSettings() {
     final storage = ref.read(localStorageServiceProvider);
     final retryCount = storage.getSetting<int>(
-      StorageKeys.queueRetryCount,
-      defaultValue: 10,
-    ) ?? 10;
+          StorageKeys.queueRetryCount,
+          defaultValue: 10,
+        ) ??
+        10;
     final retryInterval = storage.getSetting<double>(
-      StorageKeys.queueRetryInterval,
-      defaultValue: 1.0,
-    ) ?? 1.0;
+          StorageKeys.queueRetryInterval,
+          defaultValue: 1.0,
+        ) ??
+        1.0;
     return QueueSettings(
       retryCount: retryCount,
       retryIntervalSeconds: retryInterval,
@@ -256,7 +258,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // 超过重试次数，跳过该任务
       final currentTaskId = state.currentTaskId;
       if (currentTaskId != null) {
-        await ref.read(replicationQueueNotifierProvider.notifier).markCompleted();
+        await ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .markCompleted();
 
         state = state.copyWith(
           failedCount: state.failedCount + 1,
@@ -306,12 +310,14 @@ QueueSettings queueSettings(Ref ref) {
   final storage = ref.watch(localStorageServiceProvider);
   return QueueSettings(
     retryCount: storage.getSetting<int>(
-      StorageKeys.queueRetryCount,
-      defaultValue: 10,
-    ) ?? 10,
+          StorageKeys.queueRetryCount,
+          defaultValue: 10,
+        ) ??
+        10,
     retryIntervalSeconds: storage.getSetting<double>(
-      StorageKeys.queueRetryInterval,
-      defaultValue: 1.0,
-    ) ?? 1.0,
+          StorageKeys.queueRetryInterval,
+          defaultValue: 1.0,
+        ) ??
+        1.0,
   );
 }

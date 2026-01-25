@@ -147,9 +147,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
           return ListTile(
             selected: _selectedIndex == index,
             leading: Icon(
-              rule.visibleWhenMatched
-                  ? Icons.visibility
-                  : Icons.visibility_off,
+              rule.visibleWhenMatched ? Icons.visibility : Icons.visibility_off,
               color: rule.enabled
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.outline,

@@ -159,7 +159,8 @@ class SelectionSettingsPanel extends StatelessWidget {
                 icon: const Icon(Icons.deselect, size: 16),
                 label: const Text('清除选区'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   textStyle: theme.textTheme.bodySmall,
                 ),
               ),
@@ -168,7 +169,8 @@ class SelectionSettingsPanel extends StatelessWidget {
                 icon: const Icon(Icons.flip, size: 16),
                 label: const Text('反转选区'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   textStyle: theme.textTheme.bodySmall,
                 ),
               ),

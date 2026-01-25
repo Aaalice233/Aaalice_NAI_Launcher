@@ -10,74 +10,73 @@ import '../models/danbooru/danbooru_user.dart';
 
 part 'danbooru_auth_service.g.dart';
 
-  /// Danbooru 认证状态
-  class DanbooruAuthState {
-    final DanbooruCredentials? credentials;
-    final DanbooruUser? user;
-    final bool isLoading;
-    final String? error;
-    final DateTime? lastVerifiedAt;
+/// Danbooru 认证状态
+class DanbooruAuthState {
+  final DanbooruCredentials? credentials;
+  final DanbooruUser? user;
+  final bool isLoading;
+  final String? error;
+  final DateTime? lastVerifiedAt;
 
-    const DanbooruAuthState({
-      this.credentials,
-      this.user,
-      this.isLoading = false,
-      this.error,
-      this.lastVerifiedAt,
-    });
+  const DanbooruAuthState({
+    this.credentials,
+    this.user,
+    this.isLoading = false,
+    this.error,
+    this.lastVerifiedAt,
+  });
 
-    /// 是否已登录
-    /// 
-    /// 判断逻辑：
-    /// 1. 必须有凭据
-    /// 2. 必须有用户信息（表示API验证成功）
-    /// 3. 24小时内验证过
-    bool get isLoggedIn {
-      if (credentials == null || user == null) return false;
-      
-      // 检查是否在验证有效期内（24小时）
-      final verifiedAt = lastVerifiedAt;
-      if (verifiedAt != null) {
-        final hoursSinceVerify = DateTime.now().difference(verifiedAt).inHours;
-        if (hoursSinceVerify >= 24) return false;
-      } else {
-        return false;
-      }
-      
-      return true;
-    }
+  /// 是否已登录
+  ///
+  /// 判断逻辑：
+  /// 1. 必须有凭据
+  /// 2. 必须有用户信息（表示API验证成功）
+  /// 3. 24小时内验证过
+  bool get isLoggedIn {
+    if (credentials == null || user == null) return false;
 
-    /// 是否需要重新验证
-    bool get needsReverification {
-      final verifiedAt = lastVerifiedAt;
-      if (verifiedAt == null) return true;
-      
+    // 检查是否在验证有效期内（24小时）
+    final verifiedAt = lastVerifiedAt;
+    if (verifiedAt != null) {
       final hoursSinceVerify = DateTime.now().difference(verifiedAt).inHours;
-      return hoursSinceVerify >= 24;
+      if (hoursSinceVerify >= 24) return false;
+    } else {
+      return false;
     }
 
-    DanbooruAuthState copyWith({
-      DanbooruCredentials? credentials,
-      DanbooruUser? user,
-      bool? isLoading,
-      String? error,
-      bool clearCredentials = false,
-      bool clearUser = false,
-      bool clearError = false,
-      DateTime? lastVerifiedAt,
-      bool clearVerifiedAt = false,
-    }) {
-      return DanbooruAuthState(
-        credentials: clearCredentials ? null : (credentials ?? this.credentials),
-        user: clearUser ? null : (user ?? this.user),
-        isLoading: isLoading ?? this.isLoading,
-        error: clearError ? null : (error ?? this.error),
-        lastVerifiedAt: clearVerifiedAt 
-          ? null 
-          : (lastVerifiedAt ?? this.lastVerifiedAt),
-      );
-    }
+    return true;
   }
+
+  /// 是否需要重新验证
+  bool get needsReverification {
+    final verifiedAt = lastVerifiedAt;
+    if (verifiedAt == null) return true;
+
+    final hoursSinceVerify = DateTime.now().difference(verifiedAt).inHours;
+    return hoursSinceVerify >= 24;
+  }
+
+  DanbooruAuthState copyWith({
+    DanbooruCredentials? credentials,
+    DanbooruUser? user,
+    bool? isLoading,
+    String? error,
+    bool clearCredentials = false,
+    bool clearUser = false,
+    bool clearError = false,
+    DateTime? lastVerifiedAt,
+    bool clearVerifiedAt = false,
+  }) {
+    return DanbooruAuthState(
+      credentials: clearCredentials ? null : (credentials ?? this.credentials),
+      user: clearUser ? null : (user ?? this.user),
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      lastVerifiedAt:
+          clearVerifiedAt ? null : (lastVerifiedAt ?? this.lastVerifiedAt),
+    );
+  }
+}
 
 /// Danbooru 认证服务
 @Riverpod(keepAlive: true)
@@ -176,9 +175,9 @@ class DanbooruAuth extends _$DanbooruAuth {
 
       // 先验证凭据是否有效
       AppLogger.i('Verifying Danbooru credentials...', 'DanbooruAuth');
-      
+
       final user = await _fetchUserProfile(credentials);
-      
+
       if (user == null) {
         state = state.copyWith(
           isLoading: false,
@@ -218,9 +217,11 @@ class DanbooruAuth extends _$DanbooruAuth {
   /// 从API获取用户信息
   ///
   /// 使用 DanbooruApiService 验证凭据并获取用户信息
-  Future<DanbooruUser?> _fetchUserProfile(DanbooruCredentials credentials) async {
+  Future<DanbooruUser?> _fetchUserProfile(
+      DanbooruCredentials credentials,) async {
     try {
-      AppLogger.i('Fetching user profile for: ${credentials.username}', 'DanbooruAuth');
+      AppLogger.i(
+          'Fetching user profile for: ${credentials.username}', 'DanbooruAuth',);
 
       // 使用 DanbooruApiService 验证凭据
       final apiService = DanbooruApiService(
@@ -236,9 +237,11 @@ class DanbooruAuth extends _$DanbooruAuth {
       final user = await apiService.verifyCredentials(credentials);
 
       if (user != null) {
-        AppLogger.i('User profile fetched successfully: ${user.name}', 'DanbooruAuth');
+        AppLogger.i(
+            'User profile fetched successfully: ${user.name}', 'DanbooruAuth',);
       } else {
-        AppLogger.w('Failed to fetch user profile or invalid credentials', 'DanbooruAuth');
+        AppLogger.w('Failed to fetch user profile or invalid credentials',
+            'DanbooruAuth',);
       }
 
       return user;

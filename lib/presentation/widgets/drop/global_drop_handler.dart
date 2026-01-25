@@ -189,7 +189,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       context,
       imageBytes: bytes,
       fileName: fileName,
-      showExtractMetadata: fileName.toLowerCase().endsWith('.png'), // 只有 PNG 才支持提取元数据
+      showExtractMetadata:
+          fileName.toLowerCase().endsWith('.png'), // 只有 PNG 才支持提取元数据
     );
 
     if (destination == null || !mounted) return;
@@ -379,7 +380,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       if (mounted) {
         if (appliedCount > 0) {
           AppToast.success(context, '已应用 $appliedCount 项参数');
-          
+
           // 显示详细信息
           _showMetadataAppliedDialog(metadata);
         } else {
@@ -416,7 +417,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
               if (metadata.prompt.isNotEmpty)
                 _buildAppliedItem('Prompt', metadata.prompt, maxLines: 3),
               if (metadata.negativePrompt.isNotEmpty)
-                _buildAppliedItem('负向提示词', metadata.negativePrompt, maxLines: 2),
+                _buildAppliedItem('负向提示词', metadata.negativePrompt,
+                    maxLines: 2,),
               if (metadata.seed != null)
                 _buildAppliedItem('Seed', metadata.seed.toString()),
               if (metadata.steps != null)
@@ -424,7 +426,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
               if (metadata.scale != null)
                 _buildAppliedItem('CFG Scale', metadata.scale.toString()),
               if (metadata.width != null && metadata.height != null)
-                _buildAppliedItem('尺寸', '${metadata.width} x ${metadata.height}'),
+                _buildAppliedItem(
+                    '尺寸', '${metadata.width} x ${metadata.height}',),
               if (metadata.sampler != null)
                 _buildAppliedItem('采样器', metadata.displaySampler),
             ],

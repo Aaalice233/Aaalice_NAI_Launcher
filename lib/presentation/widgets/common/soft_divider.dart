@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
 /// 柔和分割线 - 使用凹槽效果替代刺眼的白线
-/// 
+///
 /// 设计原理：使用阴影线+高光线模拟物理凹槽，
 /// 比纯色线条柔和得多，且具有质感。
 class SoftDivider extends StatelessWidget {
   /// 分割线区域的总高度（包含上下留白）
   final double height;
-  
+
   /// 左侧缩进
   final double indent;
-  
-  /// 右侧缩进  
+
+  /// 右侧缩进
   final double endIndent;
-  
+
   /// 是否为垂直分割线
   final bool vertical;
 
@@ -31,14 +31,12 @@ class SoftDivider extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     // 阴影色：模拟凹槽的深处
-    final shadowColor = isDark
-        ? Colors.black.withOpacity(0.5)
-        : Colors.black.withOpacity(0.05);
+    final shadowColor =
+        isDark ? Colors.black.withOpacity(0.5) : Colors.black.withOpacity(0.05);
 
     // 高光色：模拟凹槽下边缘的反光
-    final highlightColor = isDark
-        ? Colors.white.withOpacity(0.08)
-        : Colors.white;
+    final highlightColor =
+        isDark ? Colors.white.withOpacity(0.08) : Colors.white;
 
     return SizedBox(
       width: vertical ? height : null,

@@ -9,7 +9,8 @@ import '../random_library_manager_state.dart';
 /// Mixin to handle keyboard navigation for the Random Library Tree
 mixin KeyboardNavigationMixin on Widget {
   // Focus management
-  final FocusNode focusNode = FocusNode(debugLabel: 'RandomTreeKeyboardNavigation');
+  final FocusNode focusNode =
+      FocusNode(debugLabel: 'RandomTreeKeyboardNavigation');
 
   void handleKeyEvent(BuildContext context, WidgetRef ref, KeyEvent event) {
     if (event is! KeyDownEvent) return;
@@ -17,69 +18,69 @@ mixin KeyboardNavigationMixin on Widget {
     final selectedNode = ref.read(selectedNodeProvider);
     final treeData = ref.read(randomTreeDataProvider);
     final expandedNodes = ref.read(expandedNodesProvider);
-    
+
     // Helper to check for Control or Command key
-    final bool isControlPressed = HardwareKeyboard.instance.isControlPressed || 
-                           HardwareKeyboard.instance.isMetaPressed;
+    final bool isControlPressed = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
 
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowUp:
         _moveSelection(ref, treeData, expandedNodes, selectedNode, -1);
         break;
-        
+
       case LogicalKeyboardKey.arrowDown:
         _moveSelection(ref, treeData, expandedNodes, selectedNode, 1);
         break;
-        
+
       case LogicalKeyboardKey.arrowRight:
         if (selectedNode != null) {
           _handleExpand(ref, selectedNode, expandedNodes);
         }
         break;
-        
+
       case LogicalKeyboardKey.arrowLeft:
         if (selectedNode != null) {
           _handleCollapse(ref, selectedNode, expandedNodes);
         }
         break;
-        
+
       case LogicalKeyboardKey.enter:
         // Enter to edit/confirm - triggering rename for now as "Edit"
         if (selectedNode != null) {
           _showRenameDialog(context, ref, selectedNode);
         }
         break;
-        
+
       case LogicalKeyboardKey.space:
         // Toggle selection
         if (selectedNode != null) {
           ref.read(selectedNodeProvider.notifier).select(null);
         }
         break;
-        
+
       case LogicalKeyboardKey.delete:
         if (selectedNode != null) {
           ref.read(randomTreeDataProvider.notifier).deleteNode(selectedNode);
           ref.read(selectedNodeProvider.notifier).select(null);
         }
         break;
-        
+
       case LogicalKeyboardKey.f2:
         if (selectedNode != null) {
           _showRenameDialog(context, ref, selectedNode);
         }
         break;
-        
+
       case LogicalKeyboardKey.escape:
         ref.read(selectedNodeProvider.notifier).select(null);
         break;
-        
+
       case LogicalKeyboardKey.keyN:
         if (isControlPressed) {
           _handleNewItem(ref, selectedNode);
         }
         break;
-        
+
       case LogicalKeyboardKey.keyD:
         if (isControlPressed && selectedNode != null) {
           ref.read(randomTreeDataProvider.notifier).duplicateNode(selectedNode);
@@ -91,10 +92,10 @@ mixin KeyboardNavigationMixin on Widget {
   // --- Navigation Logic ---
 
   void _moveSelection(
-    WidgetRef ref, 
-    List<PresetNode> treeData, 
+    WidgetRef ref,
+    List<PresetNode> treeData,
     Set<String> expandedNodes,
-    RandomTreeNode? currentSelection, 
+    RandomTreeNode? currentSelection,
     int direction,
   ) {
     final visibleNodes = _getAllVisibleNodes(treeData, expandedNodes);
@@ -102,7 +103,8 @@ mixin KeyboardNavigationMixin on Widget {
 
     int currentIndex = -1;
     if (currentSelection != null) {
-      currentIndex = visibleNodes.indexWhere((node) => node.id == currentSelection.id);
+      currentIndex =
+          visibleNodes.indexWhere((node) => node.id == currentSelection.id);
     }
 
     int newIndex;
@@ -118,7 +120,8 @@ mixin KeyboardNavigationMixin on Widget {
     }
   }
 
-  List<RandomTreeNode> _getAllVisibleNodes(List<PresetNode> presets, Set<String> expandedIds) {
+  List<RandomTreeNode> _getAllVisibleNodes(
+      List<PresetNode> presets, Set<String> expandedIds,) {
     final List<RandomTreeNode> visible = [];
     for (final preset in presets) {
       visible.add(preset);
@@ -134,15 +137,17 @@ mixin KeyboardNavigationMixin on Widget {
     return visible;
   }
 
-  void _handleExpand(WidgetRef ref, RandomTreeNode node, Set<String> expandedNodes) {
+  void _handleExpand(
+      WidgetRef ref, RandomTreeNode node, Set<String> expandedNodes,) {
     if (node is TagGroupNode) return; // Leafs can't expand
-    
+
     if (!expandedNodes.contains(node.id)) {
       ref.read(expandedNodesProvider.notifier).expand(node.id);
     }
   }
 
-  void _handleCollapse(WidgetRef ref, RandomTreeNode node, Set<String> expandedNodes) {
+  void _handleCollapse(
+      WidgetRef ref, RandomTreeNode node, Set<String> expandedNodes,) {
     if (expandedNodes.contains(node.id)) {
       ref.read(expandedNodesProvider.notifier).collapse(node.id);
     } else {
@@ -155,11 +160,13 @@ mixin KeyboardNavigationMixin on Widget {
   }
 
   RandomTreeNode? _findParent(List<PresetNode> presets, RandomTreeNode node) {
-    if (node is PresetNode) return null; // Root nodes have no parent in this view
+    if (node is PresetNode) {
+      return null; // Root nodes have no parent in this view
+    }
 
     for (final preset in presets) {
       if (preset.children.any((c) => c.id == node.id)) return preset;
-      
+
       for (final category in preset.children) {
         if (category.children.any((c) => c.id == node.id)) return category;
       }
@@ -196,27 +203,28 @@ mixin KeyboardNavigationMixin on Widget {
 
   // --- Dialogs ---
 
-  void _showRenameDialog(BuildContext context, WidgetRef ref, RandomTreeNode node) {
+  void _showRenameDialog(
+      BuildContext context, WidgetRef ref, RandomTreeNode node,) {
     final controller = TextEditingController(text: node.label);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename'),
         content: TextField(
-          controller: controller, 
+          controller: controller,
           autofocus: true,
           decoration: const InputDecoration(
             hintText: 'Enter new name',
             border: OutlineInputBorder(),
           ),
           onSubmitted: (_) {
-             _performRename(ref, node, controller.text);
-             Navigator.pop(context);
+            _performRename(ref, node, controller.text);
+            Navigator.pop(context);
           },
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), 
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -234,20 +242,20 @@ mixin KeyboardNavigationMixin on Widget {
   void _performRename(WidgetRef ref, RandomTreeNode node, String newName) {
     if (newName.isEmpty || newName == node.label) return;
     final notifier = ref.read(randomTreeDataProvider.notifier);
-    
+
     if (node is PresetNode) {
       notifier.updatePreset(node.id, newName);
     } else if (node is CategoryNode) {
       notifier.updateCategory(
-        node.presetId, 
-        node.id, 
+        node.presetId,
+        node.id,
         node.data.copyWith(name: newName),
       );
     } else if (node is TagGroupNode) {
       notifier.updateTagGroup(
-        node.presetId, 
-        node.categoryId, 
-        node.id, 
+        node.presetId,
+        node.categoryId,
+        node.id,
         node.data.copyWith(name: newName),
       );
     }

@@ -1,5 +1,5 @@
 /// Glow Divider - Neon glow effect borders
-/// 
+///
 /// For themes with cyberpunk/retro-futuristic aesthetics:
 /// - RetroWave / Cassette Futurism
 library;
@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import '../../core/divider_module.dart';
 
 /// A divider module with neon glow effects.
-/// 
+///
 /// Creates borders with a glowing appearance using
 /// box shadows and gradient effects.
 class GlowDividerModule extends BaseDividerModule {
@@ -20,9 +20,10 @@ class GlowDividerModule extends BaseDividerModule {
     required Color glowColor,
     double glowIntensity = 1.0,
     Color? borderColor,
-  }) : _glowColor = glowColor,
-       _glowIntensity = glowIntensity,
-       _borderColor = borderColor ?? const Color(0x0FFFFFFF); // 6% white default
+  })  : _glowColor = glowColor,
+        _glowIntensity = glowIntensity,
+        _borderColor =
+            borderColor ?? const Color(0x0FFFFFFF); // 6% white default
 
   /// RetroWave style - orange/pink neon glow
   /// Glow effect uses bright orange, but panel borders use subtle white
@@ -49,42 +50,42 @@ class GlowDividerModule extends BaseDividerModule {
 
   @override
   BoxDecoration? get horizontalDecoration => BoxDecoration(
-    border: Border(
-      bottom: BorderSide(
-        color: _glowColor.withOpacity(0.8),
-        width: thickness,
-      ),
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: _glowColor.withOpacity(0.3 * _glowIntensity),
-        blurRadius: 4,
-        spreadRadius: 0,
-      ),
-      BoxShadow(
-        color: _glowColor.withOpacity(0.2 * _glowIntensity),
-        blurRadius: 8,
-        spreadRadius: 0,
-      ),
-    ],
-  );
+        border: Border(
+          bottom: BorderSide(
+            color: _glowColor.withOpacity(0.8),
+            width: thickness,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _glowColor.withOpacity(0.3 * _glowIntensity),
+            blurRadius: 4,
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: _glowColor.withOpacity(0.2 * _glowIntensity),
+            blurRadius: 8,
+            spreadRadius: 0,
+          ),
+        ],
+      );
 
   @override
   BoxDecoration? get verticalDecoration => BoxDecoration(
-    border: Border(
-      right: BorderSide(
-        color: _glowColor.withOpacity(0.8),
-        width: thickness,
-      ),
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: _glowColor.withOpacity(0.3 * _glowIntensity),
-        blurRadius: 4,
-        spreadRadius: 0,
-      ),
-    ],
-  );
+        border: Border(
+          right: BorderSide(
+            color: _glowColor.withOpacity(0.8),
+            width: thickness,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _glowColor.withOpacity(0.3 * _glowIntensity),
+            blurRadius: 4,
+            spreadRadius: 0,
+          ),
+        ],
+      );
 
   @override
   BoxDecoration panelBorder({
@@ -95,10 +96,18 @@ class GlowDividerModule extends BaseDividerModule {
   }) {
     return BoxDecoration(
       border: Border(
-        top: top ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness) : BorderSide.none,
-        right: right ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness) : BorderSide.none,
-        bottom: bottom ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness) : BorderSide.none,
-        left: left ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness) : BorderSide.none,
+        top: top
+            ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness)
+            : BorderSide.none,
+        right: right
+            ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness)
+            : BorderSide.none,
+        bottom: bottom
+            ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness)
+            : BorderSide.none,
+        left: left
+            ? BorderSide(color: _glowColor.withOpacity(0.8), width: thickness)
+            : BorderSide.none,
       ),
       boxShadow: [
         BoxShadow(

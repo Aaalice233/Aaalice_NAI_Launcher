@@ -52,7 +52,7 @@ class NAIApiService {
       if (model.contains('diffusion-4') || model == 'N/A') {
         AppLogger.w(
           'Model $model does not support DDIM sampler, '
-          'falling back to Euler Ancestral',
+              'falling back to Euler Ancestral',
           'API',
         );
         return Samplers.kEulerAncestral;
@@ -232,7 +232,8 @@ class NAIApiService {
 
       // 1. 处理种子
       // 0. 采样器版本映射
-      final effectiveSampler = _mapSamplerForModel(params.sampler, params.model);
+      final effectiveSampler =
+          _mapSamplerForModel(params.sampler, params.model);
 
       final seed =
           params.seed == -1 ? Random().nextInt(4294967295) : params.seed;

@@ -1,5 +1,5 @@
 /// None Divider - No visible dividers
-/// 
+///
 /// For themes that use whitespace or color blocks instead of lines:
 /// - Flat Design
 /// - Fluid Saturated
@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import '../../core/divider_module.dart';
 
 /// A divider module that renders nothing.
-/// 
+///
 /// Used for themes where separation is achieved through
 /// whitespace, color blocking, or other non-linear means.
 class NoneDividerModule implements DividerModule {

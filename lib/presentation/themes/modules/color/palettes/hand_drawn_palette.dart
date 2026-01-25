@@ -24,8 +24,8 @@ class HandDrawnPalette extends BaseColorModule {
   ColorScheme get lightScheme => ColorScheme.light(
         primary: _primary,
         onPrimary: Colors.white,
-        primaryContainer: Color(0xFFE8E4DC), // Light warm gray for contrast
-        onPrimaryContainer: Color(0xFF2D2D2D), // Dark gray for text/icons
+        primaryContainer: const Color(0xFFE8E4DC), // Light warm gray for contrast
+        onPrimaryContainer: const Color(0xFF2D2D2D), // Dark gray for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: _tertiary,

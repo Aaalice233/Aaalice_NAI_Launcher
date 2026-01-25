@@ -30,7 +30,8 @@ class SliderSettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final displayValue = valueFormatter?.call(value) ?? value.toStringAsFixed(1);
+    final displayValue =
+        valueFormatter?.call(value) ?? value.toStringAsFixed(1);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -120,7 +121,8 @@ class IntSliderSettingTile extends StatelessWidget {
       min: min.toDouble(),
       max: max.toDouble(),
       divisions: max - min,
-      valueFormatter: (v) => valueFormatter?.call(v.round()) ?? v.round().toString(),
+      valueFormatter: (v) =>
+          valueFormatter?.call(v.round()) ?? v.round().toString(),
       onChanged: onChanged != null ? (v) => onChanged!(v.round()) : null,
       leading: leading,
     );

@@ -328,7 +328,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                             onPressed: () {
                               _seedController.clear();
                               ref
-                                  .read(generationParamsNotifierProvider.notifier)
+                                  .read(
+                                      generationParamsNotifierProvider.notifier,)
                                   .updateSeed(-1);
                             },
                           ),
@@ -341,7 +342,9 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             // 种子锁定按钮
             IconButton(
               icon: Icon(
-                ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                ref
+                        .watch(generationParamsNotifierProvider.notifier)
+                        .isSeedLocked
                     ? Icons.lock
                     : Icons.lock_open,
                 size: 20,
@@ -349,21 +352,31 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
               onPressed: () {
                 // 先同步输入框的值到 state（防止用户输入后 state 未更新）
                 final inputText = _seedController.text.trim();
-                final inputSeed = inputText.isEmpty ? -1 : (int.tryParse(inputText) ?? -1);
-                if (inputSeed != ref.read(generationParamsNotifierProvider).seed) {
-                  ref.read(generationParamsNotifierProvider.notifier).updateSeed(inputSeed);
+                final inputSeed =
+                    inputText.isEmpty ? -1 : (int.tryParse(inputText) ?? -1);
+                if (inputSeed !=
+                    ref.read(generationParamsNotifierProvider).seed) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateSeed(inputSeed);
                 }
-                
-                ref.read(generationParamsNotifierProvider.notifier).toggleSeedLock();
+
+                ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .toggleSeedLock();
                 // 更新输入框显示
                 final newSeed = ref.read(generationParamsNotifierProvider).seed;
                 _seedController.text = newSeed == -1 ? '' : newSeed.toString();
               },
-              tooltip: ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+              tooltip: ref
+                      .watch(generationParamsNotifierProvider.notifier)
+                      .isSeedLocked
                   ? context.l10n.generation_seedUnlock
                   : context.l10n.generation_seedLock,
               style: IconButton.styleFrom(
-                backgroundColor: ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                backgroundColor: ref
+                        .watch(generationParamsNotifierProvider.notifier)
+                        .isSeedLocked
                     ? theme.colorScheme.primary.withOpacity(0.15)
                     : theme.colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(

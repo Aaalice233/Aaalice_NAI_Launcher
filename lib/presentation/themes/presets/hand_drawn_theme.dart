@@ -63,8 +63,7 @@ class HandDrawnTheme {
   static String get displayName => 'Hand-Drawn';
 
   /// Theme description.
-  static String get description =>
-      '手绘风格 - 不规则边框、纸纹纹理、可爱手写字体的温馨设计';
+  static String get description => '手绘风格 - 不规则边框、纸纹纹理、可爱手写字体的温馨设计';
 }
 
 /// Paper texture effect (uses paperGrain instead of grunge)

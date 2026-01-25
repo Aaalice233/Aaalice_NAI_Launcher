@@ -103,10 +103,13 @@ class _ImportNaiCategoryDialogState
               )
             else
               ...(_availableCategories.map((category) {
-                final includeSupplement = libraryState.categoryFilterConfig.isEnabled(category);
-                final tags = library.getFilteredCategory(category, includeDanbooruSupplement: includeSupplement);
+                final includeSupplement =
+                    libraryState.categoryFilterConfig.isEnabled(category);
+                final tags = library.getFilteredCategory(category,
+                    includeDanbooruSupplement: includeSupplement,);
                 final isSelected = _selectedCategories.contains(category);
-                final categoryName = TagSubCategoryHelper.getDisplayName(category);
+                final categoryName =
+                    TagSubCategoryHelper.getDisplayName(category);
 
                 return CheckboxListTile(
                   value: isSelected,
@@ -135,9 +138,8 @@ class _ImportNaiCategoryDialogState
                         child: Text(
                           categoryName,
                           style: TextStyle(
-                            color: tags.isEmpty
-                                ? theme.colorScheme.outline
-                                : null,
+                            color:
+                                tags.isEmpty ? theme.colorScheme.outline : null,
                           ),
                         ),
                       ),
@@ -151,7 +153,8 @@ class _ImportNaiCategoryDialogState
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          context.l10n.importNai_tagCount(tags.length.toString()),
+                          context.l10n
+                              .importNai_tagCount(tags.length.toString()),
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -173,11 +176,16 @@ class _ImportNaiCategoryDialogState
                   onPressed: library == null
                       ? null
                       : () {
-                          final filterConfig = libraryState.categoryFilterConfig;
+                          final filterConfig =
+                              libraryState.categoryFilterConfig;
                           setState(() {
                             _selectedCategories.clear();
                             for (final cat in _availableCategories) {
-                              if (library.getFilteredCategory(cat, includeDanbooruSupplement: filterConfig.isEnabled(cat)).isNotEmpty) {
+                              if (library
+                                  .getFilteredCategory(cat,
+                                      includeDanbooruSupplement:
+                                          filterConfig.isEnabled(cat),)
+                                  .isNotEmpty) {
                                 _selectedCategories.add(cat);
                               }
                             }
@@ -208,7 +216,8 @@ class _ImportNaiCategoryDialogState
               ? null
               : () => _doImport(library!, libraryState.categoryFilterConfig),
           child: Text(
-            context.l10n.importNai_import(_selectedCategories.length.toString()),
+            context.l10n
+                .importNai_import(_selectedCategories.length.toString()),
           ),
         ),
       ],
@@ -220,7 +229,8 @@ class _ImportNaiCategoryDialogState
 
     for (final category in _selectedCategories) {
       final includeSupplement = filterConfig.isEnabled(category);
-      final tags = library.getFilteredCategory(category, includeDanbooruSupplement: includeSupplement) as List<WeightedTag>;
+      final tags = library.getFilteredCategory(category,
+          includeDanbooruSupplement: includeSupplement,) as List<WeightedTag>;
       if (tags.isEmpty) continue;
 
       // 按权重排序后取标签名称

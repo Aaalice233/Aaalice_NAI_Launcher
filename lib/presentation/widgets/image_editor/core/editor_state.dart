@@ -184,8 +184,10 @@ class EditorState extends ChangeNotifier {
 
   // ===== 代理方法：颜色 =====
 
-  void setForegroundColor(Color color) => colorManager.setForegroundColor(color);
-  void setBackgroundColor(Color color) => colorManager.setBackgroundColor(color);
+  void setForegroundColor(Color color) =>
+      colorManager.setForegroundColor(color);
+  void setBackgroundColor(Color color) =>
+      colorManager.setBackgroundColor(color);
   void swapColors() => colorManager.swapColors();
 
   // ===== 代理方法：选区 =====

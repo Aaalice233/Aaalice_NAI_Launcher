@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import '../../themes/theme_extension.dart';
 
 /// 主题感知分割线 - 根据当前主题自动应用合适的分割线样式
-/// 
+///
 /// 使用 ThemeExtension 中的 divider 属性：
 /// - dividerColor: 分割线颜色
 /// - dividerThickness: 分割线厚度
 /// - useDivider: 是否显示分割线
-/// 
+///
 /// 同时保留对特殊效果的支持（霓虹发光等）
 class ThemedDivider extends StatelessWidget {
   /// 分割线区域的总高度（包含上下留白）
   final double height;
-  
+
   /// 左侧缩进
   final double indent;
-  
-  /// 右侧缩进  
+
+  /// 右侧缩进
   final double endIndent;
-  
+
   /// 是否为垂直分割线
   final bool vertical;
 
@@ -54,15 +54,18 @@ class ThemedDivider extends StatelessWidget {
     }
 
     // 使用新的 divider 属性
-    final dividerColor = extension?.dividerColor ?? 
-        (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1));
+    final dividerColor = extension?.dividerColor ??
+        (isDark
+            ? Colors.white.withOpacity(0.1)
+            : Colors.black.withOpacity(0.1));
     final thickness = extension?.dividerThickness ?? 1.0;
 
     return _buildSimpleDivider(context, dividerColor, thickness);
   }
 
   /// 简单分割线 - 使用 dividerColor 和 dividerThickness
-  Widget _buildSimpleDivider(BuildContext context, Color color, double thickness) {
+  Widget _buildSimpleDivider(
+      BuildContext context, Color color, double thickness,) {
     return SizedBox(
       width: vertical ? height : null,
       height: vertical ? null : height,

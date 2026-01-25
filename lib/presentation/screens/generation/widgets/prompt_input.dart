@@ -217,15 +217,20 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
       // 检查是否有角色被生成（用于 Toast 提示）
       final characterConfig = ref.read(characterPromptNotifierProvider);
-      final hasCharacters = characterConfig.characters.any((c) => c.enabled && c.prompt.isNotEmpty);
+      final hasCharacters = characterConfig.characters
+          .any((c) => c.enabled && c.prompt.isNotEmpty);
 
       if (hasCharacters && mounted) {
-        final count = characterConfig.characters.where((c) => c.enabled && c.prompt.isNotEmpty).length;
-        AppToast.success(context, context.l10n.tagLibrary_generatedCharacters(count.toString()));
+        final count = characterConfig.characters
+            .where((c) => c.enabled && c.prompt.isNotEmpty)
+            .length;
+        AppToast.success(context,
+            context.l10n.tagLibrary_generatedCharacters(count.toString()),);
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, context.l10n.tagLibrary_generateFailed(e.toString()));
+        AppToast.error(
+            context, context.l10n.tagLibrary_generateFailed(e.toString()),);
       }
     }
   }
@@ -375,7 +380,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           onRandomPressed: _generateRandomPrompt,
           onRandomLongPressed: _showRandomModeSelector,
           // 使用传入的回调或 Provider 切换最大化
-          onFullscreenPressed: widget.onToggleMaximize ?? 
+          onFullscreenPressed: widget.onToggleMaximize ??
               () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
           onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
           onSettingsPressed: () => _showSettingsMenu(context, theme),
@@ -582,22 +587,22 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 检查是否包含多角色分隔符
     if (RegExp(r'\n\s*\|\s*').hasMatch(value)) {
       setState(() => _isProcessingImport = true);
-      
+
       try {
         final result = MultiCharacterParser.parse(value);
-        
+
         if (result.hasMultipleCharacters) {
           // 更新全局提示词
           _promptController.text = result.globalPrompt;
           ref
               .read(generationParamsNotifierProvider.notifier)
               .updatePrompt(result.globalPrompt);
-          
+
           // 替换角色列表
           ref
               .read(characterPromptNotifierProvider.notifier)
               .replaceAll(result.characters);
-          
+
           // 显示成功提示
           if (mounted) {
             AppToast.success(
@@ -605,7 +610,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               context.l10n.prompt_importedCharacters(result.characters.length),
             );
           }
-          
+
           // 确保 UI 刷新后再解除防护
           await Future.delayed(Duration.zero);
         }
@@ -620,7 +625,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       }
       return;
     }
-    
+
     // 常规单提示词更新
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
   }
@@ -773,8 +778,10 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             IconButton(
               icon: const Icon(Icons.fullscreen),
               tooltip: context.l10n.tooltip_fullscreenEdit,
-              onPressed: widget.onToggleMaximize ?? 
-                  () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+              onPressed: widget.onToggleMaximize ??
+                  () => ref
+                      .read(promptMaximizeNotifierProvider.notifier)
+                      .toggle(),
             ),
             if (_promptController.text.isNotEmpty)
               IconButton(

@@ -160,7 +160,9 @@ class GenerationRecord with _$GenerationRecord {
   /// 格式化的文件大小
   String get formattedFileSize {
     if (fileSize < 1024) return '${fileSize}B';
-    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)}KB';
+    if (fileSize < 1024 * 1024) {
+      return '${(fileSize / 1024).toStringAsFixed(1)}KB';
+    }
     return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 }
@@ -169,8 +171,10 @@ class GenerationRecord with _$GenerationRecord {
 enum GallerySortOrder {
   /// 最新优先
   newestFirst,
+
   /// 最旧优先
   oldestFirst,
+
   /// 收藏优先
   favoritesFirst,
 }

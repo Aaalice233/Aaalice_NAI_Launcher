@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'inset_shadow_container.dart';
 
 /// 带内阴影效果的下拉选择器
-/// 
+///
 /// 自动从主题扩展读取内阴影配置，提供统一的立体感效果。
 class ThemedDropdown<T> extends StatelessWidget {
   /// 当前选中的值
@@ -64,7 +64,8 @@ class ThemedDropdown<T> extends StatelessWidget {
           focusedBorder: InputBorder.none,
           errorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
         dropdownColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       ),
@@ -73,7 +74,7 @@ class ThemedDropdown<T> extends StatelessWidget {
 }
 
 /// 带内阴影效果的文本输入框
-/// 
+///
 /// 自动从主题扩展读取内阴影配置，提供统一的立体感效果。
 class ThemedTextField extends StatelessWidget {
   /// 控制器
@@ -172,7 +173,8 @@ class ThemedTextField extends StatelessWidget {
           focusedBorder: InputBorder.none,
           errorBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           // 浮动标签样式
           labelStyle: TextStyle(
             fontSize: 12,

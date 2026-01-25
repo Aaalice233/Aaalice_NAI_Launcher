@@ -150,4 +150,3 @@ enum LocalTagCategory {
     );
   }
 }
-

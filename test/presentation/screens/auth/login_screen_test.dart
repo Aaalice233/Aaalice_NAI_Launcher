@@ -17,7 +17,7 @@ void main() {
     testWidgets('Icon with explicit color should render correctly',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Icon(
               Icons.auto_awesome,
@@ -153,7 +153,7 @@ void main() {
                         iconData,
                         color: Colors.blue,
                         size: 24,
-                      ))
+                      ),)
                   .toList(),
             ),
           ),
@@ -165,20 +165,22 @@ void main() {
       // Verify all critical icons are present
       for (final iconData in criticalIcons) {
         expect(find.byIcon(iconData), findsOneWidget,
-            reason: '$iconData should render correctly');
+            reason: '$iconData should render correctly',);
 
         // Verify each icon has proper configuration
         final iconWidget = tester.widget<Icon>(find.byIcon(iconData));
         expect(iconWidget.color, isNotNull,
-            reason: '$iconData should have a color to prevent color block appearance');
+            reason:
+                '$iconData should have a color to prevent color block appearance',);
         expect(iconWidget.size, isNotNull,
-            reason: '$iconData should have a size');
+            reason: '$iconData should have a size',);
         expect(iconWidget.icon, equals(iconData),
-            reason: '$iconData should have correct IconData');
+            reason: '$iconData should have correct IconData',);
       }
     });
 
-    testWidgets('icons should have proper size to prevent color block appearance',
+    testWidgets(
+        'icons should have proper size to prevent color block appearance',
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -205,7 +207,8 @@ void main() {
         expect(
           icon.size,
           greaterThan(0),
-          reason: 'Icon size must be greater than 0 to prevent color block rendering',
+          reason:
+              'Icon size must be greater than 0 to prevent color block rendering',
         );
       }
     });
@@ -228,7 +231,7 @@ void main() {
       final iconWidget = tester.widget<Icon>(find.byType(Icon));
       expect(iconWidget.color, equals(Colors.purple),
           reason:
-              'Icon with explicit color should not be null, preventing color block rendering');
+              'Icon with explicit color should not be null, preventing color block rendering',);
     });
 
     testWidgets('multiple icons with different colors should all render',
@@ -320,9 +323,9 @@ void main() {
 
       final iconWidget = tester.widget<Icon>(find.byIcon(Icons.menu));
       expect(iconWidget.color, Colors.cyan,
-          reason: 'Explicit color should override theme color');
+          reason: 'Explicit color should override theme color',);
       expect(iconWidget.size, 48,
-          reason: 'Explicit size should override theme size');
+          reason: 'Explicit size should override theme size',);
     });
   });
 }

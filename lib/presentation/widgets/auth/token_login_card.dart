@@ -79,7 +79,8 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
               TextFormField(
                 controller: _nicknameController,
                 decoration: InputDecoration(
-                  labelText: '${context.l10n.auth_nicknameOptional.replaceAll('（可选）', '').replaceAll('(optional)', '')} *',
+                  labelText:
+                      '${context.l10n.auth_nicknameOptional.replaceAll('（可选）', '').replaceAll('(optional)', '')} *',
                   hintText: context.l10n.auth_nicknameHint,
                   prefixIcon: const Icon(Icons.person_outline),
                   border: const OutlineInputBorder(),
@@ -192,12 +193,15 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                         ],
                       ),
                       // 显示恢复建议
-                      if (_getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode) != null) ...[
+                      if (_getErrorRecoveryHint(
+                              authState.errorCode, authState.httpStatusCode,) !=
+                          null) ...[
                         const SizedBox(height: 8),
                         Padding(
                           padding: const EdgeInsets.only(left: 32),
                           child: Text(
-                            _getErrorRecoveryHint(authState.errorCode, authState.httpStatusCode)!,
+                            _getErrorRecoveryHint(
+                                authState.errorCode, authState.httpStatusCode,)!,
                             style: TextStyle(
                               color: theme.colorScheme.error.withOpacity(0.8),
                               fontSize: 12,

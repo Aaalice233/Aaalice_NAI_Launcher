@@ -68,8 +68,9 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.language),
             title: Text(context.l10n.settings_language),
-            subtitle:
-                Text(currentLocale.languageCode == 'zh' ? context.l10n.settings_languageChinese : context.l10n.settings_languageEnglish),
+            subtitle: Text(currentLocale.languageCode == 'zh'
+                ? context.l10n.settings_languageChinese
+                : context.l10n.settings_languageEnglish,),
             onTap: () => _showLanguageDialog(context, ref, currentLocale),
           ),
           const ThemedDivider(),
@@ -139,7 +140,8 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(context.l10n.settings_openSourceSubtitle),
             trailing: const Icon(Icons.open_in_new),
             onTap: () async {
-              final uri = Uri.parse('https://github.com/Aaalice233/Aaalice_NAI_Launcher');
+              final uri = Uri.parse(
+                  'https://github.com/Aaalice233/Aaalice_NAI_Launcher',);
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
@@ -226,7 +228,9 @@ class SettingsScreen extends ConsumerWidget {
                 child: allFontsAsync.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text(context.l10n.settings_loadFailed(err.toString()))),
+                  error: (err, stack) => Center(
+                      child: Text(
+                          context.l10n.settings_loadFailed(err.toString()),),),
                   data: (fontGroups) {
                     return ListView.builder(
                       itemCount: fontGroups.length,
@@ -476,13 +480,15 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildQueueSettings(BuildContext context, WidgetRef ref) {
     final storage = ref.watch(localStorageServiceProvider);
     final retryCount = storage.getSetting<int>(
-      StorageKeys.queueRetryCount,
-      defaultValue: 10,
-    ) ?? 10;
+          StorageKeys.queueRetryCount,
+          defaultValue: 10,
+        ) ??
+        10;
     final retryInterval = storage.getSetting<double>(
-      StorageKeys.queueRetryInterval,
-      defaultValue: 1.0,
-    ) ?? 1.0;
+          StorageKeys.queueRetryInterval,
+          defaultValue: 1.0,
+        ) ??
+        1.0;
 
     return Column(
       children: [

@@ -12,6 +12,9 @@ import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
+import 'tag_group_browser.dart';
+import 'tag_favorite_panel.dart';
+import 'tag_template_panel.dart';
 
 /// 重构后的提示词标签视图组件
 /// 支持框选、拖拽排序、批量操作、内联编辑等
@@ -56,7 +59,8 @@ class TagView extends ConsumerStatefulWidget {
   ConsumerState<TagView> createState() => _TagViewState();
 }
 
-class _TagViewState extends ConsumerState<TagView> {
+class _TagViewState extends ConsumerState<TagView>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool _isAddingTag = false;
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocusNode = FocusNode();
@@ -67,12 +71,35 @@ class _TagViewState extends ConsumerState<TagView> {
   final List<GlobalKey> _tagKeys = [];
   final BoxSelectionController _selectionController = BoxSelectionController();
 
+  // Tab 控制
+  late TabController _tabController;
+
+  // Tab 状态持久化
+  int _currentTabIndex = 0;
+
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _updateTagKeys();
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: _currentTabIndex,
+    );
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
   }
 
   @override
@@ -94,9 +121,11 @@ class _TagViewState extends ConsumerState<TagView> {
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _addTagController.dispose();
     _addTagFocusNode.dispose();
     _selectionController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -235,8 +264,7 @@ class _TagViewState extends ConsumerState<TagView> {
     final rects = <Rect>[];
     for (var i = 0; i < _tagKeys.length; i++) {
       final key = _tagKeys[i];
-      final renderBox =
-          key.currentContext?.findRenderObject() as RenderBox?;
+      final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
         final position = renderBox.localToGlobal(Offset.zero);
         rects.add(position & renderBox.size);
@@ -246,18 +274,106 @@ class _TagViewState extends ConsumerState<TagView> {
   }
 
   void _handleBoxSelection(Set<int> indices) {
-    final newTags = widget.tags.asMap().map((index, tag) {
-      final isSelected = indices.contains(index);
-      return MapEntry(index, tag.copyWith(selected: isSelected));
-    }).values.toList();
+    final newTags = widget.tags
+        .asMap()
+        .map((index, tag) {
+          final isSelected = indices.contains(index);
+          return MapEntry(index, tag.copyWith(selected: isSelected));
+        })
+        .values
+        .toList();
     widget.onTagsChanged(newTags);
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final hasSelection = widget.tags.any((t) => t.selected);
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Tab Bar
+        _buildTabBar(theme),
+
+        // Tab Content
+        Flexible(
+          child: Container(
+            constraints: widget.maxHeight != null
+                ? BoxConstraints(maxHeight: widget.maxHeight! - 48)
+                : null,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Tags Tab - 现有的标签视图
+                KeyedSubtree(
+                  key: const ValueKey('tags_tab'),
+                  child: _buildTagsTabContent(theme, hasSelection),
+                ),
+
+                // Groups Tab - 标签分组浏览器
+                KeyedSubtree(
+                  key: const ValueKey('groups_tab'),
+                  child: _buildGroupsTabContent(theme),
+                ),
+
+                // Favorites Tab - 收藏面板
+                KeyedSubtree(
+                  key: const ValueKey('favorites_tab'),
+                  child: _buildFavoritesTabContent(theme),
+                ),
+
+                // Templates Tab - 模板面板
+                KeyedSubtree(
+                  key: const ValueKey('templates_tab'),
+                  child: _buildTemplatesTabContent(theme),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabBar(ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: theme.dividerColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        tabs: [
+          Tab(text: context.l10n.tag_tabTags),
+          Tab(text: context.l10n.tag_tabGroups),
+          Tab(text: context.l10n.tag_tabFavorites),
+          Tab(text: context.l10n.tag_tabTemplates),
+        ],
+        labelColor: theme.colorScheme.primary,
+        unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerHeight: 0,
+        indicatorWeight: 3,
+        labelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagsTabContent(ThemeData theme, bool hasSelection) {
     Widget content = Focus(
       autofocus: false,
       onKeyEvent: (node, event) {
@@ -296,7 +412,7 @@ class _TagViewState extends ConsumerState<TagView> {
       },
       child: Container(
         constraints: widget.maxHeight != null
-            ? BoxConstraints(maxHeight: widget.maxHeight!)
+            ? BoxConstraints(maxHeight: widget.maxHeight! - 48)
             : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -329,6 +445,42 @@ class _TagViewState extends ConsumerState<TagView> {
     }
 
     return content;
+  }
+
+  Widget _buildGroupsTabContent(ThemeData theme) {
+    return TagGroupBrowser(
+      onTagsChanged: (tagTexts) {
+        // 将标签文本列表转换为 PromptTag 列表并添加到当前标签
+        var newTags = List<PromptTag>.from(widget.tags);
+        for (final tagText in tagTexts) {
+          if (!newTags.any((t) => t.text == tagText)) {
+            newTags = NaiPromptParser.insertTag(newTags, newTags.length, tagText);
+          }
+        }
+        widget.onTagsChanged(newTags);
+      },
+      selectedTags: widget.tags.map((t) => t.text).toList(),
+      readOnly: widget.readOnly,
+    );
+  }
+
+  Widget _buildFavoritesTabContent(ThemeData theme) {
+    return TagFavoritePanel(
+      currentTags: widget.tags,
+      onTagsChanged: widget.onTagsChanged,
+      readOnly: widget.readOnly,
+      compact: widget.compact,
+    );
+  }
+
+  Widget _buildTemplatesTabContent(ThemeData theme) {
+    return TagTemplatePanel(
+      currentTags: widget.tags,
+      onTagsChanged: widget.onTagsChanged,
+      selectedTags: widget.tags.selectedTags,
+      readOnly: widget.readOnly,
+      compact: widget.compact,
+    );
   }
 
   Widget _buildBatchActionBar(ThemeData theme) {
@@ -370,7 +522,9 @@ class _TagViewState extends ConsumerState<TagView> {
           const Spacer(),
           _buildActionButton(
             icon: hasEnabledSelected ? Icons.visibility_off : Icons.visibility,
-            label: hasEnabledSelected ? context.l10n.tag_disable : context.l10n.tag_enable,
+            label: hasEnabledSelected
+                ? context.l10n.tag_disable
+                : context.l10n.tag_enable,
             onTap: _toggleSelectedEnabled,
             theme: theme,
           ),
@@ -713,8 +867,8 @@ class _TagViewState extends ConsumerState<TagView> {
                       fontSize: 12,
                       color: theme.colorScheme.onSurface.withOpacity(0.4),
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 10,),
                     border: InputBorder.none,
                     isDense: true,
                   ),

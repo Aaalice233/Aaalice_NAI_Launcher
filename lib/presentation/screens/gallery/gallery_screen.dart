@@ -68,7 +68,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ref.read(galleryNotifierProvider.notifier).exitSelectionMode();
           },
         ),
-        title: Text(context.l10n.gallery_selected(state.selectedCount.toString())),
+        title:
+            Text(context.l10n.gallery_selected(state.selectedCount.toString())),
         actions: [
           IconButton(
             icon: const Icon(Icons.select_all),
@@ -370,7 +371,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       ),
       child: Row(
         children: [
-          Text(context.l10n.gallery_selectedCount(state.selectedCount.toString())),
+          Text(context.l10n
+              .gallery_selectedCount(state.selectedCount.toString()),),
           const Spacer(),
           TextButton.icon(
             onPressed: state.hasSelection
@@ -492,7 +494,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
     if (mounted) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(l10n.gallery_exportSuccess(successCount.toString(), result))),
+        SnackBar(
+            content: Text(
+                l10n.gallery_exportSuccess(successCount.toString(), result),),),
       );
       notifier.exitSelectionMode();
     }
@@ -805,22 +809,37 @@ class _FullscreenViewer extends ConsumerWidget {
                 children: [
                   Text(
                     context.l10n.gallery_generationParams,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold,),
                   ),
                   const SizedBox(height: 16),
-                  _buildMetadataRow(context, context.l10n.gallery_metaModel, record.params.model),
-                  _buildMetadataRow(context, context.l10n.gallery_metaResolution, record.resolution),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSteps, record.params.steps.toString()),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSampler, record.params.sampler),
+                  _buildMetadataRow(context, context.l10n.gallery_metaModel,
+                      record.params.model,),
+                  _buildMetadataRow(context,
+                      context.l10n.gallery_metaResolution, record.resolution,),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSteps,
+                      record.params.steps.toString(),),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSampler,
+                      record.params.sampler,),
                   _buildMetadataRow(
                     context,
                     context.l10n.gallery_metaCfgScale,
                     record.params.scale.toString(),
                   ),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSeed, record.params.seed.toString()),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSmea, record.params.smea ? context.l10n.gallery_metaSmeaOn : context.l10n.gallery_metaSmeaOff),
-                  _buildMetadataRow(context, context.l10n.gallery_metaGenerationTime, record.createdAt.toString()),
-                  _buildMetadataRow(context, context.l10n.gallery_metaFileSize, record.formattedFileSize),
+                  _buildMetadataRow(context, context.l10n.gallery_metaSeed,
+                      record.params.seed.toString(),),
+                  _buildMetadataRow(
+                      context,
+                      context.l10n.gallery_metaSmea,
+                      record.params.smea
+                          ? context.l10n.gallery_metaSmeaOn
+                          : context.l10n.gallery_metaSmeaOff,),
+                  _buildMetadataRow(
+                      context,
+                      context.l10n.gallery_metaGenerationTime,
+                      record.createdAt.toString(),),
+                  _buildMetadataRow(context, context.l10n.gallery_metaFileSize,
+                      record.formattedFileSize,),
                   const SizedBox(height: 16),
                   Text(
                     context.l10n.gallery_positivePrompt,
@@ -880,7 +899,9 @@ class _FullscreenViewer extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(path != null ? context.l10n.gallery_savedTo(path) : context.l10n.gallery_saveFailed),
+          content: Text(path != null
+              ? context.l10n.gallery_savedTo(path)
+              : context.l10n.gallery_saveFailed,),
         ),
       );
     }

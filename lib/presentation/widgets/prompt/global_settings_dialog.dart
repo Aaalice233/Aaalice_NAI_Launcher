@@ -38,10 +38,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
 
   void _loadConfig() {
     final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
-    final algorithmConfig =
-        preset?.algorithmConfig ?? const AlgorithmConfig();
-    _config = algorithmConfig.characterCountConfig ??
-        CharacterCountConfig.naiDefault;
+    final algorithmConfig = preset?.algorithmConfig ?? const AlgorithmConfig();
+    _config =
+        algorithmConfig.characterCountConfig ?? CharacterCountConfig.naiDefault;
 
     // 默认折叠所有类别
     for (final category in _config.categories) {
@@ -409,8 +408,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           // 启用复选框
           Checkbox(
             value: option.enabled,
-            onChanged: (_) =>
-                _toggleTagOptionEnabled(categoryId, option.id),
+            onChanged: (_) => _toggleTagOptionEnabled(categoryId, option.id),
           ),
           // 标签名称和提示词信息
           Expanded(
@@ -447,8 +445,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
               textAlign: TextAlign.center,
               decoration: InputDecoration(
                 isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 8,
                   vertical: 8,
                 ),
@@ -478,7 +475,8 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     );
   }
 
-  String _getCategoryDisplayName(CharacterCountCategory category, dynamic l10n) {
+  String _getCategoryDisplayName(
+      CharacterCountCategory category, dynamic l10n,) {
     return switch (category.id) {
       'solo' => l10n.characterCountConfig_solo,
       'duo' => l10n.characterCountConfig_duo,
@@ -505,158 +503,160 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
 
     try {
       await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(
-              category.isMultiPersonContainer
-                  ? l10n.characterCountConfig_addMultiPersonCombo
-                  : l10n.characterCountConfig_addTagOption,
-            ),
-            content: SizedBox(
-              width: 400,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: labelController,
-                      decoration: InputDecoration(
-                        labelText: l10n.characterCountConfig_displayName,
-                        hintText: l10n.characterCountConfig_displayNameHint,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: mainPromptController,
-                      decoration: InputDecoration(
-                        labelText: l10n.characterCountConfig_mainPromptLabel,
-                        hintText: l10n.characterCountConfig_mainPromptHint,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // 多人时显示人数选择
-                    if (category.isMultiPersonContainer) ...[
-                      Row(
-                        children: [
-                          Text(l10n.characterCountConfig_personCount),
-                          const SizedBox(width: 12),
-                          DropdownButton<int>(
-                            value: slotCount,
-                            items: List.generate(7, (i) => i + 4)
-                                .map(
-                                  (n) => DropdownMenuItem(
-                                    value: n,
-                                    child: Text('$n'),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setDialogState(() {
-                                  slotCount = value;
-                                  slotTags = List.filled(slotCount, defaultSlotTag);
-                                });
-                              }
-                            },
-                          ),
-                        ],
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                category.isMultiPersonContainer
+                    ? l10n.characterCountConfig_addMultiPersonCombo
+                    : l10n.characterCountConfig_addTagOption,
+              ),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: labelController,
+                        decoration: InputDecoration(
+                          labelText: l10n.characterCountConfig_displayName,
+                          hintText: l10n.characterCountConfig_displayNameHint,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                    ],
-                    // 槽位配置
-                    Text(
-                      l10n.characterCountConfig_slotConfig,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    ...List.generate(slotCount, (i) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
+                      TextField(
+                        controller: mainPromptController,
+                        decoration: InputDecoration(
+                          labelText: l10n.characterCountConfig_mainPromptLabel,
+                          hintText: l10n.characterCountConfig_mainPromptHint,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // 多人时显示人数选择
+                      if (category.isMultiPersonContainer) ...[
+                        Row(
                           children: [
-                            Text('${l10n.characterCountConfig_slot} ${i + 1}:'),
+                            Text(l10n.characterCountConfig_personCount),
                             const SizedBox(width: 12),
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: slotTags[i],
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                items: _config.customSlotOptions
-                                    .map(
-                                      (slot) => DropdownMenuItem(
-                                        value: slot,
-                                        child: Text(slot),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setDialogState(() {
-                                      slotTags[i] = value;
-                                    });
-                                  }
-                                },
-                              ),
+                            DropdownButton<int>(
+                              value: slotCount,
+                              items: List.generate(7, (i) => i + 4)
+                                  .map(
+                                    (n) => DropdownMenuItem(
+                                      value: n,
+                                      child: Text('$n'),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setDialogState(() {
+                                    slotCount = value;
+                                    slotTags =
+                                        List.filled(slotCount, defaultSlotTag);
+                                  });
+                                }
+                              },
                             ),
                           ],
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: weightController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: l10n.characterCountConfig_weight,
+                        const SizedBox(height: 12),
+                      ],
+                      // 槽位配置
+                      Text(
+                        l10n.characterCountConfig_slotConfig,
+                        style: theme.textTheme.titleSmall,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      ...List.generate(slotCount, (i) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Text(
+                                  '${l10n.characterCountConfig_slot} ${i + 1}:',),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: slotTags[i],
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  items: _config.customSlotOptions
+                                      .map(
+                                        (slot) => DropdownMenuItem(
+                                          value: slot,
+                                          child: Text(slot),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        slotTags[i] = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: weightController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: l10n.characterCountConfig_weight,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(l10n.common_cancel),
-              ),
-              FilledButton(
-                onPressed: () {
-                  if (labelController.text.isEmpty) return;
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.common_cancel),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (labelController.text.isEmpty) return;
 
-                  final option = CharacterTagOption(
-                    id: const Uuid().v4(),
-                    label: labelController.text,
-                    mainPromptTags: mainPromptController.text.isNotEmpty
-                        ? mainPromptController.text
-                        : (category.count == 1 ? 'solo' : ''),
-                    slotTags: List.generate(
-                      slotCount,
-                      (i) => CharacterSlotTag(
-                        slotIndex: i,
-                        characterTag: slotTags[i],
+                    final option = CharacterTagOption(
+                      id: const Uuid().v4(),
+                      label: labelController.text,
+                      mainPromptTags: mainPromptController.text.isNotEmpty
+                          ? mainPromptController.text
+                          : (category.count == 1 ? 'solo' : ''),
+                      slotTags: List.generate(
+                        slotCount,
+                        (i) => CharacterSlotTag(
+                          slotIndex: i,
+                          characterTag: slotTags[i],
+                        ),
                       ),
-                    ),
-                    weight: int.tryParse(weightController.text) ?? 50,
-                    isCustom: true,
-                  );
+                      weight: int.tryParse(weightController.text) ?? 50,
+                      isCustom: true,
+                    );
 
-                  _addTagOption(category.id, option);
-                  Navigator.of(context).pop();
-                },
-                child: Text(l10n.common_add),
-              ),
-            ],
-          );
-        },
-      ),
+                    _addTagOption(category.id, option);
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(l10n.common_add),
+                ),
+              ],
+            );
+          },
+        ),
       );
     } finally {
       labelController.dispose();
@@ -672,120 +672,120 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
 
     try {
       await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(l10n.characterCountConfig_customSlotsTitle),
-            content: SizedBox(
-              width: 400,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.characterCountConfig_customSlotsDesc,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(l10n.characterCountConfig_customSlotsTitle),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.characterCountConfig_customSlotsDesc,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // 添加新槽位
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          decoration: InputDecoration(
-                            hintText: l10n.characterCountConfig_addSlotHint,
-                            isDense: true,
+                    const SizedBox(height: 16),
+                    // 添加新槽位
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            decoration: InputDecoration(
+                              hintText: l10n.characterCountConfig_addSlotHint,
+                              isDense: true,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () {
-                          final value = controller.text.trim();
-                          if (value.isEmpty) return;
-                          if (_config.customSlotOptions.contains(value)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content:
-                                    Text(l10n.characterCountConfig_slotExists),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () {
+                            final value = controller.text.trim();
+                            if (value.isEmpty) return;
+                            if (_config.customSlotOptions.contains(value)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      l10n.characterCountConfig_slotExists,),
+                                ),
+                              );
+                              return;
+                            }
+                            setState(() {
+                              _config = _config.copyWith(
+                                customSlotOptions: [
+                                  ..._config.customSlotOptions,
+                                  value,
+                                ],
+                              );
+                            });
+                            setDialogState(() {});
+                            controller.clear();
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // 槽位列表
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 300),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: _config.customSlotOptions.map((slot) {
+                            final isBuiltin = builtinSlots.contains(slot);
+                            return ListTile(
+                              dense: true,
+                              leading: Icon(
+                                isBuiltin ? Icons.lock_outline : Icons.person,
+                                size: 20,
+                                color: isBuiltin
+                                    ? theme.colorScheme.outline
+                                    : theme.colorScheme.primary,
                               ),
-                            );
-                            return;
-                          }
-                          setState(() {
-                            _config = _config.copyWith(
-                              customSlotOptions: [
-                                ..._config.customSlotOptions,
-                                value,
-                              ],
-                            );
-                          });
-                          setDialogState(() {});
-                          controller.clear();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // 槽位列表
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: _config.customSlotOptions.map((slot) {
-                          final isBuiltin = builtinSlots.contains(slot);
-                          return ListTile(
-                            dense: true,
-                            leading: Icon(
-                              isBuiltin ? Icons.lock_outline : Icons.person,
-                              size: 20,
-                              color: isBuiltin
-                                  ? theme.colorScheme.outline
-                                  : theme.colorScheme.primary,
-                            ),
-                            title: Text(slot),
-                            trailing: isBuiltin
-                                ? null
-                                : IconButton(
-                                    icon: Icon(
-                                      Icons.delete_outline,
-                                      color: theme.colorScheme.error,
-                                      size: 20,
+                              title: Text(slot),
+                              trailing: isBuiltin
+                                  ? null
+                                  : IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: theme.colorScheme.error,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _config = _config.copyWith(
+                                            customSlotOptions: _config
+                                                .customSlotOptions
+                                                .where((s) => s != slot)
+                                                .toList(),
+                                          );
+                                        });
+                                        setDialogState(() {});
+                                      },
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _config = _config.copyWith(
-                                          customSlotOptions: _config
-                                              .customSlotOptions
-                                              .where((s) => s != slot)
-                                              .toList(),
-                                        );
-                                      });
-                                      setDialogState(() {});
-                                    },
-                                  ),
-                          );
-                        }).toList(),
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(l10n.common_confirm),
-              ),
-            ],
-          );
-        },
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.common_confirm),
+                ),
+              ],
+            );
+          },
+        ),
       );
     } finally {
       controller.dispose();

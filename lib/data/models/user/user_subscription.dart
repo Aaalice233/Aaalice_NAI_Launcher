@@ -145,7 +145,8 @@ class SubscriptionState with _$SubscriptionState {
       SubscriptionStateLoaded;
 
   /// 加载失败
-  const factory SubscriptionState.error(String message) = SubscriptionStateError;
+  const factory SubscriptionState.error(String message) =
+      SubscriptionStateError;
 
   /// 获取订阅信息（如果已加载）
   UserSubscription? get subscription => maybeMap(

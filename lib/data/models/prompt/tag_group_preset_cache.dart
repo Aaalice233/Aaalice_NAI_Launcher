@@ -11,8 +11,7 @@ class TagGroupPresetCache {
 
   /// 获取 tag_group 的预缓存数据
   /// 返回: {'tags': List<Map>, 'count': int, 'originalCount': int}
-  static Map<String, dynamic>? getData(String groupTitle) =>
-      _cache[groupTitle];
+  static Map<String, dynamic>? getData(String groupTitle) => _cache[groupTitle];
 
   /// 获取预缓存的标签数量（筛选后）
   static int? getCount(String groupTitle) =>

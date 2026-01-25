@@ -57,8 +57,7 @@ class VibeReferenceV4 with _$VibeReferenceV4 {
     required String vibeEncoding,
 
     /// 缩略图数据 (可选，用于 UI 预览)
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    Uint8List? thumbnail,
+    @JsonKey(includeFromJson: false, includeToJson: false) Uint8List? thumbnail,
 
     /// 原始图片数据 (仅 rawImage 模式使用)
     @JsonKey(includeFromJson: false, includeToJson: false)

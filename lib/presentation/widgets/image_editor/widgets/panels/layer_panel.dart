@@ -180,14 +180,15 @@ class _LayerPanelState extends State<LayerPanel> {
                                     state.layerManager.setActiveLayer(layer.id);
                                   },
                                   onVisibilityToggle: () {
-                                    state.layerManager.toggleVisibility(layer.id);
+                                    state.layerManager
+                                        .toggleVisibility(layer.id);
                                   },
                                   onLockToggle: () {
                                     state.layerManager.toggleLock(layer.id);
                                   },
                                   onDelete: layers.length > 1
-                                      ? () =>
-                                          state.layerManager.removeLayer(layer.id)
+                                      ? () => state.layerManager
+                                          .removeLayer(layer.id)
                                       : null,
                                   onDuplicate: () {
                                     state.layerManager.duplicateLayer(layer.id);
@@ -492,9 +493,11 @@ class _LayerTileState extends State<_LayerTile>
           enabled: canDelete,
           child: Row(
             children: [
-              Icon(Icons.delete_outlined, size: 18, color: theme.colorScheme.error),
+              Icon(Icons.delete_outlined,
+                  size: 18, color: theme.colorScheme.error,),
               const SizedBox(width: 12),
-              Text(context.l10n.layer_delete, style: TextStyle(color: theme.colorScheme.error)),
+              Text(context.l10n.layer_delete,
+                  style: TextStyle(color: theme.colorScheme.error),),
             ],
           ),
         ),
@@ -524,7 +527,9 @@ class _LayerTileState extends State<_LayerTile>
                 size: 18,
               ),
               const SizedBox(width: 12),
-              Text(widget.layer.visible ? context.l10n.layer_visibility : context.l10n.layer_visibility),
+              Text(widget.layer.visible
+                  ? context.l10n.layer_visibility
+                  : context.l10n.layer_visibility,),
             ],
           ),
         ),
@@ -539,7 +544,9 @@ class _LayerTileState extends State<_LayerTile>
                 size: 18,
               ),
               const SizedBox(width: 12),
-              Text(widget.layer.locked ? context.l10n.layer_lock : context.l10n.layer_lock),
+              Text(widget.layer.locked
+                  ? context.l10n.layer_lock
+                  : context.l10n.layer_lock,),
             ],
           ),
         ),

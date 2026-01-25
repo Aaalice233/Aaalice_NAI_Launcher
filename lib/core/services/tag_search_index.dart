@@ -410,7 +410,8 @@ class TagSearchIndex {
               if (idx < _allTags.length) {
                 final translation = _allTags[idx].translation;
                 if (translation != null &&
-                    (translation.contains(query) || query.contains(translation))) {
+                    (translation.contains(query) ||
+                        query.contains(translation))) {
                   resultIndices.add(idx);
                   if (resultIndices.length >= limit * 2) break;
                 }

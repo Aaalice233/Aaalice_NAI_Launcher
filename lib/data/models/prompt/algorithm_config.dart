@@ -21,8 +21,8 @@ class AlgorithmConfig with _$AlgorithmConfig {
     @Default([
       [1, 70], // 1人 70%
       [2, 20], // 2人 20%
-      [3, 7],  // 3人 7%
-      [0, 5],  // 无人 5%
+      [3, 7], // 3人 7%
+      [0, 5], // 无人 5%
     ])
     List<List<int>> characterCountWeights,
 
@@ -43,8 +43,7 @@ class AlgorithmConfig with _$AlgorithmConfig {
 
     /// Furry 性别权重分布
     /// 键: 'm' = 男性, 'f' = 女性, 'o' = 其他
-    @Default({'m': 45, 'f': 45, 'o': 10})
-    Map<String, int> furryGenderWeights,
+    @Default({'m': 45, 'f': 45, 'o': 10}) Map<String, int> furryGenderWeights,
 
     /// 人数类别配置（新版：单人、双人、三人、多人、无人的角色标签配置）
     CharacterCountConfig? characterCountConfig,
@@ -156,7 +155,8 @@ class AlgorithmConfig with _$AlgorithmConfig {
     Map<String, String>? variables,
   }) {
     if (globalPostProcessRules == null) return tags;
-    return globalPostProcessRules!.applyAll(tags, context, variables: variables);
+    return globalPostProcessRules!
+        .applyAll(tags, context, variables: variables);
   }
 
   /// 检查类别全局可见性

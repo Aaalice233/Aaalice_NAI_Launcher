@@ -25,7 +25,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       if (authState.isAuthenticated && !_previousAuthState!.isAuthenticated) {
         // Login succeeded - fetch subscription info
         Future.microtask(() => fetchSubscription());
-      } else if (!authState.isAuthenticated && _previousAuthState!.isAuthenticated) {
+      } else if (!authState.isAuthenticated &&
+          _previousAuthState!.isAuthenticated) {
         // Logged out - clear subscription info
         state = const SubscriptionState.initial();
       }
@@ -55,7 +56,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
       AppLogger.i(
         'Subscription loaded: ${subscription.tierName}, '
-        'Anlas: ${subscription.anlasBalance}',
+            'Anlas: ${subscription.anlasBalance}',
         'Subscription',
       );
     } catch (e) {

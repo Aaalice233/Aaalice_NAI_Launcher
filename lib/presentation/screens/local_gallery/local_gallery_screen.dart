@@ -30,7 +30,7 @@ class LocalGalleryScreen extends ConsumerStatefulWidget {
 class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
-  
+
   @override
   void initState() {
     super.initState();
@@ -40,14 +40,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       await _showFirstTimeTip();
     });
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
   }
-  
+
   /// 搜索防抖
   void _onSearchChanged(String value) {
     _debounceTimer?.cancel();
@@ -60,20 +60,22 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Future<void> _addSelectedToQueue() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
     final galleryState = ref.read(localGalleryNotifierProvider);
-    
+
     final selectedImages = galleryState.currentImages
         .where((img) => selectionState.selectedIds.contains(img.path))
         .toList();
-        
+
     if (selectedImages.isEmpty) return;
 
     final tasks = selectedImages
         .where((img) => img.metadata?.prompt.isNotEmpty == true)
-        .map((img) => ReplicationTask.create(
-              prompt: img.metadata!.prompt,
-              thumbnailUrl: img.path, // 本地路径
-              source: ReplicationTaskSource.local,
-            ),)
+        .map(
+          (img) => ReplicationTask.create(
+            prompt: img.metadata!.prompt,
+            thumbnailUrl: img.path, // 本地路径
+            source: ReplicationTaskSource.local,
+          ),
+        )
         .toList();
 
     if (tasks.isEmpty) {
@@ -83,10 +85,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       return;
     }
 
-    final addedCount = await ref
-        .read(replicationQueueNotifierProvider.notifier)
-        .addAll(tasks);
-        
+    final addedCount =
+        await ref.read(replicationQueueNotifierProvider.notifier).addAll(tasks);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
@@ -185,24 +186,24 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Future<void> _openImageFolder() async {
     try {
       final dir = await LocalGalleryRepository.instance.getImageDirectory();
-      
+
       // 确保目录存在
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-      
+
       // 获取绝对路径
       final absolutePath = dir.absolute.path;
-      
+
       // 显示路径信息（调试用）
       debugPrint('Opening folder: $absolutePath');
-      
+
       // 使用系统资源管理器打开文件夹
       if (Platform.isWindows) {
         // Windows: 将正斜杠替换为反斜杠，直接使用 explorer.exe
         final windowsPath = absolutePath.replaceAll('/', '\\');
         debugPrint('Windows path: $windowsPath');
-        
+
         // 直接调用 explorer.exe，路径作为参数
         await Process.run('explorer.exe', [windowsPath]);
       } else if (Platform.isMacOS) {
@@ -251,17 +252,20 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                         : _buildContent(theme, state, columns, itemWidth),
           ),
           // 底部分页条
-          if (!state.isIndexing && state.filteredFiles.isNotEmpty && state.totalPages > 1)
+          if (!state.isIndexing &&
+              state.filteredFiles.isNotEmpty &&
+              state.totalPages > 1)
             PaginationBar(
               currentPage: state.currentPage,
               totalPages: state.totalPages,
-              onPageChanged: (p) => ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
+              onPageChanged: (p) =>
+                  ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
             ),
         ],
       ),
     );
   }
-  
+
   /// 构建顶部工具栏
   Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
@@ -279,7 +283,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.close),
-              onPressed: () => ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
+              onPressed: () => ref
+                  .read(localGallerySelectionNotifierProvider.notifier)
+                  .exit(),
               tooltip: '退出多选',
             ),
             const SizedBox(width: 8),
@@ -293,7 +299,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.playlist_add),
-              onPressed: selectionState.selectedIds.isNotEmpty ? _addSelectedToQueue : null,
+              onPressed: selectionState.selectedIds.isNotEmpty
+                  ? _addSelectedToQueue
+                  : null,
               tooltip: '加入队列',
             ),
             // 本地画廊不需要批量下载和收藏
@@ -325,13 +333,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               // 图片计数
               if (!state.isIndexing)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    state.hasFilters 
+                    state.hasFilters
                         ? '${state.filteredCount} / ${state.totalCount}'
                         : '${state.totalCount}',
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -346,7 +355,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 icon: const Icon(Icons.checklist),
                 tooltip: '多选模式',
                 onPressed: () {
-                  ref.read(localGallerySelectionNotifierProvider.notifier).enter();
+                  ref
+                      .read(localGallerySelectionNotifierProvider.notifier)
+                      .enter();
                 },
               ),
               const SizedBox(width: 8),
@@ -358,7 +369,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 style: TextButton.styleFrom(
                   foregroundColor: theme.colorScheme.primary,
                   backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -384,8 +396,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                   label: const Text('刷新'),
                   style: TextButton.styleFrom(
                     foregroundColor: theme.colorScheme.secondary,
-                    backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    backgroundColor:
+                        theme.colorScheme.secondary.withOpacity(0.1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -410,7 +424,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 IconButton(
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+                    ref
+                        .read(localGalleryNotifierProvider.notifier)
+                        .clearAllFilters();
                   },
                   icon: const Icon(Icons.filter_alt_off, size: 20),
                   tooltip: '清除所有过滤',
@@ -425,7 +441,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       ),
     );
   }
-  
+
   /// 构建搜索框
   Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
     return Container(
@@ -450,10 +466,13 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           ),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  icon: Icon(Icons.close,
+                      size: 16, color: theme.colorScheme.onSurfaceVariant,),
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
+                    ref
+                        .read(localGalleryNotifierProvider.notifier)
+                        .setSearchQuery('');
                   },
                 )
               : null,
@@ -472,11 +491,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       ),
     );
   }
-  
+
   /// 构建日期范围按钮
   Widget _buildDateRangeButton(ThemeData theme, LocalGalleryState state) {
     final hasDateRange = state.dateStart != null || state.dateEnd != null;
-    
+
     return OutlinedButton.icon(
       onPressed: () => _selectDateRange(context, state),
       icon: Icon(
@@ -496,13 +515,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         visualDensity: VisualDensity.compact,
-        side: hasDateRange
-            ? BorderSide(color: theme.colorScheme.primary)
-            : null,
+        side:
+            hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
       ),
     );
   }
-  
+
   /// 格式化日期范围显示
   String _formatDateRange(DateTime? start, DateTime? end) {
     final format = DateFormat('MM-dd');
@@ -515,9 +533,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
     return '';
   }
-  
+
   /// 选择日期范围
-  Future<void> _selectDateRange(BuildContext context, LocalGalleryState state) async {
+  Future<void> _selectDateRange(
+      BuildContext context, LocalGalleryState state,) async {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
@@ -525,7 +544,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       lastDate: now,
       initialDateRange: state.dateStart != null && state.dateEnd != null
           ? DateTimeRange(start: state.dateStart!, end: state.dateEnd!)
-          : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
+          : DateTimeRange(
+              start: now.subtract(const Duration(days: 30)), end: now,),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -547,7 +567,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           );
     }
   }
-  
+
   /// 构建错误状态
   Widget _buildErrorState(ThemeData theme, LocalGalleryState state) {
     return Center(
@@ -559,14 +579,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           Text('加载失败: ${state.error}'),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () => ref.read(localGalleryNotifierProvider.notifier).refresh(),
+            onPressed: () =>
+                ref.read(localGalleryNotifierProvider.notifier).refresh(),
             child: const Text('重试'),
           ),
         ],
       ),
     );
   }
-  
+
   /// 构建索引状态
   Widget _buildIndexingState() {
     return const Center(
@@ -580,7 +601,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       ),
     );
   }
-  
+
   /// 构建空状态
   Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
@@ -588,25 +609,30 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_not_supported, size: 64, color: theme.colorScheme.onSurfaceVariant),
+          Icon(Icons.image_not_supported,
+              size: 64, color: theme.colorScheme.onSurfaceVariant,),
           const SizedBox(height: 16),
           const Text('暂无本地图片'),
           const SizedBox(height: 8),
-          Text('生成的图片将保存在此处', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+          Text('生成的图片将保存在此处',
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),),
         ],
       ),
     );
   }
-  
+
   /// 构建内容区
-  Widget _buildContent(ThemeData theme, LocalGalleryState state, int columns, double itemWidth) {
+  Widget _buildContent(
+      ThemeData theme, LocalGalleryState state, int columns, double itemWidth,) {
     // 过滤后无结果
     if (state.filteredFiles.isEmpty && state.hasFilters) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 48, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5)),
+            Icon(Icons.search_off,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),),
             const SizedBox(height: 12),
             Text(
               '无匹配结果',
@@ -616,7 +642,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             TextButton.icon(
               onPressed: () {
                 _searchController.clear();
-                ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+                ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .clearAllFilters();
               },
               icon: const Icon(Icons.filter_alt_off, size: 16),
               label: const Text('清除过滤'),
@@ -625,20 +653,19 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         ),
       );
     }
-    
+
     // 加载中骨架屏
     if (state.isPageLoading) {
       return MasonryGridView.count(
         crossAxisCount: columns,
         mainAxisSpacing: 4,
         crossAxisSpacing: 4,
-        itemCount: state.currentImages.isNotEmpty 
-            ? state.currentImages.length 
-            : 20,
+        itemCount:
+            state.currentImages.isNotEmpty ? state.currentImages.length : 20,
         itemBuilder: (c, i) {
           final random = Random(i);
           final height = 150.0 + random.nextInt(151);
-          
+
           return Card(
             clipBehavior: Clip.antiAlias,
             child: _ShimmerSkeleton(height: height),
@@ -646,7 +673,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         },
       );
     }
-    
+
     // 正常内容
     return MasonryGridView.count(
       key: const PageStorageKey<String>('local_gallery_grid'),
@@ -658,23 +685,29 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         final record = state.currentImages[i];
         final selectionState = ref.watch(localGallerySelectionNotifierProvider);
         final isSelected = selectionState.selectedIds.contains(record.path);
-        
+
         return LocalImageCard(
           record: record,
           itemWidth: itemWidth,
           selectionMode: selectionState.isActive,
           isSelected: isSelected,
           onSelectionToggle: () {
-            ref.read(localGallerySelectionNotifierProvider.notifier).toggle(record.path);
+            ref
+                .read(localGallerySelectionNotifierProvider.notifier)
+                .toggle(record.path);
           },
           onLongPress: () {
             if (!selectionState.isActive) {
-              ref.read(localGallerySelectionNotifierProvider.notifier).enterAndSelect(record.path);
+              ref
+                  .read(localGallerySelectionNotifierProvider.notifier)
+                  .enterAndSelect(record.path);
             }
           },
           onDeleted: () {
             // 刷新当前页
-            ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage);
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .loadPage(state.currentPage);
           },
         );
       },

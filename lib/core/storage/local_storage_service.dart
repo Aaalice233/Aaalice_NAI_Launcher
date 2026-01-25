@@ -52,7 +52,8 @@ class LocalStorageService {
 
   /// 获取字体名称
   String getFontFamily() {
-    return getSetting<String>(StorageKeys.fontFamily, defaultValue: 'system') ?? 'system';
+    return getSetting<String>(StorageKeys.fontFamily, defaultValue: 'system') ??
+        'system';
   }
 
   /// 保存字体名称
@@ -76,7 +77,8 @@ class LocalStorageService {
 
   /// 获取默认模型
   String getDefaultModel() {
-    return getSetting<String>(StorageKeys.defaultModel, defaultValue: 'nai-diffusion-3') ??
+    return getSetting<String>(StorageKeys.defaultModel,
+            defaultValue: 'nai-diffusion-3',) ??
         'nai-diffusion-3';
   }
 
@@ -87,7 +89,8 @@ class LocalStorageService {
 
   /// 获取默认采样器
   String getDefaultSampler() {
-    return getSetting<String>(StorageKeys.defaultSampler, defaultValue: 'k_euler_ancestral') ??
+    return getSetting<String>(StorageKeys.defaultSampler,
+            defaultValue: 'k_euler_ancestral',) ??
         'k_euler_ancestral';
   }
 
@@ -108,7 +111,8 @@ class LocalStorageService {
 
   /// 获取默认 Scale
   double getDefaultScale() {
-    return getSetting<double>(StorageKeys.defaultScale, defaultValue: 5.0) ?? 5.0;
+    return getSetting<double>(StorageKeys.defaultScale, defaultValue: 5.0) ??
+        5.0;
   }
 
   /// 保存默认 Scale
@@ -128,7 +132,8 @@ class LocalStorageService {
 
   /// 获取默认高度
   int getDefaultHeight() {
-    return getSetting<int>(StorageKeys.defaultHeight, defaultValue: 1216) ?? 1216;
+    return getSetting<int>(StorageKeys.defaultHeight, defaultValue: 1216) ??
+        1216;
   }
 
   /// 保存默认高度
@@ -164,7 +169,8 @@ class LocalStorageService {
 
   /// 获取是否自动保存图片
   bool getAutoSaveImages() {
-    return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: false) ??
+        false;
   }
 
   /// 保存是否自动保存图片
@@ -176,7 +182,8 @@ class LocalStorageService {
 
   /// 获取是否添加质量标签 (默认开启)
   bool getAddQualityTags() {
-    return getSetting<bool>(StorageKeys.addQualityTags, defaultValue: true) ?? true;
+    return getSetting<bool>(StorageKeys.addQualityTags, defaultValue: true) ??
+        true;
   }
 
   /// 保存是否添加质量标签
@@ -200,7 +207,9 @@ class LocalStorageService {
 
   /// 获取抽卡模式 (默认关闭)
   bool getRandomPromptMode() {
-    return getSetting<bool>(StorageKeys.randomPromptMode, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.randomPromptMode,
+            defaultValue: false,) ??
+        false;
   }
 
   /// 保存抽卡模式
@@ -222,7 +231,9 @@ class LocalStorageService {
 
   /// 获取是否启用自动补全 (默认开启)
   bool getEnableAutocomplete() {
-    return getSetting<bool>(StorageKeys.enableAutocomplete, defaultValue: true) ?? true;
+    return getSetting<bool>(StorageKeys.enableAutocomplete,
+            defaultValue: true,) ??
+        true;
   }
 
   /// 保存是否启用自动补全
@@ -234,7 +245,8 @@ class LocalStorageService {
 
   /// 获取是否启用自动格式化 (默认开启)
   bool getAutoFormatPrompt() {
-    return getSetting<bool>(StorageKeys.autoFormatPrompt, defaultValue: true) ?? true;
+    return getSetting<bool>(StorageKeys.autoFormatPrompt, defaultValue: true) ??
+        true;
   }
 
   /// 保存是否启用自动格式化
@@ -244,7 +256,9 @@ class LocalStorageService {
 
   /// 获取是否启用高亮强调 (默认开启)
   bool getHighlightEmphasis() {
-    return getSetting<bool>(StorageKeys.highlightEmphasis, defaultValue: true) ?? true;
+    return getSetting<bool>(StorageKeys.highlightEmphasis,
+            defaultValue: true,) ??
+        true;
   }
 
   /// 保存是否启用高亮强调
@@ -256,7 +270,9 @@ class LocalStorageService {
 
   /// 获取是否启用SD语法自动转换 (默认关闭)
   bool getSdSyntaxAutoConvert() {
-    return getSetting<bool>(StorageKeys.sdSyntaxAutoConvert, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.sdSyntaxAutoConvert,
+            defaultValue: false,) ??
+        false;
   }
 
   /// 保存是否启用SD语法自动转换
@@ -278,7 +294,9 @@ class LocalStorageService {
 
   /// 获取上次的负向提示词
   String getLastNegativePrompt() {
-    return getSetting<String>(StorageKeys.lastNegativePrompt, defaultValue: '') ?? '';
+    return getSetting<String>(StorageKeys.lastNegativePrompt,
+            defaultValue: '',) ??
+        '';
   }
 
   /// 保存负向提示词
@@ -298,7 +316,8 @@ class LocalStorageService {
 
   /// 获取上次的 SMEA DYN 设置
   bool getLastSmeaDyn() {
-    return getSetting<bool>(StorageKeys.lastSmeaDyn, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.lastSmeaDyn, defaultValue: false) ??
+        false;
   }
 
   /// 保存 SMEA DYN 设置
@@ -308,7 +327,8 @@ class LocalStorageService {
 
   /// 获取上次的 CFG Rescale 值
   double getLastCfgRescale() {
-    return getSetting<double>(StorageKeys.lastCfgRescale, defaultValue: 0.0) ?? 0.0;
+    return getSetting<double>(StorageKeys.lastCfgRescale, defaultValue: 0.0) ??
+        0.0;
   }
 
   /// 保存 CFG Rescale 值
@@ -318,7 +338,9 @@ class LocalStorageService {
 
   /// 获取上次的噪声计划
   String getLastNoiseSchedule() {
-    return getSetting<String>(StorageKeys.lastNoiseSchedule, defaultValue: 'native') ?? 'native';
+    return getSetting<String>(StorageKeys.lastNoiseSchedule,
+            defaultValue: 'native',) ??
+        'native';
   }
 
   /// 保存噪声计划
@@ -330,7 +352,8 @@ class LocalStorageService {
 
   /// 获取种子是否锁定 (默认关闭)
   bool getSeedLocked() {
-    return getSetting<bool>(StorageKeys.seedLocked, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.seedLocked, defaultValue: false) ??
+        false;
   }
 
   /// 保存种子锁定状态

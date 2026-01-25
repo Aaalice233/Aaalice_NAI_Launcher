@@ -8,7 +8,15 @@ class VariableInsertionWidget extends StatelessWidget {
   const VariableInsertionWidget({
     super.key,
     required this.controller,
-    this.variables = const ['hair', 'eye', 'clothes', 'pose', 'expression', 'action', 'style'],
+    this.variables = const [
+      'hair',
+      'eye',
+      'clothes',
+      'pose',
+      'expression',
+      'action',
+      'style',
+    ],
     this.onInserted,
   });
 
@@ -37,12 +45,12 @@ class VariableInsertionWidget extends StatelessWidget {
     }
 
     final newText = text.replaceRange(start, end, insertText);
-    
+
     activeController.value = activeController.value.copyWith(
       text: newText,
       selection: TextSelection.collapsed(offset: start + insertText.length),
     );
-    
+
     onInserted?.call();
   }
 
@@ -50,7 +58,7 @@ class VariableInsertionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEnabled = controller != null;
-    
+
     // Horizontal Strip (Input Accessory Style)
     return Container(
       height: 44, // Slightly taller for touch targets
@@ -94,7 +102,7 @@ class VariableInsertionWidget extends StatelessWidget {
 
   Widget _buildChip(BuildContext context, String variable, bool isEnabled) {
     final theme = Theme.of(context);
-    
+
     return Tooltip(
       message: isEnabled ? 'Insert __${variable}__' : 'Select a field',
       child: Material(
@@ -105,20 +113,20 @@ class VariableInsertionWidget extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isEnabled 
+              color: isEnabled
                   ? theme.colorScheme.surfaceContainerHighest
                   : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.transparent, 
+                color: Colors.transparent,
               ),
             ),
             child: Text(
               variable,
               style: theme.textTheme.labelMedium?.copyWith(
                 fontFamily: 'monospace',
-                color: isEnabled 
-                    ? theme.colorScheme.onSurfaceVariant 
+                color: isEnabled
+                    ? theme.colorScheme.onSurfaceVariant
                     : theme.colorScheme.outline,
                 fontWeight: FontWeight.w500,
               ),

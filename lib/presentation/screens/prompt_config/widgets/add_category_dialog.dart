@@ -82,7 +82,10 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
         baseKey = words[0];
       } else {
         baseKey = words[0] +
-            words.skip(1).map((w) => w[0].toUpperCase() + w.substring(1)).join();
+            words
+                .skip(1)
+                .map((w) => w[0].toUpperCase() + w.substring(1))
+                .join();
       }
     } else {
       // 中文或混合：使用 custom 前缀
@@ -207,7 +210,8 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                      color:
+                          theme.colorScheme.primaryContainer.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(

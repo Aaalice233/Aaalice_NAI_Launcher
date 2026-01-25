@@ -32,7 +32,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       children: [
         // 标题栏
         Padding(
-          padding: const EdgeInsets.only(left: 36, right: 12, top: 12, bottom: 12),
+          padding:
+              const EdgeInsets.only(left: 36, right: 12, top: 12, bottom: 12),
           child: Row(
             children: [
               Text(
@@ -44,7 +45,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               if (state.history.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
@@ -74,13 +76,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     });
                   },
                   icon: Icon(
-                    _selectedIndices.length == state.history.length 
-                        ? Icons.deselect 
+                    _selectedIndices.length == state.history.length
+                        ? Icons.deselect
                         : Icons.select_all,
                     size: 20,
                   ),
-                  tooltip: _selectedIndices.length == state.history.length 
-                      ? context.l10n.common_deselectAll 
+                  tooltip: _selectedIndices.length == state.history.length
+                      ? context.l10n.common_deselectAll
                       : context.l10n.common_selectAll,
                   style: IconButton.styleFrom(
                     foregroundColor: theme.colorScheme.primary,
@@ -109,7 +111,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               ? _buildEmptyState(theme, context)
               : _buildHistoryGrid(state.history, theme),
         ),
-        
+
         // 底部操作栏（有选中时显示）
         if (_selectedIndices.isNotEmpty)
           _buildBottomActions(context, state.history, theme),
@@ -169,8 +171,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       },
     );
   }
-  
-  Widget _buildBottomActions(BuildContext context, List<Uint8List> history, ThemeData theme) {
+
+  Widget _buildBottomActions(
+      BuildContext context, List<Uint8List> history, ThemeData theme,) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -189,8 +192,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       ),
     );
   }
-  
-  Future<void> _saveSelectedImages(BuildContext context, List<Uint8List> history) async {
+
+  Future<void> _saveSelectedImages(
+      BuildContext context, List<Uint8List> history,) async {
     if (_selectedIndices.isEmpty) return;
 
     try {
@@ -233,7 +237,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       }
     }
   }
-  
+
   void _showFullscreen(BuildContext context, Uint8List imageBytes) {
     Navigator.of(context).push(
       PageRouteBuilder(
@@ -264,7 +268,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             ),
             FilledButton(
               onPressed: () {
-                ref.read(imageGenerationNotifierProvider.notifier).clearHistory();
+                ref
+                    .read(imageGenerationNotifierProvider.notifier)
+                    .clearHistory();
                 setState(() {
                   _selectedIndices.clear();
                 });
@@ -289,11 +295,13 @@ class _FullscreenImageView extends ConsumerStatefulWidget {
   const _FullscreenImageView({required this.imageBytes});
 
   @override
-  ConsumerState<_FullscreenImageView> createState() => _FullscreenImageViewState();
+  ConsumerState<_FullscreenImageView> createState() =>
+      _FullscreenImageViewState();
 }
 
 class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
-  final TransformationController _transformController = TransformationController();
+  final TransformationController _transformController =
+      TransformationController();
 
   @override
   void dispose() {
@@ -330,7 +338,7 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
               ),
             ),
           ),
-          
+
           // 左上角返回按钮
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -341,7 +349,7 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
               tooltip: context.l10n.common_back,
             ),
           ),
-          
+
           // 右上角保存按钮
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,

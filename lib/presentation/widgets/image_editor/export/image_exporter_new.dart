@@ -64,7 +64,8 @@ class ImageExporterNew {
   static Future<Uint8List> exportLayer(
     ui.Image layerImage,
   ) async {
-    final byteData = await layerImage.toByteData(format: ui.ImageByteFormat.png);
+    final byteData =
+        await layerImage.toByteData(format: ui.ImageByteFormat.png);
 
     if (byteData == null) {
       throw Exception('Failed to convert layer to bytes');

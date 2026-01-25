@@ -1062,6 +1062,8 @@
   "presetEdit_newConfigGroup": "New Config Group",
   "presetEdit_enterPresetName": "Please enter preset name",
   "presetEdit_saveSuccess": "Saved successfully",
+  "presetEdit_saveError": "Failed to save preset",
+  "presetEdit_deleteConfigConfirm": "Delete config group \"{name}\"?",
   "presetEdit_previewTitle": "Preview Generation Result",
   "presetEdit_emptyResult": "(Empty result, please check config)",
   "presetEdit_regenerate": "Regenerate",
@@ -1411,6 +1413,7 @@
   "naiMode_title": "Default Mode",
   "naiMode_subtitle": "Replicate NovelAI official random algorithm",
   "naiMode_syncLibrary": "Manage Extended Library",
+  "manageLibrary": "Manage Library",
   "naiMode_algorithmInfo": "Algorithm Info",
   "naiMode_tagCountBadge": "{count} tags",
   "@naiMode_tagCountBadge": {
@@ -2234,5 +2237,82 @@
   "vibeEncodeConfirm": "Continue and consume Anlas?",
   "vibeCancel": "Cancel",
   "vibeConfirmEncode": "Encode",
-  "vibeParseFailed": "Failed to parse Vibe file"
+  "vibeParseFailed": "Failed to parse Vibe file",
+
+  "tagGroupBrowser_searchHint": "Search tags...",
+  "tagGroupBrowser_tagCount": "{count} tags",
+  "@tagGroupBrowser_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupBrowser_filteredTagCount": "Showing {filtered} of {total} tags",
+  "@tagGroupBrowser_filteredTagCount": {
+    "placeholders": {
+      "filtered": {},
+      "total": {}
+    }
+  },
+  "tagGroupBrowser_noTags": "No tags",
+  "tagGroupBrowser_noLibrary": "Tag library not loaded",
+  "tagGroupBrowser_importLibraryHint": "Please import a tag library first",
+  "tagGroupBrowser_noCategories": "No enabled tag categories",
+  "tagGroupBrowser_enableCategoriesHint": "Please enable tag categories in settings",
+  "tagGroupBrowser_danbooruSuggestions": "Danbooru Suggestions",
+
+  "tag_favoritesTitle": "Favorite Tags",
+  "tag_favoritesEmpty": "No favorite tags yet",
+  "tag_favoritesEmptyHint": "Long-press on a tag to add it to favorites",
+  "tag_alreadyAdded": "Tag already added to current prompt",
+  "tag_removeFavoriteTitle": "Remove from Favorites",
+  "tag_removeFavoriteMessage": "Remove \"{tag}\" from favorites?",
+  "@tag_removeFavoriteMessage": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+
+  "tag_templatesTitle": "Tag Templates",
+  "tag_templatesEmpty": "No tag templates yet",
+  "tag_templatesEmptyHint": "Select tags and click the + button to create a template",
+  "tag_templateCreate": "Create Template",
+  "tag_templateNameLabel": "Template Name",
+  "tag_templateNameHint": "Enter template name",
+  "tag_templateNameRequired": "Please enter a template name",
+  "tag_templateDescLabel": "Description (Optional)",
+  "tag_templateDescHint": "Enter template description",
+  "tag_templatePreview": "Tag Preview",
+  "tag_templateTagCount": "{count} tags",
+  "@tag_templateTagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateMoreTags": "{count} more tags...",
+  "@tag_templateMoreTags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateInserted": "Inserted template \"{name}\"",
+  "@tag_templateInserted": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tag_templateNoTags": "No tags to save",
+  "tag_templateSaved": "Template saved",
+  "tag_templateNameExists": "Template name already exists",
+  "tag_templateDeleteTitle": "Delete Template",
+  "tag_templateDeleteMessage": "Delete template \"{name}\"?",
+  "@tag_templateDeleteMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
+  "tag_tabTags": "Tags",
+  "tag_tabGroups": "Groups",
+  "tag_tabFavorites": "Favorites",
+  "tag_tabTemplates": "Templates"
 }

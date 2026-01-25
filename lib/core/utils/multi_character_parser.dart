@@ -1,15 +1,15 @@
 import '../../data/models/character/character_prompt.dart';
 
 /// 多角色提示词解析器
-/// 
+///
 /// 将格式为 "全局提示词\n| 角色1\n| 角色2" 的输入拆分为：
 /// - 全局提示词（保留在主输入框）
 /// - 多个角色提示词（自动创建角色）
 class MultiCharacterParser {
   /// 分隔符正则：必须有换行 + 管道符
-  /// 
+  ///
   /// 使用 `\s*\|\s*` 而非 `\n\s*\|\s*` 来支持多个空行
-  /// 
+  ///
   /// 示例：
   /// - ✅ "Global\n| Char1" → 触发拆分
   /// - ✅ "Global\n|\n\n| Char1" → 跳过空段落
@@ -30,12 +30,12 @@ class MultiCharacterParser {
   );
 
   /// 解析多角色提示词
-  /// 
+  ///
   /// 返回 [ParseResult] 包含：
   /// - `globalPrompt`: 全局提示词
   /// - `characters`: 角色列表
   /// - `hasMultipleCharacters`: 是否包含多个角色
-  /// 
+  ///
   /// 示例：
   /// ```dart
   /// final result = MultiCharacterParser.parse(
@@ -99,7 +99,7 @@ class MultiCharacterParser {
   }
 
   /// 推断角色性别
-  /// 
+  ///
   /// 规则：
   /// 1. 查找 male 标签（1boy, 2boys, 3boys, male）
   /// 2. 查找 female 标签（1girl, 2girls, 3girls, female）

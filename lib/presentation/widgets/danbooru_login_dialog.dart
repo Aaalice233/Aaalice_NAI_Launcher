@@ -10,7 +10,8 @@ class DanbooruLoginDialog extends ConsumerStatefulWidget {
   const DanbooruLoginDialog({super.key});
 
   @override
-  ConsumerState<DanbooruLoginDialog> createState() => _DanbooruLoginDialogState();
+  ConsumerState<DanbooruLoginDialog> createState() =>
+      _DanbooruLoginDialogState();
 }
 
 class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
@@ -33,9 +34,9 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
     setState(() => _isLoading = true);
 
     final success = await ref.read(danbooruAuthProvider.notifier).login(
-      _usernameController.text.trim(),
-      _apiKeyController.text.trim(),
-    );
+          _usernameController.text.trim(),
+          _apiKeyController.text.trim(),
+        );
 
     setState(() => _isLoading = false);
 
@@ -67,7 +68,8 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 children: [
                   Icon(Icons.login, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
-                  Text(context.l10n.danbooru_loginTitle, style: theme.textTheme.titleLarge),
+                  Text(context.l10n.danbooru_loginTitle,
+                      style: theme.textTheme.titleLarge,),
                 ],
               ),
               const SizedBox(height: 8),
@@ -105,8 +107,11 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                   hintText: context.l10n.danbooru_apiKeyHint,
                   prefixIcon: const Icon(Icons.key),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureApiKey ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
+                    icon: Icon(_obscureApiKey
+                        ? Icons.visibility
+                        : Icons.visibility_off,),
+                    onPressed: () =>
+                        setState(() => _obscureApiKey = !_obscureApiKey),
                   ),
                 ),
                 validator: (value) {
@@ -141,12 +146,14 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error, color: theme.colorScheme.error, size: 20),
+                      Icon(Icons.error,
+                          color: theme.colorScheme.error, size: 20,),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           authState.error!,
-                          style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                          style: TextStyle(
+                              color: theme.colorScheme.onErrorContainer,),
                         ),
                       ),
                     ],
@@ -191,4 +198,3 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
     }
   }
 }
-

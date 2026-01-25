@@ -47,12 +47,15 @@ class AccountQuickSwitch extends ConsumerWidget {
 
                     if (token == null) {
                       if (context.mounted) {
-                        AppToast.error(context, context.l10n.auth_tokenNotFound);
+                        AppToast.error(
+                            context, context.l10n.auth_tokenNotFound,);
                       }
                       return;
                     }
 
-                    final success = await ref.read(authNotifierProvider.notifier).switchAccount(
+                    final success = await ref
+                        .read(authNotifierProvider.notifier)
+                        .switchAccount(
                           account.id,
                           token,
                           displayName: account.displayName,
@@ -90,7 +93,8 @@ class AccountQuickSwitch extends ConsumerWidget {
                       context: context,
                       builder: (context) => AlertDialog(
                         title: Text(context.l10n.auth_deleteAccount),
-                        content: Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
+                        content: Text(context.l10n
+                            .auth_deleteAccountConfirm(account.displayName),),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
@@ -99,7 +103,8 @@ class AccountQuickSwitch extends ConsumerWidget {
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
                             style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(context).colorScheme.error,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.error,
                             ),
                             child: Text(context.l10n.common_delete),
                           ),

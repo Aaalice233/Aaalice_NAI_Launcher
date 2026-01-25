@@ -162,7 +162,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Widget _buildTitle(ThemeData theme, Color primaryColor) {
     final lighterColor = Color.lerp(primaryColor, Colors.white, 0.4)!;
-    
+
     return Column(
       children: [
         ShaderMask(

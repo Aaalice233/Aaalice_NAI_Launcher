@@ -69,7 +69,7 @@ class AuthModeNotifier extends _$AuthModeNotifier {
   Future<void> toggleAutoLogin() async {
     final newValue = !state.autoLogin;
     state = state.copyWith(autoLogin: newValue);
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kAutoLoginKey, newValue);
   }

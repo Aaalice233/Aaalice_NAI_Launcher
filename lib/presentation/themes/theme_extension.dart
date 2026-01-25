@@ -198,18 +198,23 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       enableNeonGlow: t < 0.5 ? enableNeonGlow : other.enableNeonGlow,
       glowColor: Color.lerp(glowColor, other.glowColor, t),
       shadowIntensity:
-          uiLerpDouble(shadowIntensity, other.shadowIntensity, t) ?? shadowIntensity,
+          uiLerpDouble(shadowIntensity, other.shadowIntensity, t) ??
+              shadowIntensity,
       isLightTheme: t < 0.5 ? isLightTheme : other.isLightTheme,
       accentBarColor: Color.lerp(accentBarColor, other.accentBarColor, t),
-      dividerColor: Color.lerp(dividerColor, other.dividerColor, t) ?? dividerColor,
+      dividerColor:
+          Color.lerp(dividerColor, other.dividerColor, t) ?? dividerColor,
       dividerThickness:
-          uiLerpDouble(dividerThickness, other.dividerThickness, t) ?? dividerThickness,
+          uiLerpDouble(dividerThickness, other.dividerThickness, t) ??
+              dividerThickness,
       useDivider: t < 0.5 ? useDivider : other.useDivider,
       enableInsetShadow: t < 0.5 ? enableInsetShadow : other.enableInsetShadow,
       insetShadowDepth:
-          uiLerpDouble(insetShadowDepth, other.insetShadowDepth, t) ?? insetShadowDepth,
+          uiLerpDouble(insetShadowDepth, other.insetShadowDepth, t) ??
+              insetShadowDepth,
       insetShadowBlur:
-          uiLerpDouble(insetShadowBlur, other.insetShadowBlur, t) ?? insetShadowBlur,
+          uiLerpDouble(insetShadowBlur, other.insetShadowBlur, t) ??
+              insetShadowBlur,
     );
   }
 

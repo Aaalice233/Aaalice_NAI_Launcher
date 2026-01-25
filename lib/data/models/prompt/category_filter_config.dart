@@ -63,7 +63,8 @@ class CategoryFilterConfig with _$CategoryFilterConfig {
   }
 
   /// 设置指定分类的内置词库启用状态
-  CategoryFilterConfig setBuiltinEnabled(TagSubCategory category, bool enabled) {
+  CategoryFilterConfig setBuiltinEnabled(
+      TagSubCategory category, bool enabled,) {
     final newMap = Map<String, bool>.from(builtinEnabled);
     newMap[category.name] = enabled;
     return copyWith(builtinEnabled: newMap);

@@ -61,21 +61,21 @@ class InsetShadowContainer extends StatelessWidget {
     final theme = Theme.of(context);
     final appExt = theme.extension<AppThemeExtension>();
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // 从主题扩展读取配置，允许参数覆盖
     final isEnabled = enabled ?? appExt?.enableInsetShadow ?? true;
     final depth = shadowDepth ?? appExt?.insetShadowDepth ?? 0.12;
     final blur = shadowBlur ?? appExt?.insetShadowBlur ?? 8.0;
-    
+
     // 背景色 - 深色主题用更深的颜色，浅色主题用更浅的颜色
-    final bgColor = backgroundColor ?? 
-        (isDark 
+    final bgColor = backgroundColor ??
+        (isDark
             ? Color.lerp(theme.colorScheme.surface, Colors.black, 0.3)!
             : Color.lerp(theme.colorScheme.surface, Colors.black, 0.02)!);
-    
+
     // 边框色
     final border = borderColor ?? theme.colorScheme.outline.withOpacity(0.2);
-    
+
     // 如果禁用内阴影，直接返回简单容器
     if (!isEnabled) {
       return Container(
@@ -90,9 +90,9 @@ class InsetShadowContainer extends StatelessWidget {
         ),
       );
     }
-    
+
     // 阴影色 - 深色主题用黑色，浅色主题用深灰色
-    final shadowColor = isDark 
+    final shadowColor = isDark
         ? Colors.black.withOpacity(depth * 1.5)
         : Colors.black.withOpacity(depth);
 
@@ -136,11 +136,11 @@ class _InsetShadowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
     final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
-    
+
     // 保存画布状态，应用圆角裁剪
     canvas.save();
     canvas.clipRRect(rrect);
-    
+
     // 顶部内阴影 - 最明显
     final topGradient = LinearGradient(
       begin: Alignment.topCenter,
@@ -152,12 +152,11 @@ class _InsetShadowPainter extends CustomPainter {
       ],
       stops: const [0.0, 0.3, 1.0],
     );
-    
+
     final topRect = Rect.fromLTWH(0, 0, size.width, shadowBlur * 2);
-    final topPaint = Paint()
-      ..shader = topGradient.createShader(topRect);
+    final topPaint = Paint()..shader = topGradient.createShader(topRect);
     canvas.drawRect(topRect, topPaint);
-    
+
     // 左侧内阴影
     final leftGradient = LinearGradient(
       begin: Alignment.centerLeft,
@@ -167,12 +166,11 @@ class _InsetShadowPainter extends CustomPainter {
         Colors.transparent,
       ],
     );
-    
+
     final leftRect = Rect.fromLTWH(0, 0, shadowBlur * 1.5, size.height);
-    final leftPaint = Paint()
-      ..shader = leftGradient.createShader(leftRect);
+    final leftPaint = Paint()..shader = leftGradient.createShader(leftRect);
     canvas.drawRect(leftRect, leftPaint);
-    
+
     // 右侧内阴影（更轻微）
     final rightGradient = LinearGradient(
       begin: Alignment.centerRight,
@@ -182,12 +180,12 @@ class _InsetShadowPainter extends CustomPainter {
         Colors.transparent,
       ],
     );
-    
-    final rightRect = Rect.fromLTWH(size.width - shadowBlur, 0, shadowBlur, size.height);
-    final rightPaint = Paint()
-      ..shader = rightGradient.createShader(rightRect);
+
+    final rightRect =
+        Rect.fromLTWH(size.width - shadowBlur, 0, shadowBlur, size.height);
+    final rightPaint = Paint()..shader = rightGradient.createShader(rightRect);
     canvas.drawRect(rightRect, rightPaint);
-    
+
     // 底部高光（模拟光源从上方照射）- 可选的微妙效果
     // 在深色主题中添加底部微弱高光增加立体感
     if (shadowColor.opacity > 0.1) {
@@ -199,13 +197,14 @@ class _InsetShadowPainter extends CustomPainter {
           Colors.transparent,
         ],
       );
-      
-      final bottomRect = Rect.fromLTWH(0, size.height - shadowBlur * 0.5, size.width, shadowBlur * 0.5);
+
+      final bottomRect = Rect.fromLTWH(
+          0, size.height - shadowBlur * 0.5, size.width, shadowBlur * 0.5,);
       final bottomPaint = Paint()
         ..shader = bottomHighlight.createShader(bottomRect);
       canvas.drawRect(bottomRect, bottomPaint);
     }
-    
+
     // 恢复画布状态
     canvas.restore();
   }
@@ -213,7 +212,7 @@ class _InsetShadowPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _InsetShadowPainter oldDelegate) {
     return oldDelegate.shadowColor != shadowColor ||
-           oldDelegate.shadowBlur != shadowBlur ||
-           oldDelegate.borderRadius != borderRadius;
+        oldDelegate.shadowBlur != shadowBlur ||
+        oldDelegate.borderRadius != borderRadius;
   }
 }

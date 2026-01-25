@@ -412,7 +412,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.upscale_selectFailed(e.toString()))),
+          SnackBar(
+              content: Text(context.l10n.upscale_selectFailed(e.toString())),),
         );
       }
     }
@@ -422,9 +423,9 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     if (_sourceImage == null) return;
 
     ref.read(upscaleNotifierProvider.notifier).upscale(
-      _sourceImage!,
-      scale: _scale,
-    );
+          _sourceImage!,
+          scale: _scale,
+        );
   }
 
   Future<void> _saveResult(Uint8List data) async {
@@ -458,7 +459,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.upscale_saveFailed(e.toString()))),
+          SnackBar(
+              content: Text(context.l10n.upscale_saveFailed(e.toString())),),
         );
       }
     }
@@ -475,7 +477,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.upscale_shareFailed(e.toString()))),
+          SnackBar(
+              content: Text(context.l10n.upscale_shareFailed(e.toString())),),
         );
       }
     }

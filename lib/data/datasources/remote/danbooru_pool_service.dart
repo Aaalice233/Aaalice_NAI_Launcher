@@ -61,7 +61,8 @@ class DanbooruPoolService {
     int minOccurrence = 3,
   }) async {
     try {
-      AppLogger.d('Extracting tags from pool: $poolName (ID: $poolId)', 'PoolService');
+      AppLogger.d(
+          'Extracting tags from pool: $poolName (ID: $poolId)', 'PoolService',);
 
       // 获取 Pool 内的帖子
       final posts = await _apiService.getPoolPosts(
@@ -74,7 +75,8 @@ class DanbooruPoolService {
         return [];
       }
 
-      AppLogger.d('Fetched ${posts.length} posts from pool: $poolName', 'PoolService');
+      AppLogger.d(
+          'Fetched ${posts.length} posts from pool: $poolName', 'PoolService',);
 
       // 统计每个标签的出现次数
       final tagCounts = <String, int>{};
@@ -94,11 +96,13 @@ class DanbooruPoolService {
           final rawWeight = (entry.value / totalPosts) * 10;
           final weight = rawWeight.clamp(1, 10).toInt();
 
-          weightedTags.add(WeightedTag.simple(
-            entry.key.replaceAll('_', ' '),
-            weight,
-            TagSource.danbooru,
-          ),);
+          weightedTags.add(
+            WeightedTag.simple(
+              entry.key.replaceAll('_', ' '),
+              weight,
+              TagSource.danbooru,
+            ),
+          );
         }
       }
 
@@ -112,7 +116,8 @@ class DanbooruPoolService {
 
       return weightedTags;
     } catch (e, stack) {
-      AppLogger.e('Failed to extract tags from pool: $poolName', e, stack, 'PoolService');
+      AppLogger.e('Failed to extract tags from pool: $poolName', e, stack,
+          'PoolService',);
       return [];
     }
   }
@@ -131,7 +136,8 @@ class DanbooruPoolService {
     int maxConcurrency = 3,
   }) async {
     try {
-      AppLogger.d('Syncing all posts from pool: $poolName (ID: $poolId)', 'PoolService');
+      AppLogger.d('Syncing all posts from pool: $poolName (ID: $poolId)',
+          'PoolService',);
 
       // 1. 获取 Pool 详情确定 post_count
       final pool = await getPool(poolId);
@@ -150,7 +156,8 @@ class DanbooruPoolService {
       const postsPerPage = 200;
       final totalPages = (totalPosts / postsPerPage).ceil();
 
-      AppLogger.d('Pool $poolName has $totalPosts posts, $totalPages pages', 'PoolService');
+      AppLogger.d('Pool $poolName has $totalPosts posts, $totalPages pages',
+          'PoolService',);
 
       // 3. 并发分页获取
       final allPosts = <PoolPost>[];
@@ -168,14 +175,18 @@ class DanbooruPoolService {
           );
 
           // 转换为 PoolPost
-          final poolPosts = posts.map((p) => PoolPost.fromDanbooruPost({
-            'id': p.id,
-            'tag_string_general': p.generalTags.join(' '),
-            'tag_string_character': p.characterTags.join(' '),
-            'tag_string_copyright': p.copyrightTags.join(' '),
-            'tag_string_artist': p.artistTags.join(' '),
-            'tag_string_meta': p.metaTags.join(' '),
-          }),).toList();
+          final poolPosts = posts
+              .map(
+                (p) => PoolPost.fromDanbooruPost({
+                  'id': p.id,
+                  'tag_string_general': p.generalTags.join(' '),
+                  'tag_string_character': p.characterTags.join(' '),
+                  'tag_string_copyright': p.copyrightTags.join(' '),
+                  'tag_string_artist': p.artistTags.join(' '),
+                  'tag_string_meta': p.metaTags.join(' '),
+                }),
+              )
+              .toList();
 
           completedPages++;
           onProgress?.call(completedPages, totalPages);
@@ -198,7 +209,8 @@ class DanbooruPoolService {
 
       return allPosts;
     } catch (e, stack) {
-      AppLogger.e('Failed to sync pool posts: $poolName', e, stack, 'PoolService');
+      AppLogger.e(
+          'Failed to sync pool posts: $poolName', e, stack, 'PoolService',);
       return [];
     }
   }
@@ -245,11 +257,13 @@ class DanbooruPoolService {
     final futures = enabledMappings.map((mapping) async {
       await semaphore.acquire();
       try {
-        onProgress?.call(PoolSyncProgress.fetching(
-          mapping.poolDisplayName,
-          completedCount,
-          totalCount,
-        ),);
+        onProgress?.call(
+          PoolSyncProgress.fetching(
+            mapping.poolDisplayName,
+            completedCount,
+            totalCount,
+          ),
+        );
 
         final tags = await extractTagsFromPool(
           poolId: mapping.poolId,
@@ -262,11 +276,13 @@ class DanbooruPoolService {
         poolTagCounts[mapping.poolId] = tags.length;
         completedCount++;
 
-        onProgress?.call(PoolSyncProgress.fetching(
-          mapping.poolDisplayName,
-          completedCount,
-          totalCount,
-        ),);
+        onProgress?.call(
+          PoolSyncProgress.fetching(
+            mapping.poolDisplayName,
+            completedCount,
+            totalCount,
+          ),
+        );
       } catch (e) {
         AppLogger.w('Failed to sync pool: ${mapping.poolName}', 'PoolService');
         mappingResults[mapping] = [];
@@ -289,7 +305,8 @@ class DanbooruPoolService {
       if (tags.isNotEmpty) {
         // 按目标分类合并
         final existingTags = results[mapping.targetCategory] ?? [];
-        final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
+        final existingNames =
+            existingTags.map((t) => t.tag.toLowerCase()).toSet();
 
         // 添加不重复的标签
         for (final tag in tags) {
@@ -304,7 +321,8 @@ class DanbooruPoolService {
     }
 
     // 计算总标签数
-    final totalTagCount = results.values.fold<int>(0, (sum, list) => sum + list.length);
+    final totalTagCount =
+        results.values.fold<int>(0, (sum, list) => sum + list.length);
 
     AppLogger.i(
       'Pool sync completed: $totalTagCount tags from ${enabledMappings.length} pools (concurrent)',

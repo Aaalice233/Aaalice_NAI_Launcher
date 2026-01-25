@@ -21,6 +21,7 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/prompt/random_manager/random_library_manager.dart';
 import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
@@ -141,7 +142,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         orElse: () => TagSubCategory.hairColor,
       );
       // 类别必须启用，且内置词库必须启用
-      if (randomCategory.enabled && state.categoryFilterConfig.isBuiltinEnabled(cat)) {
+      if (randomCategory.enabled &&
+          state.categoryFilterConfig.isBuiltinEnabled(cat)) {
         builtinGroupCount++;
       }
     }
@@ -222,6 +224,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onToggleExpand: _toggleAllExpand,
             onResetPreset: () => _showResetPresetConfirmDialog(context),
             onAddCategory: () => _showAddCategoryDialog(context),
+            onManageLibrary: () => RandomLibraryManager.show(context),
           ),
 
           // 同步进度（TagLibrary 或 TagGroup 同步）
@@ -260,10 +263,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     if (confirmed == true && context.mounted) {
       // 重置预设（包括类别参数、词组参数、第三方词组映射）
-      await ref.read(randomPresetNotifierProvider.notifier).resetCurrentPreset();
+      await ref
+          .read(randomPresetNotifierProvider.notifier)
+          .resetCurrentPreset();
 
       // 同时重置内置词组的启用状态为全部启用
-      await ref.read(tagLibraryNotifierProvider.notifier).setAllBuiltinEnabled(true);
+      await ref
+          .read(tagLibraryNotifierProvider.notifier)
+          .setAllBuiltinEnabled(true);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.preset_resetSuccess);
@@ -293,7 +300,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     ).copyWith(probability: result.probability);
 
     // 添加到预设
-    await ref.read(randomPresetNotifierProvider.notifier).addCategory(newCategory);
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .addCategory(newCategory);
 
     if (context.mounted) {
       AppToast.success(context, context.l10n.category_createSuccess);
@@ -341,7 +350,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 外部 TagGroup 同步进度显示
   Widget _buildTagGroupSyncProgress(
-      ThemeData theme, TagGroupSyncProgress progress,) {
+    ThemeData theme,
+    TagGroupSyncProgress progress,
+  ) {
     final message = progress.currentGroup != null
         ? context.l10n.tagGroup_syncFetching(
             progress.currentGroup!,
@@ -474,9 +485,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 显示类别设置对话框
   void _showCategorySettings(RandomCategory category) {
     final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
-    final customSlotOptions = preset?.algorithmConfig.characterCountConfig
-            ?.customSlotOptions ??
-        defaultSlotOptions;
+    final customSlotOptions =
+        preset?.algorithmConfig.characterCountConfig?.customSlotOptions ??
+            defaultSlotOptions;
 
     CategorySettingsDialog.show(
       context: context,
@@ -506,7 +517,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   /// 切换类别启用/禁用状态
-  Future<void> _toggleCategoryEnabled(RandomCategory category, bool enabled) async {
+  Future<void> _toggleCategoryEnabled(
+      RandomCategory category, bool enabled,) async {
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
     // 使用 upsertCategoryByKey 确保即使类别不存在也能正确处理
     await notifier.upsertCategoryByKey(category.copyWith(enabled: enabled));
@@ -545,7 +557,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     if (confirmed == true) {
       // 真正删除类别
-      await ref.read(randomPresetNotifierProvider.notifier)
+      await ref
+          .read(randomPresetNotifierProvider.notifier)
           .removeCategoryByKey(category.key);
     }
   }
@@ -604,7 +617,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     // 全选 = 选中所有现有分组
     await notifier.updateSelectedGroupsWithTree(
-        existingGroupTitles, existingGroupInfoMap,);
+      existingGroupTitles,
+      existingGroupInfoMap,
+    );
 
     // 同时启用所有内置词库（使用批量操作，只写一次磁盘）
     await ref
@@ -750,20 +765,21 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                       ...state.presets.map(
                         (preset) => _buildPresetItem(preset, state, theme),
                       ),
-                      // 新建预设按钮（暂时禁用 - 预设管理功能待完善）
-                      // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(
-                      //       horizontal: 8, vertical: 8,),
-                      //   child: OutlinedButton.icon(
-                      //     onPressed: _createNewPreset,
-                      //     icon: const Icon(Icons.add, size: 18),
-                      //     label: Text(context.l10n.config_newPreset),
-                      //     style: OutlinedButton.styleFrom(
-                      //       padding: const EdgeInsets.symmetric(vertical: 12),
-                      //     ),
-                      //   ),
-                      // ),
+                      // 新建预设按钮
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        child: OutlinedButton.icon(
+                          onPressed: _createNewPreset,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(context.l10n.config_newPreset),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -1095,7 +1111,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           value: 'delete',
           child: Row(
             children: [
-              Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
+              Icon(Icons.delete_outline,
+                  size: 18, color: theme.colorScheme.error,),
               const SizedBox(width: 12),
               Text(
                 context.l10n.preset_delete,
@@ -1421,26 +1438,24 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
-  // 新建预设功能暂时禁用 - 预设管理功能待完善
-  // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
-  // void _createNewPreset() {
-  //   if (_hasUnsavedChanges) {
-  //     _showUnsavedDialog(_doCreateNewPreset);
-  //     return;
-  //   }
-  //   _doCreateNewPreset();
-  // }
+  void _createNewPreset() {
+    if (_hasUnsavedChanges) {
+      _showUnsavedDialog(_doCreateNewPreset);
+      return;
+    }
+    _doCreateNewPreset();
+  }
 
-  // void _doCreateNewPreset() async {
-  //   final presetName = context.l10n.config_newPreset;
-  //   final successMessage = context.l10n.preset_newPresetCreated;
-  //   final newPreset = pc.RandomPromptPreset.create(name: presetName);
-  //   await ref.read(promptConfigNotifierProvider.notifier).addPreset(newPreset);
-  //   _doSelectPreset(newPreset.id);
-  //   if (mounted) {
-  //     AppToast.success(context, successMessage);
-  //   }
-  // }
+  void _doCreateNewPreset() async {
+    final presetName = context.l10n.config_newPreset;
+    final successMessage = context.l10n.preset_newPresetCreated;
+    final newPreset = pc.RandomPromptPreset.create(name: presetName);
+    await ref.read(promptConfigNotifierProvider.notifier).addPreset(newPreset);
+    _doSelectPreset(newPreset.id);
+    if (mounted) {
+      AppToast.success(context, successMessage);
+    }
+  }
 
   void _addConfig() {
     final newConfig =
@@ -1522,10 +1537,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         _showRenamePresetDialog(preset);
         break;
       case 'moveUp':
-        ref.read(promptConfigNotifierProvider.notifier).movePreset(preset.id, -1);
+        ref
+            .read(promptConfigNotifierProvider.notifier)
+            .movePreset(preset.id, -1);
         break;
       case 'moveDown':
-        ref.read(promptConfigNotifierProvider.notifier).movePreset(preset.id, 1);
+        ref
+            .read(promptConfigNotifierProvider.notifier)
+            .movePreset(preset.id, 1);
         break;
       case 'duplicate':
         ref
@@ -1581,7 +1600,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     if (newName != null && newName.isNotEmpty && newName != preset.name) {
       final updated = preset.copyWith(name: newName, updatedAt: DateTime.now());
-      await ref.read(promptConfigNotifierProvider.notifier).updatePreset(updated);
+      await ref
+          .read(promptConfigNotifierProvider.notifier)
+          .updatePreset(updated);
     }
   }
 
@@ -1707,10 +1728,3 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 }
-
-
-
-
-
-
-

@@ -79,10 +79,11 @@ class LocalGalleryRepository {
     final stopwatch = Stopwatch()..start();
     final dir = await _getImageDirectory();
     if (!dir.existsSync()) return [];
-    final files = dir.listSync(recursive: false)
-      .whereType<File>()
-      .where((f) => f.path.toLowerCase().endsWith('.png'))
-      .toList()
+    final files = dir
+        .listSync(recursive: false)
+        .whereType<File>()
+        .where((f) => f.path.toLowerCase().endsWith('.png'))
+        .toList()
       // 降序排序（最新优先）- 业务需求
       ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     stopwatch.stop();
@@ -178,7 +179,7 @@ class LocalGalleryRepository {
         records.where((r) => r.metadataStatus == MetadataStatus.success).length;
     AppLogger.i(
       'Page load completed: ${records.length} records ($successCount with metadata) '
-      'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
+          'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
       'LocalGalleryRepo',
     );
     return records;

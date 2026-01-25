@@ -163,12 +163,20 @@ class RandomPreset with _$RandomPreset {
       algorithmConfig: source.algorithmConfig,
       categoryProbabilities: source.categoryProbabilities,
       categories: source.categories.map((c) => c.deepCopy()).toList(),
-      tagGroupMappings: source.tagGroupMappings.map((m) => m.copyWith(
-        id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
-      ),).toList(),
-      poolMappings: source.poolMappings.map((m) => m.copyWith(
-        id: 'pool_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
-      ),).toList(),
+      tagGroupMappings: source.tagGroupMappings
+          .map(
+            (m) => m.copyWith(
+              id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
+            ),
+          )
+          .toList(),
+      poolMappings: source.poolMappings
+          .map(
+            (m) => m.copyWith(
+              id: 'pool_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
+            ),
+          )
+          .toList(),
       createdAt: now,
       updatedAt: now,
     );
@@ -188,8 +196,7 @@ class RandomPreset with _$RandomPreset {
   int get categoryCount => categories.length;
 
   /// 获取启用的类别数量
-  int get enabledCategoryCount =>
-      categories.where((c) => c.enabled).length;
+  int get enabledCategoryCount => categories.where((c) => c.enabled).length;
 
   /// 更新最后修改时间
   RandomPreset touch() {
@@ -303,7 +310,8 @@ class RandomPreset with _$RandomPreset {
   /// 删除 Tag Group 映射
   RandomPreset removeTagGroupMapping(String mappingId) {
     return copyWith(
-      tagGroupMappings: tagGroupMappings.where((m) => m.id != mappingId).toList(),
+      tagGroupMappings:
+          tagGroupMappings.where((m) => m.id != mappingId).toList(),
       updatedAt: DateTime.now(),
     );
   }

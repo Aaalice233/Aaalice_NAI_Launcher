@@ -31,7 +31,8 @@ class CharacterPositionCanvas extends StatefulWidget {
   });
 
   @override
-  State<CharacterPositionCanvas> createState() => _CharacterPositionCanvasState();
+  State<CharacterPositionCanvas> createState() =>
+      _CharacterPositionCanvasState();
 }
 
 class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
@@ -195,11 +196,9 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
     final newPositions = List<CharacterPosition>.from(widget.positions);
     final current = newPositions[index];
 
-    final newColumn = (current.column +
-            details.delta.dx / constraints.maxWidth)
+    final newColumn = (current.column + details.delta.dx / constraints.maxWidth)
         .clamp(0.0, 1.0);
-    final newRow = (current.row +
-            details.delta.dy / constraints.maxHeight)
+    final newRow = (current.row + details.delta.dy / constraints.maxHeight)
         .clamp(0.0, 1.0);
 
     newPositions[index] = current.copyWith(
@@ -265,7 +264,8 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                     children: [
                       ChoiceChip(
                         label: const Text('AI'),
-                        selected: position.mode == CharacterPositionMode.aiChoice,
+                        selected:
+                            position.mode == CharacterPositionMode.aiChoice,
                         onSelected: (selected) {
                           if (selected) {
                             _updatePosition(

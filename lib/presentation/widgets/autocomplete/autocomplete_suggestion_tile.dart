@@ -23,29 +23,30 @@ class AutocompleteSuggestionTile extends StatelessWidget {
   /// 过滤翻译文本，只保留中文（移除日语、韩语等）
   String? _filterTranslation(String? translation) {
     if (translation == null || translation.isEmpty) return null;
-    
+
     // 如果是英文界面，不显示翻译
     if (languageCode == 'en') return null;
-    
+
     // 按 | 或 , 分割翻译
     final parts = translation.split(RegExp(r'[|,]'));
     final chineseParts = <String>[];
-    
+
     for (final part in parts) {
       final trimmed = part.trim();
       if (trimmed.isEmpty) continue;
-      
+
       // 检查是否包含日语假名（平假名、片假名）
-      final hasJapanese = RegExp(r'[\u3040-\u309F\u30A0-\u30FF]').hasMatch(trimmed);
+      final hasJapanese =
+          RegExp(r'[\u3040-\u309F\u30A0-\u30FF]').hasMatch(trimmed);
       // 检查是否包含韩语
       final hasKorean = RegExp(r'[\uAC00-\uD7AF]').hasMatch(trimmed);
-      
+
       // 只保留不含日语和韩语的部分
       if (!hasJapanese && !hasKorean) {
         chineseParts.add(trimmed);
       }
     }
-    
+
     if (chineseParts.isEmpty) return null;
     return chineseParts.join(', ');
   }
@@ -69,7 +70,8 @@ class AutocompleteSuggestionTile extends StatelessWidget {
               // 分类标签
               if (config.showCategory) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
                     color: categoryColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(3),
@@ -97,7 +99,8 @@ class AutocompleteSuggestionTile extends StatelessWidget {
                           color: isSelected ? theme.colorScheme.primary : null,
                         ),
                       ),
-                      if (config.showTranslation && filteredTranslation != null) ...[
+                      if (config.showTranslation &&
+                          filteredTranslation != null) ...[
                         TextSpan(
                           text: '  $filteredTranslation',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -144,4 +147,3 @@ class AutocompleteSuggestionTile extends StatelessWidget {
     }
   }
 }
-

@@ -238,10 +238,33 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
   }
 
   void _deleteConfig(int index) {
-    setState(() {
-      _configs.removeAt(index);
-      _markChanged();
-    });
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(context.l10n.common_confirmDelete),
+          content: Text(
+            context.l10n.presetEdit_deleteConfigConfirm(_configs[index].name),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _configs.removeAt(index);
+                  _markChanged();
+                });
+              },
+              child: Text(context.l10n.common_delete),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _toggleConfigEnabled(int index) {
@@ -267,24 +290,38 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
       updatedAt: DateTime.now(),
     );
 
-    final notifier = ref.read(promptConfigNotifierProvider.notifier);
-    if (widget.isNew) {
-      await notifier.addPreset(updatedPreset);
-    } else {
-      await notifier.updatePreset(updatedPreset);
-    }
+    try {
+      final notifier = ref.read(promptConfigNotifierProvider.notifier);
+      if (widget.isNew) {
+        await notifier.addPreset(updatedPreset);
+      } else {
+        await notifier.updatePreset(updatedPreset);
+      }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.presetEdit_saveSuccess)),
-      );
-      Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.presetEdit_saveSuccess)),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.presetEdit_saveError),
+            action: SnackBarAction(
+              label: context.l10n.common_retry,
+              onPressed: _savePreset,
+            ),
+          ),
+        );
+      }
     }
   }
 
   void _previewGenerate() {
     final tempPreset = widget.preset.copyWith(
-      name: _nameController.text,
+      name: _nameController.text.trim(),
       configs: _configs,
     );
     final result = tempPreset.generate();

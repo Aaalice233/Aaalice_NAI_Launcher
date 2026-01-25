@@ -47,7 +47,8 @@ class RandomModeNotifier extends _$RandomModeNotifier {
 /// 便捷 Provider：是否为官网模式
 @riverpod
 bool isNaiOfficialMode(Ref ref) {
-  return ref.watch(randomModeNotifierProvider) == RandomGenerationMode.naiOfficial;
+  return ref.watch(randomModeNotifierProvider) ==
+      RandomGenerationMode.naiOfficial;
 }
 
 /// 便捷 Provider：是否为自定义模式
@@ -88,7 +89,8 @@ extension RandomGenerationModeExtension on RandomGenerationMode {
   /// 获取英文描述
   String get descriptionEn {
     return switch (this) {
-      RandomGenerationMode.naiOfficial => 'Replicate NovelAI official algorithm with multi-character support',
+      RandomGenerationMode.naiOfficial =>
+        'Replicate NovelAI official algorithm with multi-character support',
       RandomGenerationMode.custom => 'Generate prompts using custom presets',
       RandomGenerationMode.hybrid => 'Official algorithm + Custom tag library',
     };

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,7 +13,7 @@ class RandomTreeView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final presets = ref.watch(randomTreeDataProvider);
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -22,8 +21,9 @@ class RandomTreeView extends ConsumerWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              Icon(Icons.account_tree_outlined, 
-                size: 16, 
+              Icon(
+                Icons.account_tree_outlined,
+                size: 16,
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 8),
@@ -70,14 +70,14 @@ class _TreeNodeWidget extends ConsumerWidget {
     final selectedNode = ref.watch(selectedNodeProvider);
     final isExpanded = expandedNodes.contains(node.id);
     final isSelected = selectedNode?.id == node.id;
-    
+
     // Determine node type and children
     List<RandomTreeNode> children = [];
     bool isLeaf = true;
     IconData icon = Icons.circle;
     Color? iconColor;
     String tooltipMessage = '';
-    
+
     if (node is PresetNode) {
       children = (node as PresetNode).children;
       isLeaf = false;
@@ -98,7 +98,7 @@ class _TreeNodeWidget extends ConsumerWidget {
     }
 
     final theme = Theme.of(context);
-    
+
     // TagGroup is draggable
     Widget content = Material(
       color: Colors.transparent,
@@ -106,15 +106,18 @@ class _TreeNodeWidget extends ConsumerWidget {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          color: isSelected 
-              ? theme.colorScheme.secondaryContainer.withOpacity(0.5) 
+          color: isSelected
+              ? theme.colorScheme.secondaryContainer.withOpacity(0.5)
               : Colors.transparent,
           border: isSelected
-              ? Border(left: BorderSide(color: theme.colorScheme.primary, width: 3))
-              : const Border(left: BorderSide(color: Colors.transparent, width: 3)),
+              ? Border(
+                  left: BorderSide(color: theme.colorScheme.primary, width: 3),)
+              : const Border(
+                  left: BorderSide(color: Colors.transparent, width: 3),),
         ),
         child: InkWell(
-          onSecondaryTapUp: (details) => _showContextMenu(context, details.globalPosition, ref),
+          onSecondaryTapUp: (details) =>
+              _showContextMenu(context, details.globalPosition, ref),
           onTap: () {
             ref.read(selectedNodeProvider.notifier).select(node);
             if (!isLeaf) {
@@ -133,15 +136,17 @@ class _TreeNodeWidget extends ConsumerWidget {
             child: SizedBox(
               height: 24.0,
               child: Row(
-              children: [
-                // Expansion arrow or spacer
-                if (!isLeaf)
-                  Tooltip(
-                    message: isExpanded ? 'Collapse' : 'Expand',
-                    waitDuration: const Duration(milliseconds: 500),
+                children: [
+                  // Expansion arrow or spacer
+                  if (!isLeaf)
+                    Tooltip(
+                      message: isExpanded ? 'Collapse' : 'Expand',
+                      waitDuration: const Duration(milliseconds: 500),
                       child: InkWell(
                         onTap: () {
-                          ref.read(expandedNodesProvider.notifier).toggle(node.id);
+                          ref
+                              .read(expandedNodesProvider.notifier)
+                              .toggle(node.id);
                         },
                         borderRadius: BorderRadius.circular(12),
                         hoverColor: theme.colorScheme.primary.withOpacity(0.1),
@@ -152,47 +157,49 @@ class _TreeNodeWidget extends ConsumerWidget {
                           child: const Icon(Icons.arrow_right, size: 20),
                         ),
                       ),
-                  )
-                else
-                  const SizedBox(width: 20),
-                  
-                const SizedBox(width: 4),
-                
-                // Node Icon
-                Tooltip(
-                  message: tooltipMessage,
-                  waitDuration: const Duration(milliseconds: 500),
-                  child: Icon(icon, size: 18, color: iconColor ?? theme.iconTheme.color),
-                ),
-                const SizedBox(width: 8),
-                
-                // Label
-                Expanded(
-                  child: Text(
-                    node.label,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected 
-                          ? theme.colorScheme.primary 
-                          : theme.colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                
-                // Drag handle for leaf nodes
-                if (isLeaf)
+                    )
+                  else
+                    const SizedBox(width: 20),
+
+                  const SizedBox(width: 4),
+
+                  // Node Icon
                   Tooltip(
-                    message: 'Drag to reorder or move',
-                    child: Icon(
-                      Icons.drag_indicator,
-                      size: 16,
-                      color: theme.colorScheme.outline.withOpacity(0.5),
+                    message: tooltipMessage,
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: Icon(icon,
+                        size: 18, color: iconColor ?? theme.iconTheme.color,),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Label
+                  Expanded(
+                    child: Text(
+                      node.label,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-              ],
-            ),
+
+                  // Drag handle for leaf nodes
+                  if (isLeaf)
+                    Tooltip(
+                      message: 'Drag to reorder or move',
+                      child: Icon(
+                        Icons.drag_indicator,
+                        size: 16,
+                        color: theme.colorScheme.outline.withOpacity(0.5),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -213,7 +220,8 @@ class _TreeNodeWidget extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
+              border:
+                  Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
             ),
             child: Row(
               children: [
@@ -222,7 +230,8 @@ class _TreeNodeWidget extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     node.label,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -237,13 +246,16 @@ class _TreeNodeWidget extends ConsumerWidget {
         child: content,
       );
     }
-    
+
     // Wrap with DragTarget for CategoryNodes (to accept drops)
     if (node is CategoryNode) {
       content = DragTarget<TagGroupNode>(
-        onWillAcceptWithDetails: (details) => details.data.categoryId != node.id,
+        onWillAcceptWithDetails: (details) =>
+            details.data.categoryId != node.id,
         onAcceptWithDetails: (details) {
-          ref.read(randomTreeDataProvider.notifier).moveTagGroup(details.data, node.id);
+          ref
+              .read(randomTreeDataProvider.notifier)
+              .moveTagGroup(details.data, node.id);
           // Auto expand target category
           ref.read(expandedNodesProvider.notifier).expand(node.id);
         },
@@ -251,12 +263,13 @@ class _TreeNodeWidget extends ConsumerWidget {
           final isHovered = candidateData.isNotEmpty;
           return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            decoration: isHovered 
+            decoration: isHovered
                 ? BoxDecoration(
                     color: theme.colorScheme.primary.withOpacity(0.1),
-                    border: Border.all(color: theme.colorScheme.primary, width: 2),
+                    border:
+                        Border.all(color: theme.colorScheme.primary, width: 2),
                     borderRadius: BorderRadius.circular(4),
-                  ) 
+                  )
                 : const BoxDecoration(),
             child: content,
           );
@@ -275,12 +288,18 @@ class _TreeNodeWidget extends ConsumerWidget {
           alignment: Alignment.topCenter,
           child: isExpanded && children.isNotEmpty
               ? Column(
-                  children: children.map((child) => _TreeNodeWidget(
-                        node: child, 
-                        level: level + 1,
-                      ),).toList(),
+                  children: children
+                      .map(
+                        (child) => _TreeNodeWidget(
+                          node: child,
+                          level: level + 1,
+                        ),
+                      )
+                      .toList(),
                 )
-              : const SizedBox(width: double.infinity), // Empty container instead of nothing for animation
+              : const SizedBox(
+                  width: double
+                      .infinity,), // Empty container instead of nothing for animation
         ),
       ],
     );
@@ -314,97 +333,99 @@ class _TreeNodeWidget extends ConsumerWidget {
     overlay.insert(overlayEntry);
   }
 
-  List<ProMenuItem> _buildMenuItems(BuildContext context, WidgetRef ref, OverlayEntry overlayEntry) {
+  List<ProMenuItem> _buildMenuItems(
+      BuildContext context, WidgetRef ref, OverlayEntry overlayEntry,) {
     final items = <ProMenuItem>[];
     final notifier = ref.read(randomTreeDataProvider.notifier);
 
     // Add Child
     if (node is PresetNode || node is CategoryNode) {
-      items.add(ProMenuItem(
-        id: 'add_child',
-        label: node is PresetNode ? 'Add Category' : 'Add Tag Group',
-        icon: Icons.add,
-        onTap: () {
-          if (node is PresetNode) {
-            notifier.addCategory(node.id);
-            ref.read(expandedNodesProvider.notifier).expand(node.id);
-          } else if (node is CategoryNode) {
-            notifier.addTagGroup((node as CategoryNode).presetId, node.id);
-            ref.read(expandedNodesProvider.notifier).expand(node.id);
-          }
-        },
-      ),
-    );
-  }
-
-  // Rename
-  items.add(
-    ProMenuItem(
-      id: 'rename',
-      label: 'Rename',
-      icon: Icons.edit,
-      onTap: () {
-        Future.delayed(Duration.zero, () {
-          if (context.mounted) _showRenameDialog(context, ref);
-        });
-      },
-    ),
-  );
-
-  // Copy
-  items.add(
-    ProMenuItem(
-      id: 'copy',
-      label: 'Copy',
-      icon: Icons.copy,
-      onTap: () {
-        _clipboardNode = node;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Copied ${node.label}')),
-        );
-      },
-    ),
-  );
-
-  // Paste
-  bool canPaste = false;
-  if (_clipboardNode != null) {
-    if (node is PresetNode && _clipboardNode is CategoryNode) canPaste = true;
-    if (node is CategoryNode && _clipboardNode is TagGroupNode) {
-      canPaste = true;
+      items.add(
+        ProMenuItem(
+          id: 'add_child',
+          label: node is PresetNode ? 'Add Category' : 'Add Tag Group',
+          icon: Icons.add,
+          onTap: () {
+            if (node is PresetNode) {
+              notifier.addCategory(node.id);
+              ref.read(expandedNodesProvider.notifier).expand(node.id);
+            } else if (node is CategoryNode) {
+              notifier.addTagGroup((node as CategoryNode).presetId, node.id);
+              ref.read(expandedNodesProvider.notifier).expand(node.id);
+            }
+          },
+        ),
+      );
     }
-  }
 
-  if (canPaste) {
+    // Rename
     items.add(
       ProMenuItem(
-        id: 'paste',
-        label: 'Paste',
-        icon: Icons.paste,
+        id: 'rename',
+        label: 'Rename',
+        icon: Icons.edit,
         onTap: () {
-          if (_clipboardNode != null) {
-            notifier.pasteNode(node, _clipboardNode!);
-            ref.read(expandedNodesProvider.notifier).expand(node.id);
-          }
+          Future.delayed(Duration.zero, () {
+            if (context.mounted) _showRenameDialog(context, ref);
+          });
         },
       ),
     );
-  }
 
-  // Delete
-  items.add(
-    ProMenuItem(
-      id: 'delete',
-      label: 'Delete',
-      icon: Icons.delete_outline,
-      onTap: () {
-        if (ref.read(selectedNodeProvider)?.id == node.id) {
-          ref.read(selectedNodeProvider.notifier).select(null);
-        }
-        notifier.deleteNode(node);
-      },
-    ),
-  );
+    // Copy
+    items.add(
+      ProMenuItem(
+        id: 'copy',
+        label: 'Copy',
+        icon: Icons.copy,
+        onTap: () {
+          _clipboardNode = node;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Copied ${node.label}')),
+          );
+        },
+      ),
+    );
+
+    // Paste
+    bool canPaste = false;
+    if (_clipboardNode != null) {
+      if (node is PresetNode && _clipboardNode is CategoryNode) canPaste = true;
+      if (node is CategoryNode && _clipboardNode is TagGroupNode) {
+        canPaste = true;
+      }
+    }
+
+    if (canPaste) {
+      items.add(
+        ProMenuItem(
+          id: 'paste',
+          label: 'Paste',
+          icon: Icons.paste,
+          onTap: () {
+            if (_clipboardNode != null) {
+              notifier.pasteNode(node, _clipboardNode!);
+              ref.read(expandedNodesProvider.notifier).expand(node.id);
+            }
+          },
+        ),
+      );
+    }
+
+    // Delete
+    items.add(
+      ProMenuItem(
+        id: 'delete',
+        label: 'Delete',
+        icon: Icons.delete_outline,
+        onTap: () {
+          if (ref.read(selectedNodeProvider)?.id == node.id) {
+            ref.read(selectedNodeProvider.notifier).select(null);
+          }
+          notifier.deleteNode(node);
+        },
+      ),
+    );
 
     return items;
   }
@@ -416,15 +437,17 @@ class _TreeNodeWidget extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Rename'),
         content: TextField(
-          controller: controller, 
+          controller: controller,
           autofocus: true,
           onSubmitted: (_) {
-             _performRename(ref, controller.text);
-             Navigator.pop(context);
+            _performRename(ref, controller.text);
+            Navigator.pop(context);
           },
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),),
           TextButton(
             onPressed: () {
               _performRename(ref, controller.text);
@@ -440,18 +463,19 @@ class _TreeNodeWidget extends ConsumerWidget {
   void _performRename(WidgetRef ref, String newName) {
     if (newName.isEmpty || newName == node.label) return;
     final notifier = ref.read(randomTreeDataProvider.notifier);
-    
+
     if (node is PresetNode) {
       notifier.updatePreset(node.id, newName);
     } else if (node is CategoryNode) {
       final catNode = node as CategoryNode;
-      notifier.updateCategory(catNode.presetId, catNode.id, catNode.data.copyWith(name: newName));
+      notifier.updateCategory(
+          catNode.presetId, catNode.id, catNode.data.copyWith(name: newName),);
     } else if (node is TagGroupNode) {
       final tagNode = node as TagGroupNode;
       notifier.updateTagGroup(
-        tagNode.presetId, 
-        tagNode.categoryId, 
-        tagNode.id, 
+        tagNode.presetId,
+        tagNode.categoryId,
+        tagNode.id,
         tagNode.data.copyWith(name: newName),
       );
     }

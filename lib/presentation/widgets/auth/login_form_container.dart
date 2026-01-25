@@ -52,7 +52,8 @@ class LoginFormContainer extends ConsumerWidget {
               );
             },
             // 布局构建器，确保动画期间顶部对齐
-            layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+            layoutBuilder:
+                (Widget? currentChild, List<Widget> previousChildren) {
               return Stack(
                 alignment: Alignment.topCenter,
                 children: <Widget>[

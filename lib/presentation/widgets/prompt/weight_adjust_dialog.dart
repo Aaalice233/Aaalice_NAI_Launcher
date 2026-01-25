@@ -55,7 +55,8 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
   }
 
   void _updateWeight(double weight) {
-    final clampedWeight = weight.clamp(PromptTag.minWeight, PromptTag.maxWeight);
+    final clampedWeight =
+        weight.clamp(PromptTag.minWeight, PromptTag.maxWeight);
     setState(() {
       _currentWeight = clampedWeight;
     });
@@ -81,7 +82,8 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
     final theme = Theme.of(context);
     final chipColor = TagColors.fromCategory(widget.tag.category);
     final weightPercent = (_currentWeight * 100).round();
-    final bracketLayers = ((_currentWeight - 1.0) / PromptTag.weightStep).round();
+    final bracketLayers =
+        ((_currentWeight - 1.0) / PromptTag.weightStep).round();
 
     return Container(
       decoration: BoxDecoration(
@@ -171,9 +173,9 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                     const SizedBox(height: 4),
                     Text(
                       bracketLayers > 0
-                          ? '${'{'*bracketLayers}...${'}'*bracketLayers}'
+                          ? '${'{' * bracketLayers}...${'}' * bracketLayers}'
                           : bracketLayers < 0
-                              ? '${'['*(-bracketLayers)}...${'['*(-bracketLayers)}'
+                              ? '${'[' * (-bracketLayers)}...${'[' * (-bracketLayers)}'
                               : context.l10n.weight_noBrackets,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.outline,
@@ -428,4 +430,3 @@ class _TagEditDialogState extends State<TagEditDialog> {
     Navigator.pop(context);
   }
 }
-

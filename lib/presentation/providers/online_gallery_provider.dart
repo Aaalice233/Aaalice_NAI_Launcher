@@ -10,38 +10,40 @@ import '../../data/services/danbooru_auth_service.dart';
 part 'online_gallery_provider.g.dart';
 
 /// 顶级函数：在 Isolate 中解析帖子数据 (用于 compute)
-/// 
+///
 /// 避免主线程阻塞，提升 UI 流畅度
 List<DanbooruPost> parsePostsInIsolate(Map<String, dynamic> data) {
   final rawList = data['rawList'] as List;
   final source = data['source'] as String;
 
-  return rawList.map((item) {
-    final json = item as Map<String, dynamic>;
-    
-    // Gelbooru 需要特殊字段映射
-    if (source == 'gelbooru') {
-      return DanbooruPost(
-        id: json['id'] as int? ?? 0,
-        score: json['score'] as int? ?? 0,
-        source: json['source'] as String? ?? '',
-        md5: json['md5'] as String? ?? '',
-        rating: json['rating'] as String? ?? 'g',
-        width: json['width'] as int? ?? 0,
-        height: json['height'] as int? ?? 0,
-        tagString: json['tags'] as String? ?? '',
-        fileExt: json['image']?.toString().split('.').last ?? 'jpg',
-        fileUrl: json['file_url'] as String?,
-        previewFileUrl: json['preview_url'] as String?,
-        largeFileUrl: json['sample_url'] as String?,
-      );
-    }
-    
-    // Danbooru/Safebooru 使用标准字段
-    return DanbooruPost.fromJson(json);
-  }).where((post) => post.previewUrl.isNotEmpty).toList();
-}
+  return rawList
+      .map((item) {
+        final json = item as Map<String, dynamic>;
 
+        // Gelbooru 需要特殊字段映射
+        if (source == 'gelbooru') {
+          return DanbooruPost(
+            id: json['id'] as int? ?? 0,
+            score: json['score'] as int? ?? 0,
+            source: json['source'] as String? ?? '',
+            md5: json['md5'] as String? ?? '',
+            rating: json['rating'] as String? ?? 'g',
+            width: json['width'] as int? ?? 0,
+            height: json['height'] as int? ?? 0,
+            tagString: json['tags'] as String? ?? '',
+            fileExt: json['image']?.toString().split('.').last ?? 'jpg',
+            fileUrl: json['file_url'] as String?,
+            previewFileUrl: json['preview_url'] as String?,
+            largeFileUrl: json['sample_url'] as String?,
+          );
+        }
+
+        // Danbooru/Safebooru 使用标准字段
+        return DanbooruPost.fromJson(json);
+      })
+      .where((post) => post.previewUrl.isNotEmpty)
+      .toList();
+}
 
 /// 画廊视图模式
 enum GalleryViewMode {
@@ -51,7 +53,7 @@ enum GalleryViewMode {
 }
 
 /// 单个模式的缓存状态
-/// 
+///
 /// 每个模式（搜索/排行榜/收藏夹）维护独立的数据和滚动位置
 class ModeCache {
   final List<DanbooruPost> posts;
@@ -82,7 +84,7 @@ class ModeCache {
 }
 
 /// 在线画廊状态
-/// 
+///
 /// 重构：每个模式维护独立的缓存，切换模式时不丢失数据
 class OnlineGalleryState {
   final bool isLoading;
@@ -185,7 +187,8 @@ class OnlineGalleryState {
       popularScale: popularScale ?? this.popularScale,
       popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
       favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
-      dateRangeStart: clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
+      dateRangeStart:
+          clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
       dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
     );
   }
@@ -213,7 +216,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   OnlineGalleryState build() {
     // 保持状态在切换Tab时不被销毁
     ref.keepAlive();
-    
+
     _dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 30),
@@ -241,10 +244,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 切换到搜索模式（保留缓存数据）
   Future<void> switchToSearch() async {
     if (state.viewMode == GalleryViewMode.search) return;
-    
+
     // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.search);
-    
+
     // 如果目标模式没有缓存数据，才加载
     if (state.searchCache.posts.isEmpty) {
       await loadPosts(refresh: true);
@@ -254,10 +257,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 切换到排行榜模式（保留缓存数据）
   Future<void> switchToPopular() async {
     if (state.viewMode == GalleryViewMode.popular) return;
-    
+
     // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.popular);
-    
+
     // 如果目标模式没有缓存数据，才加载
     if (state.popularCache.posts.isEmpty) {
       await _loadPopularPosts(refresh: true);
@@ -271,10 +274,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (state.viewMode == GalleryViewMode.favorites) return;
-    
+
     // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.favorites);
-    
+
     // 如果目标模式没有缓存数据，才加载
     if (state.favoritesCache.posts.isEmpty) {
       await _loadFavorites(refresh: true);
@@ -309,14 +312,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
     final currentCache = state.popularCache;
     final page = refresh ? 1 : currentCache.page;
-    
+
     // 更新加载状态，刷新时清空缓存
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      popularCache: refresh 
-          ? const ModeCache() 
-          : currentCache,
+      popularCache: refresh ? const ModeCache() : currentCache,
     );
 
     try {
@@ -332,7 +333,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
       // 更新缓存
       final newCache = ModeCache(
-        posts: refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
+        posts:
+            refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
         page: page,
         hasMore: posts.isNotEmpty,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
@@ -369,7 +371,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     final currentCache = state.favoritesCache;
-    
+
     // 计算分页参数
     final apiPage = _getNextPageParamForCache(refresh, currentCache);
     final statePage = refresh ? 1 : currentCache.page + 1;
@@ -509,7 +511,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (state.isLoading) return;
 
     final currentCache = state.searchCache;
-    
+
     // 计算分页参数
     final apiPage = _getNextPageParamForCache(refresh, currentCache);
     final statePage = refresh ? 1 : currentCache.page + 1;
@@ -565,11 +567,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 跳转到指定页码
   Future<void> goToPage(int page) async {
     if (page < 1 || state.isLoading) return;
-    
+
     // 更新当前模式缓存的页码
     final newCache = state.currentCache.copyWith(page: page - 1);
     state = state.updateCurrentCache(newCache);
-    
+
     await loadPosts(refresh: true);
   }
 
@@ -640,7 +642,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (rating != 'all') {
       tags = tags.isEmpty ? 'rating:$rating' : '$tags rating:$rating';
     }
-    
+
     // 添加日期范围筛选（Danbooru 语法：date:start..end）
     if (state.dateRangeStart != null && state.dateRangeEnd != null) {
       final startStr = _formatDateForQuery(state.dateRangeStart!);
@@ -679,7 +681,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
     if (response.data is List) {
       final rawList = response.data as List;
-      
+
       // 使用 compute 在独立 Isolate 中解析，避免主线程阻塞 UI
       final List<DanbooruPost> posts = await compute(
         parsePostsInIsolate,
@@ -724,5 +726,4 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         return '/posts.json';
     }
   }
-
 }
