@@ -306,6 +306,15 @@ class _TagChipState extends ConsumerState<TagChip>
     final specialColor = PromptTagColors.getSpecialTypeColor(widget.tag.text);
     final effectiveColor = specialColor ?? tagColor;
 
+    // 获取边框颜色
+    final borderColor = PromptTagColors.getBorderColor(
+      effectiveColor,
+      isSelected: isSelected,
+      isHovered: _isHovering,
+      isEnabled: isEnabled,
+      theme: theme,
+    );
+
     // 计算阴影配置
     final shadowBlur = widget.isDragging
         ? TagShadowConfig.draggingBlurRadius
@@ -381,13 +390,7 @@ class _TagChipState extends ConsumerState<TagChip>
               : TagChipSizes.normalBorderRadius,
         ),
         border: Border.all(
-          color: PromptTagColors.getBorderColor(
-            effectiveColor,
-            isSelected: isSelected,
-            isHovered: _isHovering,
-            isEnabled: isEnabled,
-            theme: theme,
-          ),
+          color: borderColor,
           width: isSelected ? 1.5 : 1,
         ),
         boxShadow: [
@@ -432,6 +435,20 @@ class _TagChipState extends ConsumerState<TagChip>
       ),
     );
 
+    // 拖拽时添加虚线边框
+    final tagChipWithBorder = widget.isDragging
+        ? _DashedBorder(
+            color: borderColor,
+            strokeWidth: 2,
+            dashWidth: 4,
+            dashSpace: 3,
+            borderRadius: widget.compact
+                ? TagChipSizes.compactBorderRadius
+                : TagChipSizes.normalBorderRadius,
+            child: tagChipContent,
+          )
+        : tagChipContent;
+
     // Apply brightness overlay on hover - 使用 200ms 实现平滑过渡
     final tagChip = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -446,7 +463,7 @@ class _TagChipState extends ConsumerState<TagChip>
               : TagChipSizes.normalBorderRadius,
         ),
       ),
-      child: tagChipContent,
+      child: tagChipWithBorder,
     );
 
     Widget chipContent = AnimatedBuilder(
@@ -739,5 +756,104 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
         ),
       ),
     );
+  }
+}
+
+/// 虚线边框组件
+class _DashedBorder extends StatelessWidget {
+  final Widget child;
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+  final double borderRadius;
+
+  const _DashedBorder({
+    required this.child,
+    required this.color,
+    this.strokeWidth = 2,
+    this.dashWidth = 4,
+    this.dashSpace = 3,
+    this.borderRadius = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _DashedBorderPainter(
+        color: color,
+        strokeWidth: strokeWidth,
+        dashWidth: dashWidth,
+        dashSpace: dashSpace,
+        borderRadius: borderRadius,
+      ),
+      child: child,
+    );
+  }
+}
+
+/// 虚线边框绘制器
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+  final double borderRadius;
+
+  _DashedBorderPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.dashWidth,
+    required this.dashSpace,
+    required this.borderRadius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromPoints(const Offset(0, 0), Offset(size.width, size.height)),
+      Radius.circular(borderRadius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    final dashedPath = _createDashedPath(path, dashWidth, dashSpace);
+
+    canvas.drawPath(dashedPath, paint);
+  }
+
+  Path _createDashedPath(Path source, double dashWidth, double dashSpace) {
+    final Path dest = Path();
+    for (final uiMetricPath in source.computeMetrics()) {
+      double distance = 0.0;
+      bool draw = true;
+
+      while (distance < uiMetricPath.length) {
+        final double len = draw ? dashWidth : dashSpace;
+        if (draw) {
+          dest.addPath(
+            uiMetricPath.extractPath(distance, distance + len),
+            Offset.zero,
+          );
+        }
+        distance += len;
+        draw = !draw;
+      }
+    }
+    return dest;
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.dashWidth != dashWidth ||
+        oldDelegate.dashSpace != dashSpace ||
+        oldDelegate.borderRadius != borderRadius;
   }
 }
