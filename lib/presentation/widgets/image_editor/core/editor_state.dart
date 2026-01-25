@@ -53,6 +53,10 @@ class EditorState extends ChangeNotifier {
   final ValueNotifier<Size> canvasSizeNotifier =
       ValueNotifier(const Size(1024, 1024));
 
+  /// 光标位置通知器（仅光标绘制器监听）
+  /// 避免光标移动触发整个 UI 重建
+  final ValueNotifier<Offset?> cursorNotifier = ValueNotifier(null);
+
   // ===== 画布状态 =====
 
   /// 画布尺寸

@@ -400,12 +400,13 @@ class CursorPainter extends CustomPainter {
   /// 缓存的图标 TextPainter
   static final Map<int, TextPainter> _iconCache = {};
 
+  /// 使用 cursorNotifier 而非整个 state
+  /// 这样只有光标位置变化时才会触发重绘
+  /// 避免其他 UI 操作导致光标不必要的重绘
   CursorPainter({
     required this.state,
     this.cursorPosition,
-  });
-  // 注意：不使用 repaint: state，因为光标位置通过 setState 更新，
-  // 每次 setState 都会创建新的 CursorPainter 实例
+  }) : super(repaint: state.cursorNotifier);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -516,6 +517,9 @@ class CursorPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CursorPainter oldDelegate) {
-    return cursorPosition != oldDelegate.cursorPosition;
+    // repaint: cursorNotifier 已经处理了光标位置变化的监听
+    // shouldRepaint 只需处理 CustomPainter 本身的属性变化
+    // 返回 false 避免不必要的重绘检查
+    return false;
   }
 }
