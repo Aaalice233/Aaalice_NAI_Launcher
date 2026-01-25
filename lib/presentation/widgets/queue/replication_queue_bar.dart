@@ -97,8 +97,10 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                                   tooltip: '清空队列',
                                   onPressed: () {
                                     ref
-                                        .read(replicationQueueNotifierProvider
-                                            .notifier,)
+                                        .read(
+                                          replicationQueueNotifierProvider
+                                              .notifier,
+                                        )
                                         .clear();
                                     setState(() {
                                       _isExpanded = false;
@@ -106,9 +108,11 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                                   },
                                 ),
                               IconButton(
-                                icon: Icon(_isExpanded
-                                    ? Icons.keyboard_arrow_down
-                                    : Icons.keyboard_arrow_up,),
+                                icon: Icon(
+                                  _isExpanded
+                                      ? Icons.keyboard_arrow_down
+                                      : Icons.keyboard_arrow_up,
+                                ),
                                 onPressed: _toggleExpand,
                               ),
                             ],
@@ -183,9 +187,11 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
               child: task.thumbnailUrl == null
-                  ? Icon(Icons.image,
+                  ? Icon(
+                      Icons.image,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,)
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    )
                   : null,
             ),
           );
@@ -262,8 +268,10 @@ class _ReplicationQueueBarState extends ConsumerState<ReplicationQueueBar> {
                     .remove(task.id);
               },
             ),
-            Icon(Icons.drag_handle,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,),
+            Icon(
+              Icons.drag_handle,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),

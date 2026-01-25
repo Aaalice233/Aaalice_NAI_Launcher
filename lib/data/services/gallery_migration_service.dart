@@ -33,7 +33,9 @@ class GalleryMigrationService {
       final newBox = await Hive.openBox(_newBoxName);
       if (newBox.isNotEmpty) {
         AppLogger.w(
-            'Migration already completed, skipping', 'GalleryMigration',);
+          'Migration already completed, skipping',
+          'GalleryMigration',
+        );
         await newBox.close();
         return (true, newBox.length, null);
       }
@@ -44,7 +46,9 @@ class GalleryMigrationService {
 
       if (oldData == null) {
         AppLogger.i(
-            'No old data found, nothing to migrate', 'GalleryMigration',);
+          'No old data found, nothing to migrate',
+          'GalleryMigration',
+        );
         await newBox.close();
         return (true, 0, null);
       }
@@ -73,7 +77,11 @@ class GalleryMigrationService {
           }
         } catch (e, stack) {
           AppLogger.e(
-              'Failed to migrate record: $e', e, stack, 'GalleryMigration',);
+            'Failed to migrate record: $e',
+            e,
+            stack,
+            'GalleryMigration',
+          );
         }
       }
 
@@ -97,7 +105,9 @@ class GalleryMigrationService {
 
       // 6. 迁移成功，删除旧数据
       AppLogger.i(
-          'Migration successful, deleting old data', 'GalleryMigration',);
+        'Migration successful, deleting old data',
+        'GalleryMigration',
+      );
       await oldBox.delete(_oldRecordsKey);
 
       return (true, migratedCount, null);
@@ -140,7 +150,11 @@ class GalleryMigrationService {
       AppLogger.i('Migration rolled back', 'GalleryMigration');
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to rollback migration: $e', e, stack, 'GalleryMigration',);
+        'Failed to rollback migration: $e',
+        e,
+        stack,
+        'GalleryMigration',
+      );
     }
   }
 }

@@ -62,7 +62,9 @@ class DanbooruPoolService {
   }) async {
     try {
       AppLogger.d(
-          'Extracting tags from pool: $poolName (ID: $poolId)', 'PoolService',);
+        'Extracting tags from pool: $poolName (ID: $poolId)',
+        'PoolService',
+      );
 
       // 获取 Pool 内的帖子
       final posts = await _apiService.getPoolPosts(
@@ -76,7 +78,9 @@ class DanbooruPoolService {
       }
 
       AppLogger.d(
-          'Fetched ${posts.length} posts from pool: $poolName', 'PoolService',);
+        'Fetched ${posts.length} posts from pool: $poolName',
+        'PoolService',
+      );
 
       // 统计每个标签的出现次数
       final tagCounts = <String, int>{};
@@ -116,8 +120,12 @@ class DanbooruPoolService {
 
       return weightedTags;
     } catch (e, stack) {
-      AppLogger.e('Failed to extract tags from pool: $poolName', e, stack,
-          'PoolService',);
+      AppLogger.e(
+        'Failed to extract tags from pool: $poolName',
+        e,
+        stack,
+        'PoolService',
+      );
       return [];
     }
   }
@@ -136,8 +144,10 @@ class DanbooruPoolService {
     int maxConcurrency = 3,
   }) async {
     try {
-      AppLogger.d('Syncing all posts from pool: $poolName (ID: $poolId)',
-          'PoolService',);
+      AppLogger.d(
+        'Syncing all posts from pool: $poolName (ID: $poolId)',
+        'PoolService',
+      );
 
       // 1. 获取 Pool 详情确定 post_count
       final pool = await getPool(poolId);
@@ -156,8 +166,10 @@ class DanbooruPoolService {
       const postsPerPage = 200;
       final totalPages = (totalPosts / postsPerPage).ceil();
 
-      AppLogger.d('Pool $poolName has $totalPosts posts, $totalPages pages',
-          'PoolService',);
+      AppLogger.d(
+        'Pool $poolName has $totalPosts posts, $totalPages pages',
+        'PoolService',
+      );
 
       // 3. 并发分页获取
       final allPosts = <PoolPost>[];
@@ -210,7 +222,11 @@ class DanbooruPoolService {
       return allPosts;
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to sync pool posts: $poolName', e, stack, 'PoolService',);
+        'Failed to sync pool posts: $poolName',
+        e,
+        stack,
+        'PoolService',
+      );
       return [];
     }
   }

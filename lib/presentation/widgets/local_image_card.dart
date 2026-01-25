@@ -43,6 +43,11 @@ class _LocalImageCardState extends State<LocalImageCard> {
   Timer? _longPressTimer;
   bool _isHovering = false;
 
+  // Pinch gesture state
+  double _scale = 1.0;
+  Offset? _scaleStartPosition;
+  bool _showThumbnailPreview = false;
+
   @override
   void dispose() {
     _longPressTimer?.cancel();
@@ -261,7 +266,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   child: SingleChildScrollView(
                                     padding: const EdgeInsets.all(16),
                                     child: _buildMetadataContent(
-                                        context, metadata,),
+                                      context,
+                                      metadata,
+                                    ),
                                   ),
                                 ),
                                 // 底部操作栏
@@ -273,10 +280,15 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                       Expanded(
                                         child: ElevatedButton.icon(
                                           onPressed: () {
-                                            Clipboard.setData(ClipboardData(
-                                                text: metadata.fullPrompt,),);
+                                            Clipboard.setData(
+                                              ClipboardData(
+                                                text: metadata.fullPrompt,
+                                              ),
+                                            );
                                             AppToast.success(
-                                                context, 'Prompt 已复制',);
+                                              context,
+                                              'Prompt 已复制',
+                                            );
                                           },
                                           icon: const Icon(Icons.copy),
                                           label: const Text('复制 Prompt'),
@@ -331,17 +343,24 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                         ),
                                         ElevatedButton.icon(
                                           onPressed: () {
-                                            Clipboard.setData(ClipboardData(
-                                                text: metadata.fullPrompt,),);
+                                            Clipboard.setData(
+                                              ClipboardData(
+                                                text: metadata.fullPrompt,
+                                              ),
+                                            );
                                             AppToast.success(
-                                                context, 'Prompt 已复制',);
+                                              context,
+                                              'Prompt 已复制',
+                                            );
                                           },
                                           icon:
                                               const Icon(Icons.copy, size: 16),
                                           label: const Text('复制 Prompt'),
                                           style: ElevatedButton.styleFrom(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 8,),
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -352,7 +371,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                     child: SingleChildScrollView(
                                       padding: const EdgeInsets.all(16),
                                       child: _buildMetadataContent(
-                                          context, metadata,),
+                                        context,
+                                        metadata,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -549,7 +570,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   Widget _buildMetadataContent(
-      BuildContext context, NaiImageMetadata metadata,) {
+    BuildContext context,
+    NaiImageMetadata metadata,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -557,14 +580,26 @@ class _LocalImageCardState extends State<LocalImageCard> {
           context,
           title: '基本信息',
           children: [
-            _buildInfoRow(context, Icons.insert_drive_file_outlined, '文件名',
-                path.basename(widget.record.path),),
+            _buildInfoRow(
+              context,
+              Icons.insert_drive_file_outlined,
+              '文件名',
+              path.basename(widget.record.path),
+            ),
             const SizedBox(height: 8),
             _buildInfoRow(
-                context, Icons.folder_open_outlined, '路径', widget.record.path,),
+              context,
+              Icons.folder_open_outlined,
+              '路径',
+              widget.record.path,
+            ),
             const SizedBox(height: 8),
-            _buildInfoRow(context, Icons.data_usage, '大小',
-                '${(widget.record.size / 1024).toStringAsFixed(2)} KB',),
+            _buildInfoRow(
+              context,
+              Icons.data_usage,
+              '大小',
+              '${(widget.record.size / 1024).toStringAsFixed(2)} KB',
+            ),
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
@@ -581,27 +616,47 @@ class _LocalImageCardState extends State<LocalImageCard> {
           children: [
             if (metadata.seed != null) ...[
               _buildInfoRow(
-                  context, Icons.tag, 'Seed', metadata.seed.toString(),),
+                context,
+                Icons.tag,
+                'Seed',
+                metadata.seed.toString(),
+              ),
               const SizedBox(height: 8),
             ],
             if (metadata.steps != null) ...[
               _buildInfoRow(
-                  context, Icons.repeat, 'Steps', metadata.steps.toString(),),
+                context,
+                Icons.repeat,
+                'Steps',
+                metadata.steps.toString(),
+              ),
               const SizedBox(height: 8),
             ],
             if (metadata.scale != null) ...[
               _buildInfoRow(
-                  context, Icons.tune, 'CFG Scale', metadata.scale.toString(),),
+                context,
+                Icons.tune,
+                'CFG Scale',
+                metadata.scale.toString(),
+              ),
               const SizedBox(height: 8),
             ],
             if (metadata.sampler != null) ...[
               _buildInfoRow(
-                  context, Icons.shuffle, 'Sampler', metadata.displaySampler,),
+                context,
+                Icons.shuffle,
+                'Sampler',
+                metadata.displaySampler,
+              ),
               const SizedBox(height: 8),
             ],
             if (metadata.sizeString.isNotEmpty) ...[
               _buildInfoRow(
-                  context, Icons.aspect_ratio, '尺寸', metadata.sizeString,),
+                context,
+                Icons.aspect_ratio,
+                '尺寸',
+                metadata.sizeString,
+              ),
               const SizedBox(height: 8),
             ],
             if (metadata.model != null) ...[
@@ -620,13 +675,21 @@ class _LocalImageCardState extends State<LocalImageCard> {
               const SizedBox(height: 8),
             ],
             if (metadata.noiseSchedule != null) ...[
-              _buildInfoRow(context, Icons.waves, 'Noise Schedule',
-                  metadata.noiseSchedule!,),
+              _buildInfoRow(
+                context,
+                Icons.waves,
+                'Noise Schedule',
+                metadata.noiseSchedule!,
+              ),
               const SizedBox(height: 8),
             ],
             if (metadata.cfgRescale != null && metadata.cfgRescale! > 0) ...[
-              _buildInfoRow(context, Icons.balance, 'CFG Rescale',
-                  metadata.cfgRescale.toString(),),
+              _buildInfoRow(
+                context,
+                Icons.balance,
+                'CFG Rescale',
+                metadata.cfgRescale.toString(),
+              ),
               const SizedBox(height: 8),
             ],
             // 获取图片实际尺寸
@@ -704,8 +767,11 @@ class _LocalImageCardState extends State<LocalImageCard> {
     return descriptor;
   }
 
-  Widget _buildInfoCard(BuildContext context,
-      {required String title, required List<Widget> children,}) {
+  Widget _buildInfoCard(
+    BuildContext context, {
+    required String title,
+    required List<Widget> children,
+  }) {
     return Card(
       elevation: 0,
       color: Theme.of(context)
@@ -742,12 +808,19 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   Widget _buildInfoRow(
-      BuildContext context, IconData icon, String label, String value,) {
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon,
-            size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant,),
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -818,153 +891,236 @@ class _LocalImageCardState extends State<LocalImageCard> {
           _longPressTimer?.cancel();
         },
 
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          shape: widget.isSelected
-              ? RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  side: BorderSide(
-                      color: Theme.of(context).colorScheme.primary, width: 3,),
-                )
-              : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 图片 + 悬停叠加层
-              Stack(
+        // 双击缩放
+        onDoubleTap: () {
+          if (!widget.selectionMode) {
+            _showDetailsDialog();
+          }
+        },
+
+        // Pinch 缩放手势 - 显示缩略图预览
+        onScaleStart: (details) {
+          if (!widget.selectionMode && details.pointerCount > 1) {
+            setState(() {
+              _scale = 1.0;
+              _scaleStartPosition = details.localFocalPoint;
+              _showThumbnailPreview = true;
+            });
+          }
+        },
+        onScaleUpdate: (details) {
+          if (_showThumbnailPreview) {
+            setState(() {
+              _scale = details.scale;
+            });
+          }
+        },
+        onScaleEnd: (details) {
+          if (_showThumbnailPreview) {
+            // 如果缩放足够大，打开详情页
+            if (_scale > 1.5) {
+              _showDetailsDialog();
+            }
+            setState(() {
+              _showThumbnailPreview = false;
+              _scale = 1.0;
+              _scaleStartPosition = null;
+            });
+          }
+        },
+
+        child: Stack(
+          children: [
+            Card(
+              clipBehavior: Clip.antiAlias,
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: widget.isSelected
+                    ? BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      )
+                    : BorderSide.none,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.file(
-                    File(widget.record.path),
-                    cacheWidth: cacheWidth, // 优化内存占用
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 150,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        child: Center(
-                          child: Icon(Icons.broken_image,
-                              size: 48,
+                  // 图片 + 悬停叠加层
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Image.file(
+                          File(widget.record.path),
+                          cacheWidth: cacheWidth, // 优化内存占用
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
                               color: Theme.of(context)
                                   .colorScheme
-                                  .onSurfaceVariant,),
+                                  .surfaceContainerHighest,
+                              child: Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  size: 48,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                  // Selection Overlay
-                  if (widget.selectionMode && widget.isSelected)
-                    Positioned.fill(
-                      child: Container(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.2),
-                      ),
-                    ),
-                  // Checkbox
-                  if (widget.selectionMode)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: widget.isSelected
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.black.withOpacity(0.4),
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
+                      // Selection Overlay
+                      if (widget.selectionMode && widget.isSelected)
+                        Positioned.fill(
+                          child: Container(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            Icons.check,
-                            size: 16,
-                            color: widget.isSelected
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Colors.transparent,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (!widget.selectionMode)
-                    Positioned.fill(
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 200),
-                        opacity: _isHovering ? 1.0 : 0.0,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.transparent, Colors.black87],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
+                      // Checkbox
+                      if (widget.selectionMode)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.isSelected
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.black.withOpacity(0.4),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.check,
+                                size: 16,
+                                color: widget.isSelected
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Colors.transparent,
+                              ),
                             ),
                           ),
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                path.basename(widget.record.path),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                        ),
+                      if (!widget.selectionMode)
+                        Positioned.fill(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: _isHovering ? 1.0 : 0.0,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.transparent, Colors.black87],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              Row(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    timeago.format(
-                                      widget.record.modifiedAt,
-                                      locale: Localizations.localeOf(context)
-                                                  .languageCode ==
-                                              'zh'
-                                          ? 'zh'
-                                          : 'en',
-                                    ),
+                                    path.basename(widget.record.path),
                                     style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (metadata?.seed != null) ...[
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Seed: ${metadata!.seed}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 10,
+                                  Row(
+                                    children: [
+                                      Text(
+                                        timeago.format(
+                                          widget.record.modifiedAt,
+                                          locale:
+                                              Localizations.localeOf(context)
+                                                          .languageCode ==
+                                                      'zh'
+                                                  ? 'zh'
+                                                  : 'en',
+                                        ),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 10,
+                                        ),
                                       ),
+                                      if (metadata?.seed != null) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Seed: ${metadata!.seed}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  if (metadata?.prompt.isNotEmpty == true)
+                                    Text(
+                                      metadata!.prompt,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ],
                                 ],
                               ),
-                              if (metadata?.prompt.isNotEmpty == true)
-                                Text(
-                                  metadata!.prompt,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  ),
+                ],
+              ),
+            ),
+            // Pinch 缩略图预览 overlay
+            if (_showThumbnailPreview && _scaleStartPosition != null)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: _scale.clamp(0.8, 2.0),
+                      child: Container(
+                        width: widget.itemWidth * 0.8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(widget.record.path),
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
                     ),
-                ],
+                  ),
+                ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -993,8 +1149,11 @@ class _ContextMenuRoute extends PopupRoute {
   String? get barrierLabel => null;
 
   @override
-  Widget buildPage(BuildContext context, Animation<double> animation,
-      Animation<double> secondaryAnimation,) {
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
     return MediaQuery.removePadding(
       context: context,
       removeTop: true,
@@ -1046,8 +1205,12 @@ class _ContextMenuRoute extends PopupRoute {
   Duration get transitionDuration => const Duration(milliseconds: 200);
 
   @override
-  Widget buildTransitions(BuildContext context, Animation<double> animation,
-      Animation<double> secondaryAnimation, Widget child,) {
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
     return FadeTransition(
       opacity: animation,
       child: ScaleTransition(

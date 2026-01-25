@@ -161,7 +161,10 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   }
 
   Widget _buildTooltipWidget(
-      ThemeData theme, String presetContent, bool isEnabled,) {
+    ThemeData theme,
+    String presetContent,
+    bool isEnabled,
+  ) {
     if (!isEnabled) {
       return Text(
         context.l10n.ucPreset_disabled,

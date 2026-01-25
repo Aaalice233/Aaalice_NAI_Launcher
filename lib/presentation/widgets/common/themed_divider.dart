@@ -65,7 +65,10 @@ class ThemedDivider extends StatelessWidget {
 
   /// 简单分割线 - 使用 dividerColor 和 dividerThickness
   Widget _buildSimpleDivider(
-      BuildContext context, Color color, double thickness,) {
+    BuildContext context,
+    Color color,
+    double thickness,
+  ) {
     return SizedBox(
       width: vertical ? height : null,
       height: vertical ? null : height,

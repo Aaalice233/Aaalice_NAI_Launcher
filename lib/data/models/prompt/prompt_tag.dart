@@ -216,15 +216,17 @@ extension PromptTagListExtension on List<PromptTag> {
 
   /// 禁用选中的标签
   List<PromptTag> disableSelected() {
-    return map((tag) =>
-            tag.selected ? tag.copyWith(enabled: false, selected: false) : tag,)
-        .toList();
+    return map(
+      (tag) =>
+          tag.selected ? tag.copyWith(enabled: false, selected: false) : tag,
+    ).toList();
   }
 
   /// 启用选中的标签
   List<PromptTag> enableSelected() {
-    return map((tag) =>
-            tag.selected ? tag.copyWith(enabled: true, selected: false) : tag,)
-        .toList();
+    return map(
+      (tag) =>
+          tag.selected ? tag.copyWith(enabled: true, selected: false) : tag,
+    ).toList();
   }
 }

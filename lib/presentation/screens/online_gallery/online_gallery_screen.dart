@@ -317,7 +317,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildToolbar(
-      ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState,) {
+    ThemeData theme,
+    OnlineGalleryState state,
+    DanbooruAuthState authState,
+  ) {
     final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
 
     if (selectionState.isActive) {
@@ -410,7 +413,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildModeSelector(
-      ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState,) {
+    ThemeData theme,
+    OnlineGalleryState state,
+    DanbooruAuthState authState,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
@@ -486,8 +492,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.close,
-                      size: 16, color: theme.colorScheme.onSurfaceVariant,),
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   onPressed: () {
                     _searchController.clear();
                     ref.read(onlineGalleryNotifierProvider.notifier).search('');
@@ -507,7 +516,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildFilterAndActions(
-      ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState,) {
+    ThemeData theme,
+    OnlineGalleryState state,
+    DanbooruAuthState authState,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -619,7 +631,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 选择日期范围
   Future<void> _selectDateRange(
-      BuildContext context, OnlineGalleryState state,) async {
+    BuildContext context,
+    OnlineGalleryState state,
+  ) async {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
@@ -628,9 +642,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       initialDateRange:
           state.dateRangeStart != null && state.dateRangeEnd != null
               ? DateTimeRange(
-                  start: state.dateRangeStart!, end: state.dateRangeEnd!,)
+                  start: state.dateRangeStart!,
+                  end: state.dateRangeEnd!,
+                )
               : DateTimeRange(
-                  start: now.subtract(const Duration(days: 30)), end: now,),
+                  start: now.subtract(const Duration(days: 30)),
+                  end: now,
+                ),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -669,8 +687,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(authState.credentials?.username ?? '',
-                    style: theme.textTheme.titleSmall,),
+                Text(
+                  authState.credentials?.username ?? '',
+                  style: theme.textTheme.titleSmall,
+                ),
                 if (authState.user != null)
                   Text(
                     authState.user!.levelName,
@@ -699,8 +719,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             color: theme.colorScheme.primaryContainer,
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.person,
-              size: 18, color: theme.colorScheme.onPrimaryContainer,),
+          child: Icon(
+            Icons.person,
+            size: 18,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
         ),
       );
     }
@@ -723,14 +746,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         SegmentedButton<PopularScale>(
           segments: [
             ButtonSegment(
-                value: PopularScale.day,
-                label: Text(context.l10n.onlineGallery_dayRank),),
+              value: PopularScale.day,
+              label: Text(context.l10n.onlineGallery_dayRank),
+            ),
             ButtonSegment(
-                value: PopularScale.week,
-                label: Text(context.l10n.onlineGallery_weekRank),),
+              value: PopularScale.week,
+              label: Text(context.l10n.onlineGallery_weekRank),
+            ),
             ButtonSegment(
-                value: PopularScale.month,
-                label: Text(context.l10n.onlineGallery_monthRank),),
+              value: PopularScale.month,
+              label: Text(context.l10n.onlineGallery_monthRank),
+            ),
           ],
           selected: {state.popularScale},
           onSelectionChanged: (selected) {
@@ -782,7 +808,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Future<void> _selectDate(
-      BuildContext context, OnlineGalleryState state,) async {
+    BuildContext context,
+    OnlineGalleryState state,
+  ) async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
@@ -797,7 +825,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   void _showLoginDialog(BuildContext context) {
     showDialog(
-        context: context, builder: (context) => const DanbooruLoginDialog(),);
+      context: context,
+      builder: (context) => const DanbooruLoginDialog(),
+    );
   }
 
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
@@ -812,11 +842,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 12),
-            Text(context.l10n.onlineGallery_loadFailed,
-                style: theme.textTheme.titleMedium,),
+            Text(
+              context.l10n.onlineGallery_loadFailed,
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
-            Text(state.error!,
-                style: theme.textTheme.bodySmall, textAlign: TextAlign.center,),
+            Text(
+              state.error!,
+              style: theme.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: () =>
@@ -1219,10 +1254,12 @@ class _SourceDropdown extends StatelessWidget {
           value: e.key,
           child: Row(
             children: [
-              Text(e.value,
-                  style: TextStyle(
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,),),
+              Text(
+                e.value,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
               if (isSelected) ...[
                 const Spacer(),
                 Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
@@ -1241,12 +1278,19 @@ class _SourceDropdown extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(sources[selected] ?? selected,
-                style: TextStyle(
-                    fontSize: 12, color: theme.colorScheme.onSurfaceVariant,),),
+            Text(
+              sources[selected] ?? selected,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down,
-                size: 16, color: theme.colorScheme.onSurfaceVariant,),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -1288,15 +1332,18 @@ class _RatingDropdown extends StatelessWidget {
             children: [
               if (r.$3 != null)
                 Container(
-                    width: 8,
-                    height: 8,
-                    decoration:
-                        BoxDecoration(color: r.$3, shape: BoxShape.circle),),
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      BoxDecoration(color: r.$3, shape: BoxShape.circle),
+                ),
               if (r.$3 != null) const SizedBox(width: 8),
-              Text(r.$2,
-                  style: TextStyle(
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,),),
+              Text(
+                r.$2,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
               if (isSelected) ...[
                 const Spacer(),
                 Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
@@ -1317,18 +1364,26 @@ class _RatingDropdown extends StatelessWidget {
           children: [
             if (current.$3 != null) ...[
               Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: current.$3, shape: BoxShape.circle),),
+                width: 8,
+                height: 8,
+                decoration:
+                    BoxDecoration(color: current.$3, shape: BoxShape.circle),
+              ),
               const SizedBox(width: 6),
             ],
-            Text(current.$2,
-                style: TextStyle(
-                    fontSize: 12, color: theme.colorScheme.onSurfaceVariant,),),
+            Text(
+              current.$2,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down,
-                size: 16, color: theme.colorScheme.onSurfaceVariant,),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),

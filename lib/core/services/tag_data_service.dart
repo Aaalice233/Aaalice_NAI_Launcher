@@ -232,7 +232,10 @@ class TagDataService {
   Future<void> _downloadAndParseTags() async {
     try {
       onDownloadProgress?.call(
-          _tagsFileName, 0, DownloadMessageKeys.downloadingTags,);
+        _tagsFileName,
+        0,
+        DownloadMessageKeys.downloadingTags,
+      );
 
       final response = await _dio.get<String>(
         '$_baseUrl/$_tagsFileName',
@@ -250,7 +253,10 @@ class TagDataService {
 
       if (response.data != null && response.data!.isNotEmpty) {
         onDownloadProgress?.call(
-            _tagsFileName, 1.0, DownloadMessageKeys.parsingData,);
+          _tagsFileName,
+          1.0,
+          DownloadMessageKeys.parsingData,
+        );
 
         // 使用 Isolate 解析，避免阻塞主线程
         _tags = await _parseCsvContentAsync(response.data!);

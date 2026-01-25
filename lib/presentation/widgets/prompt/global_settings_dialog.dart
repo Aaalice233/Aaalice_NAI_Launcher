@@ -476,7 +476,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
   }
 
   String _getCategoryDisplayName(
-      CharacterCountCategory category, dynamic l10n,) {
+    CharacterCountCategory category,
+    dynamic l10n,
+  ) {
     return switch (category.id) {
       'solo' => l10n.characterCountConfig_solo,
       'duo' => l10n.characterCountConfig_duo,
@@ -577,7 +579,8 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                           child: Row(
                             children: [
                               Text(
-                                  '${l10n.characterCountConfig_slot} ${i + 1}:',),
+                                '${l10n.characterCountConfig_slot} ${i + 1}:',
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: DropdownButtonFormField<String>(
@@ -712,7 +715,8 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                      l10n.characterCountConfig_slotExists,),
+                                    l10n.characterCountConfig_slotExists,
+                                  ),
                                 ),
                               );
                               return;

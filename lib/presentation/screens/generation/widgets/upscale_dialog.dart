@@ -413,7 +413,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.upscale_selectFailed(e.toString())),),
+            content: Text(context.l10n.upscale_selectFailed(e.toString())),
+          ),
         );
       }
     }
@@ -460,7 +461,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.upscale_saveFailed(e.toString())),),
+            content: Text(context.l10n.upscale_saveFailed(e.toString())),
+          ),
         );
       }
     }
@@ -478,7 +480,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.upscale_shareFailed(e.toString())),),
+            content: Text(context.l10n.upscale_shareFailed(e.toString())),
+          ),
         );
       }
     }

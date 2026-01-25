@@ -132,8 +132,10 @@ class TagLibrarySettings extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(context.l10n.tagLibrary_autoSync,
-                  style: theme.textTheme.bodyLarge,),
+              Text(
+                context.l10n.tagLibrary_autoSync,
+                style: theme.textTheme.bodyLarge,
+              ),
               Text(
                 context.l10n.tagLibrary_autoSyncHint,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -166,8 +168,10 @@ class TagLibrarySettings extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.l10n.tagLibrary_syncInterval,
-            style: theme.textTheme.bodyLarge,),
+        Text(
+          context.l10n.tagLibrary_syncInterval,
+          style: theme.textTheme.bodyLarge,
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -175,8 +179,10 @@ class TagLibrarySettings extends ConsumerWidget {
             final selected =
                 state.syncConfig.syncIntervalDays == intervals[index];
             return ChoiceChip(
-              label: Text(context.l10n
-                  .tagLibrary_syncIntervalDays(intervals[index].toString()),),
+              label: Text(
+                context.l10n
+                    .tagLibrary_syncIntervalDays(intervals[index].toString()),
+              ),
               selected: selected,
               onSelected: (value) {
                 if (value) {
@@ -201,8 +207,10 @@ class TagLibrarySettings extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.l10n.tagLibrary_dataRange,
-            style: theme.textTheme.bodyLarge,),
+        Text(
+          context.l10n.tagLibrary_dataRange,
+          style: theme.textTheme.bodyLarge,
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -255,7 +263,9 @@ class TagLibrarySettings extends ConsumerWidget {
                 if (context.mounted) {
                   if (success) {
                     AppToast.success(
-                        context, context.l10n.tagLibrary_syncSuccess,);
+                      context,
+                      context.l10n.tagLibrary_syncSuccess,
+                    );
                   } else {
                     AppToast.error(
                       context,
@@ -271,9 +281,11 @@ class TagLibrarySettings extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.sync),
-        label: Text(state.isSyncing
-            ? context.l10n.tagLibrary_syncing
-            : context.l10n.tagLibrary_syncNow,),
+        label: Text(
+          state.isSyncing
+              ? context.l10n.tagLibrary_syncing
+              : context.l10n.tagLibrary_syncNow,
+        ),
       ),
     );
   }

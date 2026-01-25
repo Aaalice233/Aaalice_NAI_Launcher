@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -33,6 +34,12 @@ class LocalGalleryRepository {
 
   /// 元数据缓存服务
   final _cacheService = LocalMetadataCacheService();
+
+  /// 获取收藏 Box
+  Box get _favoritesBox => Hive.box(StorageKeys.localFavoritesBox);
+
+  /// 获取标签 Box
+  Box get _tagsBox => Hive.box(StorageKeys.tagsBox);
 
   /// 获取图片保存目录（公共方法）
   ///
@@ -111,6 +118,8 @@ class LocalGalleryRepository {
             size: 0,
             modifiedAt: DateTime.now(),
             metadataStatus: MetadataStatus.none,
+            isFavorite: isFavorite(file.path),
+            tags: getTags(file.path),
           );
         }
 
@@ -133,6 +142,8 @@ class LocalGalleryRepository {
               metadata: meta,
               metadataStatus:
                   meta.hasData ? MetadataStatus.success : MetadataStatus.none,
+              isFavorite: isFavorite(filePath),
+              tags: getTags(filePath),
             );
           }
         }
@@ -157,6 +168,8 @@ class LocalGalleryRepository {
             metadataStatus: meta != null && meta.hasData
                 ? MetadataStatus.success
                 : MetadataStatus.none,
+            isFavorite: isFavorite(filePath),
+            tags: getTags(filePath),
           );
         } catch (e) {
           AppLogger.w(
@@ -168,6 +181,8 @@ class LocalGalleryRepository {
             size: 0,
             modifiedAt: fileModified,
             metadataStatus: MetadataStatus.failed,
+            isFavorite: isFavorite(filePath),
+            tags: getTags(filePath),
           );
         }
       }),
@@ -212,6 +227,163 @@ class LocalGalleryRepository {
     } catch (e) {
       AppLogger.e(
         'Failed to parse metadata from bytes',
+        e,
+        null,
+        'LocalGalleryRepo',
+      );
+      return null;
+    }
+  }
+
+  /// 获取图片的收藏状态
+  bool isFavorite(String filePath) {
+    return _favoritesBox.get(filePath, defaultValue: false) as bool;
+  }
+
+  /// 设置图片的收藏状态
+  Future<void> setFavorite(String filePath, bool isFavorite) async {
+    await _favoritesBox.put(filePath, isFavorite);
+    AppLogger.d(
+      'Set favorite: $filePath -> $isFavorite',
+      'LocalGalleryRepo',
+    );
+  }
+
+  /// 切换图片的收藏状态
+  Future<bool> toggleFavorite(String filePath) async {
+    final current = isFavorite(filePath);
+    final newState = !current;
+    await setFavorite(filePath, newState);
+    return newState;
+  }
+
+  /// 获取图片的标签列表
+  List<String> getTags(String filePath) {
+    final tags = _tagsBox.get(filePath, defaultValue: <String>[]);
+    return List<String>.from(tags as List);
+  }
+
+  /// 设置图片的标签列表
+  Future<void> setTags(String filePath, List<String> tags) async {
+    await _tagsBox.put(filePath, tags);
+    AppLogger.d(
+      'Set tags: $filePath -> $tags',
+      'LocalGalleryRepo',
+    );
+  }
+
+  /// 添加标签到图片
+  Future<void> addTag(String filePath, String tag) async {
+    final currentTags = getTags(filePath);
+    if (!currentTags.contains(tag)) {
+      final newTags = [...currentTags, tag];
+      await setTags(filePath, newTags);
+    }
+  }
+
+  /// 从图片移除标签
+  Future<void> removeTag(String filePath, String tag) async {
+    final currentTags = getTags(filePath);
+    if (currentTags.contains(tag)) {
+      final newTags = currentTags.where((t) => t != tag).toList();
+      await setTags(filePath, newTags);
+    }
+  }
+
+  /// 批量导出图片元数据到 JSON 文件
+  ///
+  /// [records] 要导出的图片记录列表
+  /// 返回导出的文件路径，失败返回 null
+  Future<File?> exportMetadataToJson(List<LocalImageRecord> records) async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      // 1. 准备导出数据
+      final exportData = records.map((record) {
+        final map = <String, dynamic>{
+          'path': record.path,
+          'fileName': record.path.split(Platform.pathSeparator).last,
+          'size': record.size,
+          'modifiedAt': record.modifiedAt.toIso8601String(),
+          'isFavorite': record.isFavorite,
+          'tags': record.tags,
+          'metadataStatus': record.metadataStatus.name,
+        };
+
+        // 添加元数据（如果有）
+        if (record.metadata != null && record.metadata!.hasData) {
+          final meta = record.metadata!;
+          map['metadata'] = {
+            'prompt': meta.prompt,
+            'negativePrompt': meta.negativePrompt,
+            'seed': meta.seed,
+            'sampler': meta.sampler,
+            'steps': meta.steps,
+            'scale': meta.scale,
+            'width': meta.width,
+            'height': meta.height,
+            'model': meta.model,
+            'smea': meta.smea,
+            'smeaDyn': meta.smeaDyn,
+            'noiseSchedule': meta.noiseSchedule,
+            'cfgRescale': meta.cfgRescale,
+            'ucPreset': meta.ucPreset,
+            'qualityToggle': meta.qualityToggle,
+            'isImg2Img': meta.isImg2Img,
+            'strength': meta.strength,
+            'noise': meta.noise,
+            'software': meta.software,
+            'version': meta.version,
+            'source': meta.source,
+            'characterPrompts': meta.characterPrompts,
+            'characterNegativePrompts': meta.characterNegativePrompts,
+          };
+        }
+
+        return map;
+      }).toList();
+
+      // 2. 创建 JSON 对象
+      final jsonData = {
+        'exportedAt': DateTime.now().toIso8601String(),
+        'totalImages': records.length,
+        'images': exportData,
+      };
+
+      // 3. 获取下载目录
+      final downloadsDir = await getDownloadsDirectory();
+      if (downloadsDir == null) {
+        AppLogger.e(
+          'Failed to get downloads directory',
+          null,
+          null,
+          'LocalGalleryRepo',
+        );
+        return null;
+      }
+
+      // 4. 生成文件名（带时间戳）
+      final timestamp =
+          DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final fileName = 'nai_metadata_export_$timestamp.json';
+      final filePath = '${downloadsDir.path}${Platform.pathSeparator}$fileName';
+      final file = File(filePath);
+
+      // 5. 写入 JSON 文件
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(jsonData),
+      );
+
+      stopwatch.stop();
+      AppLogger.i(
+        'Exported ${records.length} images to $fileName in ${stopwatch.elapsedMilliseconds}ms',
+        'LocalGalleryRepo',
+      );
+
+      return file;
+    } catch (e) {
+      AppLogger.e(
+        'Failed to export metadata',
         e,
         null,
         'LocalGalleryRepo',

@@ -368,7 +368,8 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
 
   /// 获取过滤后的内置类别
   List<_BuiltinCategoryItem> _getFilteredBuiltinCategories(
-      TagLibrary? library,) {
+    TagLibrary? library,
+  ) {
     final items = <_BuiltinCategoryItem>[];
     if (library == null) return items;
 

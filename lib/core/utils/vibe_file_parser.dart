@@ -298,7 +298,9 @@ class VibeFileParser {
       } catch (e) {
         if (kDebugMode) {
           AppLogger.d(
-              'Error parsing vibe entry $i in bundle: $e', 'VibeParser',);
+            'Error parsing vibe entry $i in bundle: $e',
+            'VibeParser',
+          );
         }
         // 继续处理其他条目
       }

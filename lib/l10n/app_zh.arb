@@ -1905,6 +1905,89 @@
   "vibeConfirmEncode": "确认编码",
   "vibeParseFailed": "无法解析 Vibe 文件",
 
+  "localGallery_searchIndexing": "正在构建搜索索引...",
+  "localGallery_searchIndexComplete": "搜索索引就绪",
+  "localGallery_searchIndexFailed": "搜索索引错误",
+  "localGallery_cacheStatus": "缓存：{current}/{max} 张图片",
+  "@localGallery_cacheStatus": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "localGallery_cacheHitRate": "命中率：{rate}%",
+  "@localGallery_cacheHitRate": {
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "localGallery_preloading": "正在预加载图片...",
+  "localGallery_preloadComplete": "预加载完成",
+  "localGallery_progressiveLoadError": "图片加载失败",
+  "localGallery_noImagesFound": "未找到图片",
+  "localGallery_searchPlaceholder": "搜索提示词、模型、采样器...",
+  "localGallery_filterByDate": "按日期筛选",
+  "localGallery_clearFilters": "清除筛选",
+
+  "slideshow_title": "幻灯片",
+  "slideshow_of": "/",
+  "slideshow_play": "播放",
+  "slideshow_pause": "暂停",
+  "slideshow_previous": "上一张",
+  "slideshow_next": "下一张",
+  "slideshow_exit": "退出 (Esc)",
+  "slideshow_noImages": "没有可显示的图片",
+  "slideshow_keyboardHint": "使用 ← → 导航，空格键播放/暂停，Esc 退出",
+  "slideshow_autoPlayInterval": "自动播放间隔：{seconds}秒",
+  "@slideshow_autoPlayInterval": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "comparison_title": "图片对比",
+  "comparison_noImages": "没有可显示的图片",
+  "comparison_tooManyImages": "图片数量过多",
+  "comparison_maxImages": "最多支持对比4张图片",
+  "comparison_close": "关闭对比",
+  "comparison_zoomHint": "捏合或滚动可独立缩放",
+  "comparison_loadError": "加载图片失败",
+
+  "statistics_title": "统计仪表盘",
+  "statistics_noData": "暂无统计数据",
+  "statistics_generateFirst": "先生成一些图片吧",
+  "statistics_overview": "总览",
+  "statistics_totalImages": "总图片数",
+  "statistics_totalSize": "总大小",
+  "statistics_favorites": "收藏",
+  "statistics_tagged": "已标记",
+  "statistics_modelDistribution": "模型分布",
+  "statistics_resolutionDistribution": "分辨率分布",
+  "statistics_samplerDistribution": "采样器分布",
+  "statistics_sizeDistribution": "文件大小分布",
+  "statistics_additionalStats": "其他统计",
+  "statistics_averageFileSize": "平均文件大小",
+  "statistics_withMetadata": "有元数据的图片",
+  "statistics_calculatedAt": "计算时间",
+  "statistics_justNow": "刚刚",
+  "statistics_minutesAgo": "{count} 分钟前",
+  "@statistics_minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_hoursAgo": "{count} 小时前",
+  "@statistics_hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_daysAgo": "{count} 天前",
+  "@statistics_daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
   "layer_duplicate": "复制图层",
   "layer_delete": "删除图层",
   "layer_merge": "合并图层",
@@ -1988,5 +2071,76 @@
   "tag_tabTags": "标签",
   "tag_tabGroups": "分组",
   "tag_tabFavorites": "收藏",
-  "tag_tabTemplates": "模板"
+  "tag_tabTemplates": "模板",
+
+  "localGallery_favoritesOnly": "仅显示收藏",
+  "localGallery_noFavorites": "暂无收藏",
+  "localGallery_markAsFavorite": "添加到收藏",
+  "localGallery_removeFromFavorites": "取消收藏",
+  "localGallery_tags": "标签",
+  "localGallery_addTag": "添加标签",
+  "localGallery_removeTag": "移除标签",
+  "localGallery_noTags": "暂无标签",
+  "localGallery_filterByTags": "按标签筛选",
+  "localGallery_selectTags": "选择标签",
+  "localGallery_tagFilterMatchAll": "匹配所有标签",
+  "localGallery_tagFilterMatchAny": "匹配任意标签",
+  "localGallery_clearTagFilter": "清除标签筛选",
+  "localGallery_noTagsFound": "未找到标签",
+  "localGallery_advancedFilters": "高级筛选",
+  "localGallery_filterByModel": "按模型筛选",
+  "localGallery_filterBySampler": "按采样器筛选",
+  "localGallery_filterBySteps": "按步数筛选",
+  "localGallery_filterByCfg": "按 CFG 筛选",
+  "localGallery_filterByResolution": "按分辨率筛选",
+  "localGallery_model": "模型",
+  "localGallery_sampler": "采样器",
+  "localGallery_steps": "步数",
+  "localGallery_cfgScale": "CFG 强度",
+  "localGallery_resolution": "分辨率",
+  "localGallery_any": "任意",
+  "localGallery_custom": "自定义",
+  "localGallery_to": "至",
+  "localGallery_applyFilters": "应用筛选",
+  "localGallery_resetAdvancedFilters": "重置高级筛选",
+  "localGallery_exportMetadata": "导出元数据",
+  "localGallery_exportSelected": "导出选中项",
+  "localGallery_exportFailed": "导出失败",
+  "localGallery_exporting": "导出中...",
+  "localGallery_selectToExport": "选择要导出的图片",
+  "localGallery_noImagesSelected": "未选择图片",
+  "localGallery_exportSuccessDetail": "已导出 {count} 张图片及元数据",
+  "@localGallery_exportSuccessDetail": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "localGallery_group_today": "今天",
+  "localGallery_group_yesterday": "昨天",
+  "localGallery_group_thisWeek": "本周",
+  "localGallery_group_earlier": "更早",
+  "localGallery_group_dateFormat": "MM月dd日",
+  "localGallery_jumpToDate": "跳转到日期",
+  "localGallery_noImagesOnThisDate": "该日期没有图片",
+
+  "localGallery_selectedImagesNoPrompt": "选中的图片没有 Prompt 信息",
+  "localGallery_addedTasksToQueue": "已添加 {count} 个任务到队列",
+  "@localGallery_addedTasksToQueue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_cannotOpenFolder": "无法打开文件夹: {error}",
+  "@localGallery_cannotOpenFolder": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_jumpedToDate": "已跳转到 {date}",
+  "@localGallery_jumpedToDate": {
+    "placeholders": {
+      "date": {}
+    }
+  }
 }

@@ -179,7 +179,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
       if (layer != null) {
         AppLogger.i(
-            'Existing mask loaded as layer: ${layer.id}', 'ImageEditor',);
+          'Existing mask loaded as layer: ${layer.id}',
+          'ImageEditor',
+        );
       } else {
         AppLogger.w('Failed to load existing mask as layer', 'ImageEditor');
       }
@@ -975,7 +977,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       } else {
         // 图像解码失败或格式不支持
         AppLogger.w(
-            'Failed to decode image or unsupported format', 'ImageEditor',);
+          'Failed to decode image or unsupported format',
+          'ImageEditor',
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

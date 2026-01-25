@@ -145,7 +145,9 @@ class _PaginationBarState extends State<PaginationBar> {
 
   /// 可点击的页码显示
   Widget _buildClickablePageDisplay(
-      ColorScheme colorScheme, TextTheme textTheme,) {
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
     return InkWell(
       onTap: widget.totalPages > 1 ? _startEditing : null,
       borderRadius: BorderRadius.circular(4),

@@ -264,7 +264,8 @@ class _ExpandableCategoryTileState
                     child: Center(
                       child: Text(
                         DefaultCategoryEmojis.getTagSubCategoryEmoji(
-                            widget.category,),
+                          widget.category,
+                        ),
                         style: const TextStyle(fontSize: 24),
                       ),
                     ),
@@ -316,7 +317,9 @@ class _ExpandableCategoryTileState
                       onPressed: widget.onSettings,
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8,),
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         minimumSize: const Size(0, 36),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -339,7 +342,9 @@ class _ExpandableCategoryTileState
                       onPressed: widget.onRemove,
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8,),
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         minimumSize: const Size(0, 36),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -1198,13 +1203,11 @@ class _ExpandableCategoryTileState
           break;
       }
     } catch (e) {
-      if (!mounted) return;
-      // ignore: use_build_context_synchronously
+      if (!currentContext.mounted) return;
       AppToast.error(
-          // ignore: use_build_context_synchronously
-          currentContext,
-          // ignore: use_build_context_synchronously
-          currentContext.l10n.addGroup_addFailed(e.toString()),);
+        currentContext,
+        currentContext.l10n.addGroup_addFailed(e.toString()),
+      );
     }
   }
 }

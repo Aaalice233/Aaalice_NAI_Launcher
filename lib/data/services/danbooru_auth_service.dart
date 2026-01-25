@@ -218,10 +218,13 @@ class DanbooruAuth extends _$DanbooruAuth {
   ///
   /// 使用 DanbooruApiService 验证凭据并获取用户信息
   Future<DanbooruUser?> _fetchUserProfile(
-      DanbooruCredentials credentials,) async {
+    DanbooruCredentials credentials,
+  ) async {
     try {
       AppLogger.i(
-          'Fetching user profile for: ${credentials.username}', 'DanbooruAuth',);
+        'Fetching user profile for: ${credentials.username}',
+        'DanbooruAuth',
+      );
 
       // 使用 DanbooruApiService 验证凭据
       final apiService = DanbooruApiService(
@@ -238,10 +241,14 @@ class DanbooruAuth extends _$DanbooruAuth {
 
       if (user != null) {
         AppLogger.i(
-            'User profile fetched successfully: ${user.name}', 'DanbooruAuth',);
+          'User profile fetched successfully: ${user.name}',
+          'DanbooruAuth',
+        );
       } else {
-        AppLogger.w('Failed to fetch user profile or invalid credentials',
-            'DanbooruAuth',);
+        AppLogger.w(
+          'Failed to fetch user profile or invalid credentials',
+          'DanbooruAuth',
+        );
       }
 
       return user;

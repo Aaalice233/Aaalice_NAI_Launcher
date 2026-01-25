@@ -173,7 +173,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   Widget _buildBottomActions(
-      BuildContext context, List<Uint8List> history, ThemeData theme,) {
+    BuildContext context,
+    List<Uint8List> history,
+    ThemeData theme,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -194,7 +197,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   Future<void> _saveSelectedImages(
-      BuildContext context, List<Uint8List> history,) async {
+    BuildContext context,
+    List<Uint8List> history,
+  ) async {
     if (_selectedIndices.isEmpty) return;
 
     try {

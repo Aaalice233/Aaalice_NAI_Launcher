@@ -435,7 +435,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.img2img_selectFailed(e.toString())),),
+            content: Text(context.l10n.img2img_selectFailed(e.toString())),
+          ),
         );
       }
     }
@@ -471,7 +472,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(context.l10n.img2img_selectFailed(e.toString())),),
+            content: Text(context.l10n.img2img_selectFailed(e.toString())),
+          ),
         );
       }
     }

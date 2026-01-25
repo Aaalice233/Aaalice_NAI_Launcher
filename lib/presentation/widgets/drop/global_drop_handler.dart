@@ -417,8 +417,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
               if (metadata.prompt.isNotEmpty)
                 _buildAppliedItem('Prompt', metadata.prompt, maxLines: 3),
               if (metadata.negativePrompt.isNotEmpty)
-                _buildAppliedItem('负向提示词', metadata.negativePrompt,
-                    maxLines: 2,),
+                _buildAppliedItem(
+                  '负向提示词',
+                  metadata.negativePrompt,
+                  maxLines: 2,
+                ),
               if (metadata.seed != null)
                 _buildAppliedItem('Seed', metadata.seed.toString()),
               if (metadata.steps != null)
@@ -427,7 +430,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
                 _buildAppliedItem('CFG Scale', metadata.scale.toString()),
               if (metadata.width != null && metadata.height != null)
                 _buildAppliedItem(
-                    '尺寸', '${metadata.width} x ${metadata.height}',),
+                  '尺寸',
+                  '${metadata.width} x ${metadata.height}',
+                ),
               if (metadata.sampler != null)
                 _buildAppliedItem('采样器', metadata.displaySampler),
             ],

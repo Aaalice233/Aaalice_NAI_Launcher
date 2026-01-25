@@ -352,7 +352,9 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         // 计算偏移量
         final offset = isMultiline && cursorOffset != null
             ? Offset(
-                cursorOffset.dx.clamp(0, size.width - 300), cursorOffset.dy + 4,)
+                cursorOffset.dx.clamp(0, size.width - 300),
+                cursorOffset.dy + 4,
+              )
             : Offset(0, size.height + 4);
 
         return Positioned(
@@ -455,7 +457,11 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
         final tagStartFromCurrent = cursorPosition - currentTag.length;
         if (tagStartFromCurrent >= 0) {
           _applySuggestionAtPosition(
-              suggestion, text, tagStartFromCurrent, cursorPosition,);
+            suggestion,
+            text,
+            tagStartFromCurrent,
+            cursorPosition,
+          );
           return;
         }
       }

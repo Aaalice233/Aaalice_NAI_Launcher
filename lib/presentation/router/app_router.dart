@@ -13,6 +13,9 @@ import '../screens/local_gallery/local_gallery_screen.dart';
 import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/slideshow_screen.dart';
+import '../screens/image_comparison_screen.dart';
+import '../screens/statistics_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/replication_queue_bar.dart';
 import '../providers/replication_queue_provider.dart';
@@ -42,6 +45,9 @@ class AppRoutes {
   static const String onlineGallery = '/online-gallery';
   static const String settings = '/settings';
   static const String promptConfig = '/prompt-config';
+  static const String slideshow = '/slideshow';
+  static const String comparison = '/comparison';
+  static const String statistics = '/statistics';
 }
 
 /// 应用路由 Provider
@@ -118,7 +124,8 @@ GoRouter appRouter(Ref ref) {
                   begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
                   end: Offset.zero,
                 ).animate(
-                    CurveTween(curve: Curves.easeOutCubic).animate(animation),),
+                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                ),
                 child: child,
               ),
             );
@@ -197,6 +204,56 @@ GoRouter appRouter(Ref ref) {
                 path: AppRoutes.localGallery,
                 name: 'localGallery',
                 builder: (context, state) => const LocalGalleryScreen(),
+                routes: [
+                  // 幻灯片子路由
+                  GoRoute(
+                    path: AppRoutes.slideshow,
+                    name: 'slideshow',
+                    pageBuilder: (context, state) {
+                      // 从查询参数获取初始索引
+                      final initialIndex = int.tryParse(
+                            state.uri.queryParameters['initialIndex'] ?? '0',
+                          ) ??
+                          0;
+
+                      // TODO: 从状态获取图片列表
+                      // 目前使用空列表进行测试
+                      return MaterialPage(
+                        key: state.pageKey,
+                        child: SlideshowScreen(
+                          images: const [],
+                          initialIndex: initialIndex,
+                        ),
+                      );
+                    },
+                  ),
+                  // 图片对比子路由
+                  GoRoute(
+                    path: AppRoutes.comparison,
+                    name: 'comparison',
+                    pageBuilder: (context, state) {
+                      // TODO: 从状态获取图片列表
+                      // 目前使用空列表进行测试
+                      return MaterialPage(
+                        key: state.pageKey,
+                        child: const ImageComparisonScreen(
+                          images: [],
+                        ),
+                      );
+                    },
+                  ),
+                  // 统计仪表盘子路由
+                  GoRoute(
+                    path: AppRoutes.statistics,
+                    name: 'statistics',
+                    pageBuilder: (context, state) {
+                      return MaterialPage(
+                        key: state.pageKey,
+                        child: const StatisticsScreen(),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),

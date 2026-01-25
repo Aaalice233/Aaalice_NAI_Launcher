@@ -84,9 +84,10 @@ class _PoolMapperPanelState extends ConsumerState<PoolMapperPanel> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   side: BorderSide(
-                      color: widget.isVerifying
-                          ? Colors.transparent
-                          : colorScheme.primary.withOpacity(0.5),),
+                    color: widget.isVerifying
+                        ? Colors.transparent
+                        : colorScheme.primary.withOpacity(0.5),
+                  ),
                 ),
                 child: widget.isVerifying
                     ? SizedBox(
