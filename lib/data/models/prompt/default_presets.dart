@@ -141,9 +141,13 @@ class DefaultPresets {
 
     // 从词库获取标签列表，如果没有则使用静态默认值
     List<String> getTagsFromCategory(
-        TagSubCategory category, List<String> fallback,) {
-      final tags = library.getFilteredCategory(category,
-          includeDanbooruSupplement: includeDanbooruSupplement,);
+      TagSubCategory category,
+      List<String> fallback,
+    ) {
+      final tags = library.getFilteredCategory(
+        category,
+        includeDanbooruSupplement: includeDanbooruSupplement,
+      );
       if (tags.isEmpty) return fallback;
       // 按权重排序后返回标签名称
       final sorted = List<WeightedTag>.from(tags)

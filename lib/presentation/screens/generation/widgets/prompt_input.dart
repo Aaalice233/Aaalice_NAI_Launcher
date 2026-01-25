@@ -224,13 +224,17 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         final count = characterConfig.characters
             .where((c) => c.enabled && c.prompt.isNotEmpty)
             .length;
-        AppToast.success(context,
-            context.l10n.tagLibrary_generatedCharacters(count.toString()),);
+        AppToast.success(
+          context,
+          context.l10n.tagLibrary_generatedCharacters(count.toString()),
+        );
       }
     } catch (e) {
       if (mounted) {
         AppToast.error(
-            context, context.l10n.tagLibrary_generateFailed(e.toString()),);
+          context,
+          context.l10n.tagLibrary_generateFailed(e.toString()),
+        );
       }
     }
   }

@@ -38,28 +38,40 @@ class LocalGalleryState with _$LocalGalleryState {
 
     /// 日期过滤：结束日期
     DateTime? dateEnd,
+
     /// 仅显示收藏
     @Default(false) bool showFavoritesOnly,
+
     /// 标签过滤（选中的标签列表）
     @Default([]) List<String> selectedTags,
+
     /// 模型过滤
     String? filterModel,
+
     /// 采样器过滤
     String? filterSampler,
+
     /// 步数过滤：最小值
     int? filterMinSteps,
+
     /// 步数过滤：最大值
     int? filterMaxSteps,
+
     /// CFG 过滤：最小值
     double? filterMinCfg,
+
     /// CFG 过滤：最大值
     double? filterMaxCfg,
+
     /// 分辨率过滤（格式：宽度x高度，如 "1024x1024"）
     String? filterResolution,
+
     /// 是否启用分组视图
     @Default(false) bool isGroupedView,
+
     /// 分组视图的所有图片记录（用于分组显示）
     @Default([]) List<LocalImageRecord> groupedImages,
+
     /// 是否正在加载分组图片
     @Default(false) bool isGroupedLoading,
     String? error,
@@ -68,7 +80,8 @@ class LocalGalleryState with _$LocalGalleryState {
   const LocalGalleryState._();
 
   /// 总页数（基于过滤后的文件）
-  int get totalPages => filteredFiles.isEmpty ? 0 : (filteredFiles.length / pageSize).ceil();
+  int get totalPages =>
+      filteredFiles.isEmpty ? 0 : (filteredFiles.length / pageSize).ceil();
 
   /// 是否有过滤条件
   bool get hasFilters =>
@@ -114,7 +127,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     try {
       await _searchIndex.init();
     } catch (e) {
-      AppLogger.e('Failed to initialize search index service', e, null, 'LocalGalleryNotifier');
+      AppLogger.e(
+        'Failed to initialize search index service',
+        e,
+        null,
+        'LocalGalleryNotifier',
+      );
     }
   }
 
@@ -171,12 +189,16 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<void> _indexRecordInBackground(LocalImageRecord record) async {
     try {
       // 只索引有元数据的记录
-      if (record.metadata != null && record.metadataStatus != MetadataStatus.none) {
+      if (record.metadata != null &&
+          record.metadataStatus != MetadataStatus.none) {
         await _searchIndex.indexDocument(record);
       }
     } catch (e) {
       // 索引失败不影响主流程，静默处理
-      AppLogger.d('Failed to index record: ${record.path}', 'LocalGalleryNotifier');
+      AppLogger.d(
+        'Failed to index record: ${record.path}',
+        'LocalGalleryNotifier',
+      );
     }
   }
 
@@ -274,7 +296,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           final modifiedAt = stat.modified;
 
           if (dateStart != null && modifiedAt.isBefore(dateStart)) return false;
-          if (dateEnd != null && modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) return false;
+          if (dateEnd != null &&
+              modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) {
+            return false;
+          }
 
           return true;
         } catch (_) {
@@ -312,13 +337,16 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       try {
         // 如果搜索索引不为空，使用索引进行快速搜索
         if (!_searchIndex.isEmpty) {
-          final searchedRecords = await _searchIndex.search(query, limit: 10000);
+          final searchedRecords =
+              await _searchIndex.search(query, limit: 10000);
 
           // 将搜索结果转换为 File 对象集合
           final searchedPaths = searchedRecords.map((r) => r.path).toSet();
 
           // 过滤出同时满足搜索结果和日期过滤的文件
-          var filtered = dateFiltered.where((file) => searchedPaths.contains(file.path)).toList();
+          var filtered = dateFiltered
+              .where((file) => searchedPaths.contains(file.path))
+              .toList();
 
           // 如果需要收藏过滤，再应用收藏过滤
           if (showFavoritesOnly) {
@@ -349,7 +377,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           return;
         }
       } catch (e) {
-        AppLogger.w('Search index query failed, falling back to manual search: $e', 'LocalGalleryNotifier');
+        AppLogger.w(
+          'Search index query failed, falling back to manual search: $e',
+          'LocalGalleryNotifier',
+        );
         // 继续使用原有的手动搜索逻辑
       }
     }
@@ -360,7 +391,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final needPromptCheck = <File>[];
 
     for (final file in dateFiltered) {
-      final fileName = file.path.split(Platform.pathSeparator).last.toLowerCase();
+      final fileName =
+          file.path.split(Platform.pathSeparator).last.toLowerCase();
       if (query.isEmpty || fileName.contains(query)) {
         fileNameMatched.add(file);
       } else {
@@ -528,13 +560,17 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           _recordCache.put(record.path, record);
 
           // 检查元数据是否匹配
-          if (record.metadata != null && _matchesMetadataFilters(record.metadata!)) {
+          if (record.metadata != null &&
+              _matchesMetadataFilters(record.metadata!)) {
             cachedMatched.add(File(record.path));
           }
         }
       } catch (e) {
         // 忽略加载错误，这些文件将被排除在过滤结果之外
-        AppLogger.d('Failed to load records for metadata filtering: $e', 'LocalGalleryNotifier');
+        AppLogger.d(
+          'Failed to load records for metadata filtering: $e',
+          'LocalGalleryNotifier',
+        );
       }
     }
 
@@ -653,8 +689,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
       return true;
     } catch (e) {
-      AppLogger.e('Failed to delete image: $imagePath', e, null,
-          'LocalGalleryNotifier',);
+      AppLogger.e(
+        'Failed to delete image: $imagePath',
+        e,
+        null,
+        'LocalGalleryNotifier',
+      );
       return false;
     }
   }
@@ -679,10 +719,18 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         await _applyFilters();
       }
 
-      AppLogger.d('Toggled favorite: $imagePath -> $newFavoriteStatus', 'LocalGalleryNotifier');
+      AppLogger.d(
+        'Toggled favorite: $imagePath -> $newFavoriteStatus',
+        'LocalGalleryNotifier',
+      );
       return newFavoriteStatus;
     } catch (e) {
-      AppLogger.e('Failed to toggle favorite: $imagePath', e, null, 'LocalGalleryNotifier');
+      AppLogger.e(
+        'Failed to toggle favorite: $imagePath',
+        e,
+        null,
+        'LocalGalleryNotifier',
+      );
       return false;
     }
   }
@@ -724,13 +772,24 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // Update cache
       final cached = _recordCache.get(imagePath);
       if (cached != null) {
-        _recordCache.put(imagePath, cached.copyWith(tags: [...cached.tags, trimmedTag]));
+        _recordCache.put(
+          imagePath,
+          cached.copyWith(tags: [...cached.tags, trimmedTag]),
+        );
       }
 
-      AppLogger.d('Added tag: $trimmedTag to $imagePath', 'LocalGalleryNotifier');
+      AppLogger.d(
+        'Added tag: $trimmedTag to $imagePath',
+        'LocalGalleryNotifier',
+      );
       return true;
     } catch (e) {
-      AppLogger.e('Failed to add tag to $imagePath', e, null, 'LocalGalleryNotifier');
+      AppLogger.e(
+        'Failed to add tag to $imagePath',
+        e,
+        null,
+        'LocalGalleryNotifier',
+      );
       return false;
     }
   }
@@ -754,7 +813,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // Update current images list if the image is visible
       final updatedCurrentImages = state.currentImages.map((img) {
         if (img.path == imagePath) {
-          return img.copyWith(tags: img.tags.where((t) => t != trimmedTag).toList());
+          return img.copyWith(
+            tags: img.tags.where((t) => t != trimmedTag).toList(),
+          );
         }
         return img;
       }).toList();
@@ -764,13 +825,26 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // Update cache
       final cached = _recordCache.get(imagePath);
       if (cached != null) {
-        _recordCache.put(imagePath, cached.copyWith(tags: cached.tags.where((t) => t != trimmedTag).toList()));
+        _recordCache.put(
+          imagePath,
+          cached.copyWith(
+            tags: cached.tags.where((t) => t != trimmedTag).toList(),
+          ),
+        );
       }
 
-      AppLogger.d('Removed tag: $trimmedTag from $imagePath', 'LocalGalleryNotifier');
+      AppLogger.d(
+        'Removed tag: $trimmedTag from $imagePath',
+        'LocalGalleryNotifier',
+      );
       return true;
     } catch (e) {
-      AppLogger.e('Failed to remove tag from $imagePath', e, null, 'LocalGalleryNotifier');
+      AppLogger.e(
+        'Failed to remove tag from $imagePath',
+        e,
+        null,
+        'LocalGalleryNotifier',
+      );
       return false;
     }
   }
@@ -813,7 +887,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<void> setFilterSteps(int? min, int? max) async {
     if (state.filterMinSteps == min && state.filterMaxSteps == max) return;
 
-    state = state.copyWith(filterMinSteps: min, filterMaxSteps: max, isPageLoading: true);
+    state = state.copyWith(
+      filterMinSteps: min,
+      filterMaxSteps: max,
+      isPageLoading: true,
+    );
     await _applyFilters();
   }
 
@@ -826,7 +904,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<void> setFilterCfg(double? min, double? max) async {
     if (state.filterMinCfg == min && state.filterMaxCfg == max) return;
 
-    state = state.copyWith(filterMinCfg: min, filterMaxCfg: max, isPageLoading: true);
+    state = state.copyWith(
+      filterMinCfg: min,
+      filterMaxCfg: max,
+      isPageLoading: true,
+    );
     await _applyFilters();
   }
 
@@ -897,7 +979,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // 按日期排序（最新的在前）
       allRecords.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
 
-      state = state.copyWith(groupedImages: allRecords, isGroupedLoading: false);
+      state =
+          state.copyWith(groupedImages: allRecords, isGroupedLoading: false);
     } catch (e) {
       state = state.copyWith(isGroupedLoading: false, error: e.toString());
     }
@@ -976,8 +1059,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         image.modifiedAt.month,
         image.modifiedAt.day,
       );
-      return imageDate.isAfter(thisWeekStart) &&
-          imageDate.isBefore(yesterday);
+      return imageDate.isAfter(thisWeekStart) && imageDate.isBefore(yesterday);
     }).toList();
   }
 

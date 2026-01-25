@@ -163,7 +163,9 @@ class AuthNotifier extends _$AuthNotifier {
     }
     if (waitCount > 0) {
       AppLogger.d(
-          'Waited ${waitCount * 100}ms for AccountManager to load', 'Auth',);
+        'Waited ${waitCount * 100}ms for AccountManager to load',
+        'Auth',
+      );
     }
 
     // 1. 检查是否有有效的全局 Token
@@ -201,13 +203,15 @@ class AuthNotifier extends _$AuthNotifier {
             subscriptionInfo: subscriptionInfo,
           );
           AppLogger.auth(
-              'Token validation successful, account: $matchedDisplayName',);
+            'Token validation successful, account: $matchedDisplayName',
+          );
           return; // 已登录，直接返回
         }
 
         // Token 有效但找不到对应账号，清除后尝试自动登录
         AppLogger.w(
-            'Token valid but no matching account found, trying auto-login...',);
+          'Token valid but no matching account found, trying auto-login...',
+        );
         await storage.clearAuth();
       } catch (e) {
         // Token 无效，清除后尝试自动登录
@@ -224,7 +228,8 @@ class AuthNotifier extends _$AuthNotifier {
       // 使用最近登录的账号（accounts 已按 lastUsedAt 降序排序）
       final lastUsedAccount = accounts.first;
       AppLogger.auth(
-          'Attempting auto-login with account: ${lastUsedAccount.displayName}',);
+        'Attempting auto-login with account: ${lastUsedAccount.displayName}',
+      );
 
       // 获取账号的 Token 和类型
       final accountToken =
@@ -240,12 +245,14 @@ class AuthNotifier extends _$AuthNotifier {
           if (accountType == AccountType.credentials) {
             // Credentials 账号：直接验证 accessToken
             AppLogger.auth(
-                'Auto-login: validating access token for credentials account...',);
+              'Auto-login: validating access token for credentials account...',
+            );
             subscriptionInfo = await apiService.validateToken(accountToken);
           } else {
             // Token 账号：先验证格式
             AppLogger.auth(
-                'Auto-login: validating token format for token account...',);
+              'Auto-login: validating token format for token account...',
+            );
             if (!NAIApiService.isValidTokenFormat(accountToken)) {
               throw Exception('Token 格式无效，应以 pst- 开头');
             }
@@ -270,11 +277,13 @@ class AuthNotifier extends _$AuthNotifier {
           accountManagerNotifier.updateLastUsed(lastUsedAccount.id);
 
           AppLogger.auth(
-              'Auto-login successful with account: ${lastUsedAccount.displayName}',);
+            'Auto-login successful with account: ${lastUsedAccount.displayName}',
+          );
           return;
         } catch (e) {
           AppLogger.w(
-              'Auto-login failed for ${lastUsedAccount.displayName}: $e',);
+            'Auto-login failed for ${lastUsedAccount.displayName}: $e',
+          );
           // 自动登录失败，设置错误状态
           final (errorCode, httpStatusCode) = AuthState.parseError(e);
           state = AuthState(
@@ -329,7 +338,8 @@ class AuthNotifier extends _$AuthNotifier {
       // 验证 token 确实被保存了
       final savedToken = await storage.getAccessToken();
       AppLogger.auth(
-          'Token saved verification: ${savedToken != null ? "OK, length: ${savedToken.length}" : "FAILED - token is null"}',);
+        'Token saved verification: ${savedToken != null ? "OK, length: ${savedToken.length}" : "FAILED - token is null"}',
+      );
 
       // 4. 更新状态
       state = AuthState(
@@ -511,11 +521,13 @@ class AuthNotifier extends _$AuthNotifier {
   /// [errorCode] 和 [httpStatusCode] 用于在登出时保留错误信息，以便 UI 显示提示
   Future<void> logout({AuthErrorCode? errorCode, int? httpStatusCode}) async {
     AppLogger.w(
-        '[AuthNotifier] logout() called, errorCode=$errorCode, httpStatusCode=$httpStatusCode',
-        'AUTH',);
+      '[AuthNotifier] logout() called, errorCode=$errorCode, httpStatusCode=$httpStatusCode',
+      'AUTH',
+    );
     AppLogger.w(
-        '[AuthNotifier] current state: status=${state.status}, hasError=${state.hasError}',
-        'AUTH',);
+      '[AuthNotifier] current state: status=${state.status}, hasError=${state.hasError}',
+      'AUTH',
+    );
 
     final storage = ref.read(secureStorageServiceProvider);
     await storage.clearAuth();
@@ -528,7 +540,9 @@ class AuthNotifier extends _$AuthNotifier {
         httpStatusCode: httpStatusCode,
       );
       AppLogger.w(
-          '[AuthNotifier] state set to error: errorCode=$errorCode', 'AUTH',);
+        '[AuthNotifier] state set to error: errorCode=$errorCode',
+        'AUTH',
+      );
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
       AppLogger.w('[AuthNotifier] state set to unauthenticated', 'AUTH');
@@ -553,22 +567,25 @@ class AuthNotifier extends _$AuthNotifier {
   /// [delayMs] 延迟毫秒数，让 UI 有时间显示错误 Toast
   void clearError({int delayMs = 100}) async {
     AppLogger.w(
-        '[AuthNotifier] clearError() called, current state: status=${state.status}, hasError=${state.hasError}',
-        'AUTH',);
+      '[AuthNotifier] clearError() called, current state: status=${state.status}, hasError=${state.hasError}',
+      'AUTH',
+    );
 
     if (state.hasError || state.status == AuthStatus.error) {
       // 延迟清除，让 UI 有时间显示错误提示
       AppLogger.w(
-          '[AuthNotifier] waiting ${delayMs}ms before clearing error...',
-          'AUTH',);
+        '[AuthNotifier] waiting ${delayMs}ms before clearing error...',
+        'AUTH',
+      );
       await Future.delayed(Duration(milliseconds: delayMs));
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         clearError: true,
       );
       AppLogger.w(
-          '[AuthNotifier] error cleared, state now: status=${state.status}',
-          'AUTH',);
+        '[AuthNotifier] error cleared, state now: status=${state.status}',
+        'AUTH',
+      );
     }
   }
 }

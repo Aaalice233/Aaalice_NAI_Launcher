@@ -159,8 +159,10 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       // L1/L2: 先查缓存
       final cachedTags = _cacheService.get(query);
       if (cachedTags != null && cachedTags.isNotEmpty) {
-        AppLogger.d('Using cached tags for: $query (${cachedTags.length} tags)',
-            'Provider',);
+        AppLogger.d(
+          'Using cached tags for: $query (${cachedTags.length} tags)',
+          'Provider',
+        );
         state = TagSuggestionState(
           suggestions: cachedTags,
           isLoading: false,

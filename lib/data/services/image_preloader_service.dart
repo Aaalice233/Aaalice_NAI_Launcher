@@ -98,7 +98,7 @@ class ImagePreloaderService {
     stopwatch.stop();
     AppLogger.i(
       'Preload completed: $successCount/${pathsToLoad.length} images '
-      'in ${stopwatch.elapsedMilliseconds}ms',
+          'in ${stopwatch.elapsedMilliseconds}ms',
       'ImagePreloader',
     );
 
@@ -235,7 +235,7 @@ class ImagePreloaderService {
 
       AppLogger.i(
         'Image cache cleared (success: $_successCount, failures: $_failureCount, '
-        'cancelled: $_cancelledCount)',
+            'cancelled: $_cancelledCount)',
         'ImagePreloader',
       );
 

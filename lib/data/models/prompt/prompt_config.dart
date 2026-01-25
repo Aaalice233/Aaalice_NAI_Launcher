@@ -199,7 +199,9 @@ class PromptConfig with _$PromptConfig {
 
   /// 从嵌套配置中选取
   List<PromptConfig> _selectFromConfigs(
-      Random random, Map<String, int>? counters,) {
+    Random random,
+    Map<String, int>? counters,
+  ) {
     if (nestedConfigs.isEmpty) return [];
 
     switch (selectionMode) {

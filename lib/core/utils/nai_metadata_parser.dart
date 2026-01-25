@@ -21,8 +21,10 @@ class NaiMetadataParser {
   /// 返回解析后的元数据，如果解析失败返回 null
   static Future<NaiImageMetadata?> extractFromBytes(Uint8List bytes) async {
     try {
-      AppLogger.d('Extracting metadata from ${bytes.length} bytes',
-          'NaiMetadataParser',);
+      AppLogger.d(
+        'Extracting metadata from ${bytes.length} bytes',
+        'NaiMetadataParser',
+      );
 
       // 解码 PNG 图片
       final image = img.decodePng(bytes);
@@ -32,7 +34,9 @@ class NaiMetadataParser {
       }
 
       AppLogger.d(
-          'PNG decoded: ${image.width}x${image.height}', 'NaiMetadataParser',);
+        'PNG decoded: ${image.width}x${image.height}',
+        'NaiMetadataParser',
+      );
 
       // 提取隐写数据
       final jsonString = await _extractStealthData(image);
@@ -41,21 +45,28 @@ class NaiMetadataParser {
         return null;
       }
 
-      AppLogger.d('Stealth data extracted: ${jsonString.length} chars',
-          'NaiMetadataParser',);
+      AppLogger.d(
+        'Stealth data extracted: ${jsonString.length} chars',
+        'NaiMetadataParser',
+      );
 
       // 解析 JSON
       final Map<String, dynamic> json = jsonDecode(jsonString);
       final metadata =
           NaiImageMetadata.fromNaiComment(json, rawJson: jsonString);
       AppLogger.d(
-          'Metadata parsed: prompt=${metadata.prompt.length} chars, seed=${metadata.seed}',
-          'NaiMetadataParser',);
+        'Metadata parsed: prompt=${metadata.prompt.length} chars, seed=${metadata.seed}',
+        'NaiMetadataParser',
+      );
       return metadata;
     } catch (e, stack) {
       if (kDebugMode) {
         AppLogger.e(
-            'Failed to extract NAI metadata', e, stack, 'NaiMetadataParser',);
+          'Failed to extract NAI metadata',
+          e,
+          stack,
+          'NaiMetadataParser',
+        );
       }
       return null;
     }
@@ -138,7 +149,8 @@ class NaiMetadataParser {
   /// [data] 包含 'bytes' 键的 Map
   /// 返回解析后的元数据
   static Future<NaiImageMetadata?> parseInIsolate(
-      Map<String, dynamic> data,) async {
+    Map<String, dynamic> data,
+  ) async {
     try {
       final bytes = data['bytes'] as Uint8List;
       return await extractFromBytes(bytes);

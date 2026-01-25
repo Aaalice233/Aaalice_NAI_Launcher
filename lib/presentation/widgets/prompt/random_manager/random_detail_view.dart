@@ -122,15 +122,20 @@ class RandomDetailView extends ConsumerWidget {
                 color: theme.colorScheme.primaryContainer.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.folder_special,
-                  size: 32, color: theme.colorScheme.primary,),
+              child: Icon(
+                Icons.folder_special,
+                size: 32,
+                color: theme.colorScheme.primary,
+              ),
             ),
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Preset Configuration',
-                    style: theme.textTheme.headlineSmall,),
+                Text(
+                  'Preset Configuration',
+                  style: theme.textTheme.headlineSmall,
+                ),
                 Text(
                   'ID: ${node.id}',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -155,7 +160,10 @@ class RandomDetailView extends ConsumerWidget {
 
   // Integrated Segmented Control Switcher for Toolbar
   Widget _buildToolbarSourceSwitcher(
-      BuildContext context, TagGroupNode node, WidgetRef ref,) {
+    BuildContext context,
+    TagGroupNode node,
+    WidgetRef ref,
+  ) {
     final theme = Theme.of(context);
     final currentType = node.data.sourceType;
 
@@ -407,8 +415,11 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
-                  prefixIcon: Icon(Icons.key,
-                      size: 14, color: theme.colorScheme.outline,),
+                  prefixIcon: Icon(
+                    Icons.key,
+                    size: 14,
+                    color: theme.colorScheme.outline,
+                  ),
                   prefixIconConstraints:
                       const BoxConstraints(minWidth: 24, minHeight: 16),
                 ),
@@ -435,18 +446,23 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                   isDense: true,
                   items: const [
                     DropdownMenuItem(
-                        value: SelectionMode.single,
-                        child: Text('Single (Weighted Random)'),),
+                      value: SelectionMode.single,
+                      child: Text('Single (Weighted Random)'),
+                    ),
                     DropdownMenuItem(
-                        value: SelectionMode.multipleNum,
-                        child: Text('Multiple (Fixed Count)'),),
+                      value: SelectionMode.multipleNum,
+                      child: Text('Multiple (Fixed Count)'),
+                    ),
                     DropdownMenuItem(
-                        value: SelectionMode.all, child: Text('Select All'),),
+                      value: SelectionMode.all,
+                      child: Text('Select All'),
+                    ),
                   ],
                   onChanged: (mode) {
                     if (mode != null) {
                       _updateCategory(
-                          (c) => c.copyWith(groupSelectionMode: mode),);
+                        (c) => c.copyWith(groupSelectionMode: mode),
+                      );
                     }
                   },
                 ),
@@ -570,16 +586,23 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
                 ),
                 onChanged: (value) {
                   if (isCustom) {
-                    _updateTagGroup((t) => t.copyWith(
+                    _updateTagGroup(
+                      (t) => t.copyWith(
                         name: value,
                         tags: value
                             .split('\n')
                             .where((line) => line.trim().isNotEmpty)
                             .map((line) => WeightedTag.simple(line.trim(), 1))
-                            .toList(),),);
+                            .toList(),
+                      ),
+                    );
                   } else {
-                    _updateTagGroup((t) => t.copyWith(
-                        name: value, sourceId: _sourceIdController.text,),);
+                    _updateTagGroup(
+                      (t) => t.copyWith(
+                        name: value,
+                        sourceId: _sourceIdController.text,
+                      ),
+                    );
                   }
                 },
               ),
@@ -609,12 +632,15 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  onChanged: (value) => _updateTagGroup((t) => t.copyWith(
+                  onChanged: (value) => _updateTagGroup(
+                    (t) => t.copyWith(
                       tags: value
                           .split('\n')
                           .where((line) => line.trim().isNotEmpty)
                           .map((line) => WeightedTag.simple(line.trim(), 1))
-                          .toList(),),),
+                          .toList(),
+                    ),
+                  ),
                 ),
               )
             else

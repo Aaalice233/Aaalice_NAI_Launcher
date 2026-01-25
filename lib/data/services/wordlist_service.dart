@@ -125,7 +125,11 @@ class WordlistService {
       );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to load wordlist: ${type.fileName}', e, stack, 'Wordlist',);
+        'Failed to load wordlist: ${type.fileName}',
+        e,
+        stack,
+        'Wordlist',
+      );
       rethrow;
     } finally {
       _loadingStatus[type] = false;

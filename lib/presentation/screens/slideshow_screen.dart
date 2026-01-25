@@ -210,7 +210,8 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               left: 0,
               right: 0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -262,7 +263,8 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               left: 0,
               right: 0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -291,7 +293,9 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
                         _isPlaying ? Icons.pause : Icons.play_arrow,
                         color: theme.colorScheme.onSurface,
                       ),
-                      tooltip: _isPlaying ? l10n.slideshow_pause : l10n.slideshow_play,
+                      tooltip: _isPlaying
+                          ? l10n.slideshow_pause
+                          : l10n.slideshow_play,
                       onPressed: _toggleAutoPlay,
                     ),
                     const Spacer(),
@@ -311,8 +315,8 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
 
             // 键盘提示（仅在桌面端显示）
             if (Theme.of(context).platform == TargetPlatform.windows ||
-                  Theme.of(context).platform == TargetPlatform.macOS ||
-                  Theme.of(context).platform == TargetPlatform.linux)
+                Theme.of(context).platform == TargetPlatform.macOS ||
+                Theme.of(context).platform == TargetPlatform.linux)
               Positioned(
                 bottom: 80,
                 left: 16,

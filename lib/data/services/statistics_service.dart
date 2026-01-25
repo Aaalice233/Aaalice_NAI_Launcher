@@ -22,7 +22,10 @@ class StatisticsService {
   /// [records] - 图片记录列表
   /// 返回完整的画廊统计信息
   GalleryStatistics calculateStatistics(List<LocalImageRecord> records) {
-    AppLogger.d('Calculating statistics for ${records.length} images', 'Statistics');
+    AppLogger.d(
+      'Calculating statistics for ${records.length} images',
+      'Statistics',
+    );
 
     // 基础统计
     final totalImages = records.length;
@@ -30,9 +33,8 @@ class StatisticsService {
       0,
       (sum, record) => sum + record.size,
     );
-    final averageFileSizeBytes = totalImages > 0
-        ? totalSizeBytes / totalImages
-        : 0.0;
+    final averageFileSizeBytes =
+        totalImages > 0 ? totalSizeBytes / totalImages : 0.0;
 
     // 收藏和标签统计
     final favoriteCount = records.where((r) => r.isFavorite).length;
@@ -40,13 +42,15 @@ class StatisticsService {
     final imagesWithMetadata = records.where((r) => r.hasMetadata).length;
 
     // 分辨率分布统计
-    final resolutionDistribution = _calculateResolutionDistribution(records, totalImages);
+    final resolutionDistribution =
+        _calculateResolutionDistribution(records, totalImages);
 
     // 模型分布统计
     final modelDistribution = _calculateModelDistribution(records, totalImages);
 
     // 采样器分布统计
-    final samplerDistribution = _calculateSamplerDistribution(records, totalImages);
+    final samplerDistribution =
+        _calculateSamplerDistribution(records, totalImages);
 
     // 文件大小分布统计
     final sizeDistribution = _calculateSizeDistribution(records, totalImages);
@@ -90,9 +94,7 @@ class StatisticsService {
       return ResolutionStatistics(
         label: entry.key,
         count: entry.value,
-        percentage: totalImages > 0
-            ? (entry.value / totalImages) * 100
-            : 0.0,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
       );
     }).toList();
   }
@@ -119,9 +121,7 @@ class StatisticsService {
       return ModelStatistics(
         modelName: entry.key,
         count: entry.value,
-        percentage: totalImages > 0
-            ? (entry.value / totalImages) * 100
-            : 0.0,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
       );
     }).toList();
   }
@@ -138,7 +138,8 @@ class StatisticsService {
       if (sampler != null && sampler.isNotEmpty) {
         // 格式化采样器名称（如 k_euler_ancestral -> Euler Ancestral）
         final formattedSampler = _formatSamplerName(sampler);
-        samplerCounts[formattedSampler] = (samplerCounts[formattedSampler] ?? 0) + 1;
+        samplerCounts[formattedSampler] =
+            (samplerCounts[formattedSampler] ?? 0) + 1;
       }
     }
 
@@ -150,9 +151,7 @@ class StatisticsService {
       return SamplerStatistics(
         samplerName: entry.key,
         count: entry.value,
-        percentage: totalImages > 0
-            ? (entry.value / totalImages) * 100
-            : 0.0,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
       );
     }).toList();
   }
@@ -165,9 +164,11 @@ class StatisticsService {
         .replaceAll('k_', '')
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word.isNotEmpty
-            ? '${word[0].toUpperCase()}${word.substring(1)}'
-            : '',)
+        .map(
+          (word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1)}'
+              : '',
+        )
         .join(' ');
   }
 
@@ -203,15 +204,11 @@ class StatisticsService {
     }
 
     // Filter out ranges with zero count, then map to statistics
-    return sizeRanges.entries
-        .where((entry) => entry.value > 0)
-        .map((entry) {
+    return sizeRanges.entries.where((entry) => entry.value > 0).map((entry) {
       return SizeDistributionStatistics(
         label: entry.key,
         count: entry.value,
-        percentage: totalImages > 0
-            ? (entry.value / totalImages) * 100
-            : 0.0,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
       );
     }).toList();
   }

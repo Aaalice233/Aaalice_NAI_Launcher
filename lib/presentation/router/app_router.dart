@@ -124,7 +124,8 @@ GoRouter appRouter(Ref ref) {
                   begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
                   end: Offset.zero,
                 ).animate(
-                    CurveTween(curve: Curves.easeOutCubic).animate(animation),),
+                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
+                ),
                 child: child,
               ),
             );

@@ -281,7 +281,9 @@ class CanvasController extends ChangeNotifier {
 
     // 6. 移回并加偏移
     return Offset(
-        point.dx + centerX + _offset.dx, point.dy + centerY + _offset.dy,);
+      point.dx + centerX + _offset.dx,
+      point.dy + centerY + _offset.dy,
+    );
   }
 
   /// 获取变换矩阵（包含旋转和镜像）

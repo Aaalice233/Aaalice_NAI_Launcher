@@ -121,7 +121,9 @@ mixin KeyboardNavigationMixin on Widget {
   }
 
   List<RandomTreeNode> _getAllVisibleNodes(
-      List<PresetNode> presets, Set<String> expandedIds,) {
+    List<PresetNode> presets,
+    Set<String> expandedIds,
+  ) {
     final List<RandomTreeNode> visible = [];
     for (final preset in presets) {
       visible.add(preset);
@@ -138,7 +140,10 @@ mixin KeyboardNavigationMixin on Widget {
   }
 
   void _handleExpand(
-      WidgetRef ref, RandomTreeNode node, Set<String> expandedNodes,) {
+    WidgetRef ref,
+    RandomTreeNode node,
+    Set<String> expandedNodes,
+  ) {
     if (node is TagGroupNode) return; // Leafs can't expand
 
     if (!expandedNodes.contains(node.id)) {
@@ -147,7 +152,10 @@ mixin KeyboardNavigationMixin on Widget {
   }
 
   void _handleCollapse(
-      WidgetRef ref, RandomTreeNode node, Set<String> expandedNodes,) {
+    WidgetRef ref,
+    RandomTreeNode node,
+    Set<String> expandedNodes,
+  ) {
     if (expandedNodes.contains(node.id)) {
       ref.read(expandedNodesProvider.notifier).collapse(node.id);
     } else {
@@ -204,7 +212,10 @@ mixin KeyboardNavigationMixin on Widget {
   // --- Dialogs ---
 
   void _showRenameDialog(
-      BuildContext context, WidgetRef ref, RandomTreeNode node,) {
+    BuildContext context,
+    WidgetRef ref,
+    RandomTreeNode node,
+  ) {
     final controller = TextEditingController(text: node.label);
     showDialog(
       context: context,

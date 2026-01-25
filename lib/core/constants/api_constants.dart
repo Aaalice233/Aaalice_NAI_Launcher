@@ -410,7 +410,10 @@ class UcPresets {
 
   /// 将预设应用到负面提示词
   static String applyPreset(
-      String negativePrompt, String model, UcPresetType type,) {
+    String negativePrompt,
+    String model,
+    UcPresetType type,
+  ) {
     if (type == UcPresetType.none) return negativePrompt;
 
     final presetContent = getPresetContent(model, type);
@@ -451,7 +454,10 @@ class UcPresets {
 
   /// 根据整数 ucPreset 值应用预设到负面提示词（供 API 服务使用）
   static String applyPresetByInt(
-      String negativePrompt, String model, int ucPreset,) {
+    String negativePrompt,
+    String model,
+    int ucPreset,
+  ) {
     final presetType = getPresetTypeFromInt(ucPreset);
     return applyPreset(negativePrompt, model, presetType);
   }

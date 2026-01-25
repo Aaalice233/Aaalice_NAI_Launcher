@@ -21,7 +21,7 @@ class LocalImageRecord with _$LocalImageRecord {
     NaiImageMetadata? metadata, // NAI 隐写元数据（Prompt/Seed等）
     @Default(MetadataStatus.none) MetadataStatus metadataStatus, // 元数据状态
     @Default(false) bool isFavorite, // 是否收藏
-    @Default([]) List<String> tags,  // 标签列表
+    @Default([]) List<String> tags, // 标签列表
   }) = _LocalImageRecord;
 
   const LocalImageRecord._();

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/services/favorites_storage_service.dart';
 
 void main() {

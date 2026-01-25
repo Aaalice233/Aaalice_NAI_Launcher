@@ -70,7 +70,11 @@ class TagGroupCacheService {
       );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to save TagGroup: $groupTitle', e, stack, 'TagGroupCache',);
+        'Failed to save TagGroup: $groupTitle',
+        e,
+        stack,
+        'TagGroupCache',
+      );
       rethrow; // 重新抛出异常让调用方处理
     }
   }
@@ -118,7 +122,11 @@ class TagGroupCacheService {
       }
     } catch (e) {
       AppLogger.e(
-          'Failed to load TagGroup: $groupTitle', e, null, 'TagGroupCache',);
+        'Failed to load TagGroup: $groupTitle',
+        e,
+        null,
+        'TagGroupCache',
+      );
     }
     return null;
   }

@@ -90,7 +90,9 @@ class _AccountProfileBottomSheetState
       } else if (result.isFailure && mounted) {
         // 显示错误信息
         AppToast.error(
-            context, result.errorMessage ?? context.l10n.common_error,);
+          context,
+          result.errorMessage ?? context.l10n.common_error,
+        );
       }
       // 取消操作不需要提示
     } catch (e) {
@@ -626,7 +628,9 @@ class _AccountProfileBottomSheetState
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1,),
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(4),

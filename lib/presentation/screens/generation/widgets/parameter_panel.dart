@@ -329,7 +329,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                               _seedController.clear();
                               ref
                                   .read(
-                                      generationParamsNotifierProvider.notifier,)
+                                    generationParamsNotifierProvider.notifier,
+                                  )
                                   .updateSeed(-1);
                             },
                           ),

@@ -95,8 +95,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 支持两种格式：
   /// 1. 官网格式：顶层有 Description, Software, Source, Comment (JSON 字符串)
   /// 2. 直接格式：顶层就是生成参数
-  factory NaiImageMetadata.fromNaiComment(Map<String, dynamic> json,
-      {String? rawJson,}) {
+  factory NaiImageMetadata.fromNaiComment(
+    Map<String, dynamic> json, {
+    String? rawJson,
+  }) {
     // 检测是否为官网格式（有 Comment 字段且是字符串）
     Map<String, dynamic> commentData;
     String? software;

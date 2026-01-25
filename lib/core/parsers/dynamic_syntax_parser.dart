@@ -180,7 +180,9 @@ class DynamicSyntaxParser {
   String resolveNested(String input, [int depth = 0]) {
     if (depth > maxRecursionDepth) {
       AppLogger.w(
-          'Max recursion depth exceeded in DynamicSyntaxParser', 'Parser',);
+        'Max recursion depth exceeded in DynamicSyntaxParser',
+        'Parser',
+      );
       return input;
     }
 

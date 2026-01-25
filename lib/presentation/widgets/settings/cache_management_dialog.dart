@@ -227,7 +227,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
       }
       for (final entry in poolEntries) {
         taskFunctions.add(
-            () => _refreshPoolWithProgress(entry.key, entry.value.poolName),);
+          () => _refreshPoolWithProgress(entry.key, entry.value.poolName),
+        );
       }
 
       // 并行执行，限制并发数为 3
@@ -742,7 +743,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.refresh, size: 20),
                             tooltip: l10n.cache_refresh,
@@ -854,7 +856,8 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.refresh, size: 20),
                             tooltip: l10n.cache_refresh,

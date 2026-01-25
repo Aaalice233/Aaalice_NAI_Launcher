@@ -210,8 +210,8 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget>
       if (useThumbnail) {
         // Use reduced resolution for thumbnail
         // 缩略图使用降低的分辨率
-        cacheWidth = (widget.width! * pixelRatio * widget.thumbnailQuality)
-            .toInt();
+        cacheWidth =
+            (widget.width! * pixelRatio * widget.thumbnailQuality).toInt();
       } else {
         // Use full resolution for final image
         // 最终图片使用完整分辨率

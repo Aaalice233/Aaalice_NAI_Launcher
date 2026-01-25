@@ -59,12 +59,14 @@ class SearchIndexService {
 
       if (indexJson != null) {
         final decoded = jsonDecode(indexJson) as Map<String, dynamic>;
-        _invertedIndex = decoded.map((key, value) => MapEntry(
-          key,
-          (value as Map<String, dynamic>).map(
-            (k, v) => MapEntry(k, v as int),
+        _invertedIndex = decoded.map(
+          (key, value) => MapEntry(
+            key,
+            (value as Map<String, dynamic>).map(
+              (k, v) => MapEntry(k, v as int),
+            ),
           ),
-        ),);
+        );
       }
 
       if (documentsJson != null) {
@@ -107,7 +109,8 @@ class SearchIndexService {
       await _box?.put(_indexKey, indexJson);
 
       final documentsJson = jsonEncode(
-        _documents.map((key, value) => MapEntry(key, _localImageRecordToJson(value))),
+        _documents
+            .map((key, value) => MapEntry(key, _localImageRecordToJson(value))),
       );
       await _box?.put(_documentsKey, documentsJson);
 
@@ -233,7 +236,10 @@ class SearchIndexService {
       await _saveIndex();
     }
 
-    AppLogger.d('Indexed document: $path (${tokens.length} tokens)', 'SearchIndex');
+    AppLogger.d(
+      'Indexed document: $path (${tokens.length} tokens)',
+      'SearchIndex',
+    );
   }
 
   /// 批量添加文档到索引
@@ -391,9 +397,11 @@ class SearchIndexService {
       'lastUpdated': _lastUpdated?.toIso8601String(),
       'averageTokensPerDocument': _documentCount > 0
           ? (_invertedIndex.values.fold<int>(
-              0,
-              (sum, postings) => sum + postings.length,
-            ) / _documentCount).toStringAsFixed(2)
+                    0,
+                    (sum, postings) => sum + postings.length,
+                  ) /
+                  _documentCount)
+              .toStringAsFixed(2)
           : '0.00',
     };
   }

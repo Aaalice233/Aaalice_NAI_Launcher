@@ -77,7 +77,8 @@ class ThemedInput extends StatelessWidget {
           hintStyle: isDigital
               ? TextStyle(
                   color: theme.colorScheme.primary.withOpacity(0.5),
-                  letterSpacing: 1.0,)
+                  letterSpacing: 1.0,
+                )
               : null,
         ),
       ),

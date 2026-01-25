@@ -50,7 +50,11 @@ class TagTranslationService {
       );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to load tag translations', e, stack, 'TagTranslation',);
+        'Failed to load tag translations',
+        e,
+        stack,
+        'TagTranslation',
+      );
     }
   }
 
@@ -194,8 +198,10 @@ class TagTranslationService {
   /// [query] 搜索词
   /// [limit] 最大返回数量
   /// 返回 Map<英文标签, 中文翻译>
-  Map<String, String> searchByChineseTranslation(String query,
-      {int limit = 20,}) {
+  Map<String, String> searchByChineseTranslation(
+    String query, {
+    int limit = 20,
+  }) {
     if (query.isEmpty) return {};
 
     final results = <String, String>{};
@@ -238,8 +244,10 @@ class TagTranslationService {
   /// 批量翻译标签
   ///
   /// 返回 Map<原始标签, 翻译>（只包含有翻译的标签）
-  Map<String, String> translateBatch(List<String> tags,
-      {bool isCharacter = false,}) {
+  Map<String, String> translateBatch(
+    List<String> tags, {
+    bool isCharacter = false,
+  }) {
     final result = <String, String>{};
     for (final tag in tags) {
       final translation = translate(tag, isCharacter: isCharacter);

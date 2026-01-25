@@ -8,8 +8,8 @@ part 'gallery_statistics.freezed.dart';
 @freezed
 class ResolutionStatistics with _$ResolutionStatistics {
   const factory ResolutionStatistics({
-    required String label,        // 分辨率标签（如 "1024x1024", "512x768"）
-    required int count,            // 图片数量
+    required String label, // 分辨率标签（如 "1024x1024", "512x768"）
+    required int count, // 图片数量
     @Default(0) double percentage, // 百分比 (0-100)
   }) = _ResolutionStatistics;
 
@@ -22,8 +22,8 @@ class ResolutionStatistics with _$ResolutionStatistics {
 @freezed
 class ModelStatistics with _$ModelStatistics {
   const factory ModelStatistics({
-    required String modelName,     // 模型名称（如 "NAI Diffusion V4"）
-    required int count,            // 图片数量
+    required String modelName, // 模型名称（如 "NAI Diffusion V4"）
+    required int count, // 图片数量
     @Default(0) double percentage, // 百分比 (0-100)
   }) = _ModelStatistics;
 
@@ -36,8 +36,8 @@ class ModelStatistics with _$ModelStatistics {
 @freezed
 class SamplerStatistics with _$SamplerStatistics {
   const factory SamplerStatistics({
-    required String samplerName,   // 采样器名称（如 "Euler Ancestral"）
-    required int count,            // 图片数量
+    required String samplerName, // 采样器名称（如 "Euler Ancestral"）
+    required int count, // 图片数量
     @Default(0) double percentage, // 百分比 (0-100)
   }) = _SamplerStatistics;
 
@@ -50,8 +50,8 @@ class SamplerStatistics with _$SamplerStatistics {
 @freezed
 class SizeDistributionStatistics with _$SizeDistributionStatistics {
   const factory SizeDistributionStatistics({
-    required String label,        // 大小范围标签（如 "< 1MB", "1-5MB", "> 5MB"）
-    required int count,           // 图片数量
+    required String label, // 大小范围标签（如 "< 1MB", "1-5MB", "> 5MB"）
+    required int count, // 图片数量
     @Default(0) double percentage, // 百分比 (0-100)
   }) = _SizeDistributionStatistics;
 

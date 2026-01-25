@@ -363,7 +363,8 @@ class LocalGalleryRepository {
       }
 
       // 4. 生成文件名（带时间戳）
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final timestamp =
+          DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final fileName = 'nai_metadata_export_$timestamp.json';
       final filePath = '${downloadsDir.path}${Platform.pathSeparator}$fileName';
       final file = File(filePath);

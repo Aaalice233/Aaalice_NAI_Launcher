@@ -68,8 +68,10 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 children: [
                   Icon(Icons.login, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
-                  Text(context.l10n.danbooru_loginTitle,
-                      style: theme.textTheme.titleLarge,),
+                  Text(
+                    context.l10n.danbooru_loginTitle,
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -107,9 +109,9 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                   hintText: context.l10n.danbooru_apiKeyHint,
                   prefixIcon: const Icon(Icons.key),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureApiKey
-                        ? Icons.visibility
-                        : Icons.visibility_off,),
+                    icon: Icon(
+                      _obscureApiKey ? Icons.visibility : Icons.visibility_off,
+                    ),
                     onPressed: () =>
                         setState(() => _obscureApiKey = !_obscureApiKey),
                   ),
@@ -146,14 +148,18 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error,
-                          color: theme.colorScheme.error, size: 20,),
+                      Icon(
+                        Icons.error,
+                        color: theme.colorScheme.error,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           authState.error!,
                           style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer,),
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
                         ),
                       ),
                     ],
