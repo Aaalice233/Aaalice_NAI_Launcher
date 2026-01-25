@@ -2315,5 +2315,23 @@
   "tag_tabTags": "Tags",
   "tag_tabGroups": "Groups",
   "tag_tabFavorites": "Favorites",
-  "tag_tabTemplates": "Templates"
+  "tag_tabTemplates": "Templates",
+  "tag_categoryGeneral": "General",
+  "tag_categoryArtist": "Artist",
+  "tag_categoryCopyright": "Copyright",
+  "tag_categoryCharacter": "Character",
+  "tag_categoryMeta": "Meta",
+  "tag_countBadgeTooltip": "Total {total} tags",
+  "@tag_countBadgeTooltip": {
+    "placeholders": {
+      "total": {}
+    }
+  },
+  "tag_countBadgeBreakdown": "Tag Breakdown",
+  "tag_countEnabled": "{count} enabled",
+  "@tag_countEnabled": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }

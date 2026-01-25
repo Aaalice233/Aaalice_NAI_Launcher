@@ -370,28 +370,60 @@ class _TagViewState extends ConsumerState<TagView>
           ),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
-        tabs: [
-          Tab(text: context.l10n.tag_tabTags),
-          Tab(text: context.l10n.tag_tabGroups),
-          Tab(text: context.l10n.tag_tabFavorites),
-          Tab(text: context.l10n.tag_tabTemplates),
+      child: Row(
+        children: [
+          Expanded(
+            child: TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(context.l10n.tag_tabTags),
+                      const SizedBox(width: 6),
+                      _buildTagCountBadge(theme),
+                    ],
+                  ),
+                ),
+                Tab(text: context.l10n.tag_tabGroups),
+                Tab(text: context.l10n.tag_tabFavorites),
+                Tab(text: context.l10n.tag_tabTemplates),
+              ],
+              labelColor: theme.colorScheme.primary,
+              unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+              indicatorSize: TabBarIndicatorSize.label,
+              dividerHeight: 0,
+              indicatorWeight: 3,
+              labelStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
-        labelColor: theme.colorScheme.primary,
-        unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
-        indicatorSize: TabBarIndicatorSize.label,
-        dividerHeight: 0,
-        indicatorWeight: 3,
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
       ),
+    );
+  }
+
+  /// 构建标签计数徽章
+  Widget _buildTagCountBadge(ThemeData theme) {
+    final totalCount = widget.tags.length;
+    final enabledCount = widget.tags.where((t) => t.enabled).length;
+
+    if (totalCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return _TagCountBadge(
+      totalCount: totalCount,
+      enabledCount: enabledCount,
+      tags: widget.tags,
+      theme: theme,
     );
   }
 
@@ -1077,6 +1109,300 @@ class _TagViewState extends ConsumerState<TagView>
           ),
         );
       },
+    );
+  }
+}
+
+/// 标签计数徽章组件
+/// 显示总标签数，悬停/点击时显示分类统计
+class _TagCountBadge extends StatefulWidget {
+  final int totalCount;
+  final int enabledCount;
+  final List<PromptTag> tags;
+  final ThemeData theme;
+
+  const _TagCountBadge({
+    required this.totalCount,
+    required this.enabledCount,
+    required this.tags,
+    required this.theme,
+  });
+
+  @override
+  State<_TagCountBadge> createState() => _TagCountBadgeState();
+}
+
+class _TagCountBadgeState extends State<_TagCountBadge> {
+  bool _isHovering = false;
+  OverlayEntry? _overlayEntry;
+
+  Map<int, int> _getCategoryBreakdown() {
+    final breakdown = <int, int>{};
+    for (final tag in widget.tags) {
+      breakdown[tag.category] = (breakdown[tag.category] ?? 0) + 1;
+    }
+    return breakdown;
+  }
+
+  String _getCategoryName(int category) {
+    return switch (category) {
+      0 => context.l10n.tag_categoryGeneral,
+      1 => context.l10n.tag_categoryArtist,
+      3 => context.l10n.tag_categoryCopyright,
+      4 => context.l10n.tag_categoryCharacter,
+      5 => context.l10n.tag_categoryMeta,
+      _ => 'Unknown',
+    };
+  }
+
+  void _showBreakdownMenu() {
+    _hideOverlay();
+
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _BreakdownMenu(
+        position: Rect.fromLTWH(
+          position.dx,
+          position.dy + size.height + 4,
+          size.width,
+          size.height,
+        ),
+        breakdown: _getCategoryBreakdown(),
+        getCategoryName: _getCategoryName,
+        onDismiss: _hideOverlay,
+        theme: widget.theme,
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  @override
+  void dispose() {
+    _hideOverlay();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) {
+        setState(() => _isHovering = false);
+        _hideOverlay();
+      },
+      child: GestureDetector(
+        onTap: () {
+          if (_overlayEntry == null) {
+            _showBreakdownMenu();
+          } else {
+            _hideOverlay();
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                widget.theme.colorScheme.primary.withOpacity(0.2),
+                widget.theme.colorScheme.primary.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: widget.theme.colorScheme.primary.withOpacity(_isHovering ? 0.5 : 0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.totalCount.toString(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: widget.theme.colorScheme.primary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              if (widget.enabledCount < widget.totalCount) ...[
+                const SizedBox(width: 2),
+                Text(
+                  '(${widget.enabledCount})',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    color: widget.theme.colorScheme.onSurface.withOpacity(0.6),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 分类统计弹出菜单
+class _BreakdownMenu extends StatelessWidget {
+  final Rect position;
+  final Map<int, int> breakdown;
+  final String Function(int) getCategoryName;
+  final VoidCallback onDismiss;
+  final ThemeData theme;
+
+  const _BreakdownMenu({
+    required this.position,
+    required this.breakdown,
+    required this.getCategoryName,
+    required this.onDismiss,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedCategories = breakdown.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return GestureDetector(
+      onTap: onDismiss,
+      behavior: HitTestBehavior.translucent,
+      child: Stack(
+        children: [
+          Positioned(
+            left: position.left - 50,
+            top: position.top,
+            child: GestureDetector(
+              onTap: () {},
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 180, maxWidth: 220),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          theme.colorScheme.surfaceContainerHighest.withOpacity(0.9),
+                          theme.colorScheme.surfaceContainerHigh.withOpacity(0.85),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withOpacity(0.2),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.shadow.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 标题
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            context.l10n.tag_countBadgeBreakdown,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        // 分类统计列表
+                        ...sortedCategories.map((entry) {
+                          final categoryName = getCategoryName(entry.key);
+                          final count = entry.value;
+                          final percentage = (count / breakdown.values.reduce((a, b) => a + b) * 100);
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                // 分类名称
+                                Expanded(
+                                  child: Text(
+                                    categoryName,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ),
+                                // 数量
+                                Text(
+                                  count.toString(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // 百分比条
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: percentage / 100,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            theme.colorScheme.primary,
+                                            theme.colorScheme.primary.withOpacity(0.7),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
