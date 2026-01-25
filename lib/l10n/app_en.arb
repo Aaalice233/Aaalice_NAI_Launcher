@@ -2471,5 +2471,13 @@
   },
 
   "brushPreset_selectHint": "Double tap to select this brush preset",
-  "brushPreset_selected": "Selected"
+  "brushPreset_selected": "Selected",
+  "brushPreset_pencil": "Pencil",
+  "brushPreset_fine": "Fine Brush",
+  "brushPreset_standard": "Standard Brush",
+  "brushPreset_soft": "Soft Brush",
+  "brushPreset_airbrush": "Airbrush",
+  "brushPreset_marker": "Marker",
+  "brushPreset_thick": "Thick Brush",
+  "brushPreset_smudge": "Smudge Brush"
 }
