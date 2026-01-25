@@ -545,6 +545,7 @@ class _TagViewState extends ConsumerState<TagView>
 
   Widget _buildBatchActionBar(ThemeData theme) {
     final selectedCount = widget.tags.selectedTags.length;
+    final allSelected = widget.tags.every((t) => t.selected);
     final hasEnabledSelected = widget.tags.selectedTags.any((t) => t.enabled);
 
     return Container(
@@ -564,6 +565,9 @@ class _TagViewState extends ConsumerState<TagView>
       ),
       child: Row(
         children: [
+          // Master checkbox
+          _buildMasterCheckbox(theme, allSelected),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -613,6 +617,45 @@ class _TagViewState extends ConsumerState<TagView>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMasterCheckbox(ThemeData theme, bool allSelected) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _selectAll,
+        borderRadius: BorderRadius.circular(4),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: allSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: allSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline.withOpacity(0.5),
+              width: 1.5,
+            ),
+          ),
+          child: allSelected
+              ? Icon(
+                  Icons.check,
+                  size: 14,
+                  color: theme.colorScheme.onPrimary,
+                )
+              : Icon(
+                  Icons.check_box_outline_blank,
+                  size: 18,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+        ),
       ),
     );
   }
@@ -790,6 +833,7 @@ class _TagViewState extends ConsumerState<TagView>
 
   Widget _buildDragTarget(int index, PromptTag tag, ThemeData theme) {
     final isEditing = _editingTagId == tag.id;
+    final hasSelection = widget.tags.any((t) => t.selected);
 
     // 创建错峰入场动画
     final opacityAnimation = createStaggeredEntranceAnimation(
@@ -805,6 +849,8 @@ class _TagViewState extends ConsumerState<TagView>
         compact: widget.compact,
         showControls: false,
         onTap: () => _handleTagTap(tag.id),
+        showCheckbox: hasSelection,
+        isBatchSelectionMode: hasSelection,
       );
 
       return Container(
@@ -885,6 +931,8 @@ class _TagViewState extends ConsumerState<TagView>
                     isEditing: isEditing,
                     onEnterEdit: () => _enterEditMode(tag.id),
                     onExitEdit: _exitEditMode,
+                    showCheckbox: hasSelection,
+                    isBatchSelectionMode: hasSelection,
                   ),
                 ),
               ),

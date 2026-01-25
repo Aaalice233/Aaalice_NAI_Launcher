@@ -60,6 +60,12 @@ class TagChip extends ConsumerStatefulWidget {
   /// 退出编辑模式回调
   final VoidCallback? onExitEdit;
 
+  /// 是否显示复选框（批量选择模式）
+  final bool showCheckbox;
+
+  /// 是否在批量选择模式中
+  final bool isBatchSelectionMode;
+
   const TagChip({
     super.key,
     required this.tag,
@@ -75,6 +81,8 @@ class TagChip extends ConsumerStatefulWidget {
     this.isEditing = false,
     this.onEnterEdit,
     this.onExitEdit,
+    this.showCheckbox = false,
+    this.isBatchSelectionMode = false,
   });
 
   @override
@@ -643,6 +651,12 @@ class _TagChipState extends ConsumerState<TagChip>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 批量选择复选框
+          if (widget.showCheckbox)
+            _BatchSelectionCheckbox(
+              isSelected: widget.tag.selected,
+              theme: theme,
+            ),
           _buildSyntaxHighlightedText(theme, effectiveColor, isEnabled),
           // 收藏按钮（常驻显示，在标签内部）
           if (!widget.compact)
@@ -799,6 +813,8 @@ class DraggableTagChip extends StatelessWidget {
   final bool isEditing;
   final VoidCallback? onEnterEdit;
   final VoidCallback? onExitEdit;
+  final bool showCheckbox;
+  final bool isBatchSelectionMode;
 
   const DraggableTagChip({
     super.key,
@@ -815,6 +831,8 @@ class DraggableTagChip extends StatelessWidget {
     this.isEditing = false,
     this.onEnterEdit,
     this.onExitEdit,
+    this.showCheckbox = false,
+    this.isBatchSelectionMode = false,
   });
 
   @override
@@ -834,6 +852,8 @@ class DraggableTagChip extends StatelessWidget {
         isEditing: isEditing,
         onEnterEdit: onEnterEdit,
         onExitEdit: onExitEdit,
+        showCheckbox: showCheckbox,
+        isBatchSelectionMode: isBatchSelectionMode,
       );
     }
 
@@ -848,6 +868,8 @@ class DraggableTagChip extends StatelessWidget {
             isDragging: true,
             showControls: false,
             compact: compact,
+            showCheckbox: showCheckbox,
+            isBatchSelectionMode: isBatchSelectionMode,
           ),
         ),
       ),
@@ -858,6 +880,8 @@ class DraggableTagChip extends StatelessWidget {
             tag: tag,
             showControls: false,
             compact: compact,
+            showCheckbox: showCheckbox,
+            isBatchSelectionMode: isBatchSelectionMode,
           ),
         ),
       ),
@@ -874,6 +898,8 @@ class DraggableTagChip extends StatelessWidget {
         isEditing: isEditing,
         onEnterEdit: onEnterEdit,
         onExitEdit: onExitEdit,
+        showCheckbox: showCheckbox,
+        isBatchSelectionMode: isBatchSelectionMode,
       ),
     );
   }
@@ -1164,5 +1190,48 @@ class _DashedBorderPainter extends CustomPainter {
         oldDelegate.dashWidth != dashWidth ||
         oldDelegate.dashSpace != dashSpace ||
         oldDelegate.borderRadius != borderRadius;
+  }
+}
+
+/// 批量选择复选框
+class _BatchSelectionCheckbox extends StatelessWidget {
+  final bool isSelected;
+  final ThemeData theme;
+
+  const _BatchSelectionCheckbox({
+    required this.isSelected,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.5),
+            width: 1.5,
+          ),
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                size: 12,
+                color: theme.colorScheme.onPrimary,
+              )
+            : null,
+      ),
+    );
   }
 }
