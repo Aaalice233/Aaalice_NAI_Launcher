@@ -345,8 +345,10 @@ class _TagChipState extends ConsumerState<TagChip>
           )
         : null;
 
-    // 标签芯片（包含文本和删除按钮）
-    final tagChipContent = Container(
+    // 标签芯片（包含文本和删除按钮）- 使用 AnimatedContainer 实现平滑颜色过渡
+    final tagChipContent = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
       padding: EdgeInsets.only(
         left: widget.compact
             ? TagChipSizes.compactHorizontalPadding
@@ -430,9 +432,10 @@ class _TagChipState extends ConsumerState<TagChip>
       ),
     );
 
-    // Apply brightness overlay on hover
+    // Apply brightness overlay on hover - 使用 200ms 实现平滑过渡
     final tagChip = AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
       foregroundDecoration: BoxDecoration(
         color: _isHovering && !TagChip.isMobile
             ? Colors.white.withOpacity(0.08)
@@ -479,15 +482,25 @@ class _TagChipState extends ConsumerState<TagChip>
       ),
     );
 
-    // 包装交互层
-    chipContent = MouseRegion(
-      onEnter: (_) => _onMouseEnter(),
-      onExit: (_) => _onMouseExit(),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onDoubleTap: _handleDoubleTap,
-        onLongPress: _onLongPress,
-        child: chipContent,
+    // 包装交互层 - 添加 Material 以支持水波纹效果
+    chipContent = Material(
+      color: Colors.transparent,
+      child: MouseRegion(
+        onEnter: (_) => _onMouseEnter(),
+        onExit: (_) => _onMouseExit(),
+        child: InkWell(
+          onTap: widget.onTap,
+          onDoubleTap: _handleDoubleTap,
+          onLongPress: _onLongPress,
+          splashColor: effectiveColor.withOpacity(0.2),
+          highlightColor: effectiveColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(
+            widget.compact
+                ? TagChipSizes.compactBorderRadius
+                : TagChipSizes.normalBorderRadius,
+          ),
+          child: chipContent,
+        ),
       ),
     );
 
@@ -642,10 +655,12 @@ class _DeleteButtonState extends State<_DeleteButton> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
           padding: const EdgeInsets.only(left: 6),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: _isHovering
@@ -694,10 +709,12 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
           padding: const EdgeInsets.only(left: 4),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: _isHovering
