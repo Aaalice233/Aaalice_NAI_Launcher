@@ -300,10 +300,50 @@ class _TagChipState extends ConsumerState<TagChip>
     final isEnabled = widget.tag.enabled;
     final isSelected = widget.tag.selected;
     final favorites = ref.watch(tagFavoriteNotifierProvider).favorites;
+    final isDark = theme.brightness == Brightness.dark;
 
     // 检测特殊标签类型颜色
     final specialColor = PromptTagColors.getSpecialTypeColor(widget.tag.text);
     final effectiveColor = specialColor ?? tagColor;
+
+    // 计算阴影配置
+    final shadowBlur = widget.isDragging
+        ? TagShadowConfig.draggingBlurRadius
+        : _isHovering
+            ? TagShadowConfig.hoverBlurRadius
+            : isSelected
+                ? TagShadowConfig.selectedBlurRadius
+                : isEnabled
+                    ? TagShadowConfig.normalBlurRadius
+                    : TagShadowConfig.disabledBlurRadius;
+
+    final shadowOffset = widget.isDragging
+        ? Offset(TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY)
+        : _isHovering
+            ? Offset(TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY)
+            : isSelected
+                ? Offset(TagShadowConfig.selectedOffsetX, TagShadowConfig.selectedOffsetY)
+                : isEnabled
+                    ? Offset(TagShadowConfig.normalOffsetX, TagShadowConfig.normalOffsetY)
+                    : Offset(TagShadowConfig.disabledOffsetX, TagShadowConfig.disabledOffsetY);
+
+    final shadowOpacity = widget.isDragging
+        ? TagShadowConfig.draggingOpacity
+        : _isHovering
+            ? TagShadowConfig.hoverOpacity
+            : isSelected
+                ? TagShadowConfig.selectedOpacity
+                : isEnabled
+                    ? TagShadowConfig.normalOpacity
+                    : TagShadowConfig.disabledOpacity;
+
+    // 获取渐变色
+    final gradient = isEnabled
+        ? CategoryGradient.getThemedGradient(
+            widget.tag.category,
+            isDark: isDark,
+          )
+        : null;
 
     // 标签芯片（包含文本和删除按钮）
     final tagChip = Container(
@@ -324,12 +364,15 @@ class _TagChipState extends ConsumerState<TagChip>
             : TagChipSizes.normalVerticalPadding,
       ),
       decoration: BoxDecoration(
-        color: PromptTagColors.getBackgroundColor(
-          effectiveColor,
-          isSelected: isSelected,
-          isEnabled: isEnabled,
-          theme: theme,
-        ),
+        gradient: gradient,
+        color: isEnabled
+            ? null
+            : PromptTagColors.getBackgroundColor(
+                effectiveColor,
+                isSelected: isSelected,
+                isEnabled: isEnabled,
+                theme: theme,
+              ),
         borderRadius: BorderRadius.circular(
           widget.compact
               ? TagChipSizes.compactBorderRadius
@@ -345,15 +388,13 @@ class _TagChipState extends ConsumerState<TagChip>
           ),
           width: isSelected ? 1.5 : 1,
         ),
-        boxShadow: widget.isDragging
-            ? [
-                BoxShadow(
-                  color: effectiveColor.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: effectiveColor.withOpacity(shadowOpacity),
+            blurRadius: shadowBlur,
+            offset: shadowOffset,
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
