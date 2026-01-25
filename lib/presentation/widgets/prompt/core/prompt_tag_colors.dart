@@ -217,19 +217,27 @@ class CategoryGradient {
   }
 
   /// 根据主题调整渐变色（用于暗色模式优化）
+  ///
+  /// [category] 分类编号 (0-4)
+  /// [isDark] 是否为暗色模式
+  ///
+  /// 返回适合当前主题的渐变色
+  /// - 亮色模式：保持原样（中等亮度，配合深色文字）
+  /// - 暗色模式：降低亮度（深色背景，配合浅色文字）
   static LinearGradient getThemedGradient(
     int category, {
     required bool isDark,
   }) {
     final baseGradient = getGradientByCategory(category);
 
-    // 暗色模式下增加亮度，亮色模式下保持原样
+    // 暗色模式下降低亮度，亮色模式下保持原样
     if (isDark) {
       return LinearGradient(
         colors: baseGradient.colors.map((color) {
-          // 增加颜色亮度以适应暗色背景
+          // 降低颜色亮度以适应暗色模式（配合浅色文字）
+          // 降低幅度设置为 0.5 以确保 WCAG AA 合规（4.5:1 对比度）
           final hsl = HSLColor.fromColor(color);
-          return hsl.withLightness((hsl.lightness + 0.1).clamp(0.0, 1.0)).toColor();
+          return hsl.withLightness((hsl.lightness - 0.5).clamp(0.02, 0.98)).toColor();
         }).toList(),
         begin: baseGradient.begin,
         end: baseGradient.end,
