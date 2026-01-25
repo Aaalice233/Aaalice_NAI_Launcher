@@ -403,7 +403,9 @@ class _BrushPresetButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? theme.colorScheme.primaryContainer : null,
           border: Border.all(
-            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
@@ -414,14 +416,18 @@ class _BrushPresetButton extends StatelessWidget {
             Icon(
               preset.icon,
               size: 24,
-              color: isSelected ? theme.colorScheme.primary : null,
+              color: isSelected
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 2),
             Text(
               preset.name,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: isSelected ? theme.colorScheme.primary : null,
-                fontWeight: isSelected ? FontWeight.bold : null,
+                color: isSelected
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
