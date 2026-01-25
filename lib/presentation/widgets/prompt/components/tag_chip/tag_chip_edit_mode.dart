@@ -60,9 +60,6 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
 
-  // Check if reduced motion is enabled
-  bool get _reducedMotion => MediaQuery.of(context).disableAnimations;
-
   @override
   void initState() {
     super.initState();
@@ -73,9 +70,8 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
     _focusNode = FocusNode();
 
     // Initialize glow animation
-    final duration = _reducedMotion ? Duration.zero : const Duration(milliseconds: 150);
     _glowController = AnimationController(
-      duration: duration,
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
     _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -110,12 +106,13 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
   }
 
   void _onFocusChanged() {
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
     if (_focusNode.hasFocus) {
-      if (!_reducedMotion) {
+      if (!reducedMotion) {
         _glowController.forward();
       }
     } else {
-      if (!_reducedMotion) {
+      if (!reducedMotion) {
         _glowController.reverse();
       }
       _commitEdit();

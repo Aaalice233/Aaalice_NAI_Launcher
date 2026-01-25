@@ -91,9 +91,6 @@ class _TagViewState extends ConsumerState<TagView>
 
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
-  // Check if reduced motion is enabled
-  bool get _reducedMotion => MediaQuery.of(context).disableAnimations;
-
   @override
   bool get wantKeepAlive => true;
 
@@ -108,31 +105,13 @@ class _TagViewState extends ConsumerState<TagView>
     );
     _tabController.addListener(_handleTabChange);
 
-    // 初始化入场动画控制器 (skip if reduced motion is enabled)
-    if (!_reducedMotion) {
-      _entranceController = TagChipAnimationControllerFactory.createEntranceController(this);
-      _entranceController.forward();
-    } else {
-      // Initialize with zero duration for reduced motion
-      _entranceController = AnimationController(
-        duration: Duration.zero,
-        vsync: this,
-      );
-      _entranceController.forward();
-    }
+    // 初始化入场动画控制器
+    _entranceController = TagChipAnimationControllerFactory.createEntranceController(this);
+    _entranceController.forward();
 
-    // 初始化骨架屏shimmer动画控制器 (skip if reduced motion is enabled)
-    if (!_reducedMotion) {
-      _shimmerController = TagChipAnimationControllerFactory.createShimmerController(this);
-      _shimmerController.repeat();
-    } else {
-      // Initialize with zero duration for reduced motion
-      _shimmerController = AnimationController(
-        duration: Duration.zero,
-        vsync: this,
-      );
-      _shimmerController.forward();
-    }
+    // 初始化骨架屏shimmer动画控制器
+    _shimmerController = TagChipAnimationControllerFactory.createShimmerController(this);
+    _shimmerController.repeat();
   }
 
   void _handleTabChange() {
@@ -333,6 +312,7 @@ class _TagViewState extends ConsumerState<TagView>
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final hasSelection = widget.tags.any((t) => t.selected);
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -720,8 +700,10 @@ class _TagViewState extends ConsumerState<TagView>
   }
 
   Widget _buildEmptyState(ThemeData theme) {
+    // Check reduced motion here - can't use MediaQuery in initState
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
     // Skip animation when reduced motion is enabled
-    if (_reducedMotion) {
+    if (reducedMotion) {
       return SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -895,16 +877,17 @@ class _TagViewState extends ConsumerState<TagView>
   Widget _buildDragTarget(int index, PromptTag tag, ThemeData theme) {
     final isEditing = _editingTagId == tag.id;
     final hasSelection = widget.tags.any((t) => t.selected);
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     // 创建错峰入场动画 (skip when reduced motion is enabled)
-    final opacityAnimation = _reducedMotion
+    final opacityAnimation = reducedMotion
         ? null
         : createStaggeredEntranceAnimation(
             index: index,
             controller: _entranceController,
           );
 
-    final slideAnimation = _reducedMotion
+    final slideAnimation = reducedMotion
         ? null
         : createEntranceSlideAnimation(_entranceController);
 
@@ -919,7 +902,7 @@ class _TagViewState extends ConsumerState<TagView>
       );
 
       // Skip entrance animation when reduced motion is enabled
-      final childWidget = _reducedMotion
+      final childWidget = reducedMotion
           ? tagChip
           : TagChipEntranceBuilder(
               opacityAnimation: opacityAnimation!,
@@ -949,7 +932,7 @@ class _TagViewState extends ConsumerState<TagView>
         final isTarget = _dragTargetIndex == index && candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: _reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
+          duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
           padding: EdgeInsets.only(left: isTarget ? 28 : 0),
           child: Stack(
             children: [
@@ -984,7 +967,7 @@ class _TagViewState extends ConsumerState<TagView>
               // 标签卡片
               Container(
                 key: _tagKeys.length > index ? _tagKeys[index] : null,
-                child: _reducedMotion
+                child: reducedMotion
                     ? DraggableTagChip(
                         tag: tag,
                         index: index,
@@ -1211,9 +1194,10 @@ class _TagViewState extends ConsumerState<TagView>
   Widget _buildSkeletonLoading(ThemeData theme) {
     // 生成不同宽度的骨架芯片以模拟真实标签
     final skeletonWidths = [80.0, 120.0, 100.0, 90.0, 110.0, 85.0, 95.0, 105.0];
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     // Skip animation when reduced motion is enabled
-    if (_reducedMotion) {
+    if (reducedMotion) {
       return SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(8),
