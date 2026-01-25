@@ -673,7 +673,7 @@
     }
   },
   "qa_signoff": null,
-  "status": "in_progress",
-  "planStatus": "in_progress",
-  "updated_at": "2026-01-24T15:22:40.760Z"
+  "status": "done",
+  "planStatus": "completed",
+  "updated_at": "2026-01-25T02:55:20.533Z"
 }
