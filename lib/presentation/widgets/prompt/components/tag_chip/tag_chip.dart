@@ -782,7 +782,8 @@ class _TagChipState extends ConsumerState<TagChip>
       );
     }
 
-    return chipContent;
+    // Wrap in RepaintBoundary to isolate animations and improve performance
+    return RepaintBoundary(child: chipContent);
   }
 }
 
@@ -844,19 +845,23 @@ class DraggableTagChip extends StatelessWidget {
       delay: Duration(milliseconds: TagChip.isMobile ? 300 : 200),
       feedback: Material(
         color: Colors.transparent,
-        child: TagChip(
-          tag: tag,
-          isDragging: true,
-          showControls: false,
-          compact: compact,
+        child: RepaintBoundary(
+          child: TagChip(
+            tag: tag,
+            isDragging: true,
+            showControls: false,
+            compact: compact,
+          ),
         ),
       ),
       childWhenDragging: Opacity(
         opacity: 0.3,
-        child: TagChip(
-          tag: tag,
-          showControls: false,
-          compact: compact,
+        child: RepaintBoundary(
+          child: TagChip(
+            tag: tag,
+            showControls: false,
+            compact: compact,
+          ),
         ),
       ),
       child: TagChip(
@@ -924,43 +929,45 @@ class _DeleteButtonState extends State<_DeleteButton>
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: _handleTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.only(left: 6),
-          child: AnimatedBuilder(
-            animation: _shrinkAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _shrinkAnimation.value,
-                child: Opacity(
-                  opacity: _shrinkAnimation.value,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: _isHovering
-                          ? widget.theme.colorScheme.error.withOpacity(0.15)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Icon(
-                      Icons.close,
-                      size: 12,
-                      color: _isHovering
-                          ? widget.theme.colorScheme.error
-                          : widget.theme.colorScheme.onSurface.withOpacity(0.4),
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: GestureDetector(
+          onTap: _handleTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            padding: const EdgeInsets.only(left: 6),
+            child: AnimatedBuilder(
+              animation: _shrinkAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _shrinkAnimation.value,
+                  child: Opacity(
+                    opacity: _shrinkAnimation.value,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: _isHovering
+                            ? widget.theme.colorScheme.error.withOpacity(0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        Icons.close,
+                        size: 12,
+                        color: _isHovering
+                            ? widget.theme.colorScheme.error
+                            : widget.theme.colorScheme.onSurface.withOpacity(0.4),
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -1015,46 +1022,48 @@ class _FavoriteButtonState extends State<_FavoriteButton>
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: _handleTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.only(left: 4),
-          child: AnimatedBuilder(
-            animation: _jumpAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _jumpAnimation.value,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: _isHovering
-                        ? (widget.isFavorite
-                            ? Colors.red.withOpacity(0.15)
-                            : widget.theme.colorScheme.primary.withOpacity(0.15))
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(4),
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: GestureDetector(
+          onTap: _handleTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            padding: const EdgeInsets.only(left: 4),
+            child: AnimatedBuilder(
+              animation: _jumpAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _jumpAnimation.value,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: _isHovering
+                          ? (widget.isFavorite
+                              ? Colors.red.withOpacity(0.15)
+                              : widget.theme.colorScheme.primary.withOpacity(0.15))
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                      size: 12,
+                      color: widget.isFavorite
+                          ? (_isHovering
+                              ? Colors.red.shade400
+                              : Colors.red.shade300)
+                          : (_isHovering
+                              ? widget.theme.colorScheme.primary
+                              : widget.theme.colorScheme.onSurface.withOpacity(0.4)),
+                    ),
                   ),
-                  child: Icon(
-                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    size: 12,
-                    color: widget.isFavorite
-                        ? (_isHovering
-                            ? Colors.red.shade400
-                            : Colors.red.shade300)
-                        : (_isHovering
-                            ? widget.theme.colorScheme.primary
-                            : widget.theme.colorScheme.onSurface.withOpacity(0.4)),
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
