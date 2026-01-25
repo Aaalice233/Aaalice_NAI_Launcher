@@ -12,6 +12,7 @@ import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
+import 'components/tag_chip/tag_chip_animations.dart';
 import 'tag_group_browser.dart';
 import 'tag_favorite_panel.dart';
 import 'tag_template_panel.dart';
@@ -77,6 +78,9 @@ class _TagViewState extends ConsumerState<TagView>
   // Tab 状态持久化
   int _currentTabIndex = 0;
 
+  // 入场动画相关
+  late AnimationController _entranceController;
+
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
   @override
@@ -92,6 +96,10 @@ class _TagViewState extends ConsumerState<TagView>
       initialIndex: _currentTabIndex,
     );
     _tabController.addListener(_handleTabChange);
+
+    // 初始化入场动画控制器
+    _entranceController = TagChipAnimationControllerFactory.createEntranceController(this);
+    _entranceController.forward();
   }
 
   void _handleTabChange() {
@@ -126,6 +134,7 @@ class _TagViewState extends ConsumerState<TagView>
     _addTagFocusNode.dispose();
     _selectionController.dispose();
     _tabController.dispose();
+    _entranceController.dispose();
     super.dispose();
   }
 
@@ -651,14 +660,28 @@ class _TagViewState extends ConsumerState<TagView>
   Widget _buildDragTarget(int index, PromptTag tag, ThemeData theme) {
     final isEditing = _editingTagId == tag.id;
 
+    // 创建错峰入场动画
+    final opacityAnimation = createStaggeredEntranceAnimation(
+      index: index,
+      controller: _entranceController,
+    );
+
+    final slideAnimation = createEntranceSlideAnimation(_entranceController);
+
     if (widget.readOnly) {
+      final tagChip = TagChip(
+        tag: tag,
+        compact: widget.compact,
+        showControls: false,
+        onTap: () => _handleTagTap(tag.id),
+      );
+
       return Container(
         key: _tagKeys.length > index ? _tagKeys[index] : null,
-        child: TagChip(
-          tag: tag,
-          compact: widget.compact,
-          showControls: false,
-          onTap: () => _handleTagTap(tag.id),
+        child: TagChipEntranceBuilder(
+          opacityAnimation: opacityAnimation,
+          slideAnimation: slideAnimation,
+          child: tagChip,
         ),
       );
     }
@@ -714,20 +737,24 @@ class _TagViewState extends ConsumerState<TagView>
               // 标签卡片
               Container(
                 key: _tagKeys.length > index ? _tagKeys[index] : null,
-                child: DraggableTagChip(
-                  tag: tag,
-                  index: index,
-                  onDelete: () => _handleDeleteTag(tag.id),
-                  onTap: () => _handleTagTap(tag.id),
-                  onToggleEnabled: () => _handleToggleEnabled(tag.id),
-                  onWeightChanged: (weight) =>
-                      _handleWeightChanged(tag.id, weight),
-                  onTextChanged: (text) => _handleTextChanged(tag.id, text),
-                  showControls: !widget.compact,
-                  compact: widget.compact,
-                  isEditing: isEditing,
-                  onEnterEdit: () => _enterEditMode(tag.id),
-                  onExitEdit: _exitEditMode,
+                child: TagChipEntranceBuilder(
+                  opacityAnimation: opacityAnimation,
+                  slideAnimation: slideAnimation,
+                  child: DraggableTagChip(
+                    tag: tag,
+                    index: index,
+                    onDelete: () => _handleDeleteTag(tag.id),
+                    onTap: () => _handleTagTap(tag.id),
+                    onToggleEnabled: () => _handleToggleEnabled(tag.id),
+                    onWeightChanged: (weight) =>
+                        _handleWeightChanged(tag.id, weight),
+                    onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                    showControls: !widget.compact,
+                    compact: widget.compact,
+                    isEditing: isEditing,
+                    onEnterEdit: () => _enterEditMode(tag.id),
+                    onExitEdit: _exitEditMode,
+                  ),
                 ),
               ),
             ],
