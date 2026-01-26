@@ -260,6 +260,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ],
           ),
           const Spacer(),
+          // 统计按钮
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => GalleryStatisticsDialog.show(context),
+            tooltip: context.l10n.statistics_title,
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 8),
           // 记录数量
           Text(
             context.l10n.gallery_imageCount(state.records.length.toString()),
