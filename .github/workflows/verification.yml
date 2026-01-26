@@ -1,0 +1,130 @@
+name: Verification Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  verify:
+    name: Run Verification Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Create test results directory
+        run: mkdir -p test_results
+
+      - name: Run tests with coverage
+        run: |
+          flutter test --coverage --reporter json > test_results/output.json
+
+      - name: Process test results
+        run: dart run tool/test_result_processor.dart test_results/output.json test_results/summary.json
+
+      - name: Process coverage report
+        run: dart run tool/coverage_processor.dart --input coverage/lcov.info --output test_results/coverage.json
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-report
+          path: |
+            test_results/output.json
+            test_results/summary.json
+            test_results/coverage.json
+            coverage/
+          retention-days: 30
+
+      - name: Generate coverage badge
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: |
+          # Generate coverage badge from coverage.json (optional enhancement)
+          echo "Coverage data processed successfully"
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary;
+            try {
+              summary = JSON.parse(fs.readFileSync('test_results/summary.json', 'utf8'));
+            } catch (error) {
+              console.log('Could not read summary.json');
+              return;
+            }
+
+            const passRate = (summary.summary.passRate * 100).toFixed(2);
+            const status = summary.summary.success ? '✅ PASSED' : '❌ FAILED';
+            const threshold = (summary.summary.passRateThreshold * 100).toFixed(0);
+
+            const body = `## 🔍 Verification Results ${status}
+
+            ### 📊 Test Summary
+            - **Total Tests**: ${summary.summary.totalTests}
+            - **✅ Passed**: ${summary.summary.passedTests}
+            - **❌ Failed**: ${summary.summary.failedTests}
+            - **⏭️ Skipped**: ${summary.summary.skippedTests}
+            - **📈 Pass Rate**: ${passRate}% (threshold: ${threshold}%)
+
+            ### 🐛 BUG Test Results
+            `;
+
+            // Add BUG test results
+            const bugTests = summary.resultsByFile.filter(f => f.bugId);
+            if (bugTests.length > 0) {
+              bugTests.forEach(file => {
+                const bugStatus = file.failed === 0 ? '✅' : '❌';
+                body += `\n- ${bugStatus} **${file.bugId}**: ${file.passed}/${file.total} passed`;
+              });
+            }
+
+            body += `\n
+            ---
+            📄 [View full report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            🔍 [Checkout this branch] to review test results locally
+            `;
+
+            github.rest.issues.createComment({
+              ...context.issue,
+              body: body
+            });
+
+      - name: Check test results
+        run: |
+          # Fail the workflow if pass rate is below threshold
+          $summary = Get-Content test_results/summary.json | ConvertFrom-Json
+          if (-not $summary.summary.success) {
+            Write-Host "Pass rate below threshold - failing workflow"
+            exit 1
+          }
+          Write-Host "Pass rate meets threshold - workflow successful"
+        shell: pwsh
+
+      - name: Upload coverage to Codecov (optional)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true

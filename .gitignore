@@ -123,6 +123,14 @@ logs/security/
 .sisyphus/
 .opencode/
 test/
+test_results/
+
+# Exception: Dashboard source files (not generated results)
+!test_results/dashboard/
+!test_results/dashboard/*.html
+!test_results/dashboard/*.css
+!test_results/dashboard/*.js
+
 NAI COPY/
 analyze_report.txt
 install-log.txt
@@ -141,3 +149,4 @@ SUBTASK_*.md
 VERIFICATION_*.md
 mask_upload_*.md
 CLAUDE.md
+test_hive/

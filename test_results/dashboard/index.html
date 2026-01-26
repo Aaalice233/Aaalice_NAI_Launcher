@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Dashboard - NovelAI Launcher</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Verification Dashboard</h1>
+            <p class="subtitle">NovelAI Universal Launcher - Bug Fixes & Improvements Verification</p>
+            <div class="timestamp" id="timestamp">Loading...</div>
+        </header>
+
+        <!-- Summary Cards -->
+        <section class="summary-section">
+            <div class="summary-card total">
+                <div class="card-icon">📊</div>
+                <div class="card-content">
+                    <div class="card-label">Total Tests</div>
+                    <div class="card-value" id="total-tests">-</div>
+                </div>
+            </div>
+            <div class="summary-card passed">
+                <div class="card-icon">✅</div>
+                <div class="card-content">
+                    <div class="card-label">Passed</div>
+                    <div class="card-value" id="passed-tests">-</div>
+                </div>
+            </div>
+            <div class="summary-card failed">
+                <div class="card-icon">❌</div>
+                <div class="card-content">
+                    <div class="card-label">Failed</div>
+                    <div class="card-value" id="failed-tests">-</div>
+                </div>
+            </div>
+            <div class="summary-card skipped">
+                <div class="card-icon">⏭️</div>
+                <div class="card-content">
+                    <div class="card-label">Skipped</div>
+                    <div class="card-value" id="skipped-tests">-</div>
+                </div>
+            </div>
+            <div class="summary-card pass-rate">
+                <div class="card-icon">📈</div>
+                <div class="card-content">
+                    <div class="card-label">Pass Rate</div>
+                    <div class="card-value" id="pass-rate">-</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Overall Status Banner -->
+        <section class="status-banner" id="status-banner">
+            <div class="status-content">
+                <span class="status-icon" id="status-icon">⏳</span>
+                <span class="status-text" id="status-text">Loading test results...</span>
+            </div>
+        </section>
+
+        <!-- Filters and Controls -->
+        <section class="controls-section">
+            <div class="filter-group">
+                <label for="status-filter">Filter by Status:</label>
+                <select id="status-filter" class="filter-select">
+                    <option value="all">All Tests</option>
+                    <option value="passed">Passed Only</option>
+                    <option value="failed">Failed Only</option>
+                    <option value="skipped">Skipped Only</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="category-filter">Filter by Category:</label>
+                <select id="category-filter" class="filter-select">
+                    <option value="all">All Categories</option>
+                    <option value="bug">BUG Tests</option>
+                    <option value="improvement">Improvement Tests</option>
+                    <option value="other">Other Tests</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="search-input">Search:</label>
+                <input type="text" id="search-input" class="search-input" placeholder="Search test names...">
+            </div>
+
+            <div class="filter-group">
+                <label for="sort-select">Sort by:</label>
+                <select id="sort-select" class="filter-select">
+                    <option value="file">File Name</option>
+                    <option value="name">Test Name</option>
+                    <option value="duration">Duration</option>
+                    <option value="status">Status</option>
+                </select>
+            </div>
+
+            <div class="action-buttons">
+                <button id="export-json" class="btn btn-secondary">Export JSON</button>
+                <button id="export-csv" class="btn btn-secondary">Export CSV</button>
+                <button id="refresh-data" class="btn btn-primary">Refresh Data</button>
+            </div>
+        </section>
+
+        <!-- BUG Tests Section -->
+        <section class="test-section" id="bug-tests-section">
+            <h2 class="section-header">
+                <span class="section-icon">🐛</span>
+                BUG Tests (9 Automated Test Cases)
+                <span class="section-count" id="bug-count">-</span>
+            </h2>
+            <div class="test-grid" id="bug-tests-grid">
+                <!-- BUG test cards will be dynamically inserted here -->
+                <div class="loading-spinner">Loading BUG tests...</div>
+            </div>
+        </section>
+
+        <!-- Manual Verification Section -->
+        <section class="test-section" id="manual-verification-section">
+            <h2 class="section-header">
+                <span class="section-icon">📋</span>
+                Manual Verification Checklist (16 Improvements)
+                <span class="section-count">16 Items</span>
+            </h2>
+            <div class="manual-checklist" id="manual-checklist">
+                <!-- Manual verification items will be listed here -->
+                <div class="info-message">
+                    <p>Manual verification steps are documented in:</p>
+                    <a href="../manual_verification.md" target="_blank" class="link-button">test_results/manual_verification.md</a>
+                </div>
+
+                <div class="manual-categories">
+                    <div class="manual-category">
+                        <h3>UI Layout Tests (IMPR-001~004)</h3>
+                        <ul class="checklist-items">
+                            <li>IMPR-001: Main layout structure verification</li>
+                            <li>IMPR-002: Prompt editor layout verification</li>
+                            <li>IMPR-003: Gallery grid layout verification</li>
+                            <li>IMPR-004: Settings panel layout verification</li>
+                        </ul>
+                    </div>
+
+                    <div class="manual-category">
+                        <h3>Feature Flags (IMPR-005, 013~016)</h3>
+                        <ul class="checklist-items">
+                            <li>IMPR-005: Vibe encoding feature flag</li>
+                            <li>IMPR-013: Multi-prompt box feature flag</li>
+                            <li>IMPR-014: Character bar feature flag</li>
+                            <li>IMPR-015: Drag-and-drop metadata feature flag</li>
+                            <li>IMPR-016: Advanced settings panel feature flag</li>
+                        </ul>
+                    </div>
+
+                    <div class="manual-category">
+                        <h3>Workflow Tests (IMPR-006~008, 012)</h3>
+                        <ul class="checklist-items">
+                            <li>IMPR-006: Multi-prompt box workflow</li>
+                            <li>IMPR-007: Tag suggestions integration</li>
+                            <li>IMPR-008: Prompt box state persistence</li>
+                            <li>IMPR-012: Drag-and-drop metadata extraction</li>
+                        </ul>
+                    </div>
+
+                    <div class="manual-category">
+                        <h3>Performance Tests (IMPR-011)</h3>
+                        <ul class="checklist-items">
+                            <li>IMPR-011: Gallery pagination and infinite scroll performance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Results Section -->
+        <section class="test-section" id="detailed-results-section">
+            <h2 class="section-header">
+                <span class="section-icon">📝</span>
+                Detailed Test Results
+                <span class="section-count" id="detailed-count">-</span>
+            </h2>
+
+            <!-- Test File Results -->
+            <div class="file-results" id="file-results">
+                <!-- File result cards will be dynamically inserted here -->
+                <div class="loading-spinner">Loading test results...</div>
+            </div>
+        </section>
+
+        <!-- Evidence Collection Section -->
+        <section class="test-section" id="evidence-section">
+            <h2 class="section-header">
+                <span class="section-icon">📸</span>
+                Evidence Collection
+                <span class="section-count" id="evidence-count">-</span>
+            </h2>
+            <div class="evidence-grid" id="evidence-grid">
+                <div class="evidence-card">
+                    <h3>📁 Test Fixtures</h3>
+                    <p>Mocked API responses and test data:</p>
+                    <code>test/fixtures/</code>
+                    <div class="evidence-status" id="fixture-count">Loading...</div>
+                </div>
+                <div class="evidence-card">
+                    <h3>📊 Test Logs</h3>
+                    <p>Test execution results and outputs:</p>
+                    <code>test_results/*.json</code>
+                    <div class="evidence-status" id="log-count">Loading...</div>
+                </div>
+                <div class="evidence-card">
+                    <h3>🖼️ Screenshots</h3>
+                    <p>Test images and visual references:</p>
+                    <code>test/fixtures/images/</code>
+                    <div class="evidence-status" id="screenshot-count">Loading...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Regression Detection Section -->
+        <section class="test-section" id="regression-section">
+            <h2 class="section-header">
+                <span class="section-icon">🔍</span>
+                Regression Detection
+                <span class="section-count" id="regression-count">-</span>
+            </h2>
+            <div class="regression-info" id="regression-info">
+                <p class="info-text">
+                    Compare current test results with previous runs to identify new failures.
+                </p>
+                <div class="regression-comparison" id="regression-comparison">
+                    <div class="loading-spinner">Loading regression data...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Coverage Report Section -->
+        <section class="test-section" id="coverage-section">
+            <h2 class="section-header">
+                <span class="section-icon">📊</span>
+                Code Coverage Report
+            </h2>
+            <div class="coverage-grid" id="coverage-grid">
+                <div class="coverage-card">
+                    <h3>Overall Coverage</h3>
+                    <div class="coverage-percentage" id="overall-coverage">-</div>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" id="overall-coverage-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="coverage-message">
+                    <p>Code coverage data will be available when running tests with the <code>--coverage</code> flag:</p>
+                    <pre>flutter test --coverage</pre>
+                    <p>Coverage report will be generated in: <code>coverage/lcov.info</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>
+                Verification Dashboard for NovelAI Universal Launcher<br>
+                Generated by AI-Assisted Verification System
+            </p>
+            <p class="footer-links">
+                <a href="../manual_verification.md" target="_blank">Manual Verification Guide</a> |
+                <a href="https://flutter.dev/docs/testing" target="_blank">Flutter Testing Documentation</a> |
+                <a href="../../.github/workflows/verification.yml" target="_blank">CI/CD Workflow</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Test Detail Modal -->
+    <div id="test-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2 id="modal-title">Test Details</h2>
+            <div id="modal-body" class="modal-body">
+                <!-- Test details will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
