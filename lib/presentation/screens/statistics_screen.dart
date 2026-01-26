@@ -32,6 +32,12 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
   late TabController _tabController;
   List<LocalImageRecord> _allRecords = [];
 
+  // Filter state
+  DateTimeRange? _dateRange;
+  String? _selectedModel;
+  String? _selectedResolution;
+  int _filterVersion = 0; // Increment to force FutureBuilder rebuild
+
   @override
   void initState() {
     super.initState();
@@ -56,8 +62,81 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     // 保存记录用于筛选
     _allRecords = allRecords;
 
-    return service.calculateStatistics(allRecords);
+    // 应用筛选器
+    final filteredRecords = _applyFilters(allRecords);
+
+    return service.calculateStatistics(filteredRecords);
   }
+
+  /// 应用筛选器到记录列表
+  List<LocalImageRecord> _applyFilters(List<LocalImageRecord> records) {
+    var filtered = records;
+
+    // 应用日期范围筛选
+    if (_dateRange != null) {
+      filtered = filtered.where((record) {
+        final fileDate = record.metadata?.createdAt ?? DateTime.now();
+        return !fileDate.isBefore(_dateRange!.start) &&
+               !fileDate.isAfter(_dateRange!.end);
+      }).toList();
+    }
+
+    // 应用模型筛选
+    if (_selectedModel != null && _selectedModel!.isNotEmpty) {
+      filtered = filtered.where((record) {
+        return record.metadata?.model == _selectedModel;
+      }).toList();
+    }
+
+    // 应用分辨率筛选
+    if (_selectedResolution != null && _selectedResolution!.isNotEmpty) {
+      filtered = filtered.where((record) {
+        if (record.metadata == null) return false;
+        final resolution = '${record.metadata!.width}x${record.metadata!.height}';
+        return resolution == _selectedResolution;
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  /// 获取所有可用的模型列表
+  List<String> _getAvailableModels() {
+    final models = _allRecords
+        .map((r) => r.metadata?.model)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    models.sort();
+    return models;
+  }
+
+  /// 获取所有可用的分辨率列表
+  List<String> _getAvailableResolutions() {
+    final resolutions = _allRecords
+        .where((r) => r.metadata != null && r.metadata!.hasData)
+        .map((r) => '${r.metadata!.width}x${r.metadata!.height}')
+        .toSet()
+        .toList();
+    resolutions.sort();
+    return resolutions;
+  }
+
+  /// 清除所有筛选器
+  void _clearFilters() {
+    setState(() {
+      _dateRange = null;
+      _selectedModel = null;
+      _selectedResolution = null;
+      _filterVersion++;
+    });
+  }
+
+  /// 检查是否有活动的筛选器
+  bool get _hasActiveFilters =>
+      _dateRange != null ||
+      (_selectedModel != null && _selectedModel!.isNotEmpty) ||
+      (_selectedResolution != null && _selectedResolution!.isNotEmpty);
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +157,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
         ),
       ),
       body: FutureBuilder<GalleryStatistics>(
+        key: ValueKey(_filterVersion),
         future: _calculateStatistics(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -121,6 +201,235 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     );
   }
 
+  /// 构建筛选栏
+  Widget _buildFilterBar(ThemeData theme, AppLocalizations l10n) {
+    final availableModels = _getAvailableModels();
+    final availableResolutions = _getAvailableResolutions();
+
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
+              children: [
+                Icon(
+                  Icons.filter_list,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Filters',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                if (_hasActiveFilters)
+                  TextButton.icon(
+                    onPressed: _clearFilters,
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('Clear All'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Filter controls
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                // Date range filter
+                InkWell(
+                  onTap: _selectDateRange,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _dateRange != null
+                            ? theme.colorScheme.primary
+                            : theme.dividerColor,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: _dateRange != null
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _dateRange != null
+                              ? '${_formatDate(_dateRange!.start)} - ${_formatDate(_dateRange!.end)}'
+                              : 'Date Range',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _dateRange != null
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Model filter
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedModel,
+                    hint: const Text('Model'),
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _selectedModel != null
+                            ? theme.colorScheme.primary
+                            : theme.dividerColor,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: '',
+                        child: Text('All Models'),
+                      ),
+                      ...availableModels.map((model) {
+                        return DropdownMenuItem<String>(
+                          value: model,
+                          child: Text(
+                            model,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedModel = value?.isEmpty == true ? null : value;
+                        _filterVersion++;
+                      });
+                    },
+                  ),
+                ),
+
+                // Resolution filter
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedResolution,
+                    hint: const Text('Resolution'),
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _selectedResolution != null
+                            ? theme.colorScheme.primary
+                            : theme.dividerColor,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: '',
+                        child: Text('All Resolutions'),
+                      ),
+                      ...availableResolutions.map((resolution) {
+                        return DropdownMenuItem<String>(
+                          value: resolution,
+                          child: Text(resolution),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedResolution = value?.isEmpty == true ? null : value;
+                        _filterVersion++;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 选择日期范围
+  Future<void> _selectDateRange() async {
+    final now = DateTime.now();
+    final initialRange = _dateRange ??
+        DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now.add(const Duration(days: 30)),
+      initialDateRange: initialRange,
+    );
+
+    if (picked != null) {
+      // Set end date to end of day
+      final endOfDay = DateTime(
+        picked.end.year,
+        picked.end.month,
+        picked.end.day,
+        23,
+        59,
+        59,
+      );
+      setState(() {
+        _dateRange = DateTimeRange(start: picked.start, end: endOfDay);
+        _filterVersion++;
+      });
+    }
+  }
+
+  /// 格式化日期
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
   /// 构建 Overview Tab
   Widget _buildOverviewTab(
     ThemeData theme,
@@ -137,6 +446,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 筛选栏
+          _buildFilterBar(theme, l10n),
           // 总览统计卡片
           _buildOverviewCards(theme, statistics, l10n, isMobile, isTablet, isDesktop),
         ],
@@ -160,6 +471,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 筛选栏
+          _buildFilterBar(theme, l10n),
           // 模型分布图表
           if (statistics.modelDistribution.isNotEmpty) ...[
             _buildSectionHeader(
@@ -226,6 +539,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 筛选栏
+          _buildFilterBar(theme, l10n),
           // 其他统计
           _buildAdditionalStats(theme, statistics, l10n, isDesktop),
         ],
