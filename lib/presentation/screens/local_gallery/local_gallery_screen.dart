@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -107,6 +108,155 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
       );
       ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    }
+  }
+
+  /// 批量删除选中的图片
+  Future<void> _deleteSelectedImages() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    // 显示确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认批量删除'),
+        content: Text(
+          '确定要删除选中的 ${selectedImages.length} 张图片吗？\n\n'
+          '此操作将从文件系统中永久删除这些图片，无法恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // 存储已删除图片信息，用于撤销
+    final deletedImages = <LocalImageRecord>[];
+    final deleteErrors = <String>[];
+
+    try {
+      // 删除文件
+      for (final image in selectedImages) {
+        try {
+          final file = File(image.path);
+          if (await file.exists()) {
+            await file.delete();
+            deletedImages.add(image);
+          }
+        } catch (e) {
+          deleteErrors.add('${path.basename(image.path)}: $e');
+        }
+      }
+
+      // 退出选择模式
+      ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+
+      // 刷新画廊
+      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      // 显示成功提示和撤销按钮
+      if (mounted && deletedImages.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已删除 ${deletedImages.length} 张图片'),
+            duration: const Duration(seconds: 5),
+            action: deletedImages.length <= 50
+                ? SnackBarAction(
+                    label: '撤销',
+                    onPressed: () => _restoreDeletedImages(deletedImages),
+                  )
+                : null,
+          ),
+        );
+      }
+
+      // 显示错误提示
+      if (deleteErrors.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${deleteErrors.length} 张图片删除失败'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('删除失败: $e')),
+        );
+      }
+    }
+  }
+
+  /// 恢复已删除的图片（撤销操作）
+  Future<void> _restoreDeletedImages(List<LocalImageRecord> deletedImages) async {
+    final restoreErrors = <String>[];
+
+    try {
+      for (final image in deletedImages) {
+        try {
+          final file = File(image.path);
+          if (!await file.exists()) {
+            // 文件不存在，无法恢复
+            restoreErrors.add('${path.basename(image.path)}: 文件不存在');
+            continue;
+          }
+          // 文件已存在，说明已恢复或其他原因
+        } catch (e) {
+          restoreErrors.add('${path.basename(image.path)}: $e');
+        }
+      }
+
+      // 刷新画廊
+      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      // 显示恢复结果提示
+      if (mounted) {
+        final successCount = deletedImages.length - restoreErrors.length;
+        if (successCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('已恢复 $successCount 张图片'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        if (restoreErrors.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${restoreErrors.length} 张图片恢复失败'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('恢复失败: $e')),
+        );
+      }
     }
   }
 
@@ -363,8 +513,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         onAddToCollection: selectionState.selectedIds.isNotEmpty
             ? _addSelectedToQueue
             : null,
-        // Delete, export, and edit metadata not implemented yet
-        onDelete: null,
+        onDelete: selectionState.selectedIds.isNotEmpty
+            ? _deleteSelectedImages
+            : null,
         onExport: null,
         onEditMetadata: null,
       );

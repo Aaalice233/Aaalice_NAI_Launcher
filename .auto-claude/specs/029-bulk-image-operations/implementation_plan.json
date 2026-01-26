@@ -3,7 +3,7 @@
   "workflow_type": "feature",
   "workflow_rationale": "Multi-component feature involving new collection system, bulk operations service, UI widgets, and undo/redo integration. Feature workflow phases follow dependency order: data layer first, then UI, then integration.",
   "created_at": "2026-01-26T07:40:00Z",
-  "updated_at": "2026-01-26T10:16:22.772Z",
+  "updated_at": "2026-01-26T10:21:06.099Z",
   "status": "in_progress",
   "phases": [
     {
@@ -292,7 +292,9 @@
             "type": "manual",
             "instructions": "Select images and verify new bulk action bar appears"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Successfully replaced inline selection toolbar with BulkActionBar widget:\n- Added import for bulk_action_bar.dart\n- Replaced 48 lines of inline toolbar code with 11 lines using BulkActionBar widget\n- Wired up onExit callback to exit selection mode\n- Mapped onAddToCollection to existing _addSelectedToQueue functionality\n- Set onDelete, onExport, onEditMetadata to null (not implemented yet)\n- Maintained isDark variable for rest of toolbar\n- Code compiles successfully with no errors\n- Follows existing code patterns and conventions\n\nNext steps: Implement individual bulk operations in subsequent subtasks",
+          "updated_at": "2026-01-26T18:30:00.000Z"
         },
         {
           "id": "subtask-4-2",
