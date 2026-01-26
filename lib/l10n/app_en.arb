@@ -2555,6 +2555,19 @@
   "bulkProgress_title_addToCollection": "Adding to Collection",
   "bulkProgress_title_removeFromCollection": "Removing from Collection",
   "bulkProgress_title_toggleFavorite": "Updating Favorites",
-  "bulkProgress_title_default": "Processing"
+  "bulkProgress_title_default": "Processing",
+  "collectionSelect_dialogTitle": "Select Collection",
+  "collectionSelect_filterHint": "Search collections...",
+  "collectionSelect_noCollections": "No collections",
+  "collectionSelect_createCollectionHint": "Create a collection first",
+  "collectionSelect_noFilterResults": "No matching collections found",
+  "collectionSelect_imageCount": "{count} images",
+  "@collectionSelect_imageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 
 }

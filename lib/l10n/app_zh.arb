@@ -2229,6 +2229,19 @@
   "bulkProgress_title_addToCollection": "添加到收集中",
   "bulkProgress_title_removeFromCollection": "从集合中移除",
   "bulkProgress_title_toggleFavorite": "更新收藏中",
-  "bulkProgress_title_default": "处理中"
+  "bulkProgress_title_default": "处理中",
+  "collectionSelect_dialogTitle": "选择集合",
+  "collectionSelect_filterHint": "搜索集合...",
+  "collectionSelect_noCollections": "暂无集合",
+  "collectionSelect_createCollectionHint": "请先创建一个集合",
+  "collectionSelect_noFilterResults": "没有找到匹配的集合",
+  "collectionSelect_imageCount": "{count} 张图片",
+  "@collectionSelect_imageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 
 }
