@@ -11,11 +11,6 @@ library;
 class PromptEditorToolbarConfig {
   // ==================== 功能开关 ====================
 
-  /// 是否显示视图模式切换按钮（文本/标签）
-  ///
-  /// 启用后，显示切换按钮允许用户在文本和标签视图间切换。
-  final bool showViewModeToggle;
-
   /// 是否显示随机生成按钮
   ///
   /// 启用后，显示随机按钮用于随机生成提示词。
@@ -49,7 +44,6 @@ class PromptEditorToolbarConfig {
   final bool confirmBeforeClear;
 
   const PromptEditorToolbarConfig({
-    this.showViewModeToggle = true,
     this.showRandomButton = true,
     this.showFullscreenButton = true,
     this.showClearButton = true,
@@ -64,7 +58,6 @@ class PromptEditorToolbarConfig {
   ///
   /// 适用于主界面的提示词编辑器，启用所有功能。
   static const mainEditor = PromptEditorToolbarConfig(
-    showViewModeToggle: true,
     showRandomButton: true,
     showFullscreenButton: true,
     showClearButton: true,
@@ -76,10 +69,9 @@ class PromptEditorToolbarConfig {
   /// 角色编辑器预设配置
   ///
   /// 适用于角色详情面板中的提示词编辑器。
-  /// 只启用清空按钮，其他功能（视图模式、设置等）跟随主界面。
+  /// 只启用清空按钮，其他功能（设置等）跟随主界面。
   /// 清空操作无需确认，直接执行。
   static const characterEditor = PromptEditorToolbarConfig(
-    showViewModeToggle: false,
     showRandomButton: false,
     showFullscreenButton: false,
     showClearButton: true,
@@ -91,9 +83,7 @@ class PromptEditorToolbarConfig {
   /// 紧凑模式预设配置
   ///
   /// 适用于空间有限的场景，仅显示必要的操作按钮。
-  /// 视图模式切换由主界面统一控制，此处禁用。
   static const compactMode = PromptEditorToolbarConfig(
-    showViewModeToggle: false,
     showRandomButton: false,
     showFullscreenButton: false,
     showClearButton: true,
@@ -104,7 +94,6 @@ class PromptEditorToolbarConfig {
 
   /// 创建配置副本并覆盖指定属性
   PromptEditorToolbarConfig copyWith({
-    bool? showViewModeToggle,
     bool? showRandomButton,
     bool? showFullscreenButton,
     bool? showClearButton,
@@ -113,7 +102,6 @@ class PromptEditorToolbarConfig {
     bool? confirmBeforeClear,
   }) {
     return PromptEditorToolbarConfig(
-      showViewModeToggle: showViewModeToggle ?? this.showViewModeToggle,
       showRandomButton: showRandomButton ?? this.showRandomButton,
       showFullscreenButton: showFullscreenButton ?? this.showFullscreenButton,
       showClearButton: showClearButton ?? this.showClearButton,
@@ -127,7 +115,6 @@ class PromptEditorToolbarConfig {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is PromptEditorToolbarConfig &&
-        other.showViewModeToggle == showViewModeToggle &&
         other.showRandomButton == showRandomButton &&
         other.showFullscreenButton == showFullscreenButton &&
         other.showClearButton == showClearButton &&
@@ -139,7 +126,6 @@ class PromptEditorToolbarConfig {
   @override
   int get hashCode {
     return Object.hash(
-      showViewModeToggle,
       showRandomButton,
       showFullscreenButton,
       showClearButton,
@@ -152,7 +138,6 @@ class PromptEditorToolbarConfig {
   @override
   String toString() {
     return 'PromptEditorToolbarConfig('
-        'showViewModeToggle: $showViewModeToggle, '
         'showRandomButton: $showRandomButton, '
         'showFullscreenButton: $showFullscreenButton, '
         'showClearButton: $showClearButton, '

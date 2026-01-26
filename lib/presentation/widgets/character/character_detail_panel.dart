@@ -324,7 +324,7 @@ class _NameRow extends StatelessWidget {
 
 /// 提示词编辑区域组件
 ///
-/// 使用 [PromptEditorWithToolbar] 提供工具栏、自动补全、标签视图切换、语法高亮等功能。
+/// 使用 [PromptEditorWithToolbar] 提供工具栏、自动补全、语法高亮等功能。
 /// 角色编辑器不显示设置按钮，所有文本处理设置从共享 Provider 读取，由主界面统一控制。
 ///
 /// Requirements: 2.1, 2.2, 2.3, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
@@ -423,7 +423,6 @@ class _PromptSection extends ConsumerWidget {
             const Spacer(),
             PromptEditorToolbar(
               config: toolbarConfig,
-              viewMode: PromptViewMode.text,
               onClearPressed: () => onChanged(''),
             ),
           ],
@@ -433,7 +432,6 @@ class _PromptSection extends ConsumerWidget {
           // 工具栏已在上方显示，这里禁用
           toolbarConfig: toolbarConfig.copyWith(
             showClearButton: false,
-            showViewModeToggle: false,
           ),
           inputConfig: inputConfig,
           controller: controller,

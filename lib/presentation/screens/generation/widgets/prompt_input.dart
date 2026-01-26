@@ -3,26 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/multi_character_parser.dart';
-import '../../../../core/utils/nai_prompt_parser.dart';
-import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
-import '../../../providers/prompt_view_mode_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/inset_shadow_container.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
-import '../../../widgets/prompt/tag_view.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
-import '../../../widgets/prompt/unified/unified_prompt_config.dart';
 import '../../../widgets/character/character_prompt_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
 
-/// Prompt 输入组件 (带自动补全和标签视图)
+/// Prompt 输入组件 (带自动补全)
 class PromptInputWidget extends ConsumerStatefulWidget {
   final bool compact;
   final VoidCallback? onToggleMaximize;
@@ -45,10 +40,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   final _promptFocusNode = FocusNode();
   final _negativeFocusNode = FocusNode();
 
-  // 标签列表（视图模式从共享 Provider 读取）
-  List<PromptTag> _promptTags = [];
-  List<PromptTag> _negativeTags = [];
-
   // 正面/负面切换
   bool _isNegativeMode = false;
 
@@ -67,10 +58,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     _promptFocusNode.addListener(_onPromptFocusChanged);
     _negativeFocusNode.addListener(_onNegativeFocusChanged);
 
-    // 初始化标签列表
-    _promptTags = NaiPromptParser.parse(params.prompt);
-    _negativeTags = NaiPromptParser.parse(params.negativePrompt);
-
     // 检查并消费待填充提示词（从画廊发送）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumePendingPrompt();
@@ -88,7 +75,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       // 填充正向提示词
       if (consumed.prompt != null && consumed.prompt!.isNotEmpty) {
         _promptController.text = consumed.prompt!;
-        _promptTags = NaiPromptParser.parse(consumed.prompt!);
         ref
             .read(generationParamsNotifierProvider.notifier)
             .updatePrompt(consumed.prompt!);
@@ -98,7 +84,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       if (consumed.negativePrompt != null &&
           consumed.negativePrompt!.isNotEmpty) {
         _negativeController.text = consumed.negativePrompt!;
-        _negativeTags = NaiPromptParser.parse(consumed.negativePrompt!);
         ref
             .read(generationParamsNotifierProvider.notifier)
             .updateNegativePrompt(consumed.negativePrompt!);
@@ -130,60 +115,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     setState(() {});
   }
 
-  void _toggleViewMode() {
-    final currentMode = ref.read(promptViewModeNotifierProvider);
-    if (currentMode == PromptViewMode.text) {
-      // 切换到标签视图，解析当前文本
-      setState(() {
-        _promptTags = NaiPromptParser.parse(_promptController.text);
-        _negativeTags = NaiPromptParser.parse(_negativeController.text);
-      });
-      ref
-          .read(promptViewModeNotifierProvider.notifier)
-          .setViewMode(PromptViewMode.tags);
-    } else {
-      // 切换到文本视图，同步标签到文本
-      final promptText = NaiPromptParser.toPromptString(_promptTags);
-      final negativeText = NaiPromptParser.toPromptString(_negativeTags);
-      _promptController.text = promptText;
-      _negativeController.text = negativeText;
-      ref
-          .read(promptViewModeNotifierProvider.notifier)
-          .setViewMode(PromptViewMode.text);
-    }
-  }
-
-  void _onPromptTagsChanged(List<PromptTag> tags) {
-    setState(() {
-      _promptTags = tags;
-    });
-    // 同步到 provider
-    final promptText = NaiPromptParser.toPromptString(tags);
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updatePrompt(promptText);
-  }
-
-  void _onNegativeTagsChanged(List<PromptTag> tags) {
-    setState(() {
-      _negativeTags = tags;
-    });
-    // 同步到 provider
-    final negativeText = NaiPromptParser.toPromptString(tags);
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updateNegativePrompt(negativeText);
-  }
-
   /// 从 Provider 同步提示词到本地状态
   void _syncPromptFromProvider(String prompt) {
     // 避免循环触发：只在内容不同时更新
     if (_promptController.text != prompt) {
       _promptController.text = prompt;
-    }
-    final newTags = NaiPromptParser.parse(prompt);
-    if (!_tagsEqual(_promptTags, newTags)) {
-      setState(() => _promptTags = newTags);
     }
   }
 
@@ -192,19 +128,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     if (_negativeController.text != negativePrompt) {
       _negativeController.text = negativePrompt;
     }
-    final newTags = NaiPromptParser.parse(negativePrompt);
-    if (!_tagsEqual(_negativeTags, newTags)) {
-      setState(() => _negativeTags = newTags);
-    }
-  }
-
-  /// 比较两个标签列表是否相等
-  bool _tagsEqual(List<PromptTag> a, List<PromptTag> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].text != b[i].text || a[i].weight != b[i].weight) return false;
-    }
-    return true;
   }
 
   /// 生成随机提示词
@@ -246,9 +169,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   void _clearPrompt() {
     _promptController.clear();
-    setState(() {
-      _promptTags = [];
-    });
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
   }
 
@@ -279,44 +199,33 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildFullLayout(ThemeData theme) {
-    // 从共享 Provider 读取视图模式
-    final viewMode = ref.watch(promptViewModeNotifierProvider);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 顶栏：正面/负面切换 + 操作按钮
-        _buildTopBar(theme, viewMode),
+        _buildTopBar(theme),
 
         const SizedBox(height: 8),
 
-        // 提示词编辑区域
+        // 提示词编辑区域（始终为文本输入）
         Expanded(
           child: _isNegativeMode
-              ? (viewMode == PromptViewMode.text
-                  ? _buildTextNegativeInput(theme)
-                  : _buildTagNegativeView(theme))
-              : (viewMode == PromptViewMode.text
-                  ? _buildTextPromptInput(theme)
-                  : _buildTagPromptView(theme)),
+              ? _buildTextNegativeInput(theme)
+              : _buildTextPromptInput(theme),
         ),
       ],
     );
   }
 
-  Widget _buildTopBar(ThemeData theme, PromptViewMode viewMode) {
-    final promptCount = viewMode == PromptViewMode.tags
-        ? _promptTags.length
-        : _promptController.text
-            .split(',')
-            .where((s) => s.trim().isNotEmpty)
-            .length;
-    final negativeCount = viewMode == PromptViewMode.tags
-        ? _negativeTags.length
-        : _negativeController.text
-            .split(',')
-            .where((s) => s.trim().isNotEmpty)
-            .length;
+  Widget _buildTopBar(ThemeData theme) {
+    final promptCount = _promptController.text
+        .split(',')
+        .where((s) => s.trim().isNotEmpty)
+        .length;
+    final negativeCount = _negativeController.text
+        .split(',')
+        .where((s) => s.trim().isNotEmpty)
+        .length;
 
     // 获取质量词设置和模型
     final addQualityTags = ref.watch(qualityTagsSettingsProvider);
@@ -377,10 +286,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         // 使用共享的工具栏组件
         PromptEditorToolbar(
           config: PromptEditorToolbarConfig.mainEditor,
-          viewMode: viewMode,
-          onViewModeChanged: (mode) {
-            if (mode != viewMode) _toggleViewMode();
-          },
           onRandomPressed: _generateRandomPrompt,
           onRandomLongPressed: _showRandomModeSelector,
           // 使用传入的回调或 Provider 切换最大化
@@ -575,9 +480,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   void _clearNegative() {
     _negativeController.clear();
-    setState(() {
-      _negativeTags = [];
-    });
     ref
         .read(generationParamsNotifierProvider.notifier)
         .updateNegativePrompt('');
@@ -674,30 +576,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
-  Widget _buildTagPromptView(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-            theme.colorScheme.surfaceContainerHighest.withOpacity(0.15),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.15),
-        ),
-      ),
-      child: TagView(
-        tags: _promptTags,
-        onTagsChanged: _onPromptTagsChanged,
-        emptyHint: context.l10n.prompt_addTagsHint,
-      ),
-    );
-  }
-
   Widget _buildTextNegativeInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
@@ -733,31 +611,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               .read(generationParamsNotifierProvider.notifier)
               .updateNegativePrompt(value);
         },
-      ),
-    );
-  }
-
-  Widget _buildTagNegativeView(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.errorContainer.withOpacity(0.15),
-            theme.colorScheme.errorContainer.withOpacity(0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.error.withOpacity(0.1),
-        ),
-      ),
-      child: TagView(
-        tags: _negativeTags,
-        onTagsChanged: _onNegativeTagsChanged,
-        emptyHint: context.l10n.prompt_addUnwantedHint,
-        compact: true,
       ),
     );
   }
