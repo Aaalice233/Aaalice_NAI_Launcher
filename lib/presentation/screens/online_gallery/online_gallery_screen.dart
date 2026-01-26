@@ -603,7 +603,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       label: Text(
         hasDateRange
-            ? _formatDateRange(state.dateRangeStart, state.dateRangeEnd)
+            ? _dateFormattingService.formatDateRange(state.dateRangeStart, state.dateRangeEnd)
             : context.l10n.onlineGallery_dateRange,
         style: TextStyle(
           fontSize: 12,
@@ -617,11 +617,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
       ),
     );
-  }
-
-  /// 格式化日期范围显示
-  String _formatDateRange(DateTime? start, DateTime? end) {
-    return _dateFormattingService.formatDateRange(start, end);
   }
 
   /// 选择日期范围

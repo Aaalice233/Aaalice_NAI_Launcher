@@ -822,7 +822,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final theme = Theme.of(context);
 
     // 格式化创建时间
-    final createdDate = _formatDate(account.createdAt);
+    final createdDate = _dateFormattingService.formatDate(account.createdAt);
 
     return ListTile(
       leading: AccountAvatarSmall(
@@ -884,11 +884,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _handleQuickLogin(context, ref, account);
       },
     );
-  }
-
-  /// 格式化日期
-  String _formatDate(DateTime date) {
-    return _dateFormattingService.formatDate(date);
   }
 
   /// 显示删除账号确认对话框
