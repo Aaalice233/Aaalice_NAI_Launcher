@@ -982,9 +982,14 @@ class _LocalImageCardState extends State<LocalImageCard> {
                             );
                           },
                         ),
-                      // Selection Overlay
-                      if (widget.selectionMode && widget.isSelected)
-                        Positioned.fill(
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            // Selection Overlay
+            if (widget.selectionMode && widget.isSelected)
+              Positioned.fill(
                           child: Container(
                             color: Theme.of(context)
                                 .colorScheme
@@ -1149,44 +1154,38 @@ class _LocalImageCardState extends State<LocalImageCard> {
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-            // Pinch 缩略图预览 overlay
-            if (_showThumbnailPreview && _scaleStartPosition != null)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: _scale.clamp(0.8, 2.0),
-                      child: Container(
-                        width: widget.itemWidth * 0.8,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                      // Pinch 缩略图预览 overlay
+                      if (_showThumbnailPreview && _scaleStartPosition != null)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black54,
+                            child: Center(
+                              child: Transform.scale(
+                                scale: _scale.clamp(0.8, 2.0),
+                                child: Container(
+                                  width: widget.itemWidth * 0.8,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.5),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      File(widget.record.path),
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(widget.record.path),
-                            fit: BoxFit.contain,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
