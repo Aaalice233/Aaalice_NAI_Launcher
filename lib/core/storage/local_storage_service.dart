@@ -391,6 +391,75 @@ class LocalStorageService {
     }
   }
 
+  // ==================== UI Layout State ====================
+
+  /// 获取左侧面板展开状态 (默认展开)
+  bool getLeftPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.leftPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存左侧面板展开状态
+  Future<void> setLeftPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.leftPanelExpanded, expanded);
+  }
+
+  /// 获取右侧面板展开状态 (默认展开)
+  bool getRightPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.rightPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存右侧面板展开状态
+  Future<void> setRightPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.rightPanelExpanded, expanded);
+  }
+
+  /// 获取左侧面板宽度 (默认300)
+  double getLeftPanelWidth() {
+    return getSetting<double>(StorageKeys.leftPanelWidth, defaultValue: 300.0) ??
+        300.0;
+  }
+
+  /// 保存左侧面板宽度
+  Future<void> setLeftPanelWidth(double width) async {
+    await setSetting(StorageKeys.leftPanelWidth, width);
+  }
+
+  /// 获取提示区域高度 (默认200)
+  double getPromptAreaHeight() {
+    return getSetting<double>(
+          StorageKeys.promptAreaHeight,
+          defaultValue: 200.0,
+        ) ??
+        200.0;
+  }
+
+  /// 保存提示区域高度
+  Future<void> setPromptAreaHeight(double height) async {
+    await setSetting(StorageKeys.promptAreaHeight, height);
+  }
+
+  /// 获取提示区域最大化状态 (默认关闭)
+  bool getPromptMaximized() {
+    return getSetting<bool>(
+          StorageKeys.promptMaximized,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存提示区域最大化状态
+  Future<void> setPromptMaximized(bool maximized) async {
+    await setSetting(StorageKeys.promptMaximized, maximized);
+  }
+
   // ==================== Lifecycle ====================
 
   /// 关闭存储
