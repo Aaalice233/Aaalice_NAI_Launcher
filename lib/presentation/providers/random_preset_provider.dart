@@ -231,6 +231,24 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     await updatePreset(preset.copyWith(name: newName));
   }
 
+  /// 更新预设描述
+  Future<void> updatePresetDescription(String id, String description) async {
+    final preset = state.presets.firstWhereOrNull((p) => p.id == id);
+    if (preset == null) return;
+    await updatePreset(preset.copyWith(description: description));
+  }
+
+  /// 添加预设到状态（用于预设复制）
+  Future<void> addPreset(RandomPreset preset) async {
+    final newPresets = [...state.presets, preset];
+    state = state.copyWith(
+      presets: newPresets,
+      selectedPresetId: preset.id,
+    );
+    await _savePreset(preset);
+    await _box.put(_selectedIdKey, preset.id);
+  }
+
   /// 删除预设
   Future<void> deletePreset(String id) async {
     final preset = state.presets.firstWhereOrNull((p) => p.id == id);

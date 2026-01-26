@@ -238,6 +238,49 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ),
             const SizedBox(height: 12),
           ],
+          // 预设描述（如果有）
+          if (preset != null && preset.description != null && preset.description!.isNotEmpty) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    preset.description!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+                // 编辑描述按钮（仅非默认预设）
+                if (!preset.isDefault)
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                    onPressed: () => _showEditPresetDescriptionDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: '编辑描述',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          // 添加描述按钮（仅非默认预设且无描述时）
+          if (preset != null && !preset.isDefault && (preset.description == null || preset.description!.isEmpty))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextButton.icon(
+                onPressed: () => _showEditPresetDescriptionDialog(preset),
+                icon: Icon(Icons.add, size: 16),
+                label: Text('添加描述'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ),
+            ),
           // 统计信息和操作按钮
           GlobalPostCountToolbar(
             tagCount: tagCount,
@@ -330,10 +373,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 创建模板预设（基于默认预设）
   Future<void> _createTemplatePreset(String name) async {
-    final presetState = ref.read(randomPresetNotifierProvider);
-    final defaultPreset = presetState.presets.firstWhere(
+    final state = ref.read(randomPresetNotifierProvider);
+    final defaultPreset = state.presets.firstWhere(
       (p) => p.isDefault,
-      orElse: () => presetState.presets.first,
+      orElse: () => state.presets.first,
     );
 
     // 使用 RandomPreset.copyFrom() 创建新预设
@@ -342,11 +385,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       name: name,
     );
 
-    // 添加新预设到列表
+    // 使用 provider 的 addPreset 方法添加到状态并保存
     await ref.read(randomPresetNotifierProvider.notifier).addPreset(newPreset);
-
-    // 选中新创建的预设
-    await ref.read(randomPresetNotifierProvider.notifier).selectPreset(newPreset.id);
   }
 
   /// 显示新建预设对话框
@@ -516,6 +556,49 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
     if (newName != null && newName.isNotEmpty && newName != preset.name) {
       await _renamePreset(preset, newName);
+    }
+  }
+
+  /// 显示编辑预设描述对话框
+  Future<void> _showEditPresetDescriptionDialog(RandomPreset preset) async {
+    final controller = TextEditingController(text: preset.description ?? '');
+
+    final newDescription = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('编辑描述'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '预设描述',
+            hintText: '输入此预设的用途或特点...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          textInputAction: TextInputAction.newline,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(context.l10n.common_confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (newDescription != null) {
+      // Update preset description
+      final notifier = ref.read(randomPresetNotifierProvider.notifier);
+      await notifier.updatePresetDescription(preset.id, newDescription);
+
+      if (mounted) {
+        AppToast.success(context, '描述已更新');
+      }
     }
   }
 
