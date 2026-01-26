@@ -32,7 +32,54 @@
 
 ## 截图预览 | Screenshots
 
-*截图待添加 | Screenshots coming soon*
+### 中文 | Chinese
+
+以下截图展示应用的主要功能和界面：
+
+- **主界面** - 图像生成主界面（三栏布局）
+- **主题切换** - 展示 5 套不同主题的效果
+- **移动端界面** - Android/iOS 响应式布局
+- **设置页面** - 配置和个性化选项
+- **图像生成流程** - 从输入到输出的完整流程
+
+> 📸 **截图征集** - 欢迎提交您的高质量截图！
+
+### English
+
+The following screenshots showcase the main features and interface:
+
+- **Main Interface** - Image generation main interface (three-column layout)
+- **Theme Switching** - Demonstration of all 5 beautiful themes
+- **Mobile Interface** - Android/iOS responsive layout
+- **Settings Page** - Configuration and customization options
+- **Image Generation Flow** - Complete workflow from input to output
+
+> 📸 **Screenshots Wanted** - Contributions of high-quality screenshots are welcome!
+
+---
+
+#### 待添加截图 | Screenshots to Add
+
+<details>
+<summary>点击展开查看详情 | Click to expand details</summary>
+
+**中文 | Chinese**
+
+请添加以下截图（建议尺寸：1920x1080 或更大）：
+- 每个主题的主界面截图
+- 中文和英文界面对比
+- 移动端和桌面端对比
+- 图像生成结果展示
+
+**English**
+
+Please add the following screenshots (recommended size: 1920x1080 or larger):
+- Main interface screenshot for each theme
+- Chinese and English interface comparison
+- Mobile and desktop comparison
+- Image generation results showcase
+
+</details>
 
 ---
 
