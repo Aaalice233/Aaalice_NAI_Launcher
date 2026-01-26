@@ -938,21 +938,27 @@ class _LocalImageCardState extends State<LocalImageCard> {
             SizedBox(
               width: widget.itemWidth,
               height: itemHeight,
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                elevation: 2,
-                shadowColor: Colors.black.withOpacity(0.15),
-                shape: RoundedRectangleBorder(
+              child: Container(
+                decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  side: widget.isSelected
-                      ? BorderSide(
+                  boxShadow: [
+                    BoxShadow(
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                      color: Colors.black.withOpacity(0.1),
+                    ),
+                  ],
+                  border: widget.isSelected
+                      ? Border.all(
                           color: Theme.of(context).colorScheme.primary,
                           width: 3,
                         )
-                      : BorderSide.none,
+                      : null,
                 ),
-                child: Stack(
-                      children: [
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Stack(
+                        children: [
                         Image.file(
                           File(widget.record.path),
                           cacheWidth: cacheWidth, // 优化内存占用
@@ -1147,6 +1153,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                 ),
               ),
             ),
+          ),
             // Pinch 缩略图预览 overlay
             if (_showThumbnailPreview && _scaleStartPosition != null)
               Positioned.fill(
