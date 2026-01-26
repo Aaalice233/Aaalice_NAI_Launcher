@@ -40,6 +40,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   final GlobalKey<GroupedGridViewState> _groupedGridViewKey =
       GlobalKey<GroupedGridViewState>();
 
+  /// 宽高比缓存
+  /// Aspect ratio cache for storing calculated aspect ratios
+  final Map<String, double> _aspectRatioCache = {};
+
   @override
   void initState() {
     super.initState();
