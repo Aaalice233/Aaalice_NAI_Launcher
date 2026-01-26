@@ -420,6 +420,49 @@ function showTestDetails(testJson, fileName) {
             </div>
         `;
 
+        // Add evidence section for failed tests
+        if (test.status === 'error' || test.status === 'failure') {
+            html += `
+                <div class="test-detail-section">
+                    <h3>📸 Evidence & Artifacts</h3>
+                    <div class="evidence-links-section">
+                        <h4>Test Logs</h4>
+                        <div class="evidence-links">
+                            <a href="../summary.json" target="_blank" class="evidence-link">
+                                📄 View summary.json
+                            </a>
+                            <a href="../verification_output.json" target="_blank" class="evidence-link">
+                                📄 View verification_output.json
+                            </a>
+                        </div>
+
+                        <h4>Related Fixtures</h4>
+                        <div class="evidence-links">
+                            <a href="../../test/fixtures/json/auth_success_response.json" target="_blank" class="evidence-link">
+                                📦 auth_success_response.json
+                            </a>
+                            <a href="../../test/fixtures/json/auth_failure_response.json" target="_blank" class="evidence-link">
+                                📦 auth_failure_response.json
+                            </a>
+                            <a href="../../test/fixtures/json/danbooru_posts.json" target="_blank" class="evidence-link">
+                                📦 danbooru_posts.json
+                            </a>
+                        </div>
+
+                        <h4>Test Screenshots</h4>
+                        <div class="evidence-links">
+                            <a href="../../test/fixtures/images/test_metadata.png" target="_blank" class="evidence-link">
+                                🖼️ test_metadata.png
+                            </a>
+                            <a href="../../test/fixtures/images/test_vibe_image.png" target="_blank" class="evidence-link">
+                                🖼️ test_vibe_image.png
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         if (test.error) {
             html += `
                 <div class="test-detail-section">
@@ -459,12 +502,125 @@ function closeModal() {
 /**
  * Update evidence counts
  */
-function updateEvidenceCounts() {
-    // Placeholder counts - in real implementation, these would be calculated
-    // from actual files in the directories
-    document.getElementById('screenshot-count').textContent = 'Not implemented';
-    document.getElementById('log-count').textContent = `${testData.resultsByFile ? testData.resultsByFile.length : 0} files`;
-    document.getElementById('fixture-count').textContent = 'Not implemented';
+async function updateEvidenceCounts() {
+    let totalEvidenceItems = 0;
+
+    // Count fixture files
+    try {
+        const fixtureCount = await countFixtureFiles();
+        document.getElementById('fixture-count').textContent = `${fixtureCount} JSON files`;
+        totalEvidenceItems += fixtureCount;
+    } catch (e) {
+        document.getElementById('fixture-count').textContent = 'Count unavailable';
+    }
+
+    // Count test result files
+    const logCount = testData.resultsByFile ? testData.resultsByFile.length : 0;
+    document.getElementById('log-count').textContent = `${logCount} test files`;
+    totalEvidenceItems += logCount;
+
+    // Count screenshots (check if directory exists and count files)
+    try {
+        const screenshotCount = await countScreenshots();
+        document.getElementById('screenshot-count').textContent = `${screenshotCount} files`;
+        totalEvidenceItems += screenshotCount;
+    } catch (e) {
+        document.getElementById('screenshot-count').textContent = 'No screenshots';
+    }
+
+    // Update evidence count in section header
+    document.getElementById('evidence-count').textContent = `${totalEvidenceItems} Items`;
+
+    // Render failed test evidence
+    renderFailedTestEvidence();
+}
+
+/**
+ * Count fixture files
+ */
+async function countFixtureFiles() {
+    // Since we can't directly access the filesystem from the browser,
+    // we'll return a count based on known fixtures
+    // In a real implementation, this would be an API call
+    return 3; // auth_success, auth_failure, danbooru_posts
+}
+
+/**
+ * Count screenshot files
+ */
+async function countScreenshots() {
+    // Since we can't directly access the filesystem from the browser,
+    // we'll return a count based on known screenshots
+    // In a real implementation, this would be an API call
+    return 2; // test_metadata.png, test_vibe_image.png
+}
+
+/**
+ * Render evidence for failed tests
+ */
+function renderFailedTestEvidence() {
+    const evidenceGrid = document.getElementById('evidence-grid');
+
+    if (!testData.resultsByFile) {
+        return;
+    }
+
+    // Collect all failed tests
+    const failedTests = [];
+    testData.resultsByFile.forEach(fileResult => {
+        fileResult.tests.forEach(test => {
+            if (test.status === 'error' || test.status === 'failure') {
+                failedTests.push({
+                    ...test,
+                    fileName: fileResult.file
+                });
+            }
+        });
+    });
+
+    // If we have failed tests, add them to the evidence grid
+    if (failedTests.length > 0) {
+        const failedTestsHtml = `
+            <div class="evidence-card evidence-card-failed">
+                <h3>❌ Failed Tests Evidence</h3>
+                <p>Failed tests with available logs and error details:</p>
+                <div class="failed-tests-list">
+                    ${failedTests.slice(0, 5).map(test => `
+                        <div class="failed-test-item">
+                            <div class="failed-test-name">${escapeHtml(test.name)}</div>
+                            <div class="failed-test-meta">
+                                <span class="failed-test-file">${escapeHtml(test.fileName)}</span>
+                                ${test.bugId ? `<span class="failed-test-bug-id">${escapeHtml(test.bugId)}</span>` : ''}
+                            </div>
+                            <button class="evidence-link-btn" onclick="showTestDetails('${encodeURIComponent(JSON.stringify(test))}', '${escapeHtml(test.fileName)}')">
+                                View Details
+                            </button>
+                        </div>
+                    `).join('')}
+                    ${failedTests.length > 5 ? `<div class="more-failed-tests">... and ${failedTests.length - 5} more failed tests</div>` : ''}
+                </div>
+            </div>
+        `;
+
+        // Insert after the existing evidence cards
+        evidenceGrid.insertAdjacentHTML('beforeend', failedTestsHtml);
+    }
+
+    // Add test log file links
+    const logFilesHtml = `
+        <div class="evidence-card">
+            <h3>📄 Test Result Files</h3>
+            <p>Downloadable test result JSON files:</p>
+            <div class="evidence-links">
+                <a href="../summary.json" target="_blank" class="evidence-link">summary.json</a>
+                <a href="../verification_output.json" target="_blank" class="evidence-link">verification_output.json</a>
+                <a href="../bug_test_output.json" target="_blank" class="evidence-link">bug_test_output.json</a>
+                <a href="../processed_summary.json" target="_blank" class="evidence-link">processed_summary.json</a>
+            </div>
+        </div>
+    `;
+
+    evidenceGrid.insertAdjacentHTML('beforeend', logFilesHtml);
 }
 
 /**

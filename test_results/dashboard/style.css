@@ -706,6 +706,133 @@ body {
     color: var(--color-info);
 }
 
+.evidence-card-failed {
+    border-color: var(--color-fail-border);
+    background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-fail-bg) 30%);
+}
+
+.failed-tests-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.failed-test-item {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+    transition: all 0.2s;
+}
+
+.failed-test-item:hover {
+    border-color: var(--color-fail-border);
+    box-shadow: var(--shadow-sm);
+}
+
+.failed-test-name {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.875rem;
+}
+
+.failed-test-meta {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-sm);
+}
+
+.failed-test-file {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    font-family: 'Courier New', monospace;
+}
+
+.failed-test-bug-id {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-fail);
+    background: var(--color-fail-bg);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+}
+
+.evidence-link-btn {
+    background: var(--color-info);
+    color: white;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.evidence-link-btn:hover {
+    background: var(--color-info-border);
+    transform: translateY(-1px);
+}
+
+.more-failed-tests {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-style: italic;
+    padding: var(--spacing-sm);
+}
+
+.evidence-links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.evidence-link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.evidence-link:hover {
+    background: var(--color-bg-tertiary);
+    border-color: var(--color-info);
+    transform: translateX(4px);
+}
+
+.evidence-links-section {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+}
+
+.evidence-links-section h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.evidence-links-section h4:first-child {
+    margin-top: 0;
+}
+
 /* ============================================
    Regression Detection
    ============================================ */
