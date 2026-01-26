@@ -1328,9 +1328,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             selectionMode: selectionState.isActive,
             isSelected: isSelected,
             onSelectionToggle: () {
+              // Measure selection toggle performance
+              final stopwatch = Stopwatch()..start();
               ref
                   .read(localGallerySelectionNotifierProvider.notifier)
                   .toggle(record.path);
+              stopwatch.stop();
+              debugPrint(
+                'Selection toggle (grouped view): ${stopwatch.elapsedMilliseconds}ms',
+              );
             },
             onLongPress: () {
               if (!selectionState.isActive) {
@@ -1443,9 +1449,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           selectionMode: selectionMode,
           isSelected: isSelected,
           onSelectionToggle: () {
+            // Measure selection toggle performance
+            final stopwatch = Stopwatch()..start();
             ref
                 .read(localGallerySelectionNotifierProvider.notifier)
                 .toggle(record.path);
+            stopwatch.stop();
+            debugPrint(
+              'Selection toggle (masonry view): ${stopwatch.elapsedMilliseconds}ms',
+            );
           },
           onLongPress: () {
             if (!selectionMode) {
