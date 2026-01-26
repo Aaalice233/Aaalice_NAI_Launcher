@@ -1083,7 +1083,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                           metadata?.height != null) ...[
                                         const SizedBox(width: 8),
                                         Text(
-                                          '${metadata!.width} x ${metadata!.height}',
+                                          '${metadata?.width} x ${metadata?.height}',
                                           style: const TextStyle(
                                             color: Colors.white70,
                                             fontSize: 10,
