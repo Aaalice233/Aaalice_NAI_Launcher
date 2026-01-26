@@ -6,7 +6,9 @@ This document provides step-by-step manual verification guides for the 16 improv
 
 **Document Version:** 1.0
 **Last Updated:** 2026-01-26
-**Total Improvements:** 16
+**Total Improvements:** 14
+
+**Note:** The specification mentions "16 improvement suggestions" but only defines 14 unique improvement IDs (IMPR-001 through IMPR-008, IMPR-011, IMPR-012, IMPR-013 through IMPR-016). This document covers all 14 defined improvements.
 
 ---
 
