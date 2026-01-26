@@ -193,12 +193,53 @@ class _GalleryStatisticsDialogState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Overview cards will be added in subtask-2-2
-          Text(
-            'Overview tab - Coming soon',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          // Overview cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  theme,
+                  Icons.photo_library,
+                  l10n.statistics_totalImages,
+                  '${statistics.totalImages}',
+                  theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  theme,
+                  Icons.storage,
+                  l10n.statistics_totalSize,
+                  statistics.totalSizeFormatted,
+                  theme.colorScheme.secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  theme,
+                  Icons.favorite,
+                  l10n.statistics_favorites,
+                  '${statistics.favoriteCount} (${statistics.favoritePercentage.toStringAsFixed(1)}%)',
+                  Colors.red,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  theme,
+                  Icons.tag,
+                  l10n.statistics_tagged,
+                  '${statistics.taggedImageCount} (${statistics.taggedImagePercentage.toStringAsFixed(1)}%)',
+                  Colors.green,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -244,6 +285,50 @@ class _GalleryStatisticsDialogState
             'Details tab - Coming soon',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build a single stat card
+  Widget _buildStatCard(
+    ThemeData theme,
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
