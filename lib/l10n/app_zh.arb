@@ -2137,6 +2137,19 @@
     }
   },
 
+  "bulkExport_title": "导出 {count} 张图片",
+  "@bulkExport_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkExport_format": "导出格式",
+  "bulkExport_jsonFormat": "JSON",
+  "bulkExport_csvFormat": "CSV",
+  "bulkExport_metadataOptions": "元数据选项",
+  "bulkExport_includeMetadata": "包含元数据",
+  "bulkExport_includeMetadataHint": "导出生成参数等信息",
+
   "localGallery_group_today": "今天",
   "localGallery_group_yesterday": "昨天",
   "localGallery_group_thisWeek": "本周",
@@ -2174,6 +2187,66 @@
   "brushPreset_airbrush": "喷枪",
   "brushPreset_marker": "马克笔",
   "brushPreset_thick": "粗笔刷",
-  "brushPreset_smudge": "涂抹笔"
+  "brushPreset_smudge": "涂抹笔刷",
+
+  "bulkProgress_progress": "正在处理 {current}/{total}",
+  "@bulkProgress_progress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "bulkProgress_success": "{count} 项成功",
+  "@bulkProgress_success": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_failed": "{count} 项失败",
+  "@bulkProgress_failed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_errors": "错误：",
+  "bulkProgress_moreErrors": "...还有 {count} 个错误",
+  "@bulkProgress_moreErrors": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completed": "已完成 {count} 项",
+  "@bulkProgress_completed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completedWithErrors": "{success} 项成功，{failed} 项失败",
+  "@bulkProgress_completedWithErrors": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "bulkProgress_title_delete": "删除图片中",
+  "bulkProgress_title_export": "导出元数据中",
+  "bulkProgress_title_metadataEdit": "编辑元数据中",
+  "bulkProgress_title_addToCollection": "添加到收集中",
+  "bulkProgress_title_removeFromCollection": "从集合中移除",
+  "bulkProgress_title_toggleFavorite": "更新收藏中",
+  "bulkProgress_title_default": "处理中",
+  "collectionSelect_dialogTitle": "选择集合",
+  "collectionSelect_filterHint": "搜索集合...",
+  "collectionSelect_noCollections": "暂无集合",
+  "collectionSelect_createCollectionHint": "请先创建一个集合",
+  "collectionSelect_noFilterResults": "没有找到匹配的集合",
+  "collectionSelect_imageCount": "{count} 张图片",
+  "@collectionSelect_imageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 
 }

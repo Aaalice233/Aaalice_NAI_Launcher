@@ -6,19 +6,23 @@ part 'selection_mode_provider.g.dart';
 class SelectionModeState {
   final bool isActive;
   final Set<String> selectedIds;
+  final String? lastSelectedId;
 
   const SelectionModeState({
     this.isActive = false,
     this.selectedIds = const {},
+    this.lastSelectedId,
   });
 
   SelectionModeState copyWith({
     bool? isActive,
     Set<String>? selectedIds,
+    String? lastSelectedId,
   }) {
     return SelectionModeState(
       isActive: isActive ?? this.isActive,
       selectedIds: selectedIds ?? this.selectedIds,
+      lastSelectedId: lastSelectedId ?? this.lastSelectedId,
     );
   }
 
@@ -117,14 +121,17 @@ class LocalGallerySelectionNotifier extends _$LocalGallerySelectionNotifier {
     } else {
       newIds.add(id);
     }
-    state = state.copyWith(selectedIds: newIds);
+    state = state.copyWith(selectedIds: newIds, lastSelectedId: id);
   }
 
   /// 选中指定项
   void select(String id) {
     if (!state.selectedIds.contains(id)) {
       final newIds = Set<String>.from(state.selectedIds)..add(id);
-      state = state.copyWith(selectedIds: newIds);
+      state = state.copyWith(selectedIds: newIds, lastSelectedId: id);
+    } else {
+      // 即使已经选中，也更新 lastSelectedId
+      state = state.copyWith(lastSelectedId: id);
     }
   }
 
@@ -144,12 +151,45 @@ class LocalGallerySelectionNotifier extends _$LocalGallerySelectionNotifier {
 
   /// 清除选择
   void clearSelection() {
-    state = state.copyWith(selectedIds: {});
+    state = state.copyWith(selectedIds: {}, lastSelectedId: null);
   }
 
   /// 进入多选模式并选中指定项（用于长按触发）
   void enterAndSelect(String id) {
     final newIds = Set<String>.from(state.selectedIds)..add(id);
-    state = state.copyWith(isActive: true, selectedIds: newIds);
+    state = state.copyWith(isActive: true, selectedIds: newIds, lastSelectedId: id);
+  }
+
+  /// 范围选择（Shift+点击）
+  /// [currentId] 当前点击的项 ID
+  /// [allIds] 当前页面所有可见的 ID 列表（按显示顺序）
+  void selectRange(String currentId, List<String> allIds) {
+    final anchorId = state.lastSelectedId;
+
+    // 如果没有上次选中的项，则直接选中当前项
+    if (anchorId == null) {
+      select(currentId);
+      return;
+    }
+
+    // 查找锚点和当前项在列表中的位置
+    final anchorIndex = allIds.indexOf(anchorId);
+    final currentIndex = allIds.indexOf(currentId);
+
+    // 如果找不到任一ID，则直接选中当前项
+    if (anchorIndex == -1 || currentIndex == -1) {
+      select(currentId);
+      return;
+    }
+
+    // 确定范围
+    final start = anchorIndex < currentIndex ? anchorIndex : currentIndex;
+    final end = anchorIndex < currentIndex ? currentIndex : anchorIndex;
+
+    // 选中范围内的所有项
+    final rangeIds = allIds.sublist(start, end + 1);
+    final newIds = Set<String>.from(state.selectedIds)..addAll(rangeIds);
+
+    state = state.copyWith(selectedIds: newIds, lastSelectedId: currentId);
   }
 }

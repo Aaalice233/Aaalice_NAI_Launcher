@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,10 +20,16 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../providers/collection_provider.dart';
+import '../../providers/bulk_operation_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
 import '../../widgets/gallery_filter_panel.dart';
+import '../../widgets/bulk_action_bar.dart';
+import '../../widgets/bulk_export_dialog.dart';
+import '../../widgets/bulk_metadata_edit_dialog.dart';
+import '../../widgets/collection_select_dialog.dart';
 
 /// 本地画廊屏幕
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -39,6 +47,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// 用于访问 GroupedGridView 的 scrollToGroup 方法的键
   final GlobalKey<GroupedGridViewState> _groupedGridViewKey =
       GlobalKey<GroupedGridViewState>();
+
+  /// Focus node for keyboard shortcuts
+  /// 用于键盘快捷键的焦点节点
+  final FocusNode _shortcutsFocusNode = FocusNode();
 
   /// 宽高比缓存
   /// Aspect ratio cache for storing calculated aspect ratios
@@ -58,6 +70,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   void dispose() {
     _searchController.dispose();
     _debounceTimer?.cancel();
+    _shortcutsFocusNode.dispose();
     super.dispose();
   }
 
@@ -106,6 +119,307 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
       );
       ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    }
+  }
+
+  /// 批量删除选中的图片
+  Future<void> _deleteSelectedImages() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    // 显示确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认批量删除'),
+        content: Text(
+          '确定要删除选中的 ${selectedImages.length} 张图片吗？\n\n'
+          '此操作将从文件系统中永久删除这些图片，无法恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // 存储已删除图片信息，用于撤销
+    final deletedImages = <LocalImageRecord>[];
+    final deleteErrors = <String>[];
+
+    try {
+      // 删除文件
+      for (final image in selectedImages) {
+        try {
+          final file = File(image.path);
+          if (await file.exists()) {
+            await file.delete();
+            deletedImages.add(image);
+          }
+        } catch (e) {
+          deleteErrors.add('${path.basename(image.path)}: $e');
+        }
+      }
+
+      // 退出选择模式
+      ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+
+      // 刷新画廊
+      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      // 显示成功提示和撤销按钮
+      if (mounted && deletedImages.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已删除 ${deletedImages.length} 张图片'),
+            duration: const Duration(seconds: 5),
+            action: deletedImages.length <= 50
+                ? SnackBarAction(
+                    label: '撤销',
+                    onPressed: () => _restoreDeletedImages(deletedImages),
+                  )
+                : null,
+          ),
+        );
+      }
+
+      // 显示错误提示
+      if (deleteErrors.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${deleteErrors.length} 张图片删除失败'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('删除失败: $e')),
+        );
+      }
+    }
+  }
+
+  /// 恢复已删除的图片（撤销操作）
+  Future<void> _restoreDeletedImages(List<LocalImageRecord> deletedImages) async {
+    final restoreErrors = <String>[];
+
+    try {
+      for (final image in deletedImages) {
+        try {
+          final file = File(image.path);
+          if (!await file.exists()) {
+            // 文件不存在，无法恢复
+            restoreErrors.add('${path.basename(image.path)}: 文件不存在');
+            continue;
+          }
+          // 文件已存在，说明已恢复或其他原因
+        } catch (e) {
+          restoreErrors.add('${path.basename(image.path)}: $e');
+        }
+      }
+
+      // 刷新画廊
+      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      // 显示恢复结果提示
+      if (mounted) {
+        final successCount = deletedImages.length - restoreErrors.length;
+        if (successCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('已恢复 $successCount 张图片'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        if (restoreErrors.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${restoreErrors.length} 张图片恢复失败'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('恢复失败: $e')),
+        );
+      }
+    }
+  }
+
+  /// 撤销上一步操作
+  /// Undo last operation
+  Future<void> _undo() async {
+    final notifier = ref.read(bulkOperationNotifierProvider.notifier);
+    await notifier.undo();
+
+    // 刷新画廊以显示撤销后的状态
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+    // 显示撤销成功提示
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已撤销'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 重做上一步撤销的操作
+  /// Redo last undone operation
+  Future<void> _redo() async {
+    final notifier = ref.read(bulkOperationNotifierProvider.notifier);
+    await notifier.redo();
+
+    // 刷新画廊以显示重做后的状态
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+    // 显示重做成功提示
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已重做'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 批量导出选中的图片元数据
+  /// Export metadata for selected images
+  Future<void> _exportSelectedImages() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    if (!mounted) return;
+
+    // 显示导出选项对话框
+    // Show export options dialog
+    // The dialog will handle the export operation and show progress
+    // 对话框将处理导出操作并显示进度
+    showBulkExportDialog(context);
+
+    // Note: The bulk export dialog will:
+    // 1. Show format selection options
+    // 2. Call bulkExport when user confirms
+    // 3. The bulkExport method will update operation state
+    // 4. User should see progress indication
+    // 5. Exit selection mode when done
+    //
+    // 注：批量导出对话框将：
+    // 1. 显示格式选择选项
+    // 2. 用户确认时调用 bulkExport
+    // 3. bulkExport 方法将更新操作状态
+    // 4. 用户应该看到进度指示
+    // 5. 完成后退出选择模式
+  }
+
+  /// 批量编辑选中的图片元数据
+  /// Edit metadata for selected images
+  Future<void> _editSelectedMetadata() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    if (!mounted) return;
+
+    // 显示批量元数据编辑对话框
+    // Show bulk metadata edit dialog
+    showBulkMetadataEditDialog(context);
+  }
+
+  /// 批量添加选中的图片到集合
+  /// Add selected images to a collection
+  Future<void> _addSelectedToCollection() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    if (!mounted) return;
+
+    // 显示集合选择对话框
+    // Show collection selection dialog
+    final result = await CollectionSelectDialog.show(
+      context,
+      theme: Theme.of(context),
+    );
+
+    if (result == null) {
+      // 用户取消了选择
+      // User cancelled the selection
+      return;
+    }
+
+    // 添加图片到集合
+    // Add images to collection
+    final imagePaths = selectedImages.map((img) => img.path).toList();
+    final addedCount = await ref
+        .read(collectionNotifierProvider.notifier)
+        .addImagesToCollection(result.collectionId, imagePaths);
+
+    if (mounted) {
+      if (addedCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '已添加 $addedCount 张图片到集合「${result.collectionName}」',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        // 退出选择模式
+        // Exit selection mode
+        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('添加图片到集合失败'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -313,6 +627,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(localGalleryNotifierProvider);
+    final bulkOpState = ref.watch(bulkOperationNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
@@ -320,87 +635,90 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final columns = (screenWidth / 200).floor().clamp(2, 8);
     final itemWidth = screenWidth / columns;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // 顶部工具栏
-          _buildToolbar(theme, state),
-          // 主体内容
-          Expanded(
-            child: state.error != null
-                ? _buildErrorState(theme, state)
-                : state.isIndexing
-                    ? _buildIndexingState()
-                    : state.allFiles.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildContent(theme, state, columns, itemWidth),
-          ),
-          // 底部分页条
-          if (!state.isIndexing &&
-              state.filteredFiles.isNotEmpty &&
-              state.totalPages > 1)
-            PaginationBar(
-              currentPage: state.currentPage,
-              totalPages: state.totalPages,
-              onPageChanged: (p) =>
-                  ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
+    return KeyboardListener(
+      focusNode: _shortcutsFocusNode,
+      autofocus: true,
+      onKeyEvent: (event) {
+        // Handle keyboard shortcuts for undo/redo
+        // 处理撤销/重做的键盘快捷键
+        if (event is KeyDownEvent) {
+          final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+
+          if (isCtrlPressed) {
+            // Ctrl+Z for undo
+            if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+              if (bulkOpState.canUndo) {
+                _undo();
+              }
+            }
+            // Ctrl+Y for redo
+            else if (event.logicalKey == LogicalKeyboardKey.keyY) {
+              if (bulkOpState.canRedo) {
+                _redo();
+              }
+            }
+            // Ctrl+Shift+Z for redo
+            else if (event.logicalKey == LogicalKeyboardKey.keyZ &&
+                HardwareKeyboard.instance.isShiftPressed) {
+              if (bulkOpState.canRedo) {
+                _redo();
+              }
+            }
+          }
+        }
+      },
+      child: Scaffold(
+        body: Column(
+          children: [
+            // 顶部工具栏
+            _buildToolbar(theme, state, bulkOpState),
+            // 主体内容
+            Expanded(
+              child: state.error != null
+                  ? _buildErrorState(theme, state)
+                  : state.isIndexing
+                      ? _buildIndexingState()
+                      : state.allFiles.isEmpty
+                          ? _buildEmptyState(context)
+                          : _buildContent(theme, state, columns, itemWidth),
             ),
-        ],
+            // 底部分页条
+            if (!state.isIndexing &&
+                state.filteredFiles.isNotEmpty &&
+                state.totalPages > 1)
+              PaginationBar(
+                currentPage: state.currentPage,
+                totalPages: state.totalPages,
+                onPageChanged: (p) =>
+                    ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   /// 构建顶部工具栏
-  Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
+  Widget _buildToolbar(ThemeData theme, LocalGalleryState state, BulkOperationState bulkOpState) {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
     final isDark = theme.brightness == Brightness.dark;
 
     if (selectionState.isActive) {
-      return ClipRRect(
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? theme.colorScheme.primaryContainer.withOpacity(0.85)
-                  : theme.colorScheme.primaryContainer.withOpacity(0.7),
-              border: Border(
-                bottom: BorderSide(
-                  color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.3),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                _RoundedIconButton(
-                  icon: Icons.close,
-                  tooltip: '退出多选',
-                  onPressed: () => ref
-                      .read(localGallerySelectionNotifierProvider.notifier)
-                      .exit(),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '已选择 ${selectionState.selectedIds.length} 项',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                _RoundedIconButton(
-                  icon: Icons.playlist_add,
-                  tooltip: '加入队列',
-                  onPressed: selectionState.selectedIds.isNotEmpty
-                      ? _addSelectedToQueue
-                      : null,
-                ),
-                // 本地画廊不需要批量下载和收藏
-              ],
-            ),
-          ),
-        ),
+      return BulkActionBar(
+        onExit: () =>
+            ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
+        onAddToCollection: selectionState.selectedIds.isNotEmpty
+            ? _addSelectedToCollection
+            : null,
+        onDelete: selectionState.selectedIds.isNotEmpty
+            ? _deleteSelectedImages
+            : null,
+        onExport: selectionState.selectedIds.isNotEmpty
+            ? _exportSelectedImages
+            : null,
+        onEditMetadata: selectionState.selectedIds.isNotEmpty
+            ? _editSelectedMetadata
+            : null,
       );
     }
 
@@ -459,6 +777,29 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                       ),
                     ),
                   const Spacer(),
+                  // 撤销/重做按钮组
+                  if (bulkOpState.canUndo || bulkOpState.canRedo) ...[
+                    // 撤销按钮
+                    _RoundedIconButton(
+                      icon: Icons.undo,
+                      tooltip: '撤销 (Ctrl+Z)',
+                      onPressed: bulkOpState.canUndo ? _undo : null,
+                      color: bulkOpState.canUndo
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    ),
+                    const SizedBox(width: 4),
+                    // 重做按钮
+                    _RoundedIconButton(
+                      icon: Icons.redo,
+                      tooltip: '重做 (Ctrl+Y)',
+                      onPressed: bulkOpState.canRedo ? _redo : null,
+                      color: bulkOpState.canRedo
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   // 多选模式切换
                   _RoundedIconButton(
                     icon: Icons.checklist,

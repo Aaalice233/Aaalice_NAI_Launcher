@@ -2463,6 +2463,19 @@
     }
   },
 
+  "bulkExport_title": "Export {count} images",
+  "@bulkExport_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkExport_format": "Format",
+  "bulkExport_jsonFormat": "JSON",
+  "bulkExport_csvFormat": "CSV",
+  "bulkExport_metadataOptions": "Metadata Options",
+  "bulkExport_includeMetadata": "Include metadata",
+  "bulkExport_includeMetadataHint": "Export generation parameters with images",
+
   "localGallery_group_today": "Today",
   "localGallery_group_yesterday": "Yesterday",
   "localGallery_group_thisWeek": "This Week",
@@ -2500,6 +2513,66 @@
   "brushPreset_airbrush": "Airbrush",
   "brushPreset_marker": "Marker",
   "brushPreset_thick": "Thick Brush",
-  "brushPreset_smudge": "Smudge Brush"
+  "brushPreset_smudge": "Smudge Brush",
+
+  "bulkProgress_progress": "Processing {current} of {total}",
+  "@bulkProgress_progress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "bulkProgress_success": "{count} succeeded",
+  "@bulkProgress_success": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_failed": "{count} failed",
+  "@bulkProgress_failed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_errors": "Errors:",
+  "bulkProgress_moreErrors": "...and {count} more errors",
+  "@bulkProgress_moreErrors": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completed": "{count} items completed",
+  "@bulkProgress_completed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completedWithErrors": "{success} succeeded, {failed} failed",
+  "@bulkProgress_completedWithErrors": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "bulkProgress_title_delete": "Deleting Images",
+  "bulkProgress_title_export": "Exporting Metadata",
+  "bulkProgress_title_metadataEdit": "Editing Metadata",
+  "bulkProgress_title_addToCollection": "Adding to Collection",
+  "bulkProgress_title_removeFromCollection": "Removing from Collection",
+  "bulkProgress_title_toggleFavorite": "Updating Favorites",
+  "bulkProgress_title_default": "Processing",
+  "collectionSelect_dialogTitle": "Select Collection",
+  "collectionSelect_filterHint": "Search collections...",
+  "collectionSelect_noCollections": "No collections",
+  "collectionSelect_createCollectionHint": "Create a collection first",
+  "collectionSelect_noFilterResults": "No matching collections found",
+  "collectionSelect_imageCount": "{count} images",
+  "@collectionSelect_imageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 
 }

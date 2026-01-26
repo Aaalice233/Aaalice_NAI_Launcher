@@ -26,6 +26,30 @@ Future<NaiImageMetadata?> parseNaiMetadataInIsolate(
   }
 }
 
+/// Progress callback for bulk operations
+///
+/// [current] 当前处理的索引（从 0 开始）
+/// [total] 总数
+/// [currentItem] 当前正在处理的文件路径
+/// [isComplete] 是否完成
+typedef BulkProgressCallback = void Function(
+  int current,
+  int total,
+  String currentItem,
+  bool isComplete,
+);
+
+/// Bulk operation result
+///
+/// [success] 成功的数量
+/// [failed] 失败的数量
+/// [errors] 失败的文件路径及错误信息
+typedef BulkOperationResult = ({
+  int success,
+  int failed,
+  List<String> errors,
+});
+
 /// 本地画廊仓库
 ///
 /// 负责扫描 App 生成的图片目录并解析元数据
@@ -350,23 +374,30 @@ class LocalGalleryRepository {
         'images': exportData,
       };
 
-      // 3. 获取下载目录
-      final downloadsDir = await getDownloadsDirectory();
-      if (downloadsDir == null) {
-        AppLogger.e(
-          'Failed to get downloads directory',
-          null,
-          null,
+      // 3. 获取导出目录（优先下载目录，否则使用系统临时目录）
+      Directory? exportDir;
+      try {
+        exportDir = await getDownloadsDirectory();
+      } catch (e) {
+        // getDownloadsDirectory throws on some platforms (e.g., Windows)
+        AppLogger.w(
+          'Downloads directory not available on this platform: $e',
           'LocalGalleryRepo',
         );
-        return null;
       }
+
+      // Fallback to system temp directory for testing or unsupported platforms
+      exportDir ??= Directory.systemTemp;
+      AppLogger.d(
+        'Using export directory: ${exportDir.path}',
+        'LocalGalleryRepo',
+      );
 
       // 4. 生成文件名（带时间戳）
       final timestamp =
           DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final fileName = 'nai_metadata_export_$timestamp.json';
-      final filePath = '${downloadsDir.path}${Platform.pathSeparator}$fileName';
+      final filePath = '${exportDir.path}${Platform.pathSeparator}$fileName';
       final file = File(filePath);
 
       // 5. 写入 JSON 文件
@@ -384,6 +415,261 @@ class LocalGalleryRepository {
     } catch (e) {
       AppLogger.e(
         'Failed to export metadata',
+        e,
+        null,
+        'LocalGalleryRepo',
+      );
+      return null;
+    }
+  }
+
+  /// 批量删除图片
+  ///
+  /// [imagePaths] 要删除的图片路径列表
+  /// [onProgress] 可选的进度回调
+  /// 返回操作结果（成功数、失败数、错误列表）
+  Future<BulkOperationResult> bulkDeleteImages(
+    List<String> imagePaths, {
+    BulkProgressCallback? onProgress,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    int successCount = 0;
+    int failedCount = 0;
+    final errors = <String>[];
+
+    AppLogger.i(
+      'Starting bulk delete: ${imagePaths.length} images',
+      'LocalGalleryRepo',
+    );
+
+    for (var i = 0; i < imagePaths.length; i++) {
+      final imagePath = imagePaths[i];
+
+      // Report progress
+      onProgress?.call(
+        i,
+        imagePaths.length,
+        imagePath,
+        false,
+      );
+
+      try {
+        final file = File(imagePath);
+        if (await file.exists()) {
+          await file.delete();
+
+          // Clean up favorites
+          await _favoritesBox.delete(imagePath);
+
+          // Clean up tags
+          await _tagsBox.delete(imagePath);
+
+          successCount++;
+          AppLogger.d(
+            'Deleted: $imagePath ($successCount/${imagePaths.length})',
+            'LocalGalleryRepo',
+          );
+        } else {
+          failedCount++;
+          final error = 'File not found: $imagePath';
+          errors.add(error);
+          AppLogger.w(error, 'LocalGalleryRepo');
+        }
+      } catch (e) {
+        failedCount++;
+        final error = 'Failed to delete $imagePath: $e';
+        errors.add(error);
+        AppLogger.e(
+          'Delete failed for $imagePath',
+          e,
+          null,
+          'LocalGalleryRepo',
+        );
+      }
+    }
+
+    // Final progress update
+    onProgress?.call(
+      imagePaths.length,
+      imagePaths.length,
+      '',
+      true,
+    );
+
+    stopwatch.stop();
+    AppLogger.i(
+      'Bulk delete completed: $successCount succeeded, $failedCount failed '
+          'in ${stopwatch.elapsedMilliseconds}ms',
+      'LocalGalleryRepo',
+    );
+
+    return (
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+    );
+  }
+
+  /// 批量编辑标签
+  ///
+  /// [imagePaths] 要编辑的图片路径列表
+  /// [tagsToAdd] 要添加的标签列表
+  /// [tagsToRemove] 要删除的标签列表
+  /// [onProgress] 可选的进度回调
+  /// 返回操作结果（成功数、失败数、错误列表）
+  Future<BulkOperationResult> bulkEditTags(
+    List<String> imagePaths, {
+    List<String> tagsToAdd = const [],
+    List<String> tagsToRemove = const [],
+    BulkProgressCallback? onProgress,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    int successCount = 0;
+    int failedCount = 0;
+    final errors = <String>[];
+
+    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
+      AppLogger.w(
+        'No tags to add or remove, skipping bulk tag edit',
+        'LocalGalleryRepo',
+      );
+      return (
+        success: 0,
+        failed: 0,
+        errors: <String>[],
+      );
+    }
+
+    AppLogger.i(
+      'Starting bulk tag edit: ${imagePaths.length} images '
+          '(add: ${tagsToAdd.length}, remove: ${tagsToRemove.length})',
+      'LocalGalleryRepo',
+    );
+
+    for (var i = 0; i < imagePaths.length; i++) {
+      final imagePath = imagePaths[i];
+
+      // Report progress
+      onProgress?.call(
+        i,
+        imagePaths.length,
+        imagePath,
+        false,
+      );
+
+      try {
+        // Get current tags
+        final currentTags = getTags(imagePath);
+
+        // Add new tags (avoid duplicates)
+        final updatedTags = List<String>.from(currentTags);
+        for (final tag in tagsToAdd) {
+          if (!updatedTags.contains(tag)) {
+            updatedTags.add(tag);
+          }
+        }
+
+        // Remove tags
+        for (final tag in tagsToRemove) {
+          updatedTags.remove(tag);
+        }
+
+        // Save updated tags
+        await setTags(imagePath, updatedTags);
+        successCount++;
+
+        AppLogger.d(
+          'Updated tags for $imagePath: ${currentTags.length} -> ${updatedTags.length} '
+              '($successCount/${imagePaths.length})',
+          'LocalGalleryRepo',
+        );
+      } catch (e) {
+        failedCount++;
+        final error = 'Failed to edit tags for $imagePath: $e';
+        errors.add(error);
+        AppLogger.e(
+          'Tag edit failed for $imagePath',
+          e,
+          null,
+          'LocalGalleryRepo',
+        );
+      }
+    }
+
+    // Final progress update
+    onProgress?.call(
+      imagePaths.length,
+      imagePaths.length,
+      '',
+      true,
+    );
+
+    stopwatch.stop();
+    AppLogger.i(
+      'Bulk tag edit completed: $successCount succeeded, $failedCount failed '
+          'in ${stopwatch.elapsedMilliseconds}ms',
+      'LocalGalleryRepo',
+    );
+
+    return (
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+    );
+  }
+
+  /// 批量导出元数据
+  ///
+  /// [files] 要导出的图片文件列表
+  /// [onProgress] 可选的进度回调
+  /// 返回导出的文件，失败返回 null
+  Future<File?> bulkExportMetadata(
+    List<File> files, {
+    BulkProgressCallback? onProgress,
+  }) async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      // 1. 加载记录（自动包含收藏状态和标签）
+      final records = await loadRecords(files);
+
+      AppLogger.i(
+        'Starting bulk export: ${records.length} images',
+        'LocalGalleryRepo',
+      );
+
+      // 2. 使用现有的导出方法
+      final exportedFile = await exportMetadataToJson(records);
+
+      // 3. 报告进度
+      for (var i = 0; i < records.length; i++) {
+        onProgress?.call(
+          i,
+          records.length,
+          records[i].path,
+          false,
+        );
+      }
+
+      // Final progress update
+      onProgress?.call(
+        records.length,
+        records.length,
+        '',
+        true,
+      );
+
+      stopwatch.stop();
+      AppLogger.i(
+        'Bulk export completed: ${records.length} images exported '
+            'in ${stopwatch.elapsedMilliseconds}ms',
+        'LocalGalleryRepo',
+      );
+
+      return exportedFile;
+    } catch (e) {
+      AppLogger.e(
+        'Bulk export failed',
         e,
         null,
         'LocalGalleryRepo',
