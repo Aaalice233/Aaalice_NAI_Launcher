@@ -1,0 +1,414 @@
+{
+  "feature": "UI Layout State Persistence",
+  "workflow_type": "feature",
+  "workflow_rationale": "This is a new feature addition that requires implementing state management and persistence for UI layout preferences. No bugs are being fixed. The implementation will add new storage keys, extend the storage service, create new state providers, and update UI components to persist/restore state.",
+  "phases": [
+    {
+      "id": "phase-1-storage-layer",
+      "name": "Storage Layer Setup",
+      "type": "implementation",
+      "description": "Add storage keys and extend LocalStorageService with methods for UI layout state persistence",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Add storage keys for UI layout state to StorageKeys class",
+          "service": "main",
+          "files_to_modify": [
+            "lib/core/constants/storage_keys.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/core/constants/storage_keys.dart"
+          ],
+          "changes": [
+            "Add 'leftPanelExpanded' key constant",
+            "Add 'rightPanelExpanded' key constant",
+            "Add 'leftPanelWidth' key constant",
+            "Add 'promptAreaHeight' key constant",
+            "Add 'promptMaximized' key constant"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'leftPanelExpanded|rightPanelExpanded|promptAreaHeight|promptMaximized' lib/core/constants/storage_keys.dart",
+            "expected": "All 5 keys found in file"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Add UI layout state getter/setter methods to LocalStorageService",
+          "service": "main",
+          "files_to_modify": [
+            "lib/core/storage/local_storage_service.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/theme_provider.dart",
+            "lib/presentation/providers/locale_provider.dart"
+          ],
+          "changes": [
+            "Add getLeftPanelExpanded() method with default true",
+            "Add setLeftPanelExpanded(bool) async method",
+            "Add getRightPanelExpanded() method with default true",
+            "Add setRightPanelExpanded(bool) async method",
+            "Add getLeftPanelWidth() method with default 300",
+            "Add setLeftPanelWidth(double) async method",
+            "Add getPromptAreaHeight() method with default 200",
+            "Add setPromptAreaHeight(double) async method",
+            "Add getPromptMaximized() method with default false",
+            "Add setPromptMaximized(bool) async method"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'getLeftPanelExpanded|setLeftPanelExpanded|getRightPanelExpanded|setRightPanelExpanded|getPromptAreaHeight|setPromptAreaHeight|getPromptMaximized|setPromptMaximized' lib/core/storage/local_storage_service.dart",
+            "expected": "All 10 methods found (5 getters + 5 setters)"
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-state-management",
+      "name": "State Management Layer",
+      "type": "implementation",
+      "description": "Create Riverpod provider for UI layout state with automatic persistence",
+      "depends_on": [
+        "phase-1-storage-layer"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Create LayoutStateProvider with Riverpod code generation",
+          "service": "main",
+          "files_to_create": [
+            "lib/presentation/providers/layout_state_provider.dart",
+            "lib/presentation/providers/layout_state_provider.g.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "lib/presentation/providers/theme_provider.dart",
+            "lib/presentation/providers/locale_provider.dart"
+          ],
+          "changes": [
+            "Create LayoutState data class with fields: leftPanelExpanded, rightPanelExpanded, leftPanelWidth, rightPanelWidth, promptAreaHeight, promptMaximized",
+            "Create LayoutStateNotifier class with @riverpod annotation",
+            "Implement build() method to load all layout state from LocalStorageService",
+            "Implement setter methods for each field that save to LocalStorageService",
+            "Add toggleLeftPanel(), toggleRightPanel() convenience methods",
+            "Run build_runner to generate .g.dart file"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "test -f lib/presentation/providers/layout_state_provider.g.dart && grep -q 'class LayoutStateNotifier' lib/presentation/providers/layout_state_provider.dart && grep -q 'LayoutState' lib/presentation/providers/layout_state_provider.dart",
+            "expected": "Provider file and generated file exist, class definitions found"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Update PromptMaximizeProvider to persist state",
+          "service": "main",
+          "files_to_modify": [
+            "lib/presentation/providers/prompt_maximize_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/theme_provider.dart"
+          ],
+          "changes": [
+            "Modify build() to load from LocalStorageService.getPromptMaximized()",
+            "Modify toggle() to save state via LocalStorageService.setPromptMaximized()",
+            "Modify setMaximized() to save state via LocalStorageService.setPromptMaximized()"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'getPromptMaximized|setPromptMaximized' lib/presentation/providers/prompt_maximize_provider.dart",
+            "expected": "LocalStorageService method calls found"
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-ui-integration",
+      "name": "UI Integration",
+      "type": "implementation",
+      "description": "Update desktop layout widget to use persistent state provider",
+      "depends_on": [
+        "phase-2-state-management"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Integrate LayoutStateProvider into DesktopGenerationLayout",
+          "service": "main",
+          "files_to_modify": [
+            "lib/presentation/screens/generation/desktop_layout.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/screens/generation/desktop_layout.dart"
+          ],
+          "changes": [
+            "Remove local state variables: _leftPanelExpanded, _rightPanelExpanded, _leftPanelWidth, _promptAreaHeight",
+            "Watch layoutStateNotifierProvider in build method",
+            "Replace setState() calls with provider state reads",
+            "Update collapse button onTap callbacks to call provider methods",
+            "Update resize handle onDrag callbacks to call provider methods",
+            "Initialize default state from provider instead of Hive.box directly"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'layoutStateNotifierProvider|ref.read|ref.watch' lib/presentation/screens/generation/desktop_layout.dart | head -20",
+            "expected": "Provider references found in file"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Add state restoration on app startup",
+          "service": "main",
+          "files_to_modify": [
+            "lib/presentation/screens/generation/desktop_layout.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/screens/generation/desktop_layout.dart"
+          ],
+          "changes": [
+            "Remove initState() Hive.box call for historyPanelWidth",
+            "Ensure provider loads state automatically in build() method",
+            "Verify no race condition between provider load and initial render"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Launch app, collapse right panel, close app, relaunch app. Verify right panel starts collapsed."
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-validation",
+      "name": "Validation and Testing",
+      "type": "integration",
+      "description": "Test UI state persistence across app restarts and edge cases",
+      "depends_on": [
+        "phase-3-ui-integration"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Test panel expansion state persistence",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "e2e",
+            "steps": [
+              "Launch application in generation screen",
+              "Collapse left parameter panel (click collapse button)",
+              "Close application normally",
+              "Relaunch application",
+              "Verify left panel is collapsed",
+              "Expand left panel",
+              "Close and relaunch application",
+              "Verify left panel is expanded"
+            ]
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Test panel width persistence",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "e2e",
+            "steps": [
+              "Launch application in generation screen",
+              "Drag right panel resize handle to make panel wider",
+              "Close application",
+              "Relaunch application",
+              "Verify right panel width matches adjusted width",
+              "Drag left panel resize handle to make panel narrower",
+              "Close and relaunch application",
+              "Verify left panel width matches adjusted width"
+            ]
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Test prompt area state persistence",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "e2e",
+            "steps": [
+              "Launch application in generation screen",
+              "Drag prompt area resize handle to increase height",
+              "Click maximize button on prompt area",
+              "Close application",
+              "Relaunch application",
+              "Verify prompt area is maximized",
+              "Unmaximize prompt area",
+              "Verify prompt area height matches adjusted height"
+            ]
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-4-4",
+          "description": "Test crash recovery and first launch",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "e2e",
+            "steps": [
+              "Clear all app data (delete Hive boxes)",
+              "Launch application",
+              "Verify all panels use default states (expanded, default widths)",
+              "Adjust multiple UI elements (collapse panels, resize, maximize)",
+              "Force-kill application (task manager or kill command)",
+              "Relaunch application",
+              "Verify all UI states are preserved despite crash"
+            ]
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 4,
+    "total_subtasks": 10,
+    "services_involved": [
+      "main"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 1,
+      "parallel_groups": [],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential execution required - each phase depends on previous"
+    },
+    "startup_command": "flutter run -d windows",
+    "estimated_duration": "2-3 hours for implementation, 1 hour for testing"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit",
+      "integration",
+      "e2e"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All storage keys defined in StorageKeys class",
+      "LocalStorageService has all getter/setter methods for layout state",
+      "LayoutStateProvider created and generates .g.dart file",
+      "Desktop layout uses provider instead of local state",
+      "Panel expansion states persist across app restarts",
+      "Panel widths persist across app restarts",
+      "Prompt area height persists across app restarts",
+      "Prompt maximize state persists across app restarts",
+      "No console errors on app launch or state changes",
+      "First launch works correctly with default values"
+    ],
+    "verification_steps": [
+      {
+        "name": "Code Generation",
+        "command": "dart run build_runner build --delete-conflicting-outputs",
+        "expected_outcome": "Successfully generates .g.dart files with no errors",
+        "type": "build",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Compile Check",
+        "command": "flutter analyze",
+        "expected_outcome": "No analysis errors or warnings",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Manual Persistence Test",
+        "command": "",
+        "expected_outcome": "UI state persists across app restarts",
+        "type": "manual",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Regression Test",
+        "command": "",
+        "expected_outcome": "Existing functionality (image generation, panel resize, etc.) still works",
+        "type": "manual",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Medium risk because this affects core UI behavior and user experience. State persistence bugs are immediately visible to users (wrong panel state on launch). Requires thorough E2E testing to verify all states persist correctly. No security concerns as this is local UI preferences only."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": false,
+      "commands": [],
+      "minimum_coverage": null,
+      "notes": "Unit tests would be ideal for provider logic but may not exist for similar providers (theme, locale). Focus on integration/E2E testing."
+    },
+    "integration_tests": {
+      "required": true,
+      "commands": [],
+      "services_to_test": [
+        "main"
+      ],
+      "notes": "Verify provider loads state from storage and saves correctly"
+    },
+    "e2e_tests": {
+      "required": true,
+      "commands": [],
+      "flows": [
+        "panel-collapse-persistence",
+        "panel-width-persistence",
+        "prompt-maximize-persistence",
+        "crash-recovery"
+      ],
+      "notes": "Manual E2E testing required - launch app, adjust UI, close, relaunch, verify state"
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": [],
+      "notes": "N/A - Desktop application, not web"
+    },
+    "database_verification": {
+      "required": true,
+      "checks": [
+        "storage-keys-exist",
+        "hive-box-contains-values",
+        "values-match-ui-state"
+      ],
+      "notes": "Verify Hive settings box contains the layout state values with correct keys"
+    }
+  },
+  "qa_signoff": null,
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "updated_at": "2026-01-26T06:53:51.403Z"
+}
