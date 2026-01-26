@@ -1,0 +1,836 @@
+{
+  "feature": "Create Comprehensive Verification Checklist for Previous Bug Fixes & Improvements",
+  "description": "Design and implement an AI-assisted verification system to validate whether the 9 previously reported BUGs and 16 improvement suggestions have been properly fixed in the NovelAI Universal Launcher.",
+  "workflow_type": "feature",
+  "workflow_rationale": "This is a new feature being added - a complete test infrastructure and verification framework that does not currently exist. Involves creating new test files, verification tooling, and a reporting dashboard.",
+  "created_at": "2026-01-26T10:56:00.000Z",
+  "updated_at": "2026-01-26T03:33:50.829Z",
+  "status": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1-setup",
+      "name": "Test Infrastructure Setup",
+      "type": "setup",
+      "description": "Set up test directories, fixture data, and verify testing framework dependencies",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Create test directories and fixture structure",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/fixtures/images/",
+            "test/fixtures/json/",
+            "test/screenshots/reference/",
+            "test_results/",
+            "test_results/dashboard/"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "ls -la test/fixtures/ test_results/",
+            "expected": "Directories created successfully"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Create test fixture data files (images, JSON mocks)",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/fixtures/images/test_vibe_image.png",
+            "test/fixtures/images/test_metadata.png",
+            "test/fixtures/json/auth_success_response.json",
+            "test/fixtures/json/auth_failure_response.json",
+            "test/fixtures/json/danbooru_posts.json"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "ls -la test/fixtures/images/ test/fixtures/json/",
+            "expected": "Fixture files exist"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-3",
+          "description": "Verify mocktail and integration_test dependencies in pubspec.yaml",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            "pubspec.yaml"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'mocktail|integration_test' pubspec.yaml",
+            "expected": "mocktail: ^1.0.3"
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-automated-bug-tests",
+      "name": "Automated BUG Test Cases (9 Tests)",
+      "type": "implementation",
+      "description": "Create 9 automated test cases covering all BUG scenarios using Flutter test framework",
+      "depends_on": [
+        "phase-1-setup"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "BUG-001: Create vibe encoding zero-point consumption test",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/integration/vibe_encoding_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/integration/favorites_storage_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/integration/vibe_encoding_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "BUG-002: Create DDIM sampler validation test",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/data/models/generation/sampler_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/data/models/prompt/tag_favorite_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/data/models/generation/sampler_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "completed",
+          "notes": "Created comprehensive unit tests for DDIM sampler validation with 22 test cases covering:\n- DDIM constant definitions (ddim, ddim_v3)\n- Display names for both DDIM variants  \n- Sampler list membership validation\n- DDIM detection logic with case sensitivity\n- Sampler mapping logic for different model versions (V2, V3, V4, V4.5)\n- Edge cases (empty strings, N/A models, non-DDIM samplers)\n\nAll tests passed successfully. Committed to branch auto-claude/021-create-comprehensive-verification-checklist-for-pr.",
+          "updated_at": "2026-01-26T03:27:18.484616+00:00"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "BUG-003: Create seed persistence test",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/presentation/providers/seed_provider_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/presentation/providers/tag_favorite_provider_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/presentation/providers/seed_provider_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "completed",
+          "notes": "Created comprehensive test suite for seed persistence with 21 test cases covering:\n- Initial state verification (random seed -1)\n- Seed update and randomization\n- Seed locking/unlocking mechanism\n- Seed persistence across multiple generations\n- Storage persistence across app restarts\n- Edge cases (max seed, zero, negative values)\n- Integration scenarios (typical workflow, batch generation)\n\nAll tests passed successfully. Implemented FakeLocalStorageService to mock storage layer following established patterns.\n\nTest file: test/presentation/providers/seed_provider_test.dart (666 lines)\nTest coverage: GenerationParamsNotifier with full seed lifecycle testing",
+          "updated_at": "2026-01-26T03:30:00.000000+00:00"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "BUG-004/005: Create authentication API tests (Danbooru/Gallery)",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/data/datasources/remote/auth_api_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/data/models/prompt/tag_favorite_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/data/datasources/remote/auth_api_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "completed",
+          "notes": "Created comprehensive authentication API tests with 20 test cases covering:\n- Danbooru authentication (verifyCredentials with valid/invalid credentials)\n- NovelAI authentication (validateToken and loginWithKey methods)\n- Token format validation (NAI token format checking)\n- Error handling (timeouts, connection errors, 401 responses)\n- Edge cases (malformed responses, null data, network failures)\n- Integration scenarios (end-to-end auth flow, session expiry)\n\nAll tests passed successfully. Committed to branch auto-claude/021-create-comprehensive-verification-checklist-for-pr.",
+          "updated_at": "2026-01-26T03:37:34.000000+00:00"
+        },
+        {
+          "id": "subtask-2-5",
+          "description": "BUG-006: Create sidebar width state persistence test",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/integration/sidebar_state_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/integration/favorites_storage_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/integration/sidebar_state_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-6",
+          "description": "BUG-007: Create search query parsing test (underscores)",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/data/models/search/query_parser_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/data/models/prompt/tag_favorite_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/data/models/search/query_parser_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-7",
+          "description": "BUG-008: Create prompt autofill click-to-insert widget test",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/widgets/prompt_autofill_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/presentation/widgets/prompt/tag_favorite_panel_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/widgets/prompt_autofill_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-8",
+          "description": "BUG-009: Create character bar UI component test",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test/presentation/screens/character_bar_test.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "test/presentation/screens/auth/login_screen_test.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "flutter test test/presentation/screens/character_bar_test.dart",
+            "expected": "All tests passed"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-9",
+          "description": "Run all BUG tests together and verify >90% pass rate",
+          "service": "nai_launcher",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter test --reporter json > test_results/bug_test_output.json && cat test_results/bug_test_output.json",
+            "expected": "Test results JSON generated"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-manual-verification",
+      "name": "Manual Verification Documentation",
+      "type": "implementation",
+      "description": "Create comprehensive manual verification checklists for 16 improvement suggestions",
+      "depends_on": [
+        "phase-1-setup"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Create manual verification document with step-by-step guides",
+          "service": "nai_launcher",
+          "files_to_create": [
+            "test_results/manual_verification.md"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "wc -l test_results/manual_verification.md",
+            "expected": "Document has >100 lines"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Document UI layout verification steps (IMPR-001~004)",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            "test_results/manual_verification.md"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify document includes screenshot comparison steps for IMPR-001~004"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Document workflow verification steps (IMPR-006~008, IMPR-012)",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            "test_results/manual_verification.md"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify document includes multi-prompt and drag-drop testing steps"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-4",
+          "description": "Document performance and feature flag verification steps",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            "test_results/manual_verification.md"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify document includes performance metrics (IMPR-011) and feature flag checks (IMPR-005, 013~016)"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-test-result-processor",
+      "name": "Test Result Processor Tool",
+      "type": "implementation",
+      "description": "Create Dart CLI tool to parse Flutter test JSON output and generate structured results",
+      "depends_on": [
+        "phase-2-automated-bug-tests"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Create test result processor Dart CLI tool",
+          "service": "verification_tool",
+          "files_to_create": [
+            "tool/test_result_processor.dart"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [
+            "tool/extract_metadata.dart"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "dart run tool/test_result_processor.dart --help",
+            "expected": "Tool shows usage information"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Parse Flutter test JSON output and extract PASS/FAIL/SKIPPED status",
+          "service": "verification_tool",
+          "files_to_modify": [
+            "tool/test_result_processor.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "dart run tool/test_result_processor.dart test_results/bug_test_output.json",
+            "expected": "Test results summary generated"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Generate structured JSON output for dashboard consumption",
+          "service": "verification_tool",
+          "files_to_modify": [
+            "tool/test_result_processor.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cat test_results/summary.json",
+            "expected": "Valid JSON with test results"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-5-verification-dashboard",
+      "name": "Verification Dashboard",
+      "type": "implementation",
+      "description": "Create static HTML/JS dashboard for test result visualization",
+      "depends_on": [
+        "phase-4-test-result-processor"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "description": "Create HTML dashboard structure with test result matrix",
+          "service": "dashboard",
+          "files_to_create": [
+            "test_results/dashboard/index.html"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "ls -la test_results/dashboard/index.html",
+            "expected": "HTML file exists"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-2",
+          "description": "Add CSS styling for PASS/FAIL/SKIPPED visualization",
+          "service": "dashboard",
+          "files_to_create": [
+            "test_results/dashboard/style.css"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "ls -la test_results/dashboard/style.css",
+            "expected": "CSS file exists with color coding"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-3",
+          "description": "Add JavaScript for test result loading and filtering",
+          "service": "dashboard",
+          "files_to_create": [
+            "test_results/dashboard/app.js"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Open dashboard in browser and verify test results load correctly"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-4",
+          "description": "Implement evidence collection display (screenshots, logs)",
+          "service": "dashboard",
+          "files_to_modify": [
+            "test_results/dashboard/index.html",
+            "test_results/dashboard/app.js"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify dashboard shows evidence links for failed tests"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-5",
+          "description": "Implement regression detection (compare current vs previous run)",
+          "service": "dashboard",
+          "files_to_modify": [
+            "test_results/dashboard/app.js"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify dashboard highlights new test failures compared to previous run"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-6",
+          "description": "Add coverage report display module",
+          "service": "dashboard",
+          "files_to_modify": [
+            "test_results/dashboard/app.js"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify dashboard shows code coverage percentages per module"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-6-ci-cd-integration",
+      "name": "CI/CD Pipeline Integration",
+      "type": "implementation",
+      "description": "Create GitHub Actions workflow for continuous verification",
+      "depends_on": [
+        "phase-5-verification-dashboard"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-6-1",
+          "description": "Create GitHub Actions workflow YAML",
+          "service": "nai_launcher",
+          "files_to_create": [
+            ".github/workflows/verification.yml"
+          ],
+          "files_to_modify": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "ls -la .github/workflows/verification.yml",
+            "expected": "Workflow file exists"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-2",
+          "description": "Configure workflow to run tests on Windows (primary target platform)",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            ".github/workflows/verification.yml"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'windows-latest|flutter' .github/workflows/verification.yml",
+            "expected": "Workflow configured for Windows and Flutter"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-3",
+          "description": "Add test result upload as workflow artifacts",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            ".github/workflows/verification.yml"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "grep -E 'upload-artifact|test_results' .github/workflows/verification.yml",
+            "expected": "Artifacts upload configured"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-4",
+          "description": "Add PR comment with test results summary",
+          "service": "nai_launcher",
+          "files_to_modify": [
+            ".github/workflows/verification.yml"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Verify workflow includes github-script for PR comments"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-7-integration-testing",
+      "name": "End-to-End Integration Testing",
+      "type": "integration",
+      "description": "Verify entire verification system works end-to-end",
+      "depends_on": [
+        "phase-2-automated-bug-tests",
+        "phase-3-manual-verification",
+        "phase-5-verification-dashboard",
+        "phase-6-ci-cd-integration"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-7-1",
+          "description": "Run full test suite and generate dashboard",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "e2e",
+            "steps": [
+              "Run: flutter test --reporter json > test_results/output.json",
+              "Run: dart run tool/test_result_processor.dart test_results/output.json",
+              "Open: test_results/dashboard/index.html",
+              "Verify: All 9 BUG tests show PASS status",
+              "Verify: Evidence collection links present"
+            ]
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-7-2",
+          "description": "Verify manual verification document completeness",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review manual_verification.md and verify all 16 improvements have documented steps"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-7-3",
+          "description": "Verify test execution time is under 10 minutes",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "time flutter test",
+            "expected": "Execution completes in <600 seconds"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-7-4",
+          "description": "Verify no regressions in existing tests",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter test && echo 'All existing tests pass'",
+            "expected": "All existing tests pass without errors"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-7-5",
+          "description": "Verify dashboard regression detection works",
+          "all_services": true,
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "e2e",
+            "steps": [
+              "Run full test suite twice",
+              "Modify one test to fail on second run",
+              "Verify dashboard highlights the new failure",
+              "Verify comparison shows 'NEW FAILURE' indicator"
+            ]
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 7,
+    "total_subtasks": 34,
+    "services_involved": [
+      "nai_launcher",
+      "verification_tool",
+      "dashboard"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 2,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-2-automated-bug-tests",
+            "phase-3-manual-verification"
+          ],
+          "reason": "Both depend only on phase-1-setup and work on different file sets"
+        }
+      ],
+      "recommended_workers": 1,
+      "speedup_estimate": "1.2x faster than sequential (phases 2-3 can run in parallel)"
+    },
+    "startup_command": "cd .auto-claude/specs/021-create-comprehensive-verification-checklist-for-pr && source ../../.venv/bin/activate && python ../../run.py --spec 021 --parallel 1"
+  },
+  "verification_strategy": {
+    "risk_level": "high",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit",
+      "integration",
+      "e2e"
+    ],
+    "security_scanning_required": true,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All 9 BUG automated tests exist and pass with >90% success rate",
+      "All 16 improvement suggestions have documented manual verification steps",
+      "Verification dashboard displays clear PASS/FAIL visualization",
+      "Evidence collection (screenshots, logs) is automated and accessible",
+      "Regression detection compares current vs previous test runs",
+      "Full verification run completes in <10 minutes",
+      "No regressions in existing functionality",
+      "Code follows established patterns (AAA, descriptive reasons)"
+    ],
+    "verification_steps": [
+      {
+        "name": "Run All BUG Tests",
+        "command": "flutter test --reporter json > test_results/output.json",
+        "expected_outcome": "All 9 BUG tests pass (>90% pass rate)",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Generate Dashboard",
+        "command": "dart run tool/test_result_processor.dart test_results/output.json",
+        "expected_outcome": "Summary JSON generated",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Open Dashboard",
+        "command": "start test_results/dashboard/index.html",
+        "expected_outcome": "Dashboard loads and displays results",
+        "type": "manual",
+        "required": true,
+        "blocking": false
+      },
+      {
+        "name": "Verify Manual Documentation",
+        "command": "grep -c 'IMPR-' test_results/manual_verification.md",
+        "expected_outcome": "16 improvement items documented",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Check Test Execution Time",
+        "command": "time flutter test",
+        "expected_outcome": "<600 seconds (10 minutes)",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Existing Tests Regression Check",
+        "command": "flutter test",
+        "expected_outcome": "All existing tests still pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Security Scan for Hardcoded Credentials",
+        "command": "grep -r -i 'api_key\\|password\\|secret' test/ --include='*.dart' | grep -v '//.*test' | grep -v 'mock' || echo 'No hardcoded credentials found'",
+        "expected_outcome": "No hardcoded credentials in test files",
+        "type": "security",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "High risk complexity requires comprehensive validation: unit tests for BUG scenarios, integration tests for state persistence, E2E for full workflow. Security scan required because tests handle authentication credentials. Full verification must complete under 10-minute performance target."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "flutter test test/data/models/generation/sampler_test.dart",
+        "flutter test test/data/datasources/remote/auth_api_test.dart",
+        "flutter test test/data/models/search/query_parser_test.dart"
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": true,
+      "commands": [
+        "flutter test test/integration/vibe_encoding_test.dart",
+        "flutter test test/integration/sidebar_state_test.dart",
+        "flutter test test/presentation/providers/seed_provider_test.dart"
+      ],
+      "services_to_test": [
+        "nai_launcher"
+      ]
+    },
+    "e2e_tests": {
+      "required": true,
+      "commands": [
+        "flutter test --reporter json > test_results/output.json && dart run tool/test_result_processor.dart test_results/output.json && start test_results/dashboard/index.html"
+      ],
+      "flows": [
+        "full-test-run",
+        "dashboard-generation",
+        "regression-detection"
+      ]
+    },
+    "widget_tests": {
+      "required": true,
+      "commands": [
+        "flutter test test/widgets/prompt_autofill_test.dart",
+        "flutter test test/presentation/screens/character_bar_test.dart"
+      ]
+    },
+    "manual_verification": {
+      "required": true,
+      "documents": [
+        "test_results/manual_verification.md"
+      ],
+      "checks": [
+        "All 16 improvements have documented steps (IMPR-001~016)",
+        "UI layout tests include screenshot comparison steps",
+        "Workflow tests include multi-prompt and drag-drop steps",
+        "Performance tests include DevTools measurement steps",
+        "Feature flag tests include toggle verification steps"
+      ]
+    },
+    "dashboard_verification": {
+      "required": true,
+      "pages": [
+        {
+          "url": "file://test_results/dashboard/index.html",
+          "checks": [
+            "Test matrix renders correctly",
+            "PASS/FAIL/SKIPPED colors display",
+            "Filter controls work",
+            "Export buttons functional"
+          ]
+        }
+      ]
+    }
+  },
+  "qa_signoff": null,
+  "planStatus": "in_progress",
+  "last_updated": "2026-01-26T03:27:18.484616+00:00"
+}
