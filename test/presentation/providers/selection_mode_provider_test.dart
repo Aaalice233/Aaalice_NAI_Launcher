@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
@@ -638,6 +640,302 @@ void main() {
           state.isSelected('item3'),
           isTrue,
           reason: 'item3 should be selected',
+        );
+      });
+    });
+  });
+
+  group('Performance Benchmarks', () {
+    late ProviderContainer container;
+
+    setUp(() {
+      container = ProviderContainer();
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    group('LocalGallerySelectionNotifier Performance', () {
+      test('toggle performance with 100 selected ids', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Pre-select 100 items
+        final items = List.generate(100, (i) => 'item_$i');
+        notifier.selectAll(items);
+
+        final stopwatch = Stopwatch()..start();
+
+        // Toggle operation on an item that's already selected
+        notifier.toggle('item_50');
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        expect(
+          container.read(localGallerySelectionNotifierProvider).isSelected('item_50'),
+          isFalse,
+          reason: 'Item should be deselected',
+        );
+
+        // Performance target: <10ms for toggle with 100 selected items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(10),
+          reason: 'Toggle operation with 100 selected items should complete in <10ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('toggle performance with 500 selected ids', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Pre-select 500 items
+        final items = List.generate(500, (i) => 'item_$i');
+        notifier.selectAll(items);
+
+        final stopwatch = Stopwatch()..start();
+
+        // Toggle operation on an item that's already selected
+        notifier.toggle('item_250');
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        expect(
+          container.read(localGallerySelectionNotifierProvider).isSelected('item_250'),
+          isFalse,
+          reason: 'Item should be deselected',
+        );
+
+        // Performance target: <10ms for toggle with 500 selected items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(10),
+          reason: 'Toggle operation with 500 selected items should complete in <10ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('select performance with 500 selected ids', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Pre-select 500 items
+        final items = List.generate(500, (i) => 'item_$i');
+        notifier.selectAll(items);
+
+        final stopwatch = Stopwatch()..start();
+
+        // Select a new item (not already in selection)
+        notifier.select('new_item');
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        expect(
+          container.read(localGallerySelectionNotifierProvider).isSelected('new_item'),
+          isTrue,
+          reason: 'New item should be selected',
+        );
+        expect(
+          container.read(localGallerySelectionNotifierProvider).selectedCount,
+          501,
+          reason: 'Should have 501 selected items',
+        );
+
+        // Performance target: <10ms for select with 500 selected items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(10),
+          reason: 'Select operation with 500 selected items should complete in <10ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('deselect performance with 500 selected ids', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Pre-select 500 items
+        final items = List.generate(500, (i) => 'item_$i');
+        notifier.selectAll(items);
+
+        final stopwatch = Stopwatch()..start();
+
+        // Deselect an item
+        notifier.deselect('item_100');
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        expect(
+          container.read(localGallerySelectionNotifierProvider).isSelected('item_100'),
+          isFalse,
+          reason: 'Item should be deselected',
+        );
+        expect(
+          container.read(localGallerySelectionNotifierProvider).selectedCount,
+          499,
+          reason: 'Should have 499 selected items',
+        );
+
+        // Performance target: <10ms for deselect with 500 selected items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(10),
+          reason: 'Deselect operation with 500 selected items should complete in <10ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('selectRange performance with large range', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Create a large list of IDs
+        final allIds = List.generate(200, (i) => 'item_$i');
+
+        // Set anchor at the beginning
+        notifier.select('item_0');
+
+        final stopwatch = Stopwatch()..start();
+
+        // Select a large range (0 to 199)
+        notifier.selectRange('item_199', allIds);
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        final state = container.read(localGallerySelectionNotifierProvider);
+        expect(
+          state.selectedCount,
+          200,
+          reason: 'Should have 200 items selected',
+        );
+        expect(
+          state.isSelected('item_0'),
+          isTrue,
+          reason: 'First item should be selected',
+        );
+        expect(
+          state.isSelected('item_199'),
+          isTrue,
+          reason: 'Last item should be selected',
+        );
+        expect(
+          state.isSelected('item_100'),
+          isTrue,
+          reason: 'Middle item should be selected',
+        );
+
+        // Performance target: <20ms for selectRange with 200 items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(20),
+          reason: 'SelectRange operation with 200 items should complete in <20ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('clearSelection performance with 500 selected ids', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Pre-select 500 items
+        final items = List.generate(500, (i) => 'item_$i');
+        notifier.selectAll(items);
+
+        final stopwatch = Stopwatch()..start();
+
+        // Clear all selections
+        notifier.clearSelection();
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        expect(
+          container.read(localGallerySelectionNotifierProvider).selectedCount,
+          0,
+          reason: 'Should have no selected items',
+        );
+        expect(
+          container.read(localGallerySelectionNotifierProvider).hasSelection,
+          isFalse,
+          reason: 'Should have no selection',
+        );
+
+        // Performance target: <10ms for clearSelection with 500 selected items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(10),
+          reason: 'ClearSelection operation with 500 selected items should complete in <10ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('selectAll performance with 500 items', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Create 500 items
+        final items = List.generate(500, (i) => 'item_$i');
+
+        final stopwatch = Stopwatch()..start();
+
+        // Select all items
+        notifier.selectAll(items);
+
+        stopwatch.stop();
+
+        // Verify operation completed correctly
+        expect(
+          container.read(localGallerySelectionNotifierProvider).selectedCount,
+          500,
+          reason: 'Should have 500 selected items',
+        );
+
+        // Performance target: <50ms for selectAll with 500 items
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(50),
+          reason: 'SelectAll operation with 500 items should complete in <50ms, '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+      });
+
+      test('rapid toggle operations performance (100 toggles)', () {
+        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+
+        // Pre-select 100 items
+        final items = List.generate(100, (i) => 'item_$i');
+        notifier.selectAll(items);
+
+        final stopwatch = Stopwatch()..start();
+
+        // Perform 100 rapid toggle operations
+        for (int i = 0; i < 100; i++) {
+          notifier.toggle('item_$i');
+        }
+
+        stopwatch.stop();
+
+        // Verify all items are deselected
+        expect(
+          container.read(localGallerySelectionNotifierProvider).selectedCount,
+          0,
+          reason: 'All items should be deselected',
+        );
+
+        // Performance target: <1000ms for 100 toggles (average <10ms per toggle)
+        expect(
+          stopwatch.elapsedMilliseconds,
+          lessThan(1000),
+          reason: '100 toggle operations should complete in <1000ms (avg <10ms per toggle), '
+              'but took ${stopwatch.elapsedMilliseconds}ms',
+        );
+
+        // Also verify average per-operation time
+        final avgTimeMs = stopwatch.elapsedMilliseconds / 100;
+        expect(
+          avgTimeMs,
+          lessThan(10),
+          reason: 'Average toggle time should be <10ms, but was ${avgTimeMs.toStringAsFixed(2)}ms',
         );
       });
     });
