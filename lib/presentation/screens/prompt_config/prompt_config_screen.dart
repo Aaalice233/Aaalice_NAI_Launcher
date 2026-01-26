@@ -386,6 +386,37 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
+  /// 显示删除 RandomPreset 确认对话框
+  Future<void> _showDeleteRandomPresetDialog(RandomPreset preset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.preset_deletePreset),
+        content: Text(context.l10n.preset_deletePresetConfirm(preset.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ref.read(randomPresetNotifierProvider.notifier).deletePreset(preset.id);
+      if (mounted) {
+        AppToast.success(context, context.l10n.preset_deleted);
+      }
+    }
+  }
+
   /// 显示新增类别对话框
   Future<void> _showAddCategoryDialog(BuildContext context) async {
     // 获取现有类别的 key 列表，用于唯一性校验
@@ -1060,6 +1091,19 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     ],
                   ),
                 ),
+                // 删除按钮（仅非默认预设）
+                if (!preset.isDefault)
+                  IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: theme.colorScheme.error.withOpacity(0.7),
+                    ),
+                    onPressed: () => _showDeleteRandomPresetDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: context.l10n.common_delete,
+                  ),
               ],
             ),
           ),
