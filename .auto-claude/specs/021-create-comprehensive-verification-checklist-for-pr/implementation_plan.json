@@ -4,7 +4,7 @@
   "workflow_type": "feature",
   "workflow_rationale": "This is a new feature being added - a complete test infrastructure and verification framework that does not currently exist. Involves creating new test files, verification tooling, and a reporting dashboard.",
   "created_at": "2026-01-26T10:56:00.000Z",
-  "updated_at": "2026-01-26T04:29:17.734Z",
+  "updated_at": "2026-01-26T04:31:57.215Z",
   "status": "in_progress",
   "phases": [
     {
@@ -317,7 +317,9 @@
             "type": "manual",
             "instructions": "Verify document includes multi-prompt and drag-drop testing steps"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verified that all four workflow tests (IMPR-006~008, IMPR-012) include comprehensive verification steps:\n\n**IMPR-006 - Multi-Prompt Box Workflow (Lines 617-699, 83 lines):**\n- Multi-prompt mode enablement steps\n- Initial prompt boxes verification (2+ boxes with all controls)\n- Add new prompt box functionality\n- Independent editing testing (each box maintains separate content)\n- Tag insertion targeting correct box only\n- Clear functionality isolated to specific box\n- Delete prompt box with layout verification\n- Prompt combination for generation\n\n15 checklist items covering all multi-prompt scenarios\n\n**IMPR-007 - Tag Suggestions Integration with Multi-Prompt (Lines 703-792, 90 lines):**\n- Per-box tag suggestions testing\n- Weighted tags with bracket syntax\n- Recent tags history (per-box)\n- Tag categories filtering per box\n- Negative prompt tag suggestions\n- Autofill integration with multi-prompt\n\n10 checklist items covering tag integration scenarios\n\n**IMPR-008 - Prompt Box State Persistence (Lines 796-879, 84 lines):**\n- Configure multi-prompt state (4 boxes with different content)\n- State saved to Hive storage verification\n- Application restart testing (all boxes restored)\n- Partial state changes (delete, modify, add boxes)\n- State migration (single-prompt ↔ multi-prompt toggle)\n- State reset functionality\n- State corruption recovery testing\n\nCovers full lifecycle of multi-prompt state management\n\n**IMPR-012 - Drag-and-Drop Metadata Extraction (Lines 883-1002, 120 lines):**\n- Enable drag-and-drop metadata feature flag\n- Basic drag-and-drop with/without PNG metadata\n- Metadata extraction for all fields:\n  - Positive/negative prompts\n  - Sampler settings\n  - Steps, guidance scale, seed\n  - Image dimensions\n- Multi-prompt metadata distribution\n- Metadata override confirmation (Overwrite/Merge/Cancel)\n- Invalid/missing metadata graceful handling\n- Multiple image drops in succession\n- Different image formats (PNG with metadata, JPEG without)\n- Visual feedback throughout process\n\n20 checklist items covering comprehensive drag-drop workflow\n\nAll workflow tests include:\n- Detailed step-by-step instructions with command examples\n- Expected outcome checkboxes\n- Pass/Fail criteria\n- Notes section for recording observations\n- Tools required and setup instructions\n\nVerification: ✅ Document includes comprehensive multi-prompt and drag-drop testing steps as required.",
+          "updated_at": "2026-01-26T05:30:00.000000+00:00"
         },
         {
           "id": "subtask-3-4",
