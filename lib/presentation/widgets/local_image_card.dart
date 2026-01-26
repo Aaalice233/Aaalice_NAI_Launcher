@@ -1081,14 +1081,61 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                     ],
                                   ),
                                   if (metadata?.prompt.isNotEmpty == true)
-                                    Text(
-                                      metadata!.prompt,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        metadata!.prompt,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  // Tags display
+                                  if (widget.record.tags.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Wrap(
+                                        spacing: 4.0,
+                                        runSpacing: 2.0,
+                                        children: widget.record.tags
+                                            .take(3)
+                                            .map((tag) {
+                                          final displayTag = tag.length > 15
+                                              ? '${tag.substring(0, 15)}...'
+                                              : tag;
+                                          return Chip(
+                                            label: Text(
+                                              displayTag,
+                                              style: const TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            backgroundColor:
+                                                Colors.white24,
+                                            padding: EdgeInsets.zero,
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          );
+                                        }).toList(),
+                                      ),
+                                    )
+                                  else
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        'No tags',
+                                        style: TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 10,
+                                        ),
+                                      ),
                                     ),
                                 ],
                               ),
