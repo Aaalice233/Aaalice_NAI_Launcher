@@ -1067,6 +1067,17 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                           ),
                                         ),
                                       ],
+                                      if (metadata?.width != null &&
+                                          metadata?.height != null) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${metadata!.width} x ${metadata!.height}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   if (metadata?.prompt.isNotEmpty == true)
