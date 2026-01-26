@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/gallery_statistics.dart';
+import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/statistics_service.dart';
 import '../providers/local_gallery_provider.dart';
@@ -27,6 +30,7 @@ class StatisticsScreen extends ConsumerStatefulWidget {
 class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<LocalImageRecord> _allRecords = [];
 
   @override
   void initState() {
@@ -48,6 +52,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     // 从仓库加载所有记录
     final repository = LocalGalleryRepository.instance;
     final allRecords = await repository.loadRecords(state.allFiles);
+
+    // 保存记录用于筛选
+    _allRecords = allRecords;
 
     return service.calculateStatistics(allRecords);
   }
@@ -461,6 +468,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                   sectionsSpace: 2,
                   centerSpaceRadius: isMobile ? 30 : 40,
                   sections: _buildPieSections(distribution, theme),
+                  pieTouchData: PieTouchData(
+                    touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                      if (event is FlTapUpEvent &&
+                          pieTouchResponse != null &&
+                          pieTouchResponse.touchedSection != null) {
+                        final index = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        final modelData = distribution[index];
+                        _showModelDetailDialog(context, modelData, theme, l10n);
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
@@ -514,7 +532,18 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                           .map((r) => r.count.toDouble())
                           .reduce((a, b) => a > b ? a : b) *
                       1.2,
-                  barTouchData: BarTouchData(enabled: false),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchCallback: (FlTouchEvent event, barTouchResponse) {
+                      if (event is FlTapUpEvent &&
+                          barTouchResponse != null &&
+                          barTouchResponse.spot != null) {
+                        final index = barTouchResponse.spot!.touchedBarGroupIndex;
+                        final resolutionData = distribution[index];
+                        _showResolutionDetailDialog(context, resolutionData, theme, l10n);
+                      }
+                    },
+                  ),
                   titlesData: FlTitlesData(
                     show: true,
                     bottomTitles: AxisTitles(
@@ -620,6 +649,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                   sectionsSpace: 2,
                   centerSpaceRadius: isMobile ? 30 : 40,
                   sections: _buildPieSectionsFromSamplers(distribution, theme),
+                  pieTouchData: PieTouchData(
+                    touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                      if (event is FlTapUpEvent &&
+                          pieTouchResponse != null &&
+                          pieTouchResponse.touchedSection != null) {
+                        final index = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        final samplerData = distribution[index];
+                        _showSamplerDetailDialog(context, samplerData, theme, l10n);
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
@@ -673,7 +713,18 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                           .map((s) => s.count.toDouble())
                           .reduce((a, b) => a > b ? a : b) *
                       1.2,
-                  barTouchData: BarTouchData(enabled: false),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchCallback: (FlTouchEvent event, barTouchResponse) {
+                      if (event is FlTapUpEvent &&
+                          barTouchResponse != null &&
+                          barTouchResponse.spot != null) {
+                        final index = barTouchResponse.spot!.touchedBarGroupIndex;
+                        final sizeData = distribution[index];
+                        _showSizeDetailDialog(context, sizeData, theme, l10n);
+                      }
+                    },
+                  ),
                   titlesData: FlTitlesData(
                     show: true,
                     bottomTitles: AxisTitles(
@@ -928,5 +979,295 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ];
 
     return colors[index % colors.length];
+  }
+
+  /// 显示模型详情对话框
+  void _showModelDetailDialog(
+    BuildContext context,
+    ModelStatistics modelData,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    final filteredRecords = _allRecords.where((record) {
+      return record.metadata?.model == modelData.modelName;
+    }).toList();
+
+    _showDetailDialog(
+      context,
+      l10n.statistics_modelDistribution,
+      modelData.modelName,
+      filteredRecords,
+      theme,
+      l10n,
+    );
+  }
+
+  /// 显示采样器详情对话框
+  void _showSamplerDetailDialog(
+    BuildContext context,
+    SamplerStatistics samplerData,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    final filteredRecords = _allRecords.where((record) {
+      return record.metadata?.sampler == samplerData.samplerName;
+    }).toList();
+
+    _showDetailDialog(
+      context,
+      l10n.statistics_samplerDistribution,
+      samplerData.samplerName,
+      filteredRecords,
+      theme,
+      l10n,
+    );
+  }
+
+  /// 显示分辨率详情对话框
+  void _showResolutionDetailDialog(
+    BuildContext context,
+    ResolutionStatistics resolutionData,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    final filteredRecords = _allRecords.where((record) {
+      if (record.metadata == null) return false;
+      final resolution = '${record.metadata!.width}x${record.metadata!.height}';
+      return resolution == resolutionData.label;
+    }).toList();
+
+    _showDetailDialog(
+      context,
+      l10n.statistics_resolutionDistribution,
+      resolutionData.label,
+      filteredRecords,
+      theme,
+      l10n,
+    );
+  }
+
+  /// 显示文件大小详情对话框
+  void _showSizeDetailDialog(
+    BuildContext context,
+    SizeDistributionStatistics sizeData,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    final filteredRecords = _allRecords.where((record) {
+      // 根据标签范围筛选
+      if (sizeData.label == '< 1MB') {
+        return record.size < 1024 * 1024;
+      } else if (sizeData.label == '1-5MB') {
+        return record.size >= 1024 * 1024 && record.size < 5 * 1024 * 1024;
+      } else if (sizeData.label == '5-10MB') {
+        return record.size >= 5 * 1024 * 1024 && record.size < 10 * 1024 * 1024;
+      } else if (sizeData.label == '> 10MB') {
+        return record.size >= 10 * 1024 * 1024;
+      }
+      return false;
+    }).toList();
+
+    _showDetailDialog(
+      context,
+      l10n.statistics_sizeDistribution,
+      sizeData.label,
+      filteredRecords,
+      theme,
+      l10n,
+    );
+  }
+
+  /// 显示详情对话框
+  void _showDetailDialog(
+    BuildContext context,
+    String category,
+    String filterValue,
+    List<LocalImageRecord> records,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.filter_list,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            category,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            filterValue,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: records.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.image_not_supported,
+                              size: 48,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              l10n.statistics_noData,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: records.length,
+                        itemBuilder: (context, index) {
+                          final record = records[index];
+                          return _buildDetailListItem(record, theme, l10n);
+                        },
+                      ),
+              ),
+              // Footer
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${l10n.statistics_totalImages}: ${records.length}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Close'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建详情列表项
+  Widget _buildDetailListItem(
+    LocalImageRecord record,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    final fileName = record.path.split(Platform.pathSeparator).last;
+    final meta = record.metadata;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(
+          Icons.image,
+          color: theme.colorScheme.primary,
+        ),
+        title: Text(
+          fileName,
+          style: theme.textTheme.bodyMedium,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (meta != null && meta.hasData) ...[
+              Text(
+                'Model: ${meta.model ?? "N/A"}',
+                style: theme.textTheme.bodySmall,
+              ),
+              Text(
+                'Sampler: ${meta.sampler ?? "N/A"}',
+                style: theme.textTheme.bodySmall,
+              ),
+              Text(
+                'Resolution: ${meta.width}x${meta.height}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ] else
+              Text(
+                'No metadata',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
+        trailing: Text(
+          _formatBytes(record.size),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 格式化字节数
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    } else if (bytes < 1024 * 1024) {
+      final kb = (bytes / 1024).toStringAsFixed(1);
+      return '$kb KB';
+    } else {
+      final mb = (bytes / (1024 * 1024)).toStringAsFixed(1);
+      return '$mb MB';
+    }
   }
 }
