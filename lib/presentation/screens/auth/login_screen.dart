@@ -1072,64 +1072,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  /// 获取错误码对应的本地化文本
-  String _getErrorText(
-    BuildContext context,
-    AuthErrorCode errorCode,
-    int? httpStatusCode,
-  ) {
-    final l10n = context.l10n;
-
-    // 401 错误，提供更明确的提示
-    if (errorCode == AuthErrorCode.authFailed && httpStatusCode == 401) {
-      return l10n.auth_error_authFailed_tokenExpired;
-    }
-
-    switch (errorCode) {
-      case AuthErrorCode.networkTimeout:
-        return l10n.auth_error_networkTimeout;
-      case AuthErrorCode.networkError:
-        return l10n.auth_error_networkError;
-      case AuthErrorCode.authFailed:
-        return l10n.auth_error_authFailed;
-      case AuthErrorCode.tokenInvalid:
-        return l10n.auth_tokenInvalid;
-      case AuthErrorCode.serverError:
-        return l10n.auth_error_serverError;
-      case AuthErrorCode.unknown:
-        return l10n.auth_error_unknown;
-    }
-  }
-
-  /// 获取错误恢复建议
-  String? _getErrorRecoveryHint(
-    BuildContext context,
-    AuthErrorCode errorCode,
-    int? httpStatusCode,
-  ) {
-    final l10n = context.l10n;
-
-    switch (errorCode) {
-      case AuthErrorCode.networkTimeout:
-        return l10n.api_error_timeout_hint;
-      case AuthErrorCode.networkError:
-        return l10n.api_error_network_hint;
-      case AuthErrorCode.authFailed:
-        if (httpStatusCode == 401) {
-          return l10n.api_error_401_hint;
-        }
-        return l10n.api_error_401_hint;
-      case AuthErrorCode.tokenInvalid:
-        return l10n.api_error_401_hint;
-      case AuthErrorCode.serverError:
-        if (httpStatusCode == 503) {
-          return l10n.api_error_503_hint;
-        }
-        return l10n.api_error_500_hint;
-      case AuthErrorCode.unknown:
-        return null;
-    }
-  }
 }
 
 /// 加载遮罩 Widget
