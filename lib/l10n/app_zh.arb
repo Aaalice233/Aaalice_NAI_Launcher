@@ -2132,6 +2132,19 @@
     }
   },
 
+  "bulkExport_title": "导出 {count} 张图片",
+  "@bulkExport_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkExport_format": "导出格式",
+  "bulkExport_jsonFormat": "JSON",
+  "bulkExport_csvFormat": "CSV",
+  "bulkExport_metadataOptions": "元数据选项",
+  "bulkExport_includeMetadata": "包含元数据",
+  "bulkExport_includeMetadataHint": "导出生成参数等信息",
+
   "localGallery_group_today": "今天",
   "localGallery_group_yesterday": "昨天",
   "localGallery_group_thisWeek": "本周",

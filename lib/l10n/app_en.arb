@@ -2458,6 +2458,19 @@
     }
   },
 
+  "bulkExport_title": "Export {count} images",
+  "@bulkExport_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkExport_format": "Format",
+  "bulkExport_jsonFormat": "JSON",
+  "bulkExport_csvFormat": "CSV",
+  "bulkExport_metadataOptions": "Metadata Options",
+  "bulkExport_includeMetadata": "Include metadata",
+  "bulkExport_includeMetadataHint": "Export generation parameters with images",
+
   "localGallery_group_today": "Today",
   "localGallery_group_yesterday": "Yesterday",
   "localGallery_group_thisWeek": "This Week",
