@@ -851,8 +851,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
     final metadata = widget.record.metadata;
-    // Calculate height dynamically based on aspect ratio
-    final itemHeight = widget.itemWidth / widget.aspectRatio;
+    // Calculate height dynamically based on aspect ratio, with max height constraint
+    final maxHeight = widget.itemWidth * 3;
+    final itemHeight = (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
