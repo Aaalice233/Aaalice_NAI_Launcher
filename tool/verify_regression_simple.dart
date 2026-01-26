@@ -83,8 +83,8 @@ void main() async {
 
   for (var fileResult in modifiedData['resultsByFile']) {
     for (var test in fileResult['tests']) {
-      String testName = test['name'];
-      String currentStatus = test['status'];
+      final String testName = test['name'];
+      final String currentStatus = test['status'];
 
       // Find previous status
       String? previousStatus;
@@ -134,9 +134,9 @@ void main() async {
   final jsContent = await dashboardJs.readAsString();
 
   // Check for regression detection functions
-  bool hasGetRegressionStatus = jsContent.contains('getRegressionStatus');
-  bool hasRegressionBadge = jsContent.contains('NEW FAILURE');
-  bool hasPreviousTestLoad = jsContent.contains('summary_previous.json');
+  final bool hasGetRegressionStatus = jsContent.contains('getRegressionStatus');
+  final bool hasRegressionBadge = jsContent.contains('NEW FAILURE');
+  final bool hasPreviousTestLoad = jsContent.contains('summary_previous.json');
 
   print('  Dashboard JavaScript checks:');
   print('     - getRegressionStatus function: ${hasGetRegressionStatus ? "✅" : "❌"}');
