@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
+import '../../../../../core/utils/app_logger.dart';
 
 /// 颜色面板
 class ColorPanel extends StatelessWidget {
@@ -449,7 +450,9 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
           _hsvColor = HSVColor.fromColor(color);
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.w('Invalid hex color format: $value', 'ColorPanel');
+    }
   }
 }
 
