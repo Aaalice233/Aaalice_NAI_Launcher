@@ -1063,9 +1063,24 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         final selectionState = ref.watch(localGallerySelectionNotifierProvider);
         final isSelected = selectionState.selectedIds.contains(record.path);
 
+        // 获取或计算宽高比
+        // Get or calculate aspect ratio
+        double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
+
+        // 异步计算并缓存宽高比
+        // Calculate and cache aspect ratio asynchronously
+        _calculateAspectRatio(record).then((value) {
+          if (mounted && value != aspectRatio) {
+            setState(() {
+              _aspectRatioCache[record.path] = value;
+            });
+          }
+        });
+
         return LocalImageCard(
           record: record,
           itemWidth: itemWidth,
+          aspectRatio: aspectRatio,
           selectionMode: selectionState.isActive,
           isSelected: isSelected,
           onSelectionToggle: () {
