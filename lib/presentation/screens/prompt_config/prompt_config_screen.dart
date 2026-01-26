@@ -206,6 +206,38 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 预设名称和编辑按钮
+          if (preset != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    preset.name,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: preset.isDefault
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                // 编辑按钮（仅非默认预设）
+                if (!preset.isDefault)
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                    onPressed: () => _showRenameRandomPresetDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: context.l10n.preset_rename,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           // 统计信息和操作按钮
           GlobalPostCountToolbar(
             tagCount: tagCount,
