@@ -25,6 +25,7 @@ import '../../widgets/local_image_card.dart';
 import '../../widgets/gallery_filter_panel.dart';
 import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/bulk_export_dialog.dart';
+import '../../widgets/bulk_metadata_edit_dialog.dart';
 
 /// 本地画廊屏幕
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -296,6 +297,25 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     // 5. 完成后退出选择模式
   }
 
+  /// 批量编辑选中的图片元数据
+  /// Edit metadata for selected images
+  Future<void> _editSelectedMetadata() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    if (!mounted) return;
+
+    // 显示批量元数据编辑对话框
+    // Show bulk metadata edit dialog
+    showBulkMetadataEditDialog(context);
+  }
+
   /// 计算图片宽高比
   /// Calculate aspect ratio from metadata or image file
   Future<double> _calculateAspectRatio(LocalImageRecord record) async {
@@ -555,7 +575,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         onExport: selectionState.selectedIds.isNotEmpty
             ? _exportSelectedImages
             : null,
-        onEditMetadata: null,
+        onEditMetadata: selectionState.selectedIds.isNotEmpty
+            ? _editSelectedMetadata
+            : null,
       );
     }
 

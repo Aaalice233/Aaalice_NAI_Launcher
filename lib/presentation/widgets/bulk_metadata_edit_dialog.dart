@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../providers/bulk_operation_provider.dart';
 import '../providers/selection_mode_provider.dart';
+import 'bulk_progress_dialog.dart';
 
 /// Bulk Metadata Edit Dialog Widget
 /// 批量元数据编辑对话框组件
@@ -43,7 +46,7 @@ class _BulkMetadataEditDialogState extends ConsumerState<BulkMetadataEditDialog>
   }
 
   /// Apply bulk metadata edit
-  void _applyEdit() {
+  void _applyEdit() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
     final selectedIds = selectionState.selectedIds;
 
@@ -67,13 +70,23 @@ class _BulkMetadataEditDialogState extends ConsumerState<BulkMetadataEditDialog>
       return;
     }
 
-    // Close dialog and start operation
+    // Close dialog
     Navigator.of(context).pop();
 
-    // Start bulk edit operation
-    ref
-        .read(bulkOperationNotifierProvider.notifier)
-        .bulkEditMetadata(selectedIds.toList(), tagsToAdd: tagsToAdd, tagsToRemove: tagsToRemove);
+    if (!mounted) return;
+
+    // Show progress dialog first (it will watch the operation state)
+    // 首先显示进度对话框（它将监听操作状态）
+    unawaited(BulkProgressDialog.show(context));
+
+    // Start bulk edit operation (the progress dialog will show the progress)
+    // 执行批量编辑操作（进度对话框将显示进度）
+    final notifier = ref.read(bulkOperationNotifierProvider.notifier);
+    await notifier.bulkEditMetadata(
+      selectedIds.toList(),
+      tagsToAdd: tagsToAdd,
+      tagsToRemove: tagsToRemove,
+    );
   }
 
   /// Parse tag input from list of strings

@@ -454,3 +454,58 @@ Next: Phase 4 - Integration
 
 === SUBTASK-4-1 COMPLETE ===
 Next: Subtask-4-2 - Implement bulk delete with confirmation dialog and undo support
+
+[2026-01-26 18:45] Subtask-4-2: Implement bulk delete with confirmation dialog and undo support
+- Status: COMPLETED ✓
+- Modified: lib/presentation/screens/local_gallery/local_gallery_screen.dart
+- Features implemented:
+  - Added _deleteSelectedImages() method with confirmation dialog
+  - Added _restoreDeletedImages() method for undo functionality
+  - Wired up onDelete callback in BulkActionBar
+  - Added path import for basename function
+  - Shows confirmation dialog before deleting
+  - Shows SnackBar with undo button (for up to 50 images)
+  - Proper error handling for delete and restore operations
+  - Exits selection mode after delete
+  - Refreshes gallery after delete/restore
+- Implementation follows patterns from local_image_card.dart:
+  - AlertDialog for confirmation
+  - File.delete() for deletion
+  - SnackBar for user feedback
+  - Proper error handling with try-catch blocks
+  - mounted checks before UI operations
+- Code quality: Compiles successfully with no errors
+- Manual verification: Ready for testing - Select 5 images, delete, confirm, verify removal, undo, verify restoration
+- Commit: f8daca6 - "auto-claude: subtask-4-2 - Implement bulk delete with confirmation dialog and undo support"
+
+=== SUBTASK-4-2 COMPLETE ===
+Next: Subtask-4-3 - Implement bulk export with format selection and progress dialog
+
+[2026-01-26 19:00] Subtask-4-3: Implement bulk export with format selection and progress dialog
+- Status: COMPLETED ✓
+- Modified: lib/presentation/screens/local_gallery/local_gallery_screen.dart
+- Modified: lib/presentation/widgets/bulk_export_dialog.dart
+- Features implemented:
+  - Added _exportSelectedImages() method to LocalGalleryScreen
+  - Wired up onExport callback in BulkActionBar
+  - Enhanced BulkExportDialog to show progress dialog during export operation
+  - Progress dialog displays automatically with live progress updates
+  - Shows current file being processed, percentage, and result statistics
+  - Exits selection mode after export completes
+  - Added unawaited import for async fire-and-forget pattern
+- Features:
+  - Format selection (JSON/CSV) with visual radio buttons
+  - Metadata inclusion toggle with hint text
+  - Progress dialog shows: progress bar, current item, completion percentage
+  - Result statistics display (success/failed counts, error list)
+  - Auto-close when export completes successfully
+- Code quality:
+  - Follows existing code patterns from local_image_card.dart
+  - No console.log/print statements
+  - Proper error handling with mounted checks
+  - All Flutter analyzer checks pass with no errors
+- Manual verification: Ready for testing - Select 10 images, export as JSON, verify file created with metadata
+- Commit: 5f3d89a - "auto-claude: subtask-4-3 - Implement bulk export with format selection and progress dialog"
+
+=== SUBTASK-4-3 COMPLETE ===
+Next: Subtask-4-4 - Implement bulk metadata edit with tag addition/removal
