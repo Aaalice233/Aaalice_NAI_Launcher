@@ -17,10 +17,12 @@ import '../../providers/prompt_config_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../widgets/prompt/category_settings_dialog.dart';
 import '../../../data/models/prompt/random_category.dart';
+import '../../../data/models/prompt/random_preset.dart';
 import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/prompt/new_preset_dialog.dart';
 import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
@@ -204,6 +206,81 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 预设名称和编辑按钮
+          if (preset != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    preset.name,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: preset.isDefault
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                // 编辑按钮（仅非默认预设）
+                if (!preset.isDefault)
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                    onPressed: () => _showRenameRandomPresetDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: context.l10n.preset_rename,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          // 预设描述（如果有）
+          if (preset != null && preset.description != null && preset.description!.isNotEmpty) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    preset.description!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+                // 编辑描述按钮（仅非默认预设）
+                if (!preset.isDefault)
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                    onPressed: () => _showEditPresetDescriptionDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: '编辑描述',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          // 添加描述按钮（仅非默认预设且无描述时）
+          if (preset != null && !preset.isDefault && (preset.description == null || preset.description!.isEmpty))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextButton.icon(
+                onPressed: () => _showEditPresetDescriptionDialog(preset),
+                icon: Icon(Icons.add, size: 16),
+                label: Text('添加描述'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ),
+            ),
           // 统计信息和操作按钮
           GlobalPostCountToolbar(
             tagCount: tagCount,
@@ -223,6 +300,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onToggleExpand: _toggleAllExpand,
             onResetPreset: () => _showResetPresetConfirmDialog(context),
             onAddCategory: () => _showAddCategoryDialog(context),
+            showResetPreset: preset?.isDefault ?? false,
           ),
 
           // 同步进度（TagLibrary 或 TagGroup 同步）
@@ -236,6 +314,111 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  /// 显示预设名称输入对话框
+  Future<String?> _showPresetNameInputDialog() async {
+    final controller = TextEditingController();
+    String? errorText;
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.presetEdit_presetName),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.presetEdit_presetName,
+              hintText: context.l10n.presetEdit_enterPresetName,
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            onChanged: (value) {
+              final error = _validatePresetName(value);
+              setState(() => errorText = error);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: errorText == null && controller.text.trim().isNotEmpty
+                  ? () => Navigator.of(context).pop(controller.text.trim())
+                  : null,
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 创建空白预设
+  Future<void> _createBlankPreset(String name) async {
+    final notifier = ref.read(randomPresetNotifierProvider.notifier);
+
+    final newPreset = await notifier.createPreset(
+      name: name,
+      copyFromCurrent: false,
+    );
+
+    // 选中新创建的预设
+    await notifier.selectPreset(newPreset.id);
+  }
+
+  /// 创建模板预设（基于默认预设）
+  Future<void> _createTemplatePreset(String name) async {
+    final state = ref.read(randomPresetNotifierProvider);
+    final defaultPreset = state.presets.firstWhere(
+      (p) => p.isDefault,
+      orElse: () => state.presets.first,
+    );
+
+    // 使用 RandomPreset.copyFrom() 创建新预设
+    final newPreset = RandomPreset.copyFrom(
+      defaultPreset,
+      name: name,
+    );
+
+    // 使用 provider 的 addPreset 方法添加到状态并保存
+    await ref.read(randomPresetNotifierProvider.notifier).addPreset(newPreset);
+  }
+
+  /// 显示新建预设对话框
+  Future<void> _showNewPresetDialog() async {
+    // 首先显示名称输入对话框
+    final presetName = await _showPresetNameInputDialog();
+
+    // 如果用户取消输入，直接返回
+    if (presetName == null || presetName.isEmpty) {
+      return;
+    }
+
+    // 显示创建模式选择对话框
+    await NewPresetDialog.show(
+      context: context,
+      onModeSelected: (mode) async {
+        switch (mode) {
+          case PresetCreationMode.blank:
+            // 创建完全空白的预设
+            await _createBlankPreset(presetName);
+            break;
+
+          case PresetCreationMode.template:
+            // 基于默认预设创建
+            await _createTemplatePreset(presetName);
+            break;
+        }
+
+        if (mounted) {
+          AppToast.success(context, context.l10n.preset_newPresetCreated);
+        }
+      },
     );
   }
 
@@ -272,6 +455,149 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.preset_resetSuccess);
+      }
+    }
+  }
+
+  /// 删除 RandomPreset
+  Future<void> _deletePreset(RandomPreset preset) async {
+    await ref.read(randomPresetNotifierProvider.notifier).deletePreset(preset.id);
+    if (mounted) {
+      AppToast.success(context, context.l10n.preset_deleted);
+    }
+  }
+
+  /// 重命名 RandomPreset
+  Future<void> _renamePreset(RandomPreset preset, String newName) async {
+    await ref.read(randomPresetNotifierProvider.notifier).renamePreset(preset.id, newName);
+    if (mounted) {
+      AppToast.success(context, context.l10n.preset_saveSuccess);
+    }
+  }
+
+  /// 显示删除 RandomPreset 确认对话框
+  Future<void> _showDeleteRandomPresetDialog(RandomPreset preset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.preset_deletePreset),
+        content: Text(context.l10n.preset_deletePresetConfirm(preset.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deletePreset(preset);
+    }
+  }
+
+  /// 显示重命名 RandomPreset 对话框
+  Future<void> _showRenameRandomPresetDialog(RandomPreset preset) async {
+    final controller = TextEditingController(text: preset.name);
+    String? errorText;
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.preset_rename),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.preset_presetName,
+              hintText: context.l10n.presetEdit_enterPresetName,
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            onChanged: (value) {
+              final error = _validateRandomPresetName(value, excludePresetId: preset.id);
+              setState(() => errorText = error);
+            },
+            onSubmitted: (value) {
+              final error = _validateRandomPresetName(value, excludePresetId: preset.id);
+              if (error == null) {
+                Navigator.pop(ctx, value.trim());
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final error = _validateRandomPresetName(controller.text, excludePresetId: preset.id);
+                if (error == null) {
+                  Navigator.pop(ctx, controller.text.trim());
+                } else {
+                  setState(() => errorText = error);
+                }
+              },
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && newName != preset.name) {
+      await _renamePreset(preset, newName);
+    }
+  }
+
+  /// 显示编辑预设描述对话框
+  Future<void> _showEditPresetDescriptionDialog(RandomPreset preset) async {
+    final controller = TextEditingController(text: preset.description ?? '');
+
+    final newDescription = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('编辑描述'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '预设描述',
+            hintText: '输入此预设的用途或特点...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          textInputAction: TextInputAction.newline,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(context.l10n.common_confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (newDescription != null) {
+      // Update preset description
+      final notifier = ref.read(randomPresetNotifierProvider.notifier);
+      await notifier.updatePresetDescription(preset.id, newDescription);
+
+      if (mounted) {
+        AppToast.success(context, '描述已更新');
       }
     }
   }
@@ -689,7 +1015,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   // ==================== 左侧预设面板 ====================
   Widget _buildPresetPanel(PromptConfigState state, ThemeData theme) {
     final currentMode = ref.watch(randomModeNotifierProvider);
+    final presetState = ref.watch(randomPresetNotifierProvider);
     final isNaiMode = currentMode == RandomGenerationMode.naiOfficial;
+    final presets = presetState.presets;
 
     return Container(
       width: 220,
@@ -718,67 +1046,36 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           ),
           Divider(height: 1, color: theme.dividerColor),
 
-          // 预设列表（包含固定的 NAI 官方模式）
+          // 预设列表（所有 RandomPresets）
           Expanded(
-            child: state.isLoading
+            child: presetState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     children: [
-                      // NAI 官方模式（固定项）
-                      _buildNaiPresetItem(isNaiMode, theme),
-                      // 分隔线
-                      if (state.presets.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Divider(
-                                  height: 1,
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  context.l10n.config_presets,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(
-                                  height: 1,
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ],
+                      // 预设列表（默认预设 + 自定义预设）
+                      ...presets.map(
+                        (preset) => _buildRandomPresetItem(
+                          preset,
+                          presetState,
+                          theme,
+                        ),
+                      ),
+                      // 新建预设按钮
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        child: OutlinedButton.icon(
+                          onPressed: _showNewPresetDialog,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(context.l10n.config_newPreset),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
-                      // 自定义预设列表
-                      ...state.presets.map(
-                        (preset) => _buildPresetItem(preset, state, theme),
                       ),
-                      // 新建预设按钮（暂时禁用 - 预设管理功能待完善）
-                      // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(
-                      //       horizontal: 8, vertical: 8,),
-                      //   child: OutlinedButton.icon(
-                      //     onPressed: _createNewPreset,
-                      //     icon: const Icon(Icons.add, size: 18),
-                      //     label: Text(context.l10n.config_newPreset),
-                      //     style: OutlinedButton.styleFrom(
-                      //       padding: const EdgeInsets.symmetric(vertical: 12),
-                      //     ),
-                      //   ),
-                      // ),
                     ],
                   ),
           ),
@@ -904,6 +1201,139 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
+  /// RandomPreset 预设项（支持默认预设和自定义预设）
+  Widget _buildRandomPresetItem(
+    RandomPreset preset,
+    RandomPresetState presetState,
+    ThemeData theme,
+  ) {
+    final isSelected = preset.id == presetState.selectedPresetId;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withOpacity(0.5)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () => _selectRandomPreset(preset.id),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                // 激活指示器
+                if (isSelected)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                else
+                  const SizedBox(width: 16),
+                // 图标
+                Icon(
+                  preset.isDefault ? Icons.auto_awesome : Icons.tune_outlined,
+                  size: 18,
+                  color: preset.isDefault
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+                const SizedBox(width: 8),
+                // 预设信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        preset.name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: isSelected ? FontWeight.w600 : null,
+                          color: preset.isDefault
+                              ? theme.colorScheme.primary
+                              : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        preset.isDefault
+                            ? context.l10n.naiMode_totalTags(
+                                preset.enabledCategoryCount.toString(),
+                              )
+                            : context.l10n.preset_configGroupCount(
+                                preset.categoryCount.toString(),
+                              ),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 操作按钮（仅非默认预设）
+                if (!preset.isDefault) ...[
+                  // 重命名按钮
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                    onPressed: () => _showRenameRandomPresetDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: context.l10n.preset_rename,
+                  ),
+                  // 删除按钮
+                  IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: theme.colorScheme.error.withOpacity(0.7),
+                    ),
+                    onPressed: () => _showDeleteRandomPresetDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: context.l10n.common_delete,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 选择 RandomPreset
+  void _selectRandomPreset(String presetId) async {
+    if (_hasUnsavedChanges) {
+      _showUnsavedDialog(() => _doSelectRandomPreset(presetId));
+      return;
+    }
+    _doSelectRandomPreset(presetId);
+  }
+
+  void _doSelectRandomPreset(String presetId) {
+    // 使用 provider 作为 RandomPreset 选择的唯一数据源
+    ref.read(randomPresetNotifierProvider.notifier).selectPreset(presetId);
+    ref.read(randomModeNotifierProvider.notifier).setMode(
+          RandomGenerationMode.naiOfficial,
+        );
+    // 清除自定义模式相关的本地状态
+    setState(() {
+      _selectedConfigId = null;
+      _editingConfigs = [];
+      _hasUnsavedChanges = false;
+    });
+  }
+
   /// 选择 NAI 官方模式
   void _selectNaiMode() {
     if (_hasUnsavedChanges) {
@@ -917,8 +1347,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     ref.read(randomModeNotifierProvider.notifier).setMode(
           RandomGenerationMode.naiOfficial,
         );
+    // 清除自定义模式相关的本地状态
     setState(() {
-      _selectedPresetId = null;
       _selectedConfigId = null;
       _editingConfigs = [];
       _hasUnsavedChanges = false;
@@ -1518,8 +1948,19 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         state.presets.where((p) => p.id == _selectedPresetId).firstOrNull;
     if (preset == null) return;
 
+    final newName = _presetNameController.text.trim();
+
+    // 验证预设名称
+    final error = _validatePresetName(newName, excludePresetId: preset.id);
+    if (error != null) {
+      if (mounted) {
+        AppToast.error(context, error);
+      }
+      return;
+    }
+
     final updated = preset.copyWith(
-      name: _presetNameController.text.trim(),
+      name: newName,
       configs: _editingConfigs,
       updatedAt: DateTime.now(),
     );
@@ -1572,33 +2013,91 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
+  /// 验证预设名称
+  /// 返回验证错误信息，如果验证通过则返回 null
+  String? _validatePresetName(String name, {String? excludePresetId}) {
+    if (name.trim().isEmpty) {
+      return context.l10n.preset_presetName;
+    }
+
+    final state = ref.read(promptConfigNotifierProvider);
+    final isDuplicate = state.presets.any((p) =>
+        p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
+        p.id != excludePresetId);
+
+    if (isDuplicate) {
+      return '预设名称已存在';
+    }
+
+    return null;
+  }
+
+  /// 验证 RandomPreset 预设名称
+  /// 返回验证错误信息，如果验证通过则返回 null
+  String? _validateRandomPresetName(String name, {String? excludePresetId}) {
+    if (name.trim().isEmpty) {
+      return context.l10n.preset_presetName;
+    }
+
+    final state = ref.read(randomPresetNotifierProvider);
+    final isDuplicate = state.presets.any((p) =>
+        p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
+        p.id != excludePresetId);
+
+    if (isDuplicate) {
+      return '预设名称已存在';
+    }
+
+    return null;
+  }
+
   /// 显示重命名预设对话框
   Future<void> _showRenamePresetDialog(pc.RandomPromptPreset preset) async {
     final controller = TextEditingController(text: preset.name);
+    String? errorText;
 
     final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.preset_rename),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: context.l10n.preset_presetName,
-            border: const OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.preset_rename),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.preset_presetName,
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            onChanged: (value) {
+              final error = _validatePresetName(value, excludePresetId: preset.id);
+              setState(() => errorText = error);
+            },
+            onSubmitted: (value) {
+              final error = _validatePresetName(value, excludePresetId: preset.id);
+              if (error == null) {
+                Navigator.pop(ctx, value.trim());
+              }
+            },
           ),
-          onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final error = _validatePresetName(controller.text, excludePresetId: preset.id);
+                if (error == null) {
+                  Navigator.pop(ctx, controller.text.trim());
+                } else {
+                  setState(() => errorText = error);
+                }
+              },
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text(context.l10n.common_confirm),
-          ),
-        ],
       ),
     );
 
