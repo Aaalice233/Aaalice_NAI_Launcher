@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/nai_prompt_parser.dart';
-import '../../../../data/models/prompt/prompt_tag.dart';
 import '../../autocomplete/autocomplete_text_field.dart';
 import '../nai_syntax_controller.dart';
-import '../tag_view.dart';
 import 'unified_prompt_config.dart';
 
 /// 统一提示词输入组件
 ///
-/// 封装文本输入和标签视图的切换逻辑，支持：
-/// - 文本模式：自动补全、语法高亮
-/// - 标签模式：拖拽排序、批量操作、权重调整
+/// 文本输入组件，支持：
+/// - 自动补全
+/// - 语法高亮
+/// - 自动格式化
 ///
 /// 使用示例：
 /// ```dart
@@ -20,7 +18,6 @@ import 'unified_prompt_config.dart';
 ///   config: UnifiedPromptConfig.characterEditor,
 ///   controller: _promptController,
 ///   onChanged: (text) => print('Text changed: $text'),
-///   onTagsChanged: (tags) => print('Tags changed: ${tags.length}'),
 /// )
 /// ```
 class UnifiedPromptInput extends ConsumerStatefulWidget {
@@ -40,19 +37,13 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
-  /// 标签列表变化回调
-  final ValueChanged<List<PromptTag>>? onTagsChanged;
-
-  /// 视图模式变化回调
-  final ValueChanged<PromptViewMode>? onViewModeChanged;
-
   /// 提交回调（按 Enter 键时触发，不阻止 Shift+Enter 换行）
   final ValueChanged<String>? onSubmitted;
 
-  /// 最大行数（文本模式）
+  /// 最大行数
   final int? maxLines;
 
-  /// 最小行数（文本模式）
+  /// 最小行数
   final int? minLines;
 
   /// 是否扩展填满空间
@@ -65,8 +56,6 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.focusNode,
     this.decoration,
     this.onChanged,
-    this.onTagsChanged,
-    this.onViewModeChanged,
     this.onSubmitted,
     this.maxLines,
     this.minLines,
@@ -87,18 +76,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
-  /// 当前视图模式
-  late PromptViewMode _viewMode;
-
-  /// 当前标签列表（标签模式下使用）
-  List<PromptTag> _tags = [];
-
-  /// 缓存：上次解析的文本（用于避免重复解析）
-  String? _lastParsedText;
-
-  /// 缓存：上次序列化的标签哈希（用于避免重复序列化）
-  int? _lastSerializedTagsHash;
-
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
     if (widget.config.enableSyntaxHighlight) {
@@ -115,7 +92,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   @override
   void initState() {
     super.initState();
-    _viewMode = widget.config.initialViewMode;
 
     // 初始化内部控制器（如果需要）
     if (widget.controller == null) {
@@ -138,12 +114,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     // 监听外部控制器变化
     widget.controller?.addListener(_syncFromExternalController);
-
-    // 性能优化：仅在标签模式下才预先解析标签
-    // 文本模式下延迟解析，直到首次切换到标签模式
-    if (_viewMode == PromptViewMode.tags) {
-      _updateTagsFromText();
-    }
   }
 
   @override
@@ -193,219 +163,26 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (_syntaxController != null && _syntaxController!.text != externalText) {
       _syntaxController!.text = externalText;
     }
-
-    // 更新标签列表
-    _updateTagsFromText();
-  }
-
-  /// 从文本更新标签列表
-  ///
-  /// 性能优化：仅在文本实际变化时才重新解析
-  void _updateTagsFromText() {
-    final text = widget.controller?.text ??
-        _syntaxController?.text ??
-        _internalController?.text ??
-        '';
-
-    // 如果文本未变化，跳过解析
-    if (_lastParsedText == text) return;
-
-    _lastParsedText = text;
-    _tags = NaiPromptParser.parse(text);
-  }
-
-  /// 切换视图模式
-  ///
-  /// 性能优化：使用缓存避免重复解析和序列化
-  void _toggleViewMode() {
-    setState(() {
-      if (_viewMode == PromptViewMode.text) {
-        // 文本 -> 标签：使用缓存的标签列表（如果有效）
-        final currentText = _effectiveController.text;
-        if (_lastParsedText != currentText) {
-          // 文本已变化，需要重新解析
-          _updateTagsFromText();
-        }
-        // _tags 已经是最新的（来自缓存或刚解析）
-        _viewMode = PromptViewMode.tags;
-      } else {
-        // 标签 -> 文本：仅在标签实际变化时才序列化
-        final currentHash = _tags.hashCode;
-        if (_lastSerializedTagsHash != currentHash) {
-          final text = NaiPromptParser.toPromptString(_tags);
-          _updateControllerText(text);
-          _lastSerializedTagsHash = currentHash;
-          _lastParsedText = text; // 同步缓存
-        }
-        _viewMode = PromptViewMode.text;
-      }
-    });
-    widget.onViewModeChanged?.call(_viewMode);
-  }
-
-  /// 更新控制器文本
-  void _updateControllerText(String text) {
-    if (_syntaxController != null) {
-      _syntaxController!.text = text;
-    }
-    if (_internalController != null) {
-      _internalController!.text = text;
-    }
-    if (widget.controller != null) {
-      widget.controller!.text = text;
-    }
   }
 
   /// 处理文本变化
-  ///
-  /// 性能优化：延迟解析，仅在需要时（切换到标签模式）才解析
   void _handleTextChanged(String text) {
     // 同步到外部控制器
     if (widget.controller != null && widget.controller!.text != text) {
       widget.controller!.text = text;
     }
 
-    // 性能优化：仅在标签模式下才实时解析
-    // 文本模式下延迟解析，直到切换到标签模式
-    if (_viewMode == PromptViewMode.tags) {
-      _tags = NaiPromptParser.parse(text);
-      _lastParsedText = text;
-    } else {
-      // 文本模式下，仅标记缓存失效
-      _lastParsedText = null;
-    }
-
     // 触发回调
-    widget.onChanged?.call(text);
-  }
-
-  /// 处理标签变化
-  void _handleTagsChanged(List<PromptTag> tags) {
-    setState(() {
-      _tags = tags;
-    });
-
-    // 同步到文本
-    final text = NaiPromptParser.toPromptString(tags);
-    _updateControllerText(text);
-
-    // 触发回调
-    widget.onTagsChanged?.call(tags);
     widget.onChanged?.call(text);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 视图模式切换按钮（如果启用）
-        if (widget.config.enableViewModeToggle && !widget.config.compact)
-          _buildViewModeToggle(theme),
-
-        // 主内容区域
-        Flexible(
-          child: _viewMode == PromptViewMode.text
-              ? _buildTextMode(theme)
-              : _buildTagMode(theme),
-        ),
-      ],
-    );
+    return _buildTextField();
   }
 
-  /// 构建视图模式切换按钮
-  Widget _buildViewModeToggle(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          _buildToggleButton(
-            icon: Icons.text_fields,
-            label: 'Text',
-            isSelected: _viewMode == PromptViewMode.text,
-            onTap: () {
-              if (_viewMode != PromptViewMode.text) {
-                _toggleViewMode();
-              }
-            },
-            theme: theme,
-          ),
-          const SizedBox(width: 4),
-          _buildToggleButton(
-            icon: Icons.label_outline,
-            label: 'Tags',
-            isSelected: _viewMode == PromptViewMode.tags,
-            onTap: () {
-              if (_viewMode != PromptViewMode.tags) {
-                _toggleViewMode();
-              }
-            },
-            theme: theme,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleButton({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required ThemeData theme,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: widget.config.readOnly ? null : onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary.withOpacity(0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary.withOpacity(0.5)
-                  : theme.colorScheme.outline.withOpacity(0.3),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建文本模式视图
-  Widget _buildTextMode(ThemeData theme) {
+  /// 构建文本输入框
+  Widget _buildTextField() {
     final effectiveDecoration = widget.decoration ??
         InputDecoration(
           hintText: widget.config.hintText,
@@ -443,19 +220,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       readOnly: widget.config.readOnly,
       onChanged: _handleTextChanged,
       onSubmitted: widget.onSubmitted,
-    );
-  }
-
-  /// 构建标签模式视图
-  Widget _buildTagMode(ThemeData theme) {
-    return TagView(
-      tags: _tags,
-      onTagsChanged: _handleTagsChanged,
-      readOnly: widget.config.readOnly,
-      showAddButton: !widget.config.readOnly,
-      compact: widget.config.compact,
-      emptyHint: widget.config.emptyHint,
-      maxHeight: widget.config.maxHeight,
     );
   }
 }
