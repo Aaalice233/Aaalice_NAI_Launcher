@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../utils/app_logger.dart';
 import '../../data/models/prompt/random_category.dart';
+import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
 import '../../data/models/prompt/tag_group_preset_cache.dart';
 import '../../data/datasources/local/tag_group_cache_service.dart';
@@ -187,6 +188,49 @@ class TagCountingService {
     clearCache();
     _isInitialized = false;
     AppLogger.i('TagCountingService reset', 'TagCounting');
+  }
+
+  /// 计算启用的内置类别数量
+  ///
+  /// [categories] 随机类别列表
+  /// [isBuiltinEnabled] 检查内置类别是否启用的函数
+  int calculateEnabledBuiltinCategoryCount(
+    List<RandomCategory> categories,
+    bool Function(TagSubCategory) isBuiltinEnabled,
+  ) {
+    int count = 0;
+    for (final randomCategory in categories) {
+      final cat = TagSubCategory.values.firstWhere(
+        (e) => e.name == randomCategory.key,
+        orElse: () => TagSubCategory.hairColor,
+      );
+      if (randomCategory.enabled && isBuiltinEnabled(cat)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /// 计算考虑类别启用状态的同步组数量
+  ///
+  /// [mappings] 标签组映射列表
+  /// [categories] 随机类别列表（用于检查类别是否启用）
+  int calculateEnabledSyncGroupCount(
+    List<TagGroupMapping> mappings,
+    List<RandomCategory> categories,
+  ) {
+    int count = 0;
+    for (final mapping in mappings.where((m) => m.enabled)) {
+      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
+            (c) => c?.key == mapping.targetCategory.name,
+            orElse: () => null,
+          );
+      final categoryEnabled = randomCategory?.enabled ?? true;
+      if (categoryEnabled) {
+        count++;
+      }
+    }
+    return count;
   }
 }
 
