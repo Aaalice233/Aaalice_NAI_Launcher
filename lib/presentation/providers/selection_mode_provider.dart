@@ -182,7 +182,7 @@ class LocalGallerySelectionNotifier extends _$LocalGallerySelectionNotifier {
 
     // 选中范围内的所有项
     final rangeIds = allIds.sublist(start, end + 1);
-    final newIds = Set<String>.from(state.selectedIds)..addAll(rangeIds);
+    final newIds = {...state.selectedIds, ...rangeIds};
 
     state = state.copyWith(selectedIds: newIds, lastSelectedId: currentId);
   }
