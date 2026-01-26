@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/generation_record.dart';
+import '../../data/models/gallery/gallery_statistics.dart';
 import '../../data/repositories/gallery_repository.dart';
 
 part 'gallery_provider.g.dart';
@@ -240,7 +241,7 @@ class GalleryNotifier extends _$GalleryNotifier {
   }
 
   /// 获取统计信息
-  Map<String, dynamic> getStats() {
+  GalleryStatistics getStats() {
     return _repository.getStats();
   }
 
@@ -285,4 +286,11 @@ int gallerySelectedCount(Ref ref) {
 bool isGallerySelectionMode(Ref ref) {
   final state = ref.watch(galleryNotifierProvider);
   return state.isSelectionMode;
+}
+
+/// 便捷 Provider：获取统计信息
+@riverpod
+GalleryStatistics galleryStatistics(Ref ref) {
+  final notifier = ref.read(galleryNotifierProvider.notifier);
+  return notifier.getStats();
 }
