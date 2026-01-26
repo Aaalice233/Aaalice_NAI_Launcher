@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-import '../unified/unified_prompt_config.dart';
 import 'prompt_editor_toolbar_config.dart';
 
 /// 提示词编辑器工具栏组件

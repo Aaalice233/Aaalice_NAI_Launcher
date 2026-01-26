@@ -14,7 +14,6 @@ import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
-import '../../../widgets/prompt/unified/unified_prompt_config.dart';
 import '../../../widgets/character/character_prompt_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
 
