@@ -422,6 +422,67 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
+  /// 显示重命名 RandomPreset 对话框
+  Future<void> _showRenameRandomPresetDialog(RandomPreset preset) async {
+    final controller = TextEditingController(text: preset.name);
+    String? errorText;
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.preset_rename),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.preset_presetName,
+              hintText: context.l10n.presetEdit_enterPresetName,
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            onChanged: (value) {
+              final error = _validateRandomPresetName(value, excludePresetId: preset.id);
+              setState(() => errorText = error);
+            },
+            onSubmitted: (value) {
+              final error = _validateRandomPresetName(value, excludePresetId: preset.id);
+              if (error == null) {
+                Navigator.pop(ctx, value.trim());
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final error = _validateRandomPresetName(controller.text, excludePresetId: preset.id);
+                if (error == null) {
+                  Navigator.pop(ctx, controller.text.trim());
+                } else {
+                  setState(() => errorText = error);
+                }
+              },
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && newName != preset.name) {
+      await ref
+          .read(randomPresetNotifierProvider.notifier)
+          .renamePreset(preset.id, newName);
+      if (mounted) {
+        AppToast.success(context, context.l10n.preset_saveSuccess);
+      }
+    }
+  }
+
   /// 显示新增类别对话框
   Future<void> _showAddCategoryDialog(BuildContext context) async {
     // 获取现有类别的 key 列表，用于唯一性校验
@@ -1096,8 +1157,21 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     ],
                   ),
                 ),
-                // 删除按钮（仅非默认预设）
-                if (!preset.isDefault)
+                // 操作按钮（仅非默认预设）
+                if (!preset.isDefault) ...[
+                  // 重命名按钮
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                    onPressed: () => _showRenameRandomPresetDialog(preset),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: context.l10n.preset_rename,
+                  ),
+                  // 删除按钮
                   IconButton(
                     icon: Icon(
                       Icons.close,
@@ -1109,6 +1183,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     constraints: const BoxConstraints(),
                     tooltip: context.l10n.common_delete,
                   ),
+                ],
               ],
             ),
           ),
@@ -1827,6 +1902,25 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     final state = ref.read(promptConfigNotifierProvider);
+    final isDuplicate = state.presets.any((p) =>
+        p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
+        p.id != excludePresetId);
+
+    if (isDuplicate) {
+      return '预设名称已存在';
+    }
+
+    return null;
+  }
+
+  /// 验证 RandomPreset 预设名称
+  /// 返回验证错误信息，如果验证通过则返回 null
+  String? _validateRandomPresetName(String name, {String? excludePresetId}) {
+    if (name.trim().isEmpty) {
+      return context.l10n.preset_presetName;
+    }
+
+    final state = ref.read(randomPresetNotifierProvider);
     final isDuplicate = state.presets.any((p) =>
         p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
         p.id != excludePresetId);
