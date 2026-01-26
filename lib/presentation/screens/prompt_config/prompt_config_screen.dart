@@ -22,6 +22,7 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/prompt/new_preset_dialog.dart';
 import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
@@ -237,6 +238,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  /// 显示新建预设对话框
+  Future<void> _showNewPresetDialog() async {
+    await NewPresetDialog.show(
+      context: context,
+      onModeSelected: (mode) {
+        // TODO: 处理预设创建模式选择 (subtask-2-3)
+        // mode 将是 PresetCreationMode.blank 或 PresetCreationMode.template
+      },
     );
   }
 
@@ -736,20 +748,21 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                           theme,
                         ),
                       ),
-                      // 新建预设按钮（暂时禁用 - 预设管理功能待完善）
-                      // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(
-                      //       horizontal: 8, vertical: 8,),
-                      //   child: OutlinedButton.icon(
-                      //     onPressed: _createNewPreset,
-                      //     icon: const Icon(Icons.add, size: 18),
-                      //     label: Text(context.l10n.config_newPreset),
-                      //     style: OutlinedButton.styleFrom(
-                      //       padding: const EdgeInsets.symmetric(vertical: 12),
-                      //     ),
-                      //   ),
-                      // ),
+                      // 新建预设按钮
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        child: OutlinedButton.icon(
+                          onPressed: _showNewPresetDialog,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(context.l10n.config_newPreset),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
           ),
