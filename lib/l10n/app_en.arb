@@ -1179,6 +1179,7 @@
 
   "warmup_preparing": "Preparing...",
   "warmup_complete": "Complete",
+  "warmup_danbooruAuth": "Initializing Danbooru authentication...",
   "warmup_loadingTranslation": "Loading translation data...",
   "warmup_initTagSystem": "Initializing tag system...",
   "warmup_loadingPromptConfig": "Loading prompt config...",
