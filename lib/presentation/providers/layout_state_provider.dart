@@ -9,6 +9,7 @@ class LayoutState {
   final bool leftPanelExpanded;
   final bool rightPanelExpanded;
   final double leftPanelWidth;
+  final double rightPanelWidth;
   final double promptAreaHeight;
   final bool promptMaximized;
 
@@ -16,6 +17,7 @@ class LayoutState {
     this.leftPanelExpanded = true,
     this.rightPanelExpanded = true,
     this.leftPanelWidth = 300.0,
+    this.rightPanelWidth = 280.0,
     this.promptAreaHeight = 200.0,
     this.promptMaximized = false,
   });
@@ -25,6 +27,7 @@ class LayoutState {
     bool? leftPanelExpanded,
     bool? rightPanelExpanded,
     double? leftPanelWidth,
+    double? rightPanelWidth,
     double? promptAreaHeight,
     bool? promptMaximized,
   }) {
@@ -32,6 +35,7 @@ class LayoutState {
       leftPanelExpanded: leftPanelExpanded ?? this.leftPanelExpanded,
       rightPanelExpanded: rightPanelExpanded ?? this.rightPanelExpanded,
       leftPanelWidth: leftPanelWidth ?? this.leftPanelWidth,
+      rightPanelWidth: rightPanelWidth ?? this.rightPanelWidth,
       promptAreaHeight: promptAreaHeight ?? this.promptAreaHeight,
       promptMaximized: promptMaximized ?? this.promptMaximized,
     );
@@ -50,6 +54,7 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
       leftPanelExpanded: storage.getLeftPanelExpanded(),
       rightPanelExpanded: storage.getRightPanelExpanded(),
       leftPanelWidth: storage.getLeftPanelWidth(),
+      rightPanelWidth: storage.getRightPanelWidth(),
       promptAreaHeight: storage.getPromptAreaHeight(),
       promptMaximized: storage.getPromptMaximized(),
     );
@@ -90,6 +95,15 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     // 保存到本地存储
     final storage = ref.read(localStorageServiceProvider);
     await storage.setLeftPanelWidth(width);
+  }
+
+  /// 设置右侧面板宽度
+  Future<void> setRightPanelWidth(double width) async {
+    state = state.copyWith(rightPanelWidth: width);
+
+    // 保存到本地存储
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setRightPanelWidth(width);
   }
 
   /// 设置提示区域高度

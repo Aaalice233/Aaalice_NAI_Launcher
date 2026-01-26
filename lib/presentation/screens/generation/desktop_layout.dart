@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
 
-import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
@@ -39,21 +37,6 @@ class _DesktopGenerationLayoutState
   static const double _promptAreaMinHeight = 100;
   static const double _promptAreaMaxHeight = 500;
 
-  // 右侧面板宽度（保持本地状态，因为不在 LayoutState 中）
-  double _rightPanelWidth = 280;
-
-  @override
-  void initState() {
-    super.initState();
-    // 从 Hive 恢复历史面板宽度
-    final box = Hive.box(StorageKeys.settingsBox);
-    final savedWidth = box.get(
-      StorageKeys.historyPanelWidth,
-      defaultValue: 280.0,
-    ) as double;
-    _rightPanelWidth = savedWidth;
-    AppLogger.d('History panel width restored: $savedWidth', 'DesktopLayout');
-  }
 
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
@@ -149,17 +132,9 @@ class _DesktopGenerationLayoutState
           _buildResizeHandle(
             theme,
             onDrag: (dx) {
-              setState(() {
-                _rightPanelWidth = (_rightPanelWidth - dx)
-                    .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
-              });
-              // 立即保存到 Hive
-              final box = Hive.box(StorageKeys.settingsBox);
-              box.put(StorageKeys.historyPanelWidth, _rightPanelWidth);
-              AppLogger.d(
-                'History panel width saved: $_rightPanelWidth',
-                'DesktopLayout',
-              );
+              final newWidth = (layoutState.rightPanelWidth - dx)
+                  .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
+              ref.read(layoutStateNotifierProvider.notifier).setRightPanelWidth(newWidth);
             },
           ),
 
@@ -210,7 +185,7 @@ class _DesktopGenerationLayoutState
   Widget _buildRightPanel(ThemeData theme, LayoutState layoutState) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: layoutState.rightPanelExpanded ? _rightPanelWidth : 40,
+      width: layoutState.rightPanelExpanded ? layoutState.rightPanelWidth : 40,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(

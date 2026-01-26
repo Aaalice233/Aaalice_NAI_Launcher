@@ -432,6 +432,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.leftPanelWidth, width);
   }
 
+  /// 获取右侧面板宽度 (默认280, 使用 historyPanelWidth key)
+  double getRightPanelWidth() {
+    return getSetting<double>(
+          StorageKeys.historyPanelWidth,
+          defaultValue: 280.0,
+        ) ??
+        280.0;
+  }
+
+  /// 保存右侧面板宽度 (使用 historyPanelWidth key)
+  Future<void> setRightPanelWidth(double width) async {
+    await setSetting(StorageKeys.historyPanelWidth, width);
+  }
+
   /// 获取提示区域高度 (默认200)
   double getPromptAreaHeight() {
     return getSetting<double>(
