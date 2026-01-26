@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/storage/local_storage_service.dart';
+
 part 'prompt_maximize_provider.g.dart';
 
 /// 提示词编辑区域最大化状态 Provider
@@ -10,22 +12,36 @@ part 'prompt_maximize_provider.g.dart';
 class PromptMaximizeNotifier extends _$PromptMaximizeNotifier {
   @override
   bool build() {
-    // 默认不最大化
-    return false;
+    // 从本地存储加载最大化状态
+    final storage = ref.read(localStorageServiceProvider);
+    return storage.getPromptMaximized();
   }
 
   /// 切换最大化状态
-  void toggle() {
-    state = !state;
+  Future<void> toggle() async {
+    final newValue = !state;
+    state = newValue;
+
+    // 保存到本地存储
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setPromptMaximized(newValue);
   }
 
   /// 设置最大化状态
-  void setMaximized(bool value) {
+  Future<void> setMaximized(bool value) async {
     state = value;
+
+    // 保存到本地存储
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setPromptMaximized(value);
   }
 
   /// 重置为非最大化状态
-  void reset() {
+  Future<void> reset() async {
     state = false;
+
+    // 保存到本地存储
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setPromptMaximized(false);
   }
 }

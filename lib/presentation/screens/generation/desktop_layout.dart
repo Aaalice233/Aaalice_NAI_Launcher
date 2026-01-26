@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
 
-import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
@@ -30,35 +29,14 @@ class DesktopGenerationLayout extends ConsumerStatefulWidget {
 
 class _DesktopGenerationLayoutState
     extends ConsumerState<DesktopGenerationLayout> {
-  // 左侧面板状态
-  bool _leftPanelExpanded = true;
-  double _leftPanelWidth = 300;
+  // 面板宽度常量
   static const double _leftPanelMinWidth = 250;
   static const double _leftPanelMaxWidth = 450;
-
-  // 右侧面板状态
-  bool _rightPanelExpanded = true;
-  double _rightPanelWidth = 280;
   static const double _rightPanelMinWidth = 200;
   static const double _rightPanelMaxWidth = 400;
-
-  // 提示词区域高度
-  double _promptAreaHeight = 200;
   static const double _promptAreaMinHeight = 100;
   static const double _promptAreaMaxHeight = 500;
 
-  @override
-  void initState() {
-    super.initState();
-    // 从 Hive 恢复历史面板宽度
-    final box = Hive.box(StorageKeys.settingsBox);
-    final savedWidth = box.get(
-      StorageKeys.historyPanelWidth,
-      defaultValue: 280.0,
-    ) as double;
-    _rightPanelWidth = savedWidth;
-    AppLogger.d('History panel width restored: $savedWidth', 'DesktopLayout');
-  }
 
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
@@ -69,23 +47,24 @@ class _DesktopGenerationLayoutState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 从 Provider 读取布局状态
+    final layoutState = ref.watch(layoutStateNotifierProvider);
     // 从 Provider 读取最大化状态（确保主题切换时状态不丢失）
     final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
 
     return Row(
       children: [
         // 左侧栏 - 参数面板
-        _buildLeftPanel(theme),
+        _buildLeftPanel(theme, layoutState),
 
         // 左侧拖拽分隔条
-        if (_leftPanelExpanded)
+        if (layoutState.leftPanelExpanded)
           _buildResizeHandle(
             theme,
             onDrag: (dx) {
-              setState(() {
-                _leftPanelWidth = (_leftPanelWidth + dx)
-                    .clamp(_leftPanelMinWidth, _leftPanelMaxWidth);
-              });
+              final newWidth = (layoutState.leftPanelWidth + dx)
+                  .clamp(_leftPanelMinWidth, _leftPanelMaxWidth);
+              ref.read(layoutStateNotifierProvider.notifier).setLeftPanelWidth(newWidth);
             },
           ),
 
@@ -108,7 +87,7 @@ class _DesktopGenerationLayoutState
                       ),
                     )
                   : SizedBox(
-                      height: _promptAreaHeight,
+                      height: layoutState.promptAreaHeight,
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -122,7 +101,7 @@ class _DesktopGenerationLayoutState
                     ),
 
               // 提示词区域拖拽分隔条（最大化时隐藏）
-              if (!isPromptMaximized) _buildVerticalResizeHandle(theme),
+              if (!isPromptMaximized) _buildVerticalResizeHandle(theme, layoutState),
 
               // 中间图像预览区（最大化时隐藏）
               if (!isPromptMaximized)
@@ -149,34 +128,26 @@ class _DesktopGenerationLayoutState
         ),
 
         // 右侧拖拽分隔条
-        if (_rightPanelExpanded)
+        if (layoutState.rightPanelExpanded)
           _buildResizeHandle(
             theme,
             onDrag: (dx) {
-              setState(() {
-                _rightPanelWidth = (_rightPanelWidth - dx)
-                    .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
-              });
-              // 立即保存到 Hive
-              final box = Hive.box(StorageKeys.settingsBox);
-              box.put(StorageKeys.historyPanelWidth, _rightPanelWidth);
-              AppLogger.d(
-                'History panel width saved: $_rightPanelWidth',
-                'DesktopLayout',
-              );
+              final newWidth = (layoutState.rightPanelWidth - dx)
+                  .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
+              ref.read(layoutStateNotifierProvider.notifier).setRightPanelWidth(newWidth);
             },
           ),
 
         // 右侧栏 - 历史面板
-        _buildRightPanel(theme),
+        _buildRightPanel(theme, layoutState),
       ],
     );
   }
 
-  Widget _buildLeftPanel(ThemeData theme) {
+  Widget _buildLeftPanel(ThemeData theme, LayoutState layoutState) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: _leftPanelExpanded ? _leftPanelWidth : 40,
+      width: layoutState.leftPanelExpanded ? layoutState.leftPanelWidth : 40,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -186,7 +157,7 @@ class _DesktopGenerationLayoutState
           ),
         ),
       ),
-      child: _leftPanelExpanded
+      child: layoutState.leftPanelExpanded
           ? Stack(
               children: [
                 const ParameterPanel(),
@@ -197,7 +168,7 @@ class _DesktopGenerationLayoutState
                   child: _buildCollapseButton(
                     theme,
                     icon: Icons.chevron_left,
-                    onTap: () => setState(() => _leftPanelExpanded = false),
+                    onTap: () => ref.read(layoutStateNotifierProvider.notifier).setLeftPanelExpanded(false),
                   ),
                 ),
               ],
@@ -206,15 +177,15 @@ class _DesktopGenerationLayoutState
               theme,
               icon: Icons.tune,
               label: context.l10n.generation_params,
-              onTap: () => setState(() => _leftPanelExpanded = true),
+              onTap: () => ref.read(layoutStateNotifierProvider.notifier).setLeftPanelExpanded(true),
             ),
     );
   }
 
-  Widget _buildRightPanel(ThemeData theme) {
+  Widget _buildRightPanel(ThemeData theme, LayoutState layoutState) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: _rightPanelExpanded ? _rightPanelWidth : 40,
+      width: layoutState.rightPanelExpanded ? layoutState.rightPanelWidth : 40,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -224,7 +195,7 @@ class _DesktopGenerationLayoutState
           ),
         ),
       ),
-      child: _rightPanelExpanded
+      child: layoutState.rightPanelExpanded
           ? Stack(
               children: [
                 const HistoryPanel(),
@@ -235,7 +206,7 @@ class _DesktopGenerationLayoutState
                   child: _buildCollapseButton(
                     theme,
                     icon: Icons.chevron_right,
-                    onTap: () => setState(() => _rightPanelExpanded = false),
+                    onTap: () => ref.read(layoutStateNotifierProvider.notifier).setRightPanelExpanded(false),
                   ),
                 ),
               ],
@@ -244,7 +215,7 @@ class _DesktopGenerationLayoutState
               theme,
               icon: Icons.history,
               label: context.l10n.generation_history,
-              onTap: () => setState(() => _rightPanelExpanded = true),
+              onTap: () => ref.read(layoutStateNotifierProvider.notifier).setRightPanelExpanded(true),
             ),
     );
   }
@@ -336,15 +307,14 @@ class _DesktopGenerationLayoutState
     );
   }
 
-  Widget _buildVerticalResizeHandle(ThemeData theme) {
+  Widget _buildVerticalResizeHandle(ThemeData theme, LayoutState layoutState) {
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
       child: GestureDetector(
         onVerticalDragUpdate: (details) {
-          setState(() {
-            _promptAreaHeight = (_promptAreaHeight + details.delta.dy)
-                .clamp(_promptAreaMinHeight, _promptAreaMaxHeight);
-          });
+          final newHeight = (layoutState.promptAreaHeight + details.delta.dy)
+              .clamp(_promptAreaMinHeight, _promptAreaMaxHeight);
+          ref.read(layoutStateNotifierProvider.notifier).setPromptAreaHeight(newHeight);
         },
         child: Container(
           height: 6,
