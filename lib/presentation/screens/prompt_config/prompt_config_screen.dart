@@ -286,10 +286,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   Future<void> _createBlankPreset(String name) async {
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
 
-    await notifier.createPreset(
+    final newPreset = await notifier.createPreset(
       name: name,
       copyFromCurrent: false,
     );
+
+    // 选中新创建的预设
+    await notifier.selectPreset(newPreset.id);
   }
 
   /// 创建模板预设（基于默认预设）
