@@ -241,6 +241,15 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
+  /// 创建空白预设
+  Future<void> _createBlankPreset() async {
+    final notifier = ref.read(randomPresetNotifierProvider.notifier);
+    await notifier.createPreset(
+      name: context.l10n.config_newPreset,
+      copyFromCurrent: false,
+    );
+  }
+
   /// 显示新建预设对话框
   Future<void> _showNewPresetDialog() async {
     final presetState = ref.read(randomPresetNotifierProvider);
@@ -257,10 +266,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         switch (mode) {
           case PresetCreationMode.blank:
             // 创建完全空白的预设
-            await notifier.createPreset(
-              name: context.l10n.config_newPreset,
-              copyFromCurrent: false,
-            );
+            await _createBlankPreset();
             break;
 
           case PresetCreationMode.template:
