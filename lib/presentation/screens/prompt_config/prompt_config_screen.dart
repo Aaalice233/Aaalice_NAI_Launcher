@@ -17,6 +17,7 @@ import '../../providers/prompt_config_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../widgets/prompt/category_settings_dialog.dart';
 import '../../../data/models/prompt/random_category.dart';
+import '../../../data/models/prompt/random_preset.dart';
 import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
@@ -689,7 +690,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   // ==================== 左侧预设面板 ====================
   Widget _buildPresetPanel(PromptConfigState state, ThemeData theme) {
     final currentMode = ref.watch(randomModeNotifierProvider);
+    final presetState = ref.watch(randomPresetNotifierProvider);
     final isNaiMode = currentMode == RandomGenerationMode.naiOfficial;
+    final presets = presetState.presets;
 
     return Container(
       width: 220,
@@ -718,52 +721,20 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           ),
           Divider(height: 1, color: theme.dividerColor),
 
-          // 预设列表（包含固定的 NAI 官方模式）
+          // 预设列表（所有 RandomPresets）
           Expanded(
-            child: state.isLoading
+            child: presetState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     children: [
-                      // NAI 官方模式（固定项）
-                      _buildNaiPresetItem(isNaiMode, theme),
-                      // 分隔线
-                      if (state.presets.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Divider(
-                                  height: 1,
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  context.l10n.config_presets,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(
-                                  height: 1,
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ],
-                          ),
+                      // 预设列表（默认预设 + 自定义预设）
+                      ...presets.map(
+                        (preset) => _buildRandomPresetItem(
+                          preset,
+                          presetState,
+                          theme,
                         ),
-                      // 自定义预设列表
-                      ...state.presets.map(
-                        (preset) => _buildPresetItem(preset, state, theme),
                       ),
                       // 新建预设按钮（暂时禁用 - 预设管理功能待完善）
                       // TODO(feature): 自定义预设创建功能 - 需要完成预设编辑器和验证逻辑
@@ -902,6 +873,111 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         ),
       ),
     );
+  }
+
+  /// RandomPreset 预设项（支持默认预设和自定义预设）
+  Widget _buildRandomPresetItem(
+    RandomPreset preset,
+    RandomPresetState presetState,
+    ThemeData theme,
+  ) {
+    final isSelected = preset.id == presetState.selectedPresetId;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withOpacity(0.5)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () => _selectRandomPreset(preset.id),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                // 激活指示器
+                if (isSelected)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                else
+                  const SizedBox(width: 16),
+                // 图标
+                Icon(
+                  preset.isDefault ? Icons.auto_awesome : Icons.tune_outlined,
+                  size: 18,
+                  color: preset.isDefault
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+                const SizedBox(width: 8),
+                // 预设信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        preset.name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: isSelected ? FontWeight.w600 : null,
+                          color: preset.isDefault
+                              ? theme.colorScheme.primary
+                              : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        preset.isDefault
+                            ? context.l10n.naiMode_totalTags(
+                                preset.enabledCategoryCount.toString(),
+                              )
+                            : context.l10n.preset_configGroupCount(
+                                preset.categoryCount.toString(),
+                              ),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 选择 RandomPreset
+  void _selectRandomPreset(String presetId) async {
+    if (_hasUnsavedChanges) {
+      _showUnsavedDialog(() => _doSelectRandomPreset(presetId));
+      return;
+    }
+    _doSelectRandomPreset(presetId);
+  }
+
+  void _doSelectRandomPreset(String presetId) {
+    ref.read(randomPresetNotifierProvider.notifier).selectPreset(presetId);
+    ref.read(randomModeNotifierProvider.notifier).setMode(
+          RandomGenerationMode.naiOfficial,
+        );
+    setState(() {
+      _selectedPresetId = presetId;
+      _selectedConfigId = null;
+      _editingConfigs = [];
+      _hasUnsavedChanges = false;
+    });
   }
 
   /// 选择 NAI 官方模式
