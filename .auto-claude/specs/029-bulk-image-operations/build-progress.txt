@@ -509,3 +509,125 @@ Next: Subtask-4-3 - Implement bulk export with format selection and progress dia
 
 === SUBTASK-4-3 COMPLETE ===
 Next: Subtask-4-4 - Implement bulk metadata edit with tag addition/removal
+
+[2026-01-26 19:15] Subtask-4-4: Implement bulk metadata edit with tag addition/removal
+- Status: COMPLETED ✓
+- Modified: lib/presentation/screens/local_gallery/local_gallery_screen.dart
+- Modified: lib/presentation/widgets/bulk_metadata_edit_dialog.dart
+- Features implemented:
+  - Added import for bulk_metadata_edit_dialog.dart in local_gallery_screen.dart
+  - Created _editSelectedMetadata() method that shows BulkMetadataEditDialog
+  - Wired up onEditMetadata callback in BulkActionBar
+  - Updated BulkMetadataEditDialog to show progress dialog during operation:
+    - Added unawaited import for async fire-and-forget pattern
+    - Shows BulkProgressDialog before calling bulkEditMetadata
+    - Progress dialog displays live progress with current item, percentage
+    - Shows result statistics (success/failed counts, error list)
+    - Auto-closes when operation completes successfully
+- Features:
+  - Tag addition interface with text input and green chips
+  - Tag removal interface with text input and red chips
+  - Support for comma and newline-separated tag input
+  - Individual chip removal with delete button
+  - Validation to prevent empty tag operations
+  - Real-time progress updates during bulk operation
+  - Proper error handling and state management
+- Code quality:
+  - Follows existing code patterns from bulk_export_dialog.dart
+  - No console.log/print statements
+  - All Flutter analyzer checks pass with no errors
+  - Proper async/await handling
+  - mounted checks for UI operations
+- Manual verification: Ready for testing - Select 5 images, add tag 'test', verify all updated
+- Commit: auto-claude - "subtask-4-4 - Implement bulk metadata edit with tag addition/removal"
+
+=== SUBTASK-4-4 COMPLETE ===
+Next: Subtask-4-5 - Implement bulk add to collection with collection selection dialog
+
+[2026-01-26 19:30] Subtask-4-5: Implement bulk add to collection with collection selection dialog
+- Status: COMPLETED ✓
+- Modified: lib/presentation/screens/local_gallery/local_gallery_screen.dart
+- Features implemented:
+  - Added imports for collection_provider.dart and collection_select_dialog.dart
+  - Created _addSelectedToCollection() method that:
+    - Gets selected images from selection and gallery states
+    - Shows CollectionSelectDialog for user to choose target collection
+    - Adds selected images to chosen collection via collectionNotifierProvider
+    - Shows success/failure feedback with SnackBar displaying count and collection name
+    - Exits selection mode on successful operation
+    - Proper error handling with mounted checks
+  - Fixed BulkActionBar callback from _addSelectedToQueue to _addSelectedToCollection
+- Features:
+  - Collection selection dialog with search/filter functionality
+  - Shows collection name and image count
+  - Empty state handling (no collections available)
+  - Success message: "已添加 X 张图片到集合「CollectionName」"
+  - Error message: "添加图片到集合失败"
+  - Auto-exit selection mode after successful operation
+- Code quality:
+  - Follows existing code patterns from _addSelectedToQueue and _deleteSelectedImages
+  - Uses async/await properly
+  - No console.log/print statements
+  - All Flutter analyzer checks pass with no errors
+  - Bilingual comments (Chinese and English)
+  - Proper error handling with mounted checks
+- Manual verification: Ready for testing - Select 5 images, add to collection, verify collection contains images
+- Commit: auto-claude - "subtask-4-5 - Implement bulk add to collection with collection selection dialog"
+
+=== SUBTASK-4-5 COMPLETE ===
+Next: Subtask-4-6 - Implement undo/redo UI with keyboard shortcuts and button controls
+
+[2026-01-26 19:45] Subtask-4-6: Implement undo/redo UI with keyboard shortcuts and button controls
+- Status: COMPLETED ✓
+- Modified: lib/presentation/screens/local_gallery/local_gallery_screen.dart
+- Features implemented:
+  - Added bulk_operation_provider.dart import
+  - Created _undo() and _redo() handler methods
+  - Added _shortcutsFocusNode for keyboard event handling
+  - Wrapped Scaffold with KeyboardListener for keyboard shortcuts
+  - Updated _buildToolbar() to accept BulkOperationState parameter
+  - Added undo/redo buttons to toolbar (shown only when canUndo or canRedo)
+  - Buttons display tooltips showing keyboard shortcuts
+  - Buttons are visually enabled/disabled based on operation state
+  - Integrated with existing BulkOperationNotifier's undo/redo system
+  - Shows SnackBar feedback on undo/redo operations
+- Keyboard Shortcuts:
+  - Ctrl+Z: Undo last operation
+  - Ctrl+Y or Ctrl+Shift+Z: Redo last undone operation
+- Code quality:
+  - Follows patterns from image_editor_screen.dart for keyboard shortcuts
+  - No console.log/print statements
+  - Proper error handling with mounted checks
+  - All Flutter analyzer checks pass (only minor style warnings)
+  - Bilingual comments (Chinese and English)
+- Manual verification: Ready for testing - Perform bulk delete, press Ctrl+Z, verify undo works, press Ctrl+Y, verify redo works
+- Commit: 8f01ba6 - "auto-claude: subtask-4-6 - Implement undo/redo UI with keyboard shortcuts and button controls"
+
+=== SUBTASK-4-6 COMPLETE ===
+Phase 4 (Integration) COMPLETE ✓
+Next: Phase 5 - Testing (can be done in parallel)
+
+[2026-01-26 18:55] Subtask-5-1: Write unit tests for CollectionRepository CRUD operations
+- Status: COMPLETED ✓
+- Verified: test/data/repositories/collection_repository_test.dart exists
+- Test results: 26/26 tests PASSED
+- Features tested:
+  - CRUD operations: createCollection, getCollection, getAllCollections, updateCollection, deleteCollection
+  - Image management: addImagesToCollection, removeImagesFromCollection
+  - Helper methods: isImageInCollection, getCollectionImageCount
+  - Edge cases: empty lists, non-existent collections, duplicate prevention
+  - Special characters: Chinese, emoji, spaces in names and paths
+  - Cross-platform paths: Windows and Unix/Mac path handling
+  - Batch operations: rapid create/delete (50+ collections), batch add/remove (100+ images)
+  - Persistence and cleanup: clearAllCollections, cross-instance persistence
+  - Sorting and ordering: collections sorted by createdAt descending (newest first)
+- Test quality:
+  - Follows favorites_storage_test.dart patterns exactly
+  - Comprehensive test coverage with 26 test cases
+  - Tests pass successfully with no failures
+  - Proper setUp/tearDown with Hive initialization and cleanup
+- Verification: flutter test test/data/repositories/collection_repository_test.dart - All tests passed!
+- Note: Test file was already created in subtask-1-2, this subtask verified test completeness and quality
+
+=== SUBTASK-5-1 COMPLETE ===
+Next: Subtask-5-2 - Write unit tests for BulkOperationService methods
