@@ -259,7 +259,7 @@ class GroupedGridViewState extends ConsumerState<GroupedGridView> {
                 crossAxisCount: widget.columns,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: widget.itemWidth / 250,
+                childAspectRatio: 1 / 1.5,
               ),
               itemCount: group.images.length,
               itemBuilder: (context, index) {
