@@ -18,6 +18,7 @@ import 'prompt/random_manager/components/pro_context_menu.dart';
 class LocalImageCard extends StatefulWidget {
   final LocalImageRecord record;
   final double itemWidth;
+  final double aspectRatio;
   final bool selectionMode;
   final bool isSelected;
   final VoidCallback? onSelectionToggle;
@@ -28,6 +29,7 @@ class LocalImageCard extends StatefulWidget {
     super.key,
     required this.record,
     required this.itemWidth,
+    required this.aspectRatio,
     this.selectionMode = false,
     this.isSelected = false,
     this.onSelectionToggle,
@@ -849,6 +851,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
     final metadata = widget.record.metadata;
+    // Calculate height dynamically based on aspect ratio, with max height constraint
+    final maxHeight = widget.itemWidth * 3;
+    final itemHeight = (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -931,26 +936,30 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
         child: Stack(
           children: [
-            Card(
-              clipBehavior: Clip.antiAlias,
-              elevation: 2,
-              shadowColor: Colors.black.withOpacity(0.15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: widget.isSelected
-                    ? BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 3,
-                      )
-                    : BorderSide.none,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 图片 + 悬停叠加层
-                  Expanded(
-                    child: Stack(
-                      children: [
+            SizedBox(
+              width: widget.itemWidth,
+              height: itemHeight,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                      color: Colors.black.withOpacity(0.1),
+                    ),
+                  ],
+                  border: widget.isSelected
+                      ? Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 3,
+                        )
+                      : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Stack(
+                        children: [
                         Image.file(
                           File(widget.record.path),
                           cacheWidth: cacheWidth, // 优化内存占用
@@ -973,9 +982,14 @@ class _LocalImageCardState extends State<LocalImageCard> {
                             );
                           },
                         ),
-                      // Selection Overlay
-                      if (widget.selectionMode && widget.isSelected)
-                        Positioned.fill(
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            // Selection Overlay
+            if (widget.selectionMode && widget.isSelected)
+              Positioned.fill(
                           child: Container(
                             color: Theme.of(context)
                                 .colorScheme
@@ -1040,86 +1054,150 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   ),
                                   Row(
                                     children: [
-                                      Text(
-                                        timeago.format(
-                                          widget.record.modifiedAt,
-                                          locale:
-                                              Localizations.localeOf(context)
-                                                          .languageCode ==
-                                                      'zh'
-                                                  ? 'zh'
-                                                  : 'en',
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 10,
+                                      Flexible(
+                                        child: Text(
+                                          timeago.format(
+                                            widget.record.modifiedAt,
+                                            locale:
+                                                Localizations.localeOf(context)
+                                                            .languageCode ==
+                                                        'zh'
+                                                    ? 'zh'
+                                                    : 'en',
+                                          ),
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
                                         ),
                                       ),
                                       if (metadata?.seed != null) ...[
                                         const SizedBox(width: 8),
-                                        Text(
-                                          'Seed: ${metadata!.seed}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
+                                        Flexible(
+                                          child: Text(
+                                            'Seed: ${metadata!.seed}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                      ],
+                                      if (metadata?.width != null &&
+                                          metadata?.height != null) ...[
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            '${metadata?.width} x ${metadata?.height}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                         ),
                                       ],
                                     ],
                                   ),
                                   if (metadata?.prompt.isNotEmpty == true)
-                                    Text(
-                                      metadata!.prompt,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        metadata!.prompt,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  // Tags display
+                                  if (widget.record.tags.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Wrap(
+                                        spacing: 4.0,
+                                        runSpacing: 2.0,
+                                        children: widget.record.tags
+                                            .take(3)
+                                            .map((tag) {
+                                          final displayTag = tag.length > 15
+                                              ? '${tag.substring(0, 15)}...'
+                                              : tag;
+                                          return Chip(
+                                            label: Text(
+                                              displayTag,
+                                              style: const TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            backgroundColor:
+                                                Colors.white24,
+                                            padding: EdgeInsets.zero,
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          );
+                                        }).toList(),
+                                      ),
+                                    )
+                                  else
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        'No tags',
+                                        style: TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 10,
+                                        ),
+                                      ),
                                     ),
                                 ],
                               ),
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                  ),
-                ],
-              ),
-            ),
-            // Pinch 缩略图预览 overlay
-            if (_showThumbnailPreview && _scaleStartPosition != null)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: _scale.clamp(0.8, 2.0),
-                      child: Container(
-                        width: widget.itemWidth * 0.8,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                      // Pinch 缩略图预览 overlay
+                      if (_showThumbnailPreview && _scaleStartPosition != null)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black54,
+                            child: Center(
+                              child: Transform.scale(
+                                scale: _scale.clamp(0.8, 2.0),
+                                child: Container(
+                                  width: widget.itemWidth * 0.8,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.5),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      File(widget.record.path),
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(widget.record.path),
-                            fit: BoxFit.contain,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

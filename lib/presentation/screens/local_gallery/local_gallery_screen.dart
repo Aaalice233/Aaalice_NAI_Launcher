@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -37,6 +39,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// 用于访问 GroupedGridView 的 scrollToGroup 方法的键
   final GlobalKey<GroupedGridViewState> _groupedGridViewKey =
       GlobalKey<GroupedGridViewState>();
+
+  /// 宽高比缓存
+  /// Aspect ratio cache for storing calculated aspect ratios
+  final Map<String, double> _aspectRatioCache = {};
 
   @override
   void initState() {
@@ -101,6 +107,40 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       );
       ref.read(localGallerySelectionNotifierProvider.notifier).exit();
     }
+  }
+
+  /// 计算图片宽高比
+  /// Calculate aspect ratio from metadata or image file
+  Future<double> _calculateAspectRatio(LocalImageRecord record) async {
+    // 首先尝试从元数据获取尺寸
+    // Try to get dimensions from metadata first
+    final metadata = record.metadata;
+    if (metadata != null && metadata.width != null && metadata.height != null) {
+      final width = metadata.width!;
+      final height = metadata.height!;
+      if (width > 0 && height > 0) {
+        return width / height;
+      }
+    }
+
+    // 如果元数据中没有尺寸信息，从图片文件读取
+    // If metadata doesn't have dimensions, read from image file
+    try {
+      final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final width = descriptor.width;
+      final height = descriptor.height;
+      if (width > 0 && height > 0) {
+        return width / height;
+      }
+    } catch (e) {
+      // 如果读取失败，返回默认宽高比
+      // If reading fails, return default aspect ratio
+    }
+
+    // 默认宽高比（基于常见的 NAI 生成尺寸）
+    // Default aspect ratio (based on common NAI generation dimensions)
+    return 1.0;
   }
 
   /// 检查权限并扫描图片
@@ -318,7 +358,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (selectionState.isActive) {
       return ClipRRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             decoration: BoxDecoration(
@@ -366,7 +406,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           decoration: BoxDecoration(
@@ -925,9 +965,25 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         buildSelected: (path) => selectionState.selectedIds.contains(path),
         buildCard: (record) {
           final isSelected = selectionState.selectedIds.contains(record.path);
+
+          // Get or calculate aspect ratio for grouped view
+          double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
+
+          // Calculate and cache aspect ratio asynchronously if not cached
+          if (!_aspectRatioCache.containsKey(record.path)) {
+            _calculateAspectRatio(record).then((value) {
+              if (mounted && value != aspectRatio) {
+                setState(() {
+                  _aspectRatioCache[record.path] = value;
+                });
+              }
+            });
+          }
+
           return LocalImageCard(
             record: record,
             itemWidth: itemWidth,
+            aspectRatio: aspectRatio,
             selectionMode: selectionState.isActive,
             isSelected: isSelected,
             onSelectionToggle: () {
@@ -999,7 +1055,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           crossAxisCount: columns,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: itemWidth / 250, // 固定宽高比
         ),
         itemCount:
             state.currentImages.isNotEmpty ? state.currentImages.length : 20,
@@ -1013,23 +1068,35 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     // 正常内容
-    return GridView.builder(
+    return MasonryGridView.count(
       key: const PageStorageKey<String>('local_gallery_grid'),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: itemWidth / 250, // 固定宽高比
-      ),
+      crossAxisCount: columns,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];
         final selectionState = ref.watch(localGallerySelectionNotifierProvider);
         final isSelected = selectionState.selectedIds.contains(record.path);
 
+        // 获取或计算宽高比
+        // Get or calculate aspect ratio
+        double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
+
+        // 异步计算并缓存宽高比
+        // Calculate and cache aspect ratio asynchronously
+        _calculateAspectRatio(record).then((value) {
+          if (mounted && value != aspectRatio) {
+            setState(() {
+              _aspectRatioCache[record.path] = value;
+            });
+          }
+        });
+
         return LocalImageCard(
           record: record,
           itemWidth: itemWidth,
+          aspectRatio: aspectRatio,
           selectionMode: selectionState.isActive,
           isSelected: isSelected,
           onSelectionToggle: () {
