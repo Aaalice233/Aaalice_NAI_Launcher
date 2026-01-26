@@ -243,11 +243,40 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 显示新建预设对话框
   Future<void> _showNewPresetDialog() async {
+    final presetState = ref.read(randomPresetNotifierProvider);
+    final defaultPreset = presetState.presets.firstWhere(
+      (p) => p.isDefault,
+      orElse: () => presetState.presets.first,
+    );
+
     await NewPresetDialog.show(
       context: context,
-      onModeSelected: (mode) {
-        // TODO: 处理预设创建模式选择 (subtask-2-3)
-        // mode 将是 PresetCreationMode.blank 或 PresetCreationMode.template
+      onModeSelected: (mode) async {
+        final notifier = ref.read(randomPresetNotifierProvider.notifier);
+
+        switch (mode) {
+          case PresetCreationMode.blank:
+            // 创建完全空白的预设
+            await notifier.createPreset(
+              name: context.l10n.config_newPreset,
+              copyFromCurrent: false,
+            );
+            break;
+
+          case PresetCreationMode.template:
+            // 基于默认预设创建
+            // 先选择默认预设，然后复制它
+            await notifier.selectPreset(defaultPreset.id);
+            await notifier.createPreset(
+              name: context.l10n.config_newPreset,
+              copyFromCurrent: true,
+            );
+            break;
+        }
+
+        if (mounted) {
+          AppToast.success(context, context.l10n.preset_newPresetCreated);
+        }
       },
     );
   }
