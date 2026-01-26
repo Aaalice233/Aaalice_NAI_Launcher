@@ -11,7 +11,6 @@ import '../../../data/models/prompt/random_prompt_result.dart'
 import '../../../data/models/prompt/sync_config.dart' show SyncProgress;
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/tag_group.dart';
-import '../../../data/models/prompt/tag_group_preset_cache.dart';
 import '../../../data/models/prompt/weighted_tag.dart';
 import '../../providers/prompt_config_provider.dart';
 import '../../providers/random_preset_provider.dart';
@@ -23,6 +22,7 @@ import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/prompt/new_preset_dialog.dart';
+import '../../../core/services/tag_counting_service.dart';
 import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
@@ -130,6 +130,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final presetState = ref.watch(randomPresetNotifierProvider);
     final preset = presetState.selectedPreset;
     final tagGroupMappings = preset?.tagGroupMappings ?? [];
+    final tagCountingService = ref.watch(tagCountingServiceProvider);
 
     // 获取预设中的类别列表（动态列表）
     final categories = preset?.categories ?? [];
@@ -181,25 +182,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       }
     }
 
-    // 2. 启用的 TagGroup 标签数（需要类别也启用）
-    for (final mapping in tagGroupMappings.where((m) => m.enabled)) {
-      // 查找对应的 RandomCategory
-      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
-            (c) => c?.key == mapping.targetCategory.name,
-            orElse: () => null,
-          );
-      final categoryEnabled = randomCategory?.enabled ?? true;
-      if (categoryEnabled) {
-        // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
-        final count = syncState.filteredTagCounts[mapping.groupTitle] ??
-            (mapping.lastSyncedTagCount > 0
-                ? mapping.lastSyncedTagCount
-                : null) ??
-            TagGroupPresetCache.getCount(mapping.groupTitle) ??
-            0;
-        tagCount += count;
-      }
-    }
+    // 2. 启用的 TagGroup 标签数（使用 TagCountingService）
+    tagCount += tagCountingService.calculateTotalTagCount(
+      tagGroupMappings,
+      categories,
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
@@ -1087,12 +1074,12 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// NAI 官方模式预设项（固定）
   Widget _buildNaiPresetItem(bool isSelected, ThemeData theme) {
     final libraryState = ref.watch(tagLibraryNotifierProvider);
-    final syncState = ref.watch(tagGroupSyncNotifierProvider);
     final presetState = ref.watch(randomPresetNotifierProvider);
     final preset = presetState.selectedPreset;
     final tagGroupMappings = preset?.tagGroupMappings ?? [];
     final library = libraryState.library;
     final categories = preset?.categories ?? [];
+    final tagCountingService = ref.watch(tagCountingServiceProvider);
 
     // 计算总标签数：内置词库 + TagGroup（需要考虑类别启用状态）
     int tagCount = 0;
@@ -1116,25 +1103,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       }
     }
 
-    // 2. 启用的 TagGroup 标签数（需要类别也启用）
-    for (final mapping in tagGroupMappings.where((m) => m.enabled)) {
-      // 查找对应的 RandomCategory
-      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
-            (c) => c?.key == mapping.targetCategory.name,
-            orElse: () => null,
-          );
-      final categoryEnabled = randomCategory?.enabled ?? true;
-      if (categoryEnabled) {
-        // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
-        final count = syncState.filteredTagCounts[mapping.groupTitle] ??
-            (mapping.lastSyncedTagCount > 0
-                ? mapping.lastSyncedTagCount
-                : null) ??
-            TagGroupPresetCache.getCount(mapping.groupTitle) ??
-            0;
-        tagCount += count;
-      }
-    }
+    // 2. 启用的 TagGroup 标签数（使用 TagCountingService）
+    tagCount += tagCountingService.calculateTotalTagCount(
+      tagGroupMappings,
+      categories,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
