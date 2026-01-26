@@ -12,6 +12,211 @@ import '../../data/services/statistics_service.dart';
 import '../providers/local_gallery_provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
+/// 动画数字显示组件
+class _AnimatedNumber extends StatefulWidget {
+  final int targetValue;
+  final String suffix;
+  final TextStyle style;
+  final Duration duration;
+
+  const _AnimatedNumber({
+    required this.targetValue,
+    this.suffix = '',
+    required this.style,
+    this.duration = const Duration(milliseconds: 800),
+  });
+
+  @override
+  State<_AnimatedNumber> createState() => _AnimatedNumberState();
+}
+
+class _AnimatedNumberState extends State<_AnimatedNumber>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: widget.duration,
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final value = (_animation.value * widget.targetValue).toInt();
+        return Text(
+          '$value${widget.suffix}',
+          style: widget.style,
+        );
+      },
+    );
+  }
+}
+
+/// 动画柱状图组件
+class _AnimatedBarChart extends StatefulWidget {
+  final BarChartData data;
+  final double height;
+
+  const _AnimatedBarChart({
+    required this.data,
+    required this.height,
+  });
+
+  @override
+  State<_AnimatedBarChart> createState() => _AnimatedBarChartState();
+}
+
+class _AnimatedBarChartState extends State<_AnimatedBarChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.height,
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          // Animate bar growth from zero
+          final animatedData = BarChartData(
+            alignment: widget.data.alignment,
+            maxY: widget.data.maxY,
+            minY: widget.data.minY,
+            barTouchData: widget.data.barTouchData,
+            titlesData: widget.data.titlesData,
+            gridData: widget.data.gridData,
+            borderData: widget.data.borderData,
+            barGroups: widget.data.barGroups?.map((group) {
+              return BarChartGroupData(
+                x: group.x,
+                barRods: group.barRods.map((rod) {
+                  return BarChartRodData(
+                    toY: rod.toY * _animation.value,
+                    color: rod.color,
+                    width: rod.width,
+                    borderRadius: rod.borderRadius,
+                  );
+                }).toList(),
+              );
+            }).toList(),
+          );
+
+          return BarChart(animatedData);
+        },
+      ),
+    );
+  }
+}
+
+/// 动画饼图组件
+class _AnimatedPieChart extends StatefulWidget {
+  final PieChartData data;
+  final double height;
+
+  const _AnimatedPieChart({
+    required this.data,
+    required this.height,
+  });
+
+  @override
+  State<_AnimatedPieChart> createState() => _AnimatedPieChartState();
+}
+
+class _AnimatedPieChartState extends State<_AnimatedPieChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.height,
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          // Animate pie growth from zero
+          final animatedData = PieChartData(
+            sectionsSpace: widget.data.sectionsSpace,
+            centerSpaceRadius: widget.data.centerSpaceRadius,
+            sections: widget.data.sections.map((section) {
+              return PieChartSectionData(
+                color: section.color,
+                value: section.value * _animation.value,
+                title: section.title,
+                radius: section.radius,
+                titleStyle: section.titleStyle,
+                showTitle: section.showTitle,
+              );
+            }).toList(),
+            pieTouchData: widget.data.pieTouchData,
+          );
+
+          return PieChart(animatedData);
+        },
+      ),
+    );
+  }
+}
+
 /// 统计仪表盘屏幕
 ///
 /// 显示本地画廊的各种统计信息，包括：
@@ -30,6 +235,8 @@ class StatisticsScreen extends ConsumerStatefulWidget {
 class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
   List<LocalImageRecord> _allRecords = [];
 
   // Filter state
@@ -42,11 +249,21 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOutCubic,
+    );
+    _fadeController.forward();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -156,7 +373,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           ],
         ),
       ),
-      body: FutureBuilder<GalleryStatistics>(
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: FutureBuilder<GalleryStatistics>(
         key: ValueKey(_filterVersion),
         future: _calculateStatistics(),
         builder: (context, snapshot) {
@@ -197,6 +416,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
             ],
           );
         },
+        ),
       ),
     );
   }
@@ -702,6 +922,16 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     String value,
     Color color,
   ) {
+    // Try to parse number from value for animation
+    final numberMatch = RegExp(r'^[\d,]+\.?\d*').firstMatch(value);
+    final suffix = numberMatch != null ? value.substring(numberMatch.end) : '';
+    final numberStr = numberMatch?.group(0) ?? value;
+    final number = int.tryParse(numberStr.replaceAll(',', '')) ?? 0;
+
+    // Only animate if it's a pure number or number with percentage
+    final shouldAnimate = RegExp(r'^[\d,]+\.?\d*(?:\s*\(?\d+\.?\d*%?\)?)?$').hasMatch(value) ||
+                          RegExp(r'^[\d,]+\s*\(?\d+\.?\d*%?\)?$').hasMatch(value);
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -726,13 +956,22 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          shouldAnimate
+              ? _AnimatedNumber(
+                  targetValue: number,
+                  suffix: suffix,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ) ?? const TextStyle(),
+                )
+              : Text(
+                  value,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ],
       ),
     );
@@ -778,8 +1017,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           children: [
             SizedBox(
               height: isDesktop ? 250 : (isTablet ? 220 : 180),
-              child: PieChart(
-                PieChartData(
+              child: _AnimatedPieChart(
+                height: isDesktop ? 250 : (isTablet ? 220 : 180),
+                data: PieChartData(
                   sectionsSpace: 2,
                   centerSpaceRadius: isMobile ? 30 : 40,
                   sections: _buildPieSections(distribution, theme),
@@ -840,8 +1080,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           children: [
             SizedBox(
               height: distribution.length * barHeight,
-              child: BarChart(
-                BarChartData(
+              child: _AnimatedBarChart(
+                height: distribution.length * barHeight,
+                data: BarChartData(
                   alignment: BarChartAlignment.spaceAround,
                   maxY: distribution
                           .map((r) => r.count.toDouble())
@@ -959,8 +1200,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           children: [
             SizedBox(
               height: isDesktop ? 250 : (isTablet ? 220 : 180),
-              child: PieChart(
-                PieChartData(
+              child: _AnimatedPieChart(
+                height: isDesktop ? 250 : (isTablet ? 220 : 180),
+                data: PieChartData(
                   sectionsSpace: 2,
                   centerSpaceRadius: isMobile ? 30 : 40,
                   sections: _buildPieSectionsFromSamplers(distribution, theme),
@@ -1021,8 +1263,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           children: [
             SizedBox(
               height: distribution.length * barHeight,
-              child: BarChart(
-                BarChartData(
+              child: _AnimatedBarChart(
+                height: distribution.length * barHeight,
+                data: BarChartData(
                   alignment: BarChartAlignment.spaceAround,
                   maxY: distribution
                           .map((s) => s.count.toDouble())
