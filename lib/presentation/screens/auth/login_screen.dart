@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
+import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
@@ -29,6 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// 认证错误服务实例
   final _authErrorService = AuthErrorService();
+
+  /// 日期格式化服务实例
+  final _dateFormattingService = DateFormattingService();
 
   /// Loading Overlay Entry
   OverlayEntry? _loadingOverlayEntry;
@@ -884,7 +888,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// 格式化日期
   String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return _dateFormattingService.formatDate(date);
   }
 
   /// 显示删除账号确认对话框
