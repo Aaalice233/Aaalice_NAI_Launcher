@@ -22,6 +22,7 @@ import '../models/prompt/weighted_tag.dart';
 import '../models/prompt/wordlist_entry.dart';
 import 'sequential_state_service.dart';
 import 'tag_library_service.dart';
+import 'weighted_selector.dart';
 import 'wordlist_service.dart';
 
 part 'random_prompt_generator.g.dart';
@@ -36,6 +37,7 @@ class RandomPromptGenerator {
   final TagGroupCacheService _tagGroupCacheService;
   final PoolCacheService _poolCacheService;
   final WordlistService? _wordlistService;
+  final WeightedSelector _weightedSelector;
 
   RandomPromptGenerator(
     this._libraryService,
@@ -43,7 +45,7 @@ class RandomPromptGenerator {
     this._tagGroupCacheService,
     this._poolCacheService, [
     this._wordlistService,
-  ]);
+  ]) : _weightedSelector = WeightedSelector();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -86,58 +88,16 @@ class RandomPromptGenerator {
     List<String>? context,
     Random? random,
   }) {
-    if (tags.isEmpty) {
-      throw ArgumentError('Tags list cannot be empty');
-    }
-
-    random ??= Random();
-
-    // 1. 过滤符合条件的标签
-    final filtered = tags.where((t) {
-      if (t.conditions == null || t.conditions!.isEmpty) return true;
-      return t.conditions!.any((c) => context?.contains(c) ?? false);
-    }).toList();
-
-    if (filtered.isEmpty) {
-      // 如果没有符合条件的标签，返回第一个标签
-      return tags.first.tag;
-    }
-
-    // 2. 计算总权重
-    final totalWeight = filtered.fold<int>(0, (sum, t) => sum + t.weight);
-
-    // 3. 生成 [1, totalWeight] 范围内的随机数
-    final target = random.nextInt(totalWeight) + 1;
-
-    // 4. 累加权重直到超过随机数
-    var cumulative = 0;
-    for (final tag in filtered) {
-      cumulative += tag.weight;
-      if (target <= cumulative) {
-        return tag.tag;
-      }
-    }
-
-    // 不应该到达这里
-    return filtered.last.tag;
+    return _weightedSelector.select(
+      tags,
+      context: context,
+      random: random,
+    );
   }
 
   /// 从整数权重列表中选择（用于角色数量等）
   int getWeightedChoiceInt(List<List<int>> weights, {Random? random}) {
-    random ??= Random();
-
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1]);
-    final target = random.nextInt(totalWeight) + 1;
-
-    var cumulative = 0;
-    for (final w in weights) {
-      cumulative += w[1];
-      if (target <= cumulative) {
-        return w[0];
-      }
-    }
-
-    return weights.last[0];
+    return _weightedSelector.selectInt(weights, random: random);
   }
 
   /// 决定角色数量
