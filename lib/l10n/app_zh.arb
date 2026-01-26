@@ -283,10 +283,6 @@
   "prompt_sdSyntaxAutoConvert": "SD语法自动转换",
   "prompt_sdSyntaxAutoConvertSubtitle": "失焦时将SD权重语法转换为NAI格式",
   "prompt_formatted": "已格式化",
-  "prompt_textMode": "文本",
-  "prompt_tagMode": "标签",
-  "prompt_switchToTagView": "切换到标签视图",
-  "prompt_switchToTextView": "切换到文本视图",
 
   "image_save": "保存",
   "image_copy": "复制",
@@ -993,8 +989,6 @@
   },
   "characterEditor_clickToEdit": "点击编辑多人角色提示词",
 
-  "toolbar_switchToTextView": "切换到文本视图",
-  "toolbar_switchToTagView": "切换到标签视图",
   "toolbar_randomPrompt": "随机提示词",
   "toolbar_fullscreenEdit": "全屏编辑",
   "toolbar_clear": "清空",
