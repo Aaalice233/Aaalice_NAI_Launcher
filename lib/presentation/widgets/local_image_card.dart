@@ -18,6 +18,7 @@ import 'prompt/random_manager/components/pro_context_menu.dart';
 class LocalImageCard extends StatefulWidget {
   final LocalImageRecord record;
   final double itemWidth;
+  final double aspectRatio;
   final bool selectionMode;
   final bool isSelected;
   final VoidCallback? onSelectionToggle;
@@ -28,6 +29,7 @@ class LocalImageCard extends StatefulWidget {
     super.key,
     required this.record,
     required this.itemWidth,
+    required this.aspectRatio,
     this.selectionMode = false,
     this.isSelected = false,
     this.onSelectionToggle,
@@ -849,6 +851,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
     final metadata = widget.record.metadata;
+    // Calculate height dynamically based on aspect ratio
+    final itemHeight = widget.itemWidth / widget.aspectRatio;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -931,25 +935,23 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
         child: Stack(
           children: [
-            Card(
-              clipBehavior: Clip.antiAlias,
-              elevation: 2,
-              shadowColor: Colors.black.withOpacity(0.15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: widget.isSelected
-                    ? BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 3,
-                      )
-                    : BorderSide.none,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 图片 + 悬停叠加层
-                  Expanded(
-                    child: Stack(
+            SizedBox(
+              width: widget.itemWidth,
+              height: itemHeight,
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                elevation: 2,
+                shadowColor: Colors.black.withOpacity(0.15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: widget.isSelected
+                      ? BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 3,
+                        )
+                      : BorderSide.none,
+                ),
+                child: Stack(
                       children: [
                         Image.file(
                           File(widget.record.path),
@@ -1084,8 +1086,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                         ),
                     ],
                   ),
-                  ),
-                ],
+                ),
               ),
             ),
             // Pinch 缩略图预览 overlay
