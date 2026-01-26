@@ -19,6 +19,7 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../providers/collection_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
@@ -26,6 +27,7 @@ import '../../widgets/gallery_filter_panel.dart';
 import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/bulk_export_dialog.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
+import '../../widgets/collection_select_dialog.dart';
 
 /// 本地画廊屏幕
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -316,6 +318,64 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     showBulkMetadataEditDialog(context);
   }
 
+  /// 批量添加选中的图片到集合
+  /// Add selected images to a collection
+  Future<void> _addSelectedToCollection() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    if (!mounted) return;
+
+    // 显示集合选择对话框
+    // Show collection selection dialog
+    final result = await CollectionSelectDialog.show(
+      context,
+      theme: Theme.of(context),
+    );
+
+    if (result == null) {
+      // 用户取消了选择
+      // User cancelled the selection
+      return;
+    }
+
+    // 添加图片到集合
+    // Add images to collection
+    final imagePaths = selectedImages.map((img) => img.path).toList();
+    final addedCount = await ref
+        .read(collectionNotifierProvider.notifier)
+        .addImagesToCollection(result.collectionId, imagePaths);
+
+    if (mounted) {
+      if (addedCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '已添加 $addedCount 张图片到集合「${result.collectionName}」',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        // 退出选择模式
+        // Exit selection mode
+        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('添加图片到集合失败'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   /// 计算图片宽高比
   /// Calculate aspect ratio from metadata or image file
   Future<double> _calculateAspectRatio(LocalImageRecord record) async {
@@ -567,7 +627,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         onExit: () =>
             ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
         onAddToCollection: selectionState.selectedIds.isNotEmpty
-            ? _addSelectedToQueue
+            ? _addSelectedToCollection
             : null,
         onDelete: selectionState.selectedIds.isNotEmpty
             ? _deleteSelectedImages
