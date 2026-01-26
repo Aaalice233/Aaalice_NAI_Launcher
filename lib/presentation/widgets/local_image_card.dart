@@ -1054,39 +1054,51 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   ),
                                   Row(
                                     children: [
-                                      Text(
-                                        timeago.format(
-                                          widget.record.modifiedAt,
-                                          locale:
-                                              Localizations.localeOf(context)
-                                                          .languageCode ==
-                                                      'zh'
-                                                  ? 'zh'
-                                                  : 'en',
-                                        ),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 10,
+                                      Flexible(
+                                        child: Text(
+                                          timeago.format(
+                                            widget.record.modifiedAt,
+                                            locale:
+                                                Localizations.localeOf(context)
+                                                            .languageCode ==
+                                                        'zh'
+                                                    ? 'zh'
+                                                    : 'en',
+                                          ),
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
                                         ),
                                       ),
                                       if (metadata?.seed != null) ...[
                                         const SizedBox(width: 8),
-                                        Text(
-                                          'Seed: ${metadata!.seed}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
+                                        Flexible(
+                                          child: Text(
+                                            'Seed: ${metadata!.seed}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                         ),
                                       ],
                                       if (metadata?.width != null &&
                                           metadata?.height != null) ...[
                                         const SizedBox(width: 8),
-                                        Text(
-                                          '${metadata?.width} x ${metadata?.height}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
+                                        Flexible(
+                                          child: Text(
+                                            '${metadata?.width} x ${metadata?.height}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                         ),
                                       ],
