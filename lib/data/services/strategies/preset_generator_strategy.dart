@@ -1,0 +1,262 @@
+import 'dart:math';
+
+import '../../models/prompt/random_category.dart';
+import '../../models/prompt/random_preset.dart';
+import '../../models/prompt/random_tag_group.dart';
+import '../../models/prompt/tag_scope.dart';
+import '../../models/prompt/weighted_tag.dart';
+import '../bracket_formatter.dart';
+import '../weighted_selector.dart';
+
+/// 预设生成策略
+///
+/// 负责从 RandomPreset 配置生成标签列表。
+/// 支持按作用域（global/character）和性别过滤类别。
+/// 从 RandomPromptGenerator.generateFromPreset 提取。
+class PresetGeneratorStrategy {
+  /// 加权选择器
+  final WeightedSelector _weightedSelector;
+
+  /// 括号格式化器
+  final BracketFormatter _bracketFormatter;
+
+  /// 创建预设生成策略
+  ///
+  /// [weightedSelector] 加权选择器（可选，默认创建新实例）
+  /// [bracketFormatter] 括号格式化器（可选，默认创建新实例）
+  PresetGeneratorStrategy({
+    WeightedSelector? weightedSelector,
+    BracketFormatter? bracketFormatter,
+  })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
+        _bracketFormatter = bracketFormatter ?? BracketFormatter();
+
+  /// 从预设生成标签
+  ///
+  /// [preset] 预设配置
+  /// [random] 随机数生成器
+  /// [targetScope] 目标作用域（用于过滤类别，默认 all）
+  /// [characterGender] 角色性别（用于过滤性别限定类别，默认 null）
+  ///
+  /// 返回生成的标签列表
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final tags = await strategy.generate(
+  ///   preset: preset,
+  ///   random: Random(42),
+  /// );
+  /// ```
+  Future<List<String>> generate({
+    required RandomPreset preset,
+    required Random random,
+    TagScope targetScope = TagScope.all,
+    String? characterGender,
+  }) async {
+    final results = <String>[];
+
+    for (final category in preset.categories) {
+      // 跳过禁用的类别
+      if (!category.enabled) continue;
+
+      // 作用域过滤
+      if (!category.isApplicableToScope(targetScope)) continue;
+
+      // 性别过滤（仅在指定性别时应用）
+      if (characterGender != null &&
+          !category.isApplicableToGender(characterGender)) continue;
+
+      // 类别概率检查
+      if (random.nextDouble() > category.probability) continue;
+
+      // 生成类别内的标签
+      final categoryTags = await _generateFromCategory(
+        category,
+        random,
+        targetScope: targetScope,
+        characterGender: characterGender,
+      );
+      results.addAll(categoryTags);
+    }
+
+    return results;
+  }
+
+  /// 从单个类别生成标签
+  ///
+  /// [category] 类别配置
+  /// [random] 随机数生成器
+  /// [targetScope] 目标作用域
+  /// [characterGender] 角色性别
+  Future<List<String>> _generateFromCategory(
+    RandomCategory category,
+    Random random, {
+    TagScope targetScope = TagScope.all,
+    String? characterGender,
+  }) async {
+    // 过滤启用且符合条件的词组
+    final enabledGroups = category.groups.where((g) {
+      if (!g.enabled) return false;
+      if (!g.isApplicableToScope(targetScope)) return false;
+      if (characterGender != null && !g.isApplicableToGender(characterGender)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (enabledGroups.isEmpty) return [];
+
+    // 根据 groupSelectionMode 选择词组
+    final selectedGroups = _selectGroups(
+      enabledGroups,
+      category.groupSelectionMode,
+      category.groupSelectCount,
+      random,
+    );
+
+    final results = <String>[];
+    for (final group in selectedGroups) {
+      // 词组概率检查
+      if (random.nextDouble() > group.probability) continue;
+
+      // 从词组生成标签
+      final tags = await _generateFromGroup(
+        group,
+        category,
+        random,
+      );
+      results.addAll(tags);
+    }
+
+    // 类别级打乱
+    if (category.shuffle) {
+      results.shuffle(random);
+    }
+
+    return results;
+  }
+
+  /// 从单个词组生成标签
+  ///
+  /// [group] 词组配置
+  /// [category] 所属类别
+  /// [random] 随机数生成器
+  Future<List<String>> _generateFromGroup(
+    RandomTagGroup group,
+    RandomCategory category,
+    Random random,
+  ) async {
+    // 简化实现：仅支持直接标签类型
+    // 暂不支持嵌套配置（nodeType == TagGroupNodeType.config）
+    // 暂不支持 Pool 类型（sourceType == TagGroupSourceType.pool）
+    if (group.tags.isEmpty) return [];
+
+    // 根据 selectionMode 选择标签
+    final selectedTags = _selectTags(
+      group.tags,
+      group.selectionMode,
+      group.multipleNum,
+      random,
+    );
+
+    // 应用括号
+    final bracketMin = category.useUnifiedBracket
+        ? category.unifiedBracketMin
+        : group.bracketMin;
+    final bracketMax = category.useUnifiedBracket
+        ? category.unifiedBracketMax
+        : group.bracketMax;
+
+    return selectedTags.map((tag) {
+      if (bracketMin > 0 || bracketMax > 0) {
+        return _bracketFormatter.applyBrackets(
+          tag,
+          bracketMin,
+          bracketMax,
+          random: random,
+        );
+      }
+      return tag;
+    }).toList();
+  }
+
+  /// 选择词组
+  ///
+  /// [groups] 词组列表
+  /// [mode] 选择模式
+  /// [count] 选择数量
+  /// [random] 随机数生成器
+  List<RandomTagGroup> _selectGroups(
+    List<RandomTagGroup> groups,
+    SelectionMode mode,
+    int count,
+    Random random,
+  ) {
+    if (groups.isEmpty) return [];
+
+    switch (mode) {
+      case SelectionMode.single:
+        // 单选模式：随机选择一个
+        return [groups[random.nextInt(groups.length)]];
+
+      case SelectionMode.multipleNum:
+        // 多选模式：选择指定数量（不超过列表长度）
+        final actualCount = count.clamp(1, groups.length);
+        final shuffled = List<RandomTagGroup>.from(groups)..shuffle(random);
+        return shuffled.take(actualCount).toList();
+
+      case SelectionMode.multipleProb:
+      case SelectionMode.sequential:
+      case SelectionMode.all:
+        // 全选模式：返回所有
+        return groups;
+    }
+  }
+
+  /// 选择标签
+  ///
+  /// [tags] 标签列表
+  /// [mode] 选择模式
+  /// [count] 选择数量
+  /// [random] 随机数生成器
+  List<String> _selectTags(
+    List<WeightedTag> tags,
+    SelectionMode mode,
+    int count,
+    Random random,
+  ) {
+    if (tags.isEmpty) return [];
+
+    switch (mode) {
+      case SelectionMode.single:
+        // 单选模式：加权随机选择一个
+        final tag = _weightedSelector.select(tags, random: random);
+        return [tag];
+
+      case SelectionMode.multipleNum:
+        // 多选模式：加权随机选择指定数量（不重复）
+        final actualCount = count.clamp(1, tags.length);
+        final selected = <String>[];
+        final remaining = List<WeightedTag>.from(tags);
+
+        for (int i = 0; i < actualCount && remaining.isNotEmpty; i++) {
+          final tag = _weightedSelector.select(remaining, random: random);
+          selected.add(tag);
+          // 移除已选标签（避免重复）
+          remaining.removeWhere((t) {
+            final tagText = _bracketFormatter.removeBrackets(t.toString());
+            final selectedText = _bracketFormatter.removeBrackets(tag);
+            return tagText == selectedText;
+          });
+        }
+        return selected;
+
+      case SelectionMode.multipleProb:
+      case SelectionMode.sequential:
+      case SelectionMode.all:
+        // 全选模式：返回所有标签文本
+        return tags.map((t) => _weightedSelector.select([t], random: random)).toList();
+    }
+  }
+}
