@@ -58,6 +58,35 @@ class SizeDistributionStatistics with _$SizeDistributionStatistics {
   const SizeDistributionStatistics._();
 }
 
+/// 标签分布统计
+///
+/// 用于统计不同标签的使用频率
+@freezed
+class TagStatistics with _$TagStatistics {
+  const factory TagStatistics({
+    required String tagName, // 标签名称（如 "anime", "landscape"）
+    required int count, // 使用该标签的图片数量
+    @Default(0) double percentage, // 百分比 (0-100)
+  }) = _TagStatistics;
+
+  const TagStatistics._();
+}
+
+/// 参数分布统计
+///
+/// 用于统计不同生成参数的使用频率
+@freezed
+class ParameterStatistics with _$ParameterStatistics {
+  const factory ParameterStatistics({
+    required String parameterName, // 参数名称（如 "steps", "scale"）
+    required String value, // 参数值
+    required int count, // 使用该参数的图片数量
+    @Default(0) double percentage, // 百分比 (0-100)
+  }) = _ParameterStatistics;
+
+  const ParameterStatistics._();
+}
+
 /// 画廊统计数据模型
 ///
 /// 包含画廊的完整统计信息，用于统计仪表盘显示
@@ -94,6 +123,12 @@ class GalleryStatistics with _$GalleryStatistics {
 
     /// 文件大小分布统计
     @Default([]) List<SizeDistributionStatistics> sizeDistribution,
+
+    /// 标签分布统计
+    @Default([]) List<TagStatistics> tagDistribution,
+
+    /// 参数分布统计
+    @Default([]) List<ParameterStatistics> parameterDistribution,
 
     /// 统计生成时间
     required DateTime calculatedAt,
