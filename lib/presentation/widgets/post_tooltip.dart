@@ -111,7 +111,7 @@ class PostTooltip extends ConsumerWidget {
           ),
         );
       } catch (e, st) {
-        AppLogger.e('Failed to parse createdAt date', e: e, st: st);
+        AppLogger.e('Failed to parse createdAt date', e, st);
       }
     }
 

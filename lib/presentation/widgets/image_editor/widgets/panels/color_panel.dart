@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
-import '../../../../core/utils/app_logger.dart';
+import '../../../../../core/utils/app_logger.dart';
 
 /// 颜色面板
 class ColorPanel extends StatelessWidget {
