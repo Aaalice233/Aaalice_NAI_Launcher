@@ -23,6 +23,10 @@ import '../models/prompt/wordlist_entry.dart';
 import 'bracket_formatter.dart';
 import 'character_count_resolver.dart';
 import 'sequential_state_service.dart';
+import 'strategies/character_tag_generator.dart';
+import 'strategies/nai_style_generator_strategy.dart';
+import 'strategies/preset_generator_strategy.dart';
+import 'strategies/wordlist_generator_strategy.dart';
 import 'tag_library_service.dart';
 import 'variable_replacement_service.dart';
 import 'weighted_selector.dart';
@@ -44,6 +48,10 @@ class RandomPromptGenerator {
   final BracketFormatter _bracketFormatter;
   final CharacterCountResolver _characterCountResolver;
   final VariableReplacementService _variableReplacementService;
+  final CharacterTagGenerator _characterTagGenerator;
+  final NaiStyleGeneratorStrategy _naiStyleGenerator;
+  final PresetGeneratorStrategy _presetGeneratorStrategy;
+  final WordlistGeneratorStrategy _wordlistGeneratorStrategy;
 
   RandomPromptGenerator(
     this._libraryService,
@@ -54,7 +62,11 @@ class RandomPromptGenerator {
   ]) : _weightedSelector = WeightedSelector(),
        _bracketFormatter = BracketFormatter(),
        _characterCountResolver = CharacterCountResolver(),
-       _variableReplacementService = VariableReplacementService();
+       _variableReplacementService = VariableReplacementService(),
+       _characterTagGenerator = CharacterTagGenerator(),
+       _naiStyleGenerator = NaiStyleGeneratorStrategy(),
+       _presetGeneratorStrategy = PresetGeneratorStrategy(),
+       _wordlistGeneratorStrategy = WordlistGeneratorStrategy();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -114,39 +126,13 @@ class RandomPromptGenerator {
       'RandomGen',
     );
 
-    // 决定角色数量
-    final characterCount = determineCharacterCount(random: random);
-
-    AppLogger.d('Character count: $characterCount', 'RandomGen');
-
-    if (characterCount == 0) {
-      // 无人物场景
-      return _generateNoHumanPrompt(
-        library,
-        random,
-        seed,
-        categoryFilterConfig,
-      );
-    }
-
-    if (!isV4Model) {
-      // 传统模式：生成合并的单提示词
-      return _generateLegacyPrompt(
-        library,
-        random,
-        characterCount,
-        seed,
-        categoryFilterConfig,
-      );
-    }
-
-    // V4+ 模式：生成主提示词 + 角色提示词
-    return _generateMultiCharacterPrompt(
-      library,
-      random,
-      characterCount,
-      seed,
-      categoryFilterConfig,
+    // 使用 NaiStyleGeneratorStrategy 生成提示词
+    return _naiStyleGenerator.generate(
+      library: library,
+      random: random,
+      filterConfig: categoryFilterConfig,
+      seed: seed,
+      isV4Model: isV4Model,
     );
   }
 
@@ -433,57 +419,52 @@ class RandomPromptGenerator {
     CharacterGender gender,
     CategoryFilterConfig filterConfig,
   ) {
-    final tags = <String>[];
+    // 准备类别标签映射
+    final categoryTags = <TagSubCategory, List<WeightedTag>>{};
 
-    // 发色（80%）
-    if (random.nextDouble() < 0.8) {
-      final hairColors =
-          _getFilteredCategory(library, TagSubCategory.hairColor, filterConfig);
-      if (hairColors.isNotEmpty) {
-        tags.add(getWeightedChoice(hairColors, random: random));
-      }
+    // 发色
+    final hairColors =
+        _getFilteredCategory(library, TagSubCategory.hairColor, filterConfig);
+    if (hairColors.isNotEmpty) {
+      categoryTags[TagSubCategory.hairColor] = hairColors;
     }
 
-    // 瞳色（80%）
-    if (random.nextDouble() < 0.8) {
-      final eyeColors =
-          _getFilteredCategory(library, TagSubCategory.eyeColor, filterConfig);
-      if (eyeColors.isNotEmpty) {
-        tags.add(getWeightedChoice(eyeColors, random: random));
-      }
+    // 瞳色
+    final eyeColors =
+        _getFilteredCategory(library, TagSubCategory.eyeColor, filterConfig);
+    if (eyeColors.isNotEmpty) {
+      categoryTags[TagSubCategory.eyeColor] = eyeColors;
     }
 
-    // 发型（50%）
-    if (random.nextDouble() < 0.5) {
-      final hairStyles =
-          _getFilteredCategory(library, TagSubCategory.hairStyle, filterConfig);
-      if (hairStyles.isNotEmpty) {
-        tags.add(getWeightedChoice(hairStyles, random: random));
-      }
+    // 发型
+    final hairStyles =
+        _getFilteredCategory(library, TagSubCategory.hairStyle, filterConfig);
+    if (hairStyles.isNotEmpty) {
+      categoryTags[TagSubCategory.hairStyle] = hairStyles;
     }
 
-    // 表情（60%）
-    if (random.nextDouble() < 0.6) {
-      final expressions = _getFilteredCategory(
-        library,
-        TagSubCategory.expression,
-        filterConfig,
-      );
-      if (expressions.isNotEmpty) {
-        tags.add(getWeightedChoice(expressions, random: random));
-      }
+    // 表情
+    final expressions = _getFilteredCategory(
+      library,
+      TagSubCategory.expression,
+      filterConfig,
+    );
+    if (expressions.isNotEmpty) {
+      categoryTags[TagSubCategory.expression] = expressions;
     }
 
-    // 姿势（50%）
-    if (random.nextDouble() < 0.5) {
-      final poses =
-          _getFilteredCategory(library, TagSubCategory.pose, filterConfig);
-      if (poses.isNotEmpty) {
-        tags.add(getWeightedChoice(poses, random: random));
-      }
+    // 姿势
+    final poses =
+        _getFilteredCategory(library, TagSubCategory.pose, filterConfig);
+    if (poses.isNotEmpty) {
+      categoryTags[TagSubCategory.pose] = poses;
     }
 
-    return tags;
+    // 使用 CharacterTagGenerator 生成标签
+    return _characterTagGenerator.generate(
+      categoryTags: categoryTags,
+      random: random,
+    );
   }
 
   /// 获取人数标签
@@ -1416,17 +1397,12 @@ class RandomPromptGenerator {
 
     if (entries.isEmpty) return null;
 
-    // 应用 exclude/require 规则
-    final filtered = _applyWordlistRules(entries, context);
-    if (filtered.isEmpty) return null;
-
-    // 加权随机选择
-    final selected = _wordlistService.weightedRandomSelect(
-      filtered,
-      () => random.nextInt(1 << 30),
+    // 使用 WordlistGeneratorStrategy 进行选择（包含规则应用和加权随机选择）
+    return _wordlistGeneratorStrategy.select(
+      entries: entries,
+      random: random,
+      context: context,
     );
-
-    return selected?.tag;
   }
 
   /// 应用词库条目的 exclude/require 规则
