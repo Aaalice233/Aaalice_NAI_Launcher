@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../providers/bulk_operation_provider.dart';
 import '../providers/selection_mode_provider.dart';
+import 'bulk_progress_dialog.dart';
 
 /// Bulk Export Dialog Widget
 /// 批量导出对话框组件
@@ -302,10 +304,17 @@ class _BulkExportDialogState extends ConsumerState<BulkExportDialog> {
       return;
     }
 
-    // Close the dialog
+    // Close the export dialog
     Navigator.of(context).pop();
 
-    // Perform export
+    if (!mounted) return;
+
+    // Show progress dialog first (it will watch the operation state)
+    // 首先显示进度对话框（它将监听操作状态）
+    unawaited(BulkProgressDialog.show(context));
+
+    // Perform export operation (the progress dialog will show the progress)
+    // 执行导出操作（进度对话框将显示进度）
     final notifier = ref.read(bulkOperationNotifierProvider.notifier);
     await notifier.bulkExport(
       records,

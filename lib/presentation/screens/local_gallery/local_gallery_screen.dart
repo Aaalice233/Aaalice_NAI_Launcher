@@ -24,6 +24,7 @@ import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
 import '../../widgets/gallery_filter_panel.dart';
 import '../../widgets/bulk_action_bar.dart';
+import '../../widgets/bulk_export_dialog.dart';
 
 /// 本地画廊屏幕
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -258,6 +259,41 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         );
       }
     }
+  }
+
+  /// 批量导出选中的图片元数据
+  /// Export metadata for selected images
+  Future<void> _exportSelectedImages() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    if (!mounted) return;
+
+    // 显示导出选项对话框
+    // Show export options dialog
+    // The dialog will handle the export operation and show progress
+    // 对话框将处理导出操作并显示进度
+    showBulkExportDialog(context);
+
+    // Note: The bulk export dialog will:
+    // 1. Show format selection options
+    // 2. Call bulkExport when user confirms
+    // 3. The bulkExport method will update operation state
+    // 4. User should see progress indication
+    // 5. Exit selection mode when done
+    //
+    // 注：批量导出对话框将：
+    // 1. 显示格式选择选项
+    // 2. 用户确认时调用 bulkExport
+    // 3. bulkExport 方法将更新操作状态
+    // 4. 用户应该看到进度指示
+    // 5. 完成后退出选择模式
   }
 
   /// 计算图片宽高比
@@ -516,7 +552,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         onDelete: selectionState.selectedIds.isNotEmpty
             ? _deleteSelectedImages
             : null,
-        onExport: null,
+        onExport: selectionState.selectedIds.isNotEmpty
+            ? _exportSelectedImages
+            : null,
         onEditMetadata: null,
       );
     }
