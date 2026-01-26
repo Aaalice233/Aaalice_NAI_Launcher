@@ -1768,6 +1768,11 @@
   "preset_resetConfirmTitle": "重置预设",
   "preset_resetConfirmMessage": "确定要将当前预设的所有类别和词组设置重置为默认配置吗？此操作不可撤销。",
   "preset_resetSuccess": "预设已重置为默认配置",
+  "newPresetDialog_title": "创建新预设",
+  "newPresetDialog_blank": "完全空白",
+  "newPresetDialog_blankDesc": "从头开始创建预设，不包含任何预设内容",
+  "newPresetDialog_template": "基于默认预设",
+  "newPresetDialog_templateDesc": "复制默认预设的所有设置作为起点",
 
   "category_addNew": "新增类别",
   "category_dialogTitle": "创建新类别",

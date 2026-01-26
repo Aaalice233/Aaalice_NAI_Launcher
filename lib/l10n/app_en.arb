@@ -2102,6 +2102,11 @@
   "preset_resetConfirmTitle": "Reset Preset",
   "preset_resetConfirmMessage": "Are you sure you want to reset all categories and groups in the current preset to default? This action cannot be undone.",
   "preset_resetSuccess": "Preset has been reset to default",
+  "newPresetDialog_title": "Create New Preset",
+  "newPresetDialog_blank": "Completely Blank",
+  "newPresetDialog_blankDesc": "Create preset from scratch with no preset content",
+  "newPresetDialog_template": "Based on Default Preset",
+  "newPresetDialog_templateDesc": "Copy all settings from default preset as starting point",
 
   "category_addNew": "Add Category",
   "category_dialogTitle": "Create Category",
