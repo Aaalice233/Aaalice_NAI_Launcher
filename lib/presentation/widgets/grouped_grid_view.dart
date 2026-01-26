@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../data/models/gallery/local_image_record.dart';
 
@@ -252,15 +253,12 @@ class GroupedGridViewState extends ConsumerState<GroupedGridView> {
             const SizedBox(height: 8),
             // Grid for this group
             // 该组的网格
-            GridView.builder(
+            MasonryGridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: widget.columns,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1 / 1.5,
-              ),
+              crossAxisCount: widget.columns,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
               itemCount: group.images.length,
               itemBuilder: (context, index) {
                 final record = group.images[index];
