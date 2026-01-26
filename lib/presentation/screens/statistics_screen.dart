@@ -24,7 +24,22 @@ class StatisticsScreen extends ConsumerStatefulWidget {
   ConsumerState<StatisticsScreen> createState() => _StatisticsScreenState();
 }
 
-class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
+class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   /// 计算统计数据
   Future<GalleryStatistics> _calculateStatistics() async {
     final state = ref.read(localGalleryNotifierProvider);
@@ -46,6 +61,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
       appBar: AppBar(
         title: Text(l10n.statistics_title),
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: l10n.statistics_tabOverview),
+            Tab(text: l10n.statistics_tabTrends),
+            Tab(text: l10n.statistics_tabDetails),
+          ],
+        ),
       ),
       body: FutureBuilder<GalleryStatistics>(
         future: _calculateStatistics(),
@@ -75,69 +98,117 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             return _buildEmptyState(theme);
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 总览统计卡片
-                _buildOverviewCards(theme, statistics, l10n),
-                const SizedBox(height: 24),
-
-                // 模型分布图表
-                if (statistics.modelDistribution.isNotEmpty) ...[
-                  _buildSectionHeader(
-                    context,
-                    l10n.statistics_modelDistribution,
-                    Icons.category,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildModelDistributionChart(theme, statistics, l10n),
-                  const SizedBox(height: 24),
-                ],
-
-                // 分辨率分布图表
-                if (statistics.resolutionDistribution.isNotEmpty) ...[
-                  _buildSectionHeader(
-                    context,
-                    l10n.statistics_resolutionDistribution,
-                    Icons.aspect_ratio,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildResolutionDistributionChart(theme, statistics, l10n),
-                  const SizedBox(height: 24),
-                ],
-
-                // 采样器分布图表
-                if (statistics.samplerDistribution.isNotEmpty) ...[
-                  _buildSectionHeader(
-                    context,
-                    l10n.statistics_samplerDistribution,
-                    Icons.tune,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSamplerDistributionChart(theme, statistics, l10n),
-                  const SizedBox(height: 24),
-                ],
-
-                // 文件大小分布图表
-                if (statistics.sizeDistribution.isNotEmpty) ...[
-                  _buildSectionHeader(
-                    context,
-                    l10n.statistics_sizeDistribution,
-                    Icons.storage,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSizeDistributionChart(theme, statistics, l10n),
-                  const SizedBox(height: 24),
-                ],
-
-                // 其他统计
-                _buildAdditionalStats(theme, statistics, l10n),
-              ],
-            ),
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              // Overview Tab
+              _buildOverviewTab(theme, statistics, l10n),
+              // Trends Tab
+              _buildTrendsTab(theme, statistics, l10n),
+              // Details Tab
+              _buildDetailsTab(theme, statistics, l10n),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  /// 构建 Overview Tab
+  Widget _buildOverviewTab(
+    ThemeData theme,
+    GalleryStatistics statistics,
+    AppLocalizations l10n,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 总览统计卡片
+          _buildOverviewCards(theme, statistics, l10n),
+        ],
+      ),
+    );
+  }
+
+  /// 构建 Trends Tab
+  Widget _buildTrendsTab(
+    ThemeData theme,
+    GalleryStatistics statistics,
+    AppLocalizations l10n,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 模型分布图表
+          if (statistics.modelDistribution.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              l10n.statistics_modelDistribution,
+              Icons.category,
+            ),
+            const SizedBox(height: 12),
+            _buildModelDistributionChart(theme, statistics, l10n),
+            const SizedBox(height: 24),
+          ],
+
+          // 分辨率分布图表
+          if (statistics.resolutionDistribution.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              l10n.statistics_resolutionDistribution,
+              Icons.aspect_ratio,
+            ),
+            const SizedBox(height: 12),
+            _buildResolutionDistributionChart(theme, statistics, l10n),
+            const SizedBox(height: 24),
+          ],
+
+          // 采样器分布图表
+          if (statistics.samplerDistribution.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              l10n.statistics_samplerDistribution,
+              Icons.tune,
+            ),
+            const SizedBox(height: 12),
+            _buildSamplerDistributionChart(theme, statistics, l10n),
+            const SizedBox(height: 24),
+          ],
+
+          // 文件大小分布图表
+          if (statistics.sizeDistribution.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              l10n.statistics_sizeDistribution,
+              Icons.storage,
+            ),
+            const SizedBox(height: 12),
+            _buildSizeDistributionChart(theme, statistics, l10n),
+            const SizedBox(height: 24),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 构建 Details Tab
+  Widget _buildDetailsTab(
+    ThemeData theme,
+    GalleryStatistics statistics,
+    AppLocalizations l10n,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 其他统计
+          _buildAdditionalStats(theme, statistics, l10n),
+        ],
       ),
     );
   }

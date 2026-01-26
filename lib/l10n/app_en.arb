@@ -2385,6 +2385,9 @@
   "comparison_loadError": "Failed to load image",
 
   "statistics_title": "Statistics",
+  "statistics_tabOverview": "Overview",
+  "statistics_tabTrends": "Trends",
+  "statistics_tabDetails": "Details",
   "statistics_noData": "No statistics available",
   "statistics_generateFirst": "Generate some images first",
   "statistics_overview": "Overview",
