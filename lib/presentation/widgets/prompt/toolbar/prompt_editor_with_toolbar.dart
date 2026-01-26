@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/prompt/prompt_tag.dart';
-import '../../../providers/prompt_view_mode_provider.dart';
 import '../unified/unified_prompt_config.dart';
 import '../unified/unified_prompt_input.dart';
 import 'prompt_editor_toolbar.dart';
@@ -13,10 +12,7 @@ import 'prompt_editor_toolbar_config.dart';
 /// 将 [PromptEditorToolbar] 和 [UnifiedPromptInput] 组合在一起，
 /// 提供开箱即用的提示词编辑体验。
 ///
-/// 支持两种视图模式管理方式：
-/// - 使用共享 Provider（默认）：视图模式从 [promptViewModeNotifierProvider] 读取，
-///   适用于需要与主界面同步的场景（如角色提示词编辑器）
-/// - 使用本地状态：设置 [useSharedViewMode] 为 false，视图模式由组件内部管理
+/// 视图模式由组件内部管理，独立于其他组件的状态。
 ///
 /// 使用示例：
 /// ```dart
@@ -79,15 +75,6 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
   /// 工具栏后置自定义按钮
   final List<Widget>? toolbarTrailingActions;
 
-  /// 是否使用共享的视图模式 Provider
-  ///
-  /// 为 true 时，视图模式从 [promptViewModeNotifierProvider] 读取，
-  /// 与主界面保持同步。
-  /// 为 false 时，使用组件内部状态管理视图模式。
-  ///
-  /// 默认为 true，适用于角色提示词编辑器等需要跟随主界面的场景。
-  final bool useSharedViewMode;
-
   const PromptEditorWithToolbar({
     super.key,
     this.toolbarConfig = const PromptEditorToolbarConfig(),
@@ -107,7 +94,6 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
     this.expands = false,
     this.toolbarLeadingActions,
     this.toolbarTrailingActions,
-    this.useSharedViewMode = true,
   });
 
   @override
@@ -117,8 +103,8 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
 
 class _PromptEditorWithToolbarState
     extends ConsumerState<PromptEditorWithToolbar> {
-  /// 当前视图模式（仅在不使用共享 Provider 时使用）
-  late PromptViewMode _localViewMode;
+  /// 当前视图模式
+  late PromptViewMode _viewMode;
 
   /// 内部文本控制器（当未提供外部控制器时使用）
   TextEditingController? _internalController;
@@ -127,18 +113,10 @@ class _PromptEditorWithToolbarState
   TextEditingController get _effectiveController =>
       widget.controller ?? _internalController!;
 
-  /// 获取当前视图模式
-  PromptViewMode get _viewMode {
-    if (widget.useSharedViewMode) {
-      return ref.watch(promptViewModeNotifierProvider);
-    }
-    return _localViewMode;
-  }
-
   @override
   void initState() {
     super.initState();
-    _localViewMode = widget.inputConfig.initialViewMode;
+    _viewMode = widget.inputConfig.initialViewMode;
 
     // 初始化内部控制器（如果需要）
     if (widget.controller == null) {
@@ -166,15 +144,9 @@ class _PromptEditorWithToolbarState
 
   /// 处理视图模式变化
   void _handleViewModeChanged(PromptViewMode mode) {
-    if (widget.useSharedViewMode) {
-      // 使用共享 Provider 时，更新 Provider 状态
-      ref.read(promptViewModeNotifierProvider.notifier).setViewMode(mode);
-    } else {
-      // 使用本地状态
-      setState(() {
-        _localViewMode = mode;
-      });
-    }
+    setState(() {
+      _viewMode = mode;
+    });
   }
 
   /// 处理清空操作
