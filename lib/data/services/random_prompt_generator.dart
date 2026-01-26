@@ -21,6 +21,7 @@ import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
 import '../models/prompt/wordlist_entry.dart';
 import 'bracket_formatter.dart';
+import 'character_count_resolver.dart';
 import 'sequential_state_service.dart';
 import 'tag_library_service.dart';
 import 'weighted_selector.dart';
@@ -40,6 +41,7 @@ class RandomPromptGenerator {
   final WordlistService? _wordlistService;
   final WeightedSelector _weightedSelector;
   final BracketFormatter _bracketFormatter;
+  final CharacterCountResolver _characterCountResolver;
 
   RandomPromptGenerator(
     this._libraryService,
@@ -48,7 +50,8 @@ class RandomPromptGenerator {
     this._poolCacheService, [
     this._wordlistService,
   ]) : _weightedSelector = WeightedSelector(),
-       _bracketFormatter = BracketFormatter();
+       _bracketFormatter = BracketFormatter(),
+       _characterCountResolver = CharacterCountResolver();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -62,24 +65,6 @@ class RandomPromptGenerator {
       includeDanbooruSupplement: includeSupplement,
     );
   }
-
-  /// 角色数量权重分布（来自 NAI 官网）
-  /// [[1,70], [2,20], [3,7], [0,5]]
-  static const List<List<int>> characterCountWeights = [
-    [1, 70], // 1人 70%
-    [2, 20], // 2人 20%
-    [3, 7], // 3人 7%
-    [0, 5], // 无人 5%
-  ];
-
-  /// Furry 性别权重分布（预留，当前未使用）
-  /// [["m",45], ["f",45], ["o",10]]
-  // ignore: unused_field
-  static const List<List<dynamic>> furryGenderWeights = [
-    ['m', 45], // 男性 45%
-    ['f', 45], // 女性 45%
-    ['o', 10], // 其他 10%
-  ];
 
   /// 加权随机选择算法（复刻官网 ty 函数）
   ///
@@ -105,7 +90,7 @@ class RandomPromptGenerator {
 
   /// 决定角色数量
   int determineCharacterCount({Random? random}) {
-    return getWeightedChoiceInt(characterCountWeights, random: random);
+    return _characterCountResolver.determineCharacterCount(random: random);
   }
 
   /// 生成官网模式随机提示词
@@ -529,32 +514,7 @@ class RandomPromptGenerator {
   /// - 更多同性: "multiple girls" 或 "multiple boys"
   /// - 混合多人: "group"
   String _getCountTagForCharacters(List<CharacterGender> genders) {
-    if (genders.isEmpty) return 'no humans';
-    if (genders.length == 1) return 'solo';
-
-    final femaleCount =
-        genders.where((g) => g == CharacterGender.female).length;
-    final maleCount = genders.where((g) => g == CharacterGender.male).length;
-
-    // 2人组合
-    if (genders.length == 2) {
-      if (femaleCount == 2) return '2girls';
-      if (maleCount == 2) return '2boys';
-      if (femaleCount == 1 && maleCount == 1) return '1girl, 1boy';
-    }
-
-    // 3人组合
-    if (genders.length == 3) {
-      if (femaleCount == 3) return '3girls';
-      if (maleCount == 3) return '3boys';
-      if (femaleCount == 2 && maleCount == 1) return '2girls, 1boy';
-      if (femaleCount == 1 && maleCount == 2) return '1girl, 2boys';
-    }
-
-    // 更多角色
-    if (femaleCount > 0 && maleCount == 0) return 'multiple girls';
-    if (maleCount > 0 && femaleCount == 0) return 'multiple boys';
-    return 'group';
+    return _characterCountResolver.getCountTag(genders);
   }
 
   /// 使用自定义预设生成（包装现有功能）
@@ -1446,21 +1406,13 @@ class RandomPromptGenerator {
   ) {
     final weights = config.characterCountWeights;
     if (weights.isEmpty) {
-      return getWeightedChoiceInt(characterCountWeights, random: random);
+      return _characterCountResolver.determineCharacterCount(random: random);
     }
 
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1]);
-    final target = random.nextInt(totalWeight) + 1;
-
-    var cumulative = 0;
-    for (final w in weights) {
-      cumulative += w[1];
-      if (target <= cumulative) {
-        return w[0];
-      }
-    }
-
-    return weights.last[0];
+    return _characterCountResolver.determineCharacterCountFromWeights(
+      weights,
+      random: random,
+    );
   }
 
   /// 从词库按变量和分类选择标签
@@ -1796,14 +1748,7 @@ class RandomPromptGenerator {
 
   /// 从字符串转换性别枚举
   CharacterGender _genderFromString(String gender) {
-    switch (gender.toLowerCase()) {
-      case 'male':
-        return CharacterGender.male;
-      case 'other':
-        return CharacterGender.other;
-      default:
-        return CharacterGender.female;
-    }
+    return _characterCountResolver.genderFromString(gender);
   }
 }
 
