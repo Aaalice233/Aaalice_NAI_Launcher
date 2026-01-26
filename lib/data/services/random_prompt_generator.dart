@@ -24,6 +24,7 @@ import 'bracket_formatter.dart';
 import 'character_count_resolver.dart';
 import 'sequential_state_service.dart';
 import 'tag_library_service.dart';
+import 'variable_replacement_service.dart';
 import 'weighted_selector.dart';
 import 'wordlist_service.dart';
 
@@ -42,6 +43,7 @@ class RandomPromptGenerator {
   final WeightedSelector _weightedSelector;
   final BracketFormatter _bracketFormatter;
   final CharacterCountResolver _characterCountResolver;
+  final VariableReplacementService _variableReplacementService;
 
   RandomPromptGenerator(
     this._libraryService,
@@ -51,7 +53,8 @@ class RandomPromptGenerator {
     this._wordlistService,
   ]) : _weightedSelector = WeightedSelector(),
        _bracketFormatter = BracketFormatter(),
-       _characterCountResolver = CharacterCountResolver();
+       _characterCountResolver = CharacterCountResolver(),
+       _variableReplacementService = VariableReplacementService();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -1147,58 +1150,40 @@ class RandomPromptGenerator {
     );
   }
 
-  // ========== 变量替换系统（Phase 4） ==========
+  // ========== 变量替换系统 ==========
 
-  /// 变量引用正则：__变量名__
-  static final RegExp _variablePattern = RegExp(
-    r'__([^\s_][^_]*?)__',
-    unicode: true,
-  );
-
-  /// 替换变量引用
+  /// 创建变量解析器
   ///
-  /// 支持格式：__变量名__
-  /// 会在预设的类别和词组中查找匹配项并生成内容
-  Future<String> _replaceVariables(
-    String text,
+  /// 为 VariableReplacementService 创建解析器函数
+  /// 该解析器会在预设的类别和词组中查找变量名
+  Future<String?> _createVariableResolver(
     RandomPreset preset,
     Random random,
+    String varName,
   ) async {
-    if (!text.contains('__')) return text;
-
-    // 由于 replaceAllMapped 不支持 async，需要手动处理
-    var result = text;
-    final matches = _variablePattern.allMatches(text).toList();
-
-    for (final match in matches.reversed) {
-      final varName = match.group(1)!;
-      String? replacement;
-
-      // 1. 在类别中查找匹配（按名称或 key）
-      for (final category in preset.categories) {
-        if (category.name == varName || category.key == varName) {
-          final generated = await _generateFromCategory(category, random);
-          replacement = generated.join(', ');
-          break;
-        }
-
-        // 2. 在词组中查找匹配
-        for (final group in category.groups) {
-          if (group.name == varName) {
-            final generated = await _generateFromGroup(group, category, random);
-            replacement = generated.join(', ');
-            break;
-          }
-        }
-        if (replacement != null) break;
+    // 在类别中查找匹配（按名称或 key）
+    for (final category in preset.categories) {
+      // 检查类别本身
+      if (category.name == varName || category.key == varName) {
+        final generated = await _generateFromCategory(category, random);
+        return generated.join(', ');
       }
 
-      // 未找到匹配，保持原样
-      replacement ??= match.group(0)!;
-      result = result.replaceRange(match.start, match.end, replacement);
+      // 在词组中查找匹配
+      for (final group in category.groups) {
+        if (group.name == varName) {
+          final generated = await _generateFromGroup(
+            group,
+            category,
+            random,
+          );
+          return generated.join(', ');
+        }
+      }
     }
 
-    return result;
+    // 未找到匹配，返回 null 保持原样
+    return null;
   }
 
   /// 对生成结果进行变量替换
@@ -1207,11 +1192,11 @@ class RandomPromptGenerator {
     RandomPreset preset,
     Random random,
   ) async {
-    final results = <String>[];
-    for (final tag in tags) {
-      results.add(await _replaceVariables(tag, preset, random));
-    }
-    return results;
+    // 使用 VariableReplacementService 批量替换
+    return _variableReplacementService.replaceListAsync(
+      tags,
+      (varName) => _createVariableResolver(preset, random, varName),
+    );
   }
 
   // ========== 从缓存获取标签（用于同步类型的组） ==========
