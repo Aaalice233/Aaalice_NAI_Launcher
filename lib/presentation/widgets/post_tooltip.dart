@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/services/tag_translation_service.dart';
 
@@ -109,7 +110,9 @@ class PostTooltip extends ConsumerWidget {
             style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
         );
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.e('Failed to parse createdAt date', e: e, st: st);
+      }
     }
 
     // 艺术家
