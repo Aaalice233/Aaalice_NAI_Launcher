@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -102,6 +103,40 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       );
       ref.read(localGallerySelectionNotifierProvider.notifier).exit();
     }
+  }
+
+  /// 计算图片宽高比
+  /// Calculate aspect ratio from metadata or image file
+  Future<double> _calculateAspectRatio(LocalImageRecord record) async {
+    // 首先尝试从元数据获取尺寸
+    // Try to get dimensions from metadata first
+    final metadata = record.metadata;
+    if (metadata != null && metadata.width != null && metadata.height != null) {
+      final width = metadata.width!;
+      final height = metadata.height!;
+      if (width > 0 && height > 0) {
+        return width / height;
+      }
+    }
+
+    // 如果元数据中没有尺寸信息，从图片文件读取
+    // If metadata doesn't have dimensions, read from image file
+    try {
+      final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final width = descriptor.width;
+      final height = descriptor.height;
+      if (width > 0 && height > 0) {
+        return width / height;
+      }
+    } catch (e) {
+      // 如果读取失败，返回默认宽高比
+      // If reading fails, return default aspect ratio
+    }
+
+    // 默认宽高比（基于常见的 NAI 生成尺寸）
+    // Default aspect ratio (based on common NAI generation dimensions)
+    return 1.0;
   }
 
   /// 检查权限并扫描图片
