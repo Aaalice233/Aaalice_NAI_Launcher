@@ -243,17 +243,6 @@ GoRouter appRouter(Ref ref) {
                       );
                     },
                   ),
-                  // 统计仪表盘子路由
-                  GoRoute(
-                    path: AppRoutes.statistics,
-                    name: 'statistics',
-                    pageBuilder: (context, state) {
-                      return MaterialPage(
-                        key: state.pageKey,
-                        child: const StatisticsScreen(),
-                      );
-                    },
-                  ),
                 ],
               ),
             ],
