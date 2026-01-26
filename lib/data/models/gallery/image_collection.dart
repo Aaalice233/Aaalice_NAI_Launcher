@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'image_collection.freezed.dart';
+part 'image_collection.g.dart';
 
 /// 图片集合模型
 @freezed
@@ -14,6 +15,9 @@ class ImageCollection with _$ImageCollection {
   }) = _ImageCollection;
 
   const ImageCollection._();
+
+  factory ImageCollection.fromJson(Map<String, dynamic> json) =>
+      _$ImageCollectionFromJson(json);
 
   /// 集合是否为空
   bool get isEmpty => imagePaths.isEmpty;

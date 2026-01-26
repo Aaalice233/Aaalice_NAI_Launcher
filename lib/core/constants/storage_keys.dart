@@ -24,6 +24,7 @@ class StorageKeys {
   static const String searchIndexBox = 'search_index';
   static const String favoritesBox = 'favorites';
   static const String tagsBox = 'tags';
+  static const String collectionsBox = 'collections';
 
   // Settings Keys
   static const String themeType = 'theme_type';
