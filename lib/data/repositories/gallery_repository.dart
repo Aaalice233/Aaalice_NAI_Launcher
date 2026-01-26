@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/generation_record.dart';
+import '../models/gallery/gallery_statistics.dart';
 import '../services/gallery_migration_service.dart';
 
 part 'gallery_repository.g.dart';
@@ -366,26 +367,214 @@ class GalleryRepository {
   }
 
   /// 获取统计信息
-  Map<String, dynamic> getStats() {
-    if (_newBox == null) {
-      return {
-        'totalCount': 0,
-        'favoritesCount': 0,
-        'totalSize': 0,
-        'maxRecords': maxRecords,
-      };
+  GalleryStatistics getStats() {
+    if (_newBox == null || _newBox!.isEmpty) {
+      return GalleryStatistics(
+        totalImages: 0,
+        totalSizeBytes: 0,
+        averageFileSizeBytes: 0.0,
+        favoriteCount: 0,
+        taggedImageCount: 0,
+        imagesWithMetadata: 0,
+        resolutionDistribution: [],
+        modelDistribution: [],
+        samplerDistribution: [],
+        sizeDistribution: [],
+        calculatedAt: DateTime.now(),
+      );
     }
 
     final records = _newBox!.values.toList();
-    final favorites = records.where((r) => r.isFavorite).length;
-    final totalSize = records.fold<int>(0, (sum, r) => sum + r.fileSize);
+    final totalImages = records.length;
 
-    return {
-      'totalCount': records.length,
-      'favoritesCount': favorites,
-      'totalSize': totalSize,
-      'maxRecords': maxRecords,
+    AppLogger.d(
+      'Calculating statistics for $totalImages images',
+      'Gallery',
+    );
+
+    // 基础统计
+    final totalSizeBytes = records.fold<int>(
+      0,
+      (sum, record) => sum + record.fileSize,
+    );
+    final averageFileSizeBytes =
+        totalImages > 0 ? totalSizeBytes / totalImages : 0.0;
+
+    // 收藏和标签统计
+    final favoriteCount = records.where((r) => r.isFavorite).length;
+    final taggedImageCount = records.where((r) => r.userTags.isNotEmpty).length;
+    final imagesWithMetadata = records.where((r) => r.params.width > 0 && r.params.height > 0).length;
+
+    // 分辨率分布统计
+    final resolutionDistribution =
+        _calculateResolutionDistribution(records, totalImages);
+
+    // 模型分布统计
+    final modelDistribution = _calculateModelDistribution(records, totalImages);
+
+    // 采样器分布统计
+    final samplerDistribution =
+        _calculateSamplerDistribution(records, totalImages);
+
+    // 文件大小分布统计
+    final sizeDistribution = _calculateSizeDistribution(records, totalImages);
+
+    return GalleryStatistics(
+      totalImages: totalImages,
+      totalSizeBytes: totalSizeBytes,
+      averageFileSizeBytes: averageFileSizeBytes,
+      favoriteCount: favoriteCount,
+      taggedImageCount: taggedImageCount,
+      imagesWithMetadata: imagesWithMetadata,
+      resolutionDistribution: resolutionDistribution,
+      modelDistribution: modelDistribution,
+      samplerDistribution: samplerDistribution,
+      sizeDistribution: sizeDistribution,
+      calculatedAt: DateTime.now(),
+    );
+  }
+
+  /// 计算分辨率分布统计
+  List<ResolutionStatistics> _calculateResolutionDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    final resolutionCounts = <String, int>{};
+
+    for (final record in records) {
+      if (record.params.width > 0 && record.params.height > 0) {
+        final width = record.params.width;
+        final height = record.params.height;
+        final resolution = '${width}x$height';
+        resolutionCounts[resolution] = (resolutionCounts[resolution] ?? 0) + 1;
+      }
+    }
+
+    // 按数量降序排序
+    final sortedEntries = resolutionCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return sortedEntries.map((entry) {
+      return ResolutionStatistics(
+        label: entry.key,
+        count: entry.value,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+      );
+    }).toList();
+  }
+
+  /// 计算模型分布统计
+  List<ModelStatistics> _calculateModelDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    final modelCounts = <String, int>{};
+
+    for (final record in records) {
+      final model = record.params.model;
+      if (model.isNotEmpty) {
+        modelCounts[model] = (modelCounts[model] ?? 0) + 1;
+      }
+    }
+
+    // 按数量降序排序
+    final sortedEntries = modelCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return sortedEntries.map((entry) {
+      return ModelStatistics(
+        modelName: entry.key,
+        count: entry.value,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+      );
+    }).toList();
+  }
+
+  /// 计算采样器分布统计
+  List<SamplerStatistics> _calculateSamplerDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    final samplerCounts = <String, int>{};
+
+    for (final record in records) {
+      final sampler = record.params.sampler;
+      if (sampler.isNotEmpty) {
+        // 格式化采样器名称（如 k_euler_ancestral -> Euler Ancestral）
+        final formattedSampler = _formatSamplerName(sampler);
+        samplerCounts[formattedSampler] =
+            (samplerCounts[formattedSampler] ?? 0) + 1;
+      }
+    }
+
+    // 按数量降序排序
+    final sortedEntries = samplerCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return sortedEntries.map((entry) {
+      return SamplerStatistics(
+        samplerName: entry.key,
+        count: entry.value,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+      );
+    }).toList();
+  }
+
+  /// 格式化采样器名称
+  ///
+  /// 将 k_euler_ancestral 转换为 Euler Ancestral
+  String _formatSamplerName(String sampler) {
+    return sampler
+        .replaceAll('k_', '')
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map(
+          (word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1)}'
+              : '',
+        )
+        .join(' ');
+  }
+
+  /// 计算文件大小分布统计
+  List<SizeDistributionStatistics> _calculateSizeDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    const mb = 1024 * 1024;
+
+    final sizeRanges = <String, int>{
+      '< 1 MB': 0,
+      '1-2 MB': 0,
+      '2-5 MB': 0,
+      '5-10 MB': 0,
+      '> 10 MB': 0,
     };
+
+    for (final record in records) {
+      final sizeMB = record.fileSize / mb;
+
+      if (sizeMB < 1) {
+        sizeRanges['< 1 MB'] = sizeRanges['< 1 MB']! + 1;
+      } else if (sizeMB < 2) {
+        sizeRanges['1-2 MB'] = sizeRanges['1-2 MB']! + 1;
+      } else if (sizeMB < 5) {
+        sizeRanges['2-5 MB'] = sizeRanges['2-5 MB']! + 1;
+      } else if (sizeMB < 10) {
+        sizeRanges['5-10 MB'] = sizeRanges['5-10 MB']! + 1;
+      } else {
+        sizeRanges['> 10 MB'] = sizeRanges['> 10 MB']! + 1;
+      }
+    }
+
+    // Filter out ranges with zero count, then map to statistics
+    return sizeRanges.entries.where((entry) => entry.value > 0).map((entry) {
+      return SizeDistributionStatistics(
+        label: entry.key,
+        count: entry.value,
+        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+      );
+    }).toList();
   }
 
   /// 清空所有记录

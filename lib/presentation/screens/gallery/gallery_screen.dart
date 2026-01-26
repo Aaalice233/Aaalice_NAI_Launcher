@@ -8,6 +8,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
 import '../../providers/gallery_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
+import '../../widgets/gallery/gallery_statistics_dialog.dart';
 
 /// 画廊页面
 class GalleryScreen extends ConsumerStatefulWidget {
@@ -107,6 +108,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) => _handleMenuAction(value, context),
             itemBuilder: (menuContext) => [
+              PopupMenuItem(
+                value: 'statistics',
+                child: ListTile(
+                  leading: const Icon(Icons.bar_chart),
+                  title: Text(context.l10n.statistics_title),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
               PopupMenuItem(
                 value: 'select',
                 child: ListTile(
@@ -251,6 +260,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ],
           ),
           const Spacer(),
+          // 统计按钮
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => GalleryStatisticsDialog.show(context),
+            tooltip: context.l10n.statistics_title,
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 8),
           // 记录数量
           Text(
             context.l10n.gallery_imageCount(state.records.length.toString()),
@@ -410,6 +427,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   void _handleMenuAction(String action, BuildContext context) {
     switch (action) {
+      case 'statistics':
+        GalleryStatisticsDialog.show(context);
+        break;
       case 'select':
         ref.read(galleryNotifierProvider.notifier).enterSelectionMode();
         break;

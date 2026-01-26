@@ -11,6 +11,7 @@ import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
+import '../gallery/gallery_statistics_dialog.dart';
 
 class MainNavRail extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -73,6 +74,14 @@ class MainNavRail extends ConsumerWidget {
             label: context.l10n.nav_onlineGallery,
             isSelected: selectedIndex == 2,
             onTap: () => navigationShell.goBranch(3), // onlineGallery branch
+          ),
+
+          // 画廊统计
+          _NavIcon(
+            icon: Icons.bar_chart, // Gallery Statistics
+            label: context.l10n.statistics_title,
+            isSelected: false,
+            onTap: () => GalleryStatisticsDialog.show(context),
           ),
 
           // 随机配置
