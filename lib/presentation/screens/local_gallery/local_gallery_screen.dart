@@ -1417,8 +1417,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];
-        final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-        final isSelected = selectionState.selectedIds.contains(record.path);
+        final isSelected = ref.watch(localGallerySelectionNotifierProvider
+            .select((state) => state.selectedIds.contains(record.path)));
+        final selectionMode = ref.watch(localGallerySelectionNotifierProvider
+            .select((state) => state.isActive));
 
         // 获取或计算宽高比
         // Get or calculate aspect ratio
@@ -1438,7 +1440,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           record: record,
           itemWidth: itemWidth,
           aspectRatio: aspectRatio,
-          selectionMode: selectionState.isActive,
+          selectionMode: selectionMode,
           isSelected: isSelected,
           onSelectionToggle: () {
             ref
@@ -1446,7 +1448,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 .toggle(record.path);
           },
           onLongPress: () {
-            if (!selectionState.isActive) {
+            if (!selectionMode) {
               ref
                   .read(localGallerySelectionNotifierProvider.notifier)
                   .enterAndSelect(record.path);
