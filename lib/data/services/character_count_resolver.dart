@@ -5,21 +5,46 @@ import '../models/prompt/character_count_config.dart';
 
 /// 角色数量与性别解析器
 ///
-/// 提供角色数量标签生成和性别转换逻辑
-/// 从 RandomPromptGenerator 中提取的专门处理角色组合的组件
+/// 提供角色数量标签生成和性别转换逻辑。
+/// 从 RandomPromptGenerator 中提取的专门处理角色组合的组件。
 ///
 /// 主要功能：
 /// - 根据性别列表生成角色数量标签（如 "solo", "2girls", "1girl, 1boy"）
 /// - 将性别字符串转换为 CharacterGender 枚举
 /// - 支持从配置中确定角色数量
+/// - 使用 NAI 官网权重分布随机决定角色数量
 ///
-/// 标签生成规则：
-/// - 0个角色: "no humans"
-/// - 1个角色: "solo"
-/// - 2个角色: "2girls", "2boys", "1girl, 1boy"
-/// - 3个角色: "3girls", "3boys", "2girls, 1boy", "1girl, 2boys"
+/// ## 标签生成规则
+///
+/// 遵循 Danbooru 标签规范：
+/// - 0 个角色: "no humans"
+/// - 1 个角色: "solo"
+/// - 2 个角色: "2girls", "2boys", "1girl, 1boy"
+/// - 3 个角色: "3girls", "3boys", "2girls, 1boy", "1girl, 2boys"
 /// - 更多同性: "multiple girls" 或 "multiple boys"
 /// - 混合多人: "group"
+///
+/// ## 权重分布
+///
+/// 使用 NAI 官网的角色数量权重分布（默认）：
+/// - 1 人: 70%
+/// - 2 人: 20%
+/// - 3 人: 7%
+/// - 无人: 5%
+///
+/// ## 使用示例
+///
+/// ```dart
+/// final resolver = CharacterCountResolver();
+///
+/// // 生成人数标签
+/// final genders = [CharacterGender.female, CharacterGender.female];
+/// final countTag = resolver.getCountTag(genders); // "2girls"
+///
+/// // 决定角色数量
+/// final count = resolver.determineCharacterCount();
+/// // 大概率返回 1（70%），其次是 2（20%）
+/// ```
 class CharacterCountResolver {
   /// 角色数量权重分布（来自 NAI 官网）
   /// [[1,70], [2,20], [3,7], [0,5]]

@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import '../../models/character/character_prompt.dart';
 import '../../models/prompt/tag_category.dart';
 import '../../models/prompt/weighted_tag.dart';
 import '../bracket_formatter.dart';
@@ -17,6 +16,37 @@ import '../weighted_selector.dart';
 ///
 /// 使用策略模式，支持不同的生成概率和权重配置。
 /// 从 RandomPromptGenerator._generateCharacterTags 提取。
+///
+/// ## 生成概率（默认）
+///
+/// - 发色: 80%
+/// - 瞳色: 80%
+/// - 表情: 60%
+/// - 发型: 50%
+/// - 姿势: 50%
+///
+/// ## 使用模式
+///
+/// ```dart
+/// // 基础使用
+/// final generator = CharacterTagGenerator();
+/// final tags = generator.generate(
+///   categoryTags: myTags,
+///   random: Random(42),
+/// );
+///
+/// // 自定义概率
+/// final custom = generator.withCategoryProbability(
+///   TagSubCategory.hairColor,
+///   1.0, // 100% 生成
+/// );
+///
+/// // 始终生成所有类别
+/// final always = generator.alwaysGenerate;
+///
+/// // 永不生成任何类别
+/// final never = generator.neverGenerate;
+/// ```
 class CharacterTagGenerator {
   /// 加权选择器
   final WeightedSelector _weightedSelector;

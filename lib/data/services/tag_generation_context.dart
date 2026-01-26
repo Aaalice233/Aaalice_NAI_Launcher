@@ -11,21 +11,46 @@ part 'tag_generation_context.g.dart';
 
 /// 标签生成上下文
 ///
-/// 用于跟踪随机提示词生成过程中的状态
-/// 从 RandomPromptGenerator 中提取的状态管理模型
+/// 用于跟踪随机提示词生成过程中的状态。
+/// 从 RandomPromptGenerator 中提取的状态管理模型。
 ///
 /// 主要职责：
 /// - 维护生成过程中的状态（角色数量、性别等）
 /// - 提供不可变的状态更新方法
 /// - 支持条件过滤的上下文跟踪
+/// - 保证状态的可序列化和可重现性
 ///
-/// 使用场景：
-/// - 在生成过程中传递给各个策略和服务
-/// - 保证状态的一致性和可追溯性
-/// - 支持种子的可重现性
+/// ## 设计模式
 ///
-/// 注意：Random 实例不存储在上下文中，而是作为方法参数传递
-/// 这确保了序列化的可行性，同时保持了可重现性（通过 seed）
+/// 使用 Freezed 模式实现不可变状态：
+/// - 所有修改返回新实例
+/// - 原始实例保持不变
+/// - 支持值比较和序列化
+///
+/// ## 线程安全性
+///
+/// - 不可变设计，天然线程安全
+/// - 可以在多个 Isolate 间安全传递
+/// - Random 实例通过 seed 创建，避免状态共享
+///
+/// ## 使用示例
+///
+/// ```dart
+/// // 创建初始上下文
+/// final context = TagGenerationContext.create(
+///   seed: 42,
+///   isV4Model: true,
+/// );
+///
+/// // 更新状态（返回新实例）
+/// final updated = context
+///   .setCharacterCount(2)
+///   .addGender(CharacterGender.female)
+///   .addTag('blonde hair');
+///
+/// // 创建可重现的 Random 实例
+/// final random = context.createRandom();
+/// ```
 @freezed
 class TagGenerationContext with _$TagGenerationContext {
   const TagGenerationContext._();

@@ -13,6 +13,43 @@ import '../weighted_selector.dart';
 /// 负责从 RandomPreset 配置生成标签列表。
 /// 支持按作用域（global/character）和性别过滤类别。
 /// 从 RandomPromptGenerator.generateFromPreset 提取。
+///
+/// ## 主要功能
+///
+/// - 解析 RandomPreset 配置结构
+/// - 按作用域过滤类别（global/character/all）
+/// - 按性别过滤类别（male/female/general）
+/// - 支持多种词组选择模式（单选/多选/全部）
+/// - 支持多种标签选择模式（单选/多选/全部/随机）
+/// - 应用权重括号到生成的标签
+///
+/// ## 生成流程
+///
+/// 1. 遍历预设中的所有类别
+/// 2. 过滤禁用的类别和不符合作用域/性别的类别
+/// 3. 检查类别概率，决定是否生成
+/// 4. 根据 groupSelectionMode 选择词组
+/// 5. 在每个词组中根据 selectionMode 选择标签
+/// 6. 应用括号权重
+///
+/// ## 选择模式
+///
+/// **词组选择** (groupSelectionMode):
+/// - `single`: 随机选择一个词组
+/// - `multiple`: 随机选择多个词组（groupSelectCount）
+/// - `all`: 使用所有词组
+///
+/// **标签选择** (selectionMode):
+/// - `single`: 随机选择一个标签
+/// - `multiple`: 随机选择多个标签（multipleNum）
+/// - `all`: 使用所有标签
+/// - `random`: 每个标签独立随机决定
+///
+/// ## 性能特性
+///
+/// - 时间复杂度: O(n * m)，n 为类别数，m 为平均标签数
+/// - 异步设计，支持大规模词库
+/// - 使用加权随机算法，符合 NAI 官网行为
 class PresetGeneratorStrategy {
   /// 加权选择器
   final WeightedSelector _weightedSelector;

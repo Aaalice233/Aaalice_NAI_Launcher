@@ -4,17 +4,44 @@ import '../models/prompt/weighted_tag.dart';
 
 /// 加权随机选择器
 ///
-/// 提供基于权重的随机选择算法，复刻 NovelAI 官网的随机提示词功能
+/// 提供基于权重的随机选择算法，复刻 NovelAI 官网的随机提示词功能。
 /// 参考: docs/NAI随机提示词功能分析.md
 ///
 /// 主要功能：
 /// - 从标签列表中进行加权随机选择（支持条件过滤）
 /// - 从整数权重列表中选择（用于角色数量等场景）
+/// - 支持动态类型权重选择
 ///
-/// 算法原理：
+/// ## 算法原理
+///
+/// 使用累积权重分布算法（Cumulative Distribution Function）：
 /// 1. 计算所有选项的总权重
 /// 2. 生成 [1, totalWeight] 范围内的随机数
 /// 3. 累加权重直到超过随机数，返回对应选项
+///
+/// ## 性能特性
+///
+/// - 时间复杂度: O(n)，其中 n 为选项数量
+/// - 空间复杂度: O(1)
+/// - 适合中小规模数据集（< 1000 项）
+/// - 对于大规模数据，建议使用预构建的索引结构
+///
+/// ## 使用示例
+///
+/// ```dart
+/// final selector = WeightedSelector();
+///
+/// // 从标签列表选择
+/// final tags = [
+///   WeightedTag(tag: 'blonde', weight: 100),
+///   WeightedTag(tag: 'brunette', weight: 80),
+/// ];
+/// final selected = selector.select(tags);
+///
+/// // 从整数权重列表选择（角色数量）
+/// final weights = [[1, 70], [2, 20], [3, 7], [0, 5]];
+/// final count = selector.selectInt(weights);
+/// ```
 class WeightedSelector {
   /// 加权随机选择算法（复刻官网 ty 函数）
   ///

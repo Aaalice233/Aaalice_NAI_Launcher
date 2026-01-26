@@ -10,6 +10,55 @@ import '../weighted_selector.dart';
 /// 支持按变量名和分类选择标签，应用 exclude/require 规则，
 /// 并进行加权随机选择。
 /// 从 RandomPromptGenerator._selectFromWordlist 提取。
+///
+/// ## 主要功能
+///
+/// - 从词库条目列表中进行加权随机选择
+/// - 支持选择多个不重复的标签
+/// - 应用 exclude/require 规则过滤
+/// - 检查条目在给定上下文中的可用性
+///
+/// ## 规则系统
+///
+/// **Require 规则**:
+/// - 只有当上下文中包含 require 列表中的任一标签时，此条目才会被选中
+/// - 用于实现条件逻辑（如：只有在选择"长发"时才选择"束发"）
+///
+/// **Exclude 规则**:
+/// - 如果上下文中包含 exclude 列表中的任一标签，此条目不会被选中
+/// - 用于避免冲突（如：选择了"短发"时排除"长发"相关标签）
+///
+/// ## 使用示例
+///
+/// ```dart
+/// final strategy = WordlistGeneratorStrategy();
+///
+/// // 单个选择
+/// final tag = strategy.select(
+///   entries: hairEntries,
+///   random: Random(42),
+///   context: {'hair_style': ['long hair']}, // 上下文
+/// );
+///
+/// // 多个选择（不重复）
+/// final tags = strategy.selectMultiple(
+///   entries: colorEntries,
+///   count: 3,
+///   random: Random(42),
+/// );
+///
+/// // 检查可用性
+/// final available = strategy.isEntryAvailable(
+///   entry,
+///   context: {'hair_color': ['blonde']},
+/// );
+/// ```
+///
+/// ## 性能特性
+///
+/// - 时间复杂度: O(n) 单次选择, O(k * n) 多次选择（k 为选择数量）
+/// - 使用过滤+选择的两阶段算法
+/// - 支持大规模词库（> 10000 条目）
 class WordlistGeneratorStrategy {
   /// 加权选择器
   final WeightedSelector _weightedSelector;

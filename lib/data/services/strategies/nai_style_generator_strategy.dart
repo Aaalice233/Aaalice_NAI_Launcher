@@ -15,6 +15,58 @@ import '../weighted_selector.dart';
 /// 负责使用 TagLibrary 生成 NAI 官网风格的随机提示词。
 /// 支持多角色（V4+模式）和单角色（传统模式）生成。
 /// 从 RandomPromptGenerator.generateNaiStyle 提取。
+///
+/// ## 主要功能
+///
+/// - 复刻 NAI 官网的随机提示词生成逻辑
+/// - 支持三种生成模式：无人场景、单角色、多角色
+/// - 使用 NAI 官网的角色数量权重分布
+/// - 自动生成人数标签（solo, 2girls, 1girl, 1boy 等）
+/// - 支持分类级 Danbooru 补充标签
+///
+/// ## 生成模式
+///
+/// **无人场景** (5% 概率):
+/// - 添加 "no humans" 标签
+/// - 必选：场景标签
+/// - 90%：背景标签
+/// - 50%：风格标签
+/// - 50%：额外 1-3 个场景元素
+///
+/// **单角色** (70% 概率):
+/// - 添加 "solo" 标签
+/// - 生成单个角色的特征标签
+/// - V4+ 模式：分离的主提示词和角色提示词
+/// - 传统模式：合并为单个提示词
+///
+/// **多角色** (25% 概率，2人20% + 3人7%):
+/// - 生成对应人数标签（2girls, 2boys, 1girl, 1boy 等）
+/// - 为每个角色生成独立特征
+/// - 支持混合性别组合
+///
+/// ## 角色数量权重
+///
+/// 使用 NAI 官网分布：
+/// - 1 人: 70%
+/// - 2 人: 20%
+/// - 3 人: 7%
+/// - 无人: 5%
+///
+/// ## 使用示例
+///
+/// ```dart
+/// final strategy = NaiStyleGeneratorStrategy();
+/// final library = await _libraryService.getAvailableLibrary();
+/// final result = await strategy.generate(
+///   library: library,
+///   random: Random(42),
+///   filterConfig: CategoryFilterConfig(),
+/// );
+///
+/// // V4+ 模式：返回主提示词 + 角色提示词
+/// print(result.mainPrompt);
+/// print(result.characters);
+/// ```
 class NaiStyleGeneratorStrategy {
   /// 加权选择器
   final WeightedSelector _weightedSelector;
