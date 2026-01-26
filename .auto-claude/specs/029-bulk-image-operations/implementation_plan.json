@@ -3,7 +3,7 @@
   "workflow_type": "feature",
   "workflow_rationale": "Multi-component feature involving new collection system, bulk operations service, UI widgets, and undo/redo integration. Feature workflow phases follow dependency order: data layer first, then UI, then integration.",
   "created_at": "2026-01-26T07:40:00Z",
-  "updated_at": "2026-01-26T10:03:18.217Z",
+  "updated_at": "2026-01-26T10:16:22.772Z",
   "status": "in_progress",
   "phases": [
     {
@@ -261,7 +261,9 @@
             "type": "manual",
             "instructions": "Select images, open collection dialog, verify collections listed"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created CollectionSelectDialog widget with:\n- Collection selection dialog following AddGroupDialog pattern\n- Search/filter functionality for collections by name and description\n- Collection count display showing number of images in each collection\n- Empty state with hint to create collections first\n- No results state when filter doesn't match\n- Integration with CollectionNotifier to load collections\n- Returns CollectionSelectResult with collection ID and name\n- Bilingual localization (English/Chinese) with ARB strings\n- Material 3 design with folder icons and add buttons\n- Proper error handling and loading states\n- Auto-initialization of collection provider on dialog open\n\nLocalization strings added:\n- collectionSelect_dialogTitle: \"Select Collection\" / \"选择集合\"\n- collectionSelect_filterHint: \"Search collections...\" / \"搜索集合...\"\n- collectionSelect_noCollections: \"No collections\" / \"暂无集合\"\n- collectionSelect_createCollectionHint: \"Create a collection first\" / \"请先创建一个集合\"\n- collectionSelect_noFilterResults: \"No matching collections found\" / \"没有找到匹配的集合\"\n- collectionSelect_imageCount: \"{count} images\" / \"{count} 张图片\"\n\nVerification: Widget compiles successfully with no issues. Ready for integration in phase 4.",
+          "updated_at": "2026-01-26T18:20:00.000Z"
         }
       ]
     },
@@ -623,6 +625,6 @@
   },
   "qa_signoff": null,
   "planStatus": "in_progress",
-  "last_updated": "2026-01-26T18:14:57.906190",
+  "last_updated": "2026-01-26T18:20:00.000Z",
   "recoveryNote": "Task recovered from stuck state at 2026-01-26T09:14:47.391Z"
 }

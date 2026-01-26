@@ -22,6 +22,7 @@ import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
 import '../../widgets/gallery_filter_panel.dart';
+import '../../widgets/bulk_action_bar.dart';
 
 /// 本地画廊屏幕
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -356,51 +357,16 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     if (selectionState.isActive) {
-      return ClipRRect(
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? theme.colorScheme.primaryContainer.withOpacity(0.85)
-                  : theme.colorScheme.primaryContainer.withOpacity(0.7),
-              border: Border(
-                bottom: BorderSide(
-                  color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.3),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                _RoundedIconButton(
-                  icon: Icons.close,
-                  tooltip: '退出多选',
-                  onPressed: () => ref
-                      .read(localGallerySelectionNotifierProvider.notifier)
-                      .exit(),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '已选择 ${selectionState.selectedIds.length} 项',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                _RoundedIconButton(
-                  icon: Icons.playlist_add,
-                  tooltip: '加入队列',
-                  onPressed: selectionState.selectedIds.isNotEmpty
-                      ? _addSelectedToQueue
-                      : null,
-                ),
-                // 本地画廊不需要批量下载和收藏
-              ],
-            ),
-          ),
-        ),
+      return BulkActionBar(
+        onExit: () =>
+            ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
+        onAddToCollection: selectionState.selectedIds.isNotEmpty
+            ? _addSelectedToQueue
+            : null,
+        // Delete, export, and edit metadata not implemented yet
+        onDelete: null,
+        onExport: null,
+        onEditMetadata: null,
       );
     }
 
