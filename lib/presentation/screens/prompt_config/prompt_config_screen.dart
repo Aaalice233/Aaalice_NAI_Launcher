@@ -250,19 +250,32 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
-  /// 显示新建预设对话框
-  Future<void> _showNewPresetDialog() async {
+  /// 创建模板预设（基于默认预设）
+  Future<void> _createTemplatePreset() async {
     final presetState = ref.read(randomPresetNotifierProvider);
     final defaultPreset = presetState.presets.firstWhere(
       (p) => p.isDefault,
       orElse: () => presetState.presets.first,
     );
 
+    // 使用 RandomPreset.copyFrom() 创建新预设
+    final newPreset = RandomPreset.copyFrom(
+      defaultPreset,
+      name: context.l10n.config_newPreset,
+    );
+
+    // 添加新预设到列表
+    await ref.read(randomPresetNotifierProvider.notifier).addPreset(newPreset);
+
+    // 选中新创建的预设
+    await ref.read(randomPresetNotifierProvider.notifier).selectPreset(newPreset.id);
+  }
+
+  /// 显示新建预设对话框
+  Future<void> _showNewPresetDialog() async {
     await NewPresetDialog.show(
       context: context,
       onModeSelected: (mode) async {
-        final notifier = ref.read(randomPresetNotifierProvider.notifier);
-
         switch (mode) {
           case PresetCreationMode.blank:
             // 创建完全空白的预设
@@ -271,12 +284,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
           case PresetCreationMode.template:
             // 基于默认预设创建
-            // 先选择默认预设，然后复制它
-            await notifier.selectPreset(defaultPreset.id);
-            await notifier.createPreset(
-              name: context.l10n.config_newPreset,
-              copyFromCurrent: true,
-            );
+            await _createTemplatePreset();
             break;
         }
 
