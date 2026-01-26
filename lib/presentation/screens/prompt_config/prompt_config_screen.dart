@@ -244,8 +244,20 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 创建空白预设
   Future<void> _createBlankPreset() async {
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
+
+    // 生成唯一的预设名称
+    String baseName = context.l10n.config_newPreset;
+    String name = baseName;
+    int counter = 1;
+
+    final presetState = ref.read(randomPresetNotifierProvider);
+    while (presetState.presets.any((p) => p.name == name)) {
+      name = '$baseName ($counter)';
+      counter++;
+    }
+
     await notifier.createPreset(
-      name: context.l10n.config_newPreset,
+      name: name,
       copyFromCurrent: false,
     );
   }
@@ -258,10 +270,20 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       orElse: () => presetState.presets.first,
     );
 
+    // 生成唯一的预设名称
+    String baseName = context.l10n.config_newPreset;
+    String name = baseName;
+    int counter = 1;
+
+    while (presetState.presets.any((p) => p.name == name)) {
+      name = '$baseName ($counter)';
+      counter++;
+    }
+
     // 使用 RandomPreset.copyFrom() 创建新预设
     final newPreset = RandomPreset.copyFrom(
       defaultPreset,
-      name: context.l10n.config_newPreset,
+      name: name,
     );
 
     // 添加新预设到列表
@@ -1651,8 +1673,19 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         state.presets.where((p) => p.id == _selectedPresetId).firstOrNull;
     if (preset == null) return;
 
+    final newName = _presetNameController.text.trim();
+
+    // 验证预设名称
+    final error = _validatePresetName(newName, excludePresetId: preset.id);
+    if (error != null) {
+      if (mounted) {
+        AppToast.error(context, error);
+      }
+      return;
+    }
+
     final updated = preset.copyWith(
-      name: _presetNameController.text.trim(),
+      name: newName,
       configs: _editingConfigs,
       updatedAt: DateTime.now(),
     );
@@ -1705,33 +1738,72 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
+  /// 验证预设名称
+  /// 返回验证错误信息，如果验证通过则返回 null
+  String? _validatePresetName(String name, {String? excludePresetId}) {
+    if (name.trim().isEmpty) {
+      return context.l10n.preset_presetName;
+    }
+
+    final state = ref.read(promptConfigNotifierProvider);
+    final isDuplicate = state.presets.any((p) =>
+        p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
+        p.id != excludePresetId);
+
+    if (isDuplicate) {
+      return '预设名称已存在';
+    }
+
+    return null;
+  }
+
   /// 显示重命名预设对话框
   Future<void> _showRenamePresetDialog(pc.RandomPromptPreset preset) async {
     final controller = TextEditingController(text: preset.name);
+    String? errorText;
 
     final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.preset_rename),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: context.l10n.preset_presetName,
-            border: const OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.preset_rename),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.preset_presetName,
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            onChanged: (value) {
+              final error = _validatePresetName(value, excludePresetId: preset.id);
+              setState(() => errorText = error);
+            },
+            onSubmitted: (value) {
+              final error = _validatePresetName(value, excludePresetId: preset.id);
+              if (error == null) {
+                Navigator.pop(ctx, value.trim());
+              }
+            },
           ),
-          onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final error = _validatePresetName(controller.text, excludePresetId: preset.id);
+                if (error == null) {
+                  Navigator.pop(ctx, controller.text.trim());
+                } else {
+                  setState(() => errorText = error);
+                }
+              },
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text(context.l10n.common_confirm),
-          ),
-        ],
       ),
     );
 
