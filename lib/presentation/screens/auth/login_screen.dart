@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -25,6 +26,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// 头像服务实例
   final _avatarService = AvatarService();
+
+  /// 认证错误服务实例
+  final _authErrorService = AuthErrorService();
 
   /// Loading Overlay Entry
   OverlayEntry? _loadingOverlayEntry;
@@ -111,10 +115,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           '[LoginScreen] Showing error Toast: ${next.errorCode}',
           'LOGIN',
         );
-        final errorText =
-            _getErrorText(context, next.errorCode!, next.httpStatusCode);
-        final recoveryHint = _getErrorRecoveryHint(
-          context,
+        final errorText = _authErrorService.getErrorText(
+          context.l10n,
+          next.errorCode!,
+          next.httpStatusCode,
+        );
+        final recoveryHint = _authErrorService.getErrorRecoveryHint(
+          context.l10n,
           next.errorCode!,
           next.httpStatusCode,
         );
