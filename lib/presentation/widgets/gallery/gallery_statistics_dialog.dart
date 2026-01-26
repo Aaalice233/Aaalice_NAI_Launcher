@@ -316,19 +316,39 @@ class _GalleryStatisticsDialogState
     GalleryStatistics statistics,
     AppLocalizations l10n,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Additional stats will be added in subtask-2-4
-          Text(
-            'Details tab - Coming soon',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.statistics_additionalStats,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            _buildStatRow(
+              theme,
+              l10n.statistics_averageFileSize,
+              statistics.averageSizeFormatted,
+            ),
+            const Divider(height: 24),
+            _buildStatRow(
+              theme,
+              l10n.statistics_withMetadata,
+              '${statistics.imagesWithMetadata} (${statistics.metadataPercentage.toStringAsFixed(1)}%)',
+            ),
+            const Divider(height: 24),
+            _buildStatRow(
+              theme,
+              l10n.statistics_calculatedAt,
+              _formatDateTime(statistics.calculatedAt, l10n),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -783,5 +803,46 @@ class _GalleryStatisticsDialogState
     ];
 
     return colors[index % colors.length];
+  }
+
+  /// Build stat row
+  Widget _buildStatRow(
+    ThemeData theme,
+    String label,
+    String value,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Format date time
+  String _formatDateTime(DateTime dateTime, AppLocalizations l10n) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return l10n.statistics_justNow;
+    } else if (difference.inMinutes < 60) {
+      return l10n.statistics_minutesAgo(difference.inMinutes);
+    } else if (difference.inHours < 24) {
+      return l10n.statistics_hoursAgo(difference.inHours);
+    } else {
+      return l10n.statistics_daysAgo(difference.inDays);
+    }
   }
 }
