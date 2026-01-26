@@ -1207,7 +1207,9 @@ class NAIApiService {
               } else if (imageData is String && imageData.isNotEmpty) {
                 try {
                   imageBytes = Uint8List.fromList(base64Decode(imageData));
-                } catch (_) {}
+                } catch (e) {
+                  AppLogger.w('Failed to decode base64 image data: $e', 'Stream');
+                }
               }
 
               if (imageBytes != null && imageBytes.isNotEmpty) {
@@ -1340,7 +1342,8 @@ class NAIApiService {
               } else {
                 errorMsg = 'API_ERROR_${e.response?.statusCode}|$text';
               }
-            } catch (_) {
+            } catch (jsonError) {
+              AppLogger.w('Failed to parse error JSON: $jsonError', 'API');
               errorMsg = 'API_ERROR_${e.response?.statusCode}|$text';
             }
           } catch (readError) {
@@ -1499,11 +1502,14 @@ class NAIApiService {
           } else {
             serverMessage = text;
           }
-        } catch (_) {
+        } catch (e) {
+          AppLogger.w('Failed to parse error response JSON: $e', 'API');
           serverMessage = text;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.w('Failed to extract error message from response: $e', 'API');
+    }
 
     // 根据 HTTP 状态码返回错误代码
     switch (statusCode) {
