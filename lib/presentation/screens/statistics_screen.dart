@@ -292,7 +292,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     // 应用日期范围筛选
     if (_dateRange != null) {
       filtered = filtered.where((record) {
-        final fileDate = record.metadata?.createdAt ?? DateTime.now();
+        final fileDate = record.modifiedAt;
         return !fileDate.isBefore(_dateRange!.start) &&
                !fileDate.isAfter(_dateRange!.end);
       }).toList();
@@ -518,25 +518,30 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                 ),
 
                 // Model filter
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedModel,
-                    hint: const Text('Model'),
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: theme.colorScheme.onSurfaceVariant,
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _selectedModel != null
+                          ? theme.colorScheme.primary
+                          : theme.dividerColor,
                     ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: _selectedModel != null
-                            ? theme.colorScheme.primary
-                            : theme.dividerColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedModel,
+                      hint: const Text('Model'),
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
                     ),
                     items: [
                       const DropdownMenuItem<String>(
@@ -561,29 +566,35 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                       });
                     },
                   ),
+                  ),
                 ),
 
                 // Resolution filter
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedResolution,
-                    hint: const Text('Resolution'),
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: theme.colorScheme.onSurfaceVariant,
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _selectedResolution != null
+                          ? theme.colorScheme.primary
+                          : theme.dividerColor,
                     ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: _selectedResolution != null
-                            ? theme.colorScheme.primary
-                            : theme.dividerColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedResolution,
+                      hint: const Text('Resolution'),
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                     items: [
                       const DropdownMenuItem<String>(
                         value: '',
@@ -602,6 +613,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                         _filterVersion++;
                       });
                     },
+                  ),
                   ),
                 ),
               ],
