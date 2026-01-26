@@ -4,7 +4,7 @@
   "workflow_type": "feature",
   "workflow_rationale": "This is a new feature being added - a complete test infrastructure and verification framework that does not currently exist. Involves creating new test files, verification tooling, and a reporting dashboard.",
   "created_at": "2026-01-26T10:56:00.000Z",
-  "updated_at": "2026-01-26T04:51:17.248Z",
+  "updated_at": "2026-01-26T04:57:44.649Z",
   "status": "in_progress",
   "phases": [
     {
@@ -485,7 +485,9 @@
             "type": "manual",
             "instructions": "Verify dashboard shows evidence links for failed tests"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Successfully implemented comprehensive evidence collection display:\n\n**Enhanced Evidence Counts:**\n- Fixture files count (3 JSON files: auth_success, auth_failure, danbooru_posts)\n- Test logs count (displays number of test files)\n- Screenshots count (2 image files: test_metadata.png, test_vibe_image.png)\n- Total evidence items displayed in section header\n\n**Failed Test Evidence Section:**\n- Dynamic evidence card showing up to 5 most recent failed tests\n- Each failed test displays:\n  - Test name and file name\n  - BUG ID (if applicable)\n  - 'View Details' button to open test modal\n- Shows '... and X more failed tests' if more than 5 failures\n\n**Test Result File Links:**\n- Evidence card with downloadable JSON files:\n  - summary.json\n  - verification_output.json\n  - bug_test_output.json\n  - processed_summary.json\n- All links open in new tabs for easy access\n\n**Enhanced Test Detail Modal:**\n- New 'Evidence & Artifacts' section for failed tests\n- Test Logs subsection with links to:\n  - summary.json\n  - verification_output.json\n- Related Fixtures subsection with links to:\n  - auth_success_response.json\n  - auth_failure_response.json\n  - danbooru_posts.json\n- Test Screenshots subsection with links to:\n  - test_metadata.png\n  - test_vibe_image.png\n- All evidence links are clearly labeled with icons\n\n**CSS Styling:**\n- New styles for evidence-card-failed variant\n- Failed tests list with hover effects\n- Evidence link buttons with smooth transitions\n- Evidence links section with proper spacing\n- More failed tests indicator styling\n\n**Files Modified:**\n- test_results/dashboard/index.html (updated evidence section HTML)\n- test_results/dashboard/app.js (added updateEvidenceCounts, renderFailedTestEvidence, enhanced showTestDetails)\n- test_results/dashboard/style.css (added evidence display styles)\n\nThe dashboard now provides comprehensive access to all test artifacts including logs, fixtures, screenshots, and evidence for failed tests.",
+          "updated_at": "2026-01-26T12:59:00.000000+00:00"
         },
         {
           "id": "subtask-5-5",
