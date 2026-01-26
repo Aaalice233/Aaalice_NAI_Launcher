@@ -6,7 +6,6 @@ import '../../models/prompt/random_prompt_result.dart';
 import '../../models/prompt/tag_category.dart';
 import '../../models/prompt/tag_library.dart';
 import '../../models/prompt/weighted_tag.dart';
-import '../bracket_formatter.dart';
 import '../character_count_resolver.dart';
 import '../strategies/character_tag_generator.dart';
 import '../weighted_selector.dart';
@@ -19,9 +18,6 @@ import '../weighted_selector.dart';
 class NaiStyleGeneratorStrategy {
   /// 加权选择器
   final WeightedSelector _weightedSelector;
-
-  /// 括号格式化器
-  final BracketFormatter _bracketFormatter;
 
   /// 角色数量解析器
   final CharacterCountResolver _countResolver;
@@ -41,16 +37,13 @@ class NaiStyleGeneratorStrategy {
   /// 创建 NAI 风格生成策略
   ///
   /// [weightedSelector] 加权选择器（可选，默认创建新实例）
-  /// [bracketFormatter] 括号格式化器（可选，默认创建新实例）
   /// [countResolver] 角色数量解析器（可选，默认创建新实例）
   /// [characterTagGenerator] 角色标签生成器（可选，默认创建新实例）
   NaiStyleGeneratorStrategy({
     WeightedSelector? weightedSelector,
-    BracketFormatter? bracketFormatter,
     CharacterCountResolver? countResolver,
     CharacterTagGenerator? characterTagGenerator,
   })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
-        _bracketFormatter = bracketFormatter ?? BracketFormatter(),
         _countResolver = countResolver ?? CharacterCountResolver(),
         _characterTagGenerator = characterTagGenerator ?? CharacterTagGenerator();
 
