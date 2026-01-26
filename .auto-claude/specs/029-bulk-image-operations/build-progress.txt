@@ -242,3 +242,35 @@ Next: Subtask-2-3 - Enhance LocalGallerySelectionNotifier with shift-click range
 === SUBTASK-2-3 COMPLETE ===
 Phase 2 (State Management) COMPLETE ✓
 Next: Phase 3 - UI Widgets (can be done in parallel)
+
+[2026-01-26 17:30] Subtask-3-1: Create BulkActionBar widget with delete, export, edit metadata, add to collection buttons
+- Status: COMPLETED ✓
+- Created: lib/presentation/widgets/bulk_action_bar.dart
+- Features implemented:
+  - BulkActionBar widget showing when selection mode is active
+  - Delete button with error color (Icons.delete)
+  - Export button with primary color (Icons.download)
+  - Edit metadata button with secondary color (Icons.edit)
+  - Add to collection button with tertiary color (Icons.playlist_add)
+  - Exit button to close selection mode (Icons.close)
+  - Selection count display: "已选择 X 项"
+  - All action buttons disabled when no items selected
+  - Hover animations on buttons (MouseRegion with _isHovered state)
+  - Material 3 design with backdrop filter (sigmaX: 10, sigmaY: 10)
+  - Rounded corners (12px radius)
+  - Dark/light mode support with dynamic opacity
+  - Bilingual comments (Chinese and English)
+  - Uses localGallerySelectionNotifierProvider to track selection state
+  - All callbacks are optional VoidCallback? parameters
+- Private _RoundedIconButton widget:
+  - StatefulWidget with hover state tracking
+  - AnimatedContainer with 200ms duration for smooth transitions
+  - Dynamic color based on enabled/disabled state
+  - Border styling with theme-aware colors
+  - Proper null safety with isEnabled check
+- Code quality: Follows LocalGalleryScreen widget patterns exactly
+- Verification: Widget compiles successfully with no issues (flutter analyze passed)
+- Commit: 375b5ae - "auto-claude: subtask-3-1 - Create BulkActionBar widget"
+
+=== SUBTASK-3-1 COMPLETE ===
+Next: Subtask-3-2 - Create BulkProgressDialog widget

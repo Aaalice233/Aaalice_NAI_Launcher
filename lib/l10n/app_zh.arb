@@ -2169,6 +2169,53 @@
   "brushPreset_airbrush": "喷枪",
   "brushPreset_marker": "马克笔",
   "brushPreset_thick": "粗笔刷",
-  "brushPreset_smudge": "涂抹笔"
+  "brushPreset_smudge": "涂抹笔刷",
+
+  "bulkProgress_progress": "正在处理 {current}/{total}",
+  "@bulkProgress_progress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "bulkProgress_success": "{count} 项成功",
+  "@bulkProgress_success": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_failed": "{count} 项失败",
+  "@bulkProgress_failed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_errors": "错误：",
+  "bulkProgress_moreErrors": "...还有 {count} 个错误",
+  "@bulkProgress_moreErrors": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completed": "已完成 {count} 项",
+  "@bulkProgress_completed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completedWithErrors": "{success} 项成功，{failed} 项失败",
+  "@bulkProgress_completedWithErrors": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "bulkProgress_title_delete": "删除图片中",
+  "bulkProgress_title_export": "导出元数据中",
+  "bulkProgress_title_metadataEdit": "编辑元数据中",
+  "bulkProgress_title_addToCollection": "添加到收集中",
+  "bulkProgress_title_removeFromCollection": "从集合中移除",
+  "bulkProgress_title_toggleFavorite": "更新收藏中",
+  "bulkProgress_title_default": "处理中"
 
 }
