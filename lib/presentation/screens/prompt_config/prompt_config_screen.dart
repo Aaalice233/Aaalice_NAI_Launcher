@@ -138,7 +138,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final categories = preset?.categories ?? [];
 
     // 计算已启用的 tag group 数量（使用 TagCountingService）
-    final builtinGroupCount = tagCountingService.calculateEnabledBuiltinCategoryCount(
+    final builtinGroupCount =
+        tagCountingService.calculateEnabledBuiltinCategoryCount(
       categories,
       state.categoryFilterConfig.isBuiltinEnabled,
     );
@@ -154,10 +155,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       categories,
       state.categoryFilterConfig,
     );
-    final tagCount = builtinTagCount + tagCountingService.calculateTotalTagCount(
-      tagGroupMappings,
-      categories,
-    );
+    final tagCount = builtinTagCount +
+        tagCountingService.calculateTotalTagCount(
+          tagGroupMappings,
+          categories,
+        );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
@@ -1058,10 +1060,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       categories,
       libraryState.categoryFilterConfig,
     );
-    final tagCount = builtinTagCount + tagCountingService.calculateTotalTagCount(
-      tagGroupMappings,
-      categories,
-    );
+    final tagCount = builtinTagCount +
+        tagCountingService.calculateTotalTagCount(
+          tagGroupMappings,
+          categories,
+        );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

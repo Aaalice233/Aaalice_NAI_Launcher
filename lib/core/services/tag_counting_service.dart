@@ -34,7 +34,8 @@ class TagCountingService {
   bool get isInitialized => _isInitialized;
 
   /// 实时过滤的标签数量缓存
-  Map<String, int> get filteredTagCounts => Map.unmodifiable(_filteredTagCountsCache);
+  Map<String, int> get filteredTagCounts =>
+      Map.unmodifiable(_filteredTagCountsCache);
 
   /// 初始化服务
   Future<void> initialize() async {
@@ -51,7 +52,8 @@ class TagCountingService {
       _isInitialized = true;
       AppLogger.i('TagCountingService initialized', 'TagCounting');
     } catch (e, stack) {
-      AppLogger.e('Failed to initialize TagCountingService', e, stack, 'TagCounting');
+      AppLogger.e(
+          'Failed to initialize TagCountingService', e, stack, 'TagCounting');
       rethrow;
     }
   }
@@ -74,7 +76,8 @@ class TagCountingService {
       final enabledMappings = mappings.where((m) => m.enabled).toList();
       if (enabledMappings.isEmpty) {
         _filteredTagCountsCache.clear();
-        AppLogger.d('No enabled mappings, cleared filtered counts', 'TagCounting');
+        AppLogger.d(
+            'No enabled mappings, cleared filtered counts', 'TagCounting');
         return;
       }
 

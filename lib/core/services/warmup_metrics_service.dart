@@ -50,8 +50,7 @@ class WarmupMetricsService {
   List<List<WarmupTaskMetrics>> getRecentSessions(int limit) {
     try {
       // 获取所有会话的键并按时间戳倒序排序
-      final keys = _metricsBox.keys.toList()
-        ..sort((a, b) => b.compareTo(a));
+      final keys = _metricsBox.keys.toList()..sort((a, b) => b.compareTo(a));
 
       // 取前limit个键
       final limitedKeys = keys.take(limit).toList();
@@ -141,8 +140,7 @@ class WarmupMetricsService {
   /// [keepCount] 保留的会话数量
   Future<void> _cleanupOldSessions(int keepCount) async {
     try {
-      final keys = _metricsBox.keys.toList()
-        ..sort((a, b) => b.compareTo(a));
+      final keys = _metricsBox.keys.toList()..sort((a, b) => b.compareTo(a));
 
       if (keys.length <= keepCount) {
         return;

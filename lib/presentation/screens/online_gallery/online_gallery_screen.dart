@@ -603,7 +603,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       label: Text(
         hasDateRange
-            ? _dateFormattingService.formatDateRange(state.dateRangeStart, state.dateRangeEnd)
+            ? _dateFormattingService.formatDateRange(
+                state.dateRangeStart, state.dateRangeEnd)
             : context.l10n.onlineGallery_dateRange,
         style: TextStyle(
           fontSize: 12,
@@ -767,7 +768,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           label: Text(
             state.popularDate != null
                 ? _dateFormattingService.formatWithPattern(
-                    state.popularDate!, 'yyyy-MM-dd',)
+                    state.popularDate!,
+                    'yyyy-MM-dd',
+                  )
                 : context.l10n.onlineGallery_today,
             style: const TextStyle(fontSize: 13),
           ),

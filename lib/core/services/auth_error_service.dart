@@ -78,7 +78,8 @@ class AuthErrorService {
         AppLogger.d('Providing timeout recovery hint', 'AuthErrorService');
         return l10n.api_error_timeout_hint;
       case AuthErrorCode.networkError:
-        AppLogger.d('Providing network error recovery hint', 'AuthErrorService');
+        AppLogger.d(
+            'Providing network error recovery hint', 'AuthErrorService');
         return l10n.api_error_network_hint;
       case AuthErrorCode.authFailed:
         if (httpStatusCode == 401) {
@@ -91,7 +92,8 @@ class AuthErrorService {
         AppLogger.d('Providing auth failed recovery hint', 'AuthErrorService');
         return l10n.api_error_401_hint;
       case AuthErrorCode.tokenInvalid:
-        AppLogger.d('Providing token invalid recovery hint', 'AuthErrorService');
+        AppLogger.d(
+            'Providing token invalid recovery hint', 'AuthErrorService');
         return l10n.api_error_401_hint;
       case AuthErrorCode.serverError:
         if (httpStatusCode == 503) {
@@ -122,8 +124,7 @@ class AuthErrorService {
     int? httpStatusCode,
   ) {
     final errorText = getErrorText(l10n, errorCode, httpStatusCode);
-    final recoveryHint =
-        getErrorRecoveryHint(l10n, errorCode, httpStatusCode);
+    final recoveryHint = getErrorRecoveryHint(l10n, errorCode, httpStatusCode);
 
     return AuthErrorMessage(errorText, recoveryHint);
   }
