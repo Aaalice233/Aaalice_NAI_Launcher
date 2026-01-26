@@ -123,6 +123,7 @@ logs/security/
 .sisyphus/
 .opencode/
 test/
+test_results/
 NAI COPY/
 analyze_report.txt
 install-log.txt
