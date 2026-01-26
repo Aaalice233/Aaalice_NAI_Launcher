@@ -4,7 +4,7 @@
   "workflow_type": "feature",
   "workflow_rationale": "This is a new feature being added - a complete test infrastructure and verification framework that does not currently exist. Involves creating new test files, verification tooling, and a reporting dashboard.",
   "created_at": "2026-01-26T10:56:00.000Z",
-  "updated_at": "2026-01-26T04:24:54.193Z",
+  "updated_at": "2026-01-26T04:29:17.734Z",
   "status": "in_progress",
   "phases": [
     {
@@ -300,7 +300,9 @@
             "type": "manual",
             "instructions": "Verify document includes screenshot comparison steps for IMPR-001~004"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Verified that all four UI layout tests (IMPR-001~004) include comprehensive screenshot comparison steps:\n\n**IMPR-001 - Main Layout Structure Verification (Lines 24-82):**\n- Capture Screenshot step with DevTools (lines 50-53)\n- Screenshot naming: test/screenshots/actual/impr-001-main-layout.png\n- Comparison with reference: test/screenshots/reference/main_layout.png\n- Layout dimension measurements with DevTools Layout Explorer\n- Tolerance specification: ±5px from reference\n\n**IMPR-002 - Prompt Editor Layout Verification (Lines 85-137):**\n- Capture Screenshot step (lines 112-115)\n- Screenshot naming: test/screenshots/actual/impr-002-prompt-editor.png\n- Comparison with reference screenshot\n- Component dimension measurements (prompt box height, spacing, panel widths)\n- Responsive behavior testing across window sizes\n\n**IMPR-003 - Gallery Grid Layout Verification (Lines 140-203):**\n- Capture Screenshots step (lines 178-182)\n- Multiple screenshots at different positions:\n  - impr-003-gallery-top.png\n  - impr-003-gallery-middle.png\n  - impr-003-gallery-bottom.png\n- Grid configuration measurements (columns, spacing, aspect ratio)\n- Thumbnail size and alignment verification\n- Responsive grid behavior testing\n\n**IMPR-004 - Settings Panel Layout Verification (Lines 206-274):**\n- Capture Screenshot step (lines 256-258)\n- Full panel screenshot: test/screenshots/actual/impr-004-settings-full.png\n- Section-by-section screenshots for detailed comparison\n- Control layout verification (sampler dropdown, sliders, inputs)\n- Spacing measurements and scroll behavior testing\n\nAll UI layout tests include:\n- Detailed step-by-step screenshot capture instructions\n- Specific file naming conventions\n- Reference screenshot paths for comparison\n- Expected outcomes explicitly mentioning screenshot matching\n- Dimension measurement templates\n- Visual verification criteria\n\nThe manual_verification.md document is comprehensive and ready for use.",
+          "updated_at": "2026-01-26T05:15:00.000000+00:00"
         },
         {
           "id": "subtask-3-3",
