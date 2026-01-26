@@ -120,13 +120,18 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     GalleryStatistics statistics,
     AppLocalizations l10n,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 900;
+    final isDesktop = screenWidth >= 900;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isDesktop ? 24 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 总览统计卡片
-          _buildOverviewCards(theme, statistics, l10n),
+          _buildOverviewCards(theme, statistics, l10n, isMobile, isTablet, isDesktop),
         ],
       ),
     );
@@ -138,8 +143,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     GalleryStatistics statistics,
     AppLocalizations l10n,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 900;
+    final isDesktop = screenWidth >= 900;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isDesktop ? 24 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -150,9 +160,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               l10n.statistics_modelDistribution,
               Icons.category,
             ),
-            const SizedBox(height: 12),
-            _buildModelDistributionChart(theme, statistics, l10n),
-            const SizedBox(height: 24),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildModelDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            SizedBox(height: isDesktop ? 32 : 24),
           ],
 
           // 分辨率分布图表
@@ -162,9 +172,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               l10n.statistics_resolutionDistribution,
               Icons.aspect_ratio,
             ),
-            const SizedBox(height: 12),
-            _buildResolutionDistributionChart(theme, statistics, l10n),
-            const SizedBox(height: 24),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildResolutionDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            SizedBox(height: isDesktop ? 32 : 24),
           ],
 
           // 采样器分布图表
@@ -174,9 +184,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               l10n.statistics_samplerDistribution,
               Icons.tune,
             ),
-            const SizedBox(height: 12),
-            _buildSamplerDistributionChart(theme, statistics, l10n),
-            const SizedBox(height: 24),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildSamplerDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            SizedBox(height: isDesktop ? 32 : 24),
           ],
 
           // 文件大小分布图表
@@ -186,9 +196,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               l10n.statistics_sizeDistribution,
               Icons.storage,
             ),
-            const SizedBox(height: 12),
-            _buildSizeDistributionChart(theme, statistics, l10n),
-            const SizedBox(height: 24),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildSizeDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            SizedBox(height: isDesktop ? 32 : 24),
           ],
         ],
       ),
@@ -201,13 +211,16 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     GalleryStatistics statistics,
     AppLocalizations l10n,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 900;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isDesktop ? 24 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 其他统计
-          _buildAdditionalStats(theme, statistics, l10n),
+          _buildAdditionalStats(theme, statistics, l10n, isDesktop),
         ],
       ),
     );
@@ -248,11 +261,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ThemeData theme,
     GalleryStatistics stats,
     AppLocalizations l10n,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
   ) {
+    final cardPadding = EdgeInsets.all(isDesktop ? 20 : 16);
+    final spacing = isMobile ? 8.0 : 12.0;
+
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -262,54 +281,91 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    theme,
-                    Icons.photo_library,
-                    l10n.statistics_totalImages,
-                    '${stats.totalImages}',
-                    theme.colorScheme.primary,
+            SizedBox(height: isDesktop ? 20 : 16),
+            // Mobile: single column, Tablet/Desktop: 2 columns
+            if (isMobile) ...[
+              // Single column layout for mobile
+              _buildStatCard(
+                theme,
+                Icons.photo_library,
+                l10n.statistics_totalImages,
+                '${stats.totalImages}',
+                theme.colorScheme.primary,
+              ),
+              SizedBox(height: spacing),
+              _buildStatCard(
+                theme,
+                Icons.storage,
+                l10n.statistics_totalSize,
+                stats.totalSizeFormatted,
+                theme.colorScheme.secondary,
+              ),
+              SizedBox(height: spacing),
+              _buildStatCard(
+                theme,
+                Icons.favorite,
+                l10n.statistics_favorites,
+                '${stats.favoriteCount} (${stats.favoritePercentage.toStringAsFixed(1)}%)',
+                Colors.red,
+              ),
+              SizedBox(height: spacing),
+              _buildStatCard(
+                theme,
+                Icons.tag,
+                l10n.statistics_tagged,
+                '${stats.taggedImageCount} (${stats.taggedImagePercentage.toStringAsFixed(1)}%)',
+                Colors.green,
+              ),
+            ] else ...[
+              // Two column layout for tablet and desktop
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      theme,
+                      Icons.photo_library,
+                      l10n.statistics_totalImages,
+                      '${stats.totalImages}',
+                      theme.colorScheme.primary,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    theme,
-                    Icons.storage,
-                    l10n.statistics_totalSize,
-                    stats.totalSizeFormatted,
-                    theme.colorScheme.secondary,
+                  SizedBox(width: spacing),
+                  Expanded(
+                    child: _buildStatCard(
+                      theme,
+                      Icons.storage,
+                      l10n.statistics_totalSize,
+                      stats.totalSizeFormatted,
+                      theme.colorScheme.secondary,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    theme,
-                    Icons.favorite,
-                    l10n.statistics_favorites,
-                    '${stats.favoriteCount} (${stats.favoritePercentage.toStringAsFixed(1)}%)',
-                    Colors.red,
+                ],
+              ),
+              SizedBox(height: spacing),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      theme,
+                      Icons.favorite,
+                      l10n.statistics_favorites,
+                      '${stats.favoriteCount} (${stats.favoritePercentage.toStringAsFixed(1)}%)',
+                      Colors.red,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    theme,
-                    Icons.tag,
-                    l10n.statistics_tagged,
-                    '${stats.taggedImageCount} (${stats.taggedImagePercentage.toStringAsFixed(1)}%)',
-                    Colors.green,
+                  SizedBox(width: spacing),
+                  Expanded(
+                    child: _buildStatCard(
+                      theme,
+                      Icons.tag,
+                      l10n.statistics_tagged,
+                      '${stats.taggedImageCount} (${stats.taggedImagePercentage.toStringAsFixed(1)}%)',
+                      Colors.green,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -386,26 +442,29 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ThemeData theme,
     GalleryStatistics stats,
     AppLocalizations l10n,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
   ) {
     final distribution = stats.modelDistribution;
 
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
         child: Column(
           children: [
             SizedBox(
-              height: 200,
+              height: isDesktop ? 250 : (isTablet ? 220 : 180),
               child: PieChart(
                 PieChartData(
                   sectionsSpace: 2,
-                  centerSpaceRadius: 40,
+                  centerSpaceRadius: isMobile ? 30 : 40,
                   sections: _buildPieSections(distribution, theme),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isDesktop ? 20 : 16),
             Wrap(
               spacing: 12,
               runSpacing: 8,
@@ -431,18 +490,23 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ThemeData theme,
     GalleryStatistics stats,
     AppLocalizations l10n,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
   ) {
     final distribution = stats.resolutionDistribution;
+    final barHeight = isMobile ? 35.0 : 40.0;
+    final barWidth = isMobile ? 16.0 : 20.0;
 
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: distribution.length * 40.0,
+              height: distribution.length * barHeight,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -469,13 +533,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                             ),
                           );
                         },
-                        reservedSize: 80,
+                        reservedSize: isMobile ? 70 : 80,
                       ),
                     ),
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        reservedSize: isMobile ? 35 : 40,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max) {
                             return const SizedBox.shrink();
@@ -514,7 +578,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                         BarChartRodData(
                           toY: data.count.toDouble(),
                           color: _getColorForIndex(index),
-                          width: 20,
+                          width: barWidth,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(4),
                             topRight: Radius.circular(4),
@@ -537,26 +601,29 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ThemeData theme,
     GalleryStatistics stats,
     AppLocalizations l10n,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
   ) {
     final distribution = stats.samplerDistribution;
 
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
         child: Column(
           children: [
             SizedBox(
-              height: 200,
+              height: isDesktop ? 250 : (isTablet ? 220 : 180),
               child: PieChart(
                 PieChartData(
                   sectionsSpace: 2,
-                  centerSpaceRadius: 40,
+                  centerSpaceRadius: isMobile ? 30 : 40,
                   sections: _buildPieSectionsFromSamplers(distribution, theme),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isDesktop ? 20 : 16),
             Wrap(
               spacing: 12,
               runSpacing: 8,
@@ -582,18 +649,23 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ThemeData theme,
     GalleryStatistics stats,
     AppLocalizations l10n,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
   ) {
     final distribution = stats.sizeDistribution;
+    final barHeight = isMobile ? 35.0 : 40.0;
+    final barWidth = isMobile ? 16.0 : 20.0;
 
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: distribution.length * 40.0,
+              height: distribution.length * barHeight,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -620,13 +692,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                             ),
                           );
                         },
-                        reservedSize: 80,
+                        reservedSize: isMobile ? 70 : 80,
                       ),
                     ),
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        reservedSize: isMobile ? 35 : 40,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max) {
                             return const SizedBox.shrink();
@@ -665,7 +737,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                         BarChartRodData(
                           toY: data.count.toDouble(),
                           color: _getColorForIndex(index),
-                          width: 20,
+                          width: barWidth,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(4),
                             topRight: Radius.circular(4),
@@ -760,11 +832,12 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     ThemeData theme,
     GalleryStatistics stats,
     AppLocalizations l10n,
+    bool isDesktop,
   ) {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -774,19 +847,19 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isDesktop ? 20 : 16),
             _buildStatRow(
               theme,
               l10n.statistics_averageFileSize,
               stats.averageSizeFormatted,
             ),
-            const Divider(height: 24),
+            Divider(height: isDesktop ? 28 : 24),
             _buildStatRow(
               theme,
               l10n.statistics_withMetadata,
               '${stats.imagesWithMetadata} (${stats.metadataPercentage.toStringAsFixed(1)}%)',
             ),
-            const Divider(height: 24),
+            Divider(height: isDesktop ? 28 : 24),
             _buildStatRow(
               theme,
               l10n.statistics_calculatedAt,
