@@ -20,8 +20,16 @@ import '../models/prompt/tag_library.dart';
 import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
 import '../models/prompt/wordlist_entry.dart';
+import 'bracket_formatter.dart';
+import 'character_count_resolver.dart';
 import 'sequential_state_service.dart';
+import 'strategies/character_tag_generator.dart';
+import 'strategies/nai_style_generator_strategy.dart';
+import 'strategies/preset_generator_strategy.dart';
+import 'strategies/wordlist_generator_strategy.dart';
 import 'tag_library_service.dart';
+import 'variable_replacement_service.dart';
+import 'weighted_selector.dart';
 import 'wordlist_service.dart';
 
 part 'random_prompt_generator.g.dart';
@@ -36,6 +44,14 @@ class RandomPromptGenerator {
   final TagGroupCacheService _tagGroupCacheService;
   final PoolCacheService _poolCacheService;
   final WordlistService? _wordlistService;
+  final WeightedSelector _weightedSelector;
+  final BracketFormatter _bracketFormatter;
+  final CharacterCountResolver _characterCountResolver;
+  final VariableReplacementService _variableReplacementService;
+  final CharacterTagGenerator _characterTagGenerator;
+  final NaiStyleGeneratorStrategy _naiStyleGenerator;
+  final PresetGeneratorStrategy _presetGeneratorStrategy;
+  final WordlistGeneratorStrategy _wordlistGeneratorStrategy;
 
   RandomPromptGenerator(
     this._libraryService,
@@ -43,7 +59,14 @@ class RandomPromptGenerator {
     this._tagGroupCacheService,
     this._poolCacheService, [
     this._wordlistService,
-  ]);
+  ]) : _weightedSelector = WeightedSelector(),
+       _bracketFormatter = BracketFormatter(),
+       _characterCountResolver = CharacterCountResolver(),
+       _variableReplacementService = VariableReplacementService(),
+       _characterTagGenerator = CharacterTagGenerator(),
+       _naiStyleGenerator = NaiStyleGeneratorStrategy(),
+       _presetGeneratorStrategy = PresetGeneratorStrategy(),
+       _wordlistGeneratorStrategy = WordlistGeneratorStrategy();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -58,24 +81,6 @@ class RandomPromptGenerator {
     );
   }
 
-  /// 角色数量权重分布（来自 NAI 官网）
-  /// [[1,70], [2,20], [3,7], [0,5]]
-  static const List<List<int>> characterCountWeights = [
-    [1, 70], // 1人 70%
-    [2, 20], // 2人 20%
-    [3, 7], // 3人 7%
-    [0, 5], // 无人 5%
-  ];
-
-  /// Furry 性别权重分布（预留，当前未使用）
-  /// [["m",45], ["f",45], ["o",10]]
-  // ignore: unused_field
-  static const List<List<dynamic>> furryGenderWeights = [
-    ['m', 45], // 男性 45%
-    ['f', 45], // 女性 45%
-    ['o', 10], // 其他 10%
-  ];
-
   /// 加权随机选择算法（复刻官网 ty 函数）
   ///
   /// [tags] 标签列表
@@ -86,63 +91,21 @@ class RandomPromptGenerator {
     List<String>? context,
     Random? random,
   }) {
-    if (tags.isEmpty) {
-      throw ArgumentError('Tags list cannot be empty');
-    }
-
-    random ??= Random();
-
-    // 1. 过滤符合条件的标签
-    final filtered = tags.where((t) {
-      if (t.conditions == null || t.conditions!.isEmpty) return true;
-      return t.conditions!.any((c) => context?.contains(c) ?? false);
-    }).toList();
-
-    if (filtered.isEmpty) {
-      // 如果没有符合条件的标签，返回第一个标签
-      return tags.first.tag;
-    }
-
-    // 2. 计算总权重
-    final totalWeight = filtered.fold<int>(0, (sum, t) => sum + t.weight);
-
-    // 3. 生成 [1, totalWeight] 范围内的随机数
-    final target = random.nextInt(totalWeight) + 1;
-
-    // 4. 累加权重直到超过随机数
-    var cumulative = 0;
-    for (final tag in filtered) {
-      cumulative += tag.weight;
-      if (target <= cumulative) {
-        return tag.tag;
-      }
-    }
-
-    // 不应该到达这里
-    return filtered.last.tag;
+    return _weightedSelector.select(
+      tags,
+      context: context,
+      random: random,
+    );
   }
 
   /// 从整数权重列表中选择（用于角色数量等）
   int getWeightedChoiceInt(List<List<int>> weights, {Random? random}) {
-    random ??= Random();
-
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1]);
-    final target = random.nextInt(totalWeight) + 1;
-
-    var cumulative = 0;
-    for (final w in weights) {
-      cumulative += w[1];
-      if (target <= cumulative) {
-        return w[0];
-      }
-    }
-
-    return weights.last[0];
+    return _weightedSelector.selectInt(weights, random: random);
   }
 
   /// 决定角色数量
   int determineCharacterCount({Random? random}) {
-    return getWeightedChoiceInt(characterCountWeights, random: random);
+    return _characterCountResolver.determineCharacterCount(random: random);
   }
 
   /// 生成官网模式随机提示词
@@ -163,39 +126,13 @@ class RandomPromptGenerator {
       'RandomGen',
     );
 
-    // 决定角色数量
-    final characterCount = determineCharacterCount(random: random);
-
-    AppLogger.d('Character count: $characterCount', 'RandomGen');
-
-    if (characterCount == 0) {
-      // 无人物场景
-      return _generateNoHumanPrompt(
-        library,
-        random,
-        seed,
-        categoryFilterConfig,
-      );
-    }
-
-    if (!isV4Model) {
-      // 传统模式：生成合并的单提示词
-      return _generateLegacyPrompt(
-        library,
-        random,
-        characterCount,
-        seed,
-        categoryFilterConfig,
-      );
-    }
-
-    // V4+ 模式：生成主提示词 + 角色提示词
-    return _generateMultiCharacterPrompt(
-      library,
-      random,
-      characterCount,
-      seed,
-      categoryFilterConfig,
+    // 使用 NaiStyleGeneratorStrategy 生成提示词
+    return _naiStyleGenerator.generate(
+      library: library,
+      random: random,
+      filterConfig: categoryFilterConfig,
+      seed: seed,
+      isV4Model: isV4Model,
     );
   }
 
@@ -482,57 +419,52 @@ class RandomPromptGenerator {
     CharacterGender gender,
     CategoryFilterConfig filterConfig,
   ) {
-    final tags = <String>[];
+    // 准备类别标签映射
+    final categoryTags = <TagSubCategory, List<WeightedTag>>{};
 
-    // 发色（80%）
-    if (random.nextDouble() < 0.8) {
-      final hairColors =
-          _getFilteredCategory(library, TagSubCategory.hairColor, filterConfig);
-      if (hairColors.isNotEmpty) {
-        tags.add(getWeightedChoice(hairColors, random: random));
-      }
+    // 发色
+    final hairColors =
+        _getFilteredCategory(library, TagSubCategory.hairColor, filterConfig);
+    if (hairColors.isNotEmpty) {
+      categoryTags[TagSubCategory.hairColor] = hairColors;
     }
 
-    // 瞳色（80%）
-    if (random.nextDouble() < 0.8) {
-      final eyeColors =
-          _getFilteredCategory(library, TagSubCategory.eyeColor, filterConfig);
-      if (eyeColors.isNotEmpty) {
-        tags.add(getWeightedChoice(eyeColors, random: random));
-      }
+    // 瞳色
+    final eyeColors =
+        _getFilteredCategory(library, TagSubCategory.eyeColor, filterConfig);
+    if (eyeColors.isNotEmpty) {
+      categoryTags[TagSubCategory.eyeColor] = eyeColors;
     }
 
-    // 发型（50%）
-    if (random.nextDouble() < 0.5) {
-      final hairStyles =
-          _getFilteredCategory(library, TagSubCategory.hairStyle, filterConfig);
-      if (hairStyles.isNotEmpty) {
-        tags.add(getWeightedChoice(hairStyles, random: random));
-      }
+    // 发型
+    final hairStyles =
+        _getFilteredCategory(library, TagSubCategory.hairStyle, filterConfig);
+    if (hairStyles.isNotEmpty) {
+      categoryTags[TagSubCategory.hairStyle] = hairStyles;
     }
 
-    // 表情（60%）
-    if (random.nextDouble() < 0.6) {
-      final expressions = _getFilteredCategory(
-        library,
-        TagSubCategory.expression,
-        filterConfig,
-      );
-      if (expressions.isNotEmpty) {
-        tags.add(getWeightedChoice(expressions, random: random));
-      }
+    // 表情
+    final expressions = _getFilteredCategory(
+      library,
+      TagSubCategory.expression,
+      filterConfig,
+    );
+    if (expressions.isNotEmpty) {
+      categoryTags[TagSubCategory.expression] = expressions;
     }
 
-    // 姿势（50%）
-    if (random.nextDouble() < 0.5) {
-      final poses =
-          _getFilteredCategory(library, TagSubCategory.pose, filterConfig);
-      if (poses.isNotEmpty) {
-        tags.add(getWeightedChoice(poses, random: random));
-      }
+    // 姿势
+    final poses =
+        _getFilteredCategory(library, TagSubCategory.pose, filterConfig);
+    if (poses.isNotEmpty) {
+      categoryTags[TagSubCategory.pose] = poses;
     }
 
-    return tags;
+    // 使用 CharacterTagGenerator 生成标签
+    return _characterTagGenerator.generate(
+      categoryTags: categoryTags,
+      random: random,
+    );
   }
 
   /// 获取人数标签
@@ -566,32 +498,7 @@ class RandomPromptGenerator {
   /// - 更多同性: "multiple girls" 或 "multiple boys"
   /// - 混合多人: "group"
   String _getCountTagForCharacters(List<CharacterGender> genders) {
-    if (genders.isEmpty) return 'no humans';
-    if (genders.length == 1) return 'solo';
-
-    final femaleCount =
-        genders.where((g) => g == CharacterGender.female).length;
-    final maleCount = genders.where((g) => g == CharacterGender.male).length;
-
-    // 2人组合
-    if (genders.length == 2) {
-      if (femaleCount == 2) return '2girls';
-      if (maleCount == 2) return '2boys';
-      if (femaleCount == 1 && maleCount == 1) return '1girl, 1boy';
-    }
-
-    // 3人组合
-    if (genders.length == 3) {
-      if (femaleCount == 3) return '3girls';
-      if (maleCount == 3) return '3boys';
-      if (femaleCount == 2 && maleCount == 1) return '2girls, 1boy';
-      if (femaleCount == 1 && maleCount == 2) return '1girl, 2boys';
-    }
-
-    // 更多角色
-    if (femaleCount > 0 && maleCount == 0) return 'multiple girls';
-    if (maleCount > 0 && femaleCount == 0) return 'multiple boys';
-    return 'group';
+    return _characterCountResolver.getCountTag(genders);
   }
 
   /// 使用自定义预设生成（包装现有功能）
@@ -1216,82 +1123,48 @@ class RandomPromptGenerator {
     int bracketMax,
     Random random,
   ) {
-    if (bracketMin == 0 && bracketMax == 0) return tag;
-
-    // 确保 min <= max
-    final min = bracketMin <= bracketMax ? bracketMin : bracketMax;
-    final max = bracketMin <= bracketMax ? bracketMax : bracketMin;
-
-    // 随机选择层数
-    final n = min + random.nextInt(max - min + 1);
-
-    if (n == 0) return tag;
-
-    // 负数用 []（降权），正数用 {}（增强）
-    if (n < 0) {
-      final count = -n;
-      final open = '[' * count;
-      final close = ']' * count;
-      return '$open$tag$close';
-    } else {
-      final open = '{' * n;
-      final close = '}' * n;
-      return '$open$tag$close';
-    }
+    return _bracketFormatter.applyBrackets(
+      tag,
+      bracketMin,
+      bracketMax,
+      random: random,
+    );
   }
 
-  // ========== 变量替换系统（Phase 4） ==========
+  // ========== 变量替换系统 ==========
 
-  /// 变量引用正则：__变量名__
-  static final RegExp _variablePattern = RegExp(
-    r'__([^\s_][^_]*?)__',
-    unicode: true,
-  );
-
-  /// 替换变量引用
+  /// 创建变量解析器
   ///
-  /// 支持格式：__变量名__
-  /// 会在预设的类别和词组中查找匹配项并生成内容
-  Future<String> _replaceVariables(
-    String text,
+  /// 为 VariableReplacementService 创建解析器函数
+  /// 该解析器会在预设的类别和词组中查找变量名
+  Future<String?> _createVariableResolver(
     RandomPreset preset,
     Random random,
+    String varName,
   ) async {
-    if (!text.contains('__')) return text;
-
-    // 由于 replaceAllMapped 不支持 async，需要手动处理
-    var result = text;
-    final matches = _variablePattern.allMatches(text).toList();
-
-    for (final match in matches.reversed) {
-      final varName = match.group(1)!;
-      String? replacement;
-
-      // 1. 在类别中查找匹配（按名称或 key）
-      for (final category in preset.categories) {
-        if (category.name == varName || category.key == varName) {
-          final generated = await _generateFromCategory(category, random);
-          replacement = generated.join(', ');
-          break;
-        }
-
-        // 2. 在词组中查找匹配
-        for (final group in category.groups) {
-          if (group.name == varName) {
-            final generated = await _generateFromGroup(group, category, random);
-            replacement = generated.join(', ');
-            break;
-          }
-        }
-        if (replacement != null) break;
+    // 在类别中查找匹配（按名称或 key）
+    for (final category in preset.categories) {
+      // 检查类别本身
+      if (category.name == varName || category.key == varName) {
+        final generated = await _generateFromCategory(category, random);
+        return generated.join(', ');
       }
 
-      // 未找到匹配，保持原样
-      replacement ??= match.group(0)!;
-      result = result.replaceRange(match.start, match.end, replacement);
+      // 在词组中查找匹配
+      for (final group in category.groups) {
+        if (group.name == varName) {
+          final generated = await _generateFromGroup(
+            group,
+            category,
+            random,
+          );
+          return generated.join(', ');
+        }
+      }
     }
 
-    return result;
+    // 未找到匹配，返回 null 保持原样
+    return null;
   }
 
   /// 对生成结果进行变量替换
@@ -1300,11 +1173,11 @@ class RandomPromptGenerator {
     RandomPreset preset,
     Random random,
   ) async {
-    final results = <String>[];
-    for (final tag in tags) {
-      results.add(await _replaceVariables(tag, preset, random));
-    }
-    return results;
+    // 使用 VariableReplacementService 批量替换
+    return _variableReplacementService.replaceListAsync(
+      tags,
+      (varName) => _createVariableResolver(preset, random, varName),
+    );
   }
 
   // ========== 从缓存获取标签（用于同步类型的组） ==========
@@ -1499,21 +1372,13 @@ class RandomPromptGenerator {
   ) {
     final weights = config.characterCountWeights;
     if (weights.isEmpty) {
-      return getWeightedChoiceInt(characterCountWeights, random: random);
+      return _characterCountResolver.determineCharacterCount(random: random);
     }
 
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w[1]);
-    final target = random.nextInt(totalWeight) + 1;
-
-    var cumulative = 0;
-    for (final w in weights) {
-      cumulative += w[1];
-      if (target <= cumulative) {
-        return w[0];
-      }
-    }
-
-    return weights.last[0];
+    return _characterCountResolver.determineCharacterCountFromWeights(
+      weights,
+      random: random,
+    );
   }
 
   /// 从词库按变量和分类选择标签
@@ -1532,17 +1397,12 @@ class RandomPromptGenerator {
 
     if (entries.isEmpty) return null;
 
-    // 应用 exclude/require 规则
-    final filtered = _applyWordlistRules(entries, context);
-    if (filtered.isEmpty) return null;
-
-    // 加权随机选择
-    final selected = _wordlistService.weightedRandomSelect(
-      filtered,
-      () => random.nextInt(1 << 30),
+    // 使用 WordlistGeneratorStrategy 进行选择（包含规则应用和加权随机选择）
+    return _wordlistGeneratorStrategy.select(
+      entries: entries,
+      random: random,
+      context: context,
     );
-
-    return selected?.tag;
   }
 
   /// 应用词库条目的 exclude/require 规则
@@ -1839,28 +1699,17 @@ class RandomPromptGenerator {
     int bracketCount,
     Random random,
   ) {
-    if (probability <= 0 || bracketCount <= 0) return tags;
-
-    return tags.map((tag) {
-      if (random.nextDouble() < probability) {
-        final openBrackets = '{' * bracketCount;
-        final closeBrackets = '}' * bracketCount;
-        return '$openBrackets$tag$closeBrackets';
-      }
-      return tag;
-    }).toList();
+    return _bracketFormatter.applyEmphasis(
+      tags,
+      probability: probability,
+      bracketCount: bracketCount,
+      random: random,
+    );
   }
 
   /// 从字符串转换性别枚举
   CharacterGender _genderFromString(String gender) {
-    switch (gender.toLowerCase()) {
-      case 'male':
-        return CharacterGender.male;
-      case 'other':
-        return CharacterGender.other;
-      default:
-        return CharacterGender.female;
-    }
+    return _characterCountResolver.genderFromString(gender);
   }
 }
 
