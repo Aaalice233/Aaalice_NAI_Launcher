@@ -3,7 +3,7 @@
   "workflow_type": "feature",
   "workflow_rationale": "Multi-component feature involving new collection system, bulk operations service, UI widgets, and undo/redo integration. Feature workflow phases follow dependency order: data layer first, then UI, then integration.",
   "created_at": "2026-01-26T07:40:00Z",
-  "updated_at": "2026-01-26T19:15:00.000Z",
+  "updated_at": "2026-01-26T10:41:29.070Z",
   "status": "in_progress",
   "phases": [
     {
@@ -368,7 +368,9 @@
             "type": "manual",
             "instructions": "Select 5 images, add to collection, verify collection contains images"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Implemented bulk add to collection with collection selection dialog:\n- Added imports for collection_provider.dart and collection_select_dialog.dart\n- Created _addSelectedToCollection() method that:\n  - Gets selected images from selection and gallery states\n  - Shows CollectionSelectDialog for user to choose target collection\n  - Adds selected images to chosen collection via collectionNotifierProvider\n  - Shows success/failure feedback with SnackBar displaying count and collection name\n  - Exits selection mode on successful operation\n  - Proper error handling with mounted checks\n- Fixed BulkActionBar callback from _addSelectedToQueue to _addSelectedToCollection\n\nFeatures:\n- Collection selection dialog with search/filter functionality\n- Shows collection name and image count\n- Empty state handling (no collections available)\n- Success message: \"已添加 X 张图片到集合「CollectionName」\"\n- Error message: \"添加图片到集合失败\"\n- Auto-exit selection mode after successful operation\n\nCode quality:\n- Follows existing code patterns from _addSelectedToQueue and _deleteSelectedImages\n- Uses async/await properly\n- No console.log/print statements\n- All Flutter analyzer checks pass with no errors\n- Bilingual comments (Chinese and English)\n- Proper error handling with mounted checks\n\nReady for manual verification: Select 5 images, add to collection, verify collection contains images",
+          "updated_at": "2026-01-26T19:30:00.000Z"
         },
         {
           "id": "subtask-4-6",

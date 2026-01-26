@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -20,6 +21,7 @@ import '../../providers/local_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../providers/collection_provider.dart';
+import '../../providers/bulk_operation_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
@@ -46,6 +48,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   final GlobalKey<GroupedGridViewState> _groupedGridViewKey =
       GlobalKey<GroupedGridViewState>();
 
+  /// Focus node for keyboard shortcuts
+  /// 用于键盘快捷键的焦点节点
+  final FocusNode _shortcutsFocusNode = FocusNode();
+
   /// 宽高比缓存
   /// Aspect ratio cache for storing calculated aspect ratios
   final Map<String, double> _aspectRatioCache = {};
@@ -64,6 +70,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   void dispose() {
     _searchController.dispose();
     _debounceTimer?.cancel();
+    _shortcutsFocusNode.dispose();
     super.dispose();
   }
 
@@ -261,6 +268,46 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           SnackBar(content: Text('恢复失败: $e')),
         );
       }
+    }
+  }
+
+  /// 撤销上一步操作
+  /// Undo last operation
+  Future<void> _undo() async {
+    final notifier = ref.read(bulkOperationNotifierProvider.notifier);
+    await notifier.undo();
+
+    // 刷新画廊以显示撤销后的状态
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+    // 显示撤销成功提示
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已撤销'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 重做上一步撤销的操作
+  /// Redo last undone operation
+  Future<void> _redo() async {
+    final notifier = ref.read(bulkOperationNotifierProvider.notifier);
+    await notifier.redo();
+
+    // 刷新画廊以显示重做后的状态
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+    // 显示重做成功提示
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已重做'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -580,6 +627,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(localGalleryNotifierProvider);
+    final bulkOpState = ref.watch(bulkOperationNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
@@ -587,38 +635,71 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final columns = (screenWidth / 200).floor().clamp(2, 8);
     final itemWidth = screenWidth / columns;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // 顶部工具栏
-          _buildToolbar(theme, state),
-          // 主体内容
-          Expanded(
-            child: state.error != null
-                ? _buildErrorState(theme, state)
-                : state.isIndexing
-                    ? _buildIndexingState()
-                    : state.allFiles.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildContent(theme, state, columns, itemWidth),
-          ),
-          // 底部分页条
-          if (!state.isIndexing &&
-              state.filteredFiles.isNotEmpty &&
-              state.totalPages > 1)
-            PaginationBar(
-              currentPage: state.currentPage,
-              totalPages: state.totalPages,
-              onPageChanged: (p) =>
-                  ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
+    return KeyboardListener(
+      focusNode: _shortcutsFocusNode,
+      autofocus: true,
+      onKeyEvent: (event) {
+        // Handle keyboard shortcuts for undo/redo
+        // 处理撤销/重做的键盘快捷键
+        if (event is KeyDownEvent) {
+          final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+
+          if (isCtrlPressed) {
+            // Ctrl+Z for undo
+            if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+              if (bulkOpState.canUndo) {
+                _undo();
+              }
+            }
+            // Ctrl+Y for redo
+            else if (event.logicalKey == LogicalKeyboardKey.keyY) {
+              if (bulkOpState.canRedo) {
+                _redo();
+              }
+            }
+            // Ctrl+Shift+Z for redo
+            else if (event.logicalKey == LogicalKeyboardKey.keyZ &&
+                HardwareKeyboard.instance.isShiftPressed) {
+              if (bulkOpState.canRedo) {
+                _redo();
+              }
+            }
+          }
+        }
+      },
+      child: Scaffold(
+        body: Column(
+          children: [
+            // 顶部工具栏
+            _buildToolbar(theme, state, bulkOpState),
+            // 主体内容
+            Expanded(
+              child: state.error != null
+                  ? _buildErrorState(theme, state)
+                  : state.isIndexing
+                      ? _buildIndexingState()
+                      : state.allFiles.isEmpty
+                          ? _buildEmptyState(context)
+                          : _buildContent(theme, state, columns, itemWidth),
             ),
-        ],
+            // 底部分页条
+            if (!state.isIndexing &&
+                state.filteredFiles.isNotEmpty &&
+                state.totalPages > 1)
+              PaginationBar(
+                currentPage: state.currentPage,
+                totalPages: state.totalPages,
+                onPageChanged: (p) =>
+                    ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   /// 构建顶部工具栏
-  Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
+  Widget _buildToolbar(ThemeData theme, LocalGalleryState state, BulkOperationState bulkOpState) {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -696,6 +777,29 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                       ),
                     ),
                   const Spacer(),
+                  // 撤销/重做按钮组
+                  if (bulkOpState.canUndo || bulkOpState.canRedo) ...[
+                    // 撤销按钮
+                    _RoundedIconButton(
+                      icon: Icons.undo,
+                      tooltip: '撤销 (Ctrl+Z)',
+                      onPressed: bulkOpState.canUndo ? _undo : null,
+                      color: bulkOpState.canUndo
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    ),
+                    const SizedBox(width: 4),
+                    // 重做按钮
+                    _RoundedIconButton(
+                      icon: Icons.redo,
+                      tooltip: '重做 (Ctrl+Y)',
+                      onPressed: bulkOpState.canRedo ? _redo : null,
+                      color: bulkOpState.canRedo
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   // 多选模式切换
                   _RoundedIconButton(
                     icon: Icons.checklist,
