@@ -370,10 +370,6 @@
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
   "prompt_sdSyntaxAutoConvertSubtitle": "Convert SD weight syntax to NAI format on blur",
   "prompt_formatted": "Formatted",
-  "prompt_textMode": "Text",
-  "prompt_tagMode": "Tags",
-  "prompt_switchToTagView": "Switch to Tag View",
-  "prompt_switchToTextView": "Switch to Text View",
 
   "image_save": "Save",
   "image_copy": "Copy",
@@ -1327,8 +1323,6 @@
   },
   "characterEditor_clickToEdit": "Click to edit multi-character prompts",
 
-  "toolbar_switchToTextView": "Switch to Text View",
-  "toolbar_switchToTagView": "Switch to Tag View",
   "toolbar_randomPrompt": "Random Prompt",
   "toolbar_fullscreenEdit": "Fullscreen Edit",
   "toolbar_clear": "Clear",
