@@ -965,9 +965,25 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         buildSelected: (path) => selectionState.selectedIds.contains(path),
         buildCard: (record) {
           final isSelected = selectionState.selectedIds.contains(record.path);
+
+          // Get or calculate aspect ratio for grouped view
+          double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
+
+          // Calculate and cache aspect ratio asynchronously if not cached
+          if (!_aspectRatioCache.containsKey(record.path)) {
+            _calculateAspectRatio(record).then((value) {
+              if (mounted && value != aspectRatio) {
+                setState(() {
+                  _aspectRatioCache[record.path] = value;
+                });
+              }
+            });
+          }
+
           return LocalImageCard(
             record: record,
             itemWidth: itemWidth,
+            aspectRatio: aspectRatio,
             selectionMode: selectionState.isActive,
             isSelected: isSelected,
             onSelectionToggle: () {
