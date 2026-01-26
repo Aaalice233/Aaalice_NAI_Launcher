@@ -659,6 +659,122 @@ body {
     color: var(--color-text-primary);
 }
 
+.file-header {
+    background: var(--color-bg-tertiary);
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.file-header:hover {
+    background: var(--color-border);
+}
+
+.file-name {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.file-stats {
+    display: flex;
+    gap: var(--spacing-md);
+    font-size: 0.875rem;
+}
+
+.file-details {
+    padding: var(--spacing-md);
+    max-height: 600px;
+    overflow-y: auto;
+    display: none;
+}
+
+.file-details.expanded {
+    display: block;
+}
+
+.test-result {
+    display: flex;
+    align-items: flex-start;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.test-result:hover {
+    background: var(--color-bg-tertiary);
+    transform: translateX(2px);
+}
+
+.test-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: var(--spacing-sm);
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.test-status.success {
+    background: var(--color-pass);
+}
+
+.test-status.error,
+.test-status.failure {
+    background: var(--color-fail);
+}
+
+.test-status.skipped {
+    background: var(--color-skip);
+}
+
+.test-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.test-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    word-break: break-word;
+}
+
+.test-bug-id {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-info);
+    margin-bottom: var(--spacing-xs);
+}
+
+.test-duration {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.test-error {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--color-fail-bg);
+    border-left: 3px solid var(--color-fail-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--color-fail);
+    font-family: 'Courier New', monospace;
+    overflow-x: auto;
+}
+
 /* ============================================
    Evidence Collection
    ============================================ */
@@ -881,6 +997,67 @@ body {
     border-left-color: var(--color-border);
 }
 
+.regression-item.new-test {
+    background: var(--color-info-bg);
+    border-left-color: var(--color-info);
+}
+
+/* Regression badges for individual tests */
+.regression-badge,
+.new-test-badge,
+.fixed-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    margin-left: var(--spacing-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.regression-badge {
+    background: var(--color-fail);
+    color: white;
+    animation: pulse-badge 2s infinite;
+}
+
+.new-test-badge {
+    background: var(--color-info);
+    color: white;
+}
+
+.fixed-badge {
+    background: var(--color-pass);
+    color: white;
+}
+
+@keyframes pulse-badge {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Test result row with regression status */
+.test-result.regression {
+    background: var(--color-fail-bg);
+    border-left: 3px solid var(--color-fail-border);
+}
+
+.test-result.new-test {
+    background: var(--color-info-bg);
+    border-left: 3px solid var(--color-info);
+}
+
+.test-result.fixed {
+    background: var(--color-pass-bg);
+    border-left: 3px solid var(--color-pass-border);
+}
+
 /* ============================================
    Coverage Report
    ============================================ */
@@ -926,6 +1103,104 @@ body {
     height: 100%;
     background: linear-gradient(90deg, var(--color-info) 0%, var(--color-pass) 100%);
     transition: width 0.5s ease-out;
+}
+
+.coverage-fill.high {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.coverage-fill.medium {
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.coverage-fill.low {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+.coverage-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-sm);
+}
+
+.coverage-files-toggle {
+    margin-top: var(--spacing-md);
+}
+
+.toggle-btn {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toggle-btn:hover {
+    background: var(--color-bg-primary);
+    border-color: var(--color-info);
+}
+
+.coverage-files-list {
+    margin-top: var(--spacing-md);
+    max-height: 300px;
+    overflow-y: auto;
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--spacing-md);
+}
+
+.coverage-file-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--spacing-sm);
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--color-bg-tertiary);
+}
+
+.coverage-file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    font-size: 0.75rem;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-percentage {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    text-align: right;
+}
+
+.file-percentage.high {
+    background: var(--color-pass-bg);
+    color: var(--color-pass);
+}
+
+.file-percentage.medium {
+    background: var(--color-skip-bg);
+    color: var(--color-skip);
+}
+
+.file-percentage.low {
+    background: var(--color-fail-bg);
+    color: var(--color-fail);
+}
+
+.file-details {
+    font-size: 0.625rem;
+    color: var(--color-text-secondary);
 }
 
 .coverage-message {

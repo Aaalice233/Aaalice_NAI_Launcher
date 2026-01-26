@@ -6,6 +6,7 @@
 // Global state
 let testData = null;
 let previousTestData = null;
+let coverageData = null;
 let filteredTests = [];
 let currentFilters = {
     status: 'all',
@@ -56,8 +57,19 @@ async function loadTestData() {
                 previousTestData = await prevResponse.json();
             }
         } catch (e) {
-            // Previous results not available, that's okay
-            console.log('No previous test results available for regression detection');
+            // Previous results not available, regression detection will be disabled
+            // This is expected for first run or when summary_previous.json doesn't exist
+        }
+
+        // Try to load coverage data
+        try {
+            const coverageResponse = await fetch('../coverage.json');
+            if (coverageResponse.ok) {
+                coverageData = await coverageResponse.json();
+            }
+        } catch (e) {
+            // Coverage data not available, will show N/A in dashboard
+            // This is expected when tests are run without --coverage flag
         }
 
     } catch (error) {
@@ -333,6 +345,40 @@ function renderBugTests() {
 }
 
 /**
+ * Get regression status for a test
+ * @param {Object} test - Current test object
+ * @returns {Object} - Regression status {isRegression, isNew, isFixed, previousStatus}
+ */
+function getRegressionStatus(test) {
+    if (!previousTestData || !previousTestData.resultsByFile) {
+        return { isRegression: false, isNew: false, isFixed: false, previousStatus: null };
+    }
+
+    // Find previous test with same name
+    let previousStatus = null;
+    for (const fileResult of previousTestData.resultsByFile) {
+        const prevTest = fileResult.tests.find(t => t.name === test.name);
+        if (prevTest) {
+            previousStatus = prevTest.status;
+            break;
+        }
+    }
+
+    // Test is new if it didn't exist before
+    if (!previousStatus) {
+        return { isRegression: false, isNew: true, isFixed: false, previousStatus: null };
+    }
+
+    // Test is a regression if it passed before but fails now
+    const isRegression = (previousStatus === 'success') && (test.status === 'error' || test.status === 'failure');
+
+    // Test is fixed if it failed before but passes now
+    const isFixed = (previousStatus === 'error' || previousStatus === 'failure') && (test.status === 'success');
+
+    return { isRegression, isNew: false, isFixed, previousStatus };
+}
+
+/**
  * Render detailed test results
  */
 function renderDetailedResults() {
@@ -366,17 +412,26 @@ function renderDetailedResults() {
                     </div>
                 </div>
                 <div class="file-details" id="details-${fileResult.file.replace(/[^a-zA-Z0-9]/g, '-')}">
-                    ${fileResult.tests.map(test => `
-                        <div class="test-result ${test.status}" onclick="showTestDetails('${encodeURIComponent(JSON.stringify(test))}', '${fileResult.file}')">
+                    ${fileResult.tests.map(test => {
+                        const regression = getRegressionStatus(test);
+                        return `
+                        <div class="test-result ${test.status} ${regression.isRegression ? 'regression' : ''} ${regression.isNew ? 'new-test' : ''} ${regression.isFixed ? 'fixed' : ''}"
+                             onclick="showTestDetails('${encodeURIComponent(JSON.stringify(test))}', '${fileResult.file}')">
                             <div class="test-status ${test.status}"></div>
                             <div class="test-info">
-                                <div class="test-name">${test.name}</div>
+                                <div class="test-name">
+                                    ${escapeHtml(test.name)}
+                                    ${regression.isRegression ? '<span class="regression-badge" title="This test passed in the previous run but failed now">NEW FAILURE</span>' : ''}
+                                    ${regression.isNew ? '<span class="new-test-badge" title="This test is new">NEW</span>' : ''}
+                                    ${regression.isFixed ? '<span class="fixed-badge" title="This test failed in the previous run but passed now">FIXED</span>' : ''}
+                                </div>
                                 ${test.bugId ? `<div class="test-bug-id">${test.bugId}</div>` : ''}
                                 ${test.duration ? `<div class="test-duration">${test.duration}ms</div>` : ''}
                             </div>
                             ${test.error ? `<div class="test-error">${test.error}</div>` : ''}
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -407,6 +462,9 @@ function showTestDetails(testJson, fileName) {
 
         modalTitle.textContent = test.name;
 
+        // Get regression status
+        const regression = getRegressionStatus(test);
+
         let html = `
             <div class="test-detail-section">
                 <h3>Test Information</h3>
@@ -414,6 +472,9 @@ function showTestDetails(testJson, fileName) {
                     <tr><th>File:</th><td>${fileName}</td></tr>
                     ${test.bugId ? `<tr><th>BUG ID:</th><td>${test.bugId}</td></tr>` : ''}
                     <tr><th>Status:</th><td><span class="status-badge ${test.status}">${test.status.toUpperCase()}</span></td></tr>
+                    ${regression.isRegression ? `<tr><th>⚠️ Regression:</th><td><span class="regression-badge">NEW FAILURE</span> - Previously passed as ${regression.previousStatus}</td></tr>` : ''}
+                    ${regression.isNew ? `<tr><th>🆕 New Test:</th><td><span class="new-test-badge">NEW</span> - This test did not exist in the previous run</td></tr>` : ''}
+                    ${regression.isFixed ? `<tr><th>✅ Fixed:</th><td><span class="fixed-badge">FIXED</span> - Previously failed as ${regression.previousStatus}</td></tr>` : ''}
                     ${test.duration ? `<tr><th>Duration:</th><td>${test.duration}ms</td></tr>` : ''}
                     ${test.startTime ? `<tr><th>Start Time:</th><td>${new Date(test.startTime).toLocaleString()}</td></tr>` : ''}
                 </table>
@@ -715,10 +776,109 @@ function renderRegressionDetection() {
  * Update coverage report
  */
 function updateCoverageReport() {
-    // Placeholder - coverage data would come from coverage/lcov.info
-    // In real implementation, parse lcov.info and calculate coverage
-    document.getElementById('overall-coverage').textContent = 'N/A';
-    document.getElementById('overall-coverage-bar').style.width = '0%';
+    const overallCoverageElement = document.getElementById('overall-coverage');
+    const overallCoverageBarElement = document.getElementById('overall-coverage-bar');
+    const coverageGrid = document.getElementById('coverage-grid');
+
+    if (!coverageData || !coverageData.modules) {
+        overallCoverageElement.textContent = 'N/A';
+        overallCoverageBarElement.style.width = '0%';
+        coverageGrid.innerHTML = `
+            <div class="coverage-card">
+                <h3>Overall Coverage</h3>
+                <div class="coverage-percentage" id="overall-coverage">N/A</div>
+                <div class="coverage-bar">
+                    <div class="coverage-fill" id="overall-coverage-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="coverage-message">
+                <p>Code coverage data will be available when running tests with the <code>--coverage</code> flag:</p>
+                <pre>flutter test --coverage</pre>
+                <p>Coverage report will be generated in: <code>coverage/lcov.info</code></p>
+                <p>Then run the coverage processor to generate the JSON report:</p>
+                <pre>dart run tool/coverage_processor.dart</pre>
+            </div>
+        `;
+        return;
+    }
+
+    // Update overall coverage
+    const overallPercentage = coverageData.percentage || 0;
+    overallCoverageElement.textContent = `${overallPercentage.toFixed(1)}%`;
+    overallCoverageBarElement.style.width = `${overallPercentage}%`;
+
+    // Set color based on coverage percentage
+    const coverageClass = overallPercentage >= 80 ? 'high' : overallPercentage >= 50 ? 'medium' : 'low';
+    overallCoverageBarElement.className = `coverage-fill ${coverageClass}`;
+
+    // Generate module coverage cards
+    let modulesHtml = `
+        <div class="coverage-card">
+            <h3>Overall Coverage</h3>
+            <div class="coverage-percentage" id="overall-coverage">${overallPercentage.toFixed(1)}%</div>
+            <div class="coverage-bar">
+                <div class="coverage-fill ${coverageClass}" id="overall-coverage-bar" style="width: ${overallPercentage}%"></div>
+            </div>
+            <div class="coverage-details">
+                <span>${coverageData.totalLinesHit}/${coverageData.totalLinesFound} lines covered</span>
+            </div>
+        </div>
+    `;
+
+    // Add module coverage cards
+    for (const module of coverageData.modules) {
+        const modulePercentage = module.percentage || 0;
+        const moduleClass = modulePercentage >= 80 ? 'high' : modulePercentage >= 50 ? 'medium' : 'low';
+        const fileCount = module.files ? module.files.length : 0;
+
+        modulesHtml += `
+            <div class="coverage-card">
+                <h3>${escapeHtml(module.moduleName)}</h3>
+                <div class="coverage-percentage">${modulePercentage.toFixed(1)}%</div>
+                <div class="coverage-bar">
+                    <div class="coverage-fill ${moduleClass}" style="width: ${modulePercentage}%"></div>
+                </div>
+                <div class="coverage-details">
+                    <span>${module.totalLinesHit}/${module.totalLinesFound} lines</span>
+                    <span>${fileCount} files</span>
+                </div>
+                <div class="coverage-files-toggle">
+                    <button class="toggle-btn" onclick="toggleModuleFiles('${module.moduleName.replace(/\s+/g, '-')}')">
+                        Show Files (${fileCount})
+                    </button>
+                </div>
+                <div class="coverage-files-list" id="files-${module.moduleName.replace(/\s+/g, '-')}" style="display: none;">
+                    ${module.files ? module.files.map(file => `
+                        <div class="coverage-file-item">
+                            <div class="file-name">${escapeHtml(file.filePath.split('\\').pop() || file.filePath.split('/').pop())}</div>
+                            <div class="file-percentage ${file.percentage >= 80 ? 'high' : file.percentage >= 50 ? 'medium' : 'low'}">
+                                ${file.percentage.toFixed(1)}%
+                            </div>
+                            <div class="file-details">${file.linesHit}/${file.linesFound} lines</div>
+                        </div>
+                    `).join('') : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    coverageGrid.innerHTML = modulesHtml;
+}
+
+/**
+ * Toggle module files visibility
+ */
+function toggleModuleFiles(moduleId) {
+    const filesList = document.getElementById(`files-${moduleId}`);
+    const button = filesList.previousElementSibling.querySelector('.toggle-btn');
+
+    if (filesList.style.display === 'none') {
+        filesList.style.display = 'block';
+        button.textContent = button.textContent.replace('Show', 'Hide');
+    } else {
+        filesList.style.display = 'none';
+        button.textContent = button.textContent.replace('Hide', 'Show');
+    }
 }
 
 /**
