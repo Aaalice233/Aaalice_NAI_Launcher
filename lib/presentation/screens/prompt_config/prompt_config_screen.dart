@@ -386,6 +386,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
   }
 
+  /// 删除 RandomPreset
+  Future<void> _deletePreset(RandomPreset preset) async {
+    await ref.read(randomPresetNotifierProvider.notifier).deletePreset(preset.id);
+    if (mounted) {
+      AppToast.success(context, context.l10n.preset_deleted);
+    }
+  }
+
   /// 显示删除 RandomPreset 确认对话框
   Future<void> _showDeleteRandomPresetDialog(RandomPreset preset) async {
     final confirmed = await showDialog<bool>(
@@ -410,10 +418,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(randomPresetNotifierProvider.notifier).deletePreset(preset.id);
-      if (mounted) {
-        AppToast.success(context, context.l10n.preset_deleted);
-      }
+      await _deletePreset(preset);
     }
   }
 
