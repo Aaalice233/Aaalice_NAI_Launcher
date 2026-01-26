@@ -20,6 +20,7 @@ import '../models/prompt/tag_library.dart';
 import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
 import '../models/prompt/wordlist_entry.dart';
+import 'bracket_formatter.dart';
 import 'sequential_state_service.dart';
 import 'tag_library_service.dart';
 import 'weighted_selector.dart';
@@ -38,6 +39,7 @@ class RandomPromptGenerator {
   final PoolCacheService _poolCacheService;
   final WordlistService? _wordlistService;
   final WeightedSelector _weightedSelector;
+  final BracketFormatter _bracketFormatter;
 
   RandomPromptGenerator(
     this._libraryService,
@@ -45,7 +47,8 @@ class RandomPromptGenerator {
     this._tagGroupCacheService,
     this._poolCacheService, [
     this._wordlistService,
-  ]) : _weightedSelector = WeightedSelector();
+  ]) : _weightedSelector = WeightedSelector(),
+       _bracketFormatter = BracketFormatter();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -1176,28 +1179,12 @@ class RandomPromptGenerator {
     int bracketMax,
     Random random,
   ) {
-    if (bracketMin == 0 && bracketMax == 0) return tag;
-
-    // 确保 min <= max
-    final min = bracketMin <= bracketMax ? bracketMin : bracketMax;
-    final max = bracketMin <= bracketMax ? bracketMax : bracketMin;
-
-    // 随机选择层数
-    final n = min + random.nextInt(max - min + 1);
-
-    if (n == 0) return tag;
-
-    // 负数用 []（降权），正数用 {}（增强）
-    if (n < 0) {
-      final count = -n;
-      final open = '[' * count;
-      final close = ']' * count;
-      return '$open$tag$close';
-    } else {
-      final open = '{' * n;
-      final close = '}' * n;
-      return '$open$tag$close';
-    }
+    return _bracketFormatter.applyBrackets(
+      tag,
+      bracketMin,
+      bracketMax,
+      random: random,
+    );
   }
 
   // ========== 变量替换系统（Phase 4） ==========
@@ -1799,16 +1786,12 @@ class RandomPromptGenerator {
     int bracketCount,
     Random random,
   ) {
-    if (probability <= 0 || bracketCount <= 0) return tags;
-
-    return tags.map((tag) {
-      if (random.nextDouble() < probability) {
-        final openBrackets = '{' * bracketCount;
-        final closeBrackets = '}' * bracketCount;
-        return '$openBrackets$tag$closeBrackets';
-      }
-      return tag;
-    }).toList();
+    return _bracketFormatter.applyEmphasis(
+      tags,
+      probability: probability,
+      bracketCount: bracketCount,
+      random: random,
+    );
   }
 
   /// 从字符串转换性别枚举
