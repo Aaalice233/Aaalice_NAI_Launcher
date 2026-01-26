@@ -241,20 +241,50 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     );
   }
 
+  /// 显示预设名称输入对话框
+  Future<String?> _showPresetNameInputDialog() async {
+    final controller = TextEditingController();
+    String? errorText;
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.presetEdit_presetName),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.presetEdit_presetName,
+              hintText: context.l10n.presetEdit_enterPresetName,
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            onChanged: (value) {
+              final error = _validatePresetName(value);
+              setState(() => errorText = error);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: errorText == null && controller.text.trim().isNotEmpty
+                  ? () => Navigator.of(context).pop(controller.text.trim())
+                  : null,
+              child: Text(context.l10n.common_confirm),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 创建空白预设
-  Future<void> _createBlankPreset() async {
+  Future<void> _createBlankPreset(String name) async {
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
-
-    // 生成唯一的预设名称
-    String baseName = context.l10n.config_newPreset;
-    String name = baseName;
-    int counter = 1;
-
-    final presetState = ref.read(randomPresetNotifierProvider);
-    while (presetState.presets.any((p) => p.name == name)) {
-      name = '$baseName ($counter)';
-      counter++;
-    }
 
     await notifier.createPreset(
       name: name,
@@ -263,22 +293,12 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   /// 创建模板预设（基于默认预设）
-  Future<void> _createTemplatePreset() async {
+  Future<void> _createTemplatePreset(String name) async {
     final presetState = ref.read(randomPresetNotifierProvider);
     final defaultPreset = presetState.presets.firstWhere(
       (p) => p.isDefault,
       orElse: () => presetState.presets.first,
     );
-
-    // 生成唯一的预设名称
-    String baseName = context.l10n.config_newPreset;
-    String name = baseName;
-    int counter = 1;
-
-    while (presetState.presets.any((p) => p.name == name)) {
-      name = '$baseName ($counter)';
-      counter++;
-    }
 
     // 使用 RandomPreset.copyFrom() 创建新预设
     final newPreset = RandomPreset.copyFrom(
@@ -295,18 +315,27 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 显示新建预设对话框
   Future<void> _showNewPresetDialog() async {
+    // 首先显示名称输入对话框
+    final presetName = await _showPresetNameInputDialog();
+
+    // 如果用户取消输入，直接返回
+    if (presetName == null || presetName.isEmpty) {
+      return;
+    }
+
+    // 显示创建模式选择对话框
     await NewPresetDialog.show(
       context: context,
       onModeSelected: (mode) async {
         switch (mode) {
           case PresetCreationMode.blank:
             // 创建完全空白的预设
-            await _createBlankPreset();
+            await _createBlankPreset(presetName);
             break;
 
           case PresetCreationMode.template:
             // 基于默认预设创建
-            await _createTemplatePreset();
+            await _createTemplatePreset(presetName);
             break;
         }
 
