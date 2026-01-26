@@ -1000,7 +1000,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           crossAxisCount: columns,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: itemWidth / 250, // 固定宽高比
         ),
         itemCount:
             state.currentImages.isNotEmpty ? state.currentImages.length : 20,
