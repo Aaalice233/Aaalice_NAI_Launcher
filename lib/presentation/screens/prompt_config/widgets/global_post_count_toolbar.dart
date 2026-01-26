@@ -19,6 +19,7 @@ class GlobalPostCountToolbar extends StatelessWidget {
   final VoidCallback onResetPreset;
   final VoidCallback? onAddCategory;
   final VoidCallback? onManageLibrary;
+  final bool showResetPreset;
 
   const GlobalPostCountToolbar({
     super.key,
@@ -31,6 +32,7 @@ class GlobalPostCountToolbar extends StatelessWidget {
     required this.onResetPreset,
     this.onAddCategory,
     this.onManageLibrary,
+    this.showResetPreset = true,
   });
 
   @override
@@ -79,13 +81,14 @@ class GlobalPostCountToolbar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // 重置为默认按钮（放在统计徽章旁边）
-          _buildDangerButton(
-            theme: theme,
-            icon: Icons.restart_alt,
-            label: context.l10n.preset_resetToDefault,
-            onTap: onResetPreset,
-          ),
+          // 重置为默认按钮（放在统计徽章旁边）- 仅默认预设显示
+          if (showResetPreset)
+            _buildDangerButton(
+              theme: theme,
+              icon: Icons.restart_alt,
+              label: context.l10n.preset_resetToDefault,
+              onTap: onResetPreset,
+            ),
           const Spacer(),
           // 全选/取消选择切换按钮
           Builder(

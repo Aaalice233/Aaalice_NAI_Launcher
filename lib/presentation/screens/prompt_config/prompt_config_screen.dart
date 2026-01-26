@@ -225,6 +225,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onToggleExpand: _toggleAllExpand,
             onResetPreset: () => _showResetPresetConfirmDialog(context),
             onAddCategory: () => _showAddCategoryDialog(context),
+            showResetPreset: preset?.isDefault ?? false,
           ),
 
           // 同步进度（TagLibrary 或 TagGroup 同步）
