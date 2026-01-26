@@ -968,12 +968,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   void _doSelectRandomPreset(String presetId) {
+    // 使用 provider 作为 RandomPreset 选择的唯一数据源
     ref.read(randomPresetNotifierProvider.notifier).selectPreset(presetId);
     ref.read(randomModeNotifierProvider.notifier).setMode(
           RandomGenerationMode.naiOfficial,
         );
+    // 清除自定义模式相关的本地状态
     setState(() {
-      _selectedPresetId = presetId;
       _selectedConfigId = null;
       _editingConfigs = [];
       _hasUnsavedChanges = false;
@@ -993,8 +994,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     ref.read(randomModeNotifierProvider.notifier).setMode(
           RandomGenerationMode.naiOfficial,
         );
+    // 清除自定义模式相关的本地状态
     setState(() {
-      _selectedPresetId = null;
       _selectedConfigId = null;
       _editingConfigs = [];
       _hasUnsavedChanges = false;
