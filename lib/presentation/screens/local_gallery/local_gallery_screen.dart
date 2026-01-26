@@ -1014,14 +1014,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     // 正常内容
-    return GridView.builder(
+    return MasonryGridView.count(
       key: const PageStorageKey<String>('local_gallery_grid'),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: itemWidth / 250, // 固定宽高比
-      ),
+      crossAxisCount: columns,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];
