@@ -11,7 +11,6 @@ import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
-import '../gallery/gallery_statistics_dialog.dart';
 
 class MainNavRail extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -23,16 +22,17 @@ class MainNavRail extends ConsumerWidget {
     final theme = Theme.of(context);
 
     // 使用 navigationShell.currentIndex 获取当前选中索引
-    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig
+    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig, 6=statistics
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=promptConfig, 4=settings
+    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=statistics, 4=promptConfig, 5=settings
     int selectedIndex = 0;
     if (currentIndex == 2) selectedIndex = 1; // localGallery
     if (currentIndex == 3) selectedIndex = 2; // onlineGallery
-    if (currentIndex == 5) selectedIndex = 3; // promptConfig
-    if (currentIndex == 4) selectedIndex = 4; // settings
+    if (currentIndex == 6) selectedIndex = 3; // statistics
+    if (currentIndex == 5) selectedIndex = 4; // promptConfig
+    if (currentIndex == 4) selectedIndex = 5; // settings
 
     return Container(
       width: 60,
@@ -80,15 +80,15 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.bar_chart, // Gallery Statistics
             label: context.l10n.statistics_title,
-            isSelected: false,
-            onTap: () => GalleryStatisticsDialog.show(context),
+            isSelected: selectedIndex == 3,
+            onTap: () => navigationShell.goBranch(6), // statistics branch
           ),
 
           // 随机配置
           _NavIcon(
             icon: Icons.casino, // Random prompt config
             label: context.l10n.nav_randomConfig,
-            isSelected: selectedIndex == 3,
+            isSelected: selectedIndex == 4,
             onTap: () => navigationShell.goBranch(5), // promptConfig branch
           ),
 
@@ -120,7 +120,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.settings,
             label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 4,
+            isSelected: selectedIndex == 5,
             onTap: () => navigationShell.goBranch(4), // settings branch
           ),
           const SizedBox(height: 16),
