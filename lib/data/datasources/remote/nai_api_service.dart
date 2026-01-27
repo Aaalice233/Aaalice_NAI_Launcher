@@ -22,6 +22,15 @@ import '../../models/vibe/vibe_reference_v4.dart';
 part 'nai_api_service.g.dart';
 
 /// NovelAI API 服务
+///
+/// @deprecated This monolithic service has been split into domain-specific services.
+/// Use the new services instead:
+/// - [AuthApiService] for authentication operations
+/// - [ImageApiService] for image generation and streaming
+/// - [TagApiService] for tag suggestions
+/// - [EnhancementApiService] for image enhancement operations
+/// - [AnnotationApiService] for image annotation operations
+@Deprecated('Use AuthApiService, ImageApiService, TagApiService, EnhancementApiService, or AnnotationApiService instead')
 class NAIApiService {
   final Dio _dio;
   // ignore: unused_field - 预留给未来的加密功能
@@ -69,6 +78,7 @@ class NAIApiService {
   /// [token] Persistent API Token (格式: pst-xxxx)
   ///
   /// 返回验证结果，包含订阅信息；如果 Token 无效则抛出异常
+  @Deprecated('Use AuthApiService.validateToken instead')
   Future<Map<String, dynamic>> validateToken(String token) async {
     // 直接让异常传播，保留 DioException 类型以便上层识别 401
     final response = await _dio.get(
@@ -88,6 +98,7 @@ class NAIApiService {
   /// [accessKey] 通过邮箱+密码 Argon2哈希生成的 Access Key
   ///
   /// 返回登录结果，包含 accessToken；如果登录失败则抛出异常
+  @Deprecated('Use AuthApiService.loginWithKey instead')
   Future<Map<String, dynamic>> loginWithKey(String accessKey) async {
     AppLogger.d('Attempting login with access key', 'API');
 
@@ -108,6 +119,7 @@ class NAIApiService {
   /// 检查 Token 格式是否有效
   ///
   /// Persistent API Token 格式: pst-xxxx
+  @Deprecated('Use AuthApiService.isValidTokenFormat instead')
   static bool isValidTokenFormat(String token) {
     return token.startsWith('pst-') && token.length > 10;
   }
@@ -120,6 +132,7 @@ class NAIApiService {
   /// [model] 模型名称（可选，默认 nai-diffusion-4-full）
   ///
   /// 返回建议的标签列表
+  @Deprecated('Use TagApiService.suggestTags instead')
   Future<List<TagSuggestion>> suggestTags(
     String input, {
     String? model,
@@ -180,6 +193,7 @@ class NAIApiService {
   /// 根据当前提示词获取下一个标签建议
   ///
   /// 这会解析提示词，提取最后一个不完整的标签，并返回建议
+  @Deprecated('Use TagApiService.suggestNextTag instead')
   Future<List<TagSuggestion>> suggestNextTag(
     String prompt, {
     String? model,
@@ -207,6 +221,7 @@ class NAIApiService {
   /// 返回 (图像列表, Vibe哈希映射)
   /// - 图像列表：生成的图像字节数据
   /// - Vibe哈希映射：key=vibeReferencesV4索引, value=编码哈希
+  @Deprecated('Use ImageApiService.generateImage instead')
   Future<(List<Uint8List>, Map<int, String>)> generateImage(
     ImageParams params, {
     void Function(int, int)? onProgress,
@@ -694,6 +709,7 @@ class NAIApiService {
   ///
   /// 注意: 此方法仅返回图像列表，不返回 Vibe 哈希映射
   /// 如需获取 Vibe 哈希，请直接使用 generateImage()
+  @Deprecated('Use ImageApiService.generateImageCancellable instead')
   Future<List<Uint8List>> generateImageCancellable(
     ImageParams params, {
     void Function(int, int)? onProgress,
@@ -703,6 +719,7 @@ class NAIApiService {
   }
 
   /// 取消当前生成
+  @Deprecated('Use ImageApiService.cancelGeneration instead')
   void cancelGeneration() {
     _currentCancelToken?.cancel('User cancelled');
     _currentCancelToken = null;
@@ -715,6 +732,7 @@ class NAIApiService {
   /// [params] 图像生成参数
   ///
   /// 返回 ImageStreamChunk 流，包含渐进式预览和最终图像
+  @Deprecated('Use ImageApiService.generateImageStream instead')
   Stream<ImageStreamChunk> generateImageStream(ImageParams params) async* {
     // 互斥校验：Vibe Transfer 和角色参考不能同时存在（防御性编程）
     final hasVibes =
@@ -1376,6 +1394,7 @@ class NAIApiService {
   /// - 选择最接近的目标尺寸（最小化未使用的填充）
   /// - 按比例缩放图像，黑色背景居中粘贴
   /// - 转换为 PNG 格式
+  @Deprecated('Use ImageApiService.ensurePngFormat instead')
   static Uint8List ensurePngFormat(Uint8List imageBytes) {
     // 解码图片
     final originalImage = img.decodeImage(imageBytes);
@@ -1554,6 +1573,7 @@ class NAIApiService {
   /// [onProgress] 进度回调
   ///
   /// 返回放大后的图像数据
+  @Deprecated('Use ImageApiService.upscaleImage instead')
   Future<Uint8List> upscaleImage(
     Uint8List image, {
     int scale = 2,
@@ -1591,6 +1611,7 @@ class NAIApiService {
   /// [informationExtracted] 信息提取量（0-1，默认 1.0）
   ///
   /// 返回编码后的特征向量（base64 字符串）
+  @Deprecated('Use ImageApiService.encodeVibe instead')
   Future<String> encodeVibe(
     Uint8List image, {
     required String model,
@@ -1636,6 +1657,7 @@ class NAIApiService {
   /// [defry] 强度参数 (0-5, 默认0)
   ///
   /// 返回增强后的图像数据
+  @Deprecated('Use EnhancementApiService.augmentImage instead')
   Future<Uint8List> augmentImage(
     Uint8List image, {
     required String reqType,
@@ -1684,6 +1706,7 @@ class NAIApiService {
   /// [image] 源图像
   /// [prompt] 目标表情描述
   /// [defry] 强度 (0-5)
+  @Deprecated('Use EnhancementApiService.fixEmotion instead')
   Future<Uint8List> fixEmotion(
     Uint8List image, {
     required String prompt,
@@ -1698,6 +1721,7 @@ class NAIApiService {
   }
 
   /// 移除背景
+  @Deprecated('Use EnhancementApiService.removeBackground instead')
   Future<Uint8List> removeBackground(Uint8List image) async {
     return augmentImage(image, reqType: reqTypeBgRemoval);
   }
@@ -1707,6 +1731,7 @@ class NAIApiService {
   /// [image] 灰度图像
   /// [prompt] 上色提示词 (可选)
   /// [defry] 强度 (0-5)
+  @Deprecated('Use EnhancementApiService.colorize instead')
   Future<Uint8List> colorize(
     Uint8List image, {
     String? prompt,
@@ -1721,16 +1746,19 @@ class NAIApiService {
   }
 
   /// 去杂乱
+  @Deprecated('Use EnhancementApiService.declutter instead')
   Future<Uint8List> declutter(Uint8List image) async {
     return augmentImage(image, reqType: reqTypeDeclutter);
   }
 
   /// 提取线稿
+  @Deprecated('Use EnhancementApiService.extractLineArt instead')
   Future<Uint8List> extractLineArt(Uint8List image) async {
     return augmentImage(image, reqType: reqTypeLineArt);
   }
 
   /// 素描化
+  @Deprecated('Use EnhancementApiService.toSketch instead')
   Future<Uint8List> toSketch(Uint8List image) async {
     return augmentImage(image, reqType: reqTypeSketch);
   }
@@ -1751,6 +1779,7 @@ class NAIApiService {
   /// [annotateType] 标注类型
   ///
   /// 返回标注结果（对于 wd-tagger 返回 JSON，其他返回图像）
+  @Deprecated('Use AnnotationApiService.annotateImage instead')
   Future<dynamic> annotateImage(
     Uint8List image, {
     required String annotateType,
@@ -1785,24 +1814,28 @@ class NAIApiService {
   /// WD Tagger - 自动标签
   ///
   /// 返回图像的自动生成标签
+  @Deprecated('Use AnnotationApiService.getImageTags instead')
   Future<Map<String, dynamic>> getImageTags(Uint8List image) async {
     final result = await annotateImage(image, annotateType: annotateTypeWd);
     return result as Map<String, dynamic>;
   }
 
   /// 提取 Canny 边缘
+  @Deprecated('Use AnnotationApiService.extractCannyEdge instead')
   Future<Uint8List> extractCannyEdge(Uint8List image) async {
     final result = await annotateImage(image, annotateType: annotateTypeCanny);
     return result as Uint8List;
   }
 
   /// 生成深度图
+  @Deprecated('Use AnnotationApiService.generateDepthMap instead')
   Future<Uint8List> generateDepthMap(Uint8List image) async {
     final result = await annotateImage(image, annotateType: annotateTypeDepth);
     return result as Uint8List;
   }
 
   /// 提取姿态
+  @Deprecated('Use AnnotationApiService.extractPose instead')
   Future<Uint8List> extractPose(Uint8List image) async {
     final result =
         await annotateImage(image, annotateType: annotateTypeOpOpenpose);
@@ -1812,6 +1845,7 @@ class NAIApiService {
   // ==================== 用户信息 API ====================
 
   /// 获取用户订阅信息（包含 Anlas 余额）
+  @Deprecated('Use AuthApiService.getUserSubscription instead')
   Future<Map<String, dynamic>> getUserSubscription() async {
     try {
       final response = await _dio.get(
@@ -1826,7 +1860,15 @@ class NAIApiService {
 }
 
 /// NAIApiService Provider
+///
+/// @deprecated Use the domain-specific service providers instead:
+/// - [authApiServiceProvider]
+/// - [imageApiServiceProvider]
+/// - [tagApiServiceProvider]
+/// - [enhancementApiServiceProvider]
+/// - [annotationApiServiceProvider]
 @riverpod
+@Deprecated('Use authApiServiceProvider, imageApiServiceProvider, tagApiServiceProvider, enhancementApiServiceProvider, or annotationApiServiceProvider instead')
 NAIApiService naiApiService(Ref ref) {
   final dio = ref.watch(dioClientProvider);
   final cryptoService = ref.watch(naiCryptoServiceProvider);
