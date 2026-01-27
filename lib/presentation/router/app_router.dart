@@ -32,6 +32,7 @@ final _onlineGalleryKey =
     GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
+final _statisticsKey = GlobalKey<NavigatorState>(debugLabel: 'statistics');
 
 /// 路由路径常量
 class AppRoutes {
@@ -242,17 +243,6 @@ GoRouter appRouter(Ref ref) {
                       );
                     },
                   ),
-                  // 统计仪表盘子路由
-                  GoRoute(
-                    path: AppRoutes.statistics,
-                    name: 'statistics',
-                    pageBuilder: (context, state) {
-                      return MaterialPage(
-                        key: state.pageKey,
-                        child: const StatisticsScreen(),
-                      );
-                    },
-                  ),
                 ],
               ),
             ],
@@ -290,6 +280,18 @@ GoRouter appRouter(Ref ref) {
                 path: AppRoutes.promptConfig,
                 name: 'promptConfig',
                 builder: (context, state) => const PromptConfigScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 6: 统计页 - 不保活
+          StatefulShellBranch(
+            navigatorKey: _statisticsKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.statistics,
+                name: 'statistics',
+                builder: (context, state) => const StatisticsScreen(),
               ),
             ],
           ),

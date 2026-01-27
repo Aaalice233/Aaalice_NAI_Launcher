@@ -1954,6 +1954,9 @@
   "comparison_loadError": "加载图片失败",
 
   "statistics_title": "统计仪表盘",
+  "statistics_tabOverview": "总览",
+  "statistics_tabTrends": "趋势",
+  "statistics_tabDetails": "详情",
   "statistics_noData": "暂无统计数据",
   "statistics_generateFirst": "先生成一些图片吧",
   "statistics_overview": "总览",
