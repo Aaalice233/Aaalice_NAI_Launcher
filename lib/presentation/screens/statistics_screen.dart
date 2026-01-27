@@ -284,7 +284,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     // 应用筛选器
     final filteredRecords = _applyFilters(allRecords);
 
-    return service.calculateStatistics(filteredRecords);
+    // 使用异步方法（在 isolate 中执行）以避免阻塞 UI 线程
+    return await service.computeAllStatistics(filteredRecords);
   }
 
   /// 应用筛选器到记录列表
