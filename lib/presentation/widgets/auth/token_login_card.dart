@@ -8,6 +8,7 @@ import '../../../data/datasources/remote/nai_auth_api_service.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../common/app_toast.dart';
+import '../common/inset_shadow_container.dart';
 
 /// Token 登录卡片组件
 class TokenLoginCard extends ConsumerStatefulWidget {
@@ -76,70 +77,92 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
               const SizedBox(height: 20),
 
               // 昵称输入框（必填）
-              TextFormField(
-                controller: _nicknameController,
-                decoration: InputDecoration(
-                  labelText:
-                      '${context.l10n.auth_nicknameOptional.replaceAll('（可选）', '').replaceAll('(optional)', '')} *',
-                  hintText: context.l10n.auth_nicknameHint,
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: const OutlineInputBorder(),
+              InsetShadowContainer(
+                borderRadius: 8,
+                child: TextFormField(
+                  controller: _nicknameController,
+                  decoration: InputDecoration(
+                    labelText:
+                        '${context.l10n.auth_nicknameOptional.replaceAll('（可选）', '').replaceAll('(optional)', '')} *',
+                    hintText: context.l10n.auth_nicknameHint,
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return context.l10n.auth_nicknameRequired;
+                    }
+                    return null;
+                  },
                 ),
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return context.l10n.auth_nicknameRequired;
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
 
               // Token 输入框
-              TextFormField(
-                controller: _tokenController,
-                decoration: InputDecoration(
-                  labelText: 'API Token *',
-                  hintText: context.l10n.auth_tokenHint,
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 粘贴按钮
-                      IconButton(
-                        icon: const Icon(Icons.paste),
-                        tooltip: context.l10n.common_paste,
-                        onPressed: _pasteFromClipboard,
-                      ),
-                      // 显示/隐藏切换
-                      IconButton(
-                        icon: Icon(
-                          _obscureToken
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+              InsetShadowContainer(
+                borderRadius: 8,
+                child: TextFormField(
+                  controller: _tokenController,
+                  decoration: InputDecoration(
+                    labelText: 'API Token *',
+                    hintText: context.l10n.auth_tokenHint,
+                    prefixIcon: const Icon(Icons.vpn_key_outlined),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 粘贴按钮
+                        IconButton(
+                          icon: const Icon(Icons.paste),
+                          tooltip: context.l10n.common_paste,
+                          onPressed: _pasteFromClipboard,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureToken = !_obscureToken;
-                          });
-                        },
-                      ),
-                    ],
+                        // 显示/隐藏切换
+                        IconButton(
+                          icon: Icon(
+                            _obscureToken
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureToken = !_obscureToken;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ),
+                  obscureText: _obscureToken,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _handleLogin(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return context.l10n.auth_tokenRequired;
+                    }
+                    if (!NAIAuthApiService.isValidTokenFormat(value)) {
+                      return context.l10n.auth_tokenInvalid;
+                    }
+                    return null;
+                  },
                 ),
-                obscureText: _obscureToken,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _handleLogin(),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return context.l10n.auth_tokenRequired;
-                  }
-                  if (!NAIAuthApiService.isValidTokenFormat(value)) {
-                    return context.l10n.auth_tokenInvalid;
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
 

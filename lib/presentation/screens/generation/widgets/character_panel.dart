@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 /// 多角色面板组件 (仅 V4 模型支持)
 class CharacterPanel extends ConsumerStatefulWidget {
@@ -500,7 +501,7 @@ class _PositionSlider extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Slider(
+              child: ThemedSlider(
                 value: value ?? 0.5,
                 min: 0.0,
                 max: 1.0,

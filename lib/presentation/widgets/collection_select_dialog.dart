@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/image_collection.dart';
 import '../providers/collection_provider.dart';
+import 'common/inset_shadow_container.dart';
 
 /// 集合选择结果
 class CollectionSelectResult {
@@ -48,7 +49,8 @@ class CollectionSelectDialog extends ConsumerStatefulWidget {
       _CollectionSelectDialogState();
 }
 
-class _CollectionSelectDialogState extends ConsumerState<CollectionSelectDialog> {
+class _CollectionSelectDialogState
+    extends ConsumerState<CollectionSelectDialog> {
   // 搜索过滤控制器
   final _filterController = TextEditingController();
   String _filterQuery = '';
@@ -94,7 +96,8 @@ class _CollectionSelectDialogState extends ConsumerState<CollectionSelectDialog>
     }
     return collections.where((collection) {
       final nameMatch = collection.name.toLowerCase().contains(_filterQuery);
-      final descMatch = collection.description?.toLowerCase().contains(_filterQuery) ?? false;
+      final descMatch =
+          collection.description?.toLowerCase().contains(_filterQuery) ?? false;
       return nameMatch || descMatch;
     }).toList();
   }
@@ -117,23 +120,28 @@ class _CollectionSelectDialogState extends ConsumerState<CollectionSelectDialog>
         child: Column(
           children: [
             // 搜索框
-            TextField(
-              controller: _filterController,
-              decoration: InputDecoration(
-                hintText: l10n.collectionSelect_filterHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _filterQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _filterController.clear();
-                        },
-                      )
-                    : null,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+            InsetShadowContainer(
+              borderRadius: 8,
+              child: TextField(
+                controller: _filterController,
+                decoration: InputDecoration(
+                  hintText: l10n.collectionSelect_filterHint,
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _filterQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _filterController.clear();
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),

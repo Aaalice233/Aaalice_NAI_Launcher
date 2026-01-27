@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../common/themed_slider.dart';
+
 /// 全局强调配置面板
 ///
 /// 用于配置全局强调概率和括号层数
@@ -85,12 +87,11 @@ class EmphasisConfigPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Slider(
+            ThemedSlider(
               value: emphasisProbability,
               min: 0,
               max: 0.2, // 最大 20%
               divisions: 40,
-              label: '$percent%',
               onChanged: readOnly ? null : onProbabilityChanged,
             ),
             Text(

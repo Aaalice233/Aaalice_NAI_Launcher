@@ -23,6 +23,7 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_switch.dart';
 import '../../widgets/prompt/new_preset_dialog.dart';
 import '../../../core/services/tag_counting_service.dart';
 import 'widgets/add_category_dialog.dart';
@@ -1656,14 +1657,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                 ),
                 const SizedBox(width: 8),
                 // 启用开关
-                SizedBox(
-                  width: 36,
-                  height: 20,
-                  child: Switch(
-                    value: config.enabled,
-                    onChanged: (_) => _toggleConfigEnabled(index),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
+                ThemedSwitch(
+                  value: config.enabled,
+                  onChanged: (_) => _toggleConfigEnabled(index),
+                  scale: 0.75,
                 ),
                 const SizedBox(width: 8),
                 // 配置信息

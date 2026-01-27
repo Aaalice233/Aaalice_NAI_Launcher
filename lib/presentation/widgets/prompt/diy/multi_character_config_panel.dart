@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/prompt/algorithm_config.dart';
+import '../../common/themed_slider.dart';
 
 /// 多角色配置面板
 ///
@@ -272,12 +273,11 @@ class _MultiCharacterConfigPanelState
             child: Text(label),
           ),
           Expanded(
-            child: Slider(
+            child: ThemedSlider(
               value: value.toDouble(),
               min: 0,
               max: 100,
               divisions: 100,
-              label: '$value',
               onChanged: onChanged,
             ),
           ),

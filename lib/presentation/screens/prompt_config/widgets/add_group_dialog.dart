@@ -12,6 +12,7 @@ import '../../../../data/models/prompt/tag_library.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
+import '../../../widgets/common/inset_shadow_container.dart';
 
 /// 添加分组类型
 enum AddGroupType {
@@ -551,23 +552,28 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
             ),
             const SizedBox(height: 12),
             // 搜索框
-            TextField(
-              controller: _filterController,
-              decoration: InputDecoration(
-                hintText: l10n.addGroup_filterHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _filterQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _filterController.clear();
-                        },
-                      )
-                    : null,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+            InsetShadowContainer(
+              borderRadius: 8,
+              child: TextField(
+                controller: _filterController,
+                decoration: InputDecoration(
+                  hintText: l10n.addGroup_filterHint,
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _filterQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _filterController.clear();
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),

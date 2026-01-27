@@ -189,6 +189,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
         controller: _searchController,
         focusNode: _searchFocusNode,
         enableAutocomplete: true,
+        useInsetShadow: false,
         config: const AutocompleteConfig(
           maxSuggestions: 10,
           showTranslation: true,

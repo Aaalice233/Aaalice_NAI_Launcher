@@ -6,6 +6,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../router/app_router.dart';
+import '../common/themed_switch.dart';
 import 'fixed_tag_edit_dialog.dart';
 
 /// 固定词管理对话框
@@ -331,10 +332,10 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
               ),
 
               // 启用开关
-              Switch(
+              ThemedSwitch(
                 value: entry.enabled,
                 onChanged: (_) => widget.onToggleEnabled(),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                scale: 0.85,
               ),
 
               const SizedBox(width: 8),

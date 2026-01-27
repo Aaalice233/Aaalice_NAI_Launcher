@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/emoji_picker_dialog.dart';
+import '../../../widgets/common/inset_shadow_container.dart';
+import '../../../widgets/common/themed_slider.dart';
 
 /// 新增类别对话框的返回结果
 class AddCategoryResult {
@@ -169,24 +171,31 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                   const SizedBox(width: 12),
                   // 名称输入
                   Expanded(
-                    child: TextFormField(
-                      controller: _nameController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.category_name,
-                        hintText: context.l10n.category_nameHint,
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
+                    child: InsetShadowContainer(
+                      borderRadius: 8,
+                      child: TextFormField(
+                        controller: _nameController,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: context.l10n.category_name,
+                          hintText: context.l10n.category_nameHint,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          focusedErrorBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
                         ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return context.l10n.category_nameRequired;
+                          }
+                          return null;
+                        },
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return context.l10n.category_nameRequired;
-                        }
-                        return null;
-                      },
                     ),
                   ),
                 ],
@@ -225,25 +234,14 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                 ],
               ),
               const SizedBox(height: 4),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 8,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 16,
-                  ),
-                ),
-                child: Slider(
-                  value: _probability,
-                  onChanged: (value) {
-                    setState(() => _probability = value);
-                  },
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                ),
+              ThemedSlider(
+                value: _probability,
+                onChanged: (value) {
+                  setState(() => _probability = value);
+                },
+                min: 0,
+                max: 1,
+                divisions: 20,
               ),
             ],
           ),

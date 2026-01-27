@@ -18,6 +18,7 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_switch.dart';
 import '../../../widgets/prompt/tag_group_settings_dialog.dart';
 import 'add_group_dialog.dart';
 
@@ -356,14 +357,10 @@ class _ExpandableCategoryTileState
                       message: widget.isEnabled
                           ? context.l10n.promptConfig_disableCategory
                           : context.l10n.promptConfig_enableCategory,
-                      child: Transform.scale(
+                      child: ThemedSwitch(
+                        value: widget.isEnabled,
+                        onChanged: widget.onEnabledChanged,
                         scale: 0.8,
-                        child: Switch(
-                          value: widget.isEnabled,
-                          onChanged: widget.onEnabledChanged,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ),
                       ),
                     ),
                   // 概率显示徽章
@@ -682,7 +679,7 @@ class _ExpandableCategoryTileState
               ),
             ),
             // 启用开关
-            Switch(
+            ThemedSwitch(
               value: isEnabled,
               onChanged: onToggleEnabled,
             ),

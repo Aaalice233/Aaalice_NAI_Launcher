@@ -199,6 +199,7 @@ class _CustomTagGroupEditorState extends ConsumerState<CustomTagGroupEditor> {
             controller: _tagsController,
             focusNode: _tagsFocusNode,
             enableAutocomplete: true,
+            useInsetShadow: false,
             config: const AutocompleteConfig(
               maxSuggestions: 8,
               autoInsertComma: true,

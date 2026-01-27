@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
+import '../common/inset_shadow_container.dart';
 
 /// 昵称编辑弹窗
 ///
@@ -175,22 +176,34 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
             const SizedBox(height: 24),
 
             // 昵称输入框
-            TextFormField(
-              controller: _controller,
-              focusNode: _focusNode,
-              onChanged: _onNicknameChanged,
-              onFieldSubmitted: (_) => _onSave(),
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              maxLength: _maxLength,
-              decoration: InputDecoration(
-                labelText: context.l10n.settings_nickname,
-                hintText: context.l10n.settings_nicknameHint,
-                errorText: error,
-                counterText:
-                    '${_controller.text.characters.length}/$_maxLength',
-                prefixIcon: const Icon(Icons.person_outline),
+            InsetShadowContainer(
+              borderRadius: 8,
+              child: TextFormField(
+                controller: _controller,
+                focusNode: _focusNode,
+                onChanged: _onNicknameChanged,
+                onFieldSubmitted: (_) => _onSave(),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                maxLength: _maxLength,
+                decoration: InputDecoration(
+                  labelText: context.l10n.settings_nickname,
+                  hintText: context.l10n.settings_nicknameHint,
+                  errorText: error,
+                  counterText:
+                      '${_controller.text.characters.length}/$_maxLength',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
+                ),
+                textInputAction: TextInputAction.done,
               ),
-              textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 24),
 

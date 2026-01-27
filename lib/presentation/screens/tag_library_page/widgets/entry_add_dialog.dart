@@ -137,13 +137,22 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     ),
                     decoration: InputDecoration(
                       hintText: context.l10n.tagLibrary_contentHint,
-                      border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.all(12),
-                      helperText: context.l10n.fixedTags_syntaxHelp,
-                      helperMaxLines: 2,
                     ),
                     maxLines: null,
                     expands: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Text(
+                    context.l10n.fixedTags_syntaxHelp,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.outline,
+                    ),
+                    maxLines: 2,
                   ),
                 ),
 

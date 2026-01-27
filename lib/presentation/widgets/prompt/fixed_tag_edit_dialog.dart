@@ -7,6 +7,7 @@ import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import '../common/prefix_suffix_switch.dart';
 import '../common/themed_input.dart';
+import '../common/themed_slider.dart';
 import '../prompt/nai_syntax_controller.dart';
 
 /// 固定词编辑对话框
@@ -137,13 +138,22 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                     ),
                     decoration: InputDecoration(
                       hintText: context.l10n.fixedTags_contentHint,
-                      border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.all(12),
-                      helperText: context.l10n.fixedTags_syntaxHelp,
-                      helperMaxLines: 2,
                     ),
                     maxLines: null,
                     expands: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Text(
+                    context.l10n.fixedTags_syntaxHelp,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.outline,
+                    ),
+                    maxLines: 2,
                   ),
                 ),
 
@@ -205,12 +215,11 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                       ),
                     ),
                     Expanded(
-                      child: Slider(
+                      child: ThemedSlider(
                         value: _weight,
                         min: 0.5,
                         max: 2.0,
                         divisions: 30,
-                        label: _weight.toStringAsFixed(2),
                         onChanged: (value) {
                           setState(() => _weight = value);
                         },

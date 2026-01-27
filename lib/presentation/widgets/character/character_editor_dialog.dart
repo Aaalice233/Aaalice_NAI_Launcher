@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../common/themed_switch.dart';
 import 'character_detail_panel.dart';
 import 'character_list_panel.dart';
 
@@ -450,13 +451,10 @@ class _ListPanelContainer extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              SizedBox(
-                height: 24,
-                child: Switch(
-                  value: globalAiChoice,
-                  onChanged: onGlobalAiChoiceChanged,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+              ThemedSwitch(
+                value: globalAiChoice,
+                onChanged: onGlobalAiChoiceChanged,
+                scale: 0.85,
               ),
             ],
           ),

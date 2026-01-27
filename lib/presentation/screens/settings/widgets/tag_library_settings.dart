@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/sync_config.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_switch.dart';
 
 /// 词库设置组件
 ///
@@ -145,7 +146,7 @@ class TagLibrarySettings extends ConsumerWidget {
             ],
           ),
         ),
-        Switch(
+        ThemedSwitch(
           value: state.syncConfig.autoSyncEnabled,
           onChanged: (value) {
             ref

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/prompt_config.dart' as pc;
+import '../../../widgets/common/themed_slider.dart';
 
 /// 配置详情编辑器
 ///
@@ -349,7 +350,7 @@ class _ConfigDetailEditorState extends State<ConfigDetailEditor> {
       children: [
         SizedBox(width: 60, child: Text(label)),
         Expanded(
-          child: Slider(
+          child: ThemedSlider(
             value: value,
             min: min,
             max: max,

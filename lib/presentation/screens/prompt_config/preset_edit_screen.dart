@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../providers/prompt_config_provider.dart';
+import '../../widgets/common/themed_switch.dart';
 import 'config_item_editor.dart';
 import 'import_nai_category_dialog.dart';
 
@@ -479,7 +480,7 @@ class _ConfigCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               // 启用开关
-              Switch(
+              ThemedSwitch(
                 value: config.enabled,
                 onChanged: (_) => onToggleEnabled(),
               ),

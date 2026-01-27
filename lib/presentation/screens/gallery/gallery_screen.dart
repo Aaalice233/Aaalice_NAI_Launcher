@@ -169,9 +169,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                   },
                 )
               : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         ),
         onChanged: (value) {

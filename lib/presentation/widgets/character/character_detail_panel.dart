@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/image_generation_provider.dart';
+import '../common/themed_switch.dart';
 import '../prompt/toolbar/toolbar.dart';
 import '../prompt/unified/unified.dart';
 import 'position_grid_selector.dart';
@@ -305,13 +306,10 @@ class _NameRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                SizedBox(
-                  height: 24,
-                  child: Switch(
-                    value: enabled,
-                    onChanged: onEnabledChanged,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
+                ThemedSwitch(
+                  value: enabled,
+                  onChanged: onEnabledChanged,
+                  scale: 0.85,
                 ),
               ],
             ),

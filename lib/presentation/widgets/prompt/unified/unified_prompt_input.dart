@@ -186,8 +186,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     final effectiveDecoration = widget.decoration ??
         InputDecoration(
           hintText: widget.config.hintText,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
           ),
         );
 

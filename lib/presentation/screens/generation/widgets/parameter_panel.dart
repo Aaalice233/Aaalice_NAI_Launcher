@@ -10,6 +10,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
+import '../../../widgets/common/themed_slider.dart';
 import 'img2img_panel.dart';
 import 'unified_reference_panel.dart';
 import 'prompt_input.dart';
@@ -220,12 +221,11 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
           theme,
           context.l10n.generation_steps(params.steps.toString()),
         ),
-        Slider(
+        ThemedSlider(
           value: params.steps.toDouble(),
           min: 1,
           max: 50,
           divisions: 49,
-          label: params.steps.toString(),
           onChanged: (value) {
             ref
                 .read(generationParamsNotifierProvider.notifier)
@@ -266,12 +266,11 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             ),
           ],
         ),
-        Slider(
+        ThemedSlider(
           value: params.scale,
           min: 1,
           max: 20,
           divisions: 38,
-          label: params.scale.toStringAsFixed(1),
           onChanged: (value) {
             ref
                 .read(generationParamsNotifierProvider.notifier)
@@ -489,7 +488,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                     params.cfgRescale.toStringAsFixed(2),
                   ),
                 ),
-                subtitle: Slider(
+                subtitle: ThemedSlider(
                   value: params.cfgRescale,
                   min: 0,
                   max: 1,

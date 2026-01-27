@@ -8,7 +8,6 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/inset_shadow_container.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_hint.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
@@ -547,38 +546,28 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.watch(sdSyntaxAutoConvertSettingsProvider);
-    return InsetShadowContainer(
-      borderRadius: 8,
-      child: AutocompleteTextField(
-        controller: _promptController,
-        focusNode: _promptFocusNode,
-        enableAutocomplete: enableAutocomplete,
-        enableAutoFormat: enableAutoFormat,
-        enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
-        config: const AutocompleteConfig(
-          maxSuggestions: 20,
-          showTranslation: true,
-          showCategory: true,
-          showCount: true,
-          autoInsertComma: true,
-        ),
-        decoration: const InputDecoration(
-          hintText: null, // Will be set below
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          contentPadding: EdgeInsets.all(12),
-        ).copyWith(
-          hintText: enableAutocomplete
-              ? context.l10n.prompt_describeImageWithHint
-              : context.l10n.prompt_describeImage,
-        ),
-        maxLines: null,
-        expands: true,
-        onChanged: _onPromptChanged,
+    return AutocompleteTextField(
+      controller: _promptController,
+      focusNode: _promptFocusNode,
+      enableAutocomplete: enableAutocomplete,
+      enableAutoFormat: enableAutoFormat,
+      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+      config: const AutocompleteConfig(
+        maxSuggestions: 20,
+        showTranslation: true,
+        showCategory: true,
+        showCount: true,
+        autoInsertComma: true,
       ),
+      decoration: InputDecoration(
+        hintText: enableAutocomplete
+            ? context.l10n.prompt_describeImageWithHint
+            : context.l10n.prompt_describeImage,
+        contentPadding: const EdgeInsets.all(12),
+      ),
+      maxLines: null,
+      expands: true,
+      onChanged: _onPromptChanged,
     );
   }
 
@@ -587,37 +576,29 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.watch(sdSyntaxAutoConvertSettingsProvider);
-    return InsetShadowContainer(
-      borderRadius: 8,
-      child: AutocompleteTextField(
-        controller: _negativeController,
-        focusNode: _negativeFocusNode,
-        enableAutocomplete: enableAutocomplete,
-        enableAutoFormat: enableAutoFormat,
-        enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
-        config: const AutocompleteConfig(
-          maxSuggestions: 15,
-          showTranslation: true,
-          showCategory: false,
-          autoInsertComma: true,
-        ),
-        decoration: InputDecoration(
-          hintText: context.l10n.prompt_unwantedContent,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.all(12),
-        ),
-        maxLines: null,
-        expands: true,
-        onChanged: (value) {
-          ref
-              .read(generationParamsNotifierProvider.notifier)
-              .updateNegativePrompt(value);
-        },
+    return AutocompleteTextField(
+      controller: _negativeController,
+      focusNode: _negativeFocusNode,
+      enableAutocomplete: enableAutocomplete,
+      enableAutoFormat: enableAutoFormat,
+      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+      config: const AutocompleteConfig(
+        maxSuggestions: 15,
+        showTranslation: true,
+        showCategory: false,
+        autoInsertComma: true,
       ),
+      decoration: InputDecoration(
+        hintText: context.l10n.prompt_unwantedContent,
+        contentPadding: const EdgeInsets.all(12),
+      ),
+      maxLines: null,
+      expands: true,
+      onChanged: (value) {
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNegativePrompt(value);
+      },
     );
   }
 
@@ -632,9 +613,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: InputDecoration(
         hintText: context.l10n.prompt_inputPrompt,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

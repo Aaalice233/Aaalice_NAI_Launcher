@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../common/themed_checkbox.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
 import '../../providers/random_preset_provider.dart';
@@ -406,9 +407,10 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
       child: Row(
         children: [
           // 启用复选框
-          Checkbox(
+          ThemedCheckbox(
             value: option.enabled,
             onChanged: (_) => _toggleTagOptionEnabled(categoryId, option.id),
+            size: 18,
           ),
           // 标签名称和提示词信息
           Expanded(

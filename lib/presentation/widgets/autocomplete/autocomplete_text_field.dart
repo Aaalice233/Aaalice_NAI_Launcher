@@ -10,6 +10,7 @@ import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/models/tag/local_tag.dart';
 import '../../providers/locale_provider.dart';
 import '../common/app_toast.dart';
+import '../common/inset_shadow_container.dart';
 import 'autocomplete_controller.dart';
 import 'autocomplete_overlay.dart';
 
@@ -55,6 +56,12 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
   /// 是否启用 SD 语法自动转换（失焦时将 SD 权重语法转换为 NAI 格式）
   final bool enableSdSyntaxAutoConvert;
 
+  /// 是否使用立体效果（InsetShadowContainer包装）
+  final bool useInsetShadow;
+
+  /// 圆角半径
+  final double borderRadius;
+
   const AutocompleteTextField({
     super.key,
     required this.controller,
@@ -70,6 +77,8 @@ class AutocompleteTextField extends ConsumerStatefulWidget {
     this.enableAutocomplete = true,
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
+    this.useInsetShadow = true,
+    this.borderRadius = 8.0,
   });
 
   @override
@@ -603,19 +612,44 @@ class _AutocompleteTextFieldState extends ConsumerState<AutocompleteTextField> {
 
   @override
   Widget build(BuildContext context) {
+    // 构建 InputDecoration
+    // 如果使用立体效果，移除边框；否则保留原有装饰
+    final effectiveDecoration = widget.useInsetShadow
+        ? (widget.decoration ?? const InputDecoration()).copyWith(
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            contentPadding: widget.decoration?.contentPadding ??
+                const EdgeInsets.all(12),
+          )
+        : widget.decoration;
+
+    final textField = TextField(
+      controller: widget.controller,
+      focusNode: _focusNode,
+      decoration: effectiveDecoration,
+      maxLines: widget.expands ? null : widget.maxLines,
+      minLines: widget.expands ? null : widget.minLines,
+      expands: widget.expands,
+      textAlignVertical: widget.expands ? TextAlignVertical.top : null,
+      style: widget.style,
+      onSubmitted: widget.onSubmitted,
+    );
+
+    // 使用立体效果包装
+    final wrappedTextField = widget.useInsetShadow
+        ? InsetShadowContainer(
+            borderRadius: widget.borderRadius,
+            child: textField,
+          )
+        : textField;
+
     return CompositedTransformTarget(
       link: _layerLink,
-      child: TextField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        decoration: widget.decoration,
-        maxLines: widget.expands ? null : widget.maxLines,
-        minLines: widget.expands ? null : widget.minLines,
-        expands: widget.expands,
-        textAlignVertical: widget.expands ? TextAlignVertical.top : null,
-        style: widget.style,
-        onSubmitted: widget.onSubmitted,
-      ),
+      child: wrappedTextField,
     );
   }
 }

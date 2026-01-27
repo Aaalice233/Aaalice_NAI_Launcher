@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
+import '../common/themed_switch.dart';
 import '../tag_chip.dart';
 
 /// 权重调节对话框（移动端使用）
@@ -144,7 +145,7 @@ class _WeightAdjustDialogState extends State<WeightAdjustDialog> {
                   ),
                   // 启用/禁用开关
                   if (widget.onToggleEnabled != null)
-                    Switch(
+                    ThemedSwitch(
                       value: widget.tag.enabled,
                       onChanged: (_) {
                         widget.onToggleEnabled?.call();

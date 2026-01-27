@@ -203,6 +203,7 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
                 controller: _controller,
                 focusNode: _focusNode,
                 enableAutocomplete: enableAutocomplete,
+                useInsetShadow: false,
                 config: const AutocompleteConfig(
                   maxSuggestions: 10,
                   showTranslation: true,

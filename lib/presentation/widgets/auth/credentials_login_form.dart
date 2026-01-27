@@ -6,6 +6,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../common/inset_shadow_container.dart';
+import '../common/themed_checkbox.dart';
 
 /// 邮箱密码登录表单
 class CredentialsLoginForm extends ConsumerStatefulWidget {
@@ -52,80 +54,95 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 邮箱输入
-          TextFormField(
-            controller: emailController,
-            decoration: InputDecoration(
-              labelText: context.l10n.auth_email,
-              hintText: 'user@example.com',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+          InsetShadowContainer(
+            borderRadius: 12,
+            child: TextFormField(
+              controller: emailController,
+              decoration: InputDecoration(
+                labelText: context.l10n.auth_email,
+                hintText: 'user@example.com',
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
-              filled: true,
-              fillColor: Colors.transparent,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return context.l10n.auth_emailRequired;
+                }
+                if (!value.contains('@')) {
+                  return context.l10n.auth_emailInvalid;
+                }
+                return null;
+              },
             ),
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return context.l10n.auth_emailRequired;
-              }
-              if (!value.contains('@')) {
-                return context.l10n.auth_emailInvalid;
-              }
-              return null;
-            },
           ),
           const SizedBox(height: 16),
 
           // 密码输入
-          TextFormField(
-            controller: passwordController,
-            obscureText: obscurePassword,
-            decoration: InputDecoration(
-              labelText: context.l10n.auth_password,
-              prefixIcon: const Icon(Icons.lock_outlined),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+          InsetShadowContainer(
+            borderRadius: 12,
+            child: TextFormField(
+              controller: passwordController,
+              obscureText: obscurePassword,
+              decoration: InputDecoration(
+                labelText: context.l10n.auth_password,
+                prefixIcon: const Icon(Icons.lock_outlined),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () {
+                    ref
+                        .read(authModeNotifierProvider.notifier)
+                        .togglePasswordVisibility();
+                  },
                 ),
-                onPressed: () {
-                  ref
-                      .read(authModeNotifierProvider.notifier)
-                      .togglePasswordVisibility();
-                },
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-              ),
-              filled: true,
-              fillColor: Colors.transparent,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _handleLogin(),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return context.l10n.auth_passwordRequired;
+                }
+                if (value.length < 6) {
+                  return context.l10n.auth_passwordTooShort;
+                }
+                return null;
+              },
             ),
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleLogin(),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return context.l10n.auth_passwordRequired;
-              }
-              if (value.length < 6) {
-                return context.l10n.auth_passwordTooShort;
-              }
-              return null;
-            },
           ),
           const SizedBox(height: 16),
 
           // 自动登录开关
           Row(
             children: [
-              Checkbox(
+              ThemedCheckbox(
                 value: ref.watch(autoLoginProvider),
                 onChanged: (value) {
                   ref.read(authModeNotifierProvider.notifier).toggleAutoLogin();
                 },
               ),
+              const SizedBox(width: 8),
               Text(context.l10n.auth_autoLogin),
               const Spacer(),
               TextButton(

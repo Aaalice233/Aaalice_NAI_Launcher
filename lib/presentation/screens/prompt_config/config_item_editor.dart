@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
+import '../../widgets/common/themed_slider.dart';
 
 /// 配置项编辑器
 class ConfigItemEditor extends ConsumerStatefulWidget {
@@ -175,12 +176,11 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   Text(context.l10n.configEditor_selectCount),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Slider(
+                    child: ThemedSlider(
                       value: _selectCount.toDouble(),
                       min: 1,
                       max: 10,
                       divisions: 9,
-                      label: '$_selectCount',
                       onChanged: (value) {
                         setState(() {
                           _selectCount = value.toInt();
@@ -210,12 +210,11 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                   Text(context.l10n.configEditor_selectProbability),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Slider(
+                    child: ThemedSlider(
                       value: _selectProbability,
                       min: 0.1,
                       max: 1.0,
                       divisions: 9,
-                      label: '${(_selectProbability * 100).toInt()}%',
                       onChanged: (value) {
                         setState(() {
                           _selectProbability = value;
@@ -273,7 +272,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(context.l10n.configEditor_minBrackets(_bracketMin)),
-                      Slider(
+                      ThemedSlider(
                         value: _bracketMin.toDouble(),
                         min: 0,
                         max: 5,
@@ -297,7 +296,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(context.l10n.configEditor_maxBrackets(_bracketMax)),
-                      Slider(
+                      ThemedSlider(
                         value: _bracketMax.toDouble(),
                         min: 0,
                         max: 5,

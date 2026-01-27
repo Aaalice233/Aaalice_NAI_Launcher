@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/conditional_branch.dart';
+import '../../../common/themed_slider.dart';
 
 /// 条件分支配置面板
 ///
@@ -302,12 +303,11 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               children: [
                 const Text('概率:'),
                 Expanded(
-                  child: Slider(
+                  child: ThemedSlider(
                     value: branch.probability.toDouble(),
                     min: 0,
                     max: 100,
                     divisions: 100,
-                    label: '${branch.probability}%',
                     onChanged: widget.readOnly
                         ? null
                         : (value) {

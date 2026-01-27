@@ -952,6 +952,7 @@ class _TagViewState extends ConsumerState<TagView>
                   controller: _addTagController,
                   focusNode: _addTagFocusNode,
                   enableAutocomplete: enableAutocomplete,
+                  useInsetShadow: false,
                   config: const AutocompleteConfig(
                     maxSuggestions: 10,
                     showTranslation: true,
