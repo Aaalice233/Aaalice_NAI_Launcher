@@ -43,7 +43,6 @@ class LocalImageCard extends StatefulWidget {
 
 class _LocalImageCardState extends State<LocalImageCard> {
   Timer? _longPressTimer;
-  bool _isHovering = false;
 
   // Pinch gesture state
   double _scale = 1.0;
@@ -850,15 +849,16 @@ class _LocalImageCardState extends State<LocalImageCard> {
   Widget build(BuildContext context) {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
-    final metadata = widget.record.metadata;
     // Calculate height dynamically based on aspect ratio, with max height constraint
     final maxHeight = widget.itemWidth * 3;
     final itemHeight = (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
+    return RepaintBoundary(
+      child: MouseRegion(
+        cursor: widget.selectionMode
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        child: GestureDetector(
         // 点击
         onTap: () {
           if (widget.selectionMode) {
@@ -987,218 +987,258 @@ class _LocalImageCardState extends State<LocalImageCard> {
                   ),
                 ),
               ),
-            // Selection Overlay
-            if (widget.selectionMode && widget.isSelected)
+            // Selection Overlay and Checkbox
+            if (widget.selectionMode)
+              _SelectionIndicator(
+                isSelected: widget.isSelected,
+              ),
+            // Hover overlay (only shown when not in selection mode)
+            if (!widget.selectionMode)
+              _HoverOverlay(
+                record: widget.record,
+              ),
+            // Pinch 缩略图预览 overlay
+            if (_showThumbnailPreview && _scaleStartPosition != null)
               Positioned.fill(
-                          child: Container(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.2),
+                child: Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: _scale.clamp(0.8, 2.0),
+                      child: Container(
+                        width: widget.itemWidth * 0.8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(widget.record.path),
+                            fit: BoxFit.contain,
                           ),
                         ),
-                      // Checkbox
-                      if (widget.selectionMode)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: widget.isSelected
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.black.withOpacity(0.4),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.check,
-                                size: 16,
-                                color: widget.isSelected
-                                    ? Theme.of(context).colorScheme.onPrimary
-                                    : Colors.transparent,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (!widget.selectionMode)
-                        Positioned.fill(
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 200),
-                            opacity: _isHovering ? 1.0 : 0.0,
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Colors.transparent, Colors.black87],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(8.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    path.basename(widget.record.path),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          timeago.format(
-                                            widget.record.modifiedAt,
-                                            locale:
-                                                Localizations.localeOf(context)
-                                                            .languageCode ==
-                                                        'zh'
-                                                    ? 'zh'
-                                                    : 'en',
-                                          ),
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 1,
-                                        ),
-                                      ),
-                                      if (metadata?.seed != null) ...[
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            'Seed: ${metadata!.seed}',
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 10,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      ],
-                                      if (metadata?.width != null &&
-                                          metadata?.height != null) ...[
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            '${metadata?.width} x ${metadata?.height}',
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 10,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  if (metadata?.prompt.isNotEmpty == true)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4.0),
-                                      child: Text(
-                                        metadata!.prompt,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  // Tags display
-                                  if (widget.record.tags.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4.0),
-                                      child: Wrap(
-                                        spacing: 4.0,
-                                        runSpacing: 2.0,
-                                        children: widget.record.tags
-                                            .take(3)
-                                            .map((tag) {
-                                          final displayTag = tag.length > 15
-                                              ? '${tag.substring(0, 15)}...'
-                                              : tag;
-                                          return Chip(
-                                            label: Text(
-                                              displayTag,
-                                              style: const TextStyle(
-                                                fontSize: 9,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            backgroundColor:
-                                                Colors.white24,
-                                            padding: EdgeInsets.zero,
-                                            materialTapTargetSize:
-                                                MaterialTapTargetSize
-                                                    .shrinkWrap,
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                          );
-                                        }).toList(),
-                                      ),
-                                    )
-                                  else
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 4.0),
-                                      child: Text(
-                                        'No tags',
-                                        style: TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      // Pinch 缩略图预览 overlay
-                      if (_showThumbnailPreview && _scaleStartPosition != null)
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black54,
-                            child: Center(
-                              child: Transform.scale(
-                                scale: _scale.clamp(0.8, 2.0),
-                                child: Container(
-                                  width: widget.itemWidth * 0.8,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.5),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(widget.record.path),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+/// Selection indicator widget
+/// This widget handles the selection visual feedback independently
+class _SelectionIndicator extends StatelessWidget {
+  final bool isSelected;
+
+  const _SelectionIndicator({
+    required this.isSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Selection Overlay
+        if (isSelected)
+          Positioned.fill(
+            child: Container(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            ),
+          ),
+        // Checkbox
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.black.withOpacity(0.4),
+              border: Border.all(
+                color: Colors.white,
+                width: 2,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                Icons.check,
+                size: 16,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Colors.transparent,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Hover overlay widget with separate state management
+/// This prevents hover state changes from causing the entire card to rebuild
+class _HoverOverlay extends StatefulWidget {
+  final LocalImageRecord record;
+
+  const _HoverOverlay({
+    required this.record,
+  });
+
+  @override
+  State<_HoverOverlay> createState() => _HoverOverlayState();
+}
+
+class _HoverOverlayState extends State<_HoverOverlay> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final metadata = widget.record.metadata;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: _isHovering ? 1.0 : 0.0,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.transparent, Colors.black87],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                path.basename(widget.record.path),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      timeago.format(
+                        widget.record.modifiedAt,
+                        locale:
+                            Localizations.localeOf(context).languageCode == 'zh'
+                                ? 'zh'
+                                : 'en',
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                  if (metadata?.seed != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Seed: ${metadata!.seed}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                  if (metadata?.width != null && metadata?.height != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '${metadata?.width} x ${metadata?.height}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (metadata?.prompt.isNotEmpty == true)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    metadata!.prompt,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              // Tags display
+              if (widget.record.tags.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Wrap(
+                    spacing: 4.0,
+                    runSpacing: 2.0,
+                    children: widget.record.tags.take(3).map((tag) {
+                      final displayTag =
+                          tag.length > 15 ? '${tag.substring(0, 15)}...' : tag;
+                      return Chip(
+                        label: Text(
+                          displayTag,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.white,
+                          ),
+                        ),
+                        backgroundColor: Colors.white24,
+                        padding: EdgeInsets.zero,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      );
+                    }).toList(),
+                  ),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    'No tags',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
