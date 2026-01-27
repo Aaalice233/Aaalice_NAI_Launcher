@@ -244,7 +244,7 @@ class StatisticsService {
   ///
   /// [records] - 图片记录列表
   /// 返回包含所有统计数据的完整对象
-  /// 此方法在独立的 isolate 中执行，不会阻塞 UI 线程
+  /// 此方法会调用所有统计计算方法，包括时间趋势、标签统计、参数分布等
   Future<GalleryStatistics> computeAllStatistics(
     List<LocalImageRecord> records,
   ) async {
@@ -253,8 +253,39 @@ class StatisticsService {
       'Statistics',
     );
 
-    // 使用 compute 在 isolate 中执行计算
-    return compute(_computeAllStatisticsIsolate, records);
+    // 并行计算所有统计数据
+    final results = await Future.wait([
+      // 基础统计（在 isolate 中执行）
+      compute(_computeAllStatisticsIsolate, records),
+      // 时间趋势统计
+      computeTimeTrends(records, groupBy: 'daily'),
+      // 标签统计
+      computeTagStatistics(records, limit: 20),
+      // 参数分布统计
+      computeParameterDistribution(records),
+      // 收藏统计
+      computeFavoritesStatistics(records),
+      // 最近活动
+      computeRecentActivity(records, days: 30),
+    ]);
+
+    final baseStats = results[0] as GalleryStatistics;
+    final dailyTrends = results[1] as List<DailyTrendStatistics>;
+    final tagStats = results[2] as List<TagStatistics>;
+    final paramStats = results[3] as List<ParameterStatistics>;
+    final favStats = results[4] as Map<String, dynamic>;
+    final recentActivity = results[5] as List<Map<String, dynamic>>;
+
+    // 合并所有统计数据
+    return baseStats.copyWith(
+      dailyTrends: dailyTrends,
+      weeklyTrends: [], // 可选：如果有需要可以计算周趋势
+      monthlyTrends: [], // 可选：如果有需要可以计算月趋势
+      tagDistribution: tagStats,
+      parameterDistribution: paramStats,
+      favoritesStatistics: favStats,
+      recentActivity: recentActivity,
+    );
   }
 
   /// 异步计算时间趋势统计

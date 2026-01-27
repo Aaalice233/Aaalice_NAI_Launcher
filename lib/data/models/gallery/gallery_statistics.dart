@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'daily_trend_statistics.dart';
+
 part 'gallery_statistics.freezed.dart';
 
 /// 图片尺寸分布统计
@@ -129,6 +131,21 @@ class GalleryStatistics with _$GalleryStatistics {
 
     /// 参数分布统计
     @Default([]) List<ParameterStatistics> parameterDistribution,
+
+    /// 每日趋势统计
+    @Default([]) List<DailyTrendStatistics> dailyTrends,
+
+    /// 每周趋势统计
+    @Default([]) List<WeeklyTrendStatistics> weeklyTrends,
+
+    /// 每月趋势统计
+    @Default([]) List<MonthlyTrendStatistics> monthlyTrends,
+
+    /// 收藏统计信息
+    @Default({}) Map<String, dynamic> favoritesStatistics,
+
+    /// 最近活动时间线
+    @Default([]) List<Map<String, dynamic>> recentActivity,
 
     /// 统计生成时间
     required DateTime calculatedAt,

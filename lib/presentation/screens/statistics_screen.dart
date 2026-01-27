@@ -705,6 +705,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
         children: [
           // 筛选栏
           _buildFilterBar(theme, l10n),
+          // 时间趋势图表
+          if (statistics.dailyTrends.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              'Time Trends',
+              Icons.show_chart,
+            ),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildTimeTrendsChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            SizedBox(height: isDesktop ? 32 : 24),
+          ],
           // 模型分布图表
           if (statistics.modelDistribution.isNotEmpty) ...[
             _buildSectionHeader(
@@ -775,6 +786,28 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           _buildFilterBar(theme, l10n),
           // 其他统计
           _buildAdditionalStats(theme, statistics, l10n, isDesktop),
+          SizedBox(height: isDesktop ? 32 : 24),
+          // 标签使用统计
+          if (statistics.tagDistribution.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              'Tag Usage',
+              Icons.tag,
+            ),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildTagUsageChart(theme, statistics, l10n, isDesktop),
+            SizedBox(height: isDesktop ? 32 : 24),
+          ],
+          // 参数分布统计
+          if (statistics.parameterDistribution.isNotEmpty) ...[
+            _buildSectionHeader(
+              context,
+              'Parameter Distribution',
+              Icons.tune,
+            ),
+            SizedBox(height: isDesktop ? 16 : 12),
+            _buildParameterDistributionChart(theme, statistics, l10n, isDesktop),
+          ],
         ],
       ),
     );
@@ -1253,6 +1286,217 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     );
   }
 
+  /// 构建时间趋势图表（折线图）
+  Widget _buildTimeTrendsChart(
+    ThemeData theme,
+    GalleryStatistics stats,
+    AppLocalizations l10n,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
+    final trends = stats.dailyTrends;
+    final chartHeight = isDesktop ? 300.0 : (isTablet ? 260.0 : 220.0);
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
+        child: Column(
+          children: [
+            SizedBox(
+              height: chartHeight,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: theme.dividerColor.withOpacity(0.3),
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: isMobile ? 60 : 70,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= trends.length) {
+                            return const SizedBox.shrink();
+                          }
+                          // Show every nth label to avoid overcrowding
+                          final step = (trends.length / (isMobile ? 4 : 6)).ceil();
+                          if (index % step != 0) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              trends[index].getFormattedDateShort(),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: isMobile ? 9 : 10,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: isMobile ? 35 : 40,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max) {
+                            return const SizedBox.shrink();
+                          }
+                          return Text(
+                            value.toInt().toString(),
+                            style: theme.textTheme.bodySmall,
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: trends.asMap().entries.map((entry) {
+                        return FlSpot(
+                          entry.key.toDouble(),
+                          entry.value.count.toDouble(),
+                        );
+                      }).toList(),
+                      isCurved: true,
+                      color: theme.colorScheme.primary,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: isMobile ? 3 : 4,
+                            color: theme.colorScheme.primary,
+                            strokeWidth: 0,
+                          );
+                        },
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: theme.colorScheme.primary.withOpacity(0.15),
+                      ),
+                    ),
+                  ],
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchCallback: (FlTouchEvent event, lineTouchResponse) {
+                      if (event is FlTapUpEvent &&
+                          lineTouchResponse != null &&
+                          lineTouchResponse.lineBarSpots != null &&
+                          lineTouchResponse.lineBarSpots!.isNotEmpty) {
+                        final index = lineTouchResponse
+                            .lineBarSpots!.first.spotIndex;
+                        final trendData = trends[index];
+                        _showTrendDetailDialog(context, trendData, theme, l10n);
+                      }
+                    },
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (touchedSpots) {
+                        return touchedSpots.map((spot) {
+                          final index = spot.x.toInt();
+                          if (index < 0 || index >= trends.length) {
+                            return null;
+                          }
+                          final trend = trends[index];
+                          return LineTooltipItem(
+                            '${trend.getFormattedDateShort()}\n${trend.count} images',
+                            TextStyle(
+                              color: theme.colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
+                  minY: 0,
+                  maxX: (trends.length - 1).toDouble(),
+                ),
+              ),
+            ),
+            SizedBox(height: isDesktop ? 16 : 12),
+            // Summary statistics
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: [
+                _buildTrendSummaryItem(
+                  theme,
+                  Icons.calendar_today,
+                  'Total Days',
+                  '${trends.length}',
+                ),
+                _buildTrendSummaryItem(
+                  theme,
+                  Icons.trending_up,
+                  'Peak',
+                  '${trends.map((t) => t.count).reduce((a, b) => a > b ? a : b)}',
+                ),
+                _buildTrendSummaryItem(
+                  theme,
+                  Icons.trending_down,
+                  'Average',
+                  trends.isEmpty
+                      ? '0'
+                      : '${(trends.map((t) => t.count).reduce((a, b) => a + b) / trends.length).toStringAsFixed(1)}',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建趋势汇总项
+  Widget _buildTrendSummaryItem(
+    ThemeData theme,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.primary),
+        const SizedBox(width: 4),
+        Text(
+          '$label: ',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
   /// 构建文件大小分布图表（横向柱状图）
   Widget _buildSizeDistributionChart(
     ThemeData theme,
@@ -1397,6 +1641,283 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
         ),
       );
     }).toList();
+  }
+
+  /// 构建标签使用统计图表（水平条形图）
+  Widget _buildTagUsageChart(
+    ThemeData theme,
+    GalleryStatistics stats,
+    AppLocalizations l10n,
+    bool isDesktop,
+  ) {
+    final tagStats = stats.tagDistribution.take(15).toList(); // Show top 15 tags
+    final barHeight = 35.0;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: tagStats.length * barHeight,
+              child: ListView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: tagStats.length,
+                itemBuilder: (context, index) {
+                  final tag = tagStats[index];
+                  final maxCount = tagStats.first.count;
+                  final barWidth = (tag.count / maxCount) *
+                      (MediaQuery.of(context).size.width - 150);
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          child: Text(
+                            '${index + 1}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tag.tagName,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Stack(
+                                children: [
+                                  Container(
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  Container(
+                                    height: 8,
+                                    width: barWidth,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            '${tag.count} (${tag.percentage.toStringAsFixed(1)}%)',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.primary,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建参数分布统计图表
+  Widget _buildParameterDistributionChart(
+    ThemeData theme,
+    GalleryStatistics stats,
+    AppLocalizations l10n,
+    bool isDesktop,
+  ) {
+    final paramStats = stats.parameterDistribution;
+
+    // Group parameters by name
+    final groupedParams = <String, List<ParameterStatistics>>{};
+    for (final param in paramStats) {
+      groupedParams.putIfAbsent(param.parameterName, () => []).add(param);
+    }
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(isDesktop ? 20 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Parameters',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: isDesktop ? 20 : 16),
+            // Build a dropdown to select parameter
+            DropdownButton<String>(
+              value: null,
+              hint: const Text('Select a parameter to view distribution'),
+              items: groupedParams.keys.map((paramName) {
+                return DropdownMenuItem<String>(
+                  value: paramName,
+                  child: Text(paramName),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  _showParameterDetailDialog(context, value, groupedParams[value]!, theme, l10n);
+                }
+              },
+            ),
+            SizedBox(height: isDesktop ? 16 : 12),
+            // Quick summary
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: groupedParams.keys.take(5).map((paramName) {
+                final count = groupedParams[paramName]!.length;
+                return Chip(
+                  label: Text('$paramName ($count)'),
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  deleteIcon: const Icon(Icons.arrow_forward, size: 16),
+                  onDeleted: () {
+                    _showParameterDetailDialog(context, paramName, groupedParams[paramName]!, theme, l10n);
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 显示参数详情对话框
+  void _showParameterDetailDialog(
+    BuildContext context,
+    String paramName,
+    List<ParameterStatistics> paramData,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.tune,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Parameter Distribution',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            paramName,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: paramData.length,
+                  itemBuilder: (context, index) {
+                    final param = paramData[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(
+                          param.value,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${param.count}',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${param.percentage.toStringAsFixed(1)}%',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// 构建饼图扇区（采样器分布）
@@ -1610,6 +2131,38 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       context,
       l10n.statistics_resolutionDistribution,
       resolutionData.label,
+      filteredRecords,
+      theme,
+      l10n,
+    );
+  }
+
+  /// 显示时间趋势详情对话框
+  void _showTrendDetailDialog(
+    BuildContext context,
+    DailyTrendStatistics trendData,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    final filteredRecords = _allRecords.where((record) {
+      // Match records from the same date
+      final recordDate = DateTime(
+        record.modifiedAt.year,
+        record.modifiedAt.month,
+        record.modifiedAt.day,
+      );
+      final trendDate = DateTime(
+        trendData.date.year,
+        trendData.date.month,
+        trendData.date.day,
+      );
+      return recordDate.isAtSameMomentAs(trendDate);
+    }).toList();
+
+    _showDetailDialog(
+      context,
+      'Time Trend',
+      trendData.getFormattedDate(),
       filteredRecords,
       theme,
       l10n,
