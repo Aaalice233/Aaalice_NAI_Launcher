@@ -488,14 +488,18 @@ class AuthNotifier extends _$AuthNotifier {
       );
       final accountId = account.id;
 
-      // 6. 保存 Token 到安全存储
+      // 6. 保存 accessKey 用于后续 token 刷新
+      AppLogger.auth('Saving accessKey for token refresh');
+      await storage.saveAccountAccessKey(accountId, accessKey);
+
+      // 7. 保存 Token 到安全存储
       await storage.saveAuth(
         accessToken: accessToken,
         expiry: DateTime.now().add(const Duration(days: 30)),
         email: email,
       );
 
-      // 7. 更新状态
+      // 8. 更新状态
       state = AuthState(
         status: AuthStatus.authenticated,
         accountId: accountId,

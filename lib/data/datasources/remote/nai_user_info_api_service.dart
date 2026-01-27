@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/app_logger.dart';
 
 part 'nai_user_info_api_service.g.dart';
@@ -58,7 +59,8 @@ class NAIUserInfoApiService {
       } else if (e.response?.statusCode == 401) {
         AppLogger.w('User subscription failed: Unauthorized', 'NAIUserInfo');
       } else {
-        AppLogger.e('User subscription error: ${e.message}', e, null, 'NAIUserInfo');
+        AppLogger.e(
+            'User subscription error: ${e.message}', e, null, 'NAIUserInfo');
       }
       rethrow;
     } catch (e, stack) {
@@ -71,26 +73,7 @@ class NAIUserInfoApiService {
 /// NAIUserInfoApiService Provider
 @Riverpod(keepAlive: true)
 NAIUserInfoApiService naiUserInfoApiService(Ref ref) {
-  final dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 120),
-      sendTimeout: const Duration(seconds: 30),
-    ),
-  );
-
-  // 添加日志拦截器（仅在调试模式）
-  assert(() {
-    dio.interceptors.add(
-      LogInterceptor(
-        requestBody: false,
-        responseBody: false,
-        error: false,
-        logPrint: (obj) => AppLogger.d(obj.toString(), 'Dio'),
-      ),
-    );
-    return true;
-  }());
-
+  // 使用全局 dioClient，它已经配置了 AuthInterceptor 来自动添加认证头
+  final dio = ref.watch(dioClientProvider);
   return NAIUserInfoApiService(dio);
 }

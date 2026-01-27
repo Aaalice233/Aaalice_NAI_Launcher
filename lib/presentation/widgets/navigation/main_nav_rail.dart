@@ -507,6 +507,7 @@ class _NavIcon extends StatefulWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    // ignore: unused_element
     this.isDisabled = false,
   });
 

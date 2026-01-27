@@ -90,23 +90,32 @@ class _EntryCardState extends State<EntryCard> {
           onTap: widget.onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _isHovering
                     ? theme.colorScheme.primary.withOpacity(0.5)
-                    : theme.colorScheme.outlineVariant.withOpacity(0.3),
+                    : theme.colorScheme.outlineVariant.withOpacity(0.2),
+                width: 1.5,
               ),
               boxShadow: _isHovering
                   ? [
                       BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                        color: theme.colorScheme.primary.withOpacity(0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                        spreadRadius: 2,
                       ),
                     ]
-                  : null,
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

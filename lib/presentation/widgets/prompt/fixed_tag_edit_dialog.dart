@@ -5,6 +5,8 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
+import '../common/prefix_suffix_switch.dart';
+import '../common/themed_input.dart';
 import '../prompt/nai_syntax_controller.dart';
 
 /// 固定词编辑对话框
@@ -102,17 +104,10 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 6),
-                TextField(
+                ThemedInput(
                   controller: _nameController,
                   focusNode: _nameFocusNode,
-                  decoration: InputDecoration(
-                    hintText: context.l10n.fixedTags_nameHint,
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
+                  hintText: context.l10n.fixedTags_nameHint,
                   textInputAction: TextInputAction.next,
                   onSubmitted: (_) {
                     _contentFocusNode.requestFocus();
@@ -160,32 +155,13 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _PositionRadioButton(
-                        label: context.l10n.fixedTags_prefix,
-                        description: context.l10n.fixedTags_prefixDesc,
-                        icon: Icons.arrow_forward,
-                        isSelected: _position == FixedTagPosition.prefix,
-                        color: theme.colorScheme.primary,
-                        onTap: () =>
-                            setState(() => _position = FixedTagPosition.prefix),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _PositionRadioButton(
-                        label: context.l10n.fixedTags_suffix,
-                        description: context.l10n.fixedTags_suffixDesc,
-                        icon: Icons.arrow_back,
-                        isSelected: _position == FixedTagPosition.suffix,
-                        color: theme.colorScheme.tertiary,
-                        onTap: () =>
-                            setState(() => _position = FixedTagPosition.suffix),
-                      ),
-                    ),
-                  ],
+                Center(
+                  child: PrefixSuffixSwitch(
+                    value: _position,
+                    onChanged: (value) => setState(() => _position = value),
+                    prefixLabel: context.l10n.fixedTags_prefix,
+                    suffixLabel: context.l10n.fixedTags_suffix,
+                  ),
                 ),
 
                 const SizedBox(height: 16),
@@ -393,6 +369,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
             content: content,
             categoryId: _selectedCategoryId,
           );
+      // 强制刷新词库Provider，确保保存后能立即查看
+      ref.invalidate(tagLibraryPageNotifierProvider);
     }
 
     Navigator.of(context).pop(result);
@@ -489,95 +467,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
             isExpanded: true,
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 位置选择按钮
-class _PositionRadioButton extends StatelessWidget {
-  final String label;
-  final String description;
-  final IconData icon;
-  final bool isSelected;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _PositionRadioButton({
-    required this.label,
-    required this.description,
-    required this.icon,
-    required this.isSelected,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? color.withOpacity(0.1)
-                : theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? color.withOpacity(0.5)
-                  : theme.colorScheme.outlineVariant.withOpacity(0.5),
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? color : theme.colorScheme.outline,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected
-                            ? color
-                            : theme.colorScheme.onSurface.withOpacity(0.8),
-                      ),
-                    ),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Radio<bool>(
-                value: true,
-                groupValue: isSelected,
-                onChanged: (_) => onTap(),
-                activeColor: color,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

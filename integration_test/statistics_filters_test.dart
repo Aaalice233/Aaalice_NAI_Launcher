@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/app.dart';
-import 'package:nai_launcher/presentation/screens/statistics_screen.dart';
+import 'package:nai_launcher/presentation/screens/statistics/statistics_screen.dart';
 
 void main() {
   group('Statistics Filters Tests', () {

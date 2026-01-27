@@ -69,15 +69,15 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
             decoration: BoxDecoration(
               color: widget.enabled
                   ? (_isHovering
-                      ? theme.colorScheme.primary.withOpacity(0.2)
-                      : theme.colorScheme.primary.withOpacity(0.1))
+                      ? Colors.orange.withOpacity(0.2)
+                      : Colors.orange.withOpacity(0.1))
                   : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: widget.enabled
-                    ? theme.colorScheme.primary.withOpacity(0.3)
+                    ? Colors.orange.withOpacity(0.3)
                     : Colors.transparent,
               ),
             ),
@@ -90,7 +90,7 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
                       : Icons.auto_awesome_outlined,
                   size: 14,
                   color: widget.enabled
-                      ? theme.colorScheme.primary
+                      ? Colors.orange.shade700
                       : theme.colorScheme.onSurface.withOpacity(0.5),
                 ),
                 const SizedBox(width: 4),
@@ -101,7 +101,7 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
                     fontWeight:
                         widget.enabled ? FontWeight.w600 : FontWeight.w500,
                     color: widget.enabled
-                        ? theme.colorScheme.primary
+                        ? Colors.orange.shade700
                         : theme.colorScheme.onSurface.withOpacity(0.5),
                   ),
                 ),
@@ -110,7 +110,7 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
                   Icon(
                     Icons.check,
                     size: 12,
-                    color: theme.colorScheme.primary,
+                    color: Colors.orange.shade700,
                   ),
                 ],
               ],
@@ -147,7 +147,7 @@ class _QualityTagsHintState extends State<QualityTagsHint> {
         Text(
           ', $qualityTags',
           style: TextStyle(
-            color: theme.colorScheme.primary,
+            color: Colors.orange.shade700,
             fontSize: 11,
           ),
         ),

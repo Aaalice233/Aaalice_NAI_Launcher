@@ -182,6 +182,8 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
   Future<void> removeAccount(String accountId) async {
     // 删除 Token
     await _deleteAccountToken(accountId);
+    // 删除 accessKey（用于 token 刷新）
+    await _secureStorage.deleteAccountAccessKey(accountId);
 
     // 更新账号列表
     final newAccounts = state.accounts.where((a) => a.id != accountId).toList();
@@ -235,6 +237,11 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
   /// 根据邮箱查找账号
   SavedAccount? findByEmail(String email) {
     return state.accounts.where((a) => a.email == email).firstOrNull;
+  }
+
+  /// 更新账号的 Token（用于 token 刷新后更新）
+  Future<void> updateAccountToken(String accountId, String newToken) async {
+    await _saveAccountToken(accountId, newToken);
   }
 
   /// 按最后使用时间排序的账号列表

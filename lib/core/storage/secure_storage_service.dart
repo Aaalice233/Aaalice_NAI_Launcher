@@ -177,6 +177,31 @@ class SecureStorageService {
   Future<void> delete(String key) async {
     await _storage.delete(key: key);
   }
+
+  // ==================== Account Access Key 存储 ====================
+  // 用于 JWT token 刷新，accessKey 可用于重新获取 token
+
+  /// 保存账号的 accessKey（用于 token 刷新）
+  Future<void> saveAccountAccessKey(String accountId, String accessKey) async {
+    await _storage.write(
+      key: '${StorageKeys.accountAccessKeyPrefix}$accountId',
+      value: accessKey,
+    );
+  }
+
+  /// 获取账号的 accessKey
+  Future<String?> getAccountAccessKey(String accountId) async {
+    return _storage.read(
+      key: '${StorageKeys.accountAccessKeyPrefix}$accountId',
+    );
+  }
+
+  /// 删除账号的 accessKey
+  Future<void> deleteAccountAccessKey(String accountId) async {
+    await _storage.delete(
+      key: '${StorageKeys.accountAccessKeyPrefix}$accountId',
+    );
+  }
 }
 
 /// SecureStorageService Provider

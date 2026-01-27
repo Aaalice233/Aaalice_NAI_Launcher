@@ -3,6 +3,7 @@ import 'package:dio_http2_adapter/dio_http2_adapter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../data/services/token_refresh_service.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
@@ -42,9 +43,12 @@ Dio dioClient(Ref ref) {
   return dio;
 }
 
-/// 认证拦截器 - 自动添加 Bearer Token
+/// 认证拦截器 - 自动添加 Bearer Token 并支持 401 自动刷新
 class AuthInterceptor extends Interceptor {
   final Ref _ref;
+
+  /// 是否正在刷新中（防止并发刷新）
+  bool _isRefreshing = false;
 
   AuthInterceptor(this._ref);
 
@@ -105,10 +109,67 @@ class AuthInterceptor extends Interceptor {
         'DIO',
       );
 
-      // 只有在当前是已登录状态时才触发登出逻辑，避免并发请求导致多次重定向
-      if (authState.isAuthenticated) {
+      // 只有在已登录状态且未在刷新中时才尝试刷新
+      if (authState.isAuthenticated && !_isRefreshing) {
+        _isRefreshing = true;
+
+        try {
+          // 尝试刷新 token
+          AppLogger.d('[AuthInterceptor] Attempting token refresh...', 'DIO');
+          final tokenRefreshService =
+              _ref.read(tokenRefreshServiceProvider.notifier);
+          final refreshed = await tokenRefreshService.refreshCurrentToken();
+
+          if (refreshed) {
+            AppLogger.d(
+              '[AuthInterceptor] Token refreshed, retrying request',
+              'DIO',
+            );
+
+            // 获取新 token 并重试请求
+            final storage = _ref.read(secureStorageServiceProvider);
+            final newToken = await storage.getAccessToken();
+
+            if (newToken != null && newToken.isNotEmpty) {
+              // 更新请求头
+              err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+
+              try {
+                // 创建新的 Dio 实例来重试，避免循环
+                final retryDio = Dio();
+                final response = await retryDio.fetch(err.requestOptions);
+                _isRefreshing = false;
+                handler.resolve(response);
+                return;
+              } catch (retryError) {
+                AppLogger.e(
+                  '[AuthInterceptor] Retry request failed: $retryError',
+                  retryError,
+                  null,
+                  'DIO',
+                );
+              }
+            }
+          } else {
+            AppLogger.w(
+              '[AuthInterceptor] Token refresh returned false',
+              'DIO',
+            );
+          }
+        } catch (e) {
+          AppLogger.e(
+            '[AuthInterceptor] Token refresh error: $e',
+            e,
+            null,
+            'DIO',
+          );
+        } finally {
+          _isRefreshing = false;
+        }
+
+        // 刷新失败，执行登出
         AppLogger.w(
-          '[AuthInterceptor] Calling logout with error code...',
+          '[AuthInterceptor] Token refresh failed, logging out...',
           'DIO',
         );
         await _ref.read(authNotifierProvider.notifier).logout(
@@ -116,6 +177,11 @@ class AuthInterceptor extends Interceptor {
               httpStatusCode: 401,
             );
         AppLogger.w('[AuthInterceptor] logout() completed', 'DIO');
+      } else if (_isRefreshing) {
+        AppLogger.w(
+          '[AuthInterceptor] Skipping because already refreshing',
+          'DIO',
+        );
       } else {
         AppLogger.w(
           '[AuthInterceptor] Skipping logout because not authenticated',

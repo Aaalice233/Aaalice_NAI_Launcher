@@ -42,6 +42,7 @@ class _EntryListItemState extends State<EntryListItem> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHigh,
@@ -49,8 +50,18 @@ class _EntryListItemState extends State<EntryListItem> {
             border: Border.all(
               color: _isHovering
                   ? theme.colorScheme.primary.withOpacity(0.5)
-                  : theme.colorScheme.outlineVariant.withOpacity(0.3),
+                  : theme.colorScheme.outlineVariant.withOpacity(0.2),
+              width: 1.5,
             ),
+            boxShadow: _isHovering
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [

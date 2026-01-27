@@ -8,6 +8,8 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
+import '../../../widgets/common/safe_dropdown.dart';
+import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 
 /// 添加/编辑词库条目对话框
@@ -263,17 +265,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        TextField(
+        ThemedInput(
           controller: _nameController,
           focusNode: _nameFocusNode,
-          decoration: InputDecoration(
-            hintText: context.l10n.tagLibrary_nameHint,
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
+          hintText: context.l10n.tagLibrary_nameHint,
           textInputAction: TextInputAction.next,
           onSubmitted: (_) {
             _contentFocusNode.requestFocus();
@@ -288,18 +283,18 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String?>(
+        SafeDropdown<String?>(
           value: _selectedCategoryId,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          ),
           items: [
             DropdownMenuItem(
               value: null,
               child: Row(
                 children: [
-                  const Icon(Icons.folder_outlined, size: 18),
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(width: 8),
                   Text(context.l10n.tagLibrary_rootCategory),
                 ],
@@ -310,7 +305,11 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                 value: category.id,
                 child: Row(
                   children: [
-                    const Icon(Icons.folder, size: 18),
+                    Icon(
+                      Icons.folder,
+                      size: 18,
+                      color: theme.colorScheme.outline,
+                    ),
                     const SizedBox(width: 8),
                     Text(category.displayName),
                   ],
@@ -331,17 +330,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        TextField(
+        ThemedInput(
           controller: _tagsController,
-          decoration: InputDecoration(
-            hintText: context.l10n.tagLibrary_tagsHint,
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            helperText: context.l10n.tagLibrary_tagsHelper,
-          ),
+          hintText: context.l10n.tagLibrary_tagsHint,
+          helperText: context.l10n.tagLibrary_tagsHelper,
         ),
       ],
     );

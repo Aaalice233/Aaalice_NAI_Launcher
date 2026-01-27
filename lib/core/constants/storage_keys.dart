@@ -10,6 +10,9 @@ class StorageKeys {
   // Token 存储（按账号ID）
   static const String accountTokenPrefix = 'nai_account_token_';
 
+  // Access Key 存储（用于 JWT token 刷新，按账号ID）
+  static const String accountAccessKeyPrefix = 'nai_account_access_key_';
+
   // Hive Box Names
   static const String settingsBox = 'settings';
   static const String historyBox = 'history';

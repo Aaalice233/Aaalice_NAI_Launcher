@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../router/app_router.dart';
 import 'fixed_tag_edit_dialog.dart';
 
 /// 固定词管理对话框
@@ -149,7 +151,9 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
           entry: entry,
           index: index,
           onToggleEnabled: () {
-            ref.read(fixedTagsNotifierProvider.notifier).toggleEnabled(entry.id);
+            ref
+                .read(fixedTagsNotifierProvider.notifier)
+                .toggleEnabled(entry.id);
           },
           onEdit: () => _showEditDialog(entry),
           onDelete: () => _showDeleteConfirmation(entry),
@@ -157,7 +161,9 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
       },
       onReorder: (oldIndex, newIndex) {
         if (newIndex > oldIndex) newIndex--;
-        ref.read(fixedTagsNotifierProvider.notifier).reorder(oldIndex, newIndex);
+        ref
+            .read(fixedTagsNotifierProvider.notifier)
+            .reorder(oldIndex, newIndex);
       },
     );
   }
@@ -174,9 +180,12 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
       ),
       child: Row(
         children: [
-          // 打开词库按钮（暂时禁用，等待词库功能实现）
+          // 打开词库按钮
           OutlinedButton.icon(
-            onPressed: null, // TODO: 实现词库功能后启用
+            onPressed: () {
+              Navigator.of(context).pop(); // 关闭当前对话框
+              context.go(AppRoutes.tagLibraryPage); // 导航到词库页面
+            },
             icon: const Icon(Icons.library_books, size: 18),
             label: Text(context.l10n.fixedTags_openLibrary),
           ),
@@ -229,7 +238,9 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref.read(fixedTagsNotifierProvider.notifier).deleteEntry(entry.id);
+              ref
+                  .read(fixedTagsNotifierProvider.notifier)
+                  .deleteEntry(entry.id);
             },
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
@@ -276,17 +287,28 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
       onExit: (_) => setState(() => _isHovering = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: _isHovering
               ? theme.colorScheme.surfaceContainerHighest
               : theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: entry.enabled
-                ? theme.colorScheme.secondary.withOpacity(0.3)
+                ? theme.colorScheme.secondary
+                    .withOpacity(_isHovering ? 0.5 : 0.3)
                 : theme.colorScheme.outlineVariant.withOpacity(0.3),
+            width: 1.5,
           ),
+          boxShadow: _isHovering
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -334,9 +356,11 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                               fontWeight: FontWeight.w500,
                               color: entry.enabled
                                   ? theme.colorScheme.onSurface
-                                  : theme.colorScheme.onSurface.withOpacity(0.5),
-                              decoration:
-                                  entry.enabled ? null : TextDecoration.lineThrough,
+                                  : theme.colorScheme.onSurface
+                                      .withOpacity(0.5),
+                              decoration: entry.enabled
+                                  ? null
+                                  : TextDecoration.lineThrough,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
