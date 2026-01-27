@@ -1,10 +1,14 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/tag_library_page_provider.dart';
 import '../../router/app_router.dart';
 import '../common/themed_switch.dart';
 import 'fixed_tag_edit_dialog.dart';
@@ -23,57 +27,124 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     final theme = Theme.of(context);
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
     final entries = fixedTagsState.entries;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 500,
-          maxHeight: 600,
-          minWidth: 400,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            _buildHeader(theme),
-
-            // 列表区域
-            Flexible(
-              child: entries.isEmpty
-                  ? _buildEmptyState(theme)
-                  : _buildEntryList(theme, entries),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxWidth: 520,
+              maxHeight: 620,
+              minWidth: 420,
             ),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? theme.colorScheme.surface.withOpacity(0.85)
+                  : theme.colorScheme.surface.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.06),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+                  blurRadius: 32,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 16),
+                ),
+                if (isDark)
+                  BoxShadow(
+                    color: theme.colorScheme.secondary.withOpacity(0.08),
+                    blurRadius: 48,
+                    spreadRadius: -8,
+                  ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 标题栏
+                _buildHeader(theme, isDark),
 
-            // 底部操作栏
-            _buildFooter(theme),
-          ],
+                // 列表区域
+                Flexible(
+                  child: entries.isEmpty
+                      ? _buildEmptyState(theme, isDark)
+                      : _buildEntryList(theme, entries, isDark),
+                ),
+
+                // 底部操作栏
+                _buildFooter(theme, isDark),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, bool isDark) {
     final enabledCount = ref.watch(enabledFixedTagsCountProvider);
     final totalCount = ref.watch(fixedTagsCountProvider);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+      padding: const EdgeInsets.fromLTRB(20, 18, 12, 14),
       decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.secondary.withOpacity(isDark ? 0.08 : 0.05),
+            Colors.transparent,
+          ],
+        ),
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.06),
           ),
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.push_pin,
-            color: theme.colorScheme.secondary,
-            size: 22,
+          // 图标容器增加渐变背景
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  theme.colorScheme.secondary.withOpacity(0.2),
+                  theme.colorScheme.secondary.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.secondary.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.push_pin_rounded,
+              color: theme.colorScheme.secondary,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,54 +153,88 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
                   context.l10n.fixedTags_manage,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                if (totalCount > 0)
-                  Text(
-                    context.l10n.fixedTags_enabledCount(
-                      enabledCount.toString(),
-                      totalCount.toString(),
-                    ),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
+                if (totalCount > 0) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: enabledCount > 0
+                              ? theme.colorScheme.secondary.withOpacity(0.15)
+                              : theme.colorScheme.outline.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          context.l10n.fixedTags_enabledCount(
+                            enabledCount.toString(),
+                            totalCount.toString(),
+                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: enabledCount > 0
+                                ? theme.colorScheme.secondary
+                                : theme.colorScheme.outline,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                ],
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
+          // 关闭按钮美化
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(ThemeData theme, bool isDark) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.push_pin_outlined,
-              size: 48,
-              color: theme.colorScheme.outline.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16),
             Text(
               context.l10n.fixedTags_empty,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               context.l10n.fixedTags_emptyHint,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.outline.withOpacity(0.7),
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
@@ -139,10 +244,11 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
-  Widget _buildEntryList(ThemeData theme, List<FixedTagEntry> entries) {
+  Widget _buildEntryList(
+      ThemeData theme, List<FixedTagEntry> entries, bool isDark) {
     return ReorderableListView.builder(
       shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       buildDefaultDragHandles: false,
       itemCount: entries.length,
       itemBuilder: (context, index) {
@@ -151,6 +257,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
           key: ValueKey(entry.id),
           entry: entry,
           index: index,
+          isDark: isDark,
           onToggleEnabled: () {
             ref
                 .read(fixedTagsNotifierProvider.notifier)
@@ -169,37 +276,91 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
-  Widget _buildFooter(ThemeData theme) {
+  Widget _buildFooter(ThemeData theme, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           ),
         ),
       ),
       child: Row(
         children: [
-          // 打开词库按钮
+          // 打开词库按钮 - 轮廓样式
           OutlinedButton.icon(
             onPressed: () {
-              Navigator.of(context).pop(); // 关闭当前对话框
-              context.go(AppRoutes.tagLibraryPage); // 导航到词库页面
+              Navigator.of(context).pop();
+              context.go(AppRoutes.tagLibraryPage);
             },
-            icon: const Icon(Icons.library_books, size: 18),
+            icon: const Icon(Icons.library_books_outlined, size: 17),
             label: Text(context.l10n.fixedTags_openLibrary),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              textStyle: const TextStyle(fontSize: 13),
+            ),
           ),
           const Spacer(),
-          // 添加按钮
-          FilledButton.icon(
+          // 添加按钮 - 次要
+          FilledButton.tonalIcon(
             onPressed: () => _showEditDialog(null),
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 17),
             label: Text(context.l10n.fixedTags_add),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // 从词库添加按钮 - 主要（最常用）
+          FilledButton.icon(
+            onPressed: () => _showLibraryPicker(theme),
+            icon: const Icon(Icons.playlist_add_rounded, size: 17),
+            label: const Text('从词库添加'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  /// 显示词库选择器
+  void _showLibraryPicker(ThemeData theme) {
+    final libraryState = ref.read(tagLibraryPageNotifierProvider);
+    final entries = libraryState.entries;
+
+    if (entries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('词库为空，请先添加条目'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => _LibraryPickerDialog(
+        entries: entries,
+        onSelect: _addFromLibrary,
+      ),
+    );
+  }
+
+  /// 从词库添加条目
+  Future<void> _addFromLibrary(TagLibraryEntry entry) async {
+    await ref.read(fixedTagsNotifierProvider.notifier).addEntry(
+          name: entry.name,
+          content: entry.content,
+          weight: 1.0,
+          position: FixedTagPosition.prefix,
+          enabled: true,
+        );
   }
 
   void _showEditDialog(FixedTagEntry? entry) async {
@@ -254,10 +415,354 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   }
 }
 
-/// 固定词条目卡片
+/// 美化的轮廓按钮
+class _StyledOutlineButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+  final ThemeData theme;
+  final bool isDark;
+
+  const _StyledOutlineButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.theme,
+    required this.isDark,
+  });
+
+  @override
+  State<_StyledOutlineButton> createState() => _StyledOutlineButtonState();
+}
+
+class _StyledOutlineButtonState extends State<_StyledOutlineButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: _isHovering
+                ? widget.theme.colorScheme.outline.withOpacity(0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _isHovering
+                  ? widget.theme.colorScheme.outline.withOpacity(0.4)
+                  : widget.theme.colorScheme.outline.withOpacity(0.25),
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 17,
+                color: widget.theme.colorScheme.onSurface.withOpacity(0.75),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: widget.theme.colorScheme.onSurface.withOpacity(0.85),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 美化的填充按钮
+class _StyledFilledButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+  final ThemeData theme;
+
+  const _StyledFilledButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.theme,
+  });
+
+  @override
+  State<_StyledFilledButton> createState() => _StyledFilledButtonState();
+}
+
+class _StyledFilledButtonState extends State<_StyledFilledButton> {
+  bool _isHovering = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.identity()
+            ..scale(_isPressed ? 0.97 : 1.0),
+          transformAlignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _isHovering
+                  ? [
+                      widget.theme.colorScheme.secondary,
+                      widget.theme.colorScheme.secondary.withOpacity(0.85),
+                    ]
+                  : [
+                      widget.theme.colorScheme.secondary.withOpacity(0.9),
+                      widget.theme.colorScheme.secondary.withOpacity(0.75),
+                    ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: _isHovering
+                ? [
+                    BoxShadow(
+                      color: widget.theme.colorScheme.secondary.withOpacity(0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: widget.theme.colorScheme.secondary.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 17,
+                color: widget.theme.colorScheme.onSecondary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: widget.theme.colorScheme.onSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 词库选择对话框
+class _LibraryPickerDialog extends StatefulWidget {
+  final List<TagLibraryEntry> entries;
+  final ValueChanged<TagLibraryEntry> onSelect;
+
+  const _LibraryPickerDialog({
+    required this.entries,
+    required this.onSelect,
+  });
+
+  @override
+  State<_LibraryPickerDialog> createState() => _LibraryPickerDialogState();
+}
+
+class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  List<TagLibraryEntry> get _filteredEntries {
+    if (_searchQuery.isEmpty) return widget.entries;
+    final query = _searchQuery.toLowerCase();
+    return widget.entries.where((e) {
+      return e.name.toLowerCase().contains(query) ||
+          e.content.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filtered = _filteredEntries;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 420,
+          maxHeight: 480,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 标题栏
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.playlist_add_rounded,
+                      color: theme.colorScheme.primary, size: 22),
+                  const SizedBox(width: 10),
+                  Text('从词库添加',
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            // 搜索框
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: '搜索词库条目...',
+                  prefixIcon:
+                      Icon(Icons.search, size: 20, color: theme.colorScheme.outline),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: theme.colorScheme.outline),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13),
+                onChanged: (v) => setState(() => _searchQuery = v),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // 列表
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text('无匹配结果',
+                          style: TextStyle(color: theme.colorScheme.outline)),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final entry = filtered[index];
+                        return _LibraryEntryTile(
+                          entry: entry,
+                          onTap: () {
+                            widget.onSelect(entry);
+                            Navigator.of(context).pop();
+                          },
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 词库条目选项
+class _LibraryEntryTile extends StatelessWidget {
+  final TagLibraryEntry entry;
+  final VoidCallback onTap;
+
+  const _LibraryEntryTile({required this.entry, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.name.isNotEmpty ? entry.name : entry.content,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (entry.name.isNotEmpty && entry.content.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          entry.content.replaceAll('\n', ' '),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.outline,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(Icons.add_rounded,
+                  size: 18, color: theme.colorScheme.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 固定词条目卡片 - 紧凑版
 class _FixedTagEntryTile extends StatefulWidget {
   final FixedTagEntry entry;
   final int index;
+  final bool isDark;
   final VoidCallback onToggleEnabled;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -266,6 +771,7 @@ class _FixedTagEntryTile extends StatefulWidget {
     super.key,
     required this.entry,
     required this.index,
+    required this.isDark,
     required this.onToggleEnabled,
     required this.onEdit,
     required this.onDelete,
@@ -282,197 +788,237 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
+    final isDark = widget.isDark;
+
+    // 位置颜色
+    final posColor =
+        entry.isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         decoration: BoxDecoration(
           color: _isHovering
-              ? theme.colorScheme.surfaceContainerHighest
-              : theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
+              ? theme.colorScheme.surfaceContainerHighest.withOpacity(isDark ? 0.8 : 0.6)
+              : theme.colorScheme.surfaceContainerHigh.withOpacity(isDark ? 0.5 : 0.4),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: entry.enabled
-                ? theme.colorScheme.secondary
-                    .withOpacity(_isHovering ? 0.5 : 0.3)
-                : theme.colorScheme.outlineVariant.withOpacity(0.3),
-            width: 1.5,
+                ? theme.colorScheme.secondary.withOpacity(_isHovering ? 0.4 : 0.2)
+                : theme.colorScheme.outline.withOpacity(_isHovering ? 0.15 : 0.08),
+            width: entry.enabled ? 1.2 : 1,
           ),
-          boxShadow: _isHovering
-              ? [
-                  BoxShadow(
-                    color: theme.colorScheme.shadow.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: [
-              // 拖拽手柄
-              ReorderableDragStartListener(
-                index: widget.index,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.grab,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.drag_indicator,
-                      size: 18,
-                      color: theme.colorScheme.outline,
+        child: Row(
+          children: [
+            // 拖拽手柄 - 极简
+            ReorderableDragStartListener(
+              index: widget.index,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.grab,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                  child: Icon(
+                    Icons.drag_indicator_rounded,
+                    size: 16,
+                    color: theme.colorScheme.outline.withOpacity(
+                      _isHovering ? 0.5 : 0.25,
                     ),
                   ),
                 ),
               ),
+            ),
 
-              // 启用开关
-              ThemedSwitch(
-                value: entry.enabled,
-                onChanged: (_) => widget.onToggleEnabled(),
-                scale: 0.85,
-              ),
+            // 启用开关
+            ThemedSwitch(
+              value: entry.enabled,
+              onChanged: (_) => widget.onToggleEnabled(),
+              scale: 0.7,
+            ),
 
-              const SizedBox(width: 8),
+            const SizedBox(width: 6),
 
-              // 内容区域
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 名称行
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            entry.displayName,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: entry.enabled
-                                  ? theme.colorScheme.onSurface
-                                  : theme.colorScheme.onSurface
-                                      .withOpacity(0.5),
-                              decoration: entry.enabled
-                                  ? null
-                                  : TextDecoration.lineThrough,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        // 位置标签
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: entry.isPrefix
-                                ? theme.colorScheme.primary.withOpacity(0.1)
-                                : theme.colorScheme.tertiary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                entry.isPrefix
-                                    ? Icons.arrow_forward
-                                    : Icons.arrow_back,
-                                size: 10,
-                                color: entry.isPrefix
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.tertiary,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                entry.isPrefix
-                                    ? context.l10n.fixedTags_prefix
-                                    : context.l10n.fixedTags_suffix,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w500,
-                                  color: entry.isPrefix
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.tertiary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // 权重标签
-                        if (entry.weight != 1.0) ...[
-                          const SizedBox(width: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  theme.colorScheme.secondary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${entry.weight.toStringAsFixed(2)}x',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.secondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+            // 名称 + 内容
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 名称
+                  Text(
+                    entry.displayName,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: entry.enabled
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurface.withOpacity(0.4),
+                      decoration:
+                          entry.enabled ? null : TextDecoration.lineThrough,
+                      decorationColor:
+                          theme.colorScheme.outline.withOpacity(0.4),
                     ),
-                    // 内容预览
-                    if (entry.content.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        entry.content.length > 50
-                            ? '${entry.content.substring(0, 50)}...'
-                            : entry.content,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  // 内容预览 - 仅悬停显示或内容与名称不同时
+                  if (entry.content.isNotEmpty &&
+                      entry.content != entry.displayName)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        entry.content.replaceAll('\n', ' '),
                         style: TextStyle(
-                          fontSize: 11,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontSize: 10,
+                          color: theme.colorScheme.outline.withOpacity(0.7),
+                          height: 1.2,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                ],
               ),
+            ),
 
-              // 操作按钮
-              Row(
+            const SizedBox(width: 6),
+
+            // 标签区 - 紧凑
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 位置标签
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: posColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        entry.isPrefix
+                            ? Icons.arrow_forward_rounded
+                            : Icons.arrow_back_rounded,
+                        size: 9,
+                        color: posColor,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        entry.isPrefix
+                            ? context.l10n.fixedTags_prefix
+                            : context.l10n.fixedTags_suffix,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: posColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 权重标签
+                if (entry.weight != 1.0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${entry.weight.toStringAsFixed(1)}x',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.secondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+
+            const SizedBox(width: 4),
+
+            // 操作按钮 - 紧凑
+            AnimatedOpacity(
+              opacity: _isHovering ? 1.0 : 0.4,
+              duration: const Duration(milliseconds: 120),
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 18),
+                  _CompactIconButton(
+                    icon: Icons.edit_outlined,
                     onPressed: widget.onEdit,
                     tooltip: context.l10n.common_edit,
-                    visualDensity: VisualDensity.compact,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    hoverColor: theme.colorScheme.primary,
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.delete_outline,
-                      size: 18,
-                      color: theme.colorScheme.error,
-                    ),
+                  _CompactIconButton(
+                    icon: Icons.close_rounded,
                     onPressed: widget.onDelete,
                     tooltip: context.l10n.common_delete,
-                    visualDensity: VisualDensity.compact,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    hoverColor: theme.colorScheme.error,
                   ),
                 ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 紧凑图标按钮
+class _CompactIconButton extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String tooltip;
+  final Color color;
+  final Color hoverColor;
+
+  const _CompactIconButton({
+    required this.icon,
+    required this.onPressed,
+    required this.tooltip,
+    required this.color,
+    required this.hoverColor,
+  });
+
+  @override
+  State<_CompactIconButton> createState() => _CompactIconButtonState();
+}
+
+class _CompactIconButtonState extends State<_CompactIconButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Icon(
+              widget.icon,
+              size: 15,
+              color: _isHovering ? widget.hoverColor : widget.color,
+            ),
           ),
         ),
       ),

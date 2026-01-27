@@ -60,6 +60,8 @@ class ExpandableCategoryTile extends ConsumerStatefulWidget {
 
 class _ExpandableCategoryTileState
     extends ConsumerState<ExpandableCategoryTile> {
+  bool _isHovering = false;
+
   /// 获取分类对应的 tag groups
   List<TagGroupTreeNode> _getTagGroupsForCategory(TagSubCategory category) {
     final categoryNode = DanbooruTagGroupTree.tree.firstWhere(
@@ -234,165 +236,192 @@ class _ExpandableCategoryTileState
     final categoryName = TagSubCategoryHelper.getDisplayName(widget.category);
     final dynamicTagCount = _calculateDynamicTagCount();
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.1),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 头部（始终显示）
-          InkWell(
-            onTap: () => widget.onExpandChanged(!widget.isExpanded),
-            borderRadius: BorderRadius.vertical(
-              top: const Radius.circular(12),
-              bottom:
-                  widget.isExpanded ? Radius.zero : const Radius.circular(12),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: _isHovering
+              ? theme.colorScheme.surfaceContainerHighest
+              : theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _isHovering
+                ? theme.colorScheme.outline.withOpacity(0.25)
+                : theme.colorScheme.outline.withOpacity(0.1),
+            width: _isHovering ? 1.2 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(_isHovering ? 0.12 : 0.06),
+              blurRadius: _isHovering ? 12 : 6,
+              offset: Offset(0, _isHovering ? 4 : 2),
+              spreadRadius: _isHovering ? 1 : 0,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // 分类图标
-                  SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Center(
-                      child: Text(
-                        DefaultCategoryEmojis.getTagSubCategoryEmoji(
-                          widget.category,
-                        ),
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // 分类名称和标签数
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 头部（始终显示）
+              InkWell(
+                onTap: () => widget.onExpandChanged(!widget.isExpanded),
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(14),
+                  bottom:
+                      widget.isExpanded ? Radius.zero : const Radius.circular(14),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Text(
-                        categoryName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: widget.isEnabled
-                              ? null
-                              : theme.colorScheme.outline,
+                      // 分类图标
+                      SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Center(
+                          child: Text(
+                            DefaultCategoryEmojis.getTagSubCategoryEmoji(
+                              widget.category,
+                            ),
+                            style: const TextStyle(fontSize: 24),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        context.l10n
-                            .naiMode_tagCount(dynamicTagCount.toString()),
-                        style: theme.textTheme.bodySmall?.copyWith(
+                      const SizedBox(width: 12),
+                      // 分类名称和标签数
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            categoryName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: widget.isEnabled
+                                  ? null
+                                  : theme.colorScheme.outline,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            context.l10n
+                                .naiMode_tagCount(dynamicTagCount.toString()),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
+                      // 已选择的 tag 组名称列表
+                      Expanded(
+                        child:
+                            _buildSelectedTagGroupsPreview(theme, tagGroupMappings),
+                      ),
+                      // 操作按钮区域
+                      if (widget.onSettings != null) ...[  
+                        TextButton.icon(
+                          icon: Icon(
+                            Icons.settings_outlined,
+                            size: 16,
+                            color: theme.colorScheme.outline,
+                          ),
+                          label: Text(
+                            context.l10n.common_settings,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                          onPressed: widget.onSettings,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: const Size(0, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (widget.onRemove != null) ...[  
+                        TextButton.icon(
+                          icon: Icon(
+                            Icons.delete_outline,
+                            size: 16,
+                            color: theme.colorScheme.error.withOpacity(0.7),
+                          ),
+                          label: Text(
+                            context.l10n.common_delete,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error.withOpacity(0.7),
+                            ),
+                          ),
+                          onPressed: widget.onRemove,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: const Size(0, 36),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (widget.onEnabledChanged != null)
+                        Tooltip(
+                          message: widget.isEnabled
+                              ? context.l10n.promptConfig_disableCategory
+                              : context.l10n.promptConfig_enableCategory,
+                          child: ThemedSwitch(
+                            value: widget.isEnabled,
+                            onChanged: widget.onEnabledChanged,
+                            scale: 0.8,
+                          ),
+                        ),
+                      // 概率显示徽章
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:
+                              theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${widget.probability}%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.secondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 展开/收起按钮
+                      AnimatedRotation(
+                        turns: widget.isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.expand_more,
                           color: theme.colorScheme.outline,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 16),
-                  // 已选择的 tag 组名称列表
-                  Expanded(
-                    child:
-                        _buildSelectedTagGroupsPreview(theme, tagGroupMappings),
-                  ),
-                  // 操作按钮区域
-                  if (widget.onSettings != null) ...[
-                    TextButton.icon(
-                      icon: Icon(
-                        Icons.settings_outlined,
-                        size: 16,
-                        color: theme.colorScheme.outline,
-                      ),
-                      label: Text(
-                        context.l10n.common_settings,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                      onPressed: widget.onSettings,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: const Size(0, 36),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (widget.onRemove != null) ...[
-                    TextButton.icon(
-                      icon: Icon(
-                        Icons.delete_outline,
-                        size: 16,
-                        color: theme.colorScheme.error.withOpacity(0.7),
-                      ),
-                      label: Text(
-                        context.l10n.common_delete,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error.withOpacity(0.7),
-                        ),
-                      ),
-                      onPressed: widget.onRemove,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: const Size(0, 36),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (widget.onEnabledChanged != null)
-                    Tooltip(
-                      message: widget.isEnabled
-                          ? context.l10n.promptConfig_disableCategory
-                          : context.l10n.promptConfig_enableCategory,
-                      child: ThemedSwitch(
-                        value: widget.isEnabled,
-                        onChanged: widget.onEnabledChanged,
-                        scale: 0.8,
-                      ),
-                    ),
-                  // 概率显示徽章
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color:
-                          theme.colorScheme.secondaryContainer.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${widget.probability}%',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // 展开/收起按钮
-                  Icon(
-                    widget.isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: theme.colorScheme.outline,
-                  ),
-                ],
+                ),
               ),
-            ),
+              // 展开内容（收起时不渲染，提升性能）
+              if (widget.isExpanded) _buildExpandedContent(theme, tagGroupMappings),
+            ],
           ),
-          // 展开内容（收起时不渲染，提升性能）
-          if (widget.isExpanded) _buildExpandedContent(theme, tagGroupMappings),
-        ],
+        ),
       ),
     );
   }

@@ -191,13 +191,7 @@ class _ThemedSliderState extends State<ThemedSlider> {
                         ),
                       ),
                     ),
-                    // 分段点
-                    if (widget.divisions != null && widget.divisions! > 0)
-                      _buildDivisions(
-                        trackWidth: trackWidth,
-                        activeColor: theme.colorScheme.onPrimary,
-                        inactiveColor: activeColorBase,
-                      ),
+                    // 分段点已移除（保留分段吸附功能，不显示视觉圆点）
                     // 滑块
                     Positioned(
                       left: thumbOffset,

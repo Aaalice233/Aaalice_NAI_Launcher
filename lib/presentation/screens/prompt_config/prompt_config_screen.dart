@@ -167,23 +167,48 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 预设名称和编辑按钮
+          // 预设名称和描述（同一行显示）
           if (preset != null) ...[
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    preset.name,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: preset.isDefault
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: preset.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: preset.isDefault
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        if (preset.description != null &&
+                            preset.description!.isNotEmpty) ...[
+                          TextSpan(
+                            text: '  ·  ',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.4),
+                            ),
+                          ),
+                          TextSpan(
+                            text: preset.description!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 // 编辑按钮（仅非默认预设）
-                if (!preset.isDefault)
+                if (!preset.isDefault) ...[
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: Icon(
                       Icons.edit_outlined,
@@ -195,38 +220,19 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                     constraints: const BoxConstraints(),
                     tooltip: context.l10n.preset_rename,
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
-          // 预设描述（如果有）
-          if (preset != null &&
-              preset.description != null &&
-              preset.description!.isNotEmpty) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    preset.description!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      fontStyle: FontStyle.italic,
+                  if (preset.description != null && preset.description!.isNotEmpty)
+                    IconButton(
+                      icon: Icon(
+                        Icons.edit_note_outlined,
+                        size: 18,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                      onPressed: () => _showEditPresetDescriptionDialog(preset),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: '编辑描述',
                     ),
-                  ),
-                ),
-                // 编辑描述按钮（仅非默认预设）
-                if (!preset.isDefault)
-                  IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                    onPressed: () => _showEditPresetDescriptionDialog(preset),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: '编辑描述',
-                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),

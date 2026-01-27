@@ -160,18 +160,25 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                 const SizedBox(height: 16),
 
                 // 位置选择
-                Text(
-                  context.l10n.fixedTags_position,
-                  style: theme.textTheme.labelLarge,
-                ),
-                const SizedBox(height: 6),
-                Center(
-                  child: PrefixSuffixSwitch(
-                    value: _position,
-                    onChanged: (value) => setState(() => _position = value),
-                    prefixLabel: context.l10n.fixedTags_prefix,
-                    suffixLabel: context.l10n.fixedTags_suffix,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      context.l10n.fixedTags_position,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Center(
+                        child: PrefixSuffixSwitch(
+                          value: _position,
+                          onChanged: (value) =>
+                              setState(() => _position = value),
+                          prefixLabel: context.l10n.fixedTags_prefix,
+                          suffixLabel: context.l10n.fixedTags_suffix,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 16),
@@ -214,6 +221,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                         color: theme.colorScheme.outline,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: ThemedSlider(
                         value: _weight,
@@ -225,6 +233,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                         },
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '2.0',
                       style: TextStyle(
@@ -281,32 +290,89 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
                 // 保存到词库选项（仅新建时显示）
                 if (!_isEditing) ...[
-                  CheckboxListTile(
-                    title: Text(
-                      context.l10n.fixedTags_saveToLibrary,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    subtitle: Text(
-                      context.l10n.fixedTags_saveToLibraryHint,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _saveToLibrary
+                          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                          : theme.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _saveToLibrary
+                            ? theme.colorScheme.primary.withOpacity(0.4)
+                            : theme.colorScheme.outlineVariant.withOpacity(0.5),
                       ),
                     ),
-                    value: _saveToLibrary,
-                    onChanged: (value) {
-                      setState(() => _saveToLibrary = value ?? false);
-                    },
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 复选框行
+                        InkWell(
+                          onTap: () =>
+                              setState(() => _saveToLibrary = !_saveToLibrary),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: Checkbox(
+                                  value: _saveToLibrary,
+                                  onChanged: (value) {
+                                    setState(
+                                        () => _saveToLibrary = value ?? false);
+                                  },
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Icon(
+                                Icons.bookmark_add_outlined,
+                                size: 18,
+                                color: _saveToLibrary
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.outline,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      context.l10n.fixedTags_saveToLibrary,
+                                      style:
+                                          theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: _saveToLibrary
+                                            ? theme.colorScheme.primary
+                                            : null,
+                                      ),
+                                    ),
+                                    Text(
+                                      context.l10n.fixedTags_saveToLibraryHint,
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.outline,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // 类别选择器（仅当保存到词库时显示）
+                        if (_saveToLibrary) ...[
+                          const SizedBox(height: 12),
+                          _buildCompactCategorySelector(theme),
+                        ],
+                      ],
+                    ),
                   ),
-
-                  // 类别选择器（仅当保存到词库时显示）
-                  if (_saveToLibrary) ...[
-                    const SizedBox(height: 8),
-                    _buildCategorySelector(theme),
-                  ],
-
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
 
                 // 操作按钮
@@ -477,6 +543,121 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建紧凑类别选择器（内嵌在卡片内）
+  Widget _buildCompactCategorySelector(ThemeData theme) {
+    final state = ref.watch(tagLibraryPageNotifierProvider);
+    final categories = state.categories;
+
+    // 构建分类选项列表
+    final items = <DropdownMenuItem<String?>>[];
+
+    // Root 选项
+    items.add(
+      DropdownMenuItem<String?>(
+        value: null,
+        child: Row(
+          children: [
+            Icon(
+              Icons.folder_outlined,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              context.l10n.tagLibrary_rootCategory,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // 递归添加分类
+    void addCategoryItems(String? parentId, int depth) {
+      final children = categories.where((c) => c.parentId == parentId).toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+      for (final category in children) {
+        items.add(
+          DropdownMenuItem<String?>(
+            value: category.id,
+            child: Row(
+              children: [
+                SizedBox(width: depth * 14.0),
+                Icon(
+                  Icons.folder_outlined,
+                  size: 16,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        addCategoryItems(category.id, depth + 1);
+      }
+    }
+
+    addCategoryItems(null, 0);
+
+    return Row(
+      children: [
+        Icon(
+          Icons.folder_open_outlined,
+          size: 16,
+          color: theme.colorScheme.outline,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          context.l10n.fixedTags_saveToCategory,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: DropdownButtonFormField<String?>(
+            value: _selectedCategoryId,
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              isDense: true,
+              filled: true,
+              fillColor: theme.colorScheme.surface,
+            ),
+            items: items,
+            onChanged: (value) {
+              setState(() => _selectedCategoryId = value);
+            },
+            isExpanded: true,
+            style: theme.textTheme.bodyMedium,
+          ),
+        ),
+      ],
     );
   }
 }
