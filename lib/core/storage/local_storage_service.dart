@@ -423,7 +423,10 @@ class LocalStorageService {
 
   /// 获取左侧面板宽度 (默认300)
   double getLeftPanelWidth() {
-    return getSetting<double>(StorageKeys.leftPanelWidth, defaultValue: 300.0) ??
+    return getSetting<double>(
+          StorageKeys.leftPanelWidth,
+          defaultValue: 300.0,
+        ) ??
         300.0;
   }
 
@@ -480,6 +483,50 @@ class LocalStorageService {
   Future<void> close() async {
     await _settingsBox.close();
     await _historyBox.close();
+  }
+
+  // ==================== Fixed Tags ====================
+
+  /// 获取固定词列表 JSON
+  String? getFixedTagsJson() {
+    return getSetting<String>(StorageKeys.fixedTagsData);
+  }
+
+  /// 保存固定词列表 JSON
+  Future<void> setFixedTagsJson(String json) async {
+    await setSetting(StorageKeys.fixedTagsData, json);
+  }
+
+  /// 获取固定词分类列表 JSON
+  String? getFixedTagCategoriesJson() {
+    return getSetting<String>(StorageKeys.fixedTagCategoriesData);
+  }
+
+  /// 保存固定词分类列表 JSON
+  Future<void> setFixedTagCategoriesJson(String json) async {
+    await setSetting(StorageKeys.fixedTagCategoriesData, json);
+  }
+
+  // ==================== Tag Library (User) ====================
+
+  /// 获取用户词库条目列表 JSON
+  String? getTagLibraryEntriesJson() {
+    return getSetting<String>(StorageKeys.tagLibraryEntriesData);
+  }
+
+  /// 保存用户词库条目列表 JSON
+  Future<void> setTagLibraryEntriesJson(String json) async {
+    await setSetting(StorageKeys.tagLibraryEntriesData, json);
+  }
+
+  /// 获取用户词库分类列表 JSON
+  String? getTagLibraryCategoriesJson() {
+    return getSetting<String>(StorageKeys.tagLibraryCategoriesData);
+  }
+
+  /// 保存用户词库分类列表 JSON
+  Future<void> setTagLibraryCategoriesJson(String json) async {
+    await setSetting(StorageKeys.tagLibraryCategoriesData, json);
   }
 }
 

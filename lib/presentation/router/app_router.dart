@@ -15,7 +15,8 @@ import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/slideshow_screen.dart';
 import '../screens/image_comparison_screen.dart';
-import '../screens/statistics_screen.dart';
+import '../screens/statistics/statistics_screen.dart';
+import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/replication_queue_bar.dart';
 import '../providers/replication_queue_provider.dart';
@@ -33,6 +34,8 @@ final _onlineGalleryKey =
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
 final _statisticsKey = GlobalKey<NavigatorState>(debugLabel: 'statistics');
+final _tagLibraryPageKey =
+    GlobalKey<NavigatorState>(debugLabel: 'tagLibraryPage');
 
 /// 路由路径常量
 class AppRoutes {
@@ -49,6 +52,7 @@ class AppRoutes {
   static const String slideshow = '/slideshow';
   static const String comparison = '/comparison';
   static const String statistics = '/statistics';
+  static const String tagLibraryPage = '/tag-library';
 }
 
 /// 应用路由 Provider
@@ -292,6 +296,18 @@ GoRouter appRouter(Ref ref) {
                 path: AppRoutes.statistics,
                 name: 'statistics',
                 builder: (context, state) => const StatisticsScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 7: 词库页 - 保活
+          StatefulShellBranch(
+            navigatorKey: _tagLibraryPageKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.tagLibraryPage,
+                name: 'tagLibraryPage',
+                builder: (context, state) => const TagLibraryPageScreen(),
               ),
             ],
           ),

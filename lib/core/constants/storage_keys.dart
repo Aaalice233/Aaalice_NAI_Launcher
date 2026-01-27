@@ -101,4 +101,14 @@ class StorageKeys {
   // Queue Settings (队列设置)
   static const String queueRetryCount = 'queue_retry_count';
   static const String queueRetryInterval = 'queue_retry_interval';
+
+  // Fixed Tags (固定词相关)
+  static const String fixedTagsBox = 'fixed_tags';
+  static const String fixedTagsData = 'fixed_tags_data';
+  static const String fixedTagCategoriesData = 'fixed_tag_categories_data';
+
+  // Tag Library (词库相关)
+  static const String tagLibraryUserBox = 'tag_library_user';
+  static const String tagLibraryEntriesData = 'tag_library_entries_data';
+  static const String tagLibraryCategoriesData = 'tag_library_categories_data';
 }

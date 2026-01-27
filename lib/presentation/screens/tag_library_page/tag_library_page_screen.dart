@@ -1,0 +1,530 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/utils/localization_extension.dart';
+import '../../providers/tag_library_page_provider.dart';
+import 'widgets/category_tree_view.dart';
+import 'widgets/entry_card.dart';
+import 'widgets/entry_list_item.dart';
+import 'widgets/entry_add_dialog.dart';
+import 'widgets/export_dialog.dart';
+import 'widgets/import_dialog.dart';
+
+/// 词库页面
+class TagLibraryPageScreen extends ConsumerStatefulWidget {
+  const TagLibraryPageScreen({super.key});
+
+  @override
+  ConsumerState<TagLibraryPageScreen> createState() =>
+      _TagLibraryPageScreenState();
+}
+
+class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = ref.watch(tagLibraryPageNotifierProvider);
+
+    return Scaffold(
+      body: Row(
+        children: [
+          // 左侧分类树
+          _buildCategorySidebar(theme, state),
+
+          // 主内容区
+          Expanded(
+            child: Column(
+              children: [
+                // 顶部工具栏
+                _buildToolbar(theme, state),
+
+                // 内容列表
+                Expanded(
+                  child: _buildContent(theme, state),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建分类侧边栏
+  Widget _buildCategorySidebar(ThemeData theme, TagLibraryPageState state) {
+    return Container(
+      width: 220,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          right: BorderSide(
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          // 分类标题
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.folder_outlined,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.l10n.tagLibrary_categories,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+                  tooltip: context.l10n.tagLibrary_newCategory,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _showAddCategoryDialog(),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // 分类树
+          Expanded(
+            child: CategoryTreeView(
+              categories: state.categories,
+              entries: state.entries,
+              selectedCategoryId: state.selectedCategoryId,
+              onCategorySelected: (id) {
+                ref
+                    .read(tagLibraryPageNotifierProvider.notifier)
+                    .selectCategory(id);
+              },
+              onCategoryRename: (id, name) {
+                ref
+                    .read(tagLibraryPageNotifierProvider.notifier)
+                    .renameCategory(id, name);
+              },
+              onCategoryDelete: (id) {
+                _showDeleteCategoryConfirmation(id);
+              },
+              onAddSubCategory: (parentId) {
+                _showAddCategoryDialog(parentId: parentId);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建顶部工具栏
+  Widget _buildToolbar(ThemeData theme, TagLibraryPageState state) {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withOpacity(0.9),
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              // 添加条目按钮
+              FilledButton.icon(
+                onPressed: () => _showAddEntryDialog(),
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(context.l10n.tagLibrary_addEntry),
+              ),
+              const SizedBox(width: 12),
+
+              // 搜索框
+              Expanded(
+                child: SizedBox(
+                  height: 38,
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: context.l10n.tagLibrary_searchHint,
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: state.searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                ref
+                                    .read(
+                                      tagLibraryPageNotifierProvider.notifier,
+                                    )
+                                    .setSearchQuery('');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    onChanged: (value) {
+                      ref
+                          .read(tagLibraryPageNotifierProvider.notifier)
+                          .setSearchQuery(value);
+                    },
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // 视图切换
+              SegmentedButton<TagLibraryViewMode>(
+                segments: [
+                  ButtonSegment(
+                    value: TagLibraryViewMode.card,
+                    icon: const Icon(Icons.grid_view, size: 18),
+                    tooltip: context.l10n.tagLibrary_cardView,
+                  ),
+                  ButtonSegment(
+                    value: TagLibraryViewMode.list,
+                    icon: const Icon(Icons.view_list, size: 18),
+                    tooltip: context.l10n.tagLibrary_listView,
+                  ),
+                ],
+                selected: {state.viewMode},
+                onSelectionChanged: (selection) {
+                  ref
+                      .read(tagLibraryPageNotifierProvider.notifier)
+                      .setViewMode(selection.first);
+                },
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // 导入按钮
+              OutlinedButton.icon(
+                onPressed: () => _showImportDialog(),
+                icon: const Icon(Icons.file_download_outlined, size: 18),
+                label: Text(context.l10n.tagLibrary_import),
+              ),
+              const SizedBox(width: 8),
+
+              // 导出按钮
+              OutlinedButton.icon(
+                onPressed:
+                    state.entries.isEmpty ? null : () => _showExportDialog(),
+                icon: const Icon(Icons.file_upload_outlined, size: 18),
+                label: Text(context.l10n.tagLibrary_export),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建内容区域
+  Widget _buildContent(ThemeData theme, TagLibraryPageState state) {
+    final entries = state.filteredEntries;
+
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (entries.isEmpty) {
+      return _buildEmptyState(theme, state);
+    }
+
+    if (state.viewMode == TagLibraryViewMode.card) {
+      return _buildCardGrid(theme, entries);
+    } else {
+      return _buildListView(theme, entries);
+    }
+  }
+
+  /// 构建空状态
+  Widget _buildEmptyState(ThemeData theme, TagLibraryPageState state) {
+    final hasSearch = state.searchQuery.isNotEmpty;
+    final hasCategory = state.selectedCategoryId != null;
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            hasSearch ? Icons.search_off : Icons.library_books_outlined,
+            size: 64,
+            color: theme.colorScheme.outline.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            hasSearch
+                ? context.l10n.tagLibrary_noSearchResults
+                : (hasCategory
+                    ? context.l10n.tagLibrary_categoryEmpty
+                    : context.l10n.tagLibrary_empty),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasSearch
+                ? context.l10n.tagLibrary_tryDifferentSearch
+                : context.l10n.tagLibrary_addFirstEntry,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline.withOpacity(0.7),
+            ),
+          ),
+          if (!hasSearch) ...[
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => _showAddEntryDialog(),
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.tagLibrary_addEntry),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 构建卡片网格
+  Widget _buildCardGrid(ThemeData theme, List entries) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 280,
+        childAspectRatio: 0.85,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+      ),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return EntryCard(
+          entry: entry,
+          onTap: () => _showEntryDetail(entry),
+          onAddToFixed: () => _addToFixedTags(entry),
+          onDelete: () => _showDeleteEntryConfirmation(entry.id),
+          onToggleFavorite: () {
+            ref
+                .read(tagLibraryPageNotifierProvider.notifier)
+                .toggleFavorite(entry.id);
+          },
+        );
+      },
+    );
+  }
+
+  /// 构建列表视图
+  Widget _buildListView(ThemeData theme, List entries) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: EntryListItem(
+            entry: entry,
+            onTap: () => _showEntryDetail(entry),
+            onAddToFixed: () => _addToFixedTags(entry),
+            onDelete: () => _showDeleteEntryConfirmation(entry.id),
+            onToggleFavorite: () {
+              ref
+                  .read(tagLibraryPageNotifierProvider.notifier)
+                  .toggleFavorite(entry.id);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  // ==================== 对话框方法 ====================
+
+  void _showAddEntryDialog() {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    showDialog(
+      context: context,
+      builder: (context) => EntryAddDialog(
+        categories: state.categories,
+        initialCategoryId: state.selectedCategoryId,
+      ),
+    );
+  }
+
+  void _showAddCategoryDialog({String? parentId}) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.tagLibrary_newCategory),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: context.l10n.tagLibrary_categoryNameHint,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              ref.read(tagLibraryPageNotifierProvider.notifier).addCategory(
+                    name: value.trim(),
+                    parentId: parentId,
+                  );
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                ref.read(tagLibraryPageNotifierProvider.notifier).addCategory(
+                      name: name,
+                      parentId: parentId,
+                    );
+                Navigator.of(context).pop();
+              }
+            },
+            child: Text(context.l10n.common_create),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteCategoryConfirmation(String categoryId) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    final category = state.categories.firstWhere((c) => c.id == categoryId);
+    final entryCount = state.getCategoryEntryCount(categoryId);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.tagLibrary_deleteCategoryTitle),
+        content: Text(
+          context.l10n.tagLibrary_deleteCategoryConfirm(
+            category.displayName,
+            entryCount.toString(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref
+                  .read(tagLibraryPageNotifierProvider.notifier)
+                  .deleteCategory(categoryId);
+              Navigator.of(context).pop();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteEntryConfirmation(String entryId) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    final entry = state.entries.firstWhere((e) => e.id == entryId);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.tagLibrary_deleteEntryTitle),
+        content:
+            Text(context.l10n.tagLibrary_deleteEntryConfirm(entry.displayName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref
+                  .read(tagLibraryPageNotifierProvider.notifier)
+                  .deleteEntry(entryId);
+              Navigator.of(context).pop();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEntryDetail(dynamic entry) {
+    // TODO: 实现条目详情/编辑对话框
+  }
+
+  void _addToFixedTags(dynamic entry) {
+    // TODO: 实现添加到固定词功能
+  }
+
+  void _showImportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const ImportDialog(),
+    );
+  }
+
+  void _showExportDialog() {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    showDialog(
+      context: context,
+      builder: (context) => ExportDialog(
+        entries: state.entries,
+        categories: state.categories,
+      ),
+    );
+  }
+}

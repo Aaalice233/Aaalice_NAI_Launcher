@@ -643,6 +643,26 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       state.filterMaxCfg != null ||
       state.filterResolution != null;
 
+  /// 设置每页显示数量
+  Future<void> setPageSize(int size) async {
+    if (size <= 0 || size == state.pageSize) return;
+
+    state = state.copyWith(pageSize: size, isPageLoading: true);
+
+    // 重新计算当前页（确保不超过新的总页数）
+    final newTotalPages = state.filteredFiles.isEmpty
+        ? 0
+        : (state.filteredFiles.length / size).ceil();
+    final newCurrentPage =
+        state.currentPage.clamp(0, newTotalPages > 0 ? newTotalPages - 1 : 0);
+
+    if (state.isGroupedView) {
+      state = state.copyWith(currentPage: newCurrentPage, isPageLoading: false);
+    } else {
+      await loadPage(newCurrentPage);
+    }
+  }
+
   /// 刷新画廊
   Future<void> refresh() async {
     _recordCache.clear(); // 清除缓存
@@ -1079,5 +1099,36 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       );
       return imageDate.isBefore(thisWeekStart);
     }).toList();
+  }
+
+  /// 按文件夹路径过滤图片
+  /// Filter images by folder path
+  Future<void> filterByFolder(String? folderPath) async {
+    if (folderPath == null) {
+      // 显示全部图片
+      state = state.copyWith(
+        filteredFiles: state.allFiles,
+        isPageLoading: true,
+      );
+    } else {
+      // 过滤出指定文件夹下的图片
+      final filtered = state.allFiles.where((file) {
+        final fileFolderPath = file.parent.path;
+        return fileFolderPath == folderPath ||
+            fileFolderPath.startsWith('$folderPath${Platform.pathSeparator}');
+      }).toList();
+
+      state = state.copyWith(
+        filteredFiles: filtered,
+        isPageLoading: true,
+      );
+    }
+
+    // 重新应用其他过滤条件并加载
+    if (state.isGroupedView) {
+      await _loadGroupedImages();
+    } else {
+      await loadPage(0);
+    }
   }
 }

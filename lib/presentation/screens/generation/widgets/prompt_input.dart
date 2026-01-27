@@ -15,6 +15,7 @@ import '../../../widgets/prompt/random_mode_selector.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
+import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
 
 /// Prompt 输入组件 (带自动补全)
@@ -238,6 +239,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         // 使用 Expanded 填充剩余空间
         const Expanded(child: SizedBox()),
+
+        // 固定词按钮
+        const FixedTagsButton(),
+
+        const SizedBox(width: 6),
 
         // 质量词提示
         QualityTagsHint(

@@ -6,3 +6,5 @@ export 'category_detail_dialog.dart';
 export 'config_detail_editor.dart';
 export 'expandable_category_tile.dart';
 export 'global_post_count_toolbar.dart';
+export 'preset_panel.dart';
+export 'nai_mode_info_card.dart';

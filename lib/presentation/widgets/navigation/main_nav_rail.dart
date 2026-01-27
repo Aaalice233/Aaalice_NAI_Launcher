@@ -22,17 +22,18 @@ class MainNavRail extends ConsumerWidget {
     final theme = Theme.of(context);
 
     // 使用 navigationShell.currentIndex 获取当前选中索引
-    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig, 6=statistics
+    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig, 6=statistics, 7=tagLibraryPage
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=statistics, 4=promptConfig, 5=settings
+    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=statistics, 4=promptConfig, 5=tagLibraryPage, 6=settings
     int selectedIndex = 0;
     if (currentIndex == 2) selectedIndex = 1; // localGallery
     if (currentIndex == 3) selectedIndex = 2; // onlineGallery
     if (currentIndex == 6) selectedIndex = 3; // statistics
     if (currentIndex == 5) selectedIndex = 4; // promptConfig
-    if (currentIndex == 4) selectedIndex = 5; // settings
+    if (currentIndex == 7) selectedIndex = 5; // tagLibraryPage
+    if (currentIndex == 4) selectedIndex = 6; // settings
 
     return Container(
       width: 60,
@@ -92,13 +93,12 @@ class MainNavRail extends ConsumerWidget {
             onTap: () => navigationShell.goBranch(5), // promptConfig branch
           ),
 
-          // 词库（未来功能）
+          // 词库
           _NavIcon(
-            icon: Icons.book, // Tags/Dictionary placeholder
+            icon: Icons.book,
             label: context.l10n.nav_dictionary,
-            isSelected: false,
-            onTap: () {}, // 词库功能 - 待产品规划
-            isDisabled: true,
+            isSelected: selectedIndex == 5,
+            onTap: () => navigationShell.goBranch(7), // tagLibraryPage branch
           ),
 
           const Spacer(),
@@ -120,7 +120,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.settings,
             label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 5,
+            isSelected: selectedIndex == 6,
             onTap: () => navigationShell.goBranch(4), // settings branch
           ),
           const SizedBox(height: 16),

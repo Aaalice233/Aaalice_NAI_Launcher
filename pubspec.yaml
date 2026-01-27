@@ -33,6 +33,10 @@ dependencies:
   hive_flutter: ^1.1.0
   shared_preferences: ^2.2.3
 
+  # SQLite数据库（画廊索引）
+  sqflite_common_ffi: ^2.3.4
+  sqlite3_flutter_libs: ^0.5.28
+
   # 加密库 (Blake2b + Argon2id)
   cryptography: ^2.7.0
   crypto: ^3.0.3

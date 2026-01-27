@@ -33,6 +33,14 @@
   "common_add": "添加",
   "common_confirmDelete": "确认删除",
   "common_settings": "设置",
+  "common_today": "今天",
+  "common_yesterday": "昨天",
+  "common_daysAgo": "{days}天前",
+  "@common_daysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
 
   "nav_canvas": "画布",
   "nav_gallery": "图库",
@@ -2250,6 +2258,188 @@
         "type": "int"
       }
     }
-  }
+  },
+
+  "statistics_navOverview": "概览",
+  "statistics_navModels": "模型",
+  "statistics_navTags": "标签",
+  "statistics_navParameters": "参数",
+  "statistics_navTrends": "趋势",
+  "statistics_navActivity": "时段",
+
+  "statistics_sectionTagAnalysis": "标签分析",
+  "statistics_sectionParameterPrefs": "参数偏好",
+  "statistics_sectionActivityAnalysis": "活动分析",
+
+  "statistics_chartUsageDistribution": "使用分布",
+  "statistics_chartModelRanking": "模型排行",
+  "statistics_chartModelUsageOverTime": "模型使用趋势",
+  "statistics_chartTopTags": "热门标签",
+  "statistics_chartTagCloud": "标签云",
+  "statistics_chartParameterOverview": "参数概览",
+  "statistics_chartAspectRatio": "宽高比分布",
+  "statistics_chartActivityHeatmap": "活动热力图",
+  "statistics_chartHourlyDistribution": "小时分布",
+  "statistics_chartWeekdayDistribution": "星期分布",
+
+  "statistics_filterTitle": "筛选",
+  "statistics_filterClear": "清除",
+  "statistics_filterDateRange": "日期范围",
+  "statistics_filterModel": "模型",
+  "statistics_filterAllModels": "全部模型",
+  "statistics_filterResolution": "分辨率",
+  "statistics_filterAllResolutions": "全部分辨率",
+
+  "statistics_granularity": "粒度",
+  "statistics_granularityDay": "日",
+  "statistics_granularityWeek": "周",
+  "statistics_granularityMonth": "月",
+
+  "statistics_labelTotalDays": "总天数",
+  "statistics_labelPeak": "峰值",
+  "statistics_labelAverage": "平均",
+  "statistics_labelSteps": "步数",
+  "statistics_labelCfg": "CFG",
+  "statistics_labelWidth": "宽度",
+  "statistics_labelHeight": "高度",
+  "statistics_labelFavPercent": "收藏率",
+  "statistics_labelTagPercent": "标签率",
+
+  "statistics_aspectSquare": "方形",
+  "statistics_aspectLandscape": "横屏",
+  "statistics_aspectPortrait": "竖屏",
+  "statistics_aspectOther": "其他",
+
+  "statistics_refresh": "刷新",
+  "statistics_retry": "重试",
+  "statistics_error": "错误: {error}",
+  "@statistics_error": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statistics_noMetadata": "无元数据",
+  "statistics_unknown": "未知",
+
+  "statistics_weekLabel": "第{week}周",
+  "@statistics_weekLabel": {
+    "placeholders": {
+      "week": {}
+    }
+  },
+
+  "statistics_peakHour": "高峰时段",
+  "statistics_mostActiveDay": "最活跃日",
+  "statistics_leastActiveDay": "最不活跃日",
+
+  "statistics_morning": "早晨",
+  "statistics_afternoon": "下午",
+  "statistics_evening": "傍晚",
+  "statistics_night": "深夜",
+
+  "statistics_sunday": "周日",
+  "statistics_monday": "周一",
+  "statistics_tuesday": "周二",
+  "statistics_wednesday": "周三",
+  "statistics_thursday": "周四",
+  "statistics_friday": "周五",
+  "statistics_saturday": "周六",
+
+  "fixedTags_label": "固定词",
+  "fixedTags_empty": "暂无固定词",
+  "fixedTags_emptyHint": "点击下方按钮添加固定词，它们会自动应用到你的提示词中",
+  "fixedTags_clickToManage": "点击管理固定词",
+  "fixedTags_manage": "管理固定词",
+  "fixedTags_add": "添加",
+  "fixedTags_edit": "编辑固定词",
+  "fixedTags_openLibrary": "打开词库",
+  "fixedTags_prefix": "前缀",
+  "fixedTags_suffix": "后缀",
+  "fixedTags_prefixDesc": "添加到提示词前面",
+  "fixedTags_suffixDesc": "添加到提示词后面",
+  "fixedTags_disabled": "已禁用",
+  "fixedTags_weight": "权重",
+  "fixedTags_position": "位置",
+  "fixedTags_name": "名称",
+  "fixedTags_nameHint": "输入备注名称（可选）",
+  "fixedTags_content": "内容",
+  "fixedTags_contentHint": "输入提示词内容，支持 NAI 语法",
+  "fixedTags_syntaxHelp": "支持 NAI 语法增强/减弱权重、标签交替等",
+  "fixedTags_resetWeight": "重置为 1.0",
+  "fixedTags_weightPreview": "权重预览:",
+  "fixedTags_deleteTitle": "删除固定词",
+  "fixedTags_deleteConfirm": "确定要删除固定词 \"{name}\" 吗？",
+  "@fixedTags_deleteConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "fixedTags_enabledCount": "{enabled}/{total} 已启用",
+  "@fixedTags_enabledCount": {
+    "placeholders": {
+      "enabled": {},
+      "total": {}
+    }
+  },
+  "fixedTags_saveToLibrary": "同时保存到词库",
+  "fixedTags_saveToLibraryHint": "方便日后在词库中重复使用",
+  "fixedTags_saveToCategory": "保存到类别",
+
+  "common_rename": "重命名",
+  "common_create": "创建",
+
+  "tagLibrary_categories": "分类",
+  "tagLibrary_newCategory": "新建分类",
+  "tagLibrary_addEntry": "添加条目",
+  "tagLibrary_searchHint": "搜索条目...",
+  "tagLibrary_cardView": "卡片视图",
+  "tagLibrary_listView": "列表视图",
+  "tagLibrary_import": "导入",
+  "tagLibrary_export": "导出",
+  "tagLibrary_allEntries": "全部",
+  "tagLibrary_favorites": "收藏",
+  "tagLibrary_addSubCategory": "添加子分类",
+  "tagLibrary_categoryNameHint": "输入分类名称",
+  "tagLibrary_deleteCategoryTitle": "删除分类",
+  "tagLibrary_deleteCategoryConfirm": "确定要删除分类 \"{name}\" 吗？该分类下的 {count} 个条目将移至根目录。",
+  "@tagLibrary_deleteCategoryConfirm": {
+    "placeholders": {
+      "name": {},
+      "count": {}
+    }
+  },
+  "tagLibrary_deleteEntryTitle": "删除条目",
+  "tagLibrary_deleteEntryConfirm": "确定要删除条目 \"{name}\" 吗？",
+  "@tagLibrary_deleteEntryConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tagLibrary_noSearchResults": "没有找到匹配的条目",
+  "tagLibrary_tryDifferentSearch": "尝试使用其他关键词搜索",
+  "tagLibrary_categoryEmpty": "该分类暂无条目",
+  "tagLibrary_empty": "词库为空",
+  "tagLibrary_addFirstEntry": "点击上方按钮添加第一个条目",
+  "tagLibrary_addToFixed": "添加到固定词",
+  "tagLibrary_useCount": "使用 {count} 次",
+  "@tagLibrary_useCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_removeFavorite": "取消收藏",
+  "tagLibrary_addFavorite": "添加收藏",
+  "tagLibrary_thumbnail": "预览图",
+  "tagLibrary_selectImage": "选择图片",
+  "tagLibrary_thumbnailHint": "支持 PNG/JPG/WEBP 格式",
+  "tagLibrary_name": "名称",
+  "tagLibrary_nameHint": "输入条目名称",
+  "tagLibrary_category": "分类",
+  "tagLibrary_rootCategory": "根目录",
+  "tagLibrary_tags": "标签",
+  "tagLibrary_tagsHint": "输入标签，用逗号分隔",
+  "tagLibrary_tagsHelper": "标签用于筛选和搜索",
+  "tagLibrary_content": "提示词内容",
+  "tagLibrary_contentHint": "输入提示词内容，支持智能补全"
 
 }

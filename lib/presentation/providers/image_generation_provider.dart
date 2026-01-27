@@ -13,8 +13,10 @@ import '../../data/datasources/remote/nai_tag_suggestion_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../../data/models/tag/tag_suggestion.dart';
+import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
 import 'character_prompt_provider.dart';
+import 'fixed_tags_provider.dart';
 import 'prompt_config_provider.dart';
 import 'subscription_provider.dart';
 
@@ -148,6 +150,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // UcPresetType.heavy -> 0, light -> 1, humanFocus -> 2, none -> 3
     final ucPresetType = ref.read(ucPresetSettingsProvider);
     final ucPresetValue = ucPresetType.index; // enum index 正好对应 API 值
+
+    // 应用固定词到提示词
+    final fixedTagsState = ref.read(fixedTagsNotifierProvider);
+    final promptWithFixedTags =
+        fixedTagsState.entries.applyToPrompt(effectiveParams.prompt);
+    if (promptWithFixedTags != effectiveParams.prompt) {
+      AppLogger.d(
+        'Applied fixed tags: ${fixedTagsState.enabledCount} entries',
+        'FixedTags',
+      );
+      effectiveParams = effectiveParams.copyWith(prompt: promptWithFixedTags);
+    }
 
     // 读取多角色提示词配置并转换为 API 格式
     final characterConfig = ref.read(characterPromptNotifierProvider);

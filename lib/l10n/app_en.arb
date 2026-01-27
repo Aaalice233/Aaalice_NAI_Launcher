@@ -33,6 +33,14 @@
   "common_add": "Add",
   "common_confirmDelete": "Confirm Delete",
   "common_settings": "Settings",
+  "common_today": "Today",
+  "common_yesterday": "Yesterday",
+  "common_daysAgo": "{days} days ago",
+  "@common_daysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
 
   "nav_canvas": "Canvas",
   "nav_gallery": "Gallery",
@@ -2576,6 +2584,188 @@
         "type": "int"
       }
     }
-  }
+  },
+
+  "statistics_navOverview": "Overview",
+  "statistics_navModels": "Models",
+  "statistics_navTags": "Tags",
+  "statistics_navParameters": "Parameters",
+  "statistics_navTrends": "Trends",
+  "statistics_navActivity": "Activity",
+
+  "statistics_sectionTagAnalysis": "Tag Analysis",
+  "statistics_sectionParameterPrefs": "Parameter Preferences",
+  "statistics_sectionActivityAnalysis": "Activity Analysis",
+
+  "statistics_chartUsageDistribution": "Usage Distribution",
+  "statistics_chartModelRanking": "Model Ranking",
+  "statistics_chartModelUsageOverTime": "Model Usage Over Time",
+  "statistics_chartTopTags": "Top Tags",
+  "statistics_chartTagCloud": "Tag Cloud",
+  "statistics_chartParameterOverview": "Parameter Overview",
+  "statistics_chartAspectRatio": "Aspect Ratio Distribution",
+  "statistics_chartActivityHeatmap": "Activity Heatmap",
+  "statistics_chartHourlyDistribution": "Hourly Distribution",
+  "statistics_chartWeekdayDistribution": "Weekday Distribution",
+
+  "statistics_filterTitle": "Filters",
+  "statistics_filterClear": "Clear",
+  "statistics_filterDateRange": "Date Range",
+  "statistics_filterModel": "Model",
+  "statistics_filterAllModels": "All Models",
+  "statistics_filterResolution": "Resolution",
+  "statistics_filterAllResolutions": "All Resolutions",
+
+  "statistics_granularity": "Granularity",
+  "statistics_granularityDay": "Day",
+  "statistics_granularityWeek": "Week",
+  "statistics_granularityMonth": "Month",
+
+  "statistics_labelTotalDays": "Total Days",
+  "statistics_labelPeak": "Peak",
+  "statistics_labelAverage": "Average",
+  "statistics_labelSteps": "Steps",
+  "statistics_labelCfg": "CFG",
+  "statistics_labelWidth": "Width",
+  "statistics_labelHeight": "Height",
+  "statistics_labelFavPercent": "Fav%",
+  "statistics_labelTagPercent": "Tag%",
+
+  "statistics_aspectSquare": "Square",
+  "statistics_aspectLandscape": "Landscape",
+  "statistics_aspectPortrait": "Portrait",
+  "statistics_aspectOther": "Other",
+
+  "statistics_refresh": "Refresh",
+  "statistics_retry": "Retry",
+  "statistics_error": "Error: {error}",
+  "@statistics_error": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statistics_noMetadata": "No metadata available",
+  "statistics_unknown": "Unknown",
+
+  "statistics_weekLabel": "W{week}",
+  "@statistics_weekLabel": {
+    "placeholders": {
+      "week": {}
+    }
+  },
+
+  "statistics_peakHour": "Peak Hour",
+  "statistics_mostActiveDay": "Most Active Day",
+  "statistics_leastActiveDay": "Least Active Day",
+
+  "statistics_morning": "Morning",
+  "statistics_afternoon": "Afternoon",
+  "statistics_evening": "Evening",
+  "statistics_night": "Night",
+
+  "statistics_sunday": "Sun",
+  "statistics_monday": "Mon",
+  "statistics_tuesday": "Tue",
+  "statistics_wednesday": "Wed",
+  "statistics_thursday": "Thu",
+  "statistics_friday": "Fri",
+  "statistics_saturday": "Sat",
+
+  "fixedTags_label": "Fixed Tags",
+  "fixedTags_empty": "No fixed tags",
+  "fixedTags_emptyHint": "Click the button below to add fixed tags, they will be automatically applied to your prompts",
+  "fixedTags_clickToManage": "Click to manage fixed tags",
+  "fixedTags_manage": "Manage Fixed Tags",
+  "fixedTags_add": "Add",
+  "fixedTags_edit": "Edit Fixed Tag",
+  "fixedTags_openLibrary": "Open Library",
+  "fixedTags_prefix": "Prefix",
+  "fixedTags_suffix": "Suffix",
+  "fixedTags_prefixDesc": "Add before prompt",
+  "fixedTags_suffixDesc": "Add after prompt",
+  "fixedTags_disabled": "Disabled",
+  "fixedTags_weight": "Weight",
+  "fixedTags_position": "Position",
+  "fixedTags_name": "Name",
+  "fixedTags_nameHint": "Enter a display name (optional)",
+  "fixedTags_content": "Content",
+  "fixedTags_contentHint": "Enter prompt content, NAI syntax supported",
+  "fixedTags_syntaxHelp": "Supports NAI syntax for weight enhancement/reduction and tag alternation",
+  "fixedTags_resetWeight": "Reset to 1.0",
+  "fixedTags_weightPreview": "Weight preview:",
+  "fixedTags_deleteTitle": "Delete Fixed Tag",
+  "fixedTags_deleteConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@fixedTags_deleteConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "fixedTags_enabledCount": "{enabled}/{total} enabled",
+  "@fixedTags_enabledCount": {
+    "placeholders": {
+      "enabled": {},
+      "total": {}
+    }
+  },
+  "fixedTags_saveToLibrary": "Also save to library",
+  "fixedTags_saveToLibraryHint": "For reuse in the tag library later",
+  "fixedTags_saveToCategory": "Save to category",
+
+  "common_rename": "Rename",
+  "common_create": "Create",
+
+  "tagLibrary_categories": "Categories",
+  "tagLibrary_newCategory": "New Category",
+  "tagLibrary_addEntry": "Add Entry",
+  "tagLibrary_searchHint": "Search entries...",
+  "tagLibrary_cardView": "Card View",
+  "tagLibrary_listView": "List View",
+  "tagLibrary_import": "Import",
+  "tagLibrary_export": "Export",
+  "tagLibrary_allEntries": "All",
+  "tagLibrary_favorites": "Favorites",
+  "tagLibrary_addSubCategory": "Add Subcategory",
+  "tagLibrary_categoryNameHint": "Enter category name",
+  "tagLibrary_deleteCategoryTitle": "Delete Category",
+  "tagLibrary_deleteCategoryConfirm": "Are you sure you want to delete category \"{name}\"? {count} entries will be moved to root.",
+  "@tagLibrary_deleteCategoryConfirm": {
+    "placeholders": {
+      "name": {},
+      "count": {}
+    }
+  },
+  "tagLibrary_deleteEntryTitle": "Delete Entry",
+  "tagLibrary_deleteEntryConfirm": "Are you sure you want to delete entry \"{name}\"?",
+  "@tagLibrary_deleteEntryConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tagLibrary_noSearchResults": "No matching entries found",
+  "tagLibrary_tryDifferentSearch": "Try different keywords",
+  "tagLibrary_categoryEmpty": "This category is empty",
+  "tagLibrary_empty": "Library is empty",
+  "tagLibrary_addFirstEntry": "Click the button above to add your first entry",
+  "tagLibrary_addToFixed": "Add to Fixed Tags",
+  "tagLibrary_useCount": "Used {count} times",
+  "@tagLibrary_useCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_removeFavorite": "Remove from Favorites",
+  "tagLibrary_addFavorite": "Add to Favorites",
+  "tagLibrary_thumbnail": "Thumbnail",
+  "tagLibrary_selectImage": "Select Image",
+  "tagLibrary_thumbnailHint": "Supports PNG/JPG/WEBP",
+  "tagLibrary_name": "Name",
+  "tagLibrary_nameHint": "Enter entry name",
+  "tagLibrary_category": "Category",
+  "tagLibrary_rootCategory": "Root",
+  "tagLibrary_tags": "Tags",
+  "tagLibrary_tagsHint": "Enter tags, separated by commas",
+  "tagLibrary_tagsHelper": "Tags are used for filtering and searching",
+  "tagLibrary_content": "Prompt Content",
+  "tagLibrary_contentHint": "Enter prompt content, supports autocomplete"
 
 }

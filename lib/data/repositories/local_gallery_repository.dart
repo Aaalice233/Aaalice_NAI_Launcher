@@ -10,6 +10,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
 import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
+import '../services/gallery/gallery_services.dart';
 import '../services/local_metadata_cache_service.dart';
 
 /// 顶级函数：在 Isolate 中解析 NAI 隐写元数据 (用于 compute)
@@ -50,54 +51,290 @@ typedef BulkOperationResult = ({
   List<String> errors,
 });
 
-/// 本地画廊仓库
+/// 分页查询结果
+class PagedResult<T> {
+  final List<T> items;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+
+  PagedResult({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.totalCount,
+    required this.totalPages,
+  });
+
+  bool get hasMore => page < totalPages - 1;
+}
+
+/// 排序方式
+enum GallerySortOrder {
+  dateDesc,
+  dateAsc,
+  sizeDesc,
+  sizeAsc,
+  nameAsc,
+  nameDesc,
+}
+
+/// 本地画廊仓库（重构版）
 ///
-/// 负责扫描 App 生成的图片目录并解析元数据
+/// 协调SQLite数据库、扫描服务、缓存服务和搜索服务
+/// 提供统一的数据访问接口
 class LocalGalleryRepository {
   LocalGalleryRepository._();
 
-  /// 元数据缓存服务
-  final _cacheService = LocalMetadataCacheService();
+  /// 单例实例
+  static final LocalGalleryRepository instance = LocalGalleryRepository._();
 
-  /// 获取收藏 Box
+  /// SQLite数据库服务
+  final _db = GalleryDatabaseService.instance;
+
+  /// 扫描服务
+  final _scanService = GalleryScanService.instance;
+
+  /// 缓存服务
+  final _cacheService = GalleryCacheService.instance;
+
+  /// 搜索服务
+  final _searchService = GallerySearchService.instance;
+
+  /// 迁移服务
+  final _migrationService = GalleryMigrationService.instance;
+
+  /// 旧版元数据缓存服务（向后兼容）
+  final _legacyCacheService = LocalMetadataCacheService();
+
+  /// 是否已初始化
+  bool _initialized = false;
+
+  /// 获取收藏 Box（向后兼容）
   Box get _favoritesBox => Hive.box(StorageKeys.localFavoritesBox);
 
-  /// 获取标签 Box
+  /// 获取标签 Box（向后兼容）
   Box get _tagsBox => Hive.box(StorageKeys.tagsBox);
 
-  /// 获取图片保存目录（公共方法）
+  // ============================================================
+  // 初始化
+  // ============================================================
+
+  /// 初始化Repository
   ///
-  /// 优先使用用户设置的自定义路径,否则使用默认路径
-  /// 这是唯一的保存路径获取方法，保证保存和扫描使用同一目录
-  Future<Directory> getImageDirectory() async {
-    return _getImageDirectory();
+  /// 必须在使用其他方法之前调用
+  Future<void> initialize() async {
+    if (_initialized) return;
+
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i('Initializing LocalGalleryRepository...', 'LocalGalleryRepo');
+
+    try {
+      // 1. 初始化SQLite数据库
+      await _db.init();
+
+      // 2. 初始化缓存服务
+      await _cacheService.init();
+
+      // 3. 执行数据迁移（如果需要）
+      final migrationResult = await _migrationService.migrate();
+      if (!migrationResult.alreadyMigrated) {
+        AppLogger.i('Migration completed: $migrationResult', 'LocalGalleryRepo');
+      }
+
+      // 4. 检查是否需要首次扫描
+      final stats = await _db.getStatistics();
+      if (stats['total_images'] == 0) {
+        AppLogger.i('No images in database, starting initial scan...', 'LocalGalleryRepo');
+        final dir = await getImageDirectory();
+        if (await dir.exists()) {
+          await _scanService.fullScan(dir);
+        }
+      }
+
+      _initialized = true;
+      stopwatch.stop();
+      AppLogger.i(
+        'LocalGalleryRepository initialized in ${stopwatch.elapsedMilliseconds}ms',
+        'LocalGalleryRepo',
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to initialize LocalGalleryRepository', e, stack, 'LocalGalleryRepo');
+      rethrow;
+    }
   }
 
-  /// 获取图片保存目录（内部方法）
-  ///
-  /// 优先使用用户设置的自定义路径,否则使用默认路径
-  Future<Directory> _getImageDirectory() async {
-    // 1. 获取图片保存路径（优先使用用户设置的自定义路径）
-    // 从 Hive 读取,与 LocalStorageService 保持一致
+  /// 确保已初始化
+  void _ensureInitialized() {
+    if (!_initialized) {
+      throw StateError('LocalGalleryRepository not initialized. Call initialize() first.');
+    }
+  }
+
+  // ============================================================
+  // 扫描操作
+  // ============================================================
+
+  /// 执行增量扫描
+  Future<ScanResult> incrementalScan() async {
+    _ensureInitialized();
+    final dir = await getImageDirectory();
+    return await _scanService.incrementalScan(dir);
+  }
+
+  /// 执行全量扫描
+  Future<ScanResult> fullScan() async {
+    _ensureInitialized();
+    final dir = await getImageDirectory();
+    return await _scanService.fullScan(dir);
+  }
+
+  // ============================================================
+  // 查询操作（新API）
+  // ============================================================
+
+  /// 分页查询图片
+  Future<PagedResult<LocalImageRecord>> getImages({
+    int page = 0,
+    int pageSize = 50,
+    GallerySortOrder sortOrder = GallerySortOrder.dateDesc,
+    bool favoritesOnly = false,
+    List<String>? tags,
+    DateTime? dateStart,
+    DateTime? dateEnd,
+    String? model,
+    String? sampler,
+    int? minSteps,
+    int? maxSteps,
+    double? minCfg,
+    double? maxCfg,
+    String? resolution,
+  }) async {
+    _ensureInitialized();
+
+    final orderBy = _getSortOrderSql(sortOrder);
+    final offset = page * pageSize;
+
+    final results = await _db.queryImages(
+      limit: pageSize,
+      offset: offset,
+      orderBy: orderBy,
+      favoritesOnly: favoritesOnly,
+      tags: tags,
+      dateStart: dateStart,
+      dateEnd: dateEnd,
+      model: model,
+      sampler: sampler,
+      minSteps: minSteps,
+      maxSteps: maxSteps,
+      minCfg: minCfg,
+      maxCfg: maxCfg,
+      resolution: resolution,
+    );
+
+    final records = results.map((row) => _db.mapToLocalImageRecord(row)).toList();
+
+    // 获取总数
+    final totalCount = await _db.countImages();
+    final totalPages = (totalCount / pageSize).ceil();
+
+    return PagedResult(
+      items: records,
+      page: page,
+      pageSize: pageSize,
+      totalCount: totalCount,
+      totalPages: totalPages,
+    );
+  }
+
+  /// 搜索图片
+  Future<List<LocalImageRecord>> searchImages(String query, {int limit = 100}) async {
+    _ensureInitialized();
+
+    final searchResult = await _searchService.search(query, limit: limit);
+    if (searchResult.imageIds.isEmpty) return [];
+
+    // 批量获取记录
+    final records = <LocalImageRecord>[];
+    for (final id in searchResult.imageIds) {
+      // 尝试从缓存获取
+      var record = await _cacheService.get(id);
+      if (record == null) {
+        // 从数据库获取
+        final results = await _db.queryImages(
+          limit: 1,
+          offset: 0,
+        );
+        if (results.isNotEmpty) {
+          record = _db.mapToLocalImageRecord(results.first);
+          await _cacheService.put(id, record);
+        }
+      }
+      if (record != null) {
+        records.add(record);
+      }
+    }
+
+    return records;
+  }
+
+  /// 高级搜索
+  Future<List<LocalImageRecord>> advancedSearch({
+    String? textQuery,
+    DateTime? dateStart,
+    DateTime? dateEnd,
+    String? model,
+    String? sampler,
+    int? minSteps,
+    int? maxSteps,
+    double? minCfg,
+    double? maxCfg,
+    String? resolution,
+    bool favoritesOnly = false,
+    List<String>? tags,
+    int limit = 50,
+    int offset = 0,
+    GallerySortOrder sortOrder = GallerySortOrder.dateDesc,
+  }) async {
+    _ensureInitialized();
+
+    final results = await _searchService.advancedSearch(
+      textQuery: textQuery,
+      dateStart: dateStart,
+      dateEnd: dateEnd,
+      model: model,
+      sampler: sampler,
+      minSteps: minSteps,
+      maxSteps: maxSteps,
+      minCfg: minCfg,
+      maxCfg: maxCfg,
+      resolution: resolution,
+      favoritesOnly: favoritesOnly,
+      tags: tags,
+      limit: limit,
+      offset: offset,
+      orderBy: _getSortOrderSql(sortOrder),
+    );
+
+    return results.map((row) => _db.mapToLocalImageRecord(row)).toList();
+  }
+
+  // ============================================================
+  // 向后兼容API
+  // ============================================================
+
+  /// 获取图片保存目录
+  Future<Directory> getImageDirectory() async {
     final settingsBox = Hive.box(StorageKeys.settingsBox);
     final customPath = settingsBox.get(StorageKeys.imageSavePath) as String?;
 
     final Directory imageDir;
     if (customPath != null && customPath.isNotEmpty) {
-      // 使用用户设置的自定义路径
       imageDir = Directory(customPath);
-      AppLogger.i(
-        'Using custom save path: ${imageDir.path}',
-        'LocalGalleryRepo',
-      );
     } else {
-      // 使用默认路径：App 文档目录下的 nai_launcher/images
       final appDir = await getApplicationDocumentsDirectory();
       imageDir = Directory('${appDir.path}/nai_launcher/images');
-      AppLogger.i(
-        'Using default save path: ${imageDir.path}',
-        'LocalGalleryRepo',
-      );
     }
 
     return imageDir;
@@ -108,14 +345,13 @@ class LocalGalleryRepository {
   /// 返回按修改时间降序排列的文件列表（最新优先）
   Future<List<File>> getAllImageFiles() async {
     final stopwatch = Stopwatch()..start();
-    final dir = await _getImageDirectory();
+    final dir = await getImageDirectory();
     if (!dir.existsSync()) return [];
     final files = dir
         .listSync(recursive: false)
         .whereType<File>()
         .where((f) => f.path.toLowerCase().endsWith('.png'))
         .toList()
-      // 降序排序（最新优先）- 业务需求
       ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     stopwatch.stop();
     AppLogger.i(
@@ -126,9 +362,6 @@ class LocalGalleryRepository {
   }
 
   /// 加载文件记录（批量解析元数据，带缓存）
-  ///
-  /// [files] 要加载的文件列表
-  /// 返回解析后的记录列表
   Future<List<LocalImageRecord>> loadRecords(List<File> files) async {
     final stopwatch = Stopwatch()..start();
     int cacheHits = 0;
@@ -150,13 +383,23 @@ class LocalGalleryRepository {
         final filePath = file.path;
         final fileModified = file.lastModifiedSync();
 
-        // 尝试从缓存获取
-        final cached = _cacheService.get(filePath);
+        // 尝试从SQLite获取
+        if (_initialized) {
+          final imageId = await _db.getImageIdByPath(filePath);
+          if (imageId != null) {
+            final cached = await _cacheService.get(imageId);
+            if (cached != null) {
+              cacheHits++;
+              return cached;
+            }
+          }
+        }
+
+        // 尝试从旧版缓存获取
+        final cached = _legacyCacheService.get(filePath);
         if (cached != null) {
           final cachedTs = cached['ts'] as DateTime;
-          // 时间戳匹配 → 缓存命中
-          if (cachedTs.millisecondsSinceEpoch ==
-              fileModified.millisecondsSinceEpoch) {
+          if (cachedTs.millisecondsSinceEpoch == fileModified.millisecondsSinceEpoch) {
             cacheHits++;
             final meta = cached['meta'] as NaiImageMetadata;
             return LocalImageRecord(
@@ -164,8 +407,7 @@ class LocalGalleryRepository {
               size: file.lengthSync(),
               modifiedAt: fileModified,
               metadata: meta,
-              metadataStatus:
-                  meta.hasData ? MetadataStatus.success : MetadataStatus.none,
+              metadataStatus: meta.hasData ? MetadataStatus.success : MetadataStatus.none,
               isFavorite: isFavorite(filePath),
               tags: getTags(filePath),
             );
@@ -176,12 +418,11 @@ class LocalGalleryRepository {
         cacheMisses++;
         try {
           final bytes = await file.readAsBytes();
-          final meta =
-              await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
+          final meta = await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
 
           // 写入缓存
           if (meta != null) {
-            await _cacheService.put(filePath, meta, fileModified);
+            await _legacyCacheService.put(filePath, meta, fileModified);
           }
 
           return LocalImageRecord(
@@ -196,10 +437,7 @@ class LocalGalleryRepository {
             tags: getTags(filePath),
           );
         } catch (e) {
-          AppLogger.w(
-            'Failed to parse metadata for $filePath: $e',
-            'LocalGalleryRepo',
-          );
+          AppLogger.w('Failed to parse metadata for $filePath: $e', 'LocalGalleryRepo');
           return LocalImageRecord(
             path: filePath,
             size: 0,
@@ -211,11 +449,9 @@ class LocalGalleryRepository {
         }
       }),
     );
-    stopwatch.stop();
 
-    // 统计解析成功数量
-    final successCount =
-        records.where((r) => r.metadataStatus == MetadataStatus.success).length;
+    stopwatch.stop();
+    final successCount = records.where((r) => r.metadataStatus == MetadataStatus.success).length;
     AppLogger.i(
       'Page load completed: ${records.length} records ($successCount with metadata) '
           'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
@@ -225,39 +461,29 @@ class LocalGalleryRepository {
   }
 
   /// 从单个文件解析元数据
-  ///
-  /// 用于拖放等场景，需要即时解析
   Future<NaiImageMetadata?> parseMetadataFromFile(File file) async {
     try {
       final bytes = await file.readAsBytes();
       return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
-      AppLogger.e(
-        'Failed to parse metadata from file: ${file.path}',
-        e,
-        null,
-        'LocalGalleryRepo',
-      );
+      AppLogger.e('Failed to parse metadata from file: ${file.path}', e, null, 'LocalGalleryRepo');
       return null;
     }
   }
 
   /// 从字节数据解析元数据
-  ///
-  /// 用于拖放等场景
   Future<NaiImageMetadata?> parseMetadataFromBytes(Uint8List bytes) async {
     try {
       return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
-      AppLogger.e(
-        'Failed to parse metadata from bytes',
-        e,
-        null,
-        'LocalGalleryRepo',
-      );
+      AppLogger.e('Failed to parse metadata from bytes', e, null, 'LocalGalleryRepo');
       return null;
     }
   }
+
+  // ============================================================
+  // 收藏操作
+  // ============================================================
 
   /// 获取图片的收藏状态
   bool isFavorite(String filePath) {
@@ -267,10 +493,23 @@ class LocalGalleryRepository {
   /// 设置图片的收藏状态
   Future<void> setFavorite(String filePath, bool isFavorite) async {
     await _favoritesBox.put(filePath, isFavorite);
-    AppLogger.d(
-      'Set favorite: $filePath -> $isFavorite',
-      'LocalGalleryRepo',
-    );
+
+    // 同步到SQLite
+    if (_initialized) {
+      final imageId = await _db.getImageIdByPath(filePath);
+      if (imageId != null) {
+        if (isFavorite) {
+          final alreadyFav = await _db.isFavorite(imageId);
+          if (!alreadyFav) await _db.toggleFavorite(imageId);
+        } else {
+          final alreadyFav = await _db.isFavorite(imageId);
+          if (alreadyFav) await _db.toggleFavorite(imageId);
+        }
+        await _cacheService.invalidate(imageId);
+      }
+    }
+
+    AppLogger.d('Set favorite: $filePath -> $isFavorite', 'LocalGalleryRepo');
   }
 
   /// 切换图片的收藏状态
@@ -281,6 +520,10 @@ class LocalGalleryRepository {
     return newState;
   }
 
+  // ============================================================
+  // 标签操作
+  // ============================================================
+
   /// 获取图片的标签列表
   List<String> getTags(String filePath) {
     final tags = _tagsBox.get(filePath, defaultValue: <String>[]);
@@ -290,10 +533,33 @@ class LocalGalleryRepository {
   /// 设置图片的标签列表
   Future<void> setTags(String filePath, List<String> tags) async {
     await _tagsBox.put(filePath, tags);
-    AppLogger.d(
-      'Set tags: $filePath -> $tags',
-      'LocalGalleryRepo',
-    );
+
+    // 同步到SQLite
+    if (_initialized) {
+      final imageId = await _db.getImageIdByPath(filePath);
+      if (imageId != null) {
+        // 获取现有标签
+        final existingTags = await _db.getImageTags(imageId);
+
+        // 移除不在新列表中的标签
+        for (final tag in existingTags) {
+          if (!tags.contains(tag)) {
+            await _db.removeTag(imageId, tag);
+          }
+        }
+
+        // 添加新标签
+        for (final tag in tags) {
+          if (!existingTags.contains(tag)) {
+            await _db.addTag(imageId, tag);
+          }
+        }
+
+        await _cacheService.invalidate(imageId);
+      }
+    }
+
+    AppLogger.d('Set tags: $filePath -> $tags', 'LocalGalleryRepo');
   }
 
   /// 添加标签到图片
@@ -314,15 +580,141 @@ class LocalGalleryRepository {
     }
   }
 
-  /// 批量导出图片元数据到 JSON 文件
-  ///
-  /// [records] 要导出的图片记录列表
-  /// 返回导出的文件路径，失败返回 null
+  // ============================================================
+  // 统计数据
+  // ============================================================
+
+  /// 获取统计数据
+  Future<Map<String, dynamic>> getStatistics() async {
+    _ensureInitialized();
+    return await _db.getStatistics();
+  }
+
+  /// 获取模型分布
+  Future<List<Map<String, dynamic>>> getModelDistribution() async {
+    _ensureInitialized();
+    return await _db.getModelDistribution();
+  }
+
+  /// 获取采样器分布
+  Future<List<Map<String, dynamic>>> getSamplerDistribution() async {
+    _ensureInitialized();
+    return await _db.getSamplerDistribution();
+  }
+
+  /// 获取分辨率分布
+  Future<List<Map<String, dynamic>>> getResolutionDistribution() async {
+    _ensureInitialized();
+    return await _db.getResolutionDistribution();
+  }
+
+  // ============================================================
+  // 批量操作
+  // ============================================================
+
+  /// 批量删除图片
+  Future<BulkOperationResult> bulkDeleteImages(
+    List<String> imagePaths, {
+    BulkProgressCallback? onProgress,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    int successCount = 0;
+    int failedCount = 0;
+    final errors = <String>[];
+
+    AppLogger.i('Starting bulk delete: ${imagePaths.length} images', 'LocalGalleryRepo');
+
+    for (var i = 0; i < imagePaths.length; i++) {
+      final imagePath = imagePaths[i];
+      onProgress?.call(i, imagePaths.length, imagePath, false);
+
+      try {
+        final file = File(imagePath);
+        if (await file.exists()) {
+          await file.delete();
+
+          // 清理Hive数据
+          await _favoritesBox.delete(imagePath);
+          await _tagsBox.delete(imagePath);
+
+          // 标记SQLite中为已删除
+          if (_initialized) {
+            await _db.markAsDeleted(imagePath);
+          }
+
+          successCount++;
+        } else {
+          failedCount++;
+          errors.add('File not found: $imagePath');
+        }
+      } catch (e) {
+        failedCount++;
+        errors.add('Failed to delete $imagePath: $e');
+      }
+    }
+
+    onProgress?.call(imagePaths.length, imagePaths.length, '', true);
+    stopwatch.stop();
+    AppLogger.i(
+      'Bulk delete completed: $successCount succeeded, $failedCount failed '
+          'in ${stopwatch.elapsedMilliseconds}ms',
+      'LocalGalleryRepo',
+    );
+
+    return (success: successCount, failed: failedCount, errors: errors);
+  }
+
+  /// 批量编辑标签
+  Future<BulkOperationResult> bulkEditTags(
+    List<String> imagePaths, {
+    List<String> tagsToAdd = const [],
+    List<String> tagsToRemove = const [],
+    BulkProgressCallback? onProgress,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    int successCount = 0;
+    int failedCount = 0;
+    final errors = <String>[];
+
+    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
+      return (success: 0, failed: 0, errors: <String>[]);
+    }
+
+    for (var i = 0; i < imagePaths.length; i++) {
+      final imagePath = imagePaths[i];
+      onProgress?.call(i, imagePaths.length, imagePath, false);
+
+      try {
+        final currentTags = getTags(imagePath);
+        final updatedTags = List<String>.from(currentTags);
+
+        for (final tag in tagsToAdd) {
+          if (!updatedTags.contains(tag)) {
+            updatedTags.add(tag);
+          }
+        }
+
+        for (final tag in tagsToRemove) {
+          updatedTags.remove(tag);
+        }
+
+        await setTags(imagePath, updatedTags);
+        successCount++;
+      } catch (e) {
+        failedCount++;
+        errors.add('Failed to edit tags for $imagePath: $e');
+      }
+    }
+
+    onProgress?.call(imagePaths.length, imagePaths.length, '', true);
+    stopwatch.stop();
+
+    return (success: successCount, failed: failedCount, errors: errors);
+  }
+
+  /// 批量导出元数据到 JSON 文件
   Future<File?> exportMetadataToJson(List<LocalImageRecord> records) async {
     try {
-      final stopwatch = Stopwatch()..start();
-
-      // 1. 准备导出数据
       final exportData = records.map((record) {
         final map = <String, dynamic>{
           'path': record.path,
@@ -334,7 +726,6 @@ class LocalGalleryRepository {
           'metadataStatus': record.metadataStatus.name,
         };
 
-        // 添加元数据（如果有）
         if (record.metadata != null && record.metadata!.hasData) {
           final meta = record.metadata!;
           map['metadata'] = {
@@ -351,14 +742,6 @@ class LocalGalleryRepository {
             'smeaDyn': meta.smeaDyn,
             'noiseSchedule': meta.noiseSchedule,
             'cfgRescale': meta.cfgRescale,
-            'ucPreset': meta.ucPreset,
-            'qualityToggle': meta.qualityToggle,
-            'isImg2Img': meta.isImg2Img,
-            'strength': meta.strength,
-            'noise': meta.noise,
-            'software': meta.software,
-            'version': meta.version,
-            'source': meta.source,
             'characterPrompts': meta.characterPrompts,
             'characterNegativePrompts': meta.characterNegativePrompts,
           };
@@ -367,317 +750,72 @@ class LocalGalleryRepository {
         return map;
       }).toList();
 
-      // 2. 创建 JSON 对象
       final jsonData = {
         'exportedAt': DateTime.now().toIso8601String(),
         'totalImages': records.length,
         'images': exportData,
       };
 
-      // 3. 获取导出目录（优先下载目录，否则使用系统临时目录）
       Directory? exportDir;
       try {
         exportDir = await getDownloadsDirectory();
       } catch (e) {
-        // getDownloadsDirectory throws on some platforms (e.g., Windows)
-        AppLogger.w(
-          'Downloads directory not available on this platform: $e',
-          'LocalGalleryRepo',
-        );
+        exportDir = Directory.systemTemp;
       }
-
-      // Fallback to system temp directory for testing or unsupported platforms
       exportDir ??= Directory.systemTemp;
-      AppLogger.d(
-        'Using export directory: ${exportDir.path}',
-        'LocalGalleryRepo',
-      );
 
-      // 4. 生成文件名（带时间戳）
-      final timestamp =
-          DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final fileName = 'nai_metadata_export_$timestamp.json';
       final filePath = '${exportDir.path}${Platform.pathSeparator}$fileName';
       final file = File(filePath);
 
-      // 5. 写入 JSON 文件
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(jsonData),
-      );
+      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonData));
 
-      stopwatch.stop();
-      AppLogger.i(
-        'Exported ${records.length} images to $fileName in ${stopwatch.elapsedMilliseconds}ms',
-        'LocalGalleryRepo',
-      );
-
+      AppLogger.i('Exported ${records.length} images to $fileName', 'LocalGalleryRepo');
       return file;
     } catch (e) {
-      AppLogger.e(
-        'Failed to export metadata',
-        e,
-        null,
-        'LocalGalleryRepo',
-      );
+      AppLogger.e('Failed to export metadata', e, null, 'LocalGalleryRepo');
       return null;
     }
   }
 
-  /// 批量删除图片
-  ///
-  /// [imagePaths] 要删除的图片路径列表
-  /// [onProgress] 可选的进度回调
-  /// 返回操作结果（成功数、失败数、错误列表）
-  Future<BulkOperationResult> bulkDeleteImages(
-    List<String> imagePaths, {
-    BulkProgressCallback? onProgress,
-  }) async {
-    final stopwatch = Stopwatch()..start();
-    int successCount = 0;
-    int failedCount = 0;
-    final errors = <String>[];
-
-    AppLogger.i(
-      'Starting bulk delete: ${imagePaths.length} images',
-      'LocalGalleryRepo',
-    );
-
-    for (var i = 0; i < imagePaths.length; i++) {
-      final imagePath = imagePaths[i];
-
-      // Report progress
-      onProgress?.call(
-        i,
-        imagePaths.length,
-        imagePath,
-        false,
-      );
-
-      try {
-        final file = File(imagePath);
-        if (await file.exists()) {
-          await file.delete();
-
-          // Clean up favorites
-          await _favoritesBox.delete(imagePath);
-
-          // Clean up tags
-          await _tagsBox.delete(imagePath);
-
-          successCount++;
-          AppLogger.d(
-            'Deleted: $imagePath ($successCount/${imagePaths.length})',
-            'LocalGalleryRepo',
-          );
-        } else {
-          failedCount++;
-          final error = 'File not found: $imagePath';
-          errors.add(error);
-          AppLogger.w(error, 'LocalGalleryRepo');
-        }
-      } catch (e) {
-        failedCount++;
-        final error = 'Failed to delete $imagePath: $e';
-        errors.add(error);
-        AppLogger.e(
-          'Delete failed for $imagePath',
-          e,
-          null,
-          'LocalGalleryRepo',
-        );
-      }
-    }
-
-    // Final progress update
-    onProgress?.call(
-      imagePaths.length,
-      imagePaths.length,
-      '',
-      true,
-    );
-
-    stopwatch.stop();
-    AppLogger.i(
-      'Bulk delete completed: $successCount succeeded, $failedCount failed '
-          'in ${stopwatch.elapsedMilliseconds}ms',
-      'LocalGalleryRepo',
-    );
-
-    return (
-      success: successCount,
-      failed: failedCount,
-      errors: errors,
-    );
-  }
-
-  /// 批量编辑标签
-  ///
-  /// [imagePaths] 要编辑的图片路径列表
-  /// [tagsToAdd] 要添加的标签列表
-  /// [tagsToRemove] 要删除的标签列表
-  /// [onProgress] 可选的进度回调
-  /// 返回操作结果（成功数、失败数、错误列表）
-  Future<BulkOperationResult> bulkEditTags(
-    List<String> imagePaths, {
-    List<String> tagsToAdd = const [],
-    List<String> tagsToRemove = const [],
-    BulkProgressCallback? onProgress,
-  }) async {
-    final stopwatch = Stopwatch()..start();
-    int successCount = 0;
-    int failedCount = 0;
-    final errors = <String>[];
-
-    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
-      AppLogger.w(
-        'No tags to add or remove, skipping bulk tag edit',
-        'LocalGalleryRepo',
-      );
-      return (
-        success: 0,
-        failed: 0,
-        errors: <String>[],
-      );
-    }
-
-    AppLogger.i(
-      'Starting bulk tag edit: ${imagePaths.length} images '
-          '(add: ${tagsToAdd.length}, remove: ${tagsToRemove.length})',
-      'LocalGalleryRepo',
-    );
-
-    for (var i = 0; i < imagePaths.length; i++) {
-      final imagePath = imagePaths[i];
-
-      // Report progress
-      onProgress?.call(
-        i,
-        imagePaths.length,
-        imagePath,
-        false,
-      );
-
-      try {
-        // Get current tags
-        final currentTags = getTags(imagePath);
-
-        // Add new tags (avoid duplicates)
-        final updatedTags = List<String>.from(currentTags);
-        for (final tag in tagsToAdd) {
-          if (!updatedTags.contains(tag)) {
-            updatedTags.add(tag);
-          }
-        }
-
-        // Remove tags
-        for (final tag in tagsToRemove) {
-          updatedTags.remove(tag);
-        }
-
-        // Save updated tags
-        await setTags(imagePath, updatedTags);
-        successCount++;
-
-        AppLogger.d(
-          'Updated tags for $imagePath: ${currentTags.length} -> ${updatedTags.length} '
-              '($successCount/${imagePaths.length})',
-          'LocalGalleryRepo',
-        );
-      } catch (e) {
-        failedCount++;
-        final error = 'Failed to edit tags for $imagePath: $e';
-        errors.add(error);
-        AppLogger.e(
-          'Tag edit failed for $imagePath',
-          e,
-          null,
-          'LocalGalleryRepo',
-        );
-      }
-    }
-
-    // Final progress update
-    onProgress?.call(
-      imagePaths.length,
-      imagePaths.length,
-      '',
-      true,
-    );
-
-    stopwatch.stop();
-    AppLogger.i(
-      'Bulk tag edit completed: $successCount succeeded, $failedCount failed '
-          'in ${stopwatch.elapsedMilliseconds}ms',
-      'LocalGalleryRepo',
-    );
-
-    return (
-      success: successCount,
-      failed: failedCount,
-      errors: errors,
-    );
-  }
-
   /// 批量导出元数据
-  ///
-  /// [files] 要导出的图片文件列表
-  /// [onProgress] 可选的进度回调
-  /// 返回导出的文件，失败返回 null
   Future<File?> bulkExportMetadata(
     List<File> files, {
     BulkProgressCallback? onProgress,
   }) async {
     try {
-      final stopwatch = Stopwatch()..start();
-
-      // 1. 加载记录（自动包含收藏状态和标签）
       final records = await loadRecords(files);
-
-      AppLogger.i(
-        'Starting bulk export: ${records.length} images',
-        'LocalGalleryRepo',
-      );
-
-      // 2. 使用现有的导出方法
-      final exportedFile = await exportMetadataToJson(records);
-
-      // 3. 报告进度
       for (var i = 0; i < records.length; i++) {
-        onProgress?.call(
-          i,
-          records.length,
-          records[i].path,
-          false,
-        );
+        onProgress?.call(i, records.length, records[i].path, false);
       }
-
-      // Final progress update
-      onProgress?.call(
-        records.length,
-        records.length,
-        '',
-        true,
-      );
-
-      stopwatch.stop();
-      AppLogger.i(
-        'Bulk export completed: ${records.length} images exported '
-            'in ${stopwatch.elapsedMilliseconds}ms',
-        'LocalGalleryRepo',
-      );
-
-      return exportedFile;
+      onProgress?.call(records.length, records.length, '', true);
+      return await exportMetadataToJson(records);
     } catch (e) {
-      AppLogger.e(
-        'Bulk export failed',
-        e,
-        null,
-        'LocalGalleryRepo',
-      );
+      AppLogger.e('Bulk export failed', e, null, 'LocalGalleryRepo');
       return null;
     }
   }
 
-  /// 单例实例
-  static final LocalGalleryRepository instance = LocalGalleryRepository._();
+  // ============================================================
+  // 工具方法
+  // ============================================================
+
+  /// 转换排序方式为SQL
+  String _getSortOrderSql(GallerySortOrder order) {
+    switch (order) {
+      case GallerySortOrder.dateDesc:
+        return 'modified_at DESC';
+      case GallerySortOrder.dateAsc:
+        return 'modified_at ASC';
+      case GallerySortOrder.sizeDesc:
+        return 'file_size DESC';
+      case GallerySortOrder.sizeAsc:
+        return 'file_size ASC';
+      case GallerySortOrder.nameAsc:
+        return 'file_name ASC';
+      case GallerySortOrder.nameDesc:
+        return 'file_name DESC';
+    }
+  }
 }

@@ -24,6 +24,8 @@ class LocalImageCard extends StatefulWidget {
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
   final VoidCallback? onDeleted;
+  final void Function(LocalImageRecord)? onReuseMetadata;
+  final void Function(LocalImageRecord)? onSendToImg2Img;
 
   const LocalImageCard({
     super.key,
@@ -35,6 +37,8 @@ class LocalImageCard extends StatefulWidget {
     this.onSelectionToggle,
     this.onLongPress,
     this.onDeleted,
+    this.onReuseMetadata,
+    this.onSendToImg2Img,
   });
 
   @override
@@ -112,6 +116,29 @@ class _LocalImageCardState extends State<LocalImageCard> {
           }
         },
       ),
+      const ProMenuItem.divider(),
+      // 复用数据
+      if (widget.onReuseMetadata != null)
+        ProMenuItem(
+          id: 'reuse_metadata',
+          label: '复用数据',
+          icon: Icons.replay,
+          onTap: () {
+            widget.onReuseMetadata?.call(widget.record);
+          },
+        ),
+      // 发送到图生图
+      if (widget.onSendToImg2Img != null)
+        ProMenuItem(
+          id: 'send_to_img2img',
+          label: '发送到图生图',
+          icon: Icons.image_outlined,
+          onTap: () {
+            widget.onSendToImg2Img?.call(widget.record);
+          },
+        ),
+      if (widget.onReuseMetadata != null || widget.onSendToImg2Img != null)
+        const ProMenuItem.divider(),
       ProMenuItem(
         id: 'open_file',
         label: '在文件管理器中打开',
@@ -142,10 +169,12 @@ class _LocalImageCardState extends State<LocalImageCard> {
           }
         },
       ),
+      const ProMenuItem.divider(),
       ProMenuItem(
         id: 'delete',
         label: '删除图片',
         icon: Icons.delete_outline,
+        isDanger: true,
         onTap: () {
           if (mounted) {
             _showDeleteConfirmationDialog();
@@ -851,7 +880,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
     // Calculate height dynamically based on aspect ratio, with max height constraint
     final maxHeight = widget.itemWidth * 3;
-    final itemHeight = (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
+    final itemHeight =
+        (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
 
     return RepaintBoundary(
       child: MouseRegion(
@@ -859,107 +889,107 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
         child: GestureDetector(
-        // 点击
-        onTap: () {
-          if (widget.selectionMode) {
-            widget.onSelectionToggle?.call();
-          } else {
-            _showDetailsDialog();
-          }
-        },
-
-        // 桌面端：右键菜单
-        onSecondaryTapDown: (details) {
-          if (!widget.selectionMode) {
-            _showContextMenu(details.globalPosition);
-          }
-        },
-
-        // 移动端：长按
-        onLongPressStart: (details) {
-          if (!widget.selectionMode) {
-            _longPressTimer = Timer(const Duration(milliseconds: 500), () {
-              // 如果提供了 onLongPress 回调（进入多选），则执行它
-              // 否则显示上下文菜单
-              if (widget.onLongPress != null) {
-                widget.onLongPress!();
-              } else {
-                _showContextMenu(details.globalPosition);
-              }
-            });
-          }
-        },
-        onLongPressEnd: (details) {
-          _longPressTimer?.cancel();
-        },
-        onLongPressCancel: () {
-          _longPressTimer?.cancel();
-        },
-
-        // 双击缩放
-        onDoubleTap: () {
-          if (!widget.selectionMode) {
-            _showDetailsDialog();
-          }
-        },
-
-        // Pinch 缩放手势 - 显示缩略图预览
-        onScaleStart: (details) {
-          if (!widget.selectionMode && details.pointerCount > 1) {
-            setState(() {
-              _scale = 1.0;
-              _scaleStartPosition = details.localFocalPoint;
-              _showThumbnailPreview = true;
-            });
-          }
-        },
-        onScaleUpdate: (details) {
-          if (_showThumbnailPreview) {
-            setState(() {
-              _scale = details.scale;
-            });
-          }
-        },
-        onScaleEnd: (details) {
-          if (_showThumbnailPreview) {
-            // 如果缩放足够大，打开详情页
-            if (_scale > 1.5) {
+          // 点击
+          onTap: () {
+            if (widget.selectionMode) {
+              widget.onSelectionToggle?.call();
+            } else {
               _showDetailsDialog();
             }
-            setState(() {
-              _showThumbnailPreview = false;
-              _scale = 1.0;
-              _scaleStartPosition = null;
-            });
-          }
-        },
+          },
 
-        child: Stack(
-          children: [
-            SizedBox(
-              width: widget.itemWidth,
-              height: itemHeight,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                      color: Colors.black.withOpacity(0.1),
-                    ),
-                  ],
-                  border: widget.isSelected
-                      ? Border.all(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 3,
-                        )
-                      : null,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Stack(
-                        children: [
+          // 桌面端：右键菜单
+          onSecondaryTapDown: (details) {
+            if (!widget.selectionMode) {
+              _showContextMenu(details.globalPosition);
+            }
+          },
+
+          // 移动端：长按
+          onLongPressStart: (details) {
+            if (!widget.selectionMode) {
+              _longPressTimer = Timer(const Duration(milliseconds: 500), () {
+                // 如果提供了 onLongPress 回调（进入多选），则执行它
+                // 否则显示上下文菜单
+                if (widget.onLongPress != null) {
+                  widget.onLongPress!();
+                } else {
+                  _showContextMenu(details.globalPosition);
+                }
+              });
+            }
+          },
+          onLongPressEnd: (details) {
+            _longPressTimer?.cancel();
+          },
+          onLongPressCancel: () {
+            _longPressTimer?.cancel();
+          },
+
+          // 双击缩放
+          onDoubleTap: () {
+            if (!widget.selectionMode) {
+              _showDetailsDialog();
+            }
+          },
+
+          // Pinch 缩放手势 - 显示缩略图预览
+          onScaleStart: (details) {
+            if (!widget.selectionMode && details.pointerCount > 1) {
+              setState(() {
+                _scale = 1.0;
+                _scaleStartPosition = details.localFocalPoint;
+                _showThumbnailPreview = true;
+              });
+            }
+          },
+          onScaleUpdate: (details) {
+            if (_showThumbnailPreview) {
+              setState(() {
+                _scale = details.scale;
+              });
+            }
+          },
+          onScaleEnd: (details) {
+            if (_showThumbnailPreview) {
+              // 如果缩放足够大，打开详情页
+              if (_scale > 1.5) {
+                _showDetailsDialog();
+              }
+              setState(() {
+                _showThumbnailPreview = false;
+                _scale = 1.0;
+                _scaleStartPosition = null;
+              });
+            }
+          },
+
+          child: Stack(
+            children: [
+              SizedBox(
+                width: widget.itemWidth,
+                height: itemHeight,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                        color: Colors.black.withOpacity(0.12),
+                      ),
+                    ],
+                    border: widget.isSelected
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 3,
+                          )
+                        : null,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
                         Image.file(
                           File(widget.record.path),
                           cacheWidth: cacheWidth, // 优化内存占用
@@ -987,51 +1017,51 @@ class _LocalImageCardState extends State<LocalImageCard> {
                   ),
                 ),
               ),
-            // Selection Overlay and Checkbox
-            if (widget.selectionMode)
-              _SelectionIndicator(
-                isSelected: widget.isSelected,
-              ),
-            // Hover overlay (only shown when not in selection mode)
-            if (!widget.selectionMode)
-              _HoverOverlay(
-                record: widget.record,
-              ),
-            // Pinch 缩略图预览 overlay
-            if (_showThumbnailPreview && _scaleStartPosition != null)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: _scale.clamp(0.8, 2.0),
-                      child: Container(
-                        width: widget.itemWidth * 0.8,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+              // Selection Overlay and Checkbox
+              if (widget.selectionMode)
+                _SelectionIndicator(
+                  isSelected: widget.isSelected,
+                ),
+              // Hover overlay (only shown when not in selection mode)
+              if (!widget.selectionMode)
+                _HoverOverlay(
+                  record: widget.record,
+                ),
+              // Pinch 缩略图预览 overlay
+              if (_showThumbnailPreview && _scaleStartPosition != null)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: _scale.clamp(0.8, 2.0),
+                        child: Container(
+                          width: widget.itemWidth * 0.8,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.5),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              File(widget.record.path),
+                              fit: BoxFit.contain,
                             ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(widget.record.path),
-                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1039,7 +1069,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
 /// Selection indicator widget
 /// This widget handles the selection visual feedback independently
-class _SelectionIndicator extends StatelessWidget {
+class _SelectionIndicator extends StatefulWidget {
   final bool isSelected;
 
   const _SelectionIndicator({
@@ -1047,38 +1077,94 @@ class _SelectionIndicator extends StatelessWidget {
   });
 
   @override
+  State<_SelectionIndicator> createState() => _SelectionIndicatorState();
+}
+
+class _SelectionIndicatorState extends State<_SelectionIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    if (widget.isSelected) {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _SelectionIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected != oldWidget.isSelected) {
+      if (widget.isSelected) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Stack(
       children: [
         // Selection Overlay
-        if (isSelected)
-          Positioned.fill(
-            child: Container(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-            ),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? colorScheme.primary.withOpacity(0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
           ),
+        ),
         // Checkbox
         Positioned(
           top: 8,
           right: 8,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.black.withOpacity(0.4),
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.isSelected
+                    ? colorScheme.primary
+                    : Colors.black.withOpacity(0.5),
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
               child: Icon(
                 Icons.check,
-                size: 16,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.onPrimary
+                size: 18,
+                color: widget.isSelected
+                    ? colorScheme.onPrimary
                     : Colors.transparent,
               ),
             ),
@@ -1108,136 +1194,170 @@ class _HoverOverlayState extends State<_HoverOverlay> {
   @override
   Widget build(BuildContext context) {
     final metadata = widget.record.metadata;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
-      child: AnimatedOpacity(
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        opacity: _isHovering ? 1.0 : 0.0,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.transparent, Colors.black87],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                path.basename(widget.record.path),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      timeago.format(
-                        widget.record.modifiedAt,
-                        locale:
-                            Localizations.localeOf(context).languageCode == 'zh'
-                                ? 'zh'
-                                : 'en',
-                      ),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                  if (metadata?.seed != null) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Seed: ${metadata!.seed}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ],
-                  if (metadata?.width != null && metadata?.height != null) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        '${metadata?.width} x ${metadata?.height}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              if (metadata?.prompt.isNotEmpty == true)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    metadata!.prompt,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              // Tags display
-              if (widget.record.tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Wrap(
-                    spacing: 4.0,
-                    runSpacing: 2.0,
-                    children: widget.record.tags.take(3).map((tag) {
-                      final displayTag =
-                          tag.length > 15 ? '${tag.substring(0, 15)}...' : tag;
-                      return Chip(
-                        label: Text(
-                          displayTag,
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: Colors.white,
-                          ),
-                        ),
-                        backgroundColor: Colors.white24,
-                        padding: EdgeInsets.zero,
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      );
-                    }).toList(),
-                  ),
+        curve: Curves.easeOut,
+        transform: Matrix4.identity()..scale(_isHovering ? 1.02 : 1.0),
+        transformAlignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: _isHovering
+              ? Border.all(
+                  color: colorScheme.primary.withOpacity(0.25),
+                  width: 2,
                 )
-              else
-                const Padding(
-                  padding: EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    'No tags',
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 10,
+              : null,
+          boxShadow: _isHovering
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
+        ),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: _isHovering ? 1.0 : 0.0,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                colors: [Colors.transparent, Colors.black87],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0.3, 1.0],
+              ),
+            ),
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  path.basename(widget.record.path),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        timeago.format(
+                          widget.record.modifiedAt,
+                          locale:
+                              Localizations.localeOf(context).languageCode ==
+                                      'zh'
+                                  ? 'zh'
+                                  : 'en',
+                        ),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 11,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    if (metadata?.seed != null) ...[
+                      Text(
+                        ' | ',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 11,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          '${metadata!.seed}',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                    if (metadata?.width != null &&
+                        metadata?.height != null) ...[
+                      Text(
+                        ' | ',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 11,
+                        ),
+                      ),
+                      Text(
+                        '${metadata?.width}x${metadata?.height}',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (metadata?.prompt.isNotEmpty == true)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6.0),
+                    child: Text(
+                      metadata!.prompt,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 11,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-            ],
+                // Tags display
+                if (widget.record.tags.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6.0),
+                    child: Wrap(
+                      spacing: 4.0,
+                      runSpacing: 4.0,
+                      children: widget.record.tags.take(3).map((tag) {
+                        final displayTag = tag.length > 12
+                            ? '${tag.substring(0, 12)}...'
+                            : tag;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            displayTag,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1282,8 +1402,9 @@ class _ContextMenuRoute extends PopupRoute {
         builder: (context) {
           // Calculate adjusted position to keep menu within screen bounds
           final screenSize = MediaQuery.of(context).size;
-          const menuWidth = 200.0;
-          final menuHeight = items.length * 48.0;
+          const menuWidth = 180.0;
+          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
+              items.where((i) => i.isDivider).length * 1.0;
 
           double left = position.dx;
           double top = position.dy;
