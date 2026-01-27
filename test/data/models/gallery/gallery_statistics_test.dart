@@ -57,7 +57,10 @@ void main() {
       expect(original.totalImages, equals(100));
       expect(updated.totalImages, equals(200));
       expect(updated.totalSizeBytes, equals(original.totalSizeBytes));
-      expect(updated.averageFileSizeBytes, equals(original.averageFileSizeBytes));
+      expect(
+        updated.averageFileSizeBytes,
+        equals(original.averageFileSizeBytes),
+      );
       expect(updated.favoriteCount, equals(50));
     });
 
@@ -68,7 +71,7 @@ void main() {
         averageFileSizeBytes: 10000.0,
         calculatedAt: DateTime.now(),
         modelDistribution: [
-          ModelStatistics(
+          const ModelStatistics(
             modelName: 'NAI Diffusion V4',
             count: 80,
             percentage: 80.0,
@@ -79,7 +82,10 @@ void main() {
       final updated = original.copyWith(totalImages: 200);
 
       expect(updated.modelDistribution.length, equals(1));
-      expect(updated.modelDistribution.first.modelName, equals('NAI Diffusion V4'));
+      expect(
+        updated.modelDistribution.first.modelName,
+        equals('NAI Diffusion V4'),
+      );
     });
 
     test('favoritePercentage calculates correctly', () {
@@ -286,7 +292,7 @@ void main() {
 
   group('ResolutionStatistics', () {
     test('creates instance with all fields', () {
-      final stats = ResolutionStatistics(
+      const stats = ResolutionStatistics(
         label: '1024x1024',
         count: 50,
         percentage: 50.0,
@@ -298,7 +304,7 @@ void main() {
     });
 
     test('uses default percentage value', () {
-      final stats = ResolutionStatistics(
+      const stats = ResolutionStatistics(
         label: '1024x1024',
         count: 50,
       );
@@ -307,13 +313,13 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final stats1 = ResolutionStatistics(
+      const stats1 = ResolutionStatistics(
         label: '1024x1024',
         count: 50,
         percentage: 50.0,
       );
 
-      final stats2 = ResolutionStatistics(
+      const stats2 = ResolutionStatistics(
         label: '1024x1024',
         count: 50,
         percentage: 50.0,
@@ -325,7 +331,7 @@ void main() {
 
   group('ModelStatistics', () {
     test('creates instance with all fields', () {
-      final stats = ModelStatistics(
+      const stats = ModelStatistics(
         modelName: 'NAI Diffusion V4',
         count: 80,
         percentage: 80.0,
@@ -337,7 +343,7 @@ void main() {
     });
 
     test('uses default percentage value', () {
-      final stats = ModelStatistics(
+      const stats = ModelStatistics(
         modelName: 'NAI Diffusion V4',
         count: 80,
       );
@@ -346,13 +352,13 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final stats1 = ModelStatistics(
+      const stats1 = ModelStatistics(
         modelName: 'NAI Diffusion V4',
         count: 80,
         percentage: 80.0,
       );
 
-      final stats2 = ModelStatistics(
+      const stats2 = ModelStatistics(
         modelName: 'NAI Diffusion V4',
         count: 80,
         percentage: 80.0,
@@ -364,7 +370,7 @@ void main() {
 
   group('SamplerStatistics', () {
     test('creates instance with all fields', () {
-      final stats = SamplerStatistics(
+      const stats = SamplerStatistics(
         samplerName: 'Euler Ancestral',
         count: 60,
         percentage: 60.0,
@@ -376,7 +382,7 @@ void main() {
     });
 
     test('uses default percentage value', () {
-      final stats = SamplerStatistics(
+      const stats = SamplerStatistics(
         samplerName: 'Euler Ancestral',
         count: 60,
       );
@@ -385,13 +391,13 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final stats1 = SamplerStatistics(
+      const stats1 = SamplerStatistics(
         samplerName: 'Euler Ancestral',
         count: 60,
         percentage: 60.0,
       );
 
-      final stats2 = SamplerStatistics(
+      const stats2 = SamplerStatistics(
         samplerName: 'Euler Ancestral',
         count: 60,
         percentage: 60.0,
@@ -403,7 +409,7 @@ void main() {
 
   group('SizeDistributionStatistics', () {
     test('creates instance with all fields', () {
-      final stats = SizeDistributionStatistics(
+      const stats = SizeDistributionStatistics(
         label: '1-5 MB',
         count: 40,
         percentage: 40.0,
@@ -415,7 +421,7 @@ void main() {
     });
 
     test('uses default percentage value', () {
-      final stats = SizeDistributionStatistics(
+      const stats = SizeDistributionStatistics(
         label: '1-5 MB',
         count: 40,
       );
@@ -424,13 +430,13 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final stats1 = SizeDistributionStatistics(
+      const stats1 = SizeDistributionStatistics(
         label: '1-5 MB',
         count: 40,
         percentage: 40.0,
       );
 
-      final stats2 = SizeDistributionStatistics(
+      const stats2 = SizeDistributionStatistics(
         label: '1-5 MB',
         count: 40,
         percentage: 40.0,
@@ -442,7 +448,7 @@ void main() {
 
   group('TagStatistics', () {
     test('creates instance with all fields', () {
-      final stats = TagStatistics(
+      const stats = TagStatistics(
         tagName: 'anime',
         count: 100,
         percentage: 100.0,
@@ -454,7 +460,7 @@ void main() {
     });
 
     test('uses default percentage value', () {
-      final stats = TagStatistics(
+      const stats = TagStatistics(
         tagName: 'anime',
         count: 100,
       );
@@ -463,13 +469,13 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final stats1 = TagStatistics(
+      const stats1 = TagStatistics(
         tagName: 'anime',
         count: 100,
         percentage: 100.0,
       );
 
-      final stats2 = TagStatistics(
+      const stats2 = TagStatistics(
         tagName: 'anime',
         count: 100,
         percentage: 100.0,
@@ -481,7 +487,7 @@ void main() {
 
   group('ParameterStatistics', () {
     test('creates instance with all fields', () {
-      final stats = ParameterStatistics(
+      const stats = ParameterStatistics(
         parameterName: 'steps',
         value: '28',
         count: 80,
@@ -495,7 +501,7 @@ void main() {
     });
 
     test('uses default percentage value', () {
-      final stats = ParameterStatistics(
+      const stats = ParameterStatistics(
         parameterName: 'steps',
         value: '28',
         count: 80,
@@ -505,14 +511,14 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final stats1 = ParameterStatistics(
+      const stats1 = ParameterStatistics(
         parameterName: 'steps',
         value: '28',
         count: 80,
         percentage: 80.0,
       );
 
-      final stats2 = ParameterStatistics(
+      const stats2 = ParameterStatistics(
         parameterName: 'steps',
         value: '28',
         count: 80,

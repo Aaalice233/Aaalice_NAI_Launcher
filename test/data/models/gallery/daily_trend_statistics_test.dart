@@ -61,7 +61,8 @@ void main() {
       expect(formatted, equals('01/15/2026'));
     });
 
-    test('getFormattedDate handles single digit months and days in Chinese', () {
+    test('getFormattedDate handles single digit months and days in Chinese',
+        () {
       final trend = DailyTrendStatistics(
         date: DateTime(2026, 1, 5),
         count: 10,
@@ -71,7 +72,8 @@ void main() {
       expect(formatted, equals('2026年01月05日'));
     });
 
-    test('getFormattedDate handles single digit months and days in English', () {
+    test('getFormattedDate handles single digit months and days in English',
+        () {
       final trend = DailyTrendStatistics(
         date: DateTime(2026, 1, 5),
         count: 10,
@@ -348,7 +350,7 @@ void main() {
 
   group('MonthlyTrendStatistics', () {
     test('creates instance with all required fields', () {
-      final trend = MonthlyTrendStatistics(
+      const trend = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
@@ -360,7 +362,7 @@ void main() {
     });
 
     test('uses default values for optional fields', () {
-      final trend = MonthlyTrendStatistics(
+      const trend = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
@@ -373,7 +375,7 @@ void main() {
     });
 
     test('getFormattedMonth returns correct format in Chinese', () {
-      final trend = MonthlyTrendStatistics(
+      const trend = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
@@ -384,7 +386,7 @@ void main() {
     });
 
     test('getFormattedMonth returns correct format in English', () {
-      final trend = MonthlyTrendStatistics(
+      const trend = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
@@ -423,7 +425,7 @@ void main() {
     });
 
     test('getFormattedMonth handles single digit month in Chinese', () {
-      final trend = MonthlyTrendStatistics(
+      const trend = MonthlyTrendStatistics(
         year: 2026,
         month: 3,
         count: 200,
@@ -434,13 +436,13 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final trend1 = MonthlyTrendStatistics(
+      const trend1 = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
       );
 
-      final trend2 = MonthlyTrendStatistics(
+      const trend2 = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
@@ -450,13 +452,13 @@ void main() {
     });
 
     test('inequality works correctly', () {
-      final trend1 = MonthlyTrendStatistics(
+      const trend1 = MonthlyTrendStatistics(
         year: 2026,
         month: 1,
         count: 200,
       );
 
-      final trend2 = MonthlyTrendStatistics(
+      const trend2 = MonthlyTrendStatistics(
         year: 2026,
         month: 2,
         count: 200,

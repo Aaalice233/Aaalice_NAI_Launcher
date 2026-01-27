@@ -1,11 +1,11 @@
 name: nai_launcher
 description: NovelAI Universal Launcher - 跨平台第三方客户端
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
-  flutter: '>=3.16.0'
+  sdk: ">=3.2.0 <4.0.0"
+  flutter: ">=3.16.0"
 
 dependencies:
   flutter:
@@ -35,6 +35,9 @@ dependencies:
 
   # 加密库 (Blake2b + Argon2id)
   cryptography: ^2.7.0
+
+  # SHA 哈希（用于生成唯一ID）
+  crypto: ^3.0.3
 
   # ZIP 处理
   archive: ^3.6.1

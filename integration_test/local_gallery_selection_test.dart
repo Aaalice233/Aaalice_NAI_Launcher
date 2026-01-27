@@ -64,12 +64,14 @@ void main() {
       expect(find.byType(LocalImageCard), findsOneWidget);
 
       // Initial state - not in selection mode
-      var selectionState = container.read(localGallerySelectionNotifierProvider);
+      var selectionState =
+          container.read(localGallerySelectionNotifierProvider);
       expect(selectionState.isActive, isFalse);
       expect(selectionState.selectedIds, isEmpty);
 
       // Programmatically enter selection mode and select item (testing provider flow)
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enterAndSelect(imageRecord.path);
       await tester.pumpAndSettle();
 
@@ -188,7 +190,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter selection mode
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enter();
       await tester.pumpAndSettle();
 
@@ -196,7 +199,8 @@ void main() {
       notifier.toggle(image1.path);
       await tester.pumpAndSettle();
 
-      var selectionState = container.read(localGallerySelectionNotifierProvider);
+      var selectionState =
+          container.read(localGallerySelectionNotifierProvider);
       expect(selectionState.selectedIds.length, 1);
       expect(selectionState.selectedIds.contains(image1.path), isTrue);
 
@@ -306,9 +310,12 @@ void main() {
             home: Scaffold(
               body: Consumer(
                 builder: (context, ref, child) {
-                  final state = ref.watch(localGallerySelectionNotifierProvider);
+                  final state =
+                      ref.watch(localGallerySelectionNotifierProvider);
                   return Center(
-                    child: Text('Selected: ${state.selectedIds.length}/${ids.length}'),
+                    child: Text(
+                      'Selected: ${state.selectedIds.length}/${ids.length}',
+                    ),
                   );
                 },
               ),
@@ -320,7 +327,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter selection mode
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enter();
       await tester.pumpAndSettle();
 
@@ -348,7 +356,8 @@ void main() {
             home: Scaffold(
               body: Consumer(
                 builder: (context, ref, child) {
-                  final state = ref.watch(localGallerySelectionNotifierProvider);
+                  final state =
+                      ref.watch(localGallerySelectionNotifierProvider);
                   return Center(
                     child: Text('Selected: ${state.selectedIds.length}'),
                   );
@@ -362,7 +371,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter selection mode and select items
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enter();
       notifier.selectAll(ids);
       await tester.pumpAndSettle();
@@ -420,7 +430,8 @@ void main() {
       );
 
       // Enter selection mode and select item
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enterAndSelect(imageRecord.path);
       await tester.pumpAndSettle();
 
@@ -438,7 +449,8 @@ void main() {
       expect(state.lastSelectedId, isNull);
     });
 
-    testWidgets('Only affected cards rebuild on selection change', (tester) async {
+    testWidgets('Only affected cards rebuild on selection change',
+        (tester) async {
       final container = ProviderContainer();
       final image1 = LocalImageRecord(
         path: '/test/image1.png',
@@ -482,19 +494,34 @@ void main() {
 
       // Initial pump to trigger first build
       await tester.pump();
-      expect(buildCount1, equals(1), reason: 'Card 1 should build once initially');
-      expect(buildCount2, equals(1), reason: 'Card 2 should build once initially');
+      expect(
+        buildCount1,
+        equals(1),
+        reason: 'Card 1 should build once initially',
+      );
+      expect(
+        buildCount2,
+        equals(1),
+        reason: 'Card 2 should build once initially',
+      );
 
       // Enter selection mode
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enter();
       await tester.pump();
 
       // Both cards should rebuild because selectionMode changed
-      expect(buildCount1, equals(2),
-          reason: 'Card 1 should rebuild when selection mode changes');
-      expect(buildCount2, equals(2),
-          reason: 'Card 2 should rebuild when selection mode changes');
+      expect(
+        buildCount1,
+        equals(2),
+        reason: 'Card 1 should rebuild when selection mode changes',
+      );
+      expect(
+        buildCount2,
+        equals(2),
+        reason: 'Card 2 should rebuild when selection mode changes',
+      );
 
       final beforeToggleBuildCount1 = buildCount1;
       final beforeToggleBuildCount2 = buildCount2;
@@ -519,7 +546,7 @@ void main() {
     testWidgets('Selection state updates correctly with rapid toggles',
         (tester) async {
       final container = ProviderContainer();
-      final imageId = '/test/image1.png';
+      const imageId = '/test/image1.png';
 
       addTearDown(container.dispose);
 
@@ -547,7 +574,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
       notifier.enter();
 
       // Rapid toggles
@@ -591,7 +619,8 @@ class _TestImageCard extends StatelessWidget {
 
         // Watch isActive separately to trigger rebuild when selection mode changes
         final isActive = ref.watch(
-          localGallerySelectionNotifierProvider.select((state) => state.isActive),
+          localGallerySelectionNotifierProvider
+              .select((state) => state.isActive),
         );
         // Watch isSelected separately to trigger rebuild only when this card's selection changes
         final isSelected = ref.watch(

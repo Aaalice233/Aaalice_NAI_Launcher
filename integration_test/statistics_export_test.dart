@@ -3,13 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/presentation/screens/statistics_screen.dart';
-import 'package:nai_launcher/presentation/widgets/statistics/export_dialog.dart';
 
 void main() {
   group('Statistics Export Tests', () {
     testWidgets('Export button opens dialog', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -35,7 +34,7 @@ void main() {
 
     testWidgets('Export dialog shows format options', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -60,7 +59,7 @@ void main() {
 
     testWidgets('Can select JSON format', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -85,7 +84,7 @@ void main() {
 
     testWidgets('Can select CSV format', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -110,7 +109,7 @@ void main() {
 
     testWidgets('Cancel button closes dialog', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -140,7 +139,7 @@ void main() {
 
     testWidgets('Export dialog displays information text', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -160,7 +159,7 @@ void main() {
 
     testWidgets('Can switch between formats', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -195,7 +194,7 @@ void main() {
       // In a real scenario with actual file I/O, we'd need to mock the file system
 
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -220,7 +219,7 @@ void main() {
 
     testWidgets('Export dialog can be reopened after closing', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -253,7 +252,7 @@ void main() {
 
     testWidgets('Export dialog has proper accessibility', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );

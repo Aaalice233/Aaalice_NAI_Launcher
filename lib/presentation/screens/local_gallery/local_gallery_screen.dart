@@ -83,6 +83,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   /// 批量加入队列
+  // ignore: unused_element
   Future<void> _addSelectedToQueue() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
     final galleryState = ref.read(localGalleryNotifierProvider);
@@ -220,7 +221,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   /// 恢复已删除的图片（撤销操作）
-  Future<void> _restoreDeletedImages(List<LocalImageRecord> deletedImages) async {
+  Future<void> _restoreDeletedImages(
+      List<LocalImageRecord> deletedImages) async {
     final restoreErrors = <String>[];
 
     try {
@@ -699,7 +701,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   /// 构建顶部工具栏
-  Widget _buildToolbar(ThemeData theme, LocalGalleryState state, BulkOperationState bulkOpState) {
+  Widget _buildToolbar(ThemeData theme, LocalGalleryState state,
+      BulkOperationState bulkOpState) {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -1423,10 +1426,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];
-        final isSelected = ref.watch(localGallerySelectionNotifierProvider
-            .select((state) => state.selectedIds.contains(record.path)));
-        final selectionMode = ref.watch(localGallerySelectionNotifierProvider
-            .select((state) => state.isActive));
+        final isSelected = ref.watch(
+          localGallerySelectionNotifierProvider
+              .select((state) => state.selectedIds.contains(record.path)),
+        );
+        final selectionMode = ref.watch(
+          localGallerySelectionNotifierProvider
+              .select((state) => state.isActive),
+        );
 
         // 获取或计算宽高比
         // Get or calculate aspect ratio

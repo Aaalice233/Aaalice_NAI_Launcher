@@ -8,7 +8,7 @@ void main() {
   group('Statistics Filters Tests', () {
     testWidgets('Date range filter updates charts', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -36,14 +36,14 @@ void main() {
         expect(find.byType(Dialog), findsOneWidget);
 
         // Close the dialog
-        await tester.tapAt(Offset(10, 10));
+        await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
       }
     });
 
     testWidgets('Model filter updates charts', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -67,14 +67,14 @@ void main() {
         // This is implementation-specific
 
         // Tap outside to close
-        await tester.tapAt(Offset(10, 10));
+        await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
       }
     });
 
     testWidgets('Clear all filters resets data', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -104,7 +104,7 @@ void main() {
 
     testWidgets('Filter combinations work correctly', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -126,7 +126,7 @@ void main() {
 
     testWidgets('Statistics screen loads without filters', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -144,9 +144,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsOneWidget);
     });
 
-    testWidgets('Statistics screen handles filter interactions gracefully', (tester) async {
+    testWidgets('Statistics screen handles filter interactions gracefully',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -163,10 +164,10 @@ void main() {
       // This test ensures the app doesn't crash during filter interactions
 
       final dropdownButtons = find.byType(DropdownButton);
-      for (final button in dropdownButtons.evaluate()) {
-        await tester.tap(button);
+      for (var i = 0; i < dropdownButtons.evaluate().length; i++) {
+        await tester.tap(dropdownButtons.at(i));
         await tester.pumpAndSettle();
-        await tester.tapAt(Offset(10, 10));
+        await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
       }
 
@@ -176,7 +177,7 @@ void main() {
 
     testWidgets('Time range grouping changes correctly', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -198,7 +199,7 @@ void main() {
 
     testWidgets('Filter state persists during navigation', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );

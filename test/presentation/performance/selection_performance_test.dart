@@ -1,9 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
-import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_screen.dart';
-import 'package:nai_launcher/presentation/widgets/local_image_card.dart';
 
 /// Performance verification tests for selection optimization.
 ///
@@ -24,7 +21,8 @@ void main() {
 
     test('Toggle operation completes in <10ms with 100 selected items', () {
       // Arrange
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
 
       // Select 100 items
       final hundredIds = List.generate(100, (i) => 'item_$i');
@@ -42,16 +40,20 @@ void main() {
       expect(
         avgTimePerToggle,
         lessThan(10),
-        reason: 'Average toggle time (${avgTimePerToggle.toStringAsFixed(2)}ms) '
+        reason:
+            'Average toggle time (${avgTimePerToggle.toStringAsFixed(2)}ms) '
             'should be <10ms with 100 selected items',
       );
 
-      print('✓ Toggle performance with 100 selected: ${avgTimePerToggle.toStringAsFixed(3)}ms per toggle');
+      print(
+        '✓ Toggle performance with 100 selected: ${avgTimePerToggle.toStringAsFixed(3)}ms per toggle',
+      );
     });
 
     test('Toggle operation completes in <10ms with 500 selected items', () {
       // Arrange
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
 
       // Select 500 items (worst case scenario)
       final fiveHundredIds = List.generate(500, (i) => 'item_$i');
@@ -69,16 +71,20 @@ void main() {
       expect(
         avgTimePerToggle,
         lessThan(10),
-        reason: 'Average toggle time (${avgTimePerToggle.toStringAsFixed(2)}ms) '
+        reason:
+            'Average toggle time (${avgTimePerToggle.toStringAsFixed(2)}ms) '
             'should be <10ms even with 500 selected items',
       );
 
-      print('✓ Toggle performance with 500 selected: ${avgTimePerToggle.toStringAsFixed(3)}ms per toggle');
+      print(
+        '✓ Toggle performance with 500 selected: ${avgTimePerToggle.toStringAsFixed(3)}ms per toggle',
+      );
     });
 
     test('SelectRange completes in <50ms for large ranges', () {
       // Arrange
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
 
       // Select anchor first
       notifier.select('anchor_0');
@@ -93,43 +99,54 @@ void main() {
       expect(
         stopwatch.elapsedMilliseconds,
         lessThan(50),
-        reason: 'SelectRange with 200 items (${stopwatch.elapsedMilliseconds}ms) '
+        reason:
+            'SelectRange with 200 items (${stopwatch.elapsedMilliseconds}ms) '
             'should complete in <50ms',
       );
 
-      print('✓ SelectRange performance (200 items): ${stopwatch.elapsedMilliseconds}ms');
+      print(
+        '✓ SelectRange performance (200 items): ${stopwatch.elapsedMilliseconds}ms',
+      );
     });
 
-    test('State rebuild optimization - select() returns boolean efficiently', () {
+    test('State rebuild optimization - select() returns boolean efficiently',
+        () {
       // Arrange
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
-      final testId = 'test_item';
+      container.read(localGallerySelectionNotifierProvider.notifier);
+      const testId = 'test_item';
 
       // Act & Measure - Measure select() performance
       final stopwatch = Stopwatch()..start();
-      final iterations = 10000;
+      const iterations = 10000;
       for (var i = 0; i < iterations; i++) {
         // This is what happens in UI: ref.watch().select((state) => state.selectedIds.contains(id))
-        container.read(localGallerySelectionNotifierProvider
-            .select((state) => state.selectedIds.contains(testId)));
+        container.read(
+          localGallerySelectionNotifierProvider
+              .select((state) => state.selectedIds.contains(testId)),
+        );
       }
       stopwatch.stop();
 
       // Assert - Select operation should be extremely fast (<1μs per operation)
-      final avgMicrosecondsPerSelect = (stopwatch.elapsedMicroseconds) / iterations;
+      final avgMicrosecondsPerSelect =
+          (stopwatch.elapsedMicroseconds) / iterations;
       expect(
         avgMicrosecondsPerSelect,
         lessThan(100), // <0.1ms per select check
-        reason: 'Select check (${avgMicrosecondsPerSelect.toStringAsFixed(2)}μs) '
+        reason:
+            'Select check (${avgMicrosecondsPerSelect.toStringAsFixed(2)}μs) '
             'should be <100μs',
       );
 
-      print('✓ Select() performance: ${avgMicrosecondsPerSelect.toStringAsFixed(3)}μs per check');
+      print(
+        '✓ Select() performance: ${avgMicrosecondsPerSelect.toStringAsFixed(3)}μs per check',
+      );
     });
 
     test('Rapid toggle operations (100 toggles) complete quickly', () {
       // Arrange
-      final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      final notifier =
+          container.read(localGallerySelectionNotifierProvider.notifier);
 
       // Act & Measure - Simulate rapid user clicks
       final stopwatch = Stopwatch()..start();
@@ -147,29 +164,34 @@ void main() {
       );
 
       final avgTimePerToggle = stopwatch.elapsedMilliseconds / 100;
-      print('✓ Rapid toggle performance (100 items): ${avgTimePerToggle.toStringAsFixed(3)}ms per toggle');
+      print(
+        '✓ Rapid toggle performance (100 items): ${avgTimePerToggle.toStringAsFixed(3)}ms per toggle',
+      );
     });
 
-    test('Visual feedback target verification - <50ms total budget', () => expect (
-      // This test documents our performance budget:
-      // - Provider toggle operation: <10ms
-      // - Riverpod state propagation: <5ms
-      // - Widget rebuild: <20ms
-      // - Frame rendering: <15ms
-      // - TOTAL: <50ms (imperceptible to human perception)
-      true,
-      isTrue,
-      reason: 'Performance budget breakdown: '
-          'Toggle (<10ms) + State (<5ms) + Rebuild (<20ms) + Render (<15ms) = <50ms',
-    ));
+    test(
+      'Visual feedback target verification - <50ms total budget',
+      () => expect(
+        // This test documents our performance budget:
+        // - Provider toggle operation: <10ms
+        // - Riverpod state propagation: <5ms
+        // - Widget rebuild: <20ms
+        // - Frame rendering: <15ms
+        // - TOTAL: <50ms (imperceptible to human perception)
+        true,
+        isTrue,
+        reason: 'Performance budget breakdown: '
+            'Toggle (<10ms) + State (<5ms) + Rebuild (<20ms) + Render (<15ms) = <50ms',
+      ),
+    );
   });
 
   group('Performance Comparison Documentation', () {
     test('Document optimization improvement', () {
       // This test documents the performance improvement from optimization
-      final beforeOptimization = 1000; // ~1000ms (1 second) before
-      final afterOptimization = 50; // <50ms target after
-      final improvement = beforeOptimization / afterOptimization;
+      const beforeOptimization = 1000; // ~1000ms (1 second) before
+      const afterOptimization = 50; // <50ms target after
+      const improvement = beforeOptimization / afterOptimization;
 
       print('\n=== Performance Optimization Summary ===');
       print('Before optimization: ~${beforeOptimization}ms (1 second delay)');
@@ -177,7 +199,11 @@ void main() {
       print('Expected improvement: ${improvement}x faster');
       print('========================================\n');
 
-      expect(improvement, greaterThan(19), reason: 'Should achieve 20x improvement');
+      expect(
+        improvement,
+        greaterThan(19),
+        reason: 'Should achieve 20x improvement',
+      );
     });
   });
 }

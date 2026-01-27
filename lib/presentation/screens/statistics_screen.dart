@@ -19,12 +19,14 @@ class _AnimatedNumber extends StatefulWidget {
   final int targetValue;
   final String suffix;
   final TextStyle style;
+  // ignore: unused_element
   final Duration duration;
 
   const _AnimatedNumber({
     required this.targetValue,
     this.suffix = '',
     required this.style,
+    // ignore: unused_element
     this.duration = const Duration(milliseconds: 800),
   });
 
@@ -127,7 +129,7 @@ class _AnimatedBarChartState extends State<_AnimatedBarChart>
             titlesData: widget.data.titlesData,
             gridData: widget.data.gridData,
             borderData: widget.data.borderData,
-            barGroups: widget.data.barGroups?.map((group) {
+            barGroups: widget.data.barGroups.map((group) {
               return BarChartGroupData(
                 x: group.x,
                 barRods: group.barRods.map((rod) {
@@ -298,7 +300,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       filtered = filtered.where((record) {
         final fileDate = record.modifiedAt;
         return !fileDate.isBefore(_dateRange!.start) &&
-               !fileDate.isAfter(_dateRange!.end);
+            !fileDate.isAfter(_dateRange!.end);
       }).toList();
     }
 
@@ -313,7 +315,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     if (_selectedResolution != null && _selectedResolution!.isNotEmpty) {
       filtered = filtered.where((record) {
         if (record.metadata == null) return false;
-        final resolution = '${record.metadata!.width}x${record.metadata!.height}';
+        final resolution =
+            '${record.metadata!.width}x${record.metadata!.height}';
         return resolution == _selectedResolution;
       }).toList();
     }
@@ -393,51 +396,55 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: FutureBuilder<GalleryStatistics>(
-        key: ValueKey(_filterVersion),
-        future: _calculateStatistics(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
+          key: ValueKey(_filterVersion),
+          future: _calculateStatistics(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Error: ${snapshot.error}'),
+                  ],
+                ),
+              );
+            }
+
+            final statistics = snapshot.data;
+
+            // Store current statistics for export
+            if (statistics != null && statistics.totalImages > 0) {
+              _currentStatistics = statistics;
+            }
+
+            if (statistics == null || statistics.totalImages == 0) {
+              return _buildEmptyState(theme);
+            }
+
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                // Overview Tab
+                _buildOverviewTab(theme, statistics, l10n),
+                // Trends Tab
+                _buildTrendsTab(theme, statistics, l10n),
+                // Details Tab
+                _buildDetailsTab(theme, statistics, l10n),
+              ],
             );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}'),
-                ],
-              ),
-            );
-          }
-
-          final statistics = snapshot.data;
-
-          // Store current statistics for export
-          if (statistics != null && statistics.totalImages > 0) {
-            _currentStatistics = statistics;
-          }
-
-          if (statistics == null || statistics.totalImages == 0) {
-            return _buildEmptyState(theme);
-          }
-
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              // Overview Tab
-              _buildOverviewTab(theme, statistics, l10n),
-              // Trends Tab
-              _buildTrendsTab(theme, statistics, l10n),
-              // Details Tab
-              _buildDetailsTab(theme, statistics, l10n),
-            ],
-          );
-        },
+          },
         ),
       ),
     );
@@ -450,7 +457,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
 
     return Card(
       elevation: 2,
-      margin: EdgeInsets.only(
+      margin: const EdgeInsets.only(
         left: 16,
         right: 16,
         bottom: 16,
@@ -564,30 +571,31 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 4,
-                    ),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: '',
-                        child: Text('All Models'),
                       ),
-                      ...availableModels.map((model) {
-                        return DropdownMenuItem<String>(
-                          value: model,
-                          child: Text(
-                            model,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedModel = value?.isEmpty == true ? null : value;
-                        _filterVersion++;
-                      });
-                    },
-                  ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('All Models'),
+                        ),
+                        ...availableModels.map((model) {
+                          return DropdownMenuItem<String>(
+                            value: model,
+                            child: Text(
+                              model,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedModel =
+                              value?.isEmpty == true ? null : value;
+                          _filterVersion++;
+                        });
+                      },
+                    ),
                   ),
                 ),
 
@@ -617,25 +625,26 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                         horizontal: 12,
                         vertical: 4,
                       ),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: '',
-                        child: Text('All Resolutions'),
-                      ),
-                      ...availableResolutions.map((resolution) {
-                        return DropdownMenuItem<String>(
-                          value: resolution,
-                          child: Text(resolution),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedResolution = value?.isEmpty == true ? null : value;
-                        _filterVersion++;
-                      });
-                    },
-                  ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('All Resolutions'),
+                        ),
+                        ...availableResolutions.map((resolution) {
+                          return DropdownMenuItem<String>(
+                            value: resolution,
+                            child: Text(resolution),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedResolution =
+                              value?.isEmpty == true ? null : value;
+                          _filterVersion++;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -703,7 +712,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           // 筛选栏
           _buildFilterBar(theme, l10n),
           // 总览统计卡片
-          _buildOverviewCards(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+          _buildOverviewCards(
+            theme,
+            statistics,
+            l10n,
+            isMobile,
+            isTablet,
+            isDesktop,
+          ),
         ],
       ),
     );
@@ -735,7 +751,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               Icons.show_chart,
             ),
             SizedBox(height: isDesktop ? 16 : 12),
-            _buildTimeTrendsChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            _buildTimeTrendsChart(
+              theme,
+              statistics,
+              l10n,
+              isMobile,
+              isTablet,
+              isDesktop,
+            ),
             SizedBox(height: isDesktop ? 32 : 24),
           ],
           // 模型分布图表
@@ -746,7 +769,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               Icons.category,
             ),
             SizedBox(height: isDesktop ? 16 : 12),
-            _buildModelDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            _buildModelDistributionChart(
+              theme,
+              statistics,
+              l10n,
+              isMobile,
+              isTablet,
+              isDesktop,
+            ),
             SizedBox(height: isDesktop ? 32 : 24),
           ],
 
@@ -758,7 +788,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               Icons.aspect_ratio,
             ),
             SizedBox(height: isDesktop ? 16 : 12),
-            _buildResolutionDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            _buildResolutionDistributionChart(
+              theme,
+              statistics,
+              l10n,
+              isMobile,
+              isTablet,
+              isDesktop,
+            ),
             SizedBox(height: isDesktop ? 32 : 24),
           ],
 
@@ -770,7 +807,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               Icons.tune,
             ),
             SizedBox(height: isDesktop ? 16 : 12),
-            _buildSamplerDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            _buildSamplerDistributionChart(
+              theme,
+              statistics,
+              l10n,
+              isMobile,
+              isTablet,
+              isDesktop,
+            ),
             SizedBox(height: isDesktop ? 32 : 24),
           ],
 
@@ -782,7 +826,14 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               Icons.storage,
             ),
             SizedBox(height: isDesktop ? 16 : 12),
-            _buildSizeDistributionChart(theme, statistics, l10n, isMobile, isTablet, isDesktop),
+            _buildSizeDistributionChart(
+              theme,
+              statistics,
+              l10n,
+              isMobile,
+              isTablet,
+              isDesktop,
+            ),
             SizedBox(height: isDesktop ? 32 : 24),
           ],
         ],
@@ -828,7 +879,12 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               Icons.tune,
             ),
             SizedBox(height: isDesktop ? 16 : 12),
-            _buildParameterDistributionChart(theme, statistics, l10n, isDesktop),
+            _buildParameterDistributionChart(
+              theme,
+              statistics,
+              l10n,
+              isDesktop,
+            ),
           ],
         ],
       ),
@@ -996,8 +1052,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     final number = int.tryParse(numberStr.replaceAll(',', '')) ?? 0;
 
     // Only animate if it's a pure number or number with percentage
-    final shouldAnimate = RegExp(r'^[\d,]+\.?\d*(?:\s*\(?\d+\.?\d*%?\)?)?$').hasMatch(value) ||
-                          RegExp(r'^[\d,]+\s*\(?\d+\.?\d*%?\)?$').hasMatch(value);
+    final shouldAnimate =
+        RegExp(r'^[\d,]+\.?\d*(?:\s*\(?\d+\.?\d*%?\)?)?$').hasMatch(value) ||
+            RegExp(r'^[\d,]+\s*\(?\d+\.?\d*%?\)?$').hasMatch(value);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1028,9 +1085,10 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                   targetValue: number,
                   suffix: suffix,
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ) ?? const TextStyle(),
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ) ??
+                      const TextStyle(),
                 )
               : Text(
                   value,
@@ -1095,7 +1153,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                       if (event is FlTapUpEvent &&
                           pieTouchResponse != null &&
                           pieTouchResponse.touchedSection != null) {
-                        final index = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        final index = pieTouchResponse
+                            .touchedSection!.touchedSectionIndex;
                         final modelData = distribution[index];
                         _showModelDetailDialog(context, modelData, theme, l10n);
                       }
@@ -1161,9 +1220,15 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                       if (event is FlTapUpEvent &&
                           barTouchResponse != null &&
                           barTouchResponse.spot != null) {
-                        final index = barTouchResponse.spot!.touchedBarGroupIndex;
+                        final index =
+                            barTouchResponse.spot!.touchedBarGroupIndex;
                         final resolutionData = distribution[index];
-                        _showResolutionDetailDialog(context, resolutionData, theme, l10n);
+                        _showResolutionDetailDialog(
+                          context,
+                          resolutionData,
+                          theme,
+                          l10n,
+                        );
                       }
                     },
                   ),
@@ -1278,9 +1343,15 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                       if (event is FlTapUpEvent &&
                           pieTouchResponse != null &&
                           pieTouchResponse.touchedSection != null) {
-                        final index = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        final index = pieTouchResponse
+                            .touchedSection!.touchedSectionIndex;
                         final samplerData = distribution[index];
-                        _showSamplerDetailDialog(context, samplerData, theme, l10n);
+                        _showSamplerDetailDialog(
+                          context,
+                          samplerData,
+                          theme,
+                          l10n,
+                        );
                       }
                     },
                   ),
@@ -1352,7 +1423,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                             return const SizedBox.shrink();
                           }
                           // Show every nth label to avoid overcrowding
-                          final step = (trends.length / (isMobile ? 4 : 6)).ceil();
+                          final step =
+                              (trends.length / (isMobile ? 4 : 6)).ceil();
                           if (index % step != 0) {
                             return const SizedBox.shrink();
                           }
@@ -1426,8 +1498,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                           lineTouchResponse != null &&
                           lineTouchResponse.lineBarSpots != null &&
                           lineTouchResponse.lineBarSpots!.isNotEmpty) {
-                        final index = lineTouchResponse
-                            .lineBarSpots!.first.spotIndex;
+                        final index =
+                            lineTouchResponse.lineBarSpots!.first.spotIndex;
                         final trendData = trends[index];
                         _showTrendDetailDialog(context, trendData, theme, l10n);
                       }
@@ -1480,7 +1552,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                   'Average',
                   trends.isEmpty
                       ? '0'
-                      : '${(trends.map((t) => t.count).reduce((a, b) => a + b) / trends.length).toStringAsFixed(1)}',
+                      : (trends.map((t) => t.count).reduce((a, b) => a + b) /
+                              trends.length)
+                          .toStringAsFixed(1),
                 ),
               ],
             ),
@@ -1555,7 +1629,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                       if (event is FlTapUpEvent &&
                           barTouchResponse != null &&
                           barTouchResponse.spot != null) {
-                        final index = barTouchResponse.spot!.touchedBarGroupIndex;
+                        final index =
+                            barTouchResponse.spot!.touchedBarGroupIndex;
                         final sizeData = distribution[index];
                         _showSizeDetailDialog(context, sizeData, theme, l10n);
                       }
@@ -1672,8 +1747,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
     AppLocalizations l10n,
     bool isDesktop,
   ) {
-    final tagStats = stats.tagDistribution.take(15).toList(); // Show top 15 tags
-    final barHeight = 35.0;
+    final tagStats =
+        stats.tagDistribution.take(15).toList(); // Show top 15 tags
+    const barHeight = 35.0;
 
     return Card(
       elevation: 2,
@@ -1808,7 +1884,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
               }).toList(),
               onChanged: (value) {
                 if (value != null) {
-                  _showParameterDetailDialog(context, value, groupedParams[value]!, theme, l10n);
+                  _showParameterDetailDialog(
+                    context,
+                    value,
+                    groupedParams[value]!,
+                    theme,
+                    l10n,
+                  );
                 }
               },
             ),
@@ -1824,7 +1906,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
                   backgroundColor: theme.colorScheme.primaryContainer,
                   deleteIcon: const Icon(Icons.arrow_forward, size: 16),
                   onDeleted: () {
-                    _showParameterDetailDialog(context, paramName, groupedParams[paramName]!, theme, l10n);
+                    _showParameterDetailDialog(
+                      context,
+                      paramName,
+                      groupedParams[paramName]!,
+                      theme,
+                      l10n,
+                    );
                   },
                 );
               }).toList(),

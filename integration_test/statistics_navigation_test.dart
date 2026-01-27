@@ -3,14 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/presentation/screens/statistics_screen.dart';
-import 'package:nai_launcher/presentation/router/app_router.dart';
 
 void main() {
   group('Statistics Navigation Tests', () {
-    testWidgets('Clicking statistics icon opens independent page', (tester) async {
+    testWidgets('Clicking statistics icon opens independent page',
+        (tester) async {
       // Load app
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -36,7 +36,7 @@ void main() {
 
     testWidgets('Back navigation works from statistics page', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -59,7 +59,7 @@ void main() {
 
     testWidgets('Statistics tab navigation works', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -78,9 +78,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsOneWidget);
     });
 
-    testWidgets('Can navigate to statistics from different branches', (tester) async {
+    testWidgets('Can navigate to statistics from different branches',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -110,7 +111,7 @@ void main() {
 
     testWidgets('Statistics route is accessible via URL', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -128,7 +129,7 @@ void main() {
 
     testWidgets('Statistics screen maintains state correctly', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );

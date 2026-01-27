@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
@@ -50,7 +48,8 @@ void main() {
 
     group('enter', () {
       test('should activate selection mode', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.enter();
 
@@ -65,7 +64,8 @@ void main() {
 
     group('exit', () {
       test('should deactivate and reset state', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         // First enter and select something
         notifier.enter();
@@ -101,7 +101,8 @@ void main() {
 
     group('toggle', () {
       test('should add item when not selected', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.toggle('item1');
 
@@ -119,11 +120,14 @@ void main() {
       });
 
       test('should remove item when already selected', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.toggle('item1');
         expect(
-          container.read(onlineGallerySelectionNotifierProvider).isSelected('item1'),
+          container
+              .read(onlineGallerySelectionNotifierProvider)
+              .isSelected('item1'),
           isTrue,
           reason: 'Item should be selected',
         );
@@ -144,7 +148,8 @@ void main() {
       });
 
       test('should handle multiple items', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.toggle('item1');
         notifier.toggle('item2');
@@ -166,7 +171,8 @@ void main() {
 
     group('select', () {
       test('should add item when not selected', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
 
@@ -179,7 +185,8 @@ void main() {
       });
 
       test('should not duplicate when already selected', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
         notifier.select('item1');
@@ -195,11 +202,14 @@ void main() {
 
     group('deselect', () {
       test('should remove item when selected', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
         expect(
-          container.read(onlineGallerySelectionNotifierProvider).isSelected('item1'),
+          container
+              .read(onlineGallerySelectionNotifierProvider)
+              .isSelected('item1'),
           isTrue,
           reason: 'Item should be selected',
         );
@@ -215,7 +225,8 @@ void main() {
       });
 
       test('should handle deselecting non-selected item gracefully', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.deselect('item1');
 
@@ -230,7 +241,8 @@ void main() {
 
     group('selectAll', () {
       test('should select all provided items', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
         final items = ['item1', 'item2', 'item3'];
 
         notifier.selectAll(items);
@@ -259,7 +271,8 @@ void main() {
       });
 
       test('should handle empty list gracefully', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.selectAll([]);
 
@@ -272,7 +285,8 @@ void main() {
       });
 
       test('should accumulate with existing selections', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
         notifier.selectAll(['item2', 'item3']);
@@ -288,7 +302,8 @@ void main() {
 
     group('clearSelection', () {
       test('should clear all selected items', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.selectAll(['item1', 'item2', 'item3']);
         expect(
@@ -315,7 +330,8 @@ void main() {
 
     group('enterAndSelect', () {
       test('should activate selection mode and select item', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.enterAndSelect('item1');
 
@@ -333,7 +349,8 @@ void main() {
       });
 
       test('should accumulate with existing selections', () {
-        final notifier = container.read(onlineGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(onlineGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
         notifier.enterAndSelect('item2');
@@ -393,7 +410,8 @@ void main() {
 
     group('toggle', () {
       test('should update lastSelectedId when toggling', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         notifier.toggle('item1');
 
@@ -408,7 +426,8 @@ void main() {
 
     group('select', () {
       test('should update lastSelectedId when selecting new item', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
 
@@ -421,7 +440,8 @@ void main() {
       });
 
       test('should update lastSelectedId even when already selected', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
         notifier.select('item2');
@@ -442,8 +462,11 @@ void main() {
     });
 
     group('clearSelection', () {
-      test('should clear selected items but keep lastSelectedId due to copyWith limitation', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+      test(
+          'should clear selected items but keep lastSelectedId due to copyWith limitation',
+          () {
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         notifier.select('item1');
         expect(
@@ -467,7 +490,8 @@ void main() {
 
     group('enterAndSelect', () {
       test('should set lastSelectedId', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         notifier.enterAndSelect('item1');
 
@@ -482,7 +506,8 @@ void main() {
 
     group('selectRange', () {
       test('should select items between anchor and current', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
         final allIds = ['item1', 'item2', 'item3', 'item4', 'item5'];
 
         // Set anchor by selecting item2
@@ -520,7 +545,8 @@ void main() {
       });
 
       test('should handle reverse range selection', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
         final allIds = ['item1', 'item2', 'item3', 'item4', 'item5'];
 
         notifier.select('item4');
@@ -545,7 +571,8 @@ void main() {
       });
 
       test('should just select current item when no anchor', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
         final allIds = ['item1', 'item2', 'item3'];
 
         notifier.selectRange('item2', allIds);
@@ -564,7 +591,8 @@ void main() {
       });
 
       test('should just select current item when anchor not in list', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
         final allIds = ['item1', 'item2', 'item3'];
 
         notifier.select('item_unknown');
@@ -589,7 +617,8 @@ void main() {
       });
 
       test('should just select current item when current not in list', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
         final allIds = ['item1', 'item2', 'item3'];
 
         notifier.select('item1');
@@ -614,7 +643,8 @@ void main() {
       });
 
       test('should accumulate with existing selections', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
         final allIds = ['item1', 'item2', 'item3', 'item4', 'item5'];
 
         notifier.select('item1');
@@ -658,7 +688,8 @@ void main() {
 
     group('LocalGallerySelectionNotifier Performance', () {
       test('toggle performance with 100 selected ids', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Pre-select 100 items
         final items = List.generate(100, (i) => 'item_$i');
@@ -673,7 +704,9 @@ void main() {
 
         // Verify operation completed correctly
         expect(
-          container.read(localGallerySelectionNotifierProvider).isSelected('item_50'),
+          container
+              .read(localGallerySelectionNotifierProvider)
+              .isSelected('item_50'),
           isFalse,
           reason: 'Item should be deselected',
         );
@@ -682,13 +715,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(10),
-          reason: 'Toggle operation with 100 selected items should complete in <10ms, '
+          reason:
+              'Toggle operation with 100 selected items should complete in <10ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('toggle performance with 500 selected ids', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Pre-select 500 items
         final items = List.generate(500, (i) => 'item_$i');
@@ -703,7 +738,9 @@ void main() {
 
         // Verify operation completed correctly
         expect(
-          container.read(localGallerySelectionNotifierProvider).isSelected('item_250'),
+          container
+              .read(localGallerySelectionNotifierProvider)
+              .isSelected('item_250'),
           isFalse,
           reason: 'Item should be deselected',
         );
@@ -712,13 +749,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(10),
-          reason: 'Toggle operation with 500 selected items should complete in <10ms, '
+          reason:
+              'Toggle operation with 500 selected items should complete in <10ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('select performance with 500 selected ids', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Pre-select 500 items
         final items = List.generate(500, (i) => 'item_$i');
@@ -733,7 +772,9 @@ void main() {
 
         // Verify operation completed correctly
         expect(
-          container.read(localGallerySelectionNotifierProvider).isSelected('new_item'),
+          container
+              .read(localGallerySelectionNotifierProvider)
+              .isSelected('new_item'),
           isTrue,
           reason: 'New item should be selected',
         );
@@ -747,13 +788,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(10),
-          reason: 'Select operation with 500 selected items should complete in <10ms, '
+          reason:
+              'Select operation with 500 selected items should complete in <10ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('deselect performance with 500 selected ids', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Pre-select 500 items
         final items = List.generate(500, (i) => 'item_$i');
@@ -768,7 +811,9 @@ void main() {
 
         // Verify operation completed correctly
         expect(
-          container.read(localGallerySelectionNotifierProvider).isSelected('item_100'),
+          container
+              .read(localGallerySelectionNotifierProvider)
+              .isSelected('item_100'),
           isFalse,
           reason: 'Item should be deselected',
         );
@@ -782,13 +827,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(10),
-          reason: 'Deselect operation with 500 selected items should complete in <10ms, '
+          reason:
+              'Deselect operation with 500 selected items should complete in <10ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('selectRange performance with large range', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Create a large list of IDs
         final allIds = List.generate(200, (i) => 'item_$i');
@@ -830,13 +877,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(20),
-          reason: 'SelectRange operation with 200 items should complete in <20ms, '
+          reason:
+              'SelectRange operation with 200 items should complete in <20ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('clearSelection performance with 500 selected ids', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Pre-select 500 items
         final items = List.generate(500, (i) => 'item_$i');
@@ -865,13 +914,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(10),
-          reason: 'ClearSelection operation with 500 selected items should complete in <10ms, '
+          reason:
+              'ClearSelection operation with 500 selected items should complete in <10ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('selectAll performance with 500 items', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Create 500 items
         final items = List.generate(500, (i) => 'item_$i');
@@ -894,13 +945,15 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(50),
-          reason: 'SelectAll operation with 500 items should complete in <50ms, '
+          reason:
+              'SelectAll operation with 500 items should complete in <50ms, '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
       });
 
       test('rapid toggle operations performance (100 toggles)', () {
-        final notifier = container.read(localGallerySelectionNotifierProvider.notifier);
+        final notifier =
+            container.read(localGallerySelectionNotifierProvider.notifier);
 
         // Pre-select 100 items
         final items = List.generate(100, (i) => 'item_$i');
@@ -926,7 +979,8 @@ void main() {
         expect(
           stopwatch.elapsedMilliseconds,
           lessThan(1000),
-          reason: '100 toggle operations should complete in <1000ms (avg <10ms per toggle), '
+          reason:
+              '100 toggle operations should complete in <1000ms (avg <10ms per toggle), '
               'but took ${stopwatch.elapsedMilliseconds}ms',
         );
 
@@ -935,7 +989,8 @@ void main() {
         expect(
           avgTimeMs,
           lessThan(10),
-          reason: 'Average toggle time should be <10ms, but was ${avgTimeMs.toStringAsFixed(2)}ms',
+          reason:
+              'Average toggle time should be <10ms, but was ${avgTimeMs.toStringAsFixed(2)}ms',
         );
       });
     });

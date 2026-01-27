@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/services/statistics_service.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
-import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 
 void main() {
@@ -52,7 +51,8 @@ void main() {
       });
 
       test('calculates favorite statistics correctly', () {
-        final records = createRecordsWithFavorites(count: 100, favoriteCount: 25);
+        final records =
+            createRecordsWithFavorites(count: 100, favoriteCount: 25);
         final result = service.calculateStatistics(records);
 
         expect(result.favoriteCount, equals(25));
@@ -68,7 +68,8 @@ void main() {
       });
 
       test('calculates metadata statistics correctly', () {
-        final records = createRecordsWithMetadata(count: 100, metadataCount: 80);
+        final records =
+            createRecordsWithMetadata(count: 100, metadataCount: 80);
         final result = service.calculateStatistics(records);
 
         expect(result.imagesWithMetadata, equals(80));
@@ -134,7 +135,8 @@ void main() {
     group('computeTimeTrends', () {
       test('groups data by day correctly', () async {
         final records = createRecordsOverMultipleDays(days: 7);
-        final trends = await service.computeTimeTrends(records, groupBy: 'daily');
+        final trends =
+            await service.computeTimeTrends(records, groupBy: 'daily');
 
         expect(trends.length, equals(7));
         expect(trends.every((trend) => trend.count >= 0), isTrue);
@@ -142,14 +144,16 @@ void main() {
 
       test('groups data by week correctly', () async {
         final records = createRecordsOverMultipleWeeks(weeks: 4);
-        final trends = await service.computeTimeTrends(records, groupBy: 'weekly');
+        final trends =
+            await service.computeTimeTrends(records, groupBy: 'weekly');
 
         expect(trends.length, equals(4));
       });
 
       test('groups data by month correctly', () async {
         final records = createRecordsOverMultipleMonths(months: 6);
-        final trends = await service.computeTimeTrends(records, groupBy: 'monthly');
+        final trends =
+            await service.computeTimeTrends(records, groupBy: 'monthly');
 
         expect(trends.length, equals(6));
       });
@@ -177,7 +181,8 @@ void main() {
         final records = createRecordsWithVariousTags(count: 50);
         final tags = await service.computeTagStatistics(records, limit: 10);
 
-        final totalPercentage = tags.fold(0.0, (sum, tag) => sum + tag.percentage);
+        final totalPercentage =
+            tags.fold(0.0, (sum, tag) => sum + tag.percentage);
         expect(totalPercentage, lessThanOrEqualTo(100.0));
       });
 
@@ -222,7 +227,8 @@ void main() {
 
     group('computeFavoritesStatistics', () {
       test('calculates favorite statistics correctly', () async {
-        final records = createRecordsWithFavorites(count: 100, favoriteCount: 30);
+        final records =
+            createRecordsWithFavorites(count: 100, favoriteCount: 30);
         final stats = await service.computeFavoritesStatistics(records);
 
         expect(stats['favoriteCount'], equals(30));
@@ -238,7 +244,8 @@ void main() {
       });
 
       test('handles dataset with no favorites', () async {
-        final records = createRecordsWithFavorites(count: 100, favoriteCount: 0);
+        final records =
+            createRecordsWithFavorites(count: 100, favoriteCount: 0);
         final stats = await service.computeFavoritesStatistics(records);
 
         expect(stats['favoriteCount'], equals(0));
@@ -267,7 +274,9 @@ void main() {
 
         if (activity.length > 1) {
           final firstDate = DateTime.parse(activity[0]['modifiedAt'] as String);
-          final lastDate = DateTime.parse(activity[activity.length - 1]['modifiedAt'] as String);
+          final lastDate = DateTime.parse(
+            activity[activity.length - 1]['modifiedAt'] as String,
+          );
           expect(firstDate.isAfter(lastDate), isTrue);
         }
       });
@@ -296,8 +305,10 @@ List<LocalImageRecord> createSampleRecords({required int count}) {
       ),
       isFavorite: index % 4 == 0,
       tags: index % 2 == 0
-          ? ['anime', 'girl', 'portrait', 'landscape', 'fantasy'][index % 5] != ''
-              ? ['anime', 'girl', 'portrait', 'landscape', 'fantasy'][index % 5].split(',')
+          ? ['anime', 'girl', 'portrait', 'landscape', 'fantasy'][index % 5] !=
+                  ''
+              ? ['anime', 'girl', 'portrait', 'landscape', 'fantasy'][index % 5]
+                  .split(',')
               : []
           : [],
     );
@@ -328,7 +339,7 @@ List<LocalImageRecord> createRecordsWithFavorites({
       path: '/test/fav_$index.png',
       size: 1024 * 1024 * 2,
       modifiedAt: now.subtract(Duration(days: index % 10)),
-      metadata: NaiImageMetadata(
+      metadata: const NaiImageMetadata(
         model: 'NAI Diffusion V4',
         sampler: 'k_euler_ancestral',
         steps: 28,
@@ -350,7 +361,7 @@ List<LocalImageRecord> createRecordsWithTags({
       path: '/test/tagged_$index.png',
       size: 1024 * 1024 * 2,
       modifiedAt: now.subtract(Duration(days: index % 10)),
-      metadata: NaiImageMetadata(
+      metadata: const NaiImageMetadata(
         model: 'NAI Diffusion V4',
         sampler: 'k_euler_ancestral',
       ),
@@ -371,7 +382,7 @@ List<LocalImageRecord> createRecordsWithMetadata({
       size: 1024 * 1024 * 2,
       modifiedAt: now.subtract(Duration(days: index % 10)),
       metadata: index < metadataCount
-          ? NaiImageMetadata(
+          ? const NaiImageMetadata(
               model: 'NAI Diffusion V4',
               sampler: 'k_euler_ancestral',
             )
@@ -389,7 +400,7 @@ List<LocalImageRecord> createRecordsWithoutTags({required int count}) {
       path: '/test/no_tags_$index.png',
       size: 1024 * 1024 * 2,
       modifiedAt: now.subtract(Duration(days: index % 10)),
-      metadata: NaiImageMetadata(
+      metadata: const NaiImageMetadata(
         model: 'NAI Diffusion V4',
         sampler: 'k_euler_ancestral',
       ),
@@ -406,7 +417,7 @@ List<LocalImageRecord> createRecordsForSingleDay({required int count}) {
       path: '/test/same_day_$index.png',
       size: 1024 * 1024 * 2,
       modifiedAt: DateTime(today.year, today.month, today.day, index % 24),
-      metadata: NaiImageMetadata(
+      metadata: const NaiImageMetadata(
         model: 'NAI Diffusion V4',
         sampler: 'k_euler_ancestral',
       ),
@@ -422,17 +433,19 @@ List<LocalImageRecord> createRecordsOverMultipleDays({required int days}) {
   for (int day = 0; day < days; day++) {
     final count = 5 + (day % 10); // Variable number of images per day
     for (int i = 0; i < count; i++) {
-      records.add(LocalImageRecord(
-        path: '/test/day_${day}_$i.png',
-        size: 1024 * 1024 * 2,
-        modifiedAt: now.subtract(Duration(days: day)),
-        metadata: NaiImageMetadata(
-          model: 'NAI Diffusion V4',
-          sampler: 'k_euler_ancestral',
+      records.add(
+        LocalImageRecord(
+          path: '/test/day_${day}_$i.png',
+          size: 1024 * 1024 * 2,
+          modifiedAt: now.subtract(Duration(days: day)),
+          metadata: const NaiImageMetadata(
+            model: 'NAI Diffusion V4',
+            sampler: 'k_euler_ancestral',
+          ),
+          isFavorite: false,
+          tags: ['test'],
         ),
-        isFavorite: false,
-        tags: ['test'],
-      ));
+      );
     }
   }
   return records;
@@ -443,17 +456,19 @@ List<LocalImageRecord> createRecordsOverMultipleWeeks({required int weeks}) {
   final records = <LocalImageRecord>[];
   for (int week = 0; week < weeks; week++) {
     for (int day = 0; day < 7; day++) {
-      records.add(LocalImageRecord(
-        path: '/test/week_${week}_day_${day}.png',
-        size: 1024 * 1024 * 2,
-        modifiedAt: now.subtract(Duration(days: week * 7 + day)),
-        metadata: NaiImageMetadata(
-          model: 'NAI Diffusion V4',
-          sampler: 'k_euler_ancestral',
+      records.add(
+        LocalImageRecord(
+          path: '/test/week_${week}_day_$day.png',
+          size: 1024 * 1024 * 2,
+          modifiedAt: now.subtract(Duration(days: week * 7 + day)),
+          metadata: const NaiImageMetadata(
+            model: 'NAI Diffusion V4',
+            sampler: 'k_euler_ancestral',
+          ),
+          isFavorite: false,
+          tags: ['test'],
         ),
-        isFavorite: false,
-        tags: ['test'],
-      ));
+      );
     }
   }
   return records;
@@ -464,17 +479,20 @@ List<LocalImageRecord> createRecordsOverMultipleMonths({required int months}) {
   final records = <LocalImageRecord>[];
   for (int month = 0; month < months; month++) {
     for (int day = 0; day < 28; day++) {
-      records.add(LocalImageRecord(
-        path: '/test/month_${month}_day_${day}.png',
-        size: 1024 * 1024 * 2,
-        modifiedAt: DateTime(now.year, now.month - month, 1).add(Duration(days: day)),
-        metadata: NaiImageMetadata(
-          model: 'NAI Diffusion V4',
-          sampler: 'k_euler_ancestral',
+      records.add(
+        LocalImageRecord(
+          path: '/test/month_${month}_day_$day.png',
+          size: 1024 * 1024 * 2,
+          modifiedAt:
+              DateTime(now.year, now.month - month, 1).add(Duration(days: day)),
+          metadata: const NaiImageMetadata(
+            model: 'NAI Diffusion V4',
+            sampler: 'k_euler_ancestral',
+          ),
+          isFavorite: false,
+          tags: ['test'],
         ),
-        isFavorite: false,
-        tags: ['test'],
-      ));
+      );
     }
   }
   return records;
@@ -492,24 +510,29 @@ List<LocalImageRecord> createRecordsWithVariousTags({required int count}) {
     'sci-fi',
     'action',
     'school',
-    'summer'
+    'summer',
   ];
   return List.generate(count, (index) {
     return LocalImageRecord(
       path: '/test/various_tags_$index.png',
       size: 1024 * 1024 * 2,
       modifiedAt: now.subtract(Duration(days: index % 20)),
-      metadata: NaiImageMetadata(
+      metadata: const NaiImageMetadata(
         model: 'NAI Diffusion V4',
         sampler: 'k_euler_ancestral',
       ),
       isFavorite: false,
-      tags: [allTags[index % allTags.length], allTags[(index + 1) % allTags.length]],
+      tags: [
+        allTags[index % allTags.length],
+        allTags[(index + 1) % allTags.length],
+      ],
     );
   });
 }
 
-List<LocalImageRecord> createRecordsWithVariousParameters({required int count}) {
+List<LocalImageRecord> createRecordsWithVariousParameters({
+  required int count,
+}) {
   final now = DateTime.now();
   return List.generate(count, (index) {
     return LocalImageRecord(

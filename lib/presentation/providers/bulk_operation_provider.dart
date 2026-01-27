@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
-import '../../data/repositories/local_gallery_repository.dart' hide BulkOperationResult;
+import '../../data/repositories/local_gallery_repository.dart'
+    hide BulkOperationResult;
 import '../../data/services/bulk_operation_service.dart';
 import '../../presentation/widgets/prompt/random_manager/states/undo_redo_history.dart';
 import 'collection_provider.dart';
@@ -76,6 +77,7 @@ class BulkOperationState with _$BulkOperationState {
 
 /// Bulk delete command for undo/redo
 class _BulkDeleteCommand extends HistoryCommand {
+  // ignore: unused_field - Reserved for future undo support
   final LocalGalleryRepository _repository;
   final List<String> _imagePaths;
 
@@ -492,7 +494,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
         isOperationInProgress: false,
         error: error,
       );
-      AppLogger.e('Bulk metadata edit failed', e, null, 'BulkOperationNotifier');
+      AppLogger.e(
+        'Bulk metadata edit failed',
+        e,
+        null,
+        'BulkOperationNotifier',
+      );
       rethrow;
     }
   }
@@ -576,7 +583,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
         isOperationInProgress: false,
         error: error,
       );
-      AppLogger.e('Bulk toggle favorite failed', e, null, 'BulkOperationNotifier');
+      AppLogger.e(
+        'Bulk toggle favorite failed',
+        e,
+        null,
+        'BulkOperationNotifier',
+      );
       rethrow;
     }
   }
@@ -634,7 +646,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
         isOperationInProgress: false,
         error: error,
       );
-      AppLogger.e('Bulk add to collection failed', e, null, 'BulkOperationNotifier');
+      AppLogger.e(
+        'Bulk add to collection failed',
+        e,
+        null,
+        'BulkOperationNotifier',
+      );
       return 0;
     }
   }

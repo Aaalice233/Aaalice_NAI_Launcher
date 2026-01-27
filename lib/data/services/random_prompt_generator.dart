@@ -50,6 +50,7 @@ class RandomPromptGenerator {
   final VariableReplacementService _variableReplacementService;
   final CharacterTagGenerator _characterTagGenerator;
   final NaiStyleGeneratorStrategy _naiStyleGenerator;
+  // ignore: unused_field - Reserved for future preset generator implementation
   final PresetGeneratorStrategy _presetGeneratorStrategy;
   final WordlistGeneratorStrategy _wordlistGeneratorStrategy;
 
@@ -59,14 +60,14 @@ class RandomPromptGenerator {
     this._tagGroupCacheService,
     this._poolCacheService, [
     this._wordlistService,
-  ]) : _weightedSelector = WeightedSelector(),
-       _bracketFormatter = BracketFormatter(),
-       _characterCountResolver = CharacterCountResolver(),
-       _variableReplacementService = VariableReplacementService(),
-       _characterTagGenerator = CharacterTagGenerator(),
-       _naiStyleGenerator = NaiStyleGeneratorStrategy(),
-       _presetGeneratorStrategy = PresetGeneratorStrategy(),
-       _wordlistGeneratorStrategy = WordlistGeneratorStrategy();
+  ])  : _weightedSelector = WeightedSelector(),
+        _bracketFormatter = BracketFormatter(),
+        _characterCountResolver = CharacterCountResolver(),
+        _variableReplacementService = VariableReplacementService(),
+        _characterTagGenerator = CharacterTagGenerator(),
+        _naiStyleGenerator = NaiStyleGeneratorStrategy(),
+        _presetGeneratorStrategy = PresetGeneratorStrategy(),
+        _wordlistGeneratorStrategy = WordlistGeneratorStrategy();
 
   /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
   List<WeightedTag> _getFilteredCategory(
@@ -137,6 +138,7 @@ class RandomPromptGenerator {
   }
 
   /// 生成无人物场景提示词
+  // ignore: unused_element
   RandomPromptResult _generateNoHumanPrompt(
     TagLibrary library,
     Random random,
@@ -199,6 +201,7 @@ class RandomPromptGenerator {
   }
 
   /// 生成传统单提示词（用于非 V4 模型）
+  // ignore: unused_element
   RandomPromptResult _generateLegacyPrompt(
     TagLibrary library,
     Random random,
@@ -250,6 +253,7 @@ class RandomPromptGenerator {
   /// 生成多角色提示词（V4+ 模式）
   ///
   /// [characterCountConfig] 可选的人数类别配置，如果为空则使用默认逻辑
+  // ignore: unused_element
   RandomPromptResult _generateMultiCharacterPrompt(
     TagLibrary library,
     Random random,
@@ -1406,6 +1410,7 @@ class RandomPromptGenerator {
   }
 
   /// 应用词库条目的 exclude/require 规则
+  // ignore: unused_element
   List<WordlistEntry> _applyWordlistRules(
     List<WordlistEntry> entries,
     Map<String, List<String>>? context,

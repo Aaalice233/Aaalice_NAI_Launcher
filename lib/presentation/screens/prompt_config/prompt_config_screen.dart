@@ -199,7 +199,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             const SizedBox(height: 12),
           ],
           // 预设描述（如果有）
-          if (preset != null && preset.description != null && preset.description!.isNotEmpty) ...[
+          if (preset != null &&
+              preset.description != null &&
+              preset.description!.isNotEmpty) ...[
             Row(
               children: [
                 Expanded(
@@ -229,15 +231,18 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             const SizedBox(height: 12),
           ],
           // 添加描述按钮（仅非默认预设且无描述时）
-          if (preset != null && !preset.isDefault && (preset.description == null || preset.description!.isEmpty))
+          if (preset != null &&
+              !preset.isDefault &&
+              (preset.description == null || preset.description!.isEmpty))
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: TextButton.icon(
                 onPressed: () => _showEditPresetDescriptionDialog(preset),
-                icon: Icon(Icons.add, size: 16),
-                label: Text('添加描述'),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('添加描述'),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 ),
               ),
             ),
@@ -360,6 +365,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     // 显示创建模式选择对话框
+    if (!mounted) return;
     await NewPresetDialog.show(
       context: context,
       onModeSelected: (mode) async {
@@ -421,7 +427,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 删除 RandomPreset
   Future<void> _deletePreset(RandomPreset preset) async {
-    await ref.read(randomPresetNotifierProvider.notifier).deletePreset(preset.id);
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .deletePreset(preset.id);
     if (mounted) {
       AppToast.success(context, context.l10n.preset_deleted);
     }
@@ -429,7 +437,9 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 重命名 RandomPreset
   Future<void> _renamePreset(RandomPreset preset, String newName) async {
-    await ref.read(randomPresetNotifierProvider.notifier).renamePreset(preset.id, newName);
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .renamePreset(preset.id, newName);
     if (mounted) {
       AppToast.success(context, context.l10n.preset_saveSuccess);
     }
@@ -483,11 +493,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
               errorText: errorText,
             ),
             onChanged: (value) {
-              final error = _validateRandomPresetName(value, excludePresetId: preset.id);
+              final error =
+                  _validateRandomPresetName(value, excludePresetId: preset.id);
               setState(() => errorText = error);
             },
             onSubmitted: (value) {
-              final error = _validateRandomPresetName(value, excludePresetId: preset.id);
+              final error =
+                  _validateRandomPresetName(value, excludePresetId: preset.id);
               if (error == null) {
                 Navigator.pop(ctx, value.trim());
               }
@@ -500,7 +512,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ),
             FilledButton(
               onPressed: () {
-                final error = _validateRandomPresetName(controller.text, excludePresetId: preset.id);
+                final error = _validateRandomPresetName(controller.text,
+                    excludePresetId: preset.id);
                 if (error == null) {
                   Navigator.pop(ctx, controller.text.trim());
                 } else {
@@ -1043,6 +1056,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   }
 
   /// NAI 官方模式预设项（固定）
+  // ignore: unused_element
   Widget _buildNaiPresetItem(bool isSelected, ThemeData theme) {
     final libraryState = ref.watch(tagLibraryNotifierProvider);
     final presetState = ref.watch(randomPresetNotifierProvider);
@@ -1283,6 +1297,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     });
   }
 
+  // ignore: unused_element
   Widget _buildPresetItem(
     pc.RandomPromptPreset preset,
     PromptConfigState state,
@@ -1949,10 +1964,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     final state = ref.read(promptConfigNotifierProvider);
-    final isDuplicate = state.presets.any((p) =>
-        p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
-        p.id != excludePresetId,
-      );
+    final isDuplicate = state.presets.any(
+      (p) =>
+          p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
+          p.id != excludePresetId,
+    );
 
     if (isDuplicate) {
       return '预设名称已存在';
@@ -1969,10 +1985,11 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     }
 
     final state = ref.read(randomPresetNotifierProvider);
-    final isDuplicate = state.presets.any((p) =>
-        p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
-        p.id != excludePresetId,
-      );
+    final isDuplicate = state.presets.any(
+      (p) =>
+          p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
+          p.id != excludePresetId,
+    );
 
     if (isDuplicate) {
       return '预设名称已存在';
@@ -2000,11 +2017,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
               errorText: errorText,
             ),
             onChanged: (value) {
-              final error = _validatePresetName(value, excludePresetId: preset.id);
+              final error =
+                  _validatePresetName(value, excludePresetId: preset.id);
               setState(() => errorText = error);
             },
             onSubmitted: (value) {
-              final error = _validatePresetName(value, excludePresetId: preset.id);
+              final error =
+                  _validatePresetName(value, excludePresetId: preset.id);
               if (error == null) {
                 Navigator.pop(ctx, value.trim());
               }
@@ -2017,7 +2036,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ),
             FilledButton(
               onPressed: () {
-                final error = _validatePresetName(controller.text, excludePresetId: preset.id);
+                final error = _validatePresetName(controller.text,
+                    excludePresetId: preset.id);
                 if (error == null) {
                   Navigator.pop(ctx, controller.text.trim());
                 } else {

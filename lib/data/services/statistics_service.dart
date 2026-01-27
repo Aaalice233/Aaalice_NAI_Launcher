@@ -486,14 +486,16 @@ List<DailyTrendStatistics> _computeTimeTrendsIsolate(_TimeTrendParams params) {
     final favoriteCount = groupRecords.where((r) => r.isFavorite).length;
     final taggedCount = groupRecords.where((r) => r.tags.isNotEmpty).length;
 
-    trends.add(DailyTrendStatistics(
-      date: date,
-      count: groupRecords.length,
-      totalSizeBytes: totalSize,
-      favoriteCount: favoriteCount,
-      taggedImageCount: taggedCount,
-      percentage: 0.0, // 稍后计算
-    ));
+    trends.add(
+      DailyTrendStatistics(
+        date: date,
+        count: groupRecords.length,
+        totalSizeBytes: totalSize,
+        favoriteCount: favoriteCount,
+        taggedImageCount: taggedCount,
+        percentage: 0.0, // 稍后计算
+      ),
+    );
   }
 
   // 计算百分比
@@ -544,8 +546,7 @@ List<TagStatistics> _computeTagStatisticsIsolate(_TagStatisticsParams params) {
     return TagStatistics(
       tagName: entry.key,
       count: entry.value,
-      percentage:
-          totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+      percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
     );
   }).toList();
 }
@@ -619,12 +620,14 @@ List<ParameterStatistics> _computeParameterDistributionIsolate(
       ..sort((a, b) => b.value.compareTo(a.value));
 
     for (final entry in sortedEntries) {
-      results.add(ParameterStatistics(
-        parameterName: paramName,
-        value: entry.key,
-        count: entry.value,
-        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
-      ));
+      results.add(
+        ParameterStatistics(
+          parameterName: paramName,
+          value: entry.key,
+          count: entry.value,
+          percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+        ),
+      );
     }
   }
 
@@ -642,8 +645,7 @@ Map<String, dynamic> _computeFavoritesStatisticsIsolate(
     0,
     (sum, r) => sum + r.size,
   );
-  final averageSize =
-      favoriteCount > 0 ? totalSize / favoriteCount : 0.0;
+  final averageSize = favoriteCount > 0 ? totalSize / favoriteCount : 0.0;
 
   // 按修改时间分组
   final favoriteByDate = <String, int>{};
@@ -658,9 +660,8 @@ Map<String, dynamic> _computeFavoritesStatisticsIsolate(
     'totalSizeBytes': totalSize,
     'averageSizeBytes': averageSize,
     'favoriteByDate': favoriteByDate,
-    'percentage': records.isNotEmpty
-        ? (favoriteCount / records.length) * 100
-        : 0.0,
+    'percentage':
+        records.isNotEmpty ? (favoriteCount / records.length) * 100 : 0.0,
   };
 }
 

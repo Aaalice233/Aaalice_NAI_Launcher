@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/presentation/providers/bulk_operation_provider.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/data/repositories/local_gallery_repository.dart';
 
 void main() {
   group('Bulk Delete Integration Tests', () {
@@ -69,7 +68,11 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 100));
         for (final path in paths) {
           final file = File(path);
-          expect(await file.exists(), false, reason: 'File should be deleted: $path');
+          expect(
+            await file.exists(),
+            false,
+            reason: 'File should be deleted: $path',
+          );
         }
       });
 
@@ -288,7 +291,10 @@ void main() {
         // State should show completion
         final state = container.read(bulkOperationNotifierProvider);
         expect(state.isCompleted, true);
-        expect(state.hasError, false); // Individual errors don't set state error
+        expect(
+          state.hasError,
+          false,
+        ); // Individual errors don't set state error
       });
 
       test('should clear error when requested', () async {
@@ -327,7 +333,11 @@ void main() {
           final start = i * 3;
           final end = start + 3;
           if (end <= testFiles.length) {
-            final paths = testFiles.skip(start).take(end - start).map((f) => f.path).toList();
+            final paths = testFiles
+                .skip(start)
+                .take(end - start)
+                .map((f) => f.path)
+                .toList();
             await notifier.bulkDelete(paths);
           }
         }
@@ -414,8 +424,10 @@ void main() {
         final notifier = container.read(bulkOperationNotifierProvider.notifier);
 
         // Perform multiple deletes
-        await notifier.bulkDelete(testFiles.take(2).map((f) => f.path).toList());
-        await notifier.bulkDelete(testFiles.skip(2).take(2).map((f) => f.path).toList());
+        await notifier
+            .bulkDelete(testFiles.take(2).map((f) => f.path).toList());
+        await notifier
+            .bulkDelete(testFiles.skip(2).take(2).map((f) => f.path).toList());
 
         var state = container.read(bulkOperationNotifierProvider);
         expect(state.canUndo, true);
@@ -474,7 +486,10 @@ void main() {
 
         // Should have tracked current items
         expect(currentItems.length, greaterThan(0));
-        expect(currentItems.any((item) => item != null && item.isNotEmpty), true);
+        expect(
+          currentItems.any((item) => item != null && item.isNotEmpty),
+          true,
+        );
       });
 
       test('should compute correct progress percentage', () async {

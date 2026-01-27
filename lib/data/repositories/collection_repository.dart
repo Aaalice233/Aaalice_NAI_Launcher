@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -164,7 +163,8 @@ class CollectionRepository {
 
       // 去重：只添加不存在的图片
       final existingPaths = Set.of(collection.imagePaths);
-      final newPaths = imagePaths.where((path) => !existingPaths.contains(path));
+      final newPaths =
+          imagePaths.where((path) => !existingPaths.contains(path));
 
       if (newPaths.isEmpty) {
         AppLogger.d(

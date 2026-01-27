@@ -9,7 +9,7 @@ void main() {
     testWidgets('Complete statistics viewing workflow', (tester) async {
       // Launch app
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -29,7 +29,7 @@ void main() {
 
     testWidgets('Navigate and view statistics screen', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -54,9 +54,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsOneWidget);
     });
 
-    testWidgets('Statistics screen handles back navigation correctly', (tester) async {
+    testWidgets('Statistics screen handles back navigation correctly',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -77,9 +78,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsNothing);
     });
 
-    testWidgets('Statistics screen can be accessed multiple times', (tester) async {
+    testWidgets('Statistics screen can be accessed multiple times',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -107,9 +109,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsOneWidget);
     });
 
-    testWidgets('Statistics screen responds to user interactions', (tester) async {
+    testWidgets('Statistics screen responds to user interactions',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -136,7 +139,7 @@ void main() {
 
     testWidgets('Statistics export workflow', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -165,9 +168,10 @@ void main() {
       }
     });
 
-    testWidgets('Statistics screen maintains state during app lifecycle', (tester) async {
+    testWidgets('Statistics screen maintains state during app lifecycle',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -187,9 +191,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsOneWidget);
     });
 
-    testWidgets('Statistics navigation from different app states', (tester) async {
+    testWidgets('Statistics navigation from different app states',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -214,7 +219,7 @@ void main() {
 
     testWidgets('Statistics screen handles rapid navigation', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -234,9 +239,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsNothing);
     });
 
-    testWidgets('Statistics screen interactions work correctly', (tester) async {
+    testWidgets('Statistics screen interactions work correctly',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -268,9 +274,10 @@ void main() {
       expect(find.byType(StatisticsScreen), findsOneWidget);
     });
 
-    testWidgets('Complete user journey through statistics feature', (tester) async {
+    testWidgets('Complete user journey through statistics feature',
+        (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -306,7 +313,7 @@ void main() {
 
     testWidgets('Statistics screen loads without errors', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
@@ -328,7 +335,7 @@ void main() {
 
     testWidgets('Statistics screen is accessible and usable', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: NAILauncherApp(),
         ),
       );
