@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
@@ -34,6 +34,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  /// 日期格式化服务实例
+  final _dateFormattingService = DateFormattingService();
 
   /// 页码输入控制器
   final TextEditingController _pageController = TextEditingController();
@@ -600,7 +603,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       label: Text(
         hasDateRange
-            ? _formatDateRange(state.dateRangeStart, state.dateRangeEnd)
+            ? _dateFormattingService.formatDateRange(
+                state.dateRangeStart, state.dateRangeEnd,
+              )
             : context.l10n.onlineGallery_dateRange,
         style: TextStyle(
           fontSize: 12,
@@ -614,19 +619,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
       ),
     );
-  }
-
-  /// 格式化日期范围显示
-  String _formatDateRange(DateTime? start, DateTime? end) {
-    final format = DateFormat('MM-dd');
-    if (start != null && end != null) {
-      return '${format.format(start)}~${format.format(end)}';
-    } else if (start != null) {
-      return '${format.format(start)}~';
-    } else if (end != null) {
-      return '~${format.format(end)}';
-    }
-    return '';
   }
 
   /// 选择日期范围
@@ -776,7 +768,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           icon: const Icon(Icons.calendar_today, size: 14),
           label: Text(
             state.popularDate != null
-                ? DateFormat('yyyy-MM-dd').format(state.popularDate!)
+                ? _dateFormattingService.formatWithPattern(
+                    state.popularDate!,
+                    'yyyy-MM-dd',
+                  )
                 : context.l10n.onlineGallery_today,
             style: const TextStyle(fontSize: 13),
           ),

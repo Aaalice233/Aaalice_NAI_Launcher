@@ -11,8 +11,9 @@ import '../../../data/models/prompt/random_prompt_result.dart'
 import '../../../data/models/prompt/sync_config.dart' show SyncProgress;
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/tag_group.dart';
-import '../../../data/models/prompt/tag_group_preset_cache.dart';
 import '../../../data/models/prompt/weighted_tag.dart';
+import '../../../data/models/prompt/tag_library.dart';
+import '../../../data/models/prompt/category_filter_config.dart';
 import '../../providers/prompt_config_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../widgets/prompt/category_settings_dialog.dart';
@@ -23,6 +24,7 @@ import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/prompt/new_preset_dialog.dart';
+import '../../../core/services/tag_counting_service.dart';
 import 'widgets/add_category_dialog.dart';
 import 'widgets/category_detail_dialog.dart';
 import 'widgets/config_detail_editor.dart';
@@ -130,76 +132,34 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final presetState = ref.watch(randomPresetNotifierProvider);
     final preset = presetState.selectedPreset;
     final tagGroupMappings = preset?.tagGroupMappings ?? [];
+    final tagCountingService = ref.watch(tagCountingServiceProvider);
 
     // 获取预设中的类别列表（动态列表）
     final categories = preset?.categories ?? [];
 
-    // 计算已启用的 tag group 数量（内置组 + 同步组），基于预设中的类别
-    int builtinGroupCount = 0;
-    for (final randomCategory in categories) {
-      // 从 key 获取 TagSubCategory
-      final cat = TagSubCategory.values.firstWhere(
-        (e) => e.name == randomCategory.key,
-        orElse: () => TagSubCategory.hairColor,
-      );
-      // 类别必须启用，且内置词库必须启用
-      if (randomCategory.enabled &&
-          state.categoryFilterConfig.isBuiltinEnabled(cat)) {
-        builtinGroupCount++;
-      }
-    }
-    // TagGroup 映射也需要考虑其所属类别的启用状态
-    int syncGroupCount = 0;
-    for (final m in tagGroupMappings.where((m) => m.enabled)) {
-      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
-            (c) => c?.key == m.targetCategory.name,
-            orElse: () => null,
-          );
-      final categoryEnabled = randomCategory?.enabled ?? true;
-      if (categoryEnabled) {
-        syncGroupCount++;
-      }
-    }
+    // 计算已启用的 tag group 数量（使用 TagCountingService）
+    final builtinGroupCount =
+        tagCountingService.calculateEnabledBuiltinCategoryCount(
+      categories,
+      state.categoryFilterConfig.isBuiltinEnabled,
+    );
+    final syncGroupCount = tagCountingService.calculateEnabledSyncGroupCount(
+      tagGroupMappings,
+      categories,
+    );
     final enabledMappingCount = builtinGroupCount + syncGroupCount;
 
-    // 计算总标签数：内置词库 + TagGroup（基于预设中的类别）
-    int tagCount = 0;
-
-    // 1. 内置词库启用时计入（基于预设中的类别）
-    for (final randomCategory in categories) {
-      final category = TagSubCategory.values.firstWhere(
-        (e) => e.name == randomCategory.key,
-        orElse: () => TagSubCategory.hairColor,
-      );
-      if (randomCategory.enabled &&
-          state.categoryFilterConfig.isBuiltinEnabled(category) &&
-          library != null) {
-        tagCount += library
-            .getCategory(category)
-            .where((t) => !t.isDanbooruSupplement)
-            .length;
-      }
-    }
-
-    // 2. 启用的 TagGroup 标签数（需要类别也启用）
-    for (final mapping in tagGroupMappings.where((m) => m.enabled)) {
-      // 查找对应的 RandomCategory
-      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
-            (c) => c?.key == mapping.targetCategory.name,
-            orElse: () => null,
-          );
-      final categoryEnabled = randomCategory?.enabled ?? true;
-      if (categoryEnabled) {
-        // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
-        final count = syncState.filteredTagCounts[mapping.groupTitle] ??
-            (mapping.lastSyncedTagCount > 0
-                ? mapping.lastSyncedTagCount
-                : null) ??
-            TagGroupPresetCache.getCount(mapping.groupTitle) ??
-            0;
-        tagCount += count;
-      }
-    }
+    // 计算总标签数：内置词库 + TagGroup（使用 helper 和 service）
+    final builtinTagCount = _calculateBuiltinLibraryTagCount(
+      library,
+      categories,
+      state.categoryFilterConfig,
+    );
+    final tagCount = builtinTagCount +
+        tagCountingService.calculateTotalTagCount(
+          tagGroupMappings,
+          categories,
+        );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
@@ -1014,9 +974,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   // ==================== 左侧预设面板 ====================
   Widget _buildPresetPanel(PromptConfigState state, ThemeData theme) {
-    final currentMode = ref.watch(randomModeNotifierProvider);
     final presetState = ref.watch(randomPresetNotifierProvider);
-    final isNaiMode = currentMode == RandomGenerationMode.naiOfficial;
     final presets = presetState.presets;
 
     return Container(
@@ -1087,54 +1045,24 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// NAI 官方模式预设项（固定）
   Widget _buildNaiPresetItem(bool isSelected, ThemeData theme) {
     final libraryState = ref.watch(tagLibraryNotifierProvider);
-    final syncState = ref.watch(tagGroupSyncNotifierProvider);
     final presetState = ref.watch(randomPresetNotifierProvider);
     final preset = presetState.selectedPreset;
     final tagGroupMappings = preset?.tagGroupMappings ?? [];
     final library = libraryState.library;
     final categories = preset?.categories ?? [];
+    final tagCountingService = ref.watch(tagCountingServiceProvider);
 
-    // 计算总标签数：内置词库 + TagGroup（需要考虑类别启用状态）
-    int tagCount = 0;
-    final categoryConfig = _getNaiCategoryConfig();
-
-    // 1. 内置词库启用时计入（需要类别也启用）
-    for (final category in categoryConfig.keys) {
-      // 查找对应的 RandomCategory
-      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
-            (c) => c?.key == category.name,
-            orElse: () => null,
-          );
-      final categoryEnabled = randomCategory?.enabled ?? true;
-      if (categoryEnabled &&
-          libraryState.categoryFilterConfig.isBuiltinEnabled(category) &&
-          library != null) {
-        tagCount += library
-            .getCategory(category)
-            .where((t) => !t.isDanbooruSupplement)
-            .length;
-      }
-    }
-
-    // 2. 启用的 TagGroup 标签数（需要类别也启用）
-    for (final mapping in tagGroupMappings.where((m) => m.enabled)) {
-      // 查找对应的 RandomCategory
-      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
-            (c) => c?.key == mapping.targetCategory.name,
-            orElse: () => null,
-          );
-      final categoryEnabled = randomCategory?.enabled ?? true;
-      if (categoryEnabled) {
-        // 优先使用实时过滤数量，其次使用已同步数量，最后使用预缓存数量
-        final count = syncState.filteredTagCounts[mapping.groupTitle] ??
-            (mapping.lastSyncedTagCount > 0
-                ? mapping.lastSyncedTagCount
-                : null) ??
-            TagGroupPresetCache.getCount(mapping.groupTitle) ??
-            0;
-        tagCount += count;
-      }
-    }
+    // 计算总标签数：内置词库 + TagGroup（使用 helper 和 service）
+    final builtinTagCount = _calculateNaiBuiltinTagCount(
+      library,
+      categories,
+      libraryState.categoryFilterConfig,
+    );
+    final tagCount = builtinTagCount +
+        tagCountingService.calculateTotalTagCount(
+          tagGroupMappings,
+          categories,
+        );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -2023,7 +1951,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final state = ref.read(promptConfigNotifierProvider);
     final isDuplicate = state.presets.any((p) =>
         p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
-        p.id != excludePresetId);
+        p.id != excludePresetId,
+      );
 
     if (isDuplicate) {
       return '预设名称已存在';
@@ -2042,7 +1971,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final state = ref.read(randomPresetNotifierProvider);
     final isDuplicate = state.presets.any((p) =>
         p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
-        p.id != excludePresetId);
+        p.id != excludePresetId,
+      );
 
     if (isDuplicate) {
       return '预设名称已存在';
@@ -2229,5 +2159,69 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
         ],
       ),
     );
+  }
+
+  /// 计算内置词库的标签数量
+  ///
+  /// [library] 标签库
+  /// [categories] 随机类别列表
+  /// [filterConfig] 过滤配置
+  int _calculateBuiltinLibraryTagCount(
+    TagLibrary? library,
+    List<RandomCategory> categories,
+    CategoryFilterConfig filterConfig,
+  ) {
+    if (library == null) return 0;
+
+    int tagCount = 0;
+    for (final randomCategory in categories) {
+      final category = TagSubCategory.values.firstWhere(
+        (e) => e.name == randomCategory.key,
+        orElse: () => TagSubCategory.hairColor,
+      );
+      if (randomCategory.enabled && filterConfig.isBuiltinEnabled(category)) {
+        tagCount += library
+            .getCategory(category)
+            .where((t) => !t.isDanbooruSupplement)
+            .length;
+      }
+    }
+    return tagCount;
+  }
+
+  /// 计算 NAI 模式下内置词库的标签数量
+  ///
+  /// 与 _calculateBuiltinLibraryTagCount 的区别是：
+  /// - 这里使用 NAI 固定的类别配置作为遍历源
+  /// - 需要额外检查对应的 RandomCategory 是否启用
+  ///
+  /// [library] 标签库
+  /// [categories] 随机类别列表（用于检查启用状态）
+  /// [filterConfig] 过滤配置
+  int _calculateNaiBuiltinTagCount(
+    TagLibrary? library,
+    List<RandomCategory> categories,
+    CategoryFilterConfig filterConfig,
+  ) {
+    if (library == null) return 0;
+
+    int tagCount = 0;
+    final categoryConfig = _getNaiCategoryConfig();
+
+    for (final category in categoryConfig.keys) {
+      // 查找对应的 RandomCategory
+      final randomCategory = categories.cast<RandomCategory?>().firstWhere(
+            (c) => c?.key == category.name,
+            orElse: () => null,
+          );
+      final categoryEnabled = randomCategory?.enabled ?? true;
+      if (categoryEnabled && filterConfig.isBuiltinEnabled(category)) {
+        tagCount += library
+            .getCategory(category)
+            .where((t) => !t.isDanbooruSupplement)
+            .length;
+      }
+    }
+    return tagCount;
   }
 }

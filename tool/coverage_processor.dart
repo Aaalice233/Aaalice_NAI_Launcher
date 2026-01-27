@@ -217,7 +217,7 @@ List<FileCoverage> _parseLcov(List<String> lines) {
           linesFound: linesFound,
           linesHit: linesHit,
           percentage: percentage,
-        ));
+        ),);
       }
 
       // Start new file
@@ -237,7 +237,7 @@ List<FileCoverage> _parseLcov(List<String> lines) {
           linesFound: linesFound,
           linesHit: linesHit,
           percentage: percentage,
-        ));
+        ),);
       }
 
       // Reset for next file
@@ -255,7 +255,7 @@ List<FileCoverage> _parseLcov(List<String> lines) {
       linesFound: linesFound,
       linesHit: linesHit,
       percentage: percentage,
-    ));
+    ),);
   }
 
   return fileCoverages;

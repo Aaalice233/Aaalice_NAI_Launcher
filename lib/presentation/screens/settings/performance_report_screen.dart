@@ -120,17 +120,20 @@ class _PerformanceReportScreenState
         }
       }
     }
-    final successRate =
-        totalTasksCount > 0 ? (successCount / totalTasksCount * 100).round() : 0;
+    final successRate = totalTasksCount > 0
+        ? (successCount / totalTasksCount * 100).round()
+        : 0;
 
     // 计算平均总耗时
     final avgTotalDuration = sessions.isEmpty
         ? 0
         : sessions
-                .map((session) => session.fold<int>(
-                      0,
-                      (sum, task) => sum + task.durationMs,
-                    ),)
+                .map(
+                  (session) => session.fold<int>(
+                    0,
+                    (sum, task) => sum + task.durationMs,
+                  ),
+                )
                 .reduce((a, b) => a + b) ~/
             sessions.length;
 
@@ -250,9 +253,8 @@ class _PerformanceReportScreenState
     // 按任务名称分组并计算统计信息
     final taskStats = <String, Map<String, dynamic>>{};
     for (final taskName in taskNames) {
-      final stats = ref
-          .read(warmupMetricsServiceProvider)
-          .getStatsForTask(taskName);
+      final stats =
+          ref.read(warmupMetricsServiceProvider).getStatsForTask(taskName);
       if (stats != null) {
         // 计算成功率
         int successCount = 0;
@@ -267,9 +269,8 @@ class _PerformanceReportScreenState
             successCount++;
           }
         }
-        final successRate = totalCount > 0
-            ? (successCount / totalCount * 100).round()
-            : 0;
+        final successRate =
+            totalCount > 0 ? (successCount / totalCount * 100).round() : 0;
 
         taskStats[taskName] = {
           ...stats,

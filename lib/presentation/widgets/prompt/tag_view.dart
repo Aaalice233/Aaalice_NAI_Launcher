@@ -283,7 +283,6 @@ class _TagViewState extends ConsumerState<TagView>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasSelection = widget.tags.any((t) => t.selected);
-    final reducedMotion = MediaQuery.of(context).disableAnimations;
 
     Widget content = Focus(
       autofocus: false,

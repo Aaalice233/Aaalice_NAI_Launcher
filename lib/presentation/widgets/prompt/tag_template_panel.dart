@@ -101,9 +101,12 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
 
     showDialog(
       context: context,
-      builder: (context) => _CreateTemplateDialog(
+      builder: (dialogContext) => _CreateTemplateDialog(
         initialTags: tagsToSave,
         onConfirm: (name, description) async {
+          final messenger = ScaffoldMessenger.of(dialogContext);
+          final l10n = dialogContext.l10n;
+
           final result = await ref
               .read(tagTemplateNotifierProvider.notifier)
               .saveTemplate(
@@ -115,9 +118,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           if (result == null) {
             // 保存失败（名称冲突）
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text(context.l10n.tag_templateNameExists),
+                  content: Text(l10n.tag_templateNameExists),
                   duration: const Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),
@@ -126,9 +129,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           } else {
             // 保存成功
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text(context.l10n.tag_templateSaved),
+                  content: Text(l10n.tag_templateSaved),
                   duration: const Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),

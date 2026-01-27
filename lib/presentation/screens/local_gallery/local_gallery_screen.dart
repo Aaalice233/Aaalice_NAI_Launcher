@@ -1308,7 +1308,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           final isSelected = selectionState.selectedIds.contains(record.path);
 
           // Get or calculate aspect ratio for grouped view
-          double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
+          final double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
 
           // Calculate and cache aspect ratio asynchronously if not cached
           if (!_aspectRatioCache.containsKey(record.path)) {
@@ -1422,7 +1422,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
         // 获取或计算宽高比
         // Get or calculate aspect ratio
-        double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
+        final double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
 
         // 异步计算并缓存宽高比
         // Calculate and cache aspect ratio asynchronously

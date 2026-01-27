@@ -185,8 +185,8 @@ Future<void> _verifyRegression() async {
     // Analyze current results
     for (var fileResult in currentData['resultsByFile']) {
       for (var test in fileResult['tests']) {
-        String testName = test['name'];
-        String currentStatus = test['status'];
+        final String testName = test['name'];
+        final String currentStatus = test['status'];
 
         // Find previous status
         String? previousStatus;

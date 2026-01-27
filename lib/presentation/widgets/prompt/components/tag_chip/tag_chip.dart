@@ -132,7 +132,7 @@ class _TagChipState extends ConsumerState<TagChip>
     ).animate(CurvedAnimation(
       parent: _weightController,
       curve: Curves.easeOut,
-    ));
+    ),);
 
     _weightAnimation.addListener(() {
       setState(() {
@@ -178,7 +178,7 @@ class _TagChipState extends ConsumerState<TagChip>
     ).animate(CurvedAnimation(
       parent: _weightController,
       curve: Curves.easeOut,
-    ));
+    ),);
 
     _weightController.forward(from: 0);
   }
@@ -383,7 +383,7 @@ class _TagChipState extends ConsumerState<TagChip>
                 : theme.colorScheme.onSurface.withOpacity(0.35),
             decoration: isEnabled ? null : TextDecoration.lineThrough,
           ),
-        ));
+        ),);
 
         // 双冒号（括号颜色）
         spans.add(TextSpan(
@@ -399,7 +399,7 @@ class _TagChipState extends ConsumerState<TagChip>
                 : theme.colorScheme.onSurface.withOpacity(0.2),
             decoration: isEnabled ? null : TextDecoration.lineThrough,
           ),
-        ));
+        ),);
 
         // 标签名称
         spans.add(TextSpan(
@@ -415,7 +415,7 @@ class _TagChipState extends ConsumerState<TagChip>
                 : theme.colorScheme.onSurface.withOpacity(0.35),
             decoration: isEnabled ? null : TextDecoration.lineThrough,
           ),
-        ));
+        ),);
 
         // 结尾双冒号（括号颜色）
         spans.add(TextSpan(
@@ -431,7 +431,7 @@ class _TagChipState extends ConsumerState<TagChip>
                 : theme.colorScheme.onSurface.withOpacity(0.2),
             decoration: isEnabled ? null : TextDecoration.lineThrough,
           ),
-        ));
+        ),);
         break;
 
       case WeightSyntaxType.bracket:
@@ -453,7 +453,7 @@ class _TagChipState extends ConsumerState<TagChip>
                   : theme.colorScheme.onSurface.withOpacity(0.2),
               decoration: isEnabled ? null : TextDecoration.lineThrough,
             ),
-          ));
+          ),);
         } else if (layers < 0) {
           // 开括号
           spans.add(TextSpan(
@@ -469,7 +469,7 @@ class _TagChipState extends ConsumerState<TagChip>
                   : theme.colorScheme.onSurface.withOpacity(0.2),
               decoration: isEnabled ? null : TextDecoration.lineThrough,
             ),
-          ));
+          ),);
         }
 
         // 标签名称
@@ -486,7 +486,7 @@ class _TagChipState extends ConsumerState<TagChip>
                 : theme.colorScheme.onSurface.withOpacity(0.35),
             decoration: isEnabled ? null : TextDecoration.lineThrough,
           ),
-        ));
+        ),);
 
         if (layers > 0) {
           // 闭括号
@@ -503,7 +503,7 @@ class _TagChipState extends ConsumerState<TagChip>
                   : theme.colorScheme.onSurface.withOpacity(0.2),
               decoration: isEnabled ? null : TextDecoration.lineThrough,
             ),
-          ));
+          ),);
         } else if (layers < 0) {
           // 闭括号
           spans.add(TextSpan(
@@ -519,7 +519,7 @@ class _TagChipState extends ConsumerState<TagChip>
                   : theme.colorScheme.onSurface.withOpacity(0.2),
               decoration: isEnabled ? null : TextDecoration.lineThrough,
             ),
-          ));
+          ),);
         }
         break;
     }
@@ -584,14 +584,14 @@ class _TagChipState extends ConsumerState<TagChip>
                     : TagShadowConfig.disabledBlurRadius;
 
     final shadowOffset = widget.isDragging
-        ? Offset(TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY)
+        ? const Offset(TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY)
         : _isHovering
-            ? Offset(TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY)
+            ? const Offset(TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY)
             : isSelected
-                ? Offset(TagShadowConfig.selectedOffsetX, TagShadowConfig.selectedOffsetY)
+                ? const Offset(TagShadowConfig.selectedOffsetX, TagShadowConfig.selectedOffsetY)
                 : isEnabled
-                    ? Offset(TagShadowConfig.normalOffsetX, TagShadowConfig.normalOffsetY)
-                    : Offset(TagShadowConfig.disabledOffsetX, TagShadowConfig.disabledOffsetY);
+                    ? const Offset(TagShadowConfig.normalOffsetX, TagShadowConfig.normalOffsetY)
+                    : const Offset(TagShadowConfig.disabledOffsetX, TagShadowConfig.disabledOffsetY);
 
     final shadowOpacity = widget.isDragging
         ? TagShadowConfig.draggingOpacity

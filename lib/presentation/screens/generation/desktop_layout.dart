@@ -37,7 +37,6 @@ class _DesktopGenerationLayoutState
   static const double _promptAreaMinHeight = 100;
   static const double _promptAreaMaxHeight = 500;
 
-
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
     ref.read(promptMaximizeNotifierProvider.notifier).toggle();
@@ -64,7 +63,9 @@ class _DesktopGenerationLayoutState
             onDrag: (dx) {
               final newWidth = (layoutState.leftPanelWidth + dx)
                   .clamp(_leftPanelMinWidth, _leftPanelMaxWidth);
-              ref.read(layoutStateNotifierProvider.notifier).setLeftPanelWidth(newWidth);
+              ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .setLeftPanelWidth(newWidth);
             },
           ),
 
@@ -101,7 +102,8 @@ class _DesktopGenerationLayoutState
                     ),
 
               // 提示词区域拖拽分隔条（最大化时隐藏）
-              if (!isPromptMaximized) _buildVerticalResizeHandle(theme, layoutState),
+              if (!isPromptMaximized)
+                _buildVerticalResizeHandle(theme, layoutState),
 
               // 中间图像预览区（最大化时隐藏）
               if (!isPromptMaximized)
@@ -134,7 +136,9 @@ class _DesktopGenerationLayoutState
             onDrag: (dx) {
               final newWidth = (layoutState.rightPanelWidth - dx)
                   .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
-              ref.read(layoutStateNotifierProvider.notifier).setRightPanelWidth(newWidth);
+              ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .setRightPanelWidth(newWidth);
             },
           ),
 
@@ -168,7 +172,9 @@ class _DesktopGenerationLayoutState
                   child: _buildCollapseButton(
                     theme,
                     icon: Icons.chevron_left,
-                    onTap: () => ref.read(layoutStateNotifierProvider.notifier).setLeftPanelExpanded(false),
+                    onTap: () => ref
+                        .read(layoutStateNotifierProvider.notifier)
+                        .setLeftPanelExpanded(false),
                   ),
                 ),
               ],
@@ -177,7 +183,9 @@ class _DesktopGenerationLayoutState
               theme,
               icon: Icons.tune,
               label: context.l10n.generation_params,
-              onTap: () => ref.read(layoutStateNotifierProvider.notifier).setLeftPanelExpanded(true),
+              onTap: () => ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .setLeftPanelExpanded(true),
             ),
     );
   }
@@ -206,7 +214,9 @@ class _DesktopGenerationLayoutState
                   child: _buildCollapseButton(
                     theme,
                     icon: Icons.chevron_right,
-                    onTap: () => ref.read(layoutStateNotifierProvider.notifier).setRightPanelExpanded(false),
+                    onTap: () => ref
+                        .read(layoutStateNotifierProvider.notifier)
+                        .setRightPanelExpanded(false),
                   ),
                 ),
               ],
@@ -215,7 +225,9 @@ class _DesktopGenerationLayoutState
               theme,
               icon: Icons.history,
               label: context.l10n.generation_history,
-              onTap: () => ref.read(layoutStateNotifierProvider.notifier).setRightPanelExpanded(true),
+              onTap: () => ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .setRightPanelExpanded(true),
             ),
     );
   }
@@ -314,7 +326,9 @@ class _DesktopGenerationLayoutState
         onVerticalDragUpdate: (details) {
           final newHeight = (layoutState.promptAreaHeight + details.delta.dy)
               .clamp(_promptAreaMinHeight, _promptAreaMaxHeight);
-          ref.read(layoutStateNotifierProvider.notifier).setPromptAreaHeight(newHeight);
+          ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setPromptAreaHeight(newHeight);
         },
         child: Container(
           height: 6,

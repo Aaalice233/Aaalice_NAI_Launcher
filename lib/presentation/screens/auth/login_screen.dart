@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
+import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
@@ -25,6 +27,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// 头像服务实例
   final _avatarService = AvatarService();
+
+  /// 认证错误服务实例
+  final _authErrorService = AuthErrorService();
+
+  /// 日期格式化服务实例
+  final _dateFormattingService = DateFormattingService();
 
   /// Loading Overlay Entry
   OverlayEntry? _loadingOverlayEntry;
@@ -111,10 +119,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           '[LoginScreen] Showing error Toast: ${next.errorCode}',
           'LOGIN',
         );
-        final errorText =
-            _getErrorText(context, next.errorCode!, next.httpStatusCode);
-        final recoveryHint = _getErrorRecoveryHint(
-          context,
+        final errorText = _authErrorService.getErrorText(
+          context.l10n,
+          next.errorCode!,
+          next.httpStatusCode,
+        );
+        final recoveryHint = _authErrorService.getErrorRecoveryHint(
+          context.l10n,
           next.errorCode!,
           next.httpStatusCode,
         );
@@ -811,7 +822,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final theme = Theme.of(context);
 
     // 格式化创建时间
-    final createdDate = _formatDate(account.createdAt);
+    final createdDate = _dateFormattingService.formatDate(account.createdAt);
 
     return ListTile(
       leading: AccountAvatarSmall(
@@ -873,11 +884,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _handleQuickLogin(context, ref, account);
       },
     );
-  }
-
-  /// 格式化日期
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   /// 显示删除账号确认对话框
@@ -1062,65 +1068,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (context.mounted) {
         AppToast.error(context, context.l10n.common_error);
       }
-    }
-  }
-
-  /// 获取错误码对应的本地化文本
-  String _getErrorText(
-    BuildContext context,
-    AuthErrorCode errorCode,
-    int? httpStatusCode,
-  ) {
-    final l10n = context.l10n;
-
-    // 401 错误，提供更明确的提示
-    if (errorCode == AuthErrorCode.authFailed && httpStatusCode == 401) {
-      return l10n.auth_error_authFailed_tokenExpired;
-    }
-
-    switch (errorCode) {
-      case AuthErrorCode.networkTimeout:
-        return l10n.auth_error_networkTimeout;
-      case AuthErrorCode.networkError:
-        return l10n.auth_error_networkError;
-      case AuthErrorCode.authFailed:
-        return l10n.auth_error_authFailed;
-      case AuthErrorCode.tokenInvalid:
-        return l10n.auth_tokenInvalid;
-      case AuthErrorCode.serverError:
-        return l10n.auth_error_serverError;
-      case AuthErrorCode.unknown:
-        return l10n.auth_error_unknown;
-    }
-  }
-
-  /// 获取错误恢复建议
-  String? _getErrorRecoveryHint(
-    BuildContext context,
-    AuthErrorCode errorCode,
-    int? httpStatusCode,
-  ) {
-    final l10n = context.l10n;
-
-    switch (errorCode) {
-      case AuthErrorCode.networkTimeout:
-        return l10n.api_error_timeout_hint;
-      case AuthErrorCode.networkError:
-        return l10n.api_error_network_hint;
-      case AuthErrorCode.authFailed:
-        if (httpStatusCode == 401) {
-          return l10n.api_error_401_hint;
-        }
-        return l10n.api_error_401_hint;
-      case AuthErrorCode.tokenInvalid:
-        return l10n.api_error_401_hint;
-      case AuthErrorCode.serverError:
-        if (httpStatusCode == 503) {
-          return l10n.api_error_503_hint;
-        }
-        return l10n.api_error_500_hint;
-      case AuthErrorCode.unknown:
-        return null;
     }
   }
 }
