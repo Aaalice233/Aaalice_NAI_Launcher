@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/crypto/nai_crypto_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/datasources/remote/nai_api_service.dart';
+import '../../data/datasources/remote/nai_auth_api_service.dart';
+import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/auth/saved_account.dart';
 import 'account_manager_provider.dart';
 
@@ -174,7 +175,7 @@ class AuthNotifier extends _$AuthNotifier {
     if (token != null && token.isNotEmpty) {
       // Token 存在，尝试验证
       try {
-        final apiService = ref.read(naiApiServiceProvider);
+        final apiService = ref.read(naiAuthApiServiceProvider);
         final subscriptionInfo = await apiService.validateToken(token);
 
         // 尝试找到 Token 对应的账号
@@ -238,7 +239,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       if (accountToken != null && accountToken.isNotEmpty) {
         try {
-          final apiService = ref.read(naiApiServiceProvider);
+          final apiService = ref.read(naiAuthApiServiceProvider);
           Map<String, dynamic> subscriptionInfo;
 
           // 根据账号类型选择验证方式
@@ -253,7 +254,7 @@ class AuthNotifier extends _$AuthNotifier {
             AppLogger.auth(
               'Auto-login: validating token format for token account...',
             );
-            if (!NAIApiService.isValidTokenFormat(accountToken)) {
+            if (!NAIAuthApiService.isValidTokenFormat(accountToken)) {
               throw Exception('Token 格式无效，应以 pst- 开头');
             }
             subscriptionInfo = await apiService.validateToken(accountToken);
@@ -314,11 +315,11 @@ class AuthNotifier extends _$AuthNotifier {
 
     try {
       // 1. 验证 Token 格式
-      if (!NAIApiService.isValidTokenFormat(token)) {
+      if (!NAIAuthApiService.isValidTokenFormat(token)) {
         throw Exception('Token 格式无效，应以 pst- 开头');
       }
 
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiAuthApiServiceProvider);
       final storage = ref.read(secureStorageServiceProvider);
 
       // 2. 验证 Token 有效性
@@ -408,7 +409,7 @@ class AuthNotifier extends _$AuthNotifier {
     state = state.copyWith(status: AuthStatus.loading);
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiAuthApiServiceProvider);
       final storage = ref.read(secureStorageServiceProvider);
 
       // 直接验证 token（credentials 类型不需要检查 pst- 格式）
@@ -454,7 +455,7 @@ class AuthNotifier extends _$AuthNotifier {
     state = state.copyWith(status: AuthStatus.loading);
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiAuthApiServiceProvider);
       final cryptoService = ref.read(naiCryptoServiceProvider);
       final storage = ref.read(secureStorageServiceProvider);
       final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
@@ -554,7 +555,7 @@ class AuthNotifier extends _$AuthNotifier {
     if (!state.isAuthenticated) return;
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiUserInfoApiServiceProvider);
       final subscriptionInfo = await apiService.getUserSubscription();
       state = state.copyWith(subscriptionInfo: subscriptionInfo);
     } catch (e) {

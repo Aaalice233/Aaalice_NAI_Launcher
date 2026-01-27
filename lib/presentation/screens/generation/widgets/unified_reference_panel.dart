@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_api_utils.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
-import '../../../../data/datasources/remote/nai_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -907,7 +907,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
         if (bytes != null) {
           // 上传时转换为 PNG 格式（NovelAI Director Reference 要求）
-          final pngBytes = NAIApiService.ensurePngFormat(bytes);
+          final pngBytes = NAIApiUtils.ensurePngFormat(bytes);
           ref
               .read(generationParamsNotifierProvider.notifier)
               .addCharacterReference(CharacterReference(image: pngBytes));

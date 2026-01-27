@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
-import '../../data/datasources/remote/nai_api_service.dart';
+import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
 import 'auth_provider.dart';
 
@@ -49,7 +49,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     state = const SubscriptionState.loading();
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiUserInfoApiServiceProvider);
       final data = await apiService.getUserSubscription();
       final subscription = UserSubscription.fromJson(data);
       state = SubscriptionState.loaded(subscription);
@@ -69,7 +69,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   Future<void> refreshBalance() async {
     // 保持当前状态，静默刷新
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiUserInfoApiServiceProvider);
       final data = await apiService.getUserSubscription();
       final subscription = UserSubscription.fromJson(data);
       state = SubscriptionState.loaded(subscription);

@@ -335,6 +335,111 @@ final imageProvider = Provider<Image>((ref) => Image());
 final imageListProvider = StateProvider<List<Image>>((ref) => []);
 ```
 
+#### API 服务架构 | API Service Architecture
+
+项目采用**领域驱动设计 (DDD)**，API 服务按功能领域分离：
+
+The project uses **Domain-Driven Design (DDD)** with API services split by functional domain:
+
+**领域服务 | Domain Services:**
+
+```dart
+// ✅ 好的做法 | Good Practice - 使用领域特定服务
+// 在 Provider 中使用 | Use in Providers
+@riverpod
+class AuthController extends _$AuthController {
+  @override
+  Future<void> build() async {
+    // 只导入需要的服务 | Only import needed services
+    final authService = ref.read(naiAuthApiServiceProvider);
+    final userInfo = await authService.validateToken(token);
+  }
+}
+
+// ❌ 避免 | Avoid - 使用旧的 NAIApiService
+@riverpod
+class AuthController extends _$AuthController {
+  @override
+  Future<void> build() async {
+    // 旧的 API 服务已被弃用 | Old API service is deprecated
+    final apiService = ref.read(naiApiServiceProvider);
+    final userInfo = await apiService.validateToken(token);
+  }
+}
+```
+
+**服务组织原则 | Service Organization Principles:**
+
+1. **单一职责 | Single Responsibility**: 每个服务只负责一个功能领域 | Each service handles one functional domain
+2. **依赖注入 | Dependency Injection**: 使用 Riverpod 注入 Dio 客户端 | Use Riverpod to inject Dio client
+3. **清晰命名 | Clear Naming**: 服务名称明确表达其用途 | Service names clearly express their purpose
+4. **向后兼容 | Backwards Compatibility**: 旧服务作为门面保留 | Old service kept as facade
+
+**添加新的 API 服务 | Adding New API Services:**
+
+```dart
+// 1. 创建服务文件 | Create service file
+// lib/data/datasources/remote/new_feature_api_service.dart
+part 'new_feature_api_service.g.dart';
+
+@riverpod
+NewFeatureApiService newFeatureApiService(NewFeatureApiServiceRef ref) {
+  final dio = ref.watch(dioClientProvider);
+  return NewFeatureApiService(dio);
+}
+
+class NewFeatureApiService {
+  final Dio _dio;
+  static const _baseUrl = 'https://api.novelai.net';
+
+  NewFeatureApiService(this._dio);
+
+  // API 方法 | API methods
+  Future<Result> fetchFeature() async {
+    try {
+      final response = await _dio.get('$_baseUrl/feature');
+      return Result.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _formatDioError(e);
+    }
+  }
+}
+
+// 2. 在 Provider 中使用 | Use in Provider
+@riverpod
+class FeatureController extends _$FeatureController {
+  @override
+  Future<void> build() async {
+    final service = ref.read(newFeatureApiServiceProvider);
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => service.fetchFeature());
+  }
+}
+```
+
+**静态工具方法 | Static Utility Methods:**
+
+对于不依赖状态的纯函数，使用静态工具类：
+
+For pure functions without state dependency, use static utility classes:
+
+```dart
+// ✅ 好的做法 | Good Practice - 静态工具类
+// lib/core/utils/nai_api_utils.dart
+class NAIApiUtils {
+  static Future<Uint8List> ensurePngFormat(Uint8List bytes) async {
+    // 纯函数实现 | Pure function implementation
+  }
+
+  static Map<String, dynamic> toJsonNumber(dynamic value) {
+    // 类型转换逻辑 | Type conversion logic
+  }
+}
+
+// 使用 | Usage
+final pngBytes = await NAIApiUtils.ensurePngFormat(imageBytes);
+```
+
 ---
 
 ## 提交信息规范 | Commit Message Guidelines
