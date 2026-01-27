@@ -974,9 +974,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   // ==================== 左侧预设面板 ====================
   Widget _buildPresetPanel(PromptConfigState state, ThemeData theme) {
-    final currentMode = ref.watch(randomModeNotifierProvider);
     final presetState = ref.watch(randomPresetNotifierProvider);
-    final isNaiMode = currentMode == RandomGenerationMode.naiOfficial;
     final presets = presetState.presets;
 
     return Container(
@@ -1953,7 +1951,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final state = ref.read(promptConfigNotifierProvider);
     final isDuplicate = state.presets.any((p) =>
         p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
-        p.id != excludePresetId);
+        p.id != excludePresetId,
+      );
 
     if (isDuplicate) {
       return '预设名称已存在';
@@ -1972,7 +1971,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final state = ref.read(randomPresetNotifierProvider);
     final isDuplicate = state.presets.any((p) =>
         p.name.trim().toLowerCase() == name.trim().toLowerCase() &&
-        p.id != excludePresetId);
+        p.id != excludePresetId,
+      );
 
     if (isDuplicate) {
       return '预设名称已存在';
