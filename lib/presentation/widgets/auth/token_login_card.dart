@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/datasources/remote/nai_api_service.dart';
+import '../../../data/datasources/remote/nai_auth_api_service.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../common/app_toast.dart';
@@ -135,7 +135,7 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                   if (value == null || value.isEmpty) {
                     return context.l10n.auth_tokenRequired;
                   }
-                  if (!NAIApiService.isValidTokenFormat(value)) {
+                  if (!NAIAuthApiService.isValidTokenFormat(value)) {
                     return context.l10n.auth_tokenInvalid;
                   }
                   return null;
