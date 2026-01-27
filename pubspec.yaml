@@ -35,6 +35,7 @@ dependencies:
 
   # 加密库 (Blake2b + Argon2id)
   cryptography: ^2.7.0
+  crypto: ^3.0.3
 
   # ZIP 处理
   archive: ^3.6.1

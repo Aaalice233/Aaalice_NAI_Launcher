@@ -234,8 +234,8 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
               padding: const EdgeInsets.only(bottom: 12),
               child: TextButton.icon(
                 onPressed: () => _showEditPresetDescriptionDialog(preset),
-                icon: Icon(Icons.add, size: 16),
-                label: Text('添加描述'),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('添加描述'),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 ),

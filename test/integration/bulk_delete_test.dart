@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/presentation/providers/bulk_operation_provider.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/data/repositories/local_gallery_repository.dart';
 
 void main() {
   group('Bulk Delete Integration Tests', () {
