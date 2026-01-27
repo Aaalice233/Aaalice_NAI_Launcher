@@ -1008,20 +1008,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           // 标题栏
           Container(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.shuffle,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.config_title,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
+            child: Text(
+              context.l10n.config_title,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           Divider(height: 1, color: theme.dividerColor),
@@ -1161,100 +1151,145 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final isSelected = preset.id == presetState.selectedPresetId;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Material(
-        color: isSelected
-            ? theme.colorScheme.primaryContainer.withOpacity(0.5)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: () => _selectRandomPreset(preset.id),
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                // 激活指示器
-                if (isSelected)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  )
-                else
-                  const SizedBox(width: 16),
-                // 图标
-                Icon(
-                  preset.isDefault ? Icons.auto_awesome : Icons.tune_outlined,
-                  size: 18,
-                  color: preset.isDefault
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withOpacity(0.7),
-                ),
-                const SizedBox(width: 8),
-                // 预设信息
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        preset.name,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: isSelected ? FontWeight.w600 : null,
-                          color: preset.isDefault
-                              ? theme.colorScheme.primary
-                              : null,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primaryContainer.withOpacity(0.6)
+              : theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary.withOpacity(0.6)
+                : theme.colorScheme.outlineVariant.withOpacity(0.3),
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? theme.colorScheme.primary.withOpacity(0.15)
+                  : Colors.black.withOpacity(0.04),
+              blurRadius: isSelected ? 8 : 3,
+              offset: Offset(0, isSelected ? 2 : 1),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: () => _selectRandomPreset(preset.id),
+            borderRadius: BorderRadius.circular(10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: Row(
+                children: [
+                  // 选中指示器（左侧竖条）
+                  if (isSelected)
+                    Container(
+                      width: 4,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(10),
+                          bottomLeft: Radius.circular(10),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        preset.isDefault
-                            ? context.l10n.naiMode_totalTags(
-                                preset.enabledCategoryCount.toString(),
-                              )
-                            : context.l10n.preset_configGroupCount(
-                                preset.categoryCount.toString(),
+                    ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: isSelected ? 8 : 12,
+                        right: 12,
+                        top: 10,
+                        bottom: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          // 图标
+                          Icon(
+                            preset.isDefault
+                                ? Icons.auto_awesome
+                                : Icons.tune_outlined,
+                            size: 18,
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : (preset.isDefault
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface.withOpacity(0.7)),
+                          ),
+                          const SizedBox(width: 8),
+                          // 预设信息
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  preset.name,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight:
+                                        isSelected ? FontWeight.w600 : null,
+                                    color: isSelected
+                                        ? theme.colorScheme.primary
+                                        : (preset.isDefault
+                                            ? theme.colorScheme.primary
+                                            : null),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  preset.isDefault
+                                      ? context.l10n.naiMode_totalTags(
+                                          preset.enabledCategoryCount.toString(),
+                                        )
+                                      : context.l10n.preset_configGroupCount(
+                                          preset.categoryCount.toString(),
+                                        ),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // 操作按钮（仅非默认预设）
+                          if (!preset.isDefault) ...[
+                            // 重命名按钮
+                            IconButton(
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color:
+                                    theme.colorScheme.onSurface.withOpacity(0.7),
                               ),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.outline,
-                        ),
+                              onPressed: () =>
+                                  _showRenameRandomPresetDialog(preset),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: context.l10n.preset_rename,
+                            ),
+                            // 删除按钮
+                            IconButton(
+                              icon: Icon(
+                                Icons.close,
+                                size: 18,
+                                color: theme.colorScheme.error.withOpacity(0.7),
+                              ),
+                              onPressed: () =>
+                                  _showDeleteRandomPresetDialog(preset),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: context.l10n.common_delete,
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                // 操作按钮（仅非默认预设）
-                if (!preset.isDefault) ...[
-                  // 重命名按钮
-                  IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
                     ),
-                    onPressed: () => _showRenameRandomPresetDialog(preset),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: context.l10n.preset_rename,
-                  ),
-                  // 删除按钮
-                  IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      size: 18,
-                      color: theme.colorScheme.error.withOpacity(0.7),
-                    ),
-                    onPressed: () => _showDeleteRandomPresetDialog(preset),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: context.l10n.common_delete,
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ),

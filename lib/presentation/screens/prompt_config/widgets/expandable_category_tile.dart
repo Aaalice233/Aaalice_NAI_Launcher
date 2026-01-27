@@ -247,7 +247,7 @@ class _ExpandableCategoryTileState
         decoration: BoxDecoration(
           color: _isHovering
               ? theme.colorScheme.surfaceContainerHighest
-              : theme.colorScheme.surfaceContainerLow,
+              : theme.colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: _isHovering
