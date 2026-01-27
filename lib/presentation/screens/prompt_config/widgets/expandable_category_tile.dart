@@ -386,6 +386,7 @@ class _ExpandableCategoryTileState
                             scale: 0.8,
                           ),
                         ),
+                      const SizedBox(width: 12),
                       // 概率显示徽章
                       Container(
                         padding:
