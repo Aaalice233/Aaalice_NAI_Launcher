@@ -499,9 +499,10 @@ List<DailyTrendStatistics> _computeTimeTrendsIsolate(_TimeTrendParams params) {
   // 计算百分比
   final totalImages = records.length;
   if (totalImages > 0) {
-    for (final trend in trends) {
-      trend as _DailyTrendStatistics; // 访问内部实现
-    }
+    return trends.map((trend) {
+      final percentage = (trend.count / totalImages * 100).clamp(0.0, 100.0);
+      return trend.copyWith(percentage: percentage);
+    }).toList();
   }
 
   return trends;

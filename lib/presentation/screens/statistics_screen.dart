@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/gallery_statistics.dart';
 import '../../data/models/gallery/local_image_record.dart';
+import '../../data/models/gallery/daily_trend_statistics.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/statistics_service.dart';
 import '../providers/local_gallery_provider.dart';
