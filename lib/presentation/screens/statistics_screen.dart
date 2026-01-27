@@ -10,6 +10,7 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/statistics_service.dart';
 import '../providers/local_gallery_provider.dart';
+import '../widgets/statistics/export_dialog.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 /// 动画数字显示组件
@@ -238,6 +239,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   List<LocalImageRecord> _allRecords = [];
+  GalleryStatistics? _currentStatistics;
 
   // Filter state
   DateTimeRange? _dateRange;
@@ -364,6 +366,19 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
       appBar: AppBar(
         title: Text(l10n.statistics_title),
         elevation: 0,
+        actions: [
+          if (_currentStatistics != null)
+            IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: 'Export Statistics',
+              onPressed: () {
+                StatisticsExportDialog.show(
+                  context,
+                  statistics: _currentStatistics!,
+                );
+              },
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -399,6 +414,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen>
           }
 
           final statistics = snapshot.data;
+
+          // Store current statistics for export
+          if (statistics != null && statistics.totalImages > 0) {
+            _currentStatistics = statistics;
+          }
 
           if (statistics == null || statistics.totalImages == 0) {
             return _buildEmptyState(theme);
