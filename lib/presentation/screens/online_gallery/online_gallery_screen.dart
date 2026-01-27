@@ -604,7 +604,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       label: Text(
         hasDateRange
             ? _dateFormattingService.formatDateRange(
-                state.dateRangeStart, state.dateRangeEnd)
+                state.dateRangeStart, state.dateRangeEnd,
+              )
             : context.l10n.onlineGallery_dateRange,
         style: TextStyle(
           fontSize: 12,

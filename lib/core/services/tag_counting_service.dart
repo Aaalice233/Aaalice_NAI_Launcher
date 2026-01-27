@@ -53,7 +53,8 @@ class TagCountingService {
       AppLogger.i('TagCountingService initialized', 'TagCounting');
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to initialize TagCountingService', e, stack, 'TagCounting');
+          'Failed to initialize TagCountingService', e, stack, 'TagCounting',
+      );
       rethrow;
     }
   }
@@ -77,7 +78,8 @@ class TagCountingService {
       if (enabledMappings.isEmpty) {
         _filteredTagCountsCache.clear();
         AppLogger.d(
-            'No enabled mappings, cleared filtered counts', 'TagCounting');
+            'No enabled mappings, cleared filtered counts', 'TagCounting',
+        );
         return;
       }
 
