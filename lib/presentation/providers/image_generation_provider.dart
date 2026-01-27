@@ -7,7 +7,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/datasources/remote/nai_api_service.dart';
+import '../../data/datasources/remote/nai_image_generation_api_service.dart';
+import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
+import '../../data/datasources/remote/nai_tag_suggestion_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../../data/models/tag/tag_suggestion.dart';
@@ -275,7 +277,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<(List<Uint8List>, Map<int, String>)> _generateWithRetry(
     ImageParams params,
   ) async {
-    final apiService = ref.read(naiApiServiceProvider);
+    final apiService = ref.read(naiImageGenerationApiServiceProvider);
 
     for (int retry = 0; retry <= _maxRetries; retry++) {
       try {
@@ -339,7 +341,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     int currentStart,
     int total,
   ) async {
-    final apiService = ref.read(naiApiServiceProvider);
+    final apiService = ref.read(naiImageGenerationApiServiceProvider);
     final batchSize = params.nSamples;
     final images = <Uint8List>[];
 
@@ -440,7 +442,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiImageGenerationApiServiceProvider);
       final stream = apiService.generateImageStream(params);
 
       Uint8List? finalImage;
@@ -538,7 +540,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   /// 取消生成
   void cancel() {
     _isCancelled = true;
-    final apiService = ref.read(naiApiServiceProvider);
+    final apiService = ref.read(naiImageGenerationApiServiceProvider);
     apiService.cancelGeneration();
 
     state = state.copyWith(
@@ -1139,7 +1141,7 @@ class TagSuggestionNotifier extends _$TagSuggestionNotifier {
       state = state.copyWith(isLoading: true, error: null);
 
       try {
-        final apiService = ref.read(naiApiServiceProvider);
+        final apiService = ref.read(naiTagSuggestionApiServiceProvider);
         final suggestions = await apiService.suggestTags(input, model: model);
         state = state.copyWith(
           suggestions: suggestions,
@@ -1218,7 +1220,7 @@ class UpscaleNotifier extends _$UpscaleNotifier {
     );
 
     try {
-      final apiService = ref.read(naiApiServiceProvider);
+      final apiService = ref.read(naiImageEnhancementApiServiceProvider);
       final result = await apiService.upscaleImage(
         image,
         scale: scale,
