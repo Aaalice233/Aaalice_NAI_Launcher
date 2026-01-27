@@ -54,12 +54,9 @@ class OnlineGallerySelectionNotifier extends _$OnlineGallerySelectionNotifier {
 
   /// 切换指定项的选中状态
   void toggle(String id) {
-    final newIds = Set<String>.from(state.selectedIds);
-    if (newIds.contains(id)) {
-      newIds.remove(id);
-    } else {
-      newIds.add(id);
-    }
+    final newIds = state.selectedIds.contains(id)
+        ? state.selectedIds.difference({id})
+        : state.selectedIds.union({id});
     state = state.copyWith(selectedIds: newIds);
   }
 
@@ -115,12 +112,9 @@ class LocalGallerySelectionNotifier extends _$LocalGallerySelectionNotifier {
 
   /// 切换指定项的选中状态
   void toggle(String id) {
-    final newIds = Set<String>.from(state.selectedIds);
-    if (newIds.contains(id)) {
-      newIds.remove(id);
-    } else {
-      newIds.add(id);
-    }
+    final newIds = state.selectedIds.contains(id)
+        ? state.selectedIds.difference({id})
+        : state.selectedIds.union({id});
     state = state.copyWith(selectedIds: newIds, lastSelectedId: id);
   }
 
@@ -188,7 +182,7 @@ class LocalGallerySelectionNotifier extends _$LocalGallerySelectionNotifier {
 
     // 选中范围内的所有项
     final rangeIds = allIds.sublist(start, end + 1);
-    final newIds = Set<String>.from(state.selectedIds)..addAll(rangeIds);
+    final newIds = {...state.selectedIds, ...rangeIds};
 
     state = state.copyWith(selectedIds: newIds, lastSelectedId: currentId);
   }

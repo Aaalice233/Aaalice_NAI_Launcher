@@ -1328,9 +1328,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             selectionMode: selectionState.isActive,
             isSelected: isSelected,
             onSelectionToggle: () {
+              // Measure selection toggle performance
+              final stopwatch = Stopwatch()..start();
               ref
                   .read(localGallerySelectionNotifierProvider.notifier)
                   .toggle(record.path);
+              stopwatch.stop();
+              debugPrint(
+                'Selection toggle (grouped view): ${stopwatch.elapsedMilliseconds}ms',
+              );
             },
             onLongPress: () {
               if (!selectionState.isActive) {
@@ -1417,8 +1423,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];
-        final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-        final isSelected = selectionState.selectedIds.contains(record.path);
+        final isSelected = ref.watch(localGallerySelectionNotifierProvider
+            .select((state) => state.selectedIds.contains(record.path)));
+        final selectionMode = ref.watch(localGallerySelectionNotifierProvider
+            .select((state) => state.isActive));
 
         // 获取或计算宽高比
         // Get or calculate aspect ratio
@@ -1438,15 +1446,21 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           record: record,
           itemWidth: itemWidth,
           aspectRatio: aspectRatio,
-          selectionMode: selectionState.isActive,
+          selectionMode: selectionMode,
           isSelected: isSelected,
           onSelectionToggle: () {
+            // Measure selection toggle performance
+            final stopwatch = Stopwatch()..start();
             ref
                 .read(localGallerySelectionNotifierProvider.notifier)
                 .toggle(record.path);
+            stopwatch.stop();
+            debugPrint(
+              'Selection toggle (masonry view): ${stopwatch.elapsedMilliseconds}ms',
+            );
           },
           onLongPress: () {
-            if (!selectionState.isActive) {
+            if (!selectionMode) {
               ref
                   .read(localGallerySelectionNotifierProvider.notifier)
                   .enterAndSelect(record.path);
