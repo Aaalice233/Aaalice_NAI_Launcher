@@ -222,7 +222,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   /// 恢复已删除的图片（撤销操作）
   Future<void> _restoreDeletedImages(
-      List<LocalImageRecord> deletedImages) async {
+    List<LocalImageRecord> deletedImages,
+  ) async {
     final restoreErrors = <String>[];
 
     try {
@@ -701,8 +702,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   /// 构建顶部工具栏
-  Widget _buildToolbar(ThemeData theme, LocalGalleryState state,
-      BulkOperationState bulkOpState) {
+  Widget _buildToolbar(
+    ThemeData theme,
+    LocalGalleryState state,
+    BulkOperationState bulkOpState,
+  ) {
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
     final isDark = theme.brightness == Brightness.dark;
 

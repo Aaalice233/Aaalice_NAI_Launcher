@@ -38,7 +38,6 @@ dependencies:
   crypto: ^3.0.3
 
   # SHA 哈希（用于生成唯一ID）
-  crypto: ^3.0.3
 
   # ZIP 处理
   archive: ^3.6.1

@@ -512,8 +512,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ),
             FilledButton(
               onPressed: () {
-                final error = _validateRandomPresetName(controller.text,
-                    excludePresetId: preset.id);
+                final error = _validateRandomPresetName(
+                  controller.text,
+                  excludePresetId: preset.id,
+                );
                 if (error == null) {
                   Navigator.pop(ctx, controller.text.trim());
                 } else {
@@ -2036,8 +2038,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             ),
             FilledButton(
               onPressed: () {
-                final error = _validatePresetName(controller.text,
-                    excludePresetId: preset.id);
+                final error = _validatePresetName(
+                  controller.text,
+                  excludePresetId: preset.id,
+                );
                 if (error == null) {
                   Navigator.pop(ctx, controller.text.trim());
                 } else {
