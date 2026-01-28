@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/storage_keys.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
@@ -224,10 +225,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   void _showPermissionDeniedDialog() async {
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      title: '需要存储权限',
-      content: '本地画廊需要访问存储权限才能扫描您生成的图片。\n\n请在设置中授予权限后重试。',
-      confirmText: '打开设置',
-      cancelText: '取消',
+      title: context.l10n.localGallery_permissionRequiredTitle,
+      content: context.l10n.localGallery_permissionRequiredContent,
+      confirmText: context.l10n.localGallery_openSettings,
+      cancelText: context.l10n.common_cancel,
       type: ThemedConfirmDialogType.warning,
       icon: Icons.folder_off_outlined,
     );
@@ -252,12 +253,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     await ThemedConfirmDialog.showInfo(
       context: context,
-      title: '💡 使用提示',
-      content: '右键点击（桌面端）或长按（移动端）图片可以：\n\n'
-          '• 复制 Prompt\n'
-          '• 复制 Seed\n'
-          '• 查看完整元数据',
-      confirmText: '知道了',
+      title: context.l10n.localGallery_firstTimeTipTitle,
+      content: context.l10n.localGallery_firstTimeTipContent,
+      confirmText: context.l10n.localGallery_gotIt,
       icon: Icons.lightbulb_outline,
     );
   }
@@ -293,7 +291,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.info(context, '无法打开文件夹: $e');
+        AppToast.info(
+          context,
+          context.l10n.localGallery_cannotOpenFolder(e.toString()),
+        );
       }
     }
   }
@@ -309,7 +310,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
     if (mounted) {
-      AppToast.info(context, '已撤销');
+      AppToast.info(context, context.l10n.localGallery_undone);
     }
   }
 
@@ -319,7 +320,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
     if (mounted) {
-      AppToast.info(context, '已重做');
+      AppToast.info(context, context.l10n.localGallery_redone);
     }
   }
 
@@ -341,11 +342,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      title: '确认批量删除',
-      content: '确定要删除选中的 ${selectedImages.length} 张图片吗？\n\n'
-          '此操作将从文件系统中永久删除这些图片，无法恢复。',
-      confirmText: '删除',
-      cancelText: '取消',
+      title: context.l10n.localGallery_confirmBulkDelete,
+      content: context.l10n
+          .localGallery_confirmBulkDeleteContent(selectedImages.length),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
       type: ThemedConfirmDialogType.danger,
       icon: Icons.delete_forever_outlined,
     );
@@ -369,7 +370,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
     if (mounted && deletedImages.isNotEmpty) {
-      AppToast.success(context, '已删除 ${deletedImages.length} 张图片');
+      AppToast.success(
+        context,
+        context.l10n.localGallery_deletedImages(deletedImages.length),
+      );
     }
   }
 
@@ -402,7 +406,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final folders = folderState.folders;
     if (folders.isEmpty) {
       if (mounted) {
-        AppToast.info(context, '暂无可用文件夹，请先创建文件夹');
+        AppToast.info(context, context.l10n.localGallery_noFoldersAvailable);
       }
       return;
     }
@@ -410,7 +414,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final selectedFolder = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('移动到文件夹'),
+        title: Text(context.l10n.localGallery_moveToFolder),
         content: SizedBox(
           width: 300,
           child: ListView.builder(
@@ -421,7 +425,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               return ListTile(
                 leading: const Icon(Icons.folder),
                 title: Text(folder.name),
-                subtitle: Text('${folder.imageCount} 张图片'),
+                subtitle: Text(
+                  context.l10n.localGallery_imageCount(folder.imageCount),
+                ),
                 onTap: () => Navigator.of(context).pop(folder.path),
               );
             },
@@ -430,7 +436,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.common_cancel),
           ),
         ],
       ),
@@ -447,12 +453,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (mounted) {
       if (movedCount > 0) {
-        AppToast.info(context, '已移动 $movedCount 张图片');
+        AppToast.info(
+          context,
+          context.l10n.localGallery_movedImages(movedCount),
+        );
         ref.read(localGallerySelectionNotifierProvider.notifier).exit();
         ref.read(localGalleryNotifierProvider.notifier).refresh();
         ref.read(galleryFolderNotifierProvider.notifier).refresh();
       } else {
-        AppToast.info(context, '移动图片失败');
+        AppToast.info(context, context.l10n.localGallery_moveImagesFailed);
       }
     }
   }
@@ -484,11 +493,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       if (addedCount > 0) {
         AppToast.success(
           context,
-          '已添加 $addedCount 张图片到集合「${result.collectionName}」',
+          context.l10n.localGallery_addedToCollection(
+            addedCount,
+            result.collectionName,
+          ),
         );
         ref.read(localGallerySelectionNotifierProvider.notifier).exit();
       } else {
-        AppToast.info(context, '添加图片到集合失败');
+        AppToast.info(context, context.l10n.localGallery_addToCollectionFailed);
       }
     }
   }

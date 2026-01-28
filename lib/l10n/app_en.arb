@@ -2513,6 +2513,51 @@
     }
   },
 
+  "localGallery_permissionRequiredTitle": "Storage Permission Required",
+  "localGallery_permissionRequiredContent": "Local gallery needs storage permission to scan your generated images.\n\nPlease grant permission in settings and try again.",
+  "localGallery_openSettings": "Open Settings",
+  "localGallery_firstTimeTipTitle": "💡 Tips",
+  "localGallery_firstTimeTipContent": "Right-click (desktop) or long-press (mobile) on images to:\n\n• Copy Prompt\n• Copy Seed\n• View full metadata",
+  "localGallery_gotIt": "Got it",
+  "localGallery_undone": "Undone",
+  "localGallery_redone": "Redone",
+  "localGallery_confirmBulkDelete": "Confirm Bulk Delete",
+  "localGallery_confirmBulkDeleteContent": "Are you sure you want to delete {count} selected images?\n\nThis will permanently remove them from the file system and cannot be undone.",
+  "@localGallery_confirmBulkDeleteContent": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_deletedImages": "Deleted {count} images",
+  "@localGallery_deletedImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_noFoldersAvailable": "No folders available, please create a folder first",
+  "localGallery_moveToFolder": "Move to Folder",
+  "localGallery_imageCount": "{count} images",
+  "@localGallery_imageCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_movedImages": "Moved {count} images",
+  "@localGallery_movedImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_moveImagesFailed": "Failed to move images",
+  "localGallery_addedToCollection": "Added {count} images to collection \"{name}\"",
+  "@localGallery_addedToCollection": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_addToCollectionFailed": "Failed to add images to collection",
+
   "brushPreset_selectHint": "Double tap to select this brush preset",
   "brushPreset_selected": "Selected",
   "brushPreset_pencil": "Pencil",
