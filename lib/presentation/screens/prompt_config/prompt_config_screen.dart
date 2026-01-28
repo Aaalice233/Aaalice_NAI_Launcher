@@ -16,6 +16,8 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
+import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/prompt/category_settings_dialog.dart';
 import '../../widgets/prompt/new_preset_dialog.dart';
@@ -197,7 +199,10 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       onSyncCategory: _syncCategory,
       onShowDetail: (category, tags) {
         CategoryDetailDialog.show(
-            context: context, category: category, tags: tags,);
+          context: context,
+          category: category,
+          tags: tags,
+        );
       },
       onSettings: _showCategorySettings,
       onEnabledChanged: _toggleCategoryEnabled,
@@ -265,8 +270,16 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 选择 RandomPreset
   void _selectRandomPreset(String presetId) async {
     if (_hasUnsavedChanges) {
-      final discard = await UnsavedChangesDialog.show(context);
-      if (discard != true) return;
+      final discard = await ThemedConfirmDialog.show(
+        context: context,
+        title: context.l10n.preset_unsavedChanges,
+        content: context.l10n.preset_unsavedChangesConfirm,
+        confirmText: context.l10n.preset_discard,
+        cancelText: context.l10n.common_cancel,
+        type: ThemedConfirmDialogType.warning,
+        icon: Icons.warning_amber_outlined,
+      );
+      if (!discard) return;
       setState(() => _hasUnsavedChanges = false);
     }
     _doSelectRandomPreset(presetId);
@@ -287,8 +300,13 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 显示新建预设对话框
   Future<void> _showNewPresetDialog() async {
     final presets = ref.read(randomPresetNotifierProvider).presets;
-    final presetName = await PresetNameDialog.show(
-      context,
+    final presetName = await ThemedInputDialog.show(
+      context: context,
+      title: context.l10n.presetEdit_presetName,
+      labelText: context.l10n.presetEdit_presetName,
+      hintText: context.l10n.presetEdit_enterPresetName,
+      confirmText: context.l10n.common_confirm,
+      cancelText: context.l10n.common_cancel,
       validator: (name) => PresetValidators.validateRandomPresetName(
         context,
         name,
@@ -340,9 +358,14 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   /// 显示重命名 RandomPreset 对话框
   Future<void> _showRenameRandomPresetDialog(RandomPreset preset) async {
     final presets = ref.read(randomPresetNotifierProvider).presets;
-    final newName = await RenamePresetDialog.show(
-      context,
-      currentName: preset.name,
+    final newName = await ThemedInputDialog.show(
+      context: context,
+      title: context.l10n.preset_rename,
+      labelText: context.l10n.preset_presetName,
+      hintText: context.l10n.presetEdit_enterPresetName,
+      initialValue: preset.name,
+      confirmText: context.l10n.common_confirm,
+      cancelText: context.l10n.common_cancel,
       validator: (name) => PresetValidators.validateRandomPresetName(
         context,
         name,
@@ -363,12 +386,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 显示删除 RandomPreset 确认对话框
   Future<void> _showDeleteRandomPresetDialog(RandomPreset preset) async {
-    final confirmed = await DeletePresetDialog.show(
-      context,
-      presetName: preset.name,
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: context.l10n.preset_deletePreset,
+      content: context.l10n.preset_deletePresetConfirm(preset.name),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await ref
           .read(randomPresetNotifierProvider.notifier)
           .deletePreset(preset.id);
@@ -397,25 +425,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   /// 显示重置预设确认对话框
   Future<void> _showResetPresetConfirmDialog(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.preset_resetConfirmTitle),
-        content: Text(context.l10n.preset_resetConfirmMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(context.l10n.common_confirm),
-          ),
-        ],
-      ),
+      title: context.l10n.preset_resetConfirmTitle,
+      content: context.l10n.preset_resetConfirmMessage,
+      confirmText: context.l10n.common_confirm,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.refresh_outlined,
     );
 
-    if (confirmed == true && context.mounted) {
+    if (confirmed && context.mounted) {
       await ref
           .read(randomPresetNotifierProvider.notifier)
           .resetCurrentPreset();
@@ -512,28 +532,17 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       ),
     );
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.common_confirmDelete),
-        content: Text(l10n.promptConfig_confirmRemoveCategory(categoryName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.common_cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l10n.common_delete),
-          ),
-        ],
-      ),
+      title: l10n.common_confirmDelete,
+      content: l10n.promptConfig_confirmRemoveCategory(categoryName),
+      confirmText: l10n.common_delete,
+      cancelText: l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       await ref
           .read(randomPresetNotifierProvider.notifier)
           .removeCategoryByKey(category.key);
@@ -637,8 +646,16 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
 
   void _selectPreset(String presetId) async {
     if (_hasUnsavedChanges) {
-      final discard = await UnsavedChangesDialog.show(context);
-      if (discard != true) return;
+      final discard = await ThemedConfirmDialog.show(
+        context: context,
+        title: context.l10n.preset_unsavedChanges,
+        content: context.l10n.preset_unsavedChangesConfirm,
+        confirmText: context.l10n.preset_discard,
+        cancelText: context.l10n.common_cancel,
+        type: ThemedConfirmDialogType.warning,
+        icon: Icons.warning_amber_outlined,
+      );
+      if (!discard) return;
       setState(() => _hasUnsavedChanges = false);
     }
     _doSelectPreset(presetId);

@@ -5,10 +5,12 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../providers/prompt_config_provider.dart';
 import '../../widgets/common/themed_switch.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
 import 'config_item_editor.dart';
 import 'import_nai_category_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
+
 /// 预设编辑页面
 class PresetEditScreen extends ConsumerStatefulWidget {
   final RandomPromptPreset preset;
@@ -345,29 +347,20 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
     );
   }
 
-  void _showUnsavedChangesDialog() {
-    showDialog(
+  void _showUnsavedChangesDialog() async {
+    final discard = await ThemedConfirmDialog.show(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(context.l10n.config_unsavedChanges),
-          content: Text(context.l10n.config_unsavedChangesContent),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.l10n.configEditor_continueEditing),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-              child: Text(context.l10n.configEditor_discardChanges),
-            ),
-          ],
-        );
-      },
+      title: context.l10n.config_unsavedChanges,
+      content: context.l10n.config_unsavedChangesContent,
+      confirmText: context.l10n.configEditor_discardChanges,
+      cancelText: context.l10n.configEditor_continueEditing,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.warning_amber_outlined,
     );
+
+    if (discard && mounted) {
+      Navigator.pop(context);
+    }
   }
 
   void _showHelpDialog() {

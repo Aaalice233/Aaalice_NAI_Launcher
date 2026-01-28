@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_slider.dart';
 
 import '../../widgets/common/app_toast.dart';
+
 /// 配置项编辑器
 class ConfigItemEditor extends ConsumerStatefulWidget {
   final PromptConfig config;
@@ -650,28 +652,19 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
     Navigator.of(context).pop(result);
   }
 
-  void _showUnsavedChangesDialog() {
-    showDialog(
+  void _showUnsavedChangesDialog() async {
+    final discard = await ThemedConfirmDialog.show(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(context.l10n.config_unsavedChanges),
-          content: Text(context.l10n.config_unsavedChangesContent),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.l10n.configEditor_continueEditing),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-              child: Text(context.l10n.configEditor_discardChanges),
-            ),
-          ],
-        );
-      },
+      title: context.l10n.config_unsavedChanges,
+      content: context.l10n.config_unsavedChangesContent,
+      confirmText: context.l10n.configEditor_discardChanges,
+      cancelText: context.l10n.configEditor_continueEditing,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.warning_amber_outlined,
     );
+
+    if (discard && mounted) {
+      Navigator.pop(context);
+    }
   }
 }

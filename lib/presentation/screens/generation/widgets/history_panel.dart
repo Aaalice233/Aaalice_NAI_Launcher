@@ -10,6 +10,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 
 /// 历史面板组件
@@ -259,37 +260,23 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     );
   }
 
-  void _showClearDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+  void _showClearDialog(BuildContext context, WidgetRef ref) async {
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(context.l10n.generation_clearHistory),
-          content: Text(context.l10n.generation_clearHistoryConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(context.l10n.common_cancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                ref
-                    .read(imageGenerationNotifierProvider.notifier)
-                    .clearHistory();
-                setState(() {
-                  _selectedIndices.clear();
-                });
-                Navigator.pop(dialogContext);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              ),
-              child: Text(context.l10n.common_clear),
-            ),
-          ],
-        );
-      },
+      title: context.l10n.generation_clearHistory,
+      content: context.l10n.generation_clearHistoryConfirm,
+      confirmText: context.l10n.common_clear,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_sweep_outlined,
     );
+
+    if (confirmed) {
+      ref.read(imageGenerationNotifierProvider.notifier).clearHistory();
+      setState(() {
+        _selectedIndices.clear();
+      });
+    }
   }
 }
 

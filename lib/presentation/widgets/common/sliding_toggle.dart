@@ -65,7 +65,6 @@ class SlidingToggle<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedIndex = options.indexWhere((o) => o.value == value);
-    final thumbPadding = (height - (height - 4)) / 2; // 2px padding
 
     return Opacity(
       opacity: enabled ? 1.0 : 0.5,

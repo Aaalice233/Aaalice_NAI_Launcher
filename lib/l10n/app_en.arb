@@ -2708,6 +2708,15 @@
   "fixedTags_saveToLibrary": "Also save to library",
   "fixedTags_saveToLibraryHint": "For reuse in the tag library later",
   "fixedTags_saveToCategory": "Save to category",
+  "fixedTags_clearAll": "Clear All",
+  "fixedTags_clearAllTitle": "Clear All Fixed Tags",
+  "fixedTags_clearAllConfirm": "Are you sure you want to clear all {count} fixed tags? This action cannot be undone.",
+  "@fixedTags_clearAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "fixedTags_clearedSuccess": "All fixed tags cleared",
 
   "common_rename": "Rename",
   "common_create": "Create",

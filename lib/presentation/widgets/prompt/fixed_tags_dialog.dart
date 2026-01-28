@@ -10,10 +10,12 @@ import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../router/app_router.dart';
+import '../common/themed_confirm_dialog.dart';
 import '../common/themed_switch.dart';
 import 'fixed_tag_edit_dialog.dart';
 
 import '../common/app_toast.dart';
+
 /// 固定词管理对话框
 class FixedTagsDialog extends ConsumerStatefulWidget {
   const FixedTagsDialog({super.key});
@@ -246,7 +248,10 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   }
 
   Widget _buildEntryList(
-      ThemeData theme, List<FixedTagEntry> entries, bool isDark,) {
+    ThemeData theme,
+    List<FixedTagEntry> entries,
+    bool isDark,
+  ) {
     return ReorderableListView.builder(
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -278,6 +283,8 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   }
 
   Widget _buildFooter(ThemeData theme, bool isDark) {
+    final hasEntries = ref.watch(fixedTagsNotifierProvider).entries.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
@@ -302,6 +309,28 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
               textStyle: const TextStyle(fontSize: 13),
             ),
           ),
+          const SizedBox(width: 8),
+          // 清空按钮 - 危险操作
+          if (hasEntries)
+            OutlinedButton.icon(
+              onPressed: _showClearAllConfirmation,
+              icon: Icon(
+                Icons.delete_sweep_outlined,
+                size: 17,
+                color: theme.colorScheme.error,
+              ),
+              label: Text(
+                context.l10n.fixedTags_clearAll,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                textStyle: const TextStyle(fontSize: 13),
+                side:
+                    BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
+              ),
+            ),
           const Spacer(),
           // 添加按钮 - 次要
           FilledButton.tonalIcon(
@@ -310,7 +339,8 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             label: Text(context.l10n.fixedTags_add),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              textStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
           const SizedBox(width: 10),
@@ -321,7 +351,8 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             label: const Text('从词库添加'),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              textStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -382,32 +413,40 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     }
   }
 
-  void _showDeleteConfirmation(FixedTagEntry entry) {
-    showDialog(
+  void _showDeleteConfirmation(FixedTagEntry entry) async {
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.fixedTags_deleteTitle),
-        content: Text(context.l10n.fixedTags_deleteConfirm(entry.displayName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ref
-                  .read(fixedTagsNotifierProvider.notifier)
-                  .deleteEntry(entry.id);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(context.l10n.common_delete),
-          ),
-        ],
-      ),
+      title: context.l10n.fixedTags_deleteTitle,
+      content: context.l10n.fixedTags_deleteConfirm(entry.displayName),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
     );
+
+    if (confirmed) {
+      ref.read(fixedTagsNotifierProvider.notifier).deleteEntry(entry.id);
+    }
+  }
+
+  /// 显示清空所有固定词确认对话框
+  void _showClearAllConfirmation() async {
+    final entriesCount = ref.read(fixedTagsNotifierProvider).entries.length;
+
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: context.l10n.fixedTags_clearAllTitle,
+      content: context.l10n.fixedTags_clearAllConfirm(entriesCount),
+      confirmText: context.l10n.fixedTags_clearAll,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_sweep_outlined,
+    );
+
+    if (confirmed && mounted) {
+      ref.read(fixedTagsNotifierProvider.notifier).clearAll();
+      AppToast.success(context, context.l10n.fixedTags_clearedSuccess);
+    }
   }
 }
 
@@ -519,8 +558,7 @@ class _StyledFilledButtonState extends State<_StyledFilledButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          transform: Matrix4.identity()
-            ..scale(_isPressed ? 0.97 : 1.0),
+          transform: Matrix4.identity()..scale(_isPressed ? 0.97 : 1.0),
           transformAlignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           decoration: BoxDecoration(
@@ -541,14 +579,16 @@ class _StyledFilledButtonState extends State<_StyledFilledButton> {
             boxShadow: _isHovering
                 ? [
                     BoxShadow(
-                      color: widget.theme.colorScheme.secondary.withOpacity(0.35),
+                      color:
+                          widget.theme.colorScheme.secondary.withOpacity(0.35),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: widget.theme.colorScheme.secondary.withOpacity(0.2),
+                      color:
+                          widget.theme.colorScheme.secondary.withOpacity(0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -632,12 +672,17 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
               padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
               child: Row(
                 children: [
-                  Icon(Icons.playlist_add_rounded,
-                      color: theme.colorScheme.primary, size: 22,),
+                  Icon(
+                    Icons.playlist_add_rounded,
+                    color: theme.colorScheme.primary,
+                    size: 22,
+                  ),
                   const SizedBox(width: 10),
-                  Text('从词库添加',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),),
+                  Text(
+                    '从词库添加',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
@@ -653,8 +698,11 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: '搜索词库条目...',
-                  prefixIcon:
-                      Icon(Icons.search, size: 20, color: theme.colorScheme.outline),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: 20,
+                    color: theme.colorScheme.outline,
+                  ),
                   isDense: true,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -672,8 +720,10 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
             Expanded(
               child: filtered.isEmpty
                   ? Center(
-                      child: Text('无匹配结果',
-                          style: TextStyle(color: theme.colorScheme.outline),),
+                      child: Text(
+                        '无匹配结果',
+                        style: TextStyle(color: theme.colorScheme.outline),
+                      ),
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -724,7 +774,9 @@ class _LibraryEntryTile extends StatelessWidget {
                     Text(
                       entry.name.isNotEmpty ? entry.name : entry.content,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500,),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -744,8 +796,11 @@ class _LibraryEntryTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.add_rounded,
-                  size: 18, color: theme.colorScheme.primary,),
+              Icon(
+                Icons.add_rounded,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
             ],
           ),
         ),
@@ -800,13 +855,17 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         decoration: BoxDecoration(
           color: _isHovering
-              ? theme.colorScheme.surfaceContainerHighest.withOpacity(isDark ? 0.8 : 0.6)
-              : theme.colorScheme.surfaceContainerHigh.withOpacity(isDark ? 0.5 : 0.4),
+              ? theme.colorScheme.surfaceContainerHighest
+                  .withOpacity(isDark ? 0.8 : 0.6)
+              : theme.colorScheme.surfaceContainerHigh
+                  .withOpacity(isDark ? 0.5 : 0.4),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: entry.enabled
-                ? theme.colorScheme.secondary.withOpacity(_isHovering ? 0.4 : 0.2)
-                : theme.colorScheme.outline.withOpacity(_isHovering ? 0.15 : 0.08),
+                ? theme.colorScheme.secondary
+                    .withOpacity(_isHovering ? 0.4 : 0.2)
+                : theme.colorScheme.outline
+                    .withOpacity(_isHovering ? 0.15 : 0.08),
             width: entry.enabled ? 1.2 : 1,
           ),
         ),
@@ -818,7 +877,8 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
               child: MouseRegion(
                 cursor: SystemMouseCursors.grab,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                   child: Icon(
                     Icons.drag_indicator_rounded,
                     size: 16,
@@ -890,7 +950,8 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
               children: [
                 // 位置标签
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: posColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(4),

@@ -2187,6 +2187,51 @@
     }
   },
 
+  "localGallery_permissionRequiredTitle": "需要存储权限",
+  "localGallery_permissionRequiredContent": "本地画廊需要访问存储权限才能扫描您生成的图片。\n\n请在设置中授予权限后重试。",
+  "localGallery_openSettings": "打开设置",
+  "localGallery_firstTimeTipTitle": "💡 使用提示",
+  "localGallery_firstTimeTipContent": "右键点击（桌面端）或长按（移动端）图片可以：\n\n• 复制 Prompt\n• 复制 Seed\n• 查看完整元数据",
+  "localGallery_gotIt": "知道了",
+  "localGallery_undone": "已撤销",
+  "localGallery_redone": "已重做",
+  "localGallery_confirmBulkDelete": "确认批量删除",
+  "localGallery_confirmBulkDeleteContent": "确定要删除选中的 {count} 张图片吗？\n\n此操作将从文件系统中永久删除这些图片，无法恢复。",
+  "@localGallery_confirmBulkDeleteContent": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_deletedImages": "已删除 {count} 张图片",
+  "@localGallery_deletedImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_noFoldersAvailable": "暂无可用文件夹，请先创建文件夹",
+  "localGallery_moveToFolder": "移动到文件夹",
+  "localGallery_imageCount": "{count} 张图片",
+  "@localGallery_imageCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_movedImages": "已移动 {count} 张图片",
+  "@localGallery_movedImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_moveImagesFailed": "移动图片失败",
+  "localGallery_addedToCollection": "已添加 {count} 张图片到集合「{name}」",
+  "@localGallery_addedToCollection": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_addToCollectionFailed": "添加图片到集合失败",
+
   "brushPreset_selectHint": "双击选择此笔刷预设",
   "brushPreset_selected": "已选择",
   "brushPreset_pencil": "铅笔",
@@ -2382,6 +2427,15 @@
   "fixedTags_saveToLibrary": "同时保存到词库",
   "fixedTags_saveToLibraryHint": "方便日后在词库中重复使用",
   "fixedTags_saveToCategory": "保存到类别",
+  "fixedTags_clearAll": "清空",
+  "fixedTags_clearAllTitle": "清空所有固定词",
+  "fixedTags_clearAllConfirm": "确定要清空所有 {count} 个固定词吗？此操作不可撤销。",
+  "@fixedTags_clearAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "fixedTags_clearedSuccess": "已清空所有固定词",
 
   "common_rename": "重命名",
   "common_create": "创建",

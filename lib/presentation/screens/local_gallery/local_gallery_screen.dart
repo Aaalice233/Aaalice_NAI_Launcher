@@ -27,8 +27,10 @@ import '../../widgets/gallery/local_gallery_toolbar.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/image_context_menu.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
+
 /// 本地画廊屏幕
 /// Local gallery screen
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -219,43 +221,20 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   /// 显示权限被拒绝对话框
-  void _showPermissionDeniedDialog() {
-    final theme = Theme.of(context);
-
-    showDialog(
+  void _showPermissionDeniedDialog() async {
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-        title: Text(
-          '需要存储权限',
-          style: TextStyle(color: theme.colorScheme.onSurface),
-        ),
-        content: Text(
-          '本地画廊需要访问存储权限才能扫描您生成的图片。\n\n请在设置中授予权限后重试。',
-          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              '取消',
-              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              PermissionUtils.openAppSettings();
-            },
-            child: Text(
-              '打开设置',
-              style: TextStyle(color: theme.colorScheme.onPrimary),
-            ),
-          ),
-        ],
-      ),
+      title: '需要存储权限',
+      content: '本地画廊需要访问存储权限才能扫描您生成的图片。\n\n请在设置中授予权限后重试。',
+      confirmText: '打开设置',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.folder_off_outlined,
     );
+
+    if (confirmed) {
+      PermissionUtils.openAppSettings();
+    }
   }
 
   /// 显示首次使用提示
@@ -271,33 +250,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (!mounted) return;
 
-    final theme = Theme.of(context);
-
-    showDialog(
+    await ThemedConfirmDialog.showInfo(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-        title: Text(
-          '💡 使用提示',
-          style: TextStyle(color: theme.colorScheme.onSurface),
-        ),
-        content: Text(
-          '右键点击（桌面端）或长按（移动端）图片可以：\n\n'
+      title: '💡 使用提示',
+      content: '右键点击（桌面端）或长按（移动端）图片可以：\n\n'
           '• 复制 Prompt\n'
           '• 复制 Seed\n'
           '• 查看完整元数据',
-          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(color: theme.colorScheme.onPrimary),
-            ),
-          ),
-        ],
-      ),
+      confirmText: '知道了',
+      icon: Icons.lightbulb_outline,
     );
   }
 
@@ -378,32 +339,18 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (selectedImages.isEmpty) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认批量删除'),
-        content: Text(
-          '确定要删除选中的 ${selectedImages.length} 张图片吗？\n\n'
+      title: '确认批量删除',
+      content: '确定要删除选中的 ${selectedImages.length} 张图片吗？\n\n'
           '此操作将从文件系统中永久删除这些图片，无法恢复。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      confirmText: '删除',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_forever_outlined,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final deletedImages = <LocalImageRecord>[];
     for (final image in selectedImages) {
@@ -535,7 +482,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (mounted) {
       if (addedCount > 0) {
-        AppToast.success(context, '已添加 $addedCount 张图片到集合「${result.collectionName}」');
+        AppToast.success(
+          context,
+          '已添加 $addedCount 张图片到集合「${result.collectionName}」',
+        );
         ref.read(localGallerySelectionNotifierProvider.notifier).exit();
       } else {
         AppToast.info(context, '添加图片到集合失败');
