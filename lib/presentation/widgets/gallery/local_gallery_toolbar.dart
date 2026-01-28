@@ -174,7 +174,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          constraints: const BoxConstraints(minHeight: 62),
           decoration: BoxDecoration(
             color: isDark
                 ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.9)
