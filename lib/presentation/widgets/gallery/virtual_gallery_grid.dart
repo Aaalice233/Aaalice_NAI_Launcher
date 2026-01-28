@@ -14,8 +14,11 @@ class ResponsiveLayout {
   static const double fixedCardHeight = 220;
 
   /// 根据屏幕宽度计算最佳列数（基于固定卡片宽度）
-  static int calculateColumns(double screenWidth,
-      {double spacing = 12, double padding = 16,}) {
+  static int calculateColumns(
+    double screenWidth, {
+    double spacing = 12,
+    double padding = 16,
+  }) {
     final availableWidth = screenWidth - padding * 2;
     final columns =
         ((availableWidth + spacing) / (fixedCardWidth + spacing)).floor();
@@ -58,6 +61,7 @@ class VirtualGalleryGrid extends StatefulWidget {
     int index,
     TapDownDetails details,
   )? onSecondaryTapDown;
+  final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
   final Set<int>? selectedIndices;
   final ScrollController? scrollController;
 
@@ -71,6 +75,7 @@ class VirtualGalleryGrid extends StatefulWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.onSecondaryTapDown,
+    this.onFavoriteToggle,
     this.selectedIndices,
     this.scrollController,
   });
@@ -201,8 +206,10 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
         );
 
         // 计算网格实际宽度（用于居中）
-        final gridWidth = ResponsiveLayout.calculateGridWidth(columns,
-            spacing: widget.spacing,);
+        final gridWidth = ResponsiveLayout.calculateGridWidth(
+          columns,
+          spacing: widget.spacing,
+        );
         final horizontalPadding = (screenWidth - gridWidth) / 2;
 
         // 初始化可视范围
@@ -259,6 +266,9 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
                 onSecondaryTapDown: widget.onSecondaryTapDown != null
                     ? (details) =>
                         widget.onSecondaryTapDown!(record, index, details)
+                    : null,
+                onFavoriteToggle: widget.onFavoriteToggle != null
+                    ? () => widget.onFavoriteToggle!(record, index)
                     : null,
               ),
             );

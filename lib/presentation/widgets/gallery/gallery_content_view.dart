@@ -304,6 +304,11 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
         // Right-click menu
         widget.onContextMenu?.call(record, details.globalPosition);
       },
+      onFavoriteToggle: (record, index) {
+        ref
+            .read(localGalleryNotifierProvider.notifier)
+            .toggleFavorite(record.path);
+      },
     );
   }
 

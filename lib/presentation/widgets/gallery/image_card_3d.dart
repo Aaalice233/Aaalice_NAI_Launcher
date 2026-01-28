@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -7,13 +6,11 @@ import 'package:flutter/material.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../themes/theme_extension.dart';
 
-/// Steam风格3D透视图片卡片
+/// Steam风格图片卡片
 ///
 /// 实现高级视觉效果：
-/// - 鼠标跟随的3D倾斜（±12°）
-/// - 全息棱镜反射效果（彩虹渐变）
 /// - 边缘发光效果
-/// - 改进的光泽扫过动画
+/// - 光泽扫过动画
 /// - 悬停时轻微放大和阴影增强
 class ImageCard3D extends StatefulWidget {
   final LocalImageRecord record;
@@ -25,6 +22,7 @@ class ImageCard3D extends StatefulWidget {
   final void Function(TapDownDetails)? onSecondaryTapDown;
   final bool isSelected;
   final bool showFavoriteIndicator;
+  final VoidCallback? onFavoriteToggle;
 
   const ImageCard3D({
     super.key,
@@ -37,6 +35,7 @@ class ImageCard3D extends StatefulWidget {
     this.onSecondaryTapDown,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
+    this.onFavoriteToggle,
   });
 
   @override
@@ -48,26 +47,11 @@ class _ImageCard3DState extends State<ImageCard3D>
   /// 是否悬停
   bool _isHovered = false;
 
-  /// 鼠标位置（相对于卡片）
-  Offset _hoverPosition = Offset.zero;
-
   /// 光泽动画控制器
   late AnimationController _glossController;
 
   /// 光泽动画
   late Animation<double> _glossAnimation;
-
-  /// 鼠标更新节流定时器
-  Timer? _hoverThrottleTimer;
-
-  /// 最大倾斜角度（弧度），约12°
-  static const double _maxTiltAngle = 0.21;
-
-  /// 中心死区比例（鼠标在中心 15% 区域时不倾斜）
-  static const double _deadZone = 0.15;
-
-  /// 节流间隔（约60fps）
-  static const Duration _throttleInterval = Duration(milliseconds: 16);
 
   @override
   void initState() {
@@ -89,22 +73,7 @@ class _ImageCard3DState extends State<ImageCard3D>
   }
 
   void _onHoverExit(PointerEvent event) {
-    _hoverThrottleTimer?.cancel();
-    setState(() {
-      _isHovered = false;
-      _hoverPosition = Offset.zero;
-    });
-  }
-
-  void _onHoverUpdate(PointerEvent event) {
-    // 节流：每16ms更新一次（约60fps）
-    if (_hoverThrottleTimer?.isActive ?? false) return;
-
-    _hoverThrottleTimer = Timer(_throttleInterval, () {
-      if (mounted && _isHovered) {
-        setState(() => _hoverPosition = event.localPosition);
-      }
-    });
+    setState(() => _isHovered = false);
   }
 
   /// 获取主题适配的效果强度
@@ -159,40 +128,9 @@ class _ImageCard3DState extends State<ImageCard3D>
     final intensity = _getEffectIntensity(context);
     final glowColor = _getEdgeGlowColor(context);
 
-    // 计算3D透视角度
-    double rotateX = 0;
-    double rotateY = 0;
-    double normalizedX = 0.5;
-    double normalizedY = 0.5;
-
-    if (_isHovered && widget.width > 0 && cardHeight > 0) {
-      // 将鼠标位置转换为0到1的范围
-      normalizedX = (_hoverPosition.dx / widget.width).clamp(0.0, 1.0);
-      normalizedY = (_hoverPosition.dy / cardHeight).clamp(0.0, 1.0);
-
-      // 转换为-1到1的范围用于倾斜计算
-      final tiltX = (normalizedX - 0.5) * 2;
-      final tiltY = (normalizedY - 0.5) * 2;
-
-      // 计算距离中心的距离
-      final distance = (tiltX.abs() + tiltY.abs()) / 2;
-
-      // 死区检测：中心区域不触发倾斜
-      if (distance > _deadZone) {
-        // 平滑过渡：从死区边缘到最大值
-        final factor =
-            ((distance - _deadZone) / (1.0 - _deadZone)).clamp(0.0, 1.0);
-
-        // 应用倾斜（Y轴旋转对应X方向移动，X轴旋转对应Y方向移动）
-        rotateY = tiltX * _maxTiltAngle * factor;
-        rotateX = -tiltY * _maxTiltAngle * factor;
-      }
-    }
-
     return MouseRegion(
       onEnter: _onHoverEnter,
       onExit: _onHoverExit,
-      onHover: _onHoverUpdate,
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
@@ -202,11 +140,7 @@ class _ImageCard3DState extends State<ImageCard3D>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
-          transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.001) // 透视效果
-            ..rotateX(rotateX)
-            ..rotateY(rotateY)
-            ..scale(_isHovered ? 1.03 : 1.0),
+          transform: Matrix4.identity()..scale(_isHovered ? 1.03 : 1.0),
           transformAlignment: Alignment.center,
           child: Container(
             width: widget.width,
@@ -232,8 +166,8 @@ class _ImageCard3DState extends State<ImageCard3D>
                       : Colors.black.withOpacity(0.12),
                   blurRadius: _isHovered ? 28 : 10,
                   offset: Offset(
-                    rotateY * 8, // 阴影跟随倾斜方向
-                    _isHovered ? 14 + rotateX.abs() * 4 : 4,
+                    0,
+                    _isHovered ? 14 : 4,
                   ),
                   spreadRadius: _isHovered ? 2 : 0,
                 ),
@@ -242,7 +176,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                   BoxShadow(
                     color: Colors.black.withOpacity(0.15),
                     blurRadius: 40,
-                    offset: Offset(rotateY * 12, 20),
+                    offset: const Offset(0, 20),
                     spreadRadius: -4,
                   ),
               ],
@@ -259,38 +193,42 @@ class _ImageCard3DState extends State<ImageCard3D>
 
                   // 2. 边缘发光效果（仅悬停时，带淡入动画）
                   if (_isHovered)
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      builder: (context, value, child) {
-                        return _EdgeGlowOverlay(
-                          glowColor: glowColor,
-                          intensity: value * intensity.edgeGlow,
-                        );
-                      },
-                    ),
-
-                  // 3. 光泽扫过效果（仅悬停时）
-                  if (_isHovered)
-                    RepaintBoundary(
-                      child: AnimatedBuilder(
-                        animation: _glossAnimation,
-                        builder: (context, child) {
-                          return _GlossOverlay(
-                            progress: _glossAnimation.value,
-                            intensity: intensity.gloss,
+                    Positioned.fill(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOut,
+                        builder: (context, value, child) {
+                          return _EdgeGlowOverlay(
+                            glowColor: glowColor,
+                            intensity: value * intensity.edgeGlow,
                           );
                         },
                       ),
                     ),
 
-                  // 4. 收藏指示器
-                  if (widget.showFavoriteIndicator && widget.record.isFavorite)
+                  // 3. 光泽扫过效果（仅悬停时）
+                  if (_isHovered)
+                    Positioned.fill(
+                      child: RepaintBoundary(
+                        child: AnimatedBuilder(
+                          animation: _glossAnimation,
+                          builder: (context, child) {
+                            return _GlossOverlay(
+                              progress: _glossAnimation.value,
+                              intensity: intensity.gloss,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                  // 4. 收藏按钮（悬停时显示可点击按钮）
+                  if (widget.showFavoriteIndicator)
                     Positioned(
                       top: 8,
                       right: 8,
-                      child: _buildFavoriteIndicator(),
+                      child: _buildFavoriteButton(),
                     ),
 
                   // 5. 选中状态指示器
@@ -367,24 +305,42 @@ class _ImageCard3DState extends State<ImageCard3D>
     );
   }
 
-  Widget _buildFavoriteIndicator() {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withOpacity(0.3),
-            blurRadius: 8,
-            spreadRadius: 1,
+  Widget _buildFavoriteButton() {
+    final isFavorite = widget.record.isFavorite;
+    final showButton = _isHovered || isFavorite;
+
+    if (!showButton) return const SizedBox.shrink();
+
+    return MouseRegion(
+      cursor: widget.onFavoriteToggle != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: widget.onFavoriteToggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? Colors.black.withOpacity(0.6)
+                : Colors.black.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: isFavorite
+                ? [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
           ),
-        ],
-      ),
-      child: const Icon(
-        Icons.favorite,
-        color: Colors.red,
-        size: 16,
+          child: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: isFavorite ? Colors.red : Colors.white,
+            size: 16,
+          ),
+        ),
       ),
     );
   }
@@ -495,7 +451,6 @@ class _ImageCard3DState extends State<ImageCard3D>
 
   @override
   void dispose() {
-    _hoverThrottleTimer?.cancel();
     _glossController.dispose();
     super.dispose();
   }
@@ -526,13 +481,12 @@ class _EdgeGlowOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: CustomPaint(
-          painter: _EdgeGlowPainter(
-            glowColor: glowColor,
-            intensity: intensity,
-          ),
+    return IgnorePointer(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _EdgeGlowPainter(
+          glowColor: glowColor,
+          intensity: intensity,
         ),
       ),
     );
@@ -633,13 +587,12 @@ class _GlossOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: CustomPaint(
-          painter: _GlossPainter(
-            progress: progress,
-            intensity: intensity,
-          ),
+    return IgnorePointer(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _GlossPainter(
+          progress: progress,
+          intensity: intensity,
         ),
       ),
     );
