@@ -16,6 +16,7 @@ import 'widgets/entry_add_dialog.dart';
 import 'widgets/export_dialog.dart';
 import 'widgets/import_dialog.dart';
 import '../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 词库页面
 class TagLibraryPageScreen extends ConsumerStatefulWidget {
@@ -198,7 +199,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
               Expanded(
                 child: SizedBox(
                   height: 38,
-                  child: TextField(
+                  child: ThemedInput(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
                     decoration: InputDecoration(
@@ -423,7 +424,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(dialogContext.l10n.tagLibrary_newCategory),
-        content: TextField(
+        content: ThemedInput(
           controller: controller,
           autofocus: true,
           decoration: InputDecoration(

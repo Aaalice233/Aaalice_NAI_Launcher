@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import '../../../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 预设导入/导出弹窗
 ///
@@ -139,7 +140,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                 ),
                 const SizedBox(height: 8),
               ],
-              TextField(
+              ThemedInput(
                 controller: _controller,
                 maxLines: 10,
                 readOnly: widget.isExport,

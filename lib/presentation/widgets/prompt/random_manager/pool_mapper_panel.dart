@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 class PoolMapperPanel extends ConsumerStatefulWidget {
   final String poolId;
@@ -61,7 +62,7 @@ class _PoolMapperPanelState extends ConsumerState<PoolMapperPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: TextField(
+              child: ThemedInput(
                 controller: _idController,
                 decoration: InputDecoration(
                   labelText: 'Danbooru Pool ID',

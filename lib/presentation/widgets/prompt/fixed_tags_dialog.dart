@@ -15,6 +15,7 @@ import '../common/themed_switch.dart';
 import 'fixed_tag_edit_dialog.dart';
 
 import '../common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 固定词管理对话框
 class FixedTagsDialog extends ConsumerStatefulWidget {
@@ -694,7 +695,7 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
             // 搜索框
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: TextField(
+              child: ThemedInput(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: '搜索词库条目...',

@@ -9,7 +9,7 @@ class QueueExportUtils {
   /// 导出为 JSON 字符串
   static String exportToJson(List<ReplicationTask> tasks) {
     final taskList = ReplicationTaskList(tasks: tasks);
-    final encoder = const JsonEncoder.withIndent('  ');
+    const encoder = JsonEncoder.withIndent('  ');
     return encoder.convert(taskList.toJson());
   }
 
@@ -56,8 +56,9 @@ class QueueExportUtils {
       // 任务数组
       if (decoded is List) {
         return decoded
-            .map((item) =>
-                ReplicationTask.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) => ReplicationTask.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
       }
 
@@ -98,10 +99,12 @@ class QueueExportUtils {
       final negativePrompt = fields.length > 1 ? fields[1] : '';
 
       if (prompt.isNotEmpty) {
-        tasks.add(ReplicationTask.create(
-          prompt: prompt,
-          negativePrompt: negativePrompt,
-        ));
+        tasks.add(
+          ReplicationTask.create(
+            prompt: prompt,
+            negativePrompt: negativePrompt,
+          ),
+        );
       }
     }
 

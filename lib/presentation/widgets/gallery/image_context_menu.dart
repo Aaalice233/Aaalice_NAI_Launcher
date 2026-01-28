@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import '../../../data/models/gallery/local_image_record.dart';
 
 import '../common/app_toast.dart';
+
 /// Image context menu for copy prompt/seed, open folder, delete
 /// 图片右键菜单（复制Prompt/Seed、在文件夹中显示、删除）
 class ImageContextMenu {
@@ -113,11 +114,12 @@ class ImageContextMenu {
   ) async {
     try {
       if (Platform.isWindows) {
-        await Process.run('explorer', ['/select,', filePath]);
+        // 使用 Process.start 避免等待进程完成导致的延迟
+        await Process.start('explorer', ['/select,', filePath]);
       } else if (Platform.isMacOS) {
-        await Process.run('open', ['-R', filePath]);
+        await Process.start('open', ['-R', filePath]);
       } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [path.dirname(filePath)]);
+        await Process.start('xdg-open', [path.dirname(filePath)]);
       }
     } catch (e) {
       if (context.mounted) {

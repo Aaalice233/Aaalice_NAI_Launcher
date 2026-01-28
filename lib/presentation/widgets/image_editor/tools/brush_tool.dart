@@ -7,6 +7,7 @@ import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
 import '../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 笔刷预设
 class BrushPreset {
@@ -502,7 +503,7 @@ class _SettingRow extends StatelessWidget {
           SizedBox(
             width: 50,
             child: controller != null
-                ? TextField(
+                ? ThemedInput(
                     controller: controller,
                     style: theme.textTheme.bodySmall,
                     textAlign: TextAlign.center,

@@ -147,17 +147,30 @@ class ThemeComposer {
       ),
 
       inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: effectiveBrightness == Brightness.dark
+            ? Color.lerp(colorScheme.surface, Colors.black, 0.3)
+            : Color.lerp(colorScheme.surface, Colors.black, 0.02),
         border: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.2),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          borderSide: BorderSide(
+            color: colorScheme.primary.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
 
       // Dropdown and PopupMenu - use shape module's menu radius

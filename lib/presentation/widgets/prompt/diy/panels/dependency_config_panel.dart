@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 依赖配置面板
 ///
@@ -172,7 +174,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                       },
               )
             else
-              TextFormField(
+              ThemedFormInput(
                 initialValue: _config.sourceCategoryId,
                 decoration: const InputDecoration(
                   labelText: '源类别 ID',
@@ -252,7 +254,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: TextFormField(
+        child: ThemedFormInput(
           initialValue: _config.defaultValue ?? '',
           decoration: const InputDecoration(
             labelText: '默认值',
@@ -299,7 +301,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              ThemedInput(
                 decoration: const InputDecoration(
                   labelText: '源值',
                   hintText: '例如: 1, 2, 3',
@@ -307,7 +309,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                 onChanged: (v) => key = v,
               ),
               const SizedBox(height: 16),
-              TextField(
+              ThemedInput(
                 decoration: const InputDecoration(
                   labelText: '结果值',
                   hintText: '例如: 0-3, 0-2, 0-1',

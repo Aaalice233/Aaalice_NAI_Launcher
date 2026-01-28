@@ -2,6 +2,7 @@ import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 内容处理模式
 enum ContentHandlingMode {
@@ -206,7 +207,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
               children: [
                 // 宽度
                 Expanded(
-                  child: TextField(
+                  child: ThemedInput(
                     controller: _widthController,
                     decoration: const InputDecoration(
                       labelText: '宽度',
@@ -259,7 +260,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
 
                 // 高度
                 Expanded(
-                  child: TextField(
+                  child: ThemedInput(
                     controller: _heightController,
                     decoration: const InputDecoration(
                       labelText: '高度',

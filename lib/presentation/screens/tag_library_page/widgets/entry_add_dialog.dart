@@ -38,6 +38,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   late final TextEditingController _tagsController;
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
+  final _tagsFocusNode = FocusNode();
 
   String? _selectedCategoryId;
   String? _thumbnailPath;
@@ -62,6 +63,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _tagsController.dispose();
     _nameFocusNode.dispose();
     _contentFocusNode.dispose();
+    _tagsFocusNode.dispose();
     super.dispose();
   }
 
@@ -350,10 +352,21 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
-        ThemedInput(
+        AutocompleteWrapper(
           controller: _tagsController,
-          hintText: context.l10n.tagLibrary_tagsHint,
-          helperText: context.l10n.tagLibrary_tagsHelper,
+          focusNode: _tagsFocusNode,
+          config: const AutocompleteConfig(
+            maxSuggestions: 10,
+            showTranslation: true,
+            showCategory: true,
+            autoInsertComma: true,
+          ),
+          enableAutoFormat: false,
+          child: ThemedInput(
+            controller: _tagsController,
+            hintText: context.l10n.tagLibrary_tagsHint,
+            helperText: context.l10n.tagLibrary_tagsHelper,
+          ),
         ),
       ],
     );

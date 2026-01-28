@@ -10,6 +10,7 @@ import '../../providers/tag_template_provider.dart';
 import '../common/themed_container.dart';
 
 import '../common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 标签模板面板
 ///
@@ -463,7 +464,7 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 模板名称
-              TextFormField(
+              ThemedFormInput(
                 controller: _nameController,
                 autofocus: true,
                 decoration: InputDecoration(
@@ -481,7 +482,7 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
               const SizedBox(height: 16),
 
               // 模板描述
-              TextFormField(
+              ThemedFormInput(
                 controller: _descriptionController,
                 maxLines: 2,
                 decoration: InputDecoration(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../common/inset_shadow_container.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 昵称编辑弹窗
 ///
@@ -178,7 +179,7 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
             // 昵称输入框
             InsetShadowContainer(
               borderRadius: 8,
-              child: TextFormField(
+              child: ThemedFormInput(
                 controller: _controller,
                 focusNode: _focusNode,
                 onChanged: _onNicknameChanged,

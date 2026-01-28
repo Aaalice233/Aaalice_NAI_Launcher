@@ -8,6 +8,7 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_slider.dart';
 
 import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 配置项编辑器
 class ConfigItemEditor extends ConsumerStatefulWidget {
@@ -101,7 +102,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
           padding: const EdgeInsets.all(16),
           children: [
             // 配置名称
-            TextField(
+            ThemedInput(
               controller: _nameController,
               decoration: InputDecoration(
                 labelText: context.l10n.configEditor_configName,
@@ -386,7 +387,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        ThemedInput(
           controller: _contentsController,
           maxLines: 15,
           minLines: 5,

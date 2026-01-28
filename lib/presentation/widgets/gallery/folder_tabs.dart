@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/gallery/gallery_folder.dart';
 import '../../providers/gallery_folder_provider.dart';
 import '../common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 文件夹标签栏组件
 ///
@@ -89,7 +90,7 @@ class FolderTabs extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('创建文件夹'),
-        content: TextField(
+        content: ThemedInput(
           controller: controller,
           autofocus: true,
           decoration: const InputDecoration(
@@ -188,7 +189,7 @@ class FolderTabs extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('重命名文件夹'),
-        content: TextField(
+        content: ThemedInput(
           controller: controller,
           autofocus: true,
           decoration: const InputDecoration(

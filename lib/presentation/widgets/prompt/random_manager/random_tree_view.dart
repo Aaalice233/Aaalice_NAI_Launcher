@@ -5,6 +5,7 @@ import 'components/pro_context_menu.dart';
 import 'random_library_manager_state.dart';
 
 import '../../common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 RandomTreeNode? _clipboardNode;
 
 class RandomTreeView extends ConsumerWidget {
@@ -443,7 +444,7 @@ class _TreeNodeWidget extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename'),
-        content: TextField(
+        content: ThemedInput(
           controller: controller,
           autofocus: true,
           onSubmitted: (_) {

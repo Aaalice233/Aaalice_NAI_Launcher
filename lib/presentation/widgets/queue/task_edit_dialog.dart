@@ -5,7 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../autocomplete/autocomplete_controller.dart';
+import '../autocomplete/autocomplete_wrapper.dart';
 import '../common/inset_shadow_container.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 任务编辑对话框
 class TaskEditDialog extends ConsumerStatefulWidget {
@@ -20,9 +23,13 @@ class TaskEditDialog extends ConsumerStatefulWidget {
   ConsumerState<TaskEditDialog> createState() => _TaskEditDialogState();
 }
 
-class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
+class _TaskEditDialogState extends ConsumerState<TaskEditDialog>
+    with SingleTickerProviderStateMixin {
   late TextEditingController _promptController;
   late TextEditingController _negativePromptController;
+  late TabController _tabController;
+  late FocusNode _promptFocusNode;
+  late FocusNode _negativePromptFocusNode;
   bool _showParameters = false;
 
   @override
@@ -31,12 +38,18 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
     _promptController = TextEditingController(text: widget.task.prompt);
     _negativePromptController =
         TextEditingController(text: widget.task.negativePrompt);
+    _tabController = TabController(length: 2, vsync: this);
+    _promptFocusNode = FocusNode();
+    _negativePromptFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _promptController.dispose();
     _negativePromptController.dispose();
+    _tabController.dispose();
+    _promptFocusNode.dispose();
+    _negativePromptFocusNode.dispose();
     super.dispose();
   }
 
@@ -111,51 +124,8 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
 
                     const SizedBox(height: 16),
 
-                    // 正向提示词
-                    Text(
-                      l10n.queue_positivePrompt,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    InsetShadowContainer(
-                      borderRadius: 8,
-                      child: TextField(
-                        controller: _promptController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(12),
-                          hintText: l10n.queue_enterPositivePrompt,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // 负向提示词
-                    Text(
-                      l10n.queue_negativePrompt,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    InsetShadowContainer(
-                      borderRadius: 8,
-                      child: TextField(
-                        controller: _negativePromptController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(12),
-                          hintText: l10n.queue_enterNegativePrompt,
-                        ),
-                      ),
-                    ),
+                    // 提示词 Tab 切换
+                    _buildPromptTabs(context, theme, l10n),
 
                     const SizedBox(height: 16),
 
@@ -196,6 +166,111 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPromptTabs(BuildContext context, ThemeData theme, dynamic l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tab 标签
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicator: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelColor: theme.colorScheme.onPrimary,
+            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+            dividerColor: Colors.transparent,
+            tabs: [
+              Tab(text: l10n.queue_positivePrompt),
+              Tab(text: l10n.queue_negativePrompt),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Tab 内容
+        SizedBox(
+          height: 160,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // 正向提示词
+              AutocompleteWrapper(
+                controller: _promptController,
+                focusNode: _promptFocusNode,
+                config: const AutocompleteConfig(
+                  maxSuggestions: 15,
+                  showTranslation: true,
+                  showCategory: true,
+                  autoInsertComma: true,
+                ),
+                enableAutoFormat: true,
+                maxLines: 6,
+                expands: false,
+                contentPadding: const EdgeInsets.all(12),
+                child: InsetShadowContainer(
+                  borderRadius: 8,
+                  child: ThemedInput(
+                    controller: _promptController,
+                    maxLines: 6,
+                    minLines: 6,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(12),
+                      hintText: l10n.queue_enterPositivePrompt,
+                    ),
+                  ),
+                ),
+              ),
+              // 负向提示词
+              AutocompleteWrapper(
+                controller: _negativePromptController,
+                focusNode: _negativePromptFocusNode,
+                config: const AutocompleteConfig(
+                  maxSuggestions: 15,
+                  showTranslation: true,
+                  showCategory: true,
+                  autoInsertComma: true,
+                ),
+                enableAutoFormat: true,
+                maxLines: 6,
+                expands: false,
+                contentPadding: const EdgeInsets.all(12),
+                child: InsetShadowContainer(
+                  borderRadius: 8,
+                  child: ThemedInput(
+                    controller: _negativePromptController,
+                    maxLines: 6,
+                    minLines: 6,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(12),
+                      hintText: l10n.queue_enterNegativePrompt,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

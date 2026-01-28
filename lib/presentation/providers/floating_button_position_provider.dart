@@ -92,7 +92,7 @@ class FloatingButtonPositionNotifier extends _$FloatingButtonPositionNotifier {
   /// 拖拽结束，限制范围并保存位置
   Future<void> snapToEdgeAndSave(Size screenSize) async {
     // 限制 X 轴范围，不强制吸附到边缘
-    final minX = edgeMargin;
+    const minX = edgeMargin;
     final maxX = screenSize.width - ballSize - edgeMargin;
     final newX = state.x.clamp(minX, maxX);
 

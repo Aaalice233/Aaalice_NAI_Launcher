@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// specialized controller for syntax highlighting
 class SyntaxHighlightingTextEditingController extends TextEditingController {
@@ -188,7 +189,7 @@ class _SyntaxHighlightingEditorState extends State<SyntaxHighlightingEditor> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: TextField(
+            child: ThemedInput(
               controller: widget.controller,
               maxLines: widget.maxLines,
               onChanged: widget.onChanged,

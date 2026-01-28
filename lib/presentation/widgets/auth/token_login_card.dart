@@ -9,6 +9,7 @@ import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../common/app_toast.dart';
 import '../common/inset_shadow_container.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// Token 登录卡片组件
 class TokenLoginCard extends ConsumerStatefulWidget {
@@ -79,7 +80,7 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
               // 昵称输入框（必填）
               InsetShadowContainer(
                 borderRadius: 8,
-                child: TextFormField(
+                child: ThemedFormInput(
                   controller: _nicknameController,
                   decoration: InputDecoration(
                     labelText:
@@ -110,7 +111,7 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
               // Token 输入框
               InsetShadowContainer(
                 borderRadius: 8,
-                child: TextFormField(
+                child: ThemedFormInput(
                   controller: _tokenController,
                   decoration: InputDecoration(
                     labelText: 'API Token *',

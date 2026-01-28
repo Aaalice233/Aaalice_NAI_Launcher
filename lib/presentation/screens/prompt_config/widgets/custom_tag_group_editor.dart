@@ -8,6 +8,7 @@ import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/emoji_picker_dialog.dart';
 
 import '../../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 /// 自定义词组编辑器组件
 ///
 /// 用于创建和编辑自定义词组，包含：
@@ -163,7 +164,7 @@ class _CustomTagGroupEditorState extends ConsumerState<CustomTagGroupEditor> {
             const SizedBox(width: 10),
             // 名称输入框
             Expanded(
-              child: TextField(
+              child: ThemedInput(
                 controller: _nameController,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w500,

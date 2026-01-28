@@ -7,6 +7,7 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 图层面板
 class LayerPanel extends StatefulWidget {
@@ -382,7 +383,7 @@ class _LayerTileState extends State<_LayerTile>
                 // 图层名称
                 Expanded(
                   child: _isEditing
-                      ? TextField(
+                      ? ThemedInput(
                           controller: _nameController,
                           autofocus: true,
                           style: theme.textTheme.bodySmall,

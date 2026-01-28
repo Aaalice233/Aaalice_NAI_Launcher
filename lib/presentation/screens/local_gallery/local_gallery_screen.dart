@@ -486,11 +486,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       }
 
       if (Platform.isWindows) {
-        await Process.run('explorer', [rootPath]);
+        // 使用 Process.start 避免等待进程完成导致的延迟
+        await Process.start('explorer', [rootPath]);
       } else if (Platform.isMacOS) {
-        await Process.run('open', [rootPath]);
+        await Process.start('open', [rootPath]);
       } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [rootPath]);
+        await Process.start('xdg-open', [rootPath]);
       }
     } catch (e) {
       if (mounted) {

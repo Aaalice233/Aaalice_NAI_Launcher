@@ -1,0 +1,435 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/services/tag_data_service.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_prompt_formatter.dart';
+import '../../../core/utils/sd_to_nai_converter.dart';
+import '../../../data/models/tag/local_tag.dart';
+import '../../providers/locale_provider.dart';
+import '../common/app_toast.dart';
+import 'autocomplete_controller.dart';
+import 'autocomplete_overlay.dart';
+import 'autocomplete_utils.dart';
+
+/// 自动补全包装器
+/// 为任意输入组件提供自动补全功能
+///
+/// 使用示例：
+/// ```dart
+/// AutocompleteWrapper(
+///   controller: _controller,
+///   config: AutocompleteConfig(),
+///   child: ThemedInput(
+///     controller: _controller,
+///     hintText: '输入标签',
+///   ),
+/// )
+/// ```
+class AutocompleteWrapper extends ConsumerStatefulWidget {
+  /// 被包装的输入组件
+  final Widget child;
+
+  /// 文本控制器
+  final TextEditingController controller;
+
+  /// 焦点节点（可选，如果不提供则自动管理）
+  final FocusNode? focusNode;
+
+  /// 自动补全配置
+  final AutocompleteConfig config;
+
+  /// 是否启用自动补全
+  final bool enabled;
+
+  /// 是否启用自动格式化（失焦时自动格式化提示词）
+  final bool enableAutoFormat;
+
+  /// 是否启用 SD 语法自动转换（失焦时将 SD 权重语法转换为 NAI 格式）
+  final bool enableSdSyntaxAutoConvert;
+
+  /// 文本变化回调
+  final ValueChanged<String>? onChanged;
+
+  /// 文本样式（用于计算光标位置）
+  final TextStyle? textStyle;
+
+  /// 内边距（用于计算光标位置）
+  final EdgeInsetsGeometry? contentPadding;
+
+  /// 最大行数（用于判断是否为多行输入框）
+  final int? maxLines;
+
+  /// 是否扩展填满可用空间
+  final bool expands;
+
+  const AutocompleteWrapper({
+    super.key,
+    required this.child,
+    required this.controller,
+    this.focusNode,
+    this.config = const AutocompleteConfig(),
+    this.enabled = true,
+    this.enableAutoFormat = true,
+    this.enableSdSyntaxAutoConvert = false,
+    this.onChanged,
+    this.textStyle,
+    this.contentPadding,
+    this.maxLines,
+    this.expands = false,
+  });
+
+  @override
+  ConsumerState<AutocompleteWrapper> createState() =>
+      _AutocompleteWrapperState();
+}
+
+class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
+  late FocusNode _focusNode;
+  bool _ownsFocusNode = false;
+  AutocompleteController? _autocompleteController;
+  bool _controllerInitialized = false;
+
+  bool _showSuggestions = false;
+  int _selectedIndex = -1;
+  OverlayEntry? _overlayEntry;
+  final LayerLink _layerLink = LayerLink();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.focusNode != null) {
+      _focusNode = widget.focusNode!;
+    } else {
+      _focusNode = FocusNode();
+      _ownsFocusNode = true;
+    }
+    _focusNode.addListener(_onFocusChanged);
+    _focusNode.onKeyEvent = _handleKeyEvent;
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_controllerInitialized) {
+      _initAutocompleteController();
+      _controllerInitialized = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(AutocompleteWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onTextChanged);
+      widget.controller.addListener(_onTextChanged);
+    }
+    if (oldWidget.focusNode != widget.focusNode) {
+      _focusNode.removeListener(_onFocusChanged);
+      if (_ownsFocusNode) {
+        _focusNode.dispose();
+      }
+      if (widget.focusNode != null) {
+        _focusNode = widget.focusNode!;
+        _ownsFocusNode = false;
+      } else {
+        _focusNode = FocusNode();
+        _ownsFocusNode = true;
+      }
+      _focusNode.addListener(_onFocusChanged);
+      _focusNode.onKeyEvent = _handleKeyEvent;
+    }
+  }
+
+  void _initAutocompleteController() {
+    final tagDataService = ref.read(tagDataServiceProvider);
+    _autocompleteController = AutocompleteController(
+      tagDataService: tagDataService,
+      debounceDelay: widget.config.debounceDelay,
+      maxSuggestions: widget.config.maxSuggestions,
+      minQueryLength: widget.config.minQueryLength,
+    );
+    _autocompleteController!.addListener(_onSuggestionsChanged);
+  }
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    _focusNode.removeListener(_onFocusChanged);
+    widget.controller.removeListener(_onTextChanged);
+    _autocompleteController?.removeListener(_onSuggestionsChanged);
+    _autocompleteController?.dispose();
+    _scrollController.dispose();
+    if (_ownsFocusNode) {
+      _focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (!_focusNode.hasFocus) {
+      _hideSuggestions();
+      _formatOnBlur();
+    }
+  }
+
+  /// 失焦时格式化提示词
+  void _formatOnBlur() {
+    var text = widget.controller.text;
+    if (text.isEmpty) return;
+
+    var changed = false;
+    final messages = <String>[];
+
+    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
+    if (widget.enableSdSyntaxAutoConvert) {
+      final converted = SdToNaiConverter.convert(text);
+      if (converted != text) {
+        text = converted;
+        changed = true;
+        messages.add('SD→NAI');
+      }
+    }
+
+    // 自动格式化
+    if (widget.enableAutoFormat) {
+      final formatted = NaiPromptFormatter.format(text);
+      if (formatted != text) {
+        text = formatted;
+        changed = true;
+        if (!messages.contains('SD→NAI')) {
+          messages.add(context.l10n.prompt_formatted);
+        }
+      }
+    }
+
+    if (changed) {
+      widget.controller.text = text;
+      widget.onChanged?.call(text);
+      if (mounted && messages.isNotEmpty) {
+        AppToast.info(context, messages.join(' + '));
+      }
+    }
+  }
+
+  void _onTextChanged() {
+    if (!widget.enabled) return;
+
+    final text = widget.controller.text;
+    final cursorPosition = widget.controller.selection.baseOffset;
+
+    // 获取当前正在输入的标签
+    final currentTag = AutocompleteUtils.getCurrentTag(text, cursorPosition);
+
+    if (currentTag.isNotEmpty) {
+      _autocompleteController?.search(currentTag);
+    } else {
+      _autocompleteController?.clear();
+    }
+
+    widget.onChanged?.call(text);
+  }
+
+  void _onSuggestionsChanged() {
+    if (_autocompleteController?.hasSuggestions ?? false) {
+      _showSuggestionsOverlay();
+    } else if (!(_autocompleteController?.isLoading ?? false)) {
+      _hideSuggestions();
+    }
+    setState(() {});
+  }
+
+  void _showSuggestionsOverlay() {
+    if (_showSuggestions) {
+      _overlayEntry?.markNeedsBuild();
+      return;
+    }
+
+    setState(() {
+      _showSuggestions = true;
+      _selectedIndex = 0;
+    });
+
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideSuggestions() {
+    if (!_showSuggestions) return;
+
+    setState(() {
+      _showSuggestions = false;
+      _selectedIndex = -1;
+    });
+
+    _removeOverlay();
+    _autocompleteController?.clear();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final locale = ref.read(localeNotifierProvider);
+
+    return OverlayEntry(
+      builder: (context) {
+        // 对于多行文本框，使用光标位置；否则使用文本框底部
+        final isMultiline = widget.expands || (widget.maxLines ?? 1) > 1;
+        final cursorOffset = isMultiline
+            ? AutocompleteUtils.getCursorOffset(
+                context: this.context,
+                controller: widget.controller,
+                textStyle: widget.textStyle,
+                contentPadding: widget.contentPadding,
+                maxLines: widget.maxLines,
+                expands: widget.expands,
+              )
+            : null;
+
+        // 计算偏移量
+        final offset = isMultiline && cursorOffset != null
+            ? Offset(
+                cursorOffset.dx.clamp(0, size.width - 300),
+                cursorOffset.dy + 4,
+              )
+            : Offset(0, size.height + 4);
+
+        return Positioned(
+          width: size.width.clamp(280.0, 400.0),
+          child: CompositedTransformFollower(
+            link: _layerLink,
+            showWhenUnlinked: false,
+            offset: offset,
+            child: AutocompleteOverlay(
+              suggestions: _autocompleteController?.suggestions ?? [],
+              selectedIndex: _selectedIndex,
+              onSelect: _selectSuggestion,
+              config: widget.config,
+              isLoading: _autocompleteController?.isLoading ?? false,
+              scrollController: _scrollController,
+              languageCode: locale.languageCode,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _selectSuggestion(LocalTag suggestion) {
+    final text = widget.controller.text;
+    final cursorPosition = widget.controller.selection.baseOffset;
+
+    if (cursorPosition < 0 || cursorPosition > text.length) {
+      AppLogger.w(
+        'Invalid cursor position: $cursorPosition, text length: ${text.length}',
+        'AutocompleteWrapper',
+      );
+      return;
+    }
+
+    final (newText, newCursorPosition) = AutocompleteUtils.applySuggestion(
+      text: text,
+      cursorPosition: cursorPosition,
+      suggestion: suggestion,
+      config: widget.config,
+    );
+
+    widget.controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newCursorPosition),
+    );
+
+    _hideSuggestions();
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    // 补全菜单未显示时，不阻止任何键
+    if (!_showSuggestions) return KeyEventResult.ignored;
+
+    final suggestions = _autocompleteController?.suggestions ?? [];
+    // 没有建议时，不阻止任何键
+    if (suggestions.isEmpty) return KeyEventResult.ignored;
+
+    // 只处理 KeyDownEvent 和 KeyRepeatEvent（长按）
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        setState(() {
+          _selectedIndex = (_selectedIndex + 1) % suggestions.length;
+        });
+        _overlayEntry?.markNeedsBuild();
+        _scrollToSelected();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        setState(() {
+          _selectedIndex =
+              _selectedIndex <= 0 ? suggestions.length - 1 : _selectedIndex - 1;
+        });
+        _overlayEntry?.markNeedsBuild();
+        _scrollToSelected();
+        return KeyEventResult.handled;
+      } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+          event.logicalKey == LogicalKeyboardKey.tab) {
+        if (event is KeyDownEvent &&
+            _selectedIndex >= 0 &&
+            _selectedIndex < suggestions.length) {
+          _selectSuggestion(suggestions[_selectedIndex]);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+        if (event is KeyDownEvent) {
+          _hideSuggestions();
+        }
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _scrollToSelected() {
+    if (_selectedIndex < 0) return;
+
+    const itemHeight = 32.0;
+    final targetOffset = _selectedIndex * itemHeight;
+    final maxOffset = _scrollController.position.maxScrollExtent;
+
+    if (targetOffset < _scrollController.offset) {
+      _scrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+      );
+    } else if (targetOffset > _scrollController.offset + 200) {
+      _scrollController.animateTo(
+        (targetOffset - 200).clamp(0.0, maxOffset),
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 如果未启用自动补全，直接返回子组件
+    if (!widget.enabled) {
+      return widget.child;
+    }
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Focus(
+        focusNode: _focusNode,
+        child: widget.child,
+      ),
+    );
+  }
+}

@@ -9,6 +9,8 @@ import '../../../data/models/prompt/character_count_config.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 人数类别配置对话框
 ///
@@ -316,7 +318,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 60,
-                    child: TextFormField(
+                    child: ThemedFormInput(
                       initialValue: '${category.weight}',
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
@@ -443,7 +445,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           // 权重输入
           SizedBox(
             width: 70,
-            child: TextFormField(
+            child: ThemedFormInput(
               initialValue: '${option.weight}',
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
@@ -525,7 +527,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      ThemedInput(
                         controller: labelController,
                         decoration: InputDecoration(
                           labelText: l10n.characterCountConfig_displayName,
@@ -533,7 +535,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      ThemedInput(
                         controller: mainPromptController,
                         decoration: InputDecoration(
                           labelText: l10n.characterCountConfig_mainPromptLabel,
@@ -618,7 +620,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                         );
                       }),
                       const SizedBox(height: 12),
-                      TextField(
+                      ThemedInput(
                         controller: weightController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
@@ -701,7 +703,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: ThemedInput(
                             controller: controller,
                             decoration: InputDecoration(
                               hintText: l10n.characterCountConfig_addSlotHint,

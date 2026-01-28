@@ -6,6 +6,7 @@ import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
 import '../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 橡皮擦工具
 class EraserTool extends EditorTool {
@@ -209,7 +210,7 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
               ),
               SizedBox(
                 width: 50,
-                child: TextField(
+                child: ThemedInput(
                   controller: _sizeController,
                   style: theme.textTheme.bodySmall,
                   textAlign: TextAlign.center,

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../autocomplete/autocomplete_text_field.dart';
+import '../../autocomplete/autocomplete_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import 'unified_prompt_config.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 统一提示词输入组件
 ///
@@ -192,35 +193,41 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           ),
         );
 
-    if (widget.config.enableAutocomplete) {
-      return AutocompleteTextField(
-        controller: _effectiveController,
-        focusNode: _effectiveFocusNode,
-        decoration: effectiveDecoration,
-        maxLines: widget.expands ? null : widget.maxLines,
-        minLines: widget.expands ? null : widget.minLines,
-        expands: widget.expands,
-        onChanged: _handleTextChanged,
-        onSubmitted: widget.onSubmitted,
-        config: widget.config.autocompleteConfig,
-        enableAutocomplete: !widget.config.readOnly,
-        enableAutoFormat: widget.config.enableAutoFormat,
-        enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
-      );
-    }
-
-    // 不启用自动补全时，使用普通 TextField
-    return TextField(
+    // 构建基础 ThemedInput
+    // 注意：当启用自动补全时，不要将 focusNode 传给 ThemedInput，
+    // 因为 AutocompleteWrapper 会用 Focus 包装整个组件，
+    // 如果两者都使用同一个 focusNode，会导致 "Tried to make a child into a parent of itself" 错误
+    // 当禁用自动补全时，focusNode 需要传给 ThemedInput
+    final baseInput = ThemedInput(
       controller: _effectiveController,
-      focusNode: _effectiveFocusNode,
+      focusNode: widget.config.enableAutocomplete ? null : _effectiveFocusNode,
       decoration: effectiveDecoration,
       maxLines: widget.expands ? null : widget.maxLines,
-      minLines: widget.expands ? null : widget.minLines,
+      minLines: widget.expands ? 1 : (widget.minLines ?? 1),
       expands: widget.expands,
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,
-      onChanged: _handleTextChanged,
+      onChanged: widget.config.enableAutocomplete ? null : _handleTextChanged,
       onSubmitted: widget.onSubmitted,
     );
+
+    // 如果启用自动补全，使用 AutocompleteWrapper 包装
+    if (widget.config.enableAutocomplete) {
+      return AutocompleteWrapper(
+        controller: _effectiveController,
+        focusNode: _effectiveFocusNode,
+        config: widget.config.autocompleteConfig,
+        enabled: !widget.config.readOnly,
+        enableAutoFormat: widget.config.enableAutoFormat,
+        enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
+        onChanged: _handleTextChanged,
+        contentPadding: effectiveDecoration.contentPadding,
+        maxLines: widget.maxLines,
+        expands: widget.expands,
+        child: baseInput,
+      );
+    }
+
+    return baseInput;
   }
 }

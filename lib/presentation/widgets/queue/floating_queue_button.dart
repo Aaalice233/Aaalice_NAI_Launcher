@@ -401,7 +401,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
         return Transform.rotate(
           angle: _rotationAnimation.value,
           child: CustomPaint(
-            size: Size(_ballSize + 10, _ballSize + 10),
+            size: const Size(_ballSize + 10, _ballSize + 10),
             painter: _RotatingRingPainter(
               primaryColor: colors.primary,
               secondaryColor: colors.secondary,
@@ -415,9 +415,12 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
 
   /// 构建进度环
   Widget _buildProgressRing(
-      double progress, _StatusColors colors, double intensity) {
+    double progress,
+    _StatusColors colors,
+    double intensity,
+  ) {
     return CustomPaint(
-      size: Size(_ballSize + 4, _ballSize + 4),
+      size: const Size(_ballSize + 4, _ballSize + 4),
       painter: _ProgressRingPainter(
         progress: progress,
         progressColor: colors.primary,
@@ -939,7 +942,7 @@ class _RotatingRingPainter extends CustomPainter {
 
     const segments = 3;
     const gapAngle = math.pi / 5;
-    final arcLength = (2 * math.pi - segments * gapAngle) / segments;
+    const arcLength = (2 * math.pi - segments * gapAngle) / segments;
 
     for (int i = 0; i < segments; i++) {
       final startAngle = i * (arcLength + gapAngle);

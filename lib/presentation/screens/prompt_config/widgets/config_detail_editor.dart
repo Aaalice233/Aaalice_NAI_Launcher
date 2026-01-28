@@ -4,6 +4,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/prompt_config.dart' as pc;
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/themed_slider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 配置详情编辑器
 ///
@@ -109,7 +110,7 @@ class _ConfigDetailEditorState extends State<ConfigDetailEditor> {
           const SizedBox(height: 24),
 
           // 配置名称
-          TextField(
+          ThemedInput(
             controller: _nameController,
             decoration: InputDecoration(
               labelText: context.l10n.configEditor_configName,
@@ -306,7 +307,7 @@ class _ConfigDetailEditorState extends State<ConfigDetailEditor> {
             ],
           ),
           const SizedBox(height: 8),
-          TextField(
+          ThemedInput(
             controller: _contentsController,
             maxLines: 15,
             minLines: 8,

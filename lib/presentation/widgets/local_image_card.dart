@@ -502,7 +502,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
       }
 
       // 使用 explorer /select 打开文件管理器并选中文件
-      await Process.run('explorer', ['/select,"$filePath"']);
+      // 使用 Process.start 避免等待进程完成导致的延迟
+      await Process.start('explorer', ['/select,"$filePath"']);
 
       if (context.mounted) {
         AppToast.success(context, '已在文件管理器中打开');

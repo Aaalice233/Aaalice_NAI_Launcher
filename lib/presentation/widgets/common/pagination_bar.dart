@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Enhanced pagination bar with complete navigation features
 /// 增强分页栏，包含完整的导航功能
@@ -357,7 +358,7 @@ class _PaginationBarState extends State<PaginationBar> {
       return SizedBox(
         width: 60,
         height: 32,
-        child: TextField(
+        child: ThemedInput(
           controller: _controller,
           focusNode: _focusNode,
           keyboardType: TextInputType.number,

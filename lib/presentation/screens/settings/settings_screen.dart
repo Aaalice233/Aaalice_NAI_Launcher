@@ -23,6 +23,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerWidget {
@@ -637,7 +638,7 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
               // 数字输入框
               SizedBox(
                 width: 56,
-                child: TextField(
+                child: ThemedInput(
                   controller: _retryCountController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
@@ -751,7 +752,7 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
               // 数字输入框
               SizedBox(
                 width: 56,
-                child: TextField(
+                child: ThemedInput(
                   controller: _retryIntervalController,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -991,7 +992,7 @@ class _NetworkSettingsSectionState
                 children: [
                   Expanded(
                     flex: 3,
-                    child: TextField(
+                    child: ThemedInput(
                       controller: _hostController,
                       decoration: InputDecoration(
                         labelText: l10n.settings_proxyHost,
@@ -1005,7 +1006,7 @@ class _NetworkSettingsSectionState
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 1,
-                    child: TextField(
+                    child: ThemedInput(
                       controller: _portController,
                       decoration: InputDecoration(
                         labelText: l10n.settings_proxyPort,

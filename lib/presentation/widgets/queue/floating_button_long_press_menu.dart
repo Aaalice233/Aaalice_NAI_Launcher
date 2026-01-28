@@ -205,7 +205,8 @@ class FloatingButtonLongPressMenu extends ConsumerWidget {
         isPaused ? Icons.play_arrow : Icons.pause,
       ),
       title: Text(
-          isPaused ? l10n.queue_resumeExecution : l10n.queue_pauseExecution),
+        isPaused ? l10n.queue_resumeExecution : l10n.queue_pauseExecution,
+      ),
       enabled: canToggle,
       onTap: () {
         if (isPaused) {

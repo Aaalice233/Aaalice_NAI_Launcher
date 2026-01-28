@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/time_condition.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 时间条件面板
 ///
@@ -303,7 +304,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     return Card(
       child: Column(
         children: [
-          TextFormField(
+          ThemedFormInput(
             initialValue: _condition.name,
             decoration: const InputDecoration(
               labelText: '条件名称',

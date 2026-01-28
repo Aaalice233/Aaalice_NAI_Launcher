@@ -6,3 +6,5 @@ export 'autocomplete_controller.dart';
 export 'autocomplete_overlay.dart';
 export 'autocomplete_suggestion_tile.dart';
 export 'autocomplete_text_field.dart';
+export 'autocomplete_utils.dart';
+export 'autocomplete_wrapper.dart';

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 通用输入对话框
 ///
@@ -152,7 +153,7 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
       ),
       content: SizedBox(
         width: widget.multiline ? 400 : 280,
-        child: TextField(
+        child: ThemedInput(
           controller: _controller,
           autofocus: true,
           maxLines: widget.multiline ? widget.maxLines : 1,

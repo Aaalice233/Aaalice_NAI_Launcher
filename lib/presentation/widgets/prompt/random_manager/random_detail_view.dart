@@ -9,6 +9,9 @@ import 'inspector_section.dart';
 import 'property_field.dart';
 import 'random_library_manager_state.dart';
 import 'variable_insertion_widget.dart';
+import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_controller.dart';
+import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 class RandomDetailView extends ConsumerWidget {
   const RandomDetailView({super.key});
@@ -369,7 +372,7 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                   flex: 3,
                   child: PropertyField(
                     label: 'Name',
-                    child: TextField(
+                    child: ThemedInput(
                       controller: _nameController,
                       style: theme.textTheme.bodyLarge,
                       decoration: const InputDecoration(
@@ -388,7 +391,7 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
                   flex: 1,
                   child: PropertyField(
                     label: 'Emoji',
-                    child: TextField(
+                    child: ThemedInput(
                       controller: _emojiController,
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(
@@ -407,7 +410,7 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
             const SizedBox(height: 12),
             PropertyField(
               label: 'Key ID',
-              child: TextField(
+              child: ThemedInput(
                 controller: _keyController,
                 style: const TextStyle(fontFamily: 'monospace'),
                 decoration: InputDecoration(
@@ -508,6 +511,7 @@ class _TagGroupEditorPanel extends ConsumerStatefulWidget {
 class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
   late final TextEditingController _nameController;
   late final TextEditingController _sourceIdController;
+  final FocusNode _sourceIdFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -538,6 +542,7 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
   void dispose() {
     _nameController.dispose();
     _sourceIdController.dispose();
+    _sourceIdFocusNode.dispose();
     super.dispose();
   }
 
@@ -575,7 +580,7 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
           children: [
             PropertyField(
               label: 'Name',
-              child: TextField(
+              child: ThemedInput(
                 controller: _nameController,
                 style: theme.textTheme.bodyLarge,
                 decoration: const InputDecoration(
@@ -621,24 +626,37 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
             if (isCustom)
               SizedBox(
                 height: 150,
-                child: TextField(
+                child: AutocompleteWrapper(
                   controller: _sourceIdController,
+                  focusNode: _sourceIdFocusNode,
+                  config: const AutocompleteConfig(
+                    maxSuggestions: 10,
+                    showTranslation: true,
+                    showCategory: true,
+                    autoInsertComma: false,
+                  ),
+                  enableAutoFormat: false,
                   maxLines: null,
                   expands: true,
-                  style: theme.textTheme.bodyMedium,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter tags here (one per line)',
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onChanged: (value) => _updateTagGroup(
-                    (t) => t.copyWith(
-                      tags: value
-                          .split('\n')
-                          .where((line) => line.trim().isNotEmpty)
-                          .map((line) => WeightedTag.simple(line.trim(), 1))
-                          .toList(),
+                  child: ThemedInput(
+                    controller: _sourceIdController,
+                    maxLines: null,
+                    expands: true,
+                    style: theme.textTheme.bodyMedium,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter tags here (one per line)',
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (value) => _updateTagGroup(
+                      (t) => t.copyWith(
+                        tags: value
+                            .split('\n')
+                            .where((line) => line.trim().isNotEmpty)
+                            .map((line) => WeightedTag.simple(line.trim(), 1))
+                            .toList(),
+                      ),
                     ),
                   ),
                 ),
@@ -646,7 +664,7 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
             else
               PropertyField(
                 label: 'ID',
-                child: TextField(
+                child: ThemedInput(
                   controller: _sourceIdController,
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(fontFamily: 'monospace'),

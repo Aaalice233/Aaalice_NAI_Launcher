@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 class CommandItem {
   final String id;
@@ -256,7 +257,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextField(
+                          child: ThemedInput(
                             controller: _searchController,
                             focusNode: _focusNode,
                             decoration: InputDecoration(

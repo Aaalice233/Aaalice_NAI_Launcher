@@ -8,6 +8,7 @@ import '../common/themed_switch.dart';
 import '../prompt/toolbar/toolbar.dart';
 import '../prompt/unified/unified.dart';
 import 'position_grid_selector.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 角色详情编辑面板组件
 ///
@@ -260,7 +261,7 @@ class _NameRow extends StatelessWidget {
             const SizedBox(width: 12),
             // 名称输入
             Expanded(
-              child: TextField(
+              child: ThemedInput(
                 controller: nameController,
                 onChanged: onNameChanged,
                 maxLength: 50,

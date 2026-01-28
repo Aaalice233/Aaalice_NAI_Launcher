@@ -10,6 +10,7 @@ import 'config_item_editor.dart';
 import 'import_nai_category_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 预设编辑页面
 class PresetEditScreen extends ConsumerStatefulWidget {
@@ -82,7 +83,7 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
             // 预设名称
             Padding(
               padding: const EdgeInsets.all(16),
-              child: TextField(
+              child: ThemedInput(
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: context.l10n.presetEdit_presetName,

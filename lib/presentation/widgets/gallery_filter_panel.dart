@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Gallery Filter Panel Widget - Modern UI Design
 /// 画廊筛选面板组件 - 现代化UI设计
@@ -533,7 +534,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
           color: colorScheme.outline.withOpacity(isDark ? 0.2 : 0.1),
         ),
       ),
-      child: TextField(
+      child: ThemedInput(
         controller: controller,
         style: theme.textTheme.bodyMedium?.copyWith(
           color: colorScheme.onSurface,
@@ -636,7 +637,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
           color: colorScheme.outline.withOpacity(isDark ? 0.2 : 0.1),
         ),
       ),
-      child: TextField(
+      child: ThemedInput(
         controller: controller,
         textAlign: TextAlign.center,
         keyboardType: isNumber

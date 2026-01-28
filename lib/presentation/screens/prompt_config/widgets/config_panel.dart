@@ -4,6 +4,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/prompt_config.dart' as pc;
 import '../../../widgets/common/themed_divider.dart';
 import 'config_list_item.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 配置组面板组件
 class ConfigPanel extends StatelessWidget {
@@ -123,7 +124,7 @@ class ConfigPanel extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: TextField(
+      child: ThemedInput(
         controller: presetNameController,
         decoration: InputDecoration(
           labelText: l10n.preset_presetName,

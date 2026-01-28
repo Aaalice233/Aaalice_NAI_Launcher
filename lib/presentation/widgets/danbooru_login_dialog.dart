@@ -6,6 +6,7 @@ import '../../core/utils/localization_extension.dart';
 import '../../data/services/danbooru_auth_service.dart';
 
 import 'common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 /// Danbooru 登录对话框
 class DanbooruLoginDialog extends ConsumerStatefulWidget {
   const DanbooruLoginDialog({super.key});
@@ -83,7 +84,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
               const SizedBox(height: 24),
 
               // 用户名输入
-              TextFormField(
+              ThemedFormInput(
                 controller: _usernameController,
                 decoration: InputDecoration(
                   labelText: context.l10n.danbooru_username,
@@ -100,7 +101,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
               const SizedBox(height: 16),
 
               // API Key 输入
-              TextFormField(
+              ThemedFormInput(
                 controller: _apiKeyController,
                 obscureText: _obscureApiKey,
                 decoration: InputDecoration(

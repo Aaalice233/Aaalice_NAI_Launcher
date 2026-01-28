@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 画廊分类树视图
 ///
@@ -515,7 +516,7 @@ class _CategoryItemState extends State<_CategoryItem> {
                   // 名称
                   Expanded(
                     child: _isEditing
-                        ? TextField(
+                        ? ThemedInput(
                             controller: _editController,
                             autofocus: true,
                             style: const TextStyle(fontSize: 13),

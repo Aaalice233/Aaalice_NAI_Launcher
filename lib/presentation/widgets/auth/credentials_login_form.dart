@@ -8,6 +8,7 @@ import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../common/inset_shadow_container.dart';
 import '../common/themed_checkbox.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 邮箱密码登录表单
 class CredentialsLoginForm extends ConsumerStatefulWidget {
@@ -56,7 +57,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           // 邮箱输入
           InsetShadowContainer(
             borderRadius: 12,
-            child: TextFormField(
+            child: ThemedFormInput(
               controller: emailController,
               decoration: InputDecoration(
                 labelText: context.l10n.auth_email,
@@ -90,7 +91,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           // 密码输入
           InsetShadowContainer(
             borderRadius: 12,
-            child: TextFormField(
+            child: ThemedFormInput(
               controller: passwordController,
               obscureText: obscurePassword,
               decoration: InputDecoration(

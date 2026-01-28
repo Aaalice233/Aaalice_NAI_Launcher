@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/post_process_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 后处理规则面板
 ///
@@ -242,7 +243,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
               ],
             ),
             const ThemedDivider(),
-            TextFormField(
+            ThemedFormInput(
               initialValue: rule.name,
               decoration: const InputDecoration(labelText: '规则名称'),
               readOnly: widget.readOnly,
@@ -272,7 +273,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                     },
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            ThemedFormInput(
               initialValue: rule.triggerTags.join(', '),
               decoration: const InputDecoration(
                 labelText: '触发标签',
@@ -291,7 +292,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
             ),
             const SizedBox(height: 16),
             if (rule.action == PostProcessAction.removeCategory)
-              TextFormField(
+              ThemedFormInput(
                 initialValue: rule.targetCategoryIds.join(', '),
                 decoration: const InputDecoration(
                   labelText: '目标类别',
@@ -309,7 +310,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 },
               )
             else
-              TextFormField(
+              ThemedFormInput(
                 initialValue: rule.targetTags.join(', '),
                 decoration: const InputDecoration(
                   labelText: '目标标签',

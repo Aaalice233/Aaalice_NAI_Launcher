@@ -77,6 +77,28 @@ class ThemedInput extends StatelessWidget {
   /// 是否自动获取焦点
   final bool autofocus;
 
+  /// 点击回调
+  final GestureTapCallback? onTap;
+
+  /// 编辑完成回调
+  final VoidCallback? onEditingComplete;
+
+  /// 文本对齐方式
+  final TextAlign textAlign;
+
+  /// 垂直对齐方式
+  final TextAlignVertical? textAlignVertical;
+
+  /// 光标颜色
+  final Color? cursorColor;
+
+  /// 点击输入框外部时的回调
+  final TapRegionCallback? onTapOutside;
+
+  /// 额外的 InputDecoration（会与默认配置合并）
+  /// 用于兼容需要额外装饰属性的场景
+  final InputDecoration? decoration;
+
   const ThemedInput({
     super.key,
     this.controller,
@@ -105,6 +127,13 @@ class ThemedInput extends StatelessWidget {
     this.style,
     this.hintStyle,
     this.autofocus = false,
+    this.onTap,
+    this.onEditingComplete,
+    this.textAlign = TextAlign.start,
+    this.textAlignVertical,
+    this.cursorColor,
+    this.onTapOutside,
+    this.decoration,
   });
 
   /// 创建多行输入框
@@ -133,11 +162,58 @@ class ThemedInput extends StatelessWidget {
     this.style,
     this.hintStyle,
     this.autofocus = false,
+    this.onTap,
+    this.onEditingComplete,
+    this.textAlign = TextAlign.start,
+    this.textAlignVertical,
+    this.cursorColor,
+    this.onTapOutside,
+    this.decoration,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // 构建基础 InputDecoration
+    var inputDecoration = InputDecoration(
+      hintText: hintText,
+      hintStyle: hintStyle,
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+      contentPadding: contentPadding,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      isDense: true,
+      counterText: '', // 隐藏字符计数
+    );
+
+    // 如果提供了额外的 decoration，合并属性
+    if (decoration != null) {
+      inputDecoration = inputDecoration.copyWith(
+        labelText: decoration!.labelText,
+        labelStyle: decoration!.labelStyle,
+        floatingLabelStyle: decoration!.floatingLabelStyle,
+        helperText: decoration!.helperText,
+        helperStyle: decoration!.helperStyle,
+        errorText: decoration!.errorText,
+        errorStyle: decoration!.errorStyle,
+        prefix: decoration!.prefix,
+        prefixText: decoration!.prefixText,
+        prefixStyle: decoration!.prefixStyle,
+        suffix: decoration!.suffix,
+        suffixText: decoration!.suffixText,
+        suffixStyle: decoration!.suffixStyle,
+        counter: decoration!.counter,
+        counterStyle: decoration!.counterStyle,
+        filled: decoration!.filled,
+        fillColor: decoration!.fillColor,
+      );
+    }
 
     final textField = TextField(
       controller: controller,
@@ -149,6 +225,9 @@ class ThemedInput extends StatelessWidget {
       keyboardType: keyboardType,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
+      onTap: onTap,
+      onEditingComplete: onEditingComplete,
+      onTapOutside: onTapOutside,
       readOnly: readOnly,
       enabled: enabled,
       inputFormatters: inputFormatters,
@@ -156,21 +235,10 @@ class ThemedInput extends StatelessWidget {
       maxLength: maxLength,
       style: style,
       autofocus: autofocus,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: hintStyle,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        disabledBorder: InputBorder.none,
-        errorBorder: InputBorder.none,
-        focusedErrorBorder: InputBorder.none,
-        contentPadding: contentPadding,
-        prefixIcon: prefixIcon,
-        suffixIcon: suffixIcon,
-        isDense: true,
-        counterText: '', // 隐藏字符计数
-      ),
+      textAlign: textAlign,
+      textAlignVertical: textAlignVertical,
+      cursorColor: cursorColor,
+      decoration: inputDecoration,
     );
 
     final container = InsetShadowContainer(

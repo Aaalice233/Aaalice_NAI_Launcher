@@ -13,6 +13,7 @@ import '../../../widgets/common/emoji_picker_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 
 import '../../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 /// 自定义词组搜索结果类型
 enum CustomGroupType {
   tagGroup,
@@ -291,7 +292,7 @@ class _CustomGroupSearchDialogState
                 ],
 
                 // 搜索框
-                TextField(
+                ThemedInput(
                   controller: _searchController,
                   decoration: InputDecoration(
                     labelText: l10n.customGroup_searchHint,
@@ -351,7 +352,7 @@ class _CustomGroupSearchDialogState
                       const SizedBox(width: 12),
                       // 名称输入
                       Expanded(
-                        child: TextField(
+                        child: ThemedInput(
                           controller: _nameController,
                           decoration: InputDecoration(
                             labelText: l10n.customGroup_nameLabel,

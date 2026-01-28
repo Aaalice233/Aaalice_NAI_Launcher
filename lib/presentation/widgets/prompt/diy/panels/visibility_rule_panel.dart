@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/visibility_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 可见性规则面板
 ///
@@ -205,7 +206,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
               ],
             ),
             const ThemedDivider(),
-            TextFormField(
+            ThemedFormInput(
               initialValue: rule.name,
               decoration: const InputDecoration(labelText: '规则名称'),
               readOnly: widget.readOnly,
@@ -251,7 +252,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                     },
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            ThemedFormInput(
               initialValue: rule.conditionValue,
               decoration: const InputDecoration(
                 labelText: '条件值',
@@ -317,7 +318,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
       );
     }
 
-    return TextFormField(
+    return ThemedFormInput(
       initialValue: value,
       decoration: InputDecoration(
         labelText: label,

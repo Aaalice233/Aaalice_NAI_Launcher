@@ -5,6 +5,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../common/themed_switch.dart';
 import '../tag_chip.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 权重调节对话框（移动端使用）
 class WeightAdjustDialog extends StatefulWidget {
@@ -400,7 +401,7 @@ class _TagEditDialogState extends State<TagEditDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(context.l10n.weight_editTag),
-      content: TextField(
+      content: ThemedInput(
         controller: _controller,
         autofocus: true,
         decoration: InputDecoration(

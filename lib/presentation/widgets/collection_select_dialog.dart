@@ -6,6 +6,7 @@ import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/image_collection.dart';
 import '../providers/collection_provider.dart';
 import 'common/inset_shadow_container.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 集合选择结果
 class CollectionSelectResult {
@@ -122,7 +123,7 @@ class _CollectionSelectDialogState
             // 搜索框
             InsetShadowContainer(
               borderRadius: 8,
-              child: TextField(
+              child: ThemedInput(
                 controller: _filterController,
                 decoration: InputDecoration(
                   hintText: l10n.collectionSelect_filterHint,

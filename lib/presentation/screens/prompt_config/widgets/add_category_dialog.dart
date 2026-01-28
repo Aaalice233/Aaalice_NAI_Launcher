@@ -4,6 +4,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/emoji_picker_dialog.dart';
 import '../../../widgets/common/inset_shadow_container.dart';
 import '../../../widgets/common/themed_slider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 新增类别对话框的返回结果
 class AddCategoryResult {
@@ -173,7 +174,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                   Expanded(
                     child: InsetShadowContainer(
                       borderRadius: 8,
-                      child: TextFormField(
+                      child: ThemedFormInput(
                         controller: _nameController,
                         autofocus: true,
                         decoration: InputDecoration(

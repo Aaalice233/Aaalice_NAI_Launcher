@@ -13,6 +13,7 @@ import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../widgets/common/inset_shadow_container.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 添加分组类型
 enum AddGroupType {
@@ -554,7 +555,7 @@ class _AddGroupDialogState extends ConsumerState<AddGroupDialog>
             // 搜索框
             InsetShadowContainer(
               borderRadius: 8,
-              child: TextField(
+              child: ThemedInput(
                 controller: _filterController,
                 decoration: InputDecoration(
                   hintText: l10n.addGroup_filterHint,

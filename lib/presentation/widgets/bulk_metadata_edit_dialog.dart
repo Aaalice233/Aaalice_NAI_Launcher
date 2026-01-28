@@ -9,6 +9,9 @@ import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
 import '../widgets/common/themed_divider.dart';
 import '../widgets/common/app_toast.dart';
+import '../widgets/autocomplete/autocomplete_controller.dart';
+import '../widgets/autocomplete/autocomplete_wrapper.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Bulk Metadata Edit Dialog Widget
 /// 批量元数据编辑对话框组件
@@ -404,28 +407,38 @@ class _BulkMetadataEditDialogState
                 color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.1),
               ),
             ),
-            child: TextField(
+            child: AutocompleteWrapper(
               controller: controller,
               focusNode: focusNode,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
+              config: const AutocompleteConfig(
+                maxSuggestions: 10,
+                showTranslation: true,
+                showCategory: true,
+                autoInsertComma: false,
               ),
-              decoration: InputDecoration(
-                hintText: hintText,
-                hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(
-                    isDark ? 0.6 : 0.5,
+              enableAutoFormat: false,
+              child: ThemedInput(
+                controller: controller,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                      isDark ? 0.6 : 0.5,
+                    ),
+                    fontSize: 13,
                   ),
-                  fontSize: 13,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  isDense: true,
                 ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                isDense: true,
+                onSubmitted: (_) => onAdd(),
               ),
-              onSubmitted: (_) => onAdd(),
             ),
           ),
         ),

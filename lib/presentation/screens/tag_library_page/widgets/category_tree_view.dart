@@ -7,6 +7,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 分类树视图
 class CategoryTreeView extends StatefulWidget {
@@ -547,7 +548,7 @@ class _CategoryItemState extends State<_CategoryItem> {
                   // 名称
                   Expanded(
                     child: _isEditing
-                        ? TextField(
+                        ? ThemedInput(
                             controller: _editController,
                             autofocus: true,
                             style: const TextStyle(fontSize: 13),

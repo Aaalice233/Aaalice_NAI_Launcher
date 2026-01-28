@@ -12,6 +12,7 @@ import '../../providers/tag_favorite_provider.dart';
 import '../common/themed_container.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 标签收藏面板
 ///
@@ -258,7 +259,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
   Widget _buildSearchBar(BuildContext context) {
     final theme = Theme.of(context);
 
-    return TextField(
+    return ThemedInput(
       controller: _searchController,
       focusNode: _searchFocusNode,
       decoration: InputDecoration(

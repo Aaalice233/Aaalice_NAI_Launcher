@@ -22,6 +22,7 @@ import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -296,7 +297,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   Widget _buildPageInput(ThemeData theme, OnlineGalleryState state) {
     return SizedBox(
       width: 80,
-      child: TextField(
+      child: ThemedInput(
         controller: _pageController,
         focusNode: _pageFocusNode,
         keyboardType: TextInputType.number,
@@ -481,7 +482,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: TextField(
+      child: ThemedInput(
         controller: _searchController,
         style: theme.textTheme.bodyMedium,
         decoration: InputDecoration(

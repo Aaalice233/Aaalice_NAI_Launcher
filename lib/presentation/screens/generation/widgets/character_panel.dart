@@ -6,6 +6,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/themed_slider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 多角色面板组件 (仅 V4 模型支持)
 class CharacterPanel extends ConsumerStatefulWidget {
@@ -291,7 +292,7 @@ class _CharacterItemState extends State<_CharacterItem> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 角色提示词
-                TextField(
+                ThemedInput(
                   controller: _promptController,
                   decoration: InputDecoration(
                     labelText: context.l10n.character_description,
@@ -329,7 +330,7 @@ class _CharacterItemState extends State<_CharacterItem> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // 角色负向提示词
-                        TextField(
+                        ThemedInput(
                           controller: _negativeController,
                           decoration: InputDecoration(
                             labelText: context.l10n.character_negativeOptional,

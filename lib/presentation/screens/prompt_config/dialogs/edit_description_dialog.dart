@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 编辑预设描述对话框
 class EditDescriptionDialog extends StatefulWidget {
@@ -49,7 +50,7 @@ class _EditDescriptionDialogState extends State<EditDescriptionDialog> {
 
     return AlertDialog(
       title: const Text('编辑描述'),
-      content: TextField(
+      content: ThemedInput(
         controller: _controller,
         autofocus: true,
         decoration: const InputDecoration(

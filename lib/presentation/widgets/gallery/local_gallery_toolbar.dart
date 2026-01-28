@@ -12,6 +12,7 @@ import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
 
 import '../common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Local gallery toolbar with search, filter and actions
 /// 本地画廊工具栏（搜索、过滤、操作按钮）
@@ -671,7 +672,7 @@ class _ModernSearchFieldState extends State<_ModernSearchField>
             ),
             // Text field
             Expanded(
-              child: TextField(
+              child: ThemedInput(
                 controller: widget.controller,
                 focusNode: _focusNode,
                 style: theme.textTheme.bodyMedium?.copyWith(

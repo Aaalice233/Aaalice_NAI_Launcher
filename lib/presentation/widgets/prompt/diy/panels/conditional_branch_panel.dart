@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/models/prompt/conditional_branch.dart';
 import '../../../common/themed_slider.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 条件分支配置面板
 ///
@@ -291,7 +292,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               ],
             ),
             const ThemedDivider(),
-            TextFormField(
+            ThemedFormInput(
               initialValue: branch.name,
               decoration: const InputDecoration(labelText: '分支名称'),
               readOnly: widget.readOnly,

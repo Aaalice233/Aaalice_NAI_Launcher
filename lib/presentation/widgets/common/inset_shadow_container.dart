@@ -43,6 +43,9 @@ class InsetShadowContainer extends StatelessWidget {
   /// 内边距
   final EdgeInsetsGeometry? padding;
 
+  /// 是否处于错误状态
+  final bool hasError;
+
   const InsetShadowContainer({
     super.key,
     required this.child,
@@ -54,6 +57,7 @@ class InsetShadowContainer extends StatelessWidget {
     this.borderColor,
     this.borderWidth = 1.0,
     this.padding,
+    this.hasError = false,
   });
 
   @override
@@ -73,8 +77,10 @@ class InsetShadowContainer extends StatelessWidget {
             ? Color.lerp(theme.colorScheme.surface, Colors.black, 0.3)!
             : Color.lerp(theme.colorScheme.surface, Colors.black, 0.02)!);
 
-    // 边框色
-    final border = borderColor ?? theme.colorScheme.outline.withOpacity(0.2);
+    // 边框色 - 错误状态用红色
+    final border = hasError
+        ? theme.colorScheme.error
+        : (borderColor ?? theme.colorScheme.outline.withOpacity(0.2));
 
     // 如果禁用内阴影，直接返回简单容器
     if (!isEnabled) {

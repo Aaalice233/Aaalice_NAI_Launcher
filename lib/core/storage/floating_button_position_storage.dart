@@ -61,10 +61,14 @@ class FloatingButtonPositionStorage {
       return FloatingButtonPositionData(
         x: box.get(StorageKeys.floatingButtonX, defaultValue: 0.0) as double,
         y: box.get(StorageKeys.floatingButtonY, defaultValue: 0.0) as double,
-        isFirstLaunch: box.get(StorageKeys.floatingButtonFirstLaunch,
-            defaultValue: true) as bool,
-        isExpanded: box.get(StorageKeys.floatingButtonExpanded,
-            defaultValue: false) as bool,
+        isFirstLaunch: box.get(
+          StorageKeys.floatingButtonFirstLaunch,
+          defaultValue: true,
+        ) as bool,
+        isExpanded: box.get(
+          StorageKeys.floatingButtonExpanded,
+          defaultValue: false,
+        ) as bool,
       );
     } catch (e) {
       return const FloatingButtonPositionData();

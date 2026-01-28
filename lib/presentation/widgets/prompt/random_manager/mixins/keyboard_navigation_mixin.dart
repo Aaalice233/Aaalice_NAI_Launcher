@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import '../../../../../../data/models/prompt/random_category.dart';
 // import '../../../../../../data/models/prompt/random_tag_group.dart';
 import '../random_library_manager_state.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Mixin to handle keyboard navigation for the Random Library Tree
 mixin KeyboardNavigationMixin on Widget {
@@ -221,7 +222,7 @@ mixin KeyboardNavigationMixin on Widget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename'),
-        content: TextField(
+        content: ThemedInput(
           controller: controller,
           autofocus: true,
           decoration: const InputDecoration(
