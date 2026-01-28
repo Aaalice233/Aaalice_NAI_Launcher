@@ -24,16 +24,16 @@ class NAILauncherApp extends ConsumerWidget {
       title: 'NAI Launcher',
       debugShowCheckedModeBanner: false,
 
-      // 主题 (空字符串表示使用系统默认字体)
+      // 主题 (fontFamily 为空时使用主题原生字体)
       theme: AppTheme.getTheme(
         themeType,
         Brightness.light,
-        fontFamily: fontType.fontFamily.isEmpty ? null : fontType.fontFamily,
+        fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
       ),
       darkTheme: AppTheme.getTheme(
         themeType,
         Brightness.dark,
-        fontFamily: fontType.fontFamily.isEmpty ? null : fontType.fontFamily,
+        fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
       ),
       themeMode: ThemeMode.dark, // 默认深色模式
 

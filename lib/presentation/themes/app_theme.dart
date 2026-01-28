@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../providers/font_provider.dart';
 
 // Import all 16 theme presets
 import 'presets/bold_retro_theme.dart';
@@ -161,15 +164,15 @@ class AppTheme {
 
   /// 获取指定风格的主题
   ///
-  /// [fontFamily] 为空字符串或 null 时，保留主题原生字体；
+  /// [fontConfig] 为 null 或系统默认时，保留主题原生字体；
   /// 有值时用用户选择覆盖主题字体。
   static ThemeData getTheme(
     AppStyle style,
     Brightness brightness, {
-    String? fontFamily,
+    FontConfig? fontConfig,
   }) {
-    // 判断是否使用主题原生字体：fontFamily 为 null 或空字符串时保留主题字体
-    final useThemeFont = fontFamily == null || fontFamily.isEmpty;
+    // 判断是否使用主题原生字体
+    final useThemeFont = fontConfig == null || fontConfig.fontFamily.isEmpty;
 
     // 获取基础主题
     final ThemeData baseTheme = switch (style) {
@@ -221,31 +224,94 @@ class AppTheme {
 
     // 如果使用主题原生字体，直接返回，只添加统一的 Tooltip 样式
     // 如果用户选择了字体，则覆盖 textTheme
+    if (useThemeFont) {
+      return baseTheme.copyWith(
+        tooltipTheme: _buildTooltipTheme(baseTheme, null),
+      );
+    }
+
+    // 根据字体来源选择不同的应用方式
+    final TextTheme textTheme;
+    final TextTheme primaryTextTheme;
+    final String? tooltipFontFamily;
+
+    if (fontConfig!.source == FontSource.google) {
+      // Google Fonts 需要通过 GoogleFonts.getFont() 创建 TextStyle
+      // 这样才能正确使用已下载的字体文件
+      try {
+        textTheme =
+            _applyGoogleFont(baseTheme.textTheme, fontConfig.fontFamily);
+        primaryTextTheme =
+            _applyGoogleFont(baseTheme.primaryTextTheme, fontConfig.fontFamily);
+        // Google Fonts 的 fontFamily 可直接用于 tooltip
+        tooltipFontFamily =
+            GoogleFonts.getFont(fontConfig.fontFamily).fontFamily;
+      } catch (e) {
+        // 字体名称无效（可能是旧格式），回退到主题默认字体
+        return baseTheme.copyWith(
+          tooltipTheme: _buildTooltipTheme(baseTheme, null),
+        );
+      }
+    } else {
+      // 系统字体直接使用 apply
+      textTheme = baseTheme.textTheme.apply(fontFamily: fontConfig.fontFamily);
+      primaryTextTheme =
+          baseTheme.primaryTextTheme.apply(fontFamily: fontConfig.fontFamily);
+      tooltipFontFamily = fontConfig.fontFamily;
+    }
+
     return baseTheme.copyWith(
-      textTheme: useThemeFont
-          ? baseTheme.textTheme
-          : baseTheme.textTheme.apply(fontFamily: fontFamily),
-      primaryTextTheme: useThemeFont
-          ? baseTheme.primaryTextTheme
-          : baseTheme.primaryTextTheme.apply(fontFamily: fontFamily),
-      // 统一的紧凑 Tooltip 样式
-      tooltipTheme: TooltipThemeData(
-        decoration: BoxDecoration(
-          color: baseTheme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: baseTheme.dividerColor,
-            width: 1,
-          ),
+      textTheme: textTheme,
+      primaryTextTheme: primaryTextTheme,
+      tooltipTheme: _buildTooltipTheme(baseTheme, tooltipFontFamily),
+    );
+  }
+
+  /// 使用 Google Font 应用到 TextTheme
+  static TextTheme _applyGoogleFont(TextTheme base, String fontName) {
+    final googleStyle = GoogleFonts.getFont(fontName);
+    final fontFamily = googleStyle.fontFamily;
+
+    return base.copyWith(
+      displayLarge: base.displayLarge?.copyWith(fontFamily: fontFamily),
+      displayMedium: base.displayMedium?.copyWith(fontFamily: fontFamily),
+      displaySmall: base.displaySmall?.copyWith(fontFamily: fontFamily),
+      headlineLarge: base.headlineLarge?.copyWith(fontFamily: fontFamily),
+      headlineMedium: base.headlineMedium?.copyWith(fontFamily: fontFamily),
+      headlineSmall: base.headlineSmall?.copyWith(fontFamily: fontFamily),
+      titleLarge: base.titleLarge?.copyWith(fontFamily: fontFamily),
+      titleMedium: base.titleMedium?.copyWith(fontFamily: fontFamily),
+      titleSmall: base.titleSmall?.copyWith(fontFamily: fontFamily),
+      bodyLarge: base.bodyLarge?.copyWith(fontFamily: fontFamily),
+      bodyMedium: base.bodyMedium?.copyWith(fontFamily: fontFamily),
+      bodySmall: base.bodySmall?.copyWith(fontFamily: fontFamily),
+      labelLarge: base.labelLarge?.copyWith(fontFamily: fontFamily),
+      labelMedium: base.labelMedium?.copyWith(fontFamily: fontFamily),
+      labelSmall: base.labelSmall?.copyWith(fontFamily: fontFamily),
+    );
+  }
+
+  /// 构建统一的 Tooltip 样式
+  static TooltipThemeData _buildTooltipTheme(
+    ThemeData baseTheme,
+    String? fontFamily,
+  ) {
+    return TooltipThemeData(
+      decoration: BoxDecoration(
+        color: baseTheme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: baseTheme.dividerColor,
+          width: 1,
         ),
-        textStyle: TextStyle(
-          color: baseTheme.colorScheme.onSurface.withOpacity(0.8),
-          fontSize: 12,
-          fontFamily: useThemeFont ? null : fontFamily,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        waitDuration: const Duration(milliseconds: 500),
       ),
+      textStyle: TextStyle(
+        color: baseTheme.colorScheme.onSurface.withOpacity(0.8),
+        fontSize: 12,
+        fontFamily: fontFamily,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      waitDuration: const Duration(milliseconds: 500),
     );
   }
 

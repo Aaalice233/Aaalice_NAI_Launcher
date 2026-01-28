@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/system_font_service.dart';
@@ -67,84 +66,82 @@ class FontConfig {
 }
 
 /// Google Fonts 预设列表
+/// 注意：fontFamily 必须是 GoogleFonts.getFont() 能识别的名称格式
 class GoogleFontPresets {
   static List<FontConfig> get all => [
-        FontConfig(
+        const FontConfig(
           displayName: '思源黑体',
-          fontFamily: GoogleFonts.notoSansSc().fontFamily ?? 'Noto Sans SC',
+          fontFamily: 'Noto Sans SC',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '思源宋体',
-          fontFamily: GoogleFonts.notoSerifSc().fontFamily ?? 'Noto Serif SC',
+          fontFamily: 'Noto Serif SC',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '思源黑体港',
-          fontFamily: GoogleFonts.notoSansHk().fontFamily ?? 'Noto Sans HK',
+          fontFamily: 'Noto Sans HK',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '思源等宽',
-          fontFamily: GoogleFonts.notoSansMono().fontFamily ?? 'Noto Sans Mono',
+          fontFamily: 'Noto Sans Mono',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '站酷小薇',
-          fontFamily: GoogleFonts.zcoolXiaoWei().fontFamily ?? 'ZCOOL XiaoWei',
+          fontFamily: 'ZCOOL XiaoWei',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '站酷快乐',
-          fontFamily: GoogleFonts.zcoolKuaiLe().fontFamily ?? 'ZCOOL KuaiLe',
+          fontFamily: 'ZCOOL KuaiLe',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '马善政楷书',
-          fontFamily: GoogleFonts.maShanZheng().fontFamily ?? 'Ma Shan Zheng',
+          fontFamily: 'Ma Shan Zheng',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '龙藏体',
-          fontFamily: GoogleFonts.longCang().fontFamily ?? 'Long Cang',
+          fontFamily: 'Long Cang',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '刘建毛草',
-          fontFamily:
-              GoogleFonts.liuJianMaoCao().fontFamily ?? 'Liu Jian Mao Cao',
+          fontFamily: 'Liu Jian Mao Cao',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '志漫行',
-          fontFamily: GoogleFonts.zhiMangXing().fontFamily ?? 'Zhi Mang Xing',
+          fontFamily: 'Zhi Mang Xing',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '代码字体',
-          fontFamily:
-              GoogleFonts.sourceCodePro().fontFamily ?? 'Source Code Pro',
+          fontFamily: 'Source Code Pro',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '现代窄体',
-          fontFamily:
-              GoogleFonts.sairaCondensed().fontFamily ?? 'Saira Condensed',
+          fontFamily: 'Saira Condensed',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '古典衬线',
-          fontFamily: GoogleFonts.cinzel().fontFamily ?? 'Cinzel',
+          fontFamily: 'Cinzel',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '科幻风',
-          fontFamily: GoogleFonts.orbitron().fontFamily ?? 'Orbitron',
+          fontFamily: 'Orbitron',
           source: FontSource.google,
         ),
-        FontConfig(
+        const FontConfig(
           displayName: '科技风',
-          fontFamily: GoogleFonts.rajdhani().fontFamily ?? 'Rajdhani',
+          fontFamily: 'Rajdhani',
           source: FontSource.google,
         ),
       ];
