@@ -66,6 +66,14 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   final VoidCallback? onEditMetadata;
   final VoidCallback? onMoveToFolder;
 
+  /// Whether category panel is visible
+  /// 是否显示分类面板
+  final bool showCategoryPanel;
+
+  /// Callback when category panel toggle is pressed
+  /// 分类面板切换按钮回调
+  final VoidCallback? onToggleCategoryPanel;
+
   const LocalGalleryToolbar({
     super.key,
     this.use3DCardView = true,
@@ -83,6 +91,8 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.onExportSelected,
     this.onEditMetadata,
     this.onMoveToFolder,
+    this.showCategoryPanel = true,
+    this.onToggleCategoryPanel,
   });
 
   @override
@@ -260,6 +270,18 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                       color: theme.dividerColor.withOpacity(0.3),
                     ),
                   ),
+                  // Category panel toggle
+                  if (widget.onToggleCategoryPanel != null) ...[
+                    _CompactIconButton(
+                      icon: widget.showCategoryPanel
+                          ? Icons.view_sidebar
+                          : Icons.view_sidebar_outlined,
+                      label: '分类',
+                      tooltip: widget.showCategoryPanel ? '隐藏分类面板' : '显示分类面板',
+                      onPressed: widget.onToggleCategoryPanel,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   // Undo/Redo
                   if (widget.canUndo || widget.canRedo) ...[
                     _CompactIconButton(
@@ -534,8 +556,10 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
 
       // Show hint message
       if (context.mounted) {
-        AppToast.info(context,
-            '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}',);
+        AppToast.info(
+          context,
+          '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}',
+        );
       }
     }
   }

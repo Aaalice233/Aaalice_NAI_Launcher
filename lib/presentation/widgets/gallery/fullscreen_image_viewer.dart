@@ -10,20 +10,23 @@ import 'metadata_panel.dart';
 ///
 /// 经典图库模式：
 /// - 左右滑动/箭头切换图片
-/// - 支持缩放平移
+/// - 支持缩放平移和双击缩放
 /// - 底部缩略图条快速跳转
 /// - 键盘导航支持
 /// - 桌面端右侧元数据面板
+/// - Hero 动画过渡效果
 class FullscreenImageViewer extends StatefulWidget {
   final List<LocalImageRecord> images;
   final int initialIndex;
   final void Function(LocalImageRecord record)? onReuseMetadata;
+  final String? heroTagPrefix;
 
   const FullscreenImageViewer({
     super.key,
     required this.images,
     required this.initialIndex,
     this.onReuseMetadata,
+    this.heroTagPrefix,
   });
 
   /// 打开全屏预览
@@ -32,18 +35,25 @@ class FullscreenImageViewer extends StatefulWidget {
     required List<LocalImageRecord> images,
     required int initialIndex,
     void Function(LocalImageRecord record)? onReuseMetadata,
+    String? heroTagPrefix,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
         barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 250),
         pageBuilder: (context, animation, secondaryAnimation) {
           return FadeTransition(
-            opacity: animation,
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOut,
+            ),
             child: FullscreenImageViewer(
               images: images,
               initialIndex: initialIndex,
               onReuseMetadata: onReuseMetadata,
+              heroTagPrefix: heroTagPrefix,
             ),
           );
         },
@@ -184,8 +194,15 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
             itemCount: widget.images.length,
             onPageChanged: _onPageChanged,
             itemBuilder: (context, index) {
+              final record = widget.images[index];
+              // 仅为当前显示的图片添加 Hero 标签
+              final heroTag =
+                  widget.heroTagPrefix != null && index == _currentIndex
+                      ? '${widget.heroTagPrefix}_${record.path}'
+                      : null;
               return _ImagePage(
-                record: widget.images[index],
+                record: record,
+                heroTag: heroTag,
               );
             },
           ),
@@ -359,23 +376,46 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                 return GestureDetector(
                   onTap: () => _goToPage(index),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 72,
-                    margin: const EdgeInsets.only(right: 8),
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    width: isSelected ? 80 : 72,
+                    height: isSelected ? 80 : 72,
+                    margin: EdgeInsets.only(
+                      right: 8,
+                      top: isSelected ? 0 : 4,
+                      bottom: isSelected ? 0 : 4,
+                    ),
                     decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
                       border: isSelected
-                          ? Border.all(color: Colors.white, width: 2)
+                          ? Border.all(
+                              color: theme.colorScheme.primary,
+                              width: 2.5,
+                            )
+                          : Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color:
+                                    theme.colorScheme.primary.withOpacity(0.4),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              ),
+                            ]
                           : null,
-                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Opacity(
-                        opacity: isSelected ? 1.0 : 0.6,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: isSelected ? 1.0 : 0.5,
                         child: Image.file(
                           File(widget.images[index].path),
                           fit: BoxFit.cover,
-                          cacheWidth: 144, // 2x for retina
+                          cacheWidth: 160,
                         ),
                       ),
                     ),
@@ -393,14 +433,19 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
     final metadata = record.metadata;
     if (metadata == null) return const SizedBox.shrink();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (metadata.seed != null) _buildInfoChip('Seed: ${metadata.seed}'),
-        if (metadata.steps != null) _buildInfoChip('${metadata.steps} steps'),
-        if (metadata.scale != null) _buildInfoChip('CFG: ${metadata.scale}'),
-        if (metadata.sampler != null) _buildInfoChip(metadata.displaySampler),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (metadata.seed != null) _buildInfoChip('Seed: ${metadata.seed}'),
+          if (metadata.steps != null) _buildInfoChip('${metadata.steps} steps'),
+          if (metadata.scale != null) _buildInfoChip('CFG: ${metadata.scale}'),
+          if (metadata.sampler != null) _buildInfoChip(metadata.displaySampler),
+          if (metadata.width != null && metadata.height != null)
+            _buildInfoChip('${metadata.width}×${metadata.height}'),
+        ],
+      ),
     );
   }
 
@@ -431,37 +476,135 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
   }
 }
 
-/// 单张图片页面（支持缩放）
-class _ImagePage extends StatelessWidget {
+/// 单张图片页面（支持缩放和双击缩放）
+class _ImagePage extends StatefulWidget {
   final LocalImageRecord record;
+  final String? heroTag;
 
-  const _ImagePage({required this.record});
+  const _ImagePage({
+    required this.record,
+    this.heroTag,
+  });
+
+  @override
+  State<_ImagePage> createState() => _ImagePageState();
+}
+
+class _ImagePageState extends State<_ImagePage>
+    with SingleTickerProviderStateMixin {
+  final TransformationController _transformController =
+      TransformationController();
+  late AnimationController _animationController;
+  Animation<Matrix4>? _animation;
+  TapDownDetails? _doubleTapDetails;
+
+  // 缩放级别
+  static const double _minScale = 0.5;
+  static const double _maxScale = 4.0;
+  static const double _doubleTapScale = 2.5;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _animationController.addListener(() {
+      if (_animation != null) {
+        _transformController.value = _animation!.value;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  void _handleDoubleTapDown(TapDownDetails details) {
+    _doubleTapDetails = details;
+  }
+
+  void _handleDoubleTap() {
+    final position = _doubleTapDetails?.localPosition;
+    if (position == null) return;
+
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
+
+    Matrix4 endMatrix;
+    if (currentScale > 1.0) {
+      // 缩小到原始大小
+      endMatrix = Matrix4.identity();
+    } else {
+      // 放大到目标位置
+      final x = -position.dx * (_doubleTapScale - 1);
+      final y = -position.dy * (_doubleTapScale - 1);
+      endMatrix = Matrix4.identity()
+        ..translate(x, y)
+        ..scale(_doubleTapScale);
+    }
+
+    _animation = Matrix4Tween(
+      begin: _transformController.value,
+      end: endMatrix,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
+
+    _animationController.forward(from: 0);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InteractiveViewer(
-      minScale: 0.5,
-      maxScale: 4.0,
-      child: Center(
-        child: Image.file(
-          File(record.path),
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    '无法加载图片',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
+    Widget imageWidget = Image.file(
+      File(widget.record.path),
+      fit: BoxFit.contain,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) return child;
+        return AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          child: child,
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.broken_image, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                '无法加载图片',
+                style: TextStyle(color: Colors.grey),
               ),
-            );
-          },
-        ),
+            ],
+          ),
+        );
+      },
+    );
+
+    // 如果有 Hero 标签，包装 Hero 动画
+    if (widget.heroTag != null) {
+      imageWidget = Hero(
+        tag: widget.heroTag!,
+        child: imageWidget,
+      );
+    }
+
+    return GestureDetector(
+      onDoubleTapDown: _handleDoubleTapDown,
+      onDoubleTap: _handleDoubleTap,
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        minScale: _minScale,
+        maxScale: _maxScale,
+        child: Center(child: imageWidget),
       ),
     );
   }
