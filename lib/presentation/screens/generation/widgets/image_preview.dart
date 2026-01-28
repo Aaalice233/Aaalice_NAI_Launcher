@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -525,6 +526,22 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final params = ref.read(generationParamsNotifierProvider);
       final characterConfig = ref.read(characterPromptNotifierProvider);
 
+      // 尝试从 API 返回的图片中提取实际使用的 seed
+      int actualSeed = params.seed;
+      if (actualSeed == -1) {
+        // 尝试从图片元数据中提取实际的 seed
+        final extractedMeta =
+            await NaiMetadataParser.extractFromBytes(imageBytes);
+        if (extractedMeta != null &&
+            extractedMeta.seed != null &&
+            extractedMeta.seed! > 0) {
+          actualSeed = extractedMeta.seed!;
+        } else {
+          // 如果无法提取，生成随机种子
+          actualSeed = Random().nextInt(4294967295);
+        }
+      }
+
       // 构建 V4 多角色提示词结构
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
@@ -549,7 +566,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final commentJson = <String, dynamic>{
         'prompt': params.prompt,
         'uc': params.negativePrompt,
-        'seed': params.seed,
+        'seed': actualSeed,
         'steps': params.steps,
         'width': params.width,
         'height': params.height,
@@ -791,6 +808,22 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
       final params = ref.read(generationParamsNotifierProvider);
       final characterConfig = ref.read(characterPromptNotifierProvider);
 
+      // 尝试从 API 返回的图片中提取实际使用的 seed
+      int actualSeed = params.seed;
+      if (actualSeed == -1) {
+        // 尝试从图片元数据中提取实际的 seed
+        final extractedMeta =
+            await NaiMetadataParser.extractFromBytes(widget.imageBytes);
+        if (extractedMeta != null &&
+            extractedMeta.seed != null &&
+            extractedMeta.seed! > 0) {
+          actualSeed = extractedMeta.seed!;
+        } else {
+          // 如果无法提取，生成随机种子
+          actualSeed = Random().nextInt(4294967295);
+        }
+      }
+
       // 构建 V4 多角色提示词结构
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
@@ -815,7 +848,7 @@ class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
       final commentJson = <String, dynamic>{
         'prompt': params.prompt,
         'uc': params.negativePrompt,
-        'seed': params.seed,
+        'seed': actualSeed,
         'steps': params.steps,
         'width': params.width,
         'height': params.height,

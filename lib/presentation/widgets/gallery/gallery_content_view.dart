@@ -271,6 +271,11 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
             images: state.currentImages,
             initialIndex: index,
             onReuseMetadata: widget.onReuseMetadata,
+            onFavoriteToggle: (record) {
+              ref
+                  .read(localGalleryNotifierProvider.notifier)
+                  .toggleFavorite(record.path);
+            },
           );
         }
       },
@@ -280,6 +285,11 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
           context,
           images: state.currentImages,
           initialIndex: index,
+          onFavoriteToggle: (record) {
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .toggleFavorite(record.path);
+          },
         );
       },
       onLongPress: (record, index) {
