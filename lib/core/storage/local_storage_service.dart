@@ -528,6 +528,16 @@ class LocalStorageService {
   Future<void> setTagLibraryCategoriesJson(String json) async {
     await setSetting(StorageKeys.tagLibraryCategoriesData, json);
   }
+
+  /// 获取词库视图模式 (0=card, 1=list)
+  int getTagLibraryViewMode() {
+    return getSetting<int>(StorageKeys.tagLibraryViewMode) ?? 0;
+  }
+
+  /// 保存词库视图模式
+  Future<void> setTagLibraryViewMode(int mode) async {
+    await setSetting(StorageKeys.tagLibraryViewMode, mode);
+  }
 }
 
 /// LocalStorageService Provider

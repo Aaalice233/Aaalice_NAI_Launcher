@@ -2724,6 +2724,7 @@
   "tagLibrary_allEntries": "All",
   "tagLibrary_favorites": "Favorites",
   "tagLibrary_addSubCategory": "Add Subcategory",
+  "tagLibrary_moveToRoot": "Move to Root",
   "tagLibrary_categoryNameHint": "Enter category name",
   "tagLibrary_deleteCategoryTitle": "Delete Category",
   "tagLibrary_deleteCategoryConfirm": "Are you sure you want to delete category \"{name}\"? {count} entries will be moved to root.",
@@ -2747,6 +2748,7 @@
   "tagLibrary_addFirstEntry": "Click the button above to add your first entry",
   "tagLibrary_addToFixed": "Add to Fixed Tags",
   "tagLibrary_addedToFixed": "Added to Fixed Tags",
+  "tagLibrary_entryMoved": "Entry moved to target category",
   "tagLibrary_useCount": "Used {count} times",
   "@tagLibrary_useCount": {
     "placeholders": {
@@ -2755,7 +2757,7 @@
   },
   "tagLibrary_removeFavorite": "Remove from Favorites",
   "tagLibrary_addFavorite": "Add to Favorites",
-  "tagLibrary_pinned": "Pinned",
+  "tagLibrary_pinned": "Favorited",
   "tagLibrary_thumbnail": "Thumbnail",
   "tagLibrary_selectImage": "Select Image",
   "tagLibrary_thumbnailHint": "Supports PNG/JPG/WEBP",
@@ -2795,6 +2797,8 @@
       "error": {}
     }
   },
-  "settings_proxyRestartHint": "Proxy settings changed, restart recommended"
+  "settings_proxyRestartHint": "Proxy settings changed, restart recommended",
+
+  "tagLibrary_categoryNameExists": "Category name already exists"
 
 }

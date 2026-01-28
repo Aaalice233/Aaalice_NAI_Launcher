@@ -16,6 +16,9 @@ class EntryListItem extends StatefulWidget {
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
 
+  /// 是否启用拖拽到分类功能
+  final bool enableDrag;
+
   const EntryListItem({
     super.key,
     required this.entry,
@@ -24,6 +27,7 @@ class EntryListItem extends StatefulWidget {
     required this.onDelete,
     required this.onToggleFavorite,
     this.onEdit,
+    this.enableDrag = false,
   });
 
   @override
@@ -32,14 +36,19 @@ class EntryListItem extends StatefulWidget {
 
 class _EntryListItemState extends State<EntryListItem> {
   bool _isHovering = false;
+  bool _isDragging = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
+    Widget itemContent = MouseRegion(
+      onEnter: (_) {
+        if (!_isDragging) {
+          setState(() => _isHovering = true);
+        }
+      },
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
         onTap: widget.onTap,
@@ -87,6 +96,123 @@ class _EntryListItemState extends State<EntryListItem> {
         ),
       ),
     );
+
+    // 如果启用拖拽，包装为 Draggable
+    if (widget.enableDrag) {
+      itemContent = Draggable<TagLibraryEntry>(
+        data: entry,
+        feedback: _buildDragFeedback(theme, entry),
+        childWhenDragging: Opacity(
+          opacity: 0.4,
+          child: itemContent,
+        ),
+        onDragStarted: () {
+          HapticFeedback.mediumImpact();
+          setState(() {
+            _isDragging = true;
+            _isHovering = false;
+          });
+        },
+        onDragEnd: (_) {
+          setState(() {
+            _isDragging = false;
+          });
+        },
+        child: itemContent,
+      );
+    }
+
+    return itemContent;
+  }
+
+  /// 构建拖拽反馈UI
+  Widget _buildDragFeedback(ThemeData theme, TagLibraryEntry entry) {
+    return Material(
+      elevation: 12,
+      borderRadius: BorderRadius.circular(10),
+      color: theme.colorScheme.surfaceContainerHigh,
+      shadowColor: Colors.black54,
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: theme.colorScheme.primary.withOpacity(0.5),
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            // 缩略图
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: entry.hasThumbnail
+                    ? Image.file(
+                        File(entry.thumbnail!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.image_outlined,
+                            size: 20,
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.library_books,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // 信息
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.displayName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.drive_file_move_outline,
+                        size: 12,
+                        color: theme.colorScheme.outline,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '拖到左侧分类归档',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildThumbnail(ThemeData theme, TagLibraryEntry entry) {
@@ -128,7 +254,7 @@ class _EntryListItemState extends State<EntryListItem> {
         // 名称行
         Row(
           children: [
-            // 置顶图标
+            // 收藏图标
             if (entry.isFavorite)
               Container(
                 margin: const EdgeInsets.only(right: 6),
@@ -138,7 +264,7 @@ class _EntryListItemState extends State<EntryListItem> {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.push_pin,
+                  Icons.star,
                   size: 12,
                   color: Colors.white,
                 ),
@@ -155,37 +281,6 @@ class _EntryListItemState extends State<EntryListItem> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-
-            // 使用次数
-            if (entry.useCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.repeat,
-                      size: 12,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      entry.useCount.toString(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
 
@@ -218,8 +313,39 @@ class _EntryListItemState extends State<EntryListItem> {
   Widget _buildActions(ThemeData theme) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // 置顶按钮
+        // 使用次数
+        if (widget.entry.useCount > 0) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.repeat,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.entry.useCount.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+        // 收藏按钮
         widget.entry.isFavorite
             ? Material(
                 color: Colors.amber,
@@ -229,12 +355,12 @@ class _EntryListItemState extends State<EntryListItem> {
                   borderRadius: BorderRadius.circular(6),
                   child: Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.push_pin,
+                          Icons.star,
                           size: 16,
                           color: Colors.white,
                         ),
@@ -252,40 +378,78 @@ class _EntryListItemState extends State<EntryListItem> {
                   ),
                 ),
               )
-            : IconButton(
-                icon: const Icon(Icons.push_pin_outlined),
-                tooltip: context.l10n.tagLibrary_addFavorite,
-                visualDensity: VisualDensity.compact,
-                onPressed: widget.onToggleFavorite,
+            : _buildActionIcon(
+                theme,
+                Icons.star_border,
+                context.l10n.tagLibrary_addFavorite,
+                widget.onToggleFavorite,
               ),
+        const SizedBox(width: 4),
         // 编辑按钮
-        if (widget.onEdit != null)
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: context.l10n.common_edit,
-            visualDensity: VisualDensity.compact,
-            onPressed: widget.onEdit,
+        if (widget.onEdit != null) ...[
+          _buildActionIcon(
+            theme,
+            Icons.edit_outlined,
+            context.l10n.common_edit,
+            widget.onEdit!,
           ),
+          const SizedBox(width: 4),
+        ],
         // 添加到固定词
-        IconButton(
-          icon: const Icon(Icons.add_box_outlined),
-          tooltip: context.l10n.tagLibrary_addToFixed,
-          visualDensity: VisualDensity.compact,
-          onPressed: widget.onAddToFixed,
+        _buildActionIcon(
+          theme,
+          Icons.add_box_outlined,
+          context.l10n.tagLibrary_addToFixed,
+          widget.onAddToFixed,
         ),
-        IconButton(
-          icon: const Icon(Icons.content_copy),
-          tooltip: context.l10n.common_copy,
-          visualDensity: VisualDensity.compact,
-          onPressed: () => _copyToClipboard(widget.entry.content),
+        const SizedBox(width: 4),
+        // 复制
+        _buildActionIcon(
+          theme,
+          Icons.content_copy,
+          context.l10n.common_copy,
+          () => _copyToClipboard(widget.entry.content),
         ),
-        IconButton(
-          icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-          tooltip: context.l10n.common_delete,
-          visualDensity: VisualDensity.compact,
-          onPressed: widget.onDelete,
+        const SizedBox(width: 4),
+        // 删除
+        _buildActionIcon(
+          theme,
+          Icons.delete_outline,
+          context.l10n.common_delete,
+          widget.onDelete,
+          isDestructive: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildActionIcon(
+    ThemeData theme,
+    IconData icon,
+    String tooltip,
+    VoidCallback onTap, {
+    bool isDestructive = false,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Icon(
+              icon,
+              size: 18,
+              color: isDestructive
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

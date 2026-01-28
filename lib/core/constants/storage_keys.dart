@@ -120,4 +120,5 @@ class StorageKeys {
   static const String tagLibraryUserBox = 'tag_library_user';
   static const String tagLibraryEntriesData = 'tag_library_entries_data';
   static const String tagLibraryCategoriesData = 'tag_library_categories_data';
+  static const String tagLibraryViewMode = 'tag_library_view_mode';
 }

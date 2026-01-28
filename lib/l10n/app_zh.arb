@@ -2398,6 +2398,7 @@
   "tagLibrary_allEntries": "全部",
   "tagLibrary_favorites": "收藏",
   "tagLibrary_addSubCategory": "添加子分类",
+  "tagLibrary_moveToRoot": "移动到根目录",
   "tagLibrary_categoryNameHint": "输入分类名称",
   "tagLibrary_deleteCategoryTitle": "删除分类",
   "tagLibrary_deleteCategoryConfirm": "确定要删除分类 \"{name}\" 吗？该分类下的 {count} 个条目将移至根目录。",
@@ -2421,6 +2422,7 @@
   "tagLibrary_addFirstEntry": "点击上方按钮添加第一个条目",
   "tagLibrary_addToFixed": "添加到固定词",
   "tagLibrary_addedToFixed": "已添加到固定词",
+  "tagLibrary_entryMoved": "条目已移动到目标分类",
   "tagLibrary_useCount": "使用 {count} 次",
   "@tagLibrary_useCount": {
     "placeholders": {
@@ -2429,7 +2431,7 @@
   },
   "tagLibrary_removeFavorite": "取消收藏",
   "tagLibrary_addFavorite": "添加收藏",
-  "tagLibrary_pinned": "已置顶",
+  "tagLibrary_pinned": "已收藏",
   "tagLibrary_thumbnail": "预览图",
   "tagLibrary_selectImage": "选择图片",
   "tagLibrary_thumbnailHint": "支持 PNG/JPG/WEBP 格式",
@@ -2469,6 +2471,8 @@
       "error": {}
     }
   },
-  "settings_proxyRestartHint": "代理设置已更改，建议重启应用"
+  "settings_proxyRestartHint": "代理设置已更改，建议重启应用",
+
+  "tagLibrary_categoryNameExists": "该分类名称已存在"
 
 }

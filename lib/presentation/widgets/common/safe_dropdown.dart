@@ -66,9 +66,7 @@ class SafeDropdown<T> extends StatelessWidget {
   }
 
   T? _validateValue() {
-    if (value == null) return null;
-
-    // 检查value是否在items中
+    // 检查value是否在items中（包括null作为有效选项的情况）
     final itemValues = items.map((item) => item.value).toList();
     if (itemValues.contains(value)) {
       return value;
@@ -151,9 +149,7 @@ class SafeDropdownFormField<T> extends StatelessWidget {
   }
 
   T? _validateValue() {
-    if (value == null) return null;
-
-    // 检查value是否在items中
+    // 检查value是否在items中（包括null作为有效选项的情况）
     final itemValues = items.map((item) => item.value).toList();
     if (itemValues.contains(value)) {
       return value;

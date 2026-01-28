@@ -18,6 +18,9 @@ class EntryCard extends StatefulWidget {
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
 
+  /// 是否启用拖拽到分类功能
+  final bool enableDrag;
+
   const EntryCard({
     super.key,
     required this.entry,
@@ -26,6 +29,7 @@ class EntryCard extends StatefulWidget {
     required this.onDelete,
     required this.onToggleFavorite,
     this.onEdit,
+    this.enableDrag = false,
   });
 
   @override
@@ -34,6 +38,7 @@ class EntryCard extends StatefulWidget {
 
 class _EntryCardState extends State<EntryCard> {
   bool _isHovering = false;
+  bool _isDragging = false;
   OverlayEntry? _overlayEntry;
   final _layerLink = LayerLink();
 
@@ -74,17 +79,19 @@ class _EntryCardState extends State<EntryCard> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    return CompositedTransformTarget(
+    Widget cardContent = CompositedTransformTarget(
       link: _layerLink,
       child: MouseRegion(
         onEnter: (_) {
-          setState(() => _isHovering = true);
-          // 延迟显示预览，避免快速划过时闪烁
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (_isHovering && mounted) {
-              _showPreviewOverlay();
-            }
-          });
+          if (!_isDragging) {
+            setState(() => _isHovering = true);
+            // 延迟显示预览，避免快速划过时闪烁
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (_isHovering && mounted && !_isDragging) {
+                _showPreviewOverlay();
+              }
+            });
+          }
         },
         onExit: (_) {
           setState(() => _isHovering = false);
@@ -138,6 +145,129 @@ class _EntryCardState extends State<EntryCard> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+
+    // 如果启用拖拽，包装为 Draggable
+    if (widget.enableDrag) {
+      cardContent = Draggable<TagLibraryEntry>(
+        data: entry,
+        feedback: _buildDragFeedback(theme, entry),
+        childWhenDragging: Opacity(
+          opacity: 0.4,
+          child: cardContent,
+        ),
+        onDragStarted: () {
+          HapticFeedback.mediumImpact();
+          _hidePreviewOverlay();
+          setState(() {
+            _isDragging = true;
+            _isHovering = false;
+          });
+        },
+        onDragEnd: (_) {
+          setState(() {
+            _isDragging = false;
+          });
+        },
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
+  }
+
+  /// 构建拖拽反馈UI
+  Widget _buildDragFeedback(ThemeData theme, TagLibraryEntry entry) {
+    return Material(
+      elevation: 12,
+      borderRadius: BorderRadius.circular(12),
+      color: theme.colorScheme.surfaceContainerHigh,
+      shadowColor: Colors.black54,
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.primary.withOpacity(0.5),
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 缩略图
+            if (entry.hasThumbnail)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(entry.thumbnail!),
+                  height: 80,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.image_outlined,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.library_books,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            // 名称
+            Text(
+              entry.displayName,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            // 提示
+            Row(
+              children: [
+                Icon(
+                  Icons.drive_file_move_outline,
+                  size: 12,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '拖到左侧分类归档',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.outline,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -205,33 +335,7 @@ class _EntryCardState extends State<EntryCard> {
             ),
           ),
 
-        // 左上角收藏图标（已收藏时显示）
-        if (entry.isFavorite)
-          Positioned(
-            top: 8,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.9),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.push_pin,
-                size: 14,
-                color: Colors.white,
-              ),
-            ),
-          ),
-
-        // 右上角置顶按钮
+        // 右上角收藏按钮
         Positioned(
           top: 8,
           right: 8,
@@ -264,7 +368,7 @@ class _EntryCardState extends State<EntryCard> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.push_pin,
+                          Icons.star,
                           size: 14,
                           color: Colors.white,
                         ),
@@ -280,7 +384,7 @@ class _EntryCardState extends State<EntryCard> {
                       ],
                     )
                   : const Icon(
-                      Icons.push_pin_outlined,
+                      Icons.star_border,
                       size: 16,
                       color: Colors.white,
                     ),

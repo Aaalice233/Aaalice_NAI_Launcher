@@ -112,16 +112,26 @@ class TagLibraryPageState {
     }
 
     // 排序
+    List<TagLibraryEntry> sorted;
     switch (sortBy) {
       case TagLibrarySortBy.order:
-        return result.sortedByOrder();
+        sorted = result.sortedByOrder();
       case TagLibrarySortBy.name:
-        return result.sortedByName();
+        sorted = result.sortedByName();
       case TagLibrarySortBy.useCount:
-        return result.sortedByUseCount();
+        sorted = result.sortedByUseCount();
       case TagLibrarySortBy.updatedAt:
-        return result.sortedByUpdatedAt();
+        sorted = result.sortedByUpdatedAt();
     }
+
+    // 收藏条目始终排在前面（收藏夹视图除外，因为全部都是收藏）
+    if (selectedCategoryId != 'favorites') {
+      final favorites = sorted.where((e) => e.isFavorite).toList();
+      final nonFavorites = sorted.where((e) => !e.isFavorite).toList();
+      return [...favorites, ...nonFavorites];
+    }
+
+    return sorted;
   }
 
   /// 获取指定分类的条目数量
@@ -177,7 +187,18 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         'Loaded ${entries.length} entries, ${categories.length} categories',
         'TagLibraryPageProvider',
       );
-      return TagLibraryPageState(entries: entries, categories: categories);
+
+      // 加载视图模式
+      final viewModeIndex = _storage.getTagLibraryViewMode();
+      final viewMode = viewModeIndex == 1
+          ? TagLibraryViewMode.list
+          : TagLibraryViewMode.card;
+
+      return TagLibraryPageState(
+        entries: entries,
+        categories: categories,
+        viewMode: viewMode,
+      );
     } catch (e, stack) {
       AppLogger.e(
         'Failed to load tag library: $e',
@@ -321,11 +342,30 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   // ==================== 分类操作 ====================
 
+  /// 检查分类名称是否重复
+  bool isCategoryNameDuplicate(String name, {String? excludeId}) {
+    return state.categories.any(
+      (c) =>
+          c.name.toLowerCase() == name.toLowerCase() &&
+          (excludeId == null || c.id != excludeId),
+    );
+  }
+
   /// 添加分类
-  Future<TagLibraryCategory> addCategory({
+  /// 返回新创建的分类，如果名称重复则返回 null
+  Future<TagLibraryCategory?> addCategory({
     required String name,
     String? parentId,
   }) async {
+    // 检查重名
+    if (isCategoryNameDuplicate(name)) {
+      AppLogger.w(
+        'Category name "$name" already exists',
+        'TagLibraryPageProvider',
+      );
+      return null;
+    }
+
     final category = TagLibraryCategory.create(
       name: name,
       parentId: parentId,
@@ -390,14 +430,25 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   }
 
   /// 重命名分类
-  Future<void> renameCategory(String categoryId, String newName) async {
+  /// 返回 true 表示成功，false 表示名称重复
+  Future<bool> renameCategory(String categoryId, String newName) async {
+    // 检查重名（排除自己）
+    if (isCategoryNameDuplicate(newName, excludeId: categoryId)) {
+      AppLogger.w(
+        'Category name "$newName" already exists',
+        'TagLibraryPageProvider',
+      );
+      return false;
+    }
+
     final index = state.categories.indexWhere((c) => c.id == categoryId);
-    if (index == -1) return;
+    if (index == -1) return false;
 
     final newCategories = [...state.categories];
     newCategories[index] = newCategories[index].updateName(newName);
     state = state.copyWith(categories: newCategories);
     await _saveCategories();
+    return true;
   }
 
   /// 移动分类
@@ -415,6 +466,99 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     newCategories[index] = newCategories[index].moveTo(newParentId);
     state = state.copyWith(categories: newCategories);
     await _saveCategories();
+  }
+
+  /// 分类同级重排序
+  Future<void> reorderCategories(
+    String? parentId,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    // 获取同父级的分类
+    final siblings = state.categories
+        .where((c) => c.parentId == parentId)
+        .toList()
+        .sortedByOrder();
+
+    if (oldIndex < 0 ||
+        oldIndex >= siblings.length ||
+        newIndex < 0 ||
+        newIndex >= siblings.length) {
+      return;
+    }
+
+    // 执行移动
+    final movedCategory = siblings.removeAt(oldIndex);
+    siblings.insert(newIndex, movedCategory);
+
+    // 更新 sortOrder
+    final updatedSiblings = siblings
+        .asMap()
+        .entries
+        .map((e) => e.value.copyWith(sortOrder: e.key))
+        .toList();
+
+    // 合并到完整分类列表
+    final otherCategories =
+        state.categories.where((c) => c.parentId != parentId).toList();
+
+    state =
+        state.copyWith(categories: [...otherCategories, ...updatedSiblings]);
+    await _saveCategories();
+
+    AppLogger.d(
+      'Reordered categories in parent $parentId: $oldIndex -> $newIndex',
+      'TagLibraryPageProvider',
+    );
+  }
+
+  /// 词条重排序（在当前筛选视图内）
+  Future<void> reorderEntries(int oldIndex, int newIndex) async {
+    final filteredEntries = state.filteredEntries;
+    if (oldIndex < 0 ||
+        oldIndex >= filteredEntries.length ||
+        newIndex < 0 ||
+        newIndex >= filteredEntries.length) {
+      return;
+    }
+
+    // 获取要移动的词条
+    final movedEntry = filteredEntries[oldIndex];
+    final targetEntry = filteredEntries[newIndex];
+
+    // 计算新的排序值
+    final minSortOrder = movedEntry.sortOrder < targetEntry.sortOrder
+        ? movedEntry.sortOrder
+        : targetEntry.sortOrder;
+    final maxSortOrder = movedEntry.sortOrder > targetEntry.sortOrder
+        ? movedEntry.sortOrder
+        : targetEntry.sortOrder;
+
+    // 更新受影响的条目
+    final newEntries = state.entries.map((entry) {
+      if (entry.id == movedEntry.id) {
+        return entry.copyWith(sortOrder: targetEntry.sortOrder);
+      } else if (entry.sortOrder >= minSortOrder &&
+          entry.sortOrder <= maxSortOrder) {
+        // 调整中间条目的顺序
+        if (movedEntry.sortOrder < targetEntry.sortOrder) {
+          // 向后移动：中间的词条前移
+          return entry.copyWith(sortOrder: entry.sortOrder - 1);
+        } else {
+          // 向前移动：中间的词条后移
+          return entry.copyWith(sortOrder: entry.sortOrder + 1);
+        }
+      }
+      return entry;
+    }).toList();
+
+    state = state.copyWith(entries: newEntries);
+    await _saveEntries();
+
+    AppLogger.d(
+      'Reordered entries: $oldIndex -> $newIndex',
+      'TagLibraryPageProvider',
+    );
   }
 
   // ==================== 界面状态 ====================
@@ -435,6 +579,10 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   /// 设置视图模式
   void setViewMode(TagLibraryViewMode mode) {
     state = state.copyWith(viewMode: mode);
+    // 持久化视图模式
+    _storage.setTagLibraryViewMode(
+      mode == TagLibraryViewMode.list ? 1 : 0,
+    );
   }
 
   /// 设置排序方式
