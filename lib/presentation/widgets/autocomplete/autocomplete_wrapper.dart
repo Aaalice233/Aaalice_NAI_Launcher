@@ -276,12 +276,17 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   OverlayEntry _createOverlayEntry() {
-    final renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
     final locale = ref.read(localeNotifierProvider);
 
     return OverlayEntry(
       builder: (context) {
+        // 每次 builder 调用时重新获取最新的 renderBox 和 size
+        final renderBox = this.context.findRenderObject() as RenderBox?;
+        if (renderBox == null) {
+          return const SizedBox.shrink();
+        }
+        final size = renderBox.size;
+
         // 对于多行文本框，使用光标位置；否则使用文本框底部
         final isMultiline = widget.expands || (widget.maxLines ?? 1) > 1;
         final cursorOffset = isMultiline

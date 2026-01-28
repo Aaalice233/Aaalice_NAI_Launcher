@@ -133,12 +133,23 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final entries = state.entries;
 
     if (entries.isEmpty) {
-      return Text(
-        context.l10n.fixedTags_empty,
-        style: TextStyle(
-          color: theme.colorScheme.onSurface,
-          fontSize: 12,
-        ),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 16,
+            color: theme.colorScheme.outline,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            context.l10n.fixedTags_empty,
+            style: TextStyle(
+              color: theme.colorScheme.outline,
+              fontSize: 12,
+            ),
+          ),
+        ],
       );
     }
 
@@ -150,29 +161,62 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 统计摘要
+        // 统计摘要 - 玻璃态风格
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.primary.withOpacity(0.12),
+                theme.colorScheme.secondary.withOpacity(0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: theme.colorScheme.primary.withOpacity(0.2),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.analytics_outlined,
-                size: 14,
-                color: theme.colorScheme.primary,
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.push_pin_rounded,
+                  size: 12,
+                  color: theme.colorScheme.primary,
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
               Text(
-                '${enabledPrefixes.length}${context.l10n.fixedTags_prefix} · ${enabledSuffixes.length}${context.l10n.fixedTags_suffix}',
+                '${enabledPrefixes.length}${context.l10n.fixedTags_prefix}',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.primary,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  '·',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ),
+              Text(
+                '${enabledSuffixes.length}${context.l10n.fixedTags_suffix}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.tertiary,
                 ),
               ),
             ],
@@ -184,11 +228,11 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           const SizedBox(height: 12),
           _buildSectionHeader(
             theme,
-            Icons.arrow_forward,
+            Icons.arrow_forward_rounded,
             context.l10n.fixedTags_prefix,
             theme.colorScheme.primary,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ...enabledPrefixes.map(
             (entry) => _buildEntryCard(theme, entry, isEnabled: true),
           ),
@@ -196,14 +240,14 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
 
         // 启用的后缀
         if (enabledSuffixes.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _buildSectionHeader(
             theme,
-            Icons.arrow_back,
+            Icons.arrow_back_rounded,
             context.l10n.fixedTags_suffix,
             theme.colorScheme.tertiary,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ...enabledSuffixes.map(
             (entry) => _buildEntryCard(theme, entry, isEnabled: true),
           ),
@@ -211,41 +255,63 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
 
         // 禁用的条目
         if (disabledEntries.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Container(
             width: double.infinity,
             height: 1,
-            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  theme.colorScheme.outlineVariant.withOpacity(0.4),
+                  Colors.transparent,
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _buildSectionHeader(
             theme,
-            Icons.visibility_off,
+            Icons.visibility_off_rounded,
             '${context.l10n.fixedTags_disabled} (${disabledEntries.length})',
             theme.colorScheme.outline,
           ),
-          const SizedBox(height: 6),
-          ...disabledEntries.map(
-            (entry) => _buildEntryRow(
-              theme,
-              entry,
-              isEnabled: false,
-            ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: disabledEntries
+                .map((entry) => _buildDisabledChip(theme, entry))
+                .toList(),
           ),
         ],
 
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Text(
-            context.l10n.fixedTags_clickToManage,
-            style: TextStyle(
-              color: theme.colorScheme.outline,
-              fontSize: 10,
-              fontStyle: FontStyle.italic,
+        const SizedBox(height: 12),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(20),
             ),
-            textAlign: TextAlign.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.touch_app_rounded,
+                  size: 12,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  context.l10n.fixedTags_clickToManage,
+                  style: TextStyle(
+                    color: theme.colorScheme.outline,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -263,28 +329,36 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       children: [
         Container(
           width: 3,
-          height: 14,
+          height: 16,
           decoration: BoxDecoration(
-            color: color,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                color,
+                color.withOpacity(0.4),
+              ],
+            ),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 8),
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 4),
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 5),
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             color: color,
+            letterSpacing: 0.3,
           ),
         ),
       ],
     );
   }
 
-  /// 启用条目的卡片样式
+  /// 启用条目的卡片样式 - 单行紧凑布局
   Widget _buildEntryCard(
     ThemeData theme,
     FixedTagEntry entry, {
@@ -294,140 +368,160 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final positionColor =
         isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
 
+    // 判断名称和内容是否不同（需要显示内容）
+    final showContent = entry.content.isNotEmpty &&
+        entry.content.trim() != entry.displayName.trim();
+    // 截断内容
+    final truncatedContent = entry.content.length > 30
+        ? '${entry.content.substring(0, 30)}...'
+        : entry.content;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
+        color: theme.colorScheme.surfaceContainerHigh.withOpacity(0.7),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          color: positionColor.withOpacity(0.2),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          // 标题行：名称 + 权重 + 位置
-          Row(
-            children: [
-              Icon(
-                Icons.push_pin,
-                size: 12,
-                color: theme.colorScheme.secondary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  entry.displayName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              // 权重徽章
-              if (entry.weight != 1.0) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: entry.weight > 1.0
-                        ? theme.colorScheme.primary.withOpacity(0.15)
-                        : theme.colorScheme.tertiary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${entry.weight.toStringAsFixed(2)}x',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: entry.weight > 1.0
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.tertiary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-              ],
-              // 位置标识
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: positionColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isPrefix ? Icons.arrow_forward : Icons.arrow_back,
-                      size: 9,
-                      color: positionColor,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      isPrefix
-                          ? context.l10n.fixedTags_prefix
-                          : context.l10n.fixedTags_suffix,
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w500,
-                        color: positionColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // 左侧位置标识条
+          Container(
+            width: 3,
+            height: 18,
+            decoration: BoxDecoration(
+              color: positionColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          // 内容预览
-          if (entry.content.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              entry.content.length > 40
-                  ? '${entry.content.substring(0, 40)}...'
-                  : entry.content,
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.outline,
+          const SizedBox(width: 8),
+          // 名称
+          Text(
+            entry.displayName,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          // 权重徽章（紧跟名称）
+          if (entry.weight != 1.0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: entry.weight > 1.0
+                    ? theme.colorScheme.error.withOpacity(0.12)
+                    : theme.colorScheme.tertiary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(4),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              child: Text(
+                '${entry.weight.toStringAsFixed(2)}x',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: entry.weight > 1.0
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.tertiary,
+                ),
+              ),
             ),
           ],
+          // 分隔点 + 内容
+          if (showContent) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Container(
+                width: 3,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                truncatedContent,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ] else
+            const Spacer(),
+          // 末尾位置标识
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: positionColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              isPrefix
+                  ? context.l10n.fixedTags_prefix
+                  : context.l10n.fixedTags_suffix,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: positionColor,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEntryRow(
-    ThemeData theme,
-    FixedTagEntry entry, {
-    required bool isEnabled,
-  }) {
-    final weightText =
-        entry.weight != 1.0 ? ' (${entry.weight.toStringAsFixed(2)}x)' : '';
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 2),
+  /// 禁用条目的紧凑样式
+  Widget _buildDisabledChip(ThemeData theme, FixedTagEntry entry) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.2),
+        ),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(
+          Icon(
+            Icons.push_pin_outlined,
+            size: 10,
+            color: theme.colorScheme.outline,
+          ),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 100),
             child: Text(
-              '${entry.displayName}$weightText',
+              entry.displayName,
               style: TextStyle(
-                fontSize: 11,
-                color: isEnabled
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.onSurface.withOpacity(0.5),
-                decoration: isEnabled ? null : TextDecoration.lineThrough,
+                fontSize: 10,
+                color: theme.colorScheme.outline,
+                decoration: TextDecoration.lineThrough,
+                decorationColor: theme.colorScheme.outline.withOpacity(0.5),
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (entry.weight != 1.0) ...[
+            const SizedBox(width: 4),
+            Text(
+              '${entry.weight.toStringAsFixed(1)}x',
+              style: TextStyle(
+                fontSize: 9,
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
         ],
       ),
     );

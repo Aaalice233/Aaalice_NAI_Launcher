@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../data/models/tag/local_tag.dart';
 import 'autocomplete_controller.dart';
@@ -203,46 +204,90 @@ class AutocompleteUtils {
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null) return Offset.zero;
 
-    final text = controller.text;
     final cursorPosition = controller.selection.baseOffset;
-
-    if (cursorPosition < 0 || text.isEmpty) {
+    if (cursorPosition < 0) {
       return Offset.zero;
     }
 
-    // 获取文本样式
+    // 尝试找到 RenderEditable 以获取精确的光标位置
+    RenderEditable? renderEditable;
+    void findRenderEditable(Element element) {
+      if (renderEditable != null) return;
+      if (element.renderObject is RenderEditable) {
+        renderEditable = element.renderObject as RenderEditable;
+        return;
+      }
+      element.visitChildren(findRenderEditable);
+    }
+
+    (context as Element).visitChildren(findRenderEditable);
+
+    if (renderEditable != null) {
+      // 使用 RenderEditable 获取精确的光标位置
+      final caretRect = renderEditable!.getLocalRectForCaret(
+        TextPosition(offset: cursorPosition),
+      );
+
+      // 获取 RenderEditable 相对于 renderBox 的位置
+      final editableBox = renderEditable!;
+      final editableOffset = editableBox.localToGlobal(
+        Offset.zero,
+        ancestor: renderBox,
+      );
+
+      final lineHeight = renderEditable!.preferredLineHeight;
+
+      // 返回光标位置（在光标下方显示补全框）
+      return Offset(
+        editableOffset.dx + caretRect.left,
+        editableOffset.dy + caretRect.top + lineHeight,
+      );
+    }
+
+    // Fallback: 使用 TextPainter 估算位置
+    final text = controller.text;
+    if (text.isEmpty) {
+      return Offset.zero;
+    }
+
     final effectiveStyle = textStyle ?? DefaultTextStyle.of(context).style;
-
-    // 创建 TextPainter 来测量文本
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text.substring(0, cursorPosition.clamp(0, text.length)),
-        style: effectiveStyle,
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: expands ? null : maxLines,
-    );
-
-    // 使用文本框的宽度减去内边距
     final horizontalPadding = contentPadding is EdgeInsets
         ? contentPadding.left + contentPadding.right
-        : 24.0; // 默认内边距
+        : 24.0;
     final leftPadding =
         contentPadding is EdgeInsets ? contentPadding.left : 12.0;
     final topPadding = contentPadding is EdgeInsets ? contentPadding.top : 12.0;
+    final bottomPadding =
+        contentPadding is EdgeInsets ? contentPadding.bottom : 12.0;
 
-    textPainter.layout(maxWidth: renderBox.size.width - horizontalPadding);
+    final availableWidth = renderBox.size.width - horizontalPadding;
 
-    // 获取光标位置
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: effectiveStyle),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout(maxWidth: availableWidth);
+
     final cursorOffset = textPainter.getOffsetForCaret(
       TextPosition(offset: cursorPosition.clamp(0, text.length)),
       Rect.zero,
     );
 
-    // 加上内边距偏移
+    final lineHeight = textPainter.preferredLineHeight;
+    final visibleHeight = renderBox.size.height - topPadding - bottomPadding;
+
+    // 估算滚动偏移
+    double scrollOffset = 0;
+    if (cursorOffset.dy > visibleHeight - lineHeight) {
+      scrollOffset = cursorOffset.dy - visibleHeight + lineHeight;
+    }
+
+    final visibleCursorY = (cursorOffset.dy - scrollOffset)
+        .clamp(0.0, visibleHeight - lineHeight);
+
     return Offset(
       leftPadding + cursorOffset.dx,
-      topPadding + cursorOffset.dy + textPainter.preferredLineHeight,
+      topPadding + visibleCursorY + lineHeight,
     );
   }
 }
