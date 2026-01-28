@@ -136,8 +136,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         Container(
           width: 320,
           decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: theme.dividerColor)),
-          ),
+              border: Border(
+                  left:
+                      BorderSide(color: theme.dividerColor.withOpacity(0.3)))),
           child: _buildInfoPanel(theme, authState, isFavorited),
         ),
       ],

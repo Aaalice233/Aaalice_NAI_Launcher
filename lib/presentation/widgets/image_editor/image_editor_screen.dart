@@ -328,8 +328,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: theme.dividerColor),
-        ),
+            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
       child: Row(
         children: [
@@ -363,7 +362,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             tooltip: '加载蒙版',
           ),
 
-          const ThemedDivider(height: 1, vertical: true, indent: 8, endIndent: 8),
+          const ThemedDivider(
+              height: 1, vertical: true, indent: 8, endIndent: 8),
 
           // 切换面板
           IconButton(
@@ -388,7 +388,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             tooltip: '快捷键帮助',
           ),
 
-          const ThemedDivider(height: 1, vertical: true, indent: 8, endIndent: 8),
+          const ThemedDivider(
+              height: 1, vertical: true, indent: 8, endIndent: 8),
 
           // 导出按钮
           Padding(
@@ -426,8 +427,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             border: Border(
-              top: BorderSide(color: theme.dividerColor),
-            ),
+                top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
           ),
           child: Row(
             children: [

@@ -271,7 +271,7 @@ class _DialogHeader extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant,
+            color: colorScheme.outlineVariant.withOpacity(0.3),
             width: 1,
           ),
         ),
@@ -326,7 +326,7 @@ class _MobileDialogHeader extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant,
+            color: colorScheme.outlineVariant.withOpacity(0.3),
             width: 1,
           ),
         ),
@@ -421,7 +421,7 @@ class _ListPanelContainer extends ConsumerWidget {
           decoration: BoxDecoration(
             border: Border(
               top: BorderSide(
-                color: colorScheme.outlineVariant,
+                color: colorScheme.outlineVariant.withOpacity(0.3),
                 width: 1,
               ),
             ),
@@ -524,7 +524,7 @@ class _DialogFooter extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         border: Border(
           top: BorderSide(
-            color: colorScheme.outlineVariant,
+            color: colorScheme.outlineVariant.withOpacity(0.3),
             width: 1,
           ),
         ),

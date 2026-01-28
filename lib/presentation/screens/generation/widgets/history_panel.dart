@@ -182,9 +182,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.dividerColor),
-        ),
+        border:
+            Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
       child: FilledButton.icon(
         onPressed: () => _saveSelectedImages(context, history),

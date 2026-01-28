@@ -43,7 +43,7 @@ class DashboardSidebar extends StatelessWidget {
           : colorScheme.surfaceContainerLow,
       border: Border(
         right: BorderSide(
-          color: borderColor.withOpacity(0.3),
+          color: borderColor.withOpacity(0.15),
           width: 1,
         ),
       ),

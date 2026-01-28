@@ -273,9 +273,8 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: theme.dividerColor),
-        ),
+        border:
+            Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
