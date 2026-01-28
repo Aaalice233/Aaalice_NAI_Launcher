@@ -175,6 +175,98 @@ class DanbooruApiService {
     }
   }
 
+  /// 验证凭据（带错误类型区分）
+  ///
+  /// 返回 (用户信息, 是否为网络错误)
+  /// - 成功: (user, false)
+  /// - 凭据无效(401): (null, false)
+  /// - 网络错误: (null, true)
+  Future<(DanbooruUser?, bool isNetworkError)> verifyCredentialsWithErrorType(
+    DanbooruCredentials credentials,
+  ) async {
+    try {
+      AppLogger.i(
+        'Verifying Danbooru credentials for: ${credentials.username}',
+        'Danbooru',
+      );
+
+      // 生成Basic Auth头
+      final authHeader = _buildAuthHeader(credentials);
+      final headers = <String, String>{
+        'Accept': 'application/json',
+        'User-Agent': 'NAI-Launcher/1.0',
+        'Authorization': authHeader,
+      };
+
+      final response = await _dio.get(
+        '$_baseUrl$_profileEndpoint',
+        options: Options(
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+          headers: headers,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        if (response.data is Map<String, dynamic>) {
+          final user =
+              DanbooruUser.fromJson(response.data as Map<String, dynamic>);
+          AppLogger.i(
+            'Danbooru credential verification successful: ${user.name}',
+            'Danbooru',
+          );
+          return (user, false);
+        }
+        AppLogger.w(
+          'Danbooru API returned invalid user data',
+          'Danbooru',
+        );
+        // 数据格式错误视为网络错误，保留凭据
+        return (null, true);
+      }
+
+      if (response.statusCode == 401) {
+        AppLogger.w('Danbooru credentials expired or invalid', 'Danbooru');
+        // 401 确认凭据无效
+        return (null, false);
+      }
+
+      AppLogger.e(
+        'Danbooru API error: ${response.statusCode}',
+        null,
+        null,
+        'Danbooru',
+      );
+      // 其他状态码视为网络/服务器错误，保留凭据
+      return (null, true);
+    } on DioException catch (e) {
+      // 所有 Dio 异常都视为网络错误
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        AppLogger.w('Danbooru request timeout', 'Danbooru');
+      } else if (e.type == DioExceptionType.connectionError) {
+        AppLogger.w('Danbooru connection error: ${e.message}', 'Danbooru');
+      } else if (e.response?.statusCode == 401) {
+        // 401 响应但来自异常，仍然确认凭据无效
+        AppLogger.w('Danbooru credentials invalid (401)', 'Danbooru');
+        return (null, false);
+      } else {
+        AppLogger.e('Danbooru API error: ${e.message}', e, null, 'Danbooru');
+      }
+      return (null, true);
+    } catch (e, stack) {
+      AppLogger.e(
+        'Danbooru credential verification failed',
+        e,
+        stack,
+        'Danbooru',
+      );
+      // 未知异常视为网络错误
+      return (null, true);
+    }
+  }
+
   /// 构建Basic Auth头
   String _buildAuthHeader(DanbooruCredentials credentials) {
     final credentialsStr = '${credentials.username}:${credentials.apiKey}';
