@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
 
+import '../common/app_toast.dart';
+
 /// Statistics Export Dialog
 ///
 /// Provides export options for gallery statistics data in JSON or CSV format.
@@ -298,53 +300,59 @@ class _StatisticsExportDialogState
           'calculatedAt': widget.statistics.calculatedAt.toIso8601String(),
         },
         'modelDistribution': widget.statistics.modelDistribution
-            .map((model) => {
-                  'modelName': model.modelName,
-                  'count': model.count,
-                  'percentage': model.percentage,
-                },
-                )
+            .map(
+              (model) => {
+                'modelName': model.modelName,
+                'count': model.count,
+                'percentage': model.percentage,
+              },
+            )
             .toList(),
         'resolutionDistribution': widget.statistics.resolutionDistribution
-            .map((res) => {
-                  'label': res.label,
-                  'count': res.count,
-                  'percentage': res.percentage,
-                },
-                )
+            .map(
+              (res) => {
+                'label': res.label,
+                'count': res.count,
+                'percentage': res.percentage,
+              },
+            )
             .toList(),
         'samplerDistribution': widget.statistics.samplerDistribution
-            .map((sampler) => {
-                  'samplerName': sampler.samplerName,
-                  'count': sampler.count,
-                  'percentage': sampler.percentage,
-                },
-                )
+            .map(
+              (sampler) => {
+                'samplerName': sampler.samplerName,
+                'count': sampler.count,
+                'percentage': sampler.percentage,
+              },
+            )
             .toList(),
         'tagDistribution': widget.statistics.tagDistribution
-            .map((tag) => {
-                  'tagName': tag.tagName,
-                  'count': tag.count,
-                  'percentage': tag.percentage,
-                },
-                )
+            .map(
+              (tag) => {
+                'tagName': tag.tagName,
+                'count': tag.count,
+                'percentage': tag.percentage,
+              },
+            )
             .toList(),
         'parameterDistribution': widget.statistics.parameterDistribution
-            .map((param) => {
-                  'parameterName': param.parameterName,
-                  'value': param.value,
-                  'count': param.count,
-                  'percentage': param.percentage,
-                },
-                )
+            .map(
+              (param) => {
+                'parameterName': param.parameterName,
+                'value': param.value,
+                'count': param.count,
+                'percentage': param.percentage,
+              },
+            )
             .toList(),
         'sizeDistribution': widget.statistics.sizeDistribution
-            .map((size) => {
-                  'label': size.label,
-                  'count': size.count,
-                  'percentage': size.percentage,
-                },
-                )
+            .map(
+              (size) => {
+                'label': size.label,
+                'count': size.count,
+                'percentage': size.percentage,
+              },
+            )
             .toList(),
       },
     };
@@ -363,27 +371,27 @@ class _StatisticsExportDialogState
     buffer.writeln('Overview');
     buffer.writeln('Total Images,${widget.statistics.totalImages}');
     buffer.writeln(
-        'Total Size (${widget.statistics.totalSizeFormatted}),${widget.statistics.totalSizeBytes}',
+      'Total Size (${widget.statistics.totalSizeFormatted}),${widget.statistics.totalSizeBytes}',
     );
     buffer.writeln(
-        'Average Size (${widget.statistics.averageSizeFormatted}),${widget.statistics.averageFileSizeBytes.toInt()}',
+      'Average Size (${widget.statistics.averageSizeFormatted}),${widget.statistics.averageFileSizeBytes.toInt()}',
     );
     buffer.writeln('Favorite Count,${widget.statistics.favoriteCount}');
     buffer.writeln(
-        'Favorite Percentage,${widget.statistics.favoritePercentage.toStringAsFixed(2)}%',
+      'Favorite Percentage,${widget.statistics.favoritePercentage.toStringAsFixed(2)}%',
     );
     buffer.writeln('Tagged Image Count,${widget.statistics.taggedImageCount}');
     buffer.writeln(
-        'Tagged Image Percentage,${widget.statistics.taggedImagePercentage.toStringAsFixed(2)}%',
+      'Tagged Image Percentage,${widget.statistics.taggedImagePercentage.toStringAsFixed(2)}%',
     );
     buffer.writeln(
-        'Images With Metadata,${widget.statistics.imagesWithMetadata}',
+      'Images With Metadata,${widget.statistics.imagesWithMetadata}',
     );
     buffer.writeln(
-        'Metadata Percentage,${widget.statistics.metadataPercentage.toStringAsFixed(2)}%',
+      'Metadata Percentage,${widget.statistics.metadataPercentage.toStringAsFixed(2)}%',
     );
     buffer.writeln(
-        'Calculated At,${widget.statistics.calculatedAt.toIso8601String()}',
+      'Calculated At,${widget.statistics.calculatedAt.toIso8601String()}',
     );
     buffer.writeln();
 
@@ -393,7 +401,7 @@ class _StatisticsExportDialogState
       buffer.writeln('Model Name,Count,Percentage');
       for (final model in widget.statistics.modelDistribution) {
         buffer.writeln(
-            '${_escapeCsv(model.modelName)},${model.count},${model.percentage.toStringAsFixed(2)}%',
+          '${_escapeCsv(model.modelName)},${model.count},${model.percentage.toStringAsFixed(2)}%',
         );
       }
       buffer.writeln();
@@ -405,7 +413,7 @@ class _StatisticsExportDialogState
       buffer.writeln('Resolution,Count,Percentage');
       for (final resolution in widget.statistics.resolutionDistribution) {
         buffer.writeln(
-            '${_escapeCsv(resolution.label)},${resolution.count},${resolution.percentage.toStringAsFixed(2)}%',
+          '${_escapeCsv(resolution.label)},${resolution.count},${resolution.percentage.toStringAsFixed(2)}%',
         );
       }
       buffer.writeln();
@@ -417,7 +425,7 @@ class _StatisticsExportDialogState
       buffer.writeln('Sampler Name,Count,Percentage');
       for (final sampler in widget.statistics.samplerDistribution) {
         buffer.writeln(
-            '${_escapeCsv(sampler.samplerName)},${sampler.count},${sampler.percentage.toStringAsFixed(2)}%',
+          '${_escapeCsv(sampler.samplerName)},${sampler.count},${sampler.percentage.toStringAsFixed(2)}%',
         );
       }
       buffer.writeln();
@@ -429,7 +437,7 @@ class _StatisticsExportDialogState
       buffer.writeln('Tag Name,Count,Percentage');
       for (final tag in widget.statistics.tagDistribution) {
         buffer.writeln(
-            '${_escapeCsv(tag.tagName)},${tag.count},${tag.percentage.toStringAsFixed(2)}%',
+          '${_escapeCsv(tag.tagName)},${tag.count},${tag.percentage.toStringAsFixed(2)}%',
         );
       }
       buffer.writeln();
@@ -441,7 +449,7 @@ class _StatisticsExportDialogState
       buffer.writeln('Parameter Name,Value,Count,Percentage');
       for (final param in widget.statistics.parameterDistribution) {
         buffer.writeln(
-            '${_escapeCsv(param.parameterName)},${_escapeCsv(param.value)},${param.count},${param.percentage.toStringAsFixed(2)}%',
+          '${_escapeCsv(param.parameterName)},${_escapeCsv(param.value)},${param.count},${param.percentage.toStringAsFixed(2)}%',
         );
       }
       buffer.writeln();
@@ -453,7 +461,7 @@ class _StatisticsExportDialogState
       buffer.writeln('Size Range,Count,Percentage');
       for (final size in widget.statistics.sizeDistribution) {
         buffer.writeln(
-            '${_escapeCsv(size.label)},${size.count},${size.percentage.toStringAsFixed(2)}%',
+          '${_escapeCsv(size.label)},${size.count},${size.percentage.toStringAsFixed(2)}%',
         );
       }
     }
@@ -502,26 +510,6 @@ class _StatisticsExportDialogState
 
   /// Show success snackbar
   void _showSuccessSnackBar(String fileName) {
-    final theme = Theme.of(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              Icons.check_circle,
-              color: theme.colorScheme.onPrimary,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text('Statistics exported to $fileName'),
-            ),
-          ],
-        ),
-        backgroundColor: theme.colorScheme.primary,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppToast.info(context, 'Statistics exported to $fileName');
   }
 }

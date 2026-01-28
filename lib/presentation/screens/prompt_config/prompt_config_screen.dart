@@ -197,7 +197,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       onSyncCategory: _syncCategory,
       onShowDetail: (category, tags) {
         CategoryDetailDialog.show(
-            context: context, category: category, tags: tags);
+            context: context, category: category, tags: tags,);
       },
       onSettings: _showCategorySettings,
       onEnabledChanged: _toggleCategoryEnabled,

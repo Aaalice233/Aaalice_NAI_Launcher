@@ -10,6 +10,7 @@ import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
+import '../../../widgets/common/app_toast.dart';
 
 /// Img2Img 面板组件
 class Img2ImgPanel extends ConsumerStatefulWidget {
@@ -434,11 +435,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.img2img_selectFailed(e.toString())),
-          ),
-        );
+        AppToast.error(
+            context, context.l10n.img2img_selectFailed(e.toString()),);
       }
     }
   }
@@ -471,11 +469,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.img2img_selectFailed(e.toString())),
-          ),
-        );
+        AppToast.error(
+            context, context.l10n.img2img_selectFailed(e.toString()),);
       }
     }
   }

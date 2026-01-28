@@ -11,6 +11,7 @@ import '../../providers/danbooru_suggestion_provider.dart';
 import '../../providers/tag_favorite_provider.dart';
 import '../common/themed_container.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 标签收藏面板
 ///
@@ -97,13 +98,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
     // 检查是否已存在
     if (_isTagInCurrentTags(tag)) {
       // 已存在，显示提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.tag_alreadyAdded),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, context.l10n.tag_alreadyAdded);
       return;
     }
 
@@ -127,13 +122,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
     // 检查是否已存在
     if (_isTagTextInCurrentTags(suggestion.tag)) {
       // 已存在，显示提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.tag_alreadyAdded),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, context.l10n.tag_alreadyAdded);
       return;
     }
 

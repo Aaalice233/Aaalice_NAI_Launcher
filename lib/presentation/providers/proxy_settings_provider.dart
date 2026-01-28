@@ -16,7 +16,7 @@ class ProxySettingsNotifier extends _$ProxySettingsNotifier {
     final storage = ref.read(localStorageServiceProvider);
 
     // 从本地存储读取代理设置
-    final enabled = storage.getSetting<bool>(StorageKeys.proxyEnabled) ?? false;
+    final enabled = storage.getSetting<bool>(StorageKeys.proxyEnabled) ?? true;
     final modeStr = storage.getSetting<String>(StorageKeys.proxyMode) ?? 'auto';
     final manualHost = storage.getSetting<String>(StorageKeys.proxyManualHost);
     final manualPort = storage.getSetting<int>(StorageKeys.proxyManualPort);

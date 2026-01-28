@@ -708,9 +708,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!context.mounted) return;
 
     if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-      );
+      AppToast.info(context, context.l10n.auth_tokenNotFound);
       return;
     }
 

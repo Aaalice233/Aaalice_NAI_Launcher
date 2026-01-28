@@ -24,7 +24,7 @@ class ProxySettings {
   final int? manualPort;
 
   const ProxySettings({
-    this.enabled = false,
+    this.enabled = true,
     this.mode = ProxyMode.auto,
     this.manualHost,
     this.manualPort,

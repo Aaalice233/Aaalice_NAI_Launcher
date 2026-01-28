@@ -13,6 +13,7 @@ import '../providers/character_prompt_provider.dart';
 import '../providers/pending_prompt_provider.dart';
 import 'common/card_action_buttons.dart';
 
+import 'common/app_toast.dart';
 /// 图片卡片组件
 ///
 /// 性能优化：
@@ -100,12 +101,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       if (result == null) return;
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('开始下载...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      AppToast.info(context, '开始下载...');
 
       final file = await DanbooruImageCacheManager.instance.getSingleFile(url);
       final fileName = path.basename(Uri.parse(url).path);
@@ -114,15 +110,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       await file.copy(destination);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已保存到: $destination')),
-        );
+        AppToast.info(context, '已保存到: $destination');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('下载失败: $e')),
-        );
+        AppToast.info(context, '下载失败: $e');
       }
     }
   }
@@ -377,12 +369,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                           prompt: widget.post.tags.join(', '),
                                         );
                                     context.go('/');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('已发送到文生图'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
+                                    AppToast.info(context, '已发送到文生图');
                                   },
                                 ),
                                 CardActionButtonConfig(

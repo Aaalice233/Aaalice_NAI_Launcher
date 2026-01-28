@@ -95,42 +95,81 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   ) {
     final colorScheme = theme.colorScheme;
     final filter = notifier.filter;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.3),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.surfaceContainerLow,
+            colorScheme.surfaceContainer.withOpacity(isDark ? 0.7 : 0.9),
+          ],
         ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withOpacity(0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+            spreadRadius: -4,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.filter_list, size: 18, color: colorScheme.primary),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary.withOpacity(0.15),
+                      colorScheme.primary.withOpacity(0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.filter_list_rounded,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
                 l10n.statistics_filterTitle,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
               ),
               const Spacer(),
               if (filter.hasActiveFilters)
                 TextButton.icon(
                   onPressed: () => notifier.clearFilters(),
-                  icon: const Icon(Icons.clear, size: 16),
+                  icon: const Icon(Icons.clear_rounded, size: 16),
                   label: Text(l10n.statistics_filterClear),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -154,42 +193,59 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
   ) {
     final colorScheme = theme.colorScheme;
     final isActive = filter.dateRange != null;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return InkWell(
-      onTap: () => _selectDateRange(context, filter, notifier),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? colorScheme.primary.withOpacity(0.1) : null,
-          border: Border.all(
-            color: isActive
-                ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.3),
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.calendar_today,
-              size: 16,
-              color:
-                  isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _selectDateRange(context, filter, notifier),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: isActive
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12),
+                      colorScheme.primary.withOpacity(isDark ? 0.1 : 0.06),
+                    ],
+                  )
+                : null,
+            color: isActive ? null : colorScheme.surfaceContainerHigh,
+            border: Border.all(
+              color: isActive
+                  ? colorScheme.primary.withOpacity(0.4)
+                  : colorScheme.outline.withOpacity(0.2),
+              width: isActive ? 1.5 : 1,
             ),
-            const SizedBox(width: 6),
-            Text(
-              filter.dateRange != null
-                  ? '${StatisticsFormatter.formatDateShort(filter.dateRange!.start)} - ${StatisticsFormatter.formatDateShort(filter.dateRange!.end)}'
-                  : l10n.statistics_filterDateRange,
-              style: theme.textTheme.labelMedium?.copyWith(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.calendar_today_rounded,
+                size: 16,
                 color: isActive
                     ? colorScheme.primary
                     : colorScheme.onSurfaceVariant,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                filter.dateRange != null
+                    ? '${StatisticsFormatter.formatDateShort(filter.dateRange!.start)} - ${StatisticsFormatter.formatDateShort(filter.dateRange!.end)}'
+                    : l10n.statistics_filterDateRange,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: isActive
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -229,26 +285,42 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final filter = notifier.filter;
     final isActive =
         filter.selectedModel != null && filter.selectedModel!.isNotEmpty;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: isActive ? colorScheme.primary.withOpacity(0.1) : null,
+        gradient: isActive
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12),
+                  colorScheme.primary.withOpacity(isDark ? 0.1 : 0.06),
+                ],
+              )
+            : null,
+        color: isActive ? null : colorScheme.surfaceContainerHigh,
         border: Border.all(
           color: isActive
-              ? colorScheme.primary
-              : colorScheme.outline.withOpacity(0.3),
+              ? colorScheme.primary.withOpacity(0.4)
+              : colorScheme.outline.withOpacity(0.2),
+          width: isActive ? 1.5 : 1,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: filter.selectedModel,
           hint: Text(
             l10n.statistics_filterModel,
-            style: theme.textTheme.labelMedium,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
           ),
           isDense: true,
+          borderRadius: BorderRadius.circular(12),
           items: [
             DropdownMenuItem(
               value: '',
@@ -277,26 +349,42 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     final filter = notifier.filter;
     final isActive = filter.selectedResolution != null &&
         filter.selectedResolution!.isNotEmpty;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: isActive ? colorScheme.primary.withOpacity(0.1) : null,
+        gradient: isActive
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12),
+                  colorScheme.primary.withOpacity(isDark ? 0.1 : 0.06),
+                ],
+              )
+            : null,
+        color: isActive ? null : colorScheme.surfaceContainerHigh,
         border: Border.all(
           color: isActive
-              ? colorScheme.primary
-              : colorScheme.outline.withOpacity(0.3),
+              ? colorScheme.primary.withOpacity(0.4)
+              : colorScheme.outline.withOpacity(0.2),
+          width: isActive ? 1.5 : 1,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: filter.selectedResolution,
           hint: Text(
             l10n.statistics_filterResolution,
-            style: theme.textTheme.labelMedium,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
           ),
           isDense: true,
+          borderRadius: BorderRadius.circular(12),
           items: [
             DropdownMenuItem(
               value: '',
@@ -404,19 +492,46 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: theme.textTheme.bodySmall),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.surfaceContainerHigh.withOpacity(isDark ? 0.8 : 1.0),
+            colorScheme.surfaceContainerHighest.withOpacity(isDark ? 0.6 : 0.8),
+          ],
         ),
-      ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withOpacity(0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

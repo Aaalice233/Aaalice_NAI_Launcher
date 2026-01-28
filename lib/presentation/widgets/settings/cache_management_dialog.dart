@@ -16,6 +16,8 @@ import '../../providers/tag_library_provider.dart';
 import '../../screens/prompt_config/widgets/custom_group_search_dialog.dart';
 import 'create_custom_group_dialog.dart';
 
+import '../common/app_toast.dart';
+
 /// 缓存管理对话框
 ///
 /// 显示本地已缓存的 Tag Group 和 Pool 数据，
@@ -156,9 +158,7 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     } catch (e) {
       if (mounted) {
         final l10n = context.l10n;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.cache_refreshFailed(e.toString()))),
-        );
+        AppToast.error(context, l10n.cache_refreshFailed(e.toString()));
       }
     } finally {
       if (mounted) {
@@ -191,9 +191,7 @@ class _CacheManagementDialogState extends ConsumerState<CacheManagementDialog>
     } catch (e) {
       if (mounted) {
         final l10n = context.l10n;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.cache_refreshFailed(e.toString()))),
-        );
+        AppToast.error(context, l10n.cache_refreshFailed(e.toString()));
       }
     } finally {
       if (mounted) {

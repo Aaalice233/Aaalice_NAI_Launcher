@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../providers/fixed_tags_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../../widgets/common/app_toast.dart';
 import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
 import 'widgets/entry_list_item.dart';
@@ -340,6 +343,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
           onTap: () => _showEntryDetail(entry),
           onAddToFixed: () => _addToFixedTags(entry),
           onDelete: () => _showDeleteEntryConfirmation(entry.id),
+          onEdit: () => _showEditDialog(entry),
           onToggleFavorite: () {
             ref
                 .read(tagLibraryPageNotifierProvider.notifier)
@@ -364,6 +368,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
             onTap: () => _showEntryDetail(entry),
             onAddToFixed: () => _addToFixedTags(entry),
             onDelete: () => _showDeleteEntryConfirmation(entry.id),
+            onEdit: () => _showEditDialog(entry),
             onToggleFavorite: () {
               ref
                   .read(tagLibraryPageNotifierProvider.notifier)
@@ -504,11 +509,36 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   }
 
   void _showEntryDetail(dynamic entry) {
-    // TODO: 实现条目详情/编辑对话框
+    // 点击卡片同样打开编辑对话框
+    _showEditDialog(entry);
+  }
+
+  void _showEditDialog(dynamic entry) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    showDialog(
+      context: context,
+      builder: (context) => EntryAddDialog(
+        categories: state.categories,
+        entry: entry,
+      ),
+    );
   }
 
   void _addToFixedTags(dynamic entry) {
-    // TODO: 实现添加到固定词功能
+    // 添加到固定词
+    ref.read(fixedTagsNotifierProvider.notifier).addEntry(
+          name: entry.name.isNotEmpty ? entry.name : entry.displayName,
+          content: entry.content,
+          weight: 1.0,
+          position: FixedTagPosition.prefix,
+          enabled: true,
+        );
+
+    // 记录使用
+    ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
+
+    // 显示提示
+    AppToast.success(context, context.l10n.tagLibrary_addedToFixed);
   }
 
   void _showImportDialog() {

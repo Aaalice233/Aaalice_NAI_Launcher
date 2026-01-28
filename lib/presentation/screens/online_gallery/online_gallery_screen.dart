@@ -21,6 +21,8 @@ import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
 
+import '../../widgets/common/app_toast.dart';
+
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
   const OnlineGalleryScreen({super.key});
@@ -604,7 +606,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       label: Text(
         hasDateRange
             ? _dateFormattingService.formatDateRange(
-                state.dateRangeStart, state.dateRangeEnd,
+                state.dateRangeStart,
+                state.dateRangeEnd,
               )
             : context.l10n.onlineGallery_dateRange,
         style: TextStyle(
@@ -1022,9 +1025,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         .toList();
 
     if (tasks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('选中的图片没有标签信息')),
-      );
+      AppToast.info(context, '选中的图片没有标签信息');
       return;
     }
 
@@ -1032,9 +1033,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         await ref.read(replicationQueueNotifierProvider.notifier).addAll(tasks);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
-      );
+      AppToast.success(context, '已添加 $addedCount 个任务到队列');
       ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
     }
   }
@@ -1070,9 +1069,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已收藏 $count 张图片')),
-      );
+      AppToast.info(context, '已收藏 $count 张图片');
       ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
     }
   }
@@ -1093,9 +1090,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     if (result == null) return;
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('开始下载 ${selectedPosts.length} 张图片...')),
-      );
+      AppToast.info(context, '开始下载 ${selectedPosts.length} 张图片...');
       ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
     }
 
@@ -1126,9 +1121,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('下载完成: 成功 $successCount, 失败 $failCount')),
-      );
+      AppToast.success(context, '下载完成: 成功 $successCount, 失败 $failCount');
     }
   }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/chart_colors.dart';
 
 /// Heatmap chart widget for displaying activity distribution
-/// 热力图组件，用于展示活动分布
+/// Enhanced with hover effects, animations and improved visual styling
 class HeatmapChart extends StatefulWidget {
   /// Data matrix [week][dayOfWeek] with values 0.0 to 1.0
   final List<List<double>> data;
@@ -44,6 +44,8 @@ class _HeatmapChartState extends State<HeatmapChart>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  int? _hoveredWeek;
+  int? _hoveredDay;
 
   @override
   void initState() {
@@ -68,6 +70,7 @@ class _HeatmapChartState extends State<HeatmapChart>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final dayLabels = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
 
     return AnimatedBuilder(
@@ -81,7 +84,7 @@ class _HeatmapChartState extends State<HeatmapChart>
               Padding(
                 padding: EdgeInsets.only(
                   left: widget.showMonthLabels ? 30 : 0,
-                  bottom: 4,
+                  bottom: 6,
                 ),
                 child: Row(
                   children: List.generate(7, (dayIndex) {
@@ -91,7 +94,8 @@ class _HeatmapChartState extends State<HeatmapChart>
                         dayLabels[dayIndex],
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 10,
-                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurfaceVariant.withOpacity(0.8),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -125,26 +129,86 @@ class _HeatmapChartState extends State<HeatmapChart>
                                     ? widget.data[weekIndex][dayIndex]
                                     : 0.0;
                             final animatedValue = value * _animation.value;
+                            final isHovered = _hoveredWeek == weekIndex &&
+                                _hoveredDay == dayIndex;
 
-                            return GestureDetector(
-                              onTap: widget.onCellTap != null
-                                  ? () => widget.onCellTap!(
-                                      weekIndex, dayIndex, value,)
-                                  : null,
-                              child: Tooltip(
-                                message: '${(value * 100).toInt()} activities',
-                                child: Container(
-                                  width: widget.cellSize,
-                                  height: widget.cellSize,
-                                  margin:
-                                      EdgeInsets.all(widget.cellSpacing / 2),
+                            return MouseRegion(
+                              onEnter: (_) => setState(() {
+                                _hoveredWeek = weekIndex;
+                                _hoveredDay = dayIndex;
+                              }),
+                              onExit: (_) => setState(() {
+                                _hoveredWeek = null;
+                                _hoveredDay = null;
+                              }),
+                              cursor: widget.onCellTap != null
+                                  ? SystemMouseCursors.click
+                                  : MouseCursor.defer,
+                              child: GestureDetector(
+                                onTap: widget.onCellTap != null
+                                    ? () => widget.onCellTap!(
+                                          weekIndex,
+                                          dayIndex,
+                                          value,
+                                        )
+                                    : null,
+                                child: Tooltip(
+                                  message: value > 0
+                                      ? '${(value * 100).toInt()} activities'
+                                      : 'No activity',
                                   decoration: BoxDecoration(
-                                    color: value > 0
-                                        ? ChartColors.getHeatmapColor(
-                                            animatedValue,)
-                                        : theme.colorScheme
-                                            .surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(3),
+                                    color: colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  textStyle: theme.textTheme.bodySmall,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    width: widget.cellSize,
+                                    height: widget.cellSize,
+                                    margin:
+                                        EdgeInsets.all(widget.cellSpacing / 2),
+                                    decoration: BoxDecoration(
+                                      color: value > 0
+                                          ? ChartColors.getHeatmapColor(
+                                              animatedValue,
+                                            )
+                                          : colorScheme.surfaceContainerHighest
+                                              .withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(
+                                        isHovered ? 4 : 3,
+                                      ),
+                                      border: isHovered
+                                          ? Border.all(
+                                              color: colorScheme.primary
+                                                  .withOpacity(0.6),
+                                              width: 1.5,
+                                            )
+                                          : null,
+                                      boxShadow: isHovered && value > 0
+                                          ? [
+                                              BoxShadow(
+                                                color:
+                                                    ChartColors.getHeatmapColor(
+                                                            value,)
+                                                        .withOpacity(0.4),
+                                                blurRadius: 6,
+                                                spreadRadius: 1,
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    transform: isHovered
+                                        ? Matrix4.identity()
+                                            .scaled(1.15, 1.15, 1.0)
+                                        : null,
+                                    transformAlignment: Alignment.center,
                                   ),
                                 ),
                               ),
@@ -158,8 +222,8 @@ class _HeatmapChartState extends State<HeatmapChart>
               ],
             ),
             // Legend
-            const SizedBox(height: 12),
-            _buildLegend(theme),
+            const SizedBox(height: 16),
+            _buildLegend(theme, colorScheme),
           ],
         );
       },
@@ -176,7 +240,8 @@ class _HeatmapChartState extends State<HeatmapChart>
             'Week',
             style: theme.textTheme.bodySmall?.copyWith(
               fontSize: 10,
-              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
             ),
           ),
         ),
@@ -184,38 +249,50 @@ class _HeatmapChartState extends State<HeatmapChart>
     ];
   }
 
-  Widget _buildLegend(ThemeData theme) {
+  Widget _buildLegend(ThemeData theme, ColorScheme colorScheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
           'Less',
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 10,
-            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
         ...List.generate(5, (index) {
           final value = index / 4;
           return Container(
-            width: 12,
-            height: 12,
-            margin: const EdgeInsets.symmetric(horizontal: 1),
+            width: 14,
+            height: 14,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
               color: index == 0
-                  ? theme.colorScheme.surfaceContainerHighest
+                  ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
                   : ChartColors.getHeatmapColor(value),
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: index > 0
+                  ? [
+                      BoxShadow(
+                        color:
+                            ChartColors.getHeatmapColor(value).withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ]
+                  : null,
             ),
           );
         }),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
         Text(
           'More',
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 10,
-            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
           ),
         ),
       ],

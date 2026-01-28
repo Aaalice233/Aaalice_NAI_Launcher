@@ -28,6 +28,7 @@ import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/image_context_menu.dart';
 
+import '../../widgets/common/app_toast.dart';
 /// 本地画廊屏幕
 /// Local gallery screen
 class LocalGalleryScreen extends ConsumerStatefulWidget {
@@ -331,9 +332,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法打开文件夹: $e')),
-        );
+        AppToast.info(context, '无法打开文件夹: $e');
       }
     }
   }
@@ -349,9 +348,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已撤销'), duration: Duration(seconds: 2)),
-      );
+      AppToast.info(context, '已撤销');
     }
   }
 
@@ -361,9 +358,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已重做'), duration: Duration(seconds: 2)),
-      );
+      AppToast.info(context, '已重做');
     }
   }
 
@@ -427,9 +422,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
     if (mounted && deletedImages.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已删除 ${deletedImages.length} 张图片')),
-      );
+      AppToast.success(context, '已删除 ${deletedImages.length} 张图片');
     }
   }
 
@@ -462,9 +455,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final folders = folderState.folders;
     if (folders.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('暂无可用文件夹，请先创建文件夹')),
-        );
+        AppToast.info(context, '暂无可用文件夹，请先创建文件夹');
       }
       return;
     }
@@ -509,16 +500,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (mounted) {
       if (movedCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已移动 $movedCount 张图片')),
-        );
+        AppToast.info(context, '已移动 $movedCount 张图片');
         ref.read(localGallerySelectionNotifierProvider.notifier).exit();
         ref.read(localGalleryNotifierProvider.notifier).refresh();
         ref.read(galleryFolderNotifierProvider.notifier).refresh();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('移动图片失败')),
-        );
+        AppToast.info(context, '移动图片失败');
       }
     }
   }
@@ -548,17 +535,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (mounted) {
       if (addedCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已添加 $addedCount 张图片到集合「${result.collectionName}」'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        AppToast.success(context, '已添加 $addedCount 张图片到集合「${result.collectionName}」');
         ref.read(localGallerySelectionNotifierProvider.notifier).exit();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('添加图片到集合失败')),
-        );
+        AppToast.info(context, '添加图片到集合失败');
       }
     }
   }
@@ -609,12 +589,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       paramsNotifier.updateCfgRescale(metadata.cfgRescale!);
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('参数已复用到主界面'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    AppToast.info(context, '参数已复用到主界面');
   }
 
   /// 发送图片到图生图
@@ -623,9 +598,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       final file = File(record.path);
       if (!await file.exists()) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('图片文件不存在')),
-          );
+          AppToast.info(context, '图片文件不存在');
         }
         return;
       }
@@ -638,18 +611,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       paramsNotifier.updateAction(ImageGenerationAction.img2img);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('图片已发送到图生图，请切换到生成页面'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        AppToast.info(context, '图片已发送到图生图，请切换到生成页面');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发送失败: $e')),
-        );
+        AppToast.info(context, '发送失败: $e');
       }
     }
   }

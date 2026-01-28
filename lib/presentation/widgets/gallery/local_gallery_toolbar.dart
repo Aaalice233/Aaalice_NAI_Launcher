@@ -13,6 +13,8 @@ import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
 import 'folder_tabs.dart';
 
+import '../common/app_toast.dart';
+
 /// Local gallery toolbar with search, filter and actions
 /// 本地画廊工具栏（搜索、过滤、操作按钮）
 class LocalGalleryToolbar extends ConsumerStatefulWidget {
@@ -532,14 +534,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
 
       // Show hint message
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        AppToast.info(context,
+            '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}',);
       }
     }
   }

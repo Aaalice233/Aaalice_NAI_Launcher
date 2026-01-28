@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
+import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/safe_dropdown.dart';
@@ -17,10 +18,14 @@ class EntryAddDialog extends ConsumerStatefulWidget {
   final List<TagLibraryCategory> categories;
   final String? initialCategoryId;
 
+  /// 要编辑的条目，如果为 null 则为新建模式
+  final TagLibraryEntry? entry;
+
   const EntryAddDialog({
     super.key,
     required this.categories,
     this.initialCategoryId,
+    this.entry,
   });
 
   @override
@@ -37,13 +42,17 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   String? _selectedCategoryId;
   String? _thumbnailPath;
 
+  bool get _isEditing => widget.entry != null;
+
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _contentController = NaiSyntaxController();
-    _tagsController = TextEditingController();
-    _selectedCategoryId = widget.initialCategoryId;
+    final entry = widget.entry;
+    _nameController = TextEditingController(text: entry?.name ?? '');
+    _contentController = NaiSyntaxController(text: entry?.content ?? '');
+    _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
+    _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
+    _thumbnailPath = entry?.thumbnail;
   }
 
   @override
@@ -79,12 +88,14 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                 Row(
                   children: [
                     Icon(
-                      Icons.add_box_outlined,
+                      _isEditing ? Icons.edit_outlined : Icons.add_box_outlined,
                       color: theme.colorScheme.primary,
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      context.l10n.tagLibrary_addEntry,
+                      _isEditing
+                          ? context.l10n.tagLibrary_editEntry
+                          : context.l10n.tagLibrary_addEntry,
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -379,13 +390,29 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
     if (content.isEmpty) return;
 
-    ref.read(tagLibraryPageNotifierProvider.notifier).addEntry(
-          name: name,
-          content: content,
-          thumbnail: _thumbnailPath,
-          tags: tags,
-          categoryId: _selectedCategoryId,
-        );
+    final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
+
+    if (_isEditing) {
+      // 编辑模式：更新现有条目
+      final updatedEntry = widget.entry!.copyWith(
+        name: name,
+        content: content,
+        thumbnail: _thumbnailPath,
+        tags: tags,
+        categoryId: _selectedCategoryId,
+        updatedAt: DateTime.now(),
+      );
+      notifier.updateEntry(updatedEntry);
+    } else {
+      // 新建模式：添加新条目
+      notifier.addEntry(
+        name: name,
+        content: content,
+        thumbnail: _thumbnailPath,
+        tags: tags,
+        categoryId: _selectedCategoryId,
+      );
+    }
 
     Navigator.of(context).pop();
   }

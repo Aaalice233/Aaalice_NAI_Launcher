@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
 
+import '../common/app_toast.dart';
 class MainNavRail extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -815,9 +816,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
     if (token == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-        );
+        AppToast.info(context, context.l10n.auth_tokenNotFound);
       }
       return;
     }
@@ -860,9 +859,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
             errorMessage = context.l10n.auth_loginFailed;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        AppToast.error(context, errorMessage);
       }
     }
   }

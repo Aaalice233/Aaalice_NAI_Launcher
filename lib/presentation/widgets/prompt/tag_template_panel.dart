@@ -9,6 +9,8 @@ import '../../../data/models/prompt/tag_template.dart';
 import '../../providers/tag_template_provider.dart';
 import '../common/themed_container.dart';
 
+import '../common/app_toast.dart';
+
 /// 标签模板面板
 ///
 /// 显示用户保存的标签模板，支持插入模板到提示词、创建和删除模板
@@ -70,13 +72,8 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
     HapticFeedback.lightImpact();
 
     // 显示提示
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.tag_templateInserted(template.displayName)),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppToast.info(
+        context, context.l10n.tag_templateInserted(template.displayName),);
   }
 
   /// 创建新模板
@@ -89,13 +86,7 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
         : widget.currentTags;
 
     if (tagsToSave.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.tag_templateNoTags),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, context.l10n.tag_templateNoTags);
       return;
     }
 
@@ -107,13 +98,12 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           final messenger = ScaffoldMessenger.of(dialogContext);
           final l10n = dialogContext.l10n;
 
-          final result = await ref
-              .read(tagTemplateNotifierProvider.notifier)
-              .saveTemplate(
-                name: name,
-                tags: tagsToSave,
-                description: description,
-              );
+          final result =
+              await ref.read(tagTemplateNotifierProvider.notifier).saveTemplate(
+                    name: name,
+                    tags: tagsToSave,
+                    description: description,
+                  );
 
           if (result == null) {
             // 保存失败（名称冲突）
@@ -506,7 +496,8 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  color: theme.colorScheme.surfaceContainerHighest
+                      .withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: theme.colorScheme.outline.withOpacity(0.3),

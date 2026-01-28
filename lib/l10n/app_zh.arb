@@ -2389,6 +2389,7 @@
   "tagLibrary_categories": "分类",
   "tagLibrary_newCategory": "新建分类",
   "tagLibrary_addEntry": "添加条目",
+  "tagLibrary_editEntry": "编辑条目",
   "tagLibrary_searchHint": "搜索条目...",
   "tagLibrary_cardView": "卡片视图",
   "tagLibrary_listView": "列表视图",
@@ -2419,6 +2420,7 @@
   "tagLibrary_empty": "词库为空",
   "tagLibrary_addFirstEntry": "点击上方按钮添加第一个条目",
   "tagLibrary_addToFixed": "添加到固定词",
+  "tagLibrary_addedToFixed": "已添加到固定词",
   "tagLibrary_useCount": "使用 {count} 次",
   "@tagLibrary_useCount": {
     "placeholders": {
@@ -2427,6 +2429,7 @@
   },
   "tagLibrary_removeFavorite": "取消收藏",
   "tagLibrary_addFavorite": "添加收藏",
+  "tagLibrary_pinned": "已置顶",
   "tagLibrary_thumbnail": "预览图",
   "tagLibrary_selectImage": "选择图片",
   "tagLibrary_thumbnailHint": "支持 PNG/JPG/WEBP 格式",

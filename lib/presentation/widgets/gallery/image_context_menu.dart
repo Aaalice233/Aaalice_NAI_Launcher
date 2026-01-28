@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 
 import '../../../data/models/gallery/local_image_record.dart';
 
+import '../common/app_toast.dart';
 /// Image context menu for copy prompt/seed, open folder, delete
 /// 图片右键菜单（复制Prompt/Seed、在文件夹中显示、删除）
 class ImageContextMenu {
@@ -81,9 +82,7 @@ class ImageContextMenu {
         if (metadata?.fullPrompt.isNotEmpty == true) {
           await Clipboard.setData(ClipboardData(text: metadata!.fullPrompt));
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Prompt 已复制')),
-            );
+            AppToast.info(context, 'Prompt 已复制');
           }
         }
         break;
@@ -93,9 +92,7 @@ class ImageContextMenu {
             ClipboardData(text: metadata!.seed.toString()),
           );
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Seed 已复制')),
-            );
+            AppToast.info(context, 'Seed 已复制');
           }
         }
         break;
@@ -124,9 +121,7 @@ class ImageContextMenu {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法打开文件夹: $e')),
-        );
+        AppToast.info(context, '无法打开文件夹: $e');
       }
     }
   }
@@ -171,16 +166,12 @@ class ImageContextMenu {
           onDeleted?.call();
           onRefresh?.call();
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('图片已删除')),
-            );
+            AppToast.info(context, '图片已删除');
           }
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('删除失败: $e')),
-          );
+          AppToast.info(context, '删除失败: $e');
         }
       }
     }

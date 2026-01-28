@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'components/pro_context_menu.dart';
 import 'random_library_manager_state.dart';
 
+import '../../common/app_toast.dart';
 RandomTreeNode? _clipboardNode;
 
 class RandomTreeView extends ConsumerWidget {
@@ -388,9 +389,7 @@ class _TreeNodeWidget extends ConsumerWidget {
         icon: Icons.copy,
         onTap: () {
           _clipboardNode = node;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Copied ${node.label}')),
-          );
+          AppToast.success(context, 'Copied ${node.label}');
         },
       ),
     );

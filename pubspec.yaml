@@ -122,3 +122,8 @@ flutter:
     - assets/translations/
     - assets/data/
     - assets/data/wordlists/
+
+  fonts:
+    - family: LXGW ZhenKai GB
+      fonts:
+        - asset: fonts/LXGWZhenKaiGB-Regular.ttf

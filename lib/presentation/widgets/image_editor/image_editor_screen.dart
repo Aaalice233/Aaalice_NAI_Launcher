@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../widgets/common/app_toast.dart';
 import 'core/editor_state.dart';
 import 'layers/layer.dart';
 import 'tools/tool_base.dart';
@@ -328,7 +329,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
+            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),),
       ),
       child: Row(
         children: [
@@ -363,7 +364,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
 
           const ThemedDivider(
-              height: 1, vertical: true, indent: 8, endIndent: 8),
+              height: 1, vertical: true, indent: 8, endIndent: 8,),
 
           // 切换面板
           IconButton(
@@ -389,7 +390,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
 
           const ThemedDivider(
-              height: 1, vertical: true, indent: 8, endIndent: 8),
+              height: 1, vertical: true, indent: 8, endIndent: 8,),
 
           // 导出按钮
           Padding(
@@ -427,7 +428,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             border: Border(
-                top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
+                top: BorderSide(color: theme.dividerColor.withOpacity(0.3)),),
           ),
           child: Row(
             children: [
@@ -706,12 +707,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
         // 显示成功消息
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('画布已调整为 $newWidth x $newHeight'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          AppToast.success(context, '画布已调整为 $newWidth x $newHeight');
         }
       } catch (e) {
         // 显示错误信息
@@ -724,15 +720,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   /// 显示错误消息
   void _showError(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          action: SnackBarAction(
-            label: '关闭',
-            onPressed: () {},
-          ),
-        ),
-      );
+      AppToast.error(context, message);
     }
   }
 
@@ -862,9 +850,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
       // 显示错误
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('导出失败: $e')),
-        );
+        AppToast.error(context, '导出失败: $e');
       }
     }
   }
@@ -899,11 +885,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         if (!validImageExtensions.contains(extension)) {
           AppLogger.w('Invalid file extension: $extension', 'ImageEditor');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP等）'),
-              ),
-            );
+            AppToast.error(
+                context, '不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP等）',);
           }
           return;
         }
@@ -919,9 +902,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         } catch (e) {
           AppLogger.e('Failed to read file: $e', 'ImageEditor');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('无法读取文件: $e')),
-            );
+            AppToast.error(context, '无法读取文件: $e');
           }
           return;
         }
@@ -931,9 +912,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       if (bytes == null) {
         AppLogger.w('File bytes is null', 'ImageEditor');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('无法获取文件数据')),
-          );
+          AppToast.error(context, '无法获取文件数据');
         }
         return;
       }
@@ -942,9 +921,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       if (bytes.isEmpty) {
         AppLogger.w('File is empty (0 bytes)', 'ImageEditor');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('文件为空，请选择有效的图像文件')),
-          );
+          AppToast.error(context, '文件为空，请选择有效的图像文件');
         }
         return;
       }
@@ -955,9 +932,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         final sizeMB = (bytes.length / (1024 * 1024)).toStringAsFixed(1);
         AppLogger.w('File too large: ${bytes.length} bytes', 'ImageEditor');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('文件过大（$sizeMB MB），请选择小于 50MB 的图像')),
-          );
+          AppToast.error(context, '文件过大（$sizeMB MB），请选择小于 50MB 的图像');
         }
         return;
       }
@@ -971,9 +946,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       if (layer != null) {
         AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('蒙版图层已添加')),
-          );
+          AppToast.success(context, '蒙版图层已添加');
         }
       } else {
         // 图像解码失败或格式不支持
@@ -982,19 +955,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           'ImageEditor',
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('无法解析图像文件\n请确保文件未损坏且格式受支持'),
-            ),
-          );
+          AppToast.error(context, '无法解析图像文件\n请确保文件未损坏且格式受支持');
         }
       }
     } catch (e) {
       AppLogger.e('Unexpected error loading mask file: $e', 'ImageEditor');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载蒙版时发生错误: $e')),
-        );
+        AppToast.error(context, '加载蒙版时发生错误: $e');
       }
     }
   }

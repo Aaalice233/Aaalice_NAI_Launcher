@@ -7,6 +7,7 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 
+import '../../../widgets/common/app_toast.dart';
 /// 导出对话框
 class ExportDialog extends ConsumerStatefulWidget {
   final List<TagLibraryEntry> entries;
@@ -180,16 +181,12 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('导出成功')),
-        );
+        AppToast.info(context, '导出成功');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isExporting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('导出失败: $e')),
-        );
+        AppToast.info(context, '导出失败: $e');
       }
     }
   }

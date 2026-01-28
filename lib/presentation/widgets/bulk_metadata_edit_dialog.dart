@@ -8,6 +8,7 @@ import '../providers/bulk_operation_provider.dart';
 import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
 import '../widgets/common/themed_divider.dart';
+import '../widgets/common/app_toast.dart';
 
 /// Bulk Metadata Edit Dialog Widget
 /// 批量元数据编辑对话框组件
@@ -22,7 +23,8 @@ class BulkMetadataEditDialog extends ConsumerStatefulWidget {
       _BulkMetadataEditDialogState();
 }
 
-class _BulkMetadataEditDialogState extends ConsumerState<BulkMetadataEditDialog> {
+class _BulkMetadataEditDialogState
+    extends ConsumerState<BulkMetadataEditDialog> {
   final TextEditingController _tagsToAddController = TextEditingController();
   final TextEditingController _tagsToRemoveController = TextEditingController();
   final TextEditingController _promptController = TextEditingController();
@@ -62,12 +64,7 @@ class _BulkMetadataEditDialogState extends ConsumerState<BulkMetadataEditDialog>
 
     if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
       // Show error dialog if no changes
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add tags to add or remove'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppToast.warning(context, 'Please add tags to add or remove');
       return;
     }
 

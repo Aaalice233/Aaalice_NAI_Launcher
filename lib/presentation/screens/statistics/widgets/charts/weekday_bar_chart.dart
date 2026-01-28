@@ -184,6 +184,7 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
 }
 
 /// Weekday summary widget showing most/least active days
+/// Enhanced with gradient backgrounds and improved visual hierarchy
 class WeekdaySummary extends StatelessWidget {
   final Map<int, int> weekdayData;
 
@@ -233,8 +234,9 @@ class WeekdaySummary extends StatelessWidget {
             label: locale == 'zh' ? '最活跃' : 'Most Active',
             dayName: dayNames[mostActive.key] ?? '',
             count: mostActive.value,
-            color: Colors.green,
-            icon: Icons.trending_up,
+            color: const Color(0xFF10B981), // Emerald green
+            secondaryColor: const Color(0xFF34D399),
+            icon: Icons.trending_up_rounded,
           ),
         ),
         const SizedBox(width: 12),
@@ -243,8 +245,9 @@ class WeekdaySummary extends StatelessWidget {
             label: locale == 'zh' ? '最不活跃' : 'Least Active',
             dayName: dayNames[leastActive.key] ?? '',
             count: leastActive.value,
-            color: Colors.orange,
-            icon: Icons.trending_down,
+            color: const Color(0xFFF59E0B), // Amber
+            secondaryColor: const Color(0xFFFBBF24),
+            icon: Icons.trending_down_rounded,
           ),
         ),
       ],
@@ -252,11 +255,12 @@ class WeekdaySummary extends StatelessWidget {
   }
 }
 
-class _DaySummaryCard extends StatelessWidget {
+class _DaySummaryCard extends StatefulWidget {
   final String label;
   final String dayName;
   final int count;
   final Color color;
+  final Color secondaryColor;
   final IconData icon;
 
   const _DaySummaryCard({
@@ -264,54 +268,102 @@ class _DaySummaryCard extends StatelessWidget {
     required this.dayName,
     required this.count,
     required this.color,
+    required this.secondaryColor,
     required this.icon,
   });
+
+  @override
+  State<_DaySummaryCard> createState() => _DaySummaryCardState();
+}
+
+class _DaySummaryCardState extends State<_DaySummaryCard> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              widget.color.withOpacity(isDark ? 0.2 : 0.12),
+              widget.secondaryColor.withOpacity(isDark ? 0.1 : 0.06),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: widget.color.withOpacity(_isHovered ? 0.4 : 0.2),
+            width: _isHovered ? 1.5 : 1,
+          ),
+          boxShadow: _isHovered
+              ? [
+                  BoxShadow(
+                    color: widget.color.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  dayName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: widget.color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(widget.icon, color: widget.color, size: 20),
             ),
-          ),
-          Text(
-            '$count',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.dayName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: widget.color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${widget.count}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: widget.color,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

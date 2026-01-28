@@ -8,6 +8,7 @@ import '../../widgets/common/themed_switch.dart';
 import 'config_item_editor.dart';
 import 'import_nai_category_dialog.dart';
 
+import '../../widgets/common/app_toast.dart';
 /// 预设编辑页面
 class PresetEditScreen extends ConsumerStatefulWidget {
   final RandomPromptPreset preset;
@@ -279,9 +280,7 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
 
   void _savePreset() async {
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.presetEdit_enterPresetName)),
-      );
+      AppToast.info(context, context.l10n.presetEdit_enterPresetName);
       return;
     }
 
@@ -300,22 +299,12 @@ class _PresetEditScreenState extends ConsumerState<PresetEditScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.presetEdit_saveSuccess)),
-        );
+        AppToast.success(context, context.l10n.presetEdit_saveSuccess);
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.presetEdit_saveError),
-            action: SnackBarAction(
-              label: context.l10n.common_retry,
-              onPressed: _savePreset,
-            ),
-          ),
-        );
+        AppToast.error(context, context.l10n.presetEdit_saveError);
       }
     }
   }

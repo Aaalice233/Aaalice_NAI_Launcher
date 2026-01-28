@@ -60,7 +60,7 @@ class NAIUserInfoApiService {
         AppLogger.w('User subscription failed: Unauthorized', 'NAIUserInfo');
       } else {
         AppLogger.e(
-            'User subscription error: ${e.message}', e, null, 'NAIUserInfo');
+            'User subscription error: ${e.message}', e, null, 'NAIUserInfo',);
       }
       rethrow;
     } catch (e, stack) {

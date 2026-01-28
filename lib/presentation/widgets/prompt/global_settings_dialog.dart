@@ -8,6 +8,7 @@ import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 人数类别配置对话框
 ///
@@ -715,13 +716,8 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                             final value = controller.text.trim();
                             if (value.isEmpty) return;
                             if (_config.customSlotOptions.contains(value)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.characterCountConfig_slotExists,
-                                  ),
-                                ),
-                              );
+                              AppToast.warning(context,
+                                  l10n.characterCountConfig_slotExists,);
                               return;
                             }
                             setState(() {

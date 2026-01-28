@@ -846,6 +846,7 @@ class _NetworkSettingsSectionState
                 .setEnabled(value);
             if (mounted) {
               AppToast.info(
+                // ignore: use_build_context_synchronously
                 context,
                 l10n.settings_proxyRestartHint,
               );

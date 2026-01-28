@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/services/danbooru_auth_service.dart';
 
+import 'common/app_toast.dart';
 /// Danbooru 登录对话框
 class DanbooruLoginDialog extends ConsumerStatefulWidget {
   const DanbooruLoginDialog({super.key});
@@ -42,9 +43,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
 
     if (success && mounted) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.danbooru_loginSuccess)),
-      );
+      AppToast.success(context, context.l10n.danbooru_loginSuccess);
     }
   }
 

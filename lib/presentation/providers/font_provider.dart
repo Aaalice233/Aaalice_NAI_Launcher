@@ -46,10 +46,10 @@ class FontConfig {
     return defaultFont;
   }
 
-  /// 默认字体（系统默认）
+  /// 默认字体（落霞孤鹜真楷 GB）
   static const defaultFont = FontConfig(
-    displayName: '系统默认',
-    fontFamily: '',
+    displayName: '落霞孤鹜真楷',
+    fontFamily: 'LXGW ZhenKai GB',
     source: FontSource.system,
   );
 
@@ -196,7 +196,7 @@ Future<Map<String, List<FontConfig>>> allFonts(Ref ref) async {
   final googleFonts = GoogleFontPresets.all;
 
   return {
-    '系统默认': [FontConfig.defaultFont],
+    '应用默认': [FontConfig.defaultFont],
     'Google Fonts': googleFonts,
     '系统字体': systemFonts,
   };

@@ -320,7 +320,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                                   value: _saveToLibrary,
                                   onChanged: (value) {
                                     setState(
-                                        () => _saveToLibrary = value ?? false);
+                                      () => _saveToLibrary = value ?? false,
+                                    );
                                   },
                                   materialTapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
@@ -449,101 +450,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     }
 
     Navigator.of(context).pop(result);
-  }
-
-  /// 构建类别选择器
-  Widget _buildCategorySelector(ThemeData theme) {
-    final state = ref.watch(tagLibraryPageNotifierProvider);
-    final categories = state.categories;
-
-    // 构建分类选项列表
-    final items = <DropdownMenuItem<String?>>[];
-
-    // Root 选项
-    items.add(
-      DropdownMenuItem<String?>(
-        value: null,
-        child: Row(
-          children: [
-            Icon(
-              Icons.folder_outlined,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(context.l10n.tagLibrary_rootCategory),
-          ],
-        ),
-      ),
-    );
-
-    // 递归添加分类（带层级缩进）
-    void addCategoryItems(String? parentId, int depth) {
-      final children = categories.where((c) => c.parentId == parentId).toList()
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-
-      for (final category in children) {
-        items.add(
-          DropdownMenuItem<String?>(
-            value: category.id,
-            child: Row(
-              children: [
-                SizedBox(width: depth * 16.0),
-                Icon(
-                  Icons.folder_outlined,
-                  size: 18,
-                  color: theme.colorScheme.outline,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    category.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        addCategoryItems(category.id, depth + 1);
-      }
-    }
-
-    addCategoryItems(null, 0);
-
-    return Container(
-      padding: const EdgeInsets.only(left: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.l10n.fixedTags_saveToCategory,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-          const SizedBox(height: 4),
-          DropdownButtonFormField<String?>(
-            value: _selectedCategoryId,
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              isDense: true,
-            ),
-            items: items,
-            onChanged: (value) {
-              setState(() => _selectedCategoryId = value);
-            },
-            isExpanded: true,
-          ),
-        ],
-      ),
-    );
   }
 
   /// 构建紧凑类别选择器（内嵌在卡片内）

@@ -235,7 +235,7 @@ class AppTheme {
     final TextTheme primaryTextTheme;
     final String? tooltipFontFamily;
 
-    if (fontConfig!.source == FontSource.google) {
+    if (fontConfig.source == FontSource.google) {
       // Google Fonts 需要通过 GoogleFonts.getFont() 创建 TextStyle
       // 这样才能正确使用已下载的字体文件
       try {

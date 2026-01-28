@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_divider.dart';
 
 /// 词库条目卡片
@@ -15,6 +16,7 @@ class EntryCard extends StatefulWidget {
   final VoidCallback onAddToFixed;
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
+  final VoidCallback? onEdit;
 
   const EntryCard({
     super.key,
@@ -23,6 +25,7 @@ class EntryCard extends StatefulWidget {
     required this.onAddToFixed,
     required this.onDelete,
     required this.onToggleFavorite,
+    this.onEdit,
   });
 
   @override
@@ -169,12 +172,20 @@ class _EntryCardState extends State<EntryCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // 添加到固定词按钮
                       _ActionButton(
-                        icon: Icons.push_pin_outlined,
+                        icon: Icons.add_box_outlined,
                         tooltip: context.l10n.tagLibrary_addToFixed,
                         onTap: widget.onAddToFixed,
                       ),
                       const SizedBox(width: 8),
+                      if (widget.onEdit != null)
+                        _ActionButton(
+                          icon: Icons.edit_outlined,
+                          tooltip: context.l10n.common_edit,
+                          onTap: widget.onEdit!,
+                        ),
+                      if (widget.onEdit != null) const SizedBox(width: 8),
                       _ActionButton(
                         icon: Icons.content_copy,
                         tooltip: context.l10n.common_copy,
@@ -194,23 +205,85 @@ class _EntryCardState extends State<EntryCard> {
             ),
           ),
 
-        // 收藏按钮
+        // 左上角收藏图标（已收藏时显示）
+        if (entry.isFavorite)
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.9),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.push_pin,
+                size: 14,
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+        // 右上角置顶按钮
         Positioned(
           top: 8,
           right: 8,
           child: GestureDetector(
             onTap: widget.onToggleFavorite,
-            child: Container(
-              padding: const EdgeInsets.all(4),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: entry.isFavorite
+                  ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                  : const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                shape: BoxShape.circle,
+                color: entry.isFavorite
+                    ? Colors.amber
+                    : Colors.black.withOpacity(0.5),
+                borderRadius: entry.isFavorite
+                    ? BorderRadius.circular(6)
+                    : BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: entry.isFavorite
+                        ? Colors.amber.withOpacity(0.4)
+                        : Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    spreadRadius: entry.isFavorite ? 2 : 0,
+                  ),
+                ],
               ),
-              child: Icon(
-                entry.isFavorite ? Icons.star : Icons.star_outline,
-                size: 18,
-                color: entry.isFavorite ? Colors.amber : Colors.white,
-              ),
+              child: entry.isFavorite
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.push_pin,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          context.l10n.tagLibrary_pinned,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Icon(
+                      Icons.push_pin_outlined,
+                      size: 16,
+                      color: Colors.white,
+                    ),
             ),
           ),
         ),
@@ -300,12 +373,7 @@ class _EntryCardState extends State<EntryCard> {
 
   void _copyToClipboard(String content) {
     Clipboard.setData(ClipboardData(text: content));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.common_copied),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppToast.success(context, context.l10n.common_copied);
   }
 }
 

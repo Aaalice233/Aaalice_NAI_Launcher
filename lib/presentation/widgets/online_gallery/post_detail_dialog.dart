@@ -16,6 +16,7 @@ import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../tag_chip.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/app_toast.dart';
 
 /// 在线画廊帖子详情弹窗
 ///
@@ -138,7 +139,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           decoration: BoxDecoration(
               border: Border(
                   left:
-                      BorderSide(color: theme.dividerColor.withOpacity(0.3)))),
+                      BorderSide(color: theme.dividerColor.withOpacity(0.3)),),),
           child: _buildInfoPanel(theme, authState, isFavorited),
         ),
       ],
@@ -324,11 +325,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           IconButton(
             onPressed: () {
               if (!authState.isLoggedIn) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(context.l10n.onlineGallery_pleaseLogin),
-                  ),
-                );
+                AppToast.info(context, context.l10n.onlineGallery_pleaseLogin);
                 return;
               }
               ref
@@ -526,17 +523,13 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   void _copyTags() {
     final tags = widget.post.tags.join(', ');
     Clipboard.setData(ClipboardData(text: tags));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.onlineGallery_copied)),
-    );
+    AppToast.success(context, context.l10n.onlineGallery_copied);
   }
 
   /// 发送到生成页面
   void _sendToGenerate() {
     if (widget.post.tags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('此图片没有标签信息')),
-      );
+      AppToast.info(context, '此图片没有标签信息');
       return;
     }
 
@@ -552,17 +545,13 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     Navigator.pop(context);
     context.go('/generate');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('提示词已发送到生成页面')),
-    );
+    AppToast.success(context, '提示词已发送到生成页面');
   }
 
   /// 加入队列
   Future<void> _addToQueue() async {
     if (widget.post.tags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('此图片没有标签信息')),
-      );
+      AppToast.info(context, '此图片没有标签信息');
       return;
     }
 
@@ -576,9 +565,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         await ref.read(replicationQueueNotifierProvider.notifier).add(task);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(added ? '已加入队列' : '队列已满（最多50项）')),
-      );
+      if (added) {
+        AppToast.success(context, '已加入队列');
+      } else {
+        AppToast.warning(context, '队列已满（最多50项）');
+      }
     }
   }
 

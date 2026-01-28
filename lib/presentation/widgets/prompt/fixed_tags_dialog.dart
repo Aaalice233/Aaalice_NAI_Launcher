@@ -13,6 +13,7 @@ import '../../router/app_router.dart';
 import '../common/themed_switch.dart';
 import 'fixed_tag_edit_dialog.dart';
 
+import '../common/app_toast.dart';
 /// 固定词管理对话框
 class FixedTagsDialog extends ConsumerStatefulWidget {
   const FixedTagsDialog({super.key});
@@ -245,7 +246,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   }
 
   Widget _buildEntryList(
-      ThemeData theme, List<FixedTagEntry> entries, bool isDark) {
+      ThemeData theme, List<FixedTagEntry> entries, bool isDark,) {
     return ReorderableListView.builder(
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -334,12 +335,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     final entries = libraryState.entries;
 
     if (entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('词库为空，请先添加条目'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, '词库为空，请先添加条目');
       return;
     }
 
@@ -637,11 +633,11 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
               child: Row(
                 children: [
                   Icon(Icons.playlist_add_rounded,
-                      color: theme.colorScheme.primary, size: 22),
+                      color: theme.colorScheme.primary, size: 22,),
                   const SizedBox(width: 10),
                   Text('从词库添加',
                       style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                          ?.copyWith(fontWeight: FontWeight.w600),),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
@@ -677,7 +673,7 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
               child: filtered.isEmpty
                   ? Center(
                       child: Text('无匹配结果',
-                          style: TextStyle(color: theme.colorScheme.outline)),
+                          style: TextStyle(color: theme.colorScheme.outline),),
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -728,7 +724,7 @@ class _LibraryEntryTile extends StatelessWidget {
                     Text(
                       entry.name.isNotEmpty ? entry.name : entry.content,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500),
+                          fontSize: 13, fontWeight: FontWeight.w500,),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -749,7 +745,7 @@ class _LibraryEntryTile extends StatelessWidget {
                 ),
               ),
               Icon(Icons.add_rounded,
-                  size: 18, color: theme.colorScheme.primary),
+                  size: 18, color: theme.colorScheme.primary,),
             ],
           ),
         ),

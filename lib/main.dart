@@ -226,11 +226,11 @@ void main() async {
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     final settingsBox = Hive.box(StorageKeys.settingsBox);
     final proxyEnabled =
-        settingsBox.get(StorageKeys.proxyEnabled, defaultValue: false) as bool;
+        settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
 
     if (proxyEnabled) {
-      final proxyMode =
-          settingsBox.get(StorageKeys.proxyMode, defaultValue: 'auto') as String;
+      final proxyMode = settingsBox.get(StorageKeys.proxyMode,
+          defaultValue: 'auto',) as String;
 
       String? proxyAddress;
 
@@ -247,8 +247,7 @@ void main() async {
       }
 
       if (proxyAddress != null && proxyAddress.isNotEmpty) {
-        HttpOverrides.global =
-            SystemProxyHttpOverrides('PROXY $proxyAddress');
+        HttpOverrides.global = SystemProxyHttpOverrides('PROXY $proxyAddress');
         AppLogger.i(
           'Applied proxy: $proxyAddress (mode: $proxyMode)',
           'NETWORK',

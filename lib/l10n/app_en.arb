@@ -2715,6 +2715,7 @@
   "tagLibrary_categories": "Categories",
   "tagLibrary_newCategory": "New Category",
   "tagLibrary_addEntry": "Add Entry",
+  "tagLibrary_editEntry": "Edit Entry",
   "tagLibrary_searchHint": "Search entries...",
   "tagLibrary_cardView": "Card View",
   "tagLibrary_listView": "List View",
@@ -2745,6 +2746,7 @@
   "tagLibrary_empty": "Library is empty",
   "tagLibrary_addFirstEntry": "Click the button above to add your first entry",
   "tagLibrary_addToFixed": "Add to Fixed Tags",
+  "tagLibrary_addedToFixed": "Added to Fixed Tags",
   "tagLibrary_useCount": "Used {count} times",
   "@tagLibrary_useCount": {
     "placeholders": {
@@ -2753,6 +2755,7 @@
   },
   "tagLibrary_removeFavorite": "Remove from Favorites",
   "tagLibrary_addFavorite": "Add to Favorites",
+  "tagLibrary_pinned": "Pinned",
   "tagLibrary_thumbnail": "Thumbnail",
   "tagLibrary_selectImage": "Select Image",
   "tagLibrary_thumbnailHint": "Supports PNG/JPG/WEBP",

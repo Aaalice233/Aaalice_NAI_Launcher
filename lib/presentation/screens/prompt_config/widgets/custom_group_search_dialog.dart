@@ -12,6 +12,7 @@ import '../../../../data/models/prompt/tag_group.dart';
 import '../../../widgets/common/emoji_picker_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 
+import '../../../widgets/common/app_toast.dart';
 /// 自定义词组搜索结果类型
 enum CustomGroupType {
   tagGroup,
@@ -238,9 +239,7 @@ class _CustomGroupSearchDialogState
     } catch (e) {
       if (mounted) {
         setState(() => _isFetching = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.addGroup_fetchFailed)),
-        );
+        AppToast.error(context, context.l10n.addGroup_fetchFailed);
       }
     }
   }

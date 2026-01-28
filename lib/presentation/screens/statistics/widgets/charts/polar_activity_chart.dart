@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
 /// Polar activity chart for 24-hour distribution
-class PolarActivityChart extends StatelessWidget {
+/// Enhanced with animations and improved visual effects
+class PolarActivityChart extends StatefulWidget {
   final Map<int, int> hourlyData; // hour (0-23) -> count
   final double size;
   final Color? primaryColor;
@@ -17,36 +18,79 @@ class PolarActivityChart extends StatelessWidget {
   });
 
   @override
+  State<PolarActivityChart> createState() => _PolarActivityChartState();
+}
+
+class _PolarActivityChartState extends State<PolarActivityChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final color = primaryColor ?? colorScheme.primary;
+    final color = widget.primaryColor ?? colorScheme.primary;
 
-    if (hourlyData.isEmpty) {
+    if (widget.hourlyData.isEmpty) {
       return SizedBox(
-        width: size,
-        height: size,
-        child: const Center(child: Text('No activity data')),
+        width: widget.size,
+        height: widget.size,
+        child: Center(
+          child: Text(
+            'No activity data',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
       );
     }
 
-    final maxValue = hourlyData.values.isEmpty
+    final maxValue = widget.hourlyData.values.isEmpty
         ? 1.0
-        : hourlyData.values.reduce((a, b) => a > b ? a : b).toDouble();
+        : widget.hourlyData.values.reduce((a, b) => a > b ? a : b).toDouble();
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _PolarChartPainter(
-          data: hourlyData,
-          maxValue: maxValue,
-          color: color,
-          backgroundColor: colorScheme.surfaceContainerHighest,
-          textColor: colorScheme.onSurfaceVariant,
-          showLabels: showLabels,
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: CustomPaint(
+            painter: _PolarChartPainter(
+              data: widget.hourlyData,
+              maxValue: maxValue,
+              color: color,
+              backgroundColor: colorScheme.surfaceContainerHighest,
+              textColor: colorScheme.onSurfaceVariant,
+              showLabels: widget.showLabels,
+              animationValue: _animation.value,
+              isDark: theme.brightness == Brightness.dark,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -58,6 +102,8 @@ class _PolarChartPainter extends CustomPainter {
   final Color backgroundColor;
   final Color textColor;
   final bool showLabels;
+  final double animationValue;
+  final bool isDark;
 
   _PolarChartPainter({
     required this.data,
@@ -66,30 +112,41 @@ class _PolarChartPainter extends CustomPainter {
     required this.backgroundColor,
     required this.textColor,
     required this.showLabels,
+    required this.animationValue,
+    required this.isDark,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - 20;
+    final radius = math.min(size.width, size.height) / 2 - 24;
 
-    // Draw background circles
-    final bgPaint = Paint()
-      ..color = backgroundColor.withOpacity(0.2)
+    // Draw background circles with subtle gradient effect
+    for (var i = 4; i >= 1; i--) {
+      final bgPaint = Paint()
+        ..color = backgroundColor.withOpacity(0.15 + (4 - i) * 0.05)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(center, radius * i / 4, bgPaint);
+    }
+
+    // Draw concentric circle guides
+    final guidePaint = Paint()
+      ..color = backgroundColor.withOpacity(0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
     for (var i = 1; i <= 4; i++) {
-      canvas.drawCircle(center, radius * i / 4, bgPaint);
+      canvas.drawCircle(center, radius * i / 4, guidePaint);
     }
 
-    // Draw radial lines for hours
-    final linePaint = Paint()
-      ..color = backgroundColor.withOpacity(0.3)
-      ..strokeWidth = 1;
-
+    // Draw radial lines for hours with gradient opacity
     for (var hour = 0; hour < 24; hour++) {
       final angle = (hour * 15 - 90) * math.pi / 180;
+      final isMainHour = hour % 3 == 0;
+      final linePaint = Paint()
+        ..color = backgroundColor.withOpacity(isMainHour ? 0.5 : 0.2)
+        ..strokeWidth = isMainHour ? 1.5 : 0.5;
+
       final startPoint = center;
       final endPoint = Offset(
         center.dx + radius * math.cos(angle),
@@ -98,18 +155,15 @@ class _PolarChartPainter extends CustomPainter {
       canvas.drawLine(startPoint, endPoint, linePaint);
     }
 
-    // Draw data segments
-    final dataPaint = Paint()
-      ..color = color.withOpacity(0.7)
-      ..style = PaintingStyle.fill;
-
+    // Draw data polygon with animation
     final path = Path();
     var firstPoint = true;
 
     for (var hour = 0; hour < 24; hour++) {
       final value = data[hour] ?? 0;
       final normalizedValue = maxValue > 0 ? value / maxValue : 0.0;
-      final barRadius = radius * normalizedValue.clamp(0.05, 1.0);
+      final barRadius =
+          radius * normalizedValue.clamp(0.05, 1.0) * animationValue;
       final angle = (hour * 15 - 90) * math.pi / 180;
       final point = Offset(
         center.dx + barRadius * math.cos(angle),
@@ -124,14 +178,36 @@ class _PolarChartPainter extends CustomPainter {
       }
     }
     path.close();
-    canvas.drawPath(path, dataPaint);
 
-    // Draw stroke
+    // Draw filled area with gradient
+    final gradientPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withOpacity(isDark ? 0.6 : 0.5),
+          color.withOpacity(isDark ? 0.3 : 0.2),
+        ],
+      ).createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, gradientPaint);
+
+    // Draw stroke with glow effect
     final strokePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(path, strokePaint);
+
+    // Draw subtle glow
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawPath(path, glowPaint);
 
     // Draw hour labels
     if (showLabels) {
@@ -142,7 +218,7 @@ class _PolarChartPainter extends CustomPainter {
 
       for (var hour = 0; hour < 24; hour += 3) {
         final angle = (hour * 15 - 90) * math.pi / 180;
-        final labelRadius = radius + 15;
+        final labelRadius = radius + 18;
         final point = Offset(
           center.dx + labelRadius * math.cos(angle),
           center.dy + labelRadius * math.sin(angle),
@@ -151,9 +227,9 @@ class _PolarChartPainter extends CustomPainter {
         textPainter.text = TextSpan(
           text: hour.toString().padLeft(2, '0'),
           style: TextStyle(
-            color: textColor,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
+            color: textColor.withOpacity(animationValue),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
           ),
         );
         textPainter.layout();
@@ -172,12 +248,14 @@ class _PolarChartPainter extends CustomPainter {
   bool shouldRepaint(covariant _PolarChartPainter oldDelegate) {
     return data != oldDelegate.data ||
         maxValue != oldDelegate.maxValue ||
-        color != oldDelegate.color;
+        color != oldDelegate.color ||
+        animationValue != oldDelegate.animationValue;
   }
 }
 
 /// Peak time indicator widget
-class PeakTimeIndicator extends StatelessWidget {
+/// Enhanced with animations and improved visual styling
+class PeakTimeIndicator extends StatefulWidget {
   final int peakHour;
   final int count;
   final String? label;
@@ -190,66 +268,151 @@ class PeakTimeIndicator extends StatelessWidget {
   });
 
   @override
+  State<PeakTimeIndicator> createState() => _PeakTimeIndicatorState();
+}
+
+class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _pulseAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     String timeLabel;
     IconData timeIcon;
-    Color timeColor;
+    Color primaryColor;
+    Color secondaryColor;
 
-    if (peakHour >= 6 && peakHour < 12) {
+    if (widget.peakHour >= 6 && widget.peakHour < 12) {
       timeLabel = 'Morning';
-      timeIcon = Icons.wb_sunny;
-      timeColor = Colors.orange;
-    } else if (peakHour >= 12 && peakHour < 18) {
+      timeIcon = Icons.wb_sunny_rounded;
+      primaryColor = const Color(0xFFF59E0B); // Amber
+      secondaryColor = const Color(0xFFFBBF24);
+    } else if (widget.peakHour >= 12 && widget.peakHour < 18) {
       timeLabel = 'Afternoon';
       timeIcon = Icons.wb_sunny_outlined;
-      timeColor = Colors.amber;
-    } else if (peakHour >= 18 && peakHour < 22) {
+      primaryColor = const Color(0xFFEF6C00); // Deep Orange
+      secondaryColor = const Color(0xFFFF9800);
+    } else if (widget.peakHour >= 18 && widget.peakHour < 22) {
       timeLabel = 'Evening';
       timeIcon = Icons.nights_stay_outlined;
-      timeColor = Colors.deepPurple;
+      primaryColor = const Color(0xFF7C3AED); // Purple
+      secondaryColor = const Color(0xFF8B5CF6);
     } else {
       timeLabel = 'Night';
-      timeIcon = Icons.nights_stay;
-      timeColor = Colors.indigo;
+      timeIcon = Icons.nights_stay_rounded;
+      primaryColor = const Color(0xFF4F46E5); // Indigo
+      secondaryColor = const Color(0xFF6366F1);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: timeColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: timeColor.withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(timeIcon, color: timeColor, size: 24),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label ?? 'Peak Activity',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _isHovered ? _pulseAnimation.value : 1.0,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    primaryColor.withOpacity(isDark ? 0.25 : 0.15),
+                    secondaryColor.withOpacity(isDark ? 0.15 : 0.08),
+                  ],
                 ),
-              ),
-              Text(
-                '${peakHour.toString().padLeft(2, '0')}:00 - $timeLabel',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: timeColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: primaryColor.withOpacity(_isHovered ? 0.5 : 0.3),
+                  width: _isHovered ? 1.5 : 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(_isHovered ? 0.25 : 0.15),
+                    blurRadius: _isHovered ? 16 : 10,
+                    offset: const Offset(0, 4),
+                    spreadRadius: _isHovered ? 0 : -2,
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      timeIcon,
+                      color: primaryColor,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.label ?? 'Peak Activity',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${widget.peakHour.toString().padLeft(2, '0')}:00 - $timeLabel',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

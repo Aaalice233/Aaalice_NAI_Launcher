@@ -14,6 +14,7 @@ import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/parameter_panel.dart';
 
+import '../../widgets/common/app_toast.dart';
 /// 移动端单栏布局
 class MobileGenerationLayout extends ConsumerStatefulWidget {
   const MobileGenerationLayout({super.key});
@@ -171,9 +172,7 @@ class _MobileGenerationLayoutState
     ImageParams params,
   ) {
     if (params.prompt.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.generation_pleaseInputPrompt)),
-      );
+      AppToast.info(context, context.l10n.generation_pleaseInputPrompt);
       return;
     }
 

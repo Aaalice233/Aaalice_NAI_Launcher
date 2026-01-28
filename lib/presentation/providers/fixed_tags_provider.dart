@@ -67,19 +67,16 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
   FixedTagsState build() {
     _storage = ref.watch(localStorageServiceProvider);
 
-    // 加载固定词列表
-    _loadEntries();
-
-    return const FixedTagsState();
+    // 直接返回加载的固定词列表
+    return _loadEntries();
   }
 
   /// 从存储加载固定词列表
-  void _loadEntries() {
+  FixedTagsState _loadEntries() {
     try {
       final json = _storage.getFixedTagsJson();
       if (json == null || json.isEmpty) {
-        state = const FixedTagsState(entries: []);
-        return;
+        return const FixedTagsState(entries: []);
       }
 
       final List<dynamic> decoded = jsonDecode(json);
@@ -89,8 +86,8 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
       // 按排序顺序排列
       final sortedEntries = entries.sortedByOrder();
-      state = FixedTagsState(entries: sortedEntries);
       AppLogger.d('Loaded ${entries.length} fixed tags', 'FixedTagsProvider');
+      return FixedTagsState(entries: sortedEntries);
     } catch (e, stack) {
       AppLogger.e(
         'Failed to load fixed tags: $e',
@@ -98,7 +95,7 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
         stack,
         'FixedTagsProvider',
       );
-      state = FixedTagsState(
+      return FixedTagsState(
         entries: [],
         error: e.toString(),
       );
@@ -249,7 +246,7 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
 
   /// 重新加载
   void refresh() {
-    _loadEntries();
+    state = _loadEntries();
   }
 
   /// 清除错误状态

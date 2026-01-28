@@ -16,6 +16,7 @@ import 'img2img_panel.dart';
 import 'unified_reference_panel.dart';
 import 'prompt_input.dart';
 
+import '../../../widgets/common/app_toast.dart';
 /// 参数面板组件
 class ParameterPanel extends ConsumerStatefulWidget {
   final bool inBottomSheet;
@@ -81,13 +82,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                       .cancel()
                   : () {
                       if (params.prompt.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              context.l10n.generation_pleaseInputPrompt,
-                            ),
-                          ),
-                        );
+                        AppToast.info(context, context.l10n.generation_pleaseInputPrompt);
                         return;
                       }
                       ref
@@ -313,12 +308,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                               Clipboard.setData(
                                 ClipboardData(text: params.seed.toString()),
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(context.l10n.common_copied),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
+                              AppToast.success(context, context.l10n.common_copied);
                             },
                           ),
                           // 清空按钮

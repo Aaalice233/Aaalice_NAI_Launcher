@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import '../../../../widgets/common/themed_divider.dart';
+import '../../../../widgets/common/app_toast.dart';
 
 /// 预设导入/导出弹窗
 ///
@@ -102,9 +103,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
   void _copyToClipboard() {
     Clipboard.setData(ClipboardData(text: _controller.text)).then((_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已复制到剪贴板')),
-        );
+        AppToast.success(context, '已复制到剪贴板');
       }
     });
   }

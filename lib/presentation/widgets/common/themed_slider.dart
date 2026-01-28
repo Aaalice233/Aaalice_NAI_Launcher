@@ -297,41 +297,6 @@ class _ThemedSliderState extends State<ThemedSlider> {
     );
   }
 
-  Widget _buildDivisions({
-    required double trackWidth,
-    required Color activeColor,
-    required Color inactiveColor,
-  }) {
-    final divisions = widget.divisions!;
-
-    return Positioned.fill(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(divisions + 1, (index) {
-          final fraction = index / divisions;
-          final isActive = fraction <= _normalizedValue;
-          const dotSize = 4.0;
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: index == 0 ? widget.thumbSize / 2 - dotSize / 2 : 0,
-              right:
-                  index == divisions ? widget.thumbSize / 2 - dotSize / 2 : 0,
-            ),
-            child: Container(
-              width: dotSize,
-              height: dotSize,
-              decoration: BoxDecoration(
-                color: isActive ? activeColor : inactiveColor,
-                shape: BoxShape.circle,
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
   Widget _buildLabel({
     required String label,
     required Color color,

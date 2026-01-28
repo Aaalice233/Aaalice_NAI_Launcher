@@ -6,6 +6,7 @@ import '../../../data/models/prompt/prompt_config.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/themed_slider.dart';
 
+import '../../widgets/common/app_toast.dart';
 /// 配置项编辑器
 class ConfigItemEditor extends ConsumerStatefulWidget {
   final PromptConfig config;
@@ -622,9 +623,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
 
   void _saveConfig() {
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.configEditor_enterConfigName)),
-      );
+      AppToast.info(context, context.l10n.configEditor_enterConfigName);
       return;
     }
 

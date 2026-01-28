@@ -7,6 +7,7 @@ import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/emoji_picker_dialog.dart';
 
+import '../../../widgets/common/app_toast.dart';
 /// 自定义词组编辑器组件
 ///
 /// 用于创建和编辑自定义词组，包含：
@@ -113,9 +114,7 @@ class _CustomTagGroupEditorState extends ConsumerState<CustomTagGroupEditor> {
   void _handleSave() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.customGroup_nameRequired)),
-      );
+      AppToast.info(context, context.l10n.customGroup_nameRequired);
       return;
     }
 

@@ -10,6 +10,8 @@ import '../../providers/gallery_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
 import '../../widgets/gallery/gallery_statistics_dialog.dart';
 
+import '../../widgets/common/app_toast.dart';
+
 /// 画廊页面
 class GalleryScreen extends ConsumerStatefulWidget {
   const GalleryScreen({super.key});
@@ -939,15 +941,7 @@ class _FullscreenViewer extends ConsumerWidget {
         );
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            path != null
-                ? context.l10n.gallery_savedTo(path)
-                : context.l10n.gallery_saveFailed,
-          ),
-        ),
-      );
+      AppToast.success(context, context.l10n.gallery_savedTo(path ?? ''));
     }
   }
 

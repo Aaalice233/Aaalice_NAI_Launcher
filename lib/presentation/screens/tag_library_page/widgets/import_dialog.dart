@@ -9,6 +9,8 @@ import '../../../../data/models/tag_library/import_models.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 import '../../../providers/tag_library_page_provider.dart';
 
+import '../../../widgets/common/app_toast.dart';
+
 /// 导入对话框
 class ImportDialog extends ConsumerStatefulWidget {
   const ImportDialog({super.key});
@@ -478,20 +480,13 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '导入成功: ${result.importedEntries} 条目, ${result.importedCategories} 分类',
-            ),
-          ),
-        );
+        AppToast.info(context,
+            '导入成功: ${result.importedEntries} 条目, ${result.skippedConflicts} 跳过',);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isImporting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('导入失败: $e')),
-        );
+        AppToast.info(context, '导入失败: $e');
       }
     }
   }

@@ -11,6 +11,8 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 
+import '../../../widgets/common/app_toast.dart';
+
 /// 图片放大对话框
 class UpscaleDialog extends ConsumerStatefulWidget {
   final Uint8List? initialImage;
@@ -411,11 +413,8 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.upscale_selectFailed(e.toString())),
-          ),
-        );
+        AppToast.error(
+            context, context.l10n.upscale_selectFailed(e.toString()),);
       }
     }
   }
@@ -453,17 +452,11 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       await file.writeAsBytes(data);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.upscale_savedTo(file.path))),
-        );
+        AppToast.success(context, context.l10n.upscale_savedTo(file.path));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.upscale_saveFailed(e.toString())),
-          ),
-        );
+        AppToast.error(context, context.l10n.upscale_saveFailed(e.toString()));
       }
     }
   }
@@ -478,11 +471,7 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
       await Share.shareXFiles([XFile(file.path)]);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.upscale_shareFailed(e.toString())),
-          ),
-        );
+        AppToast.error(context, context.l10n.upscale_shareFailed(e.toString()));
       }
     }
   }

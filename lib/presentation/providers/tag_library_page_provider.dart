@@ -142,12 +142,12 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   @override
   TagLibraryPageState build() {
     _storage = ref.watch(localStorageServiceProvider);
-    _loadData();
-    return const TagLibraryPageState();
+    // 直接返回加载的数据
+    return _loadData();
   }
 
   /// 从存储加载数据
-  void _loadData() {
+  TagLibraryPageState _loadData() {
     try {
       // 加载条目
       final entriesJson = _storage.getTagLibraryEntriesJson();
@@ -173,11 +173,11 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
             .sortedByOrder();
       }
 
-      state = TagLibraryPageState(entries: entries, categories: categories);
       AppLogger.d(
         'Loaded ${entries.length} entries, ${categories.length} categories',
         'TagLibraryPageProvider',
       );
+      return TagLibraryPageState(entries: entries, categories: categories);
     } catch (e, stack) {
       AppLogger.e(
         'Failed to load tag library: $e',
@@ -185,7 +185,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         stack,
         'TagLibraryPageProvider',
       );
-      state = TagLibraryPageState(error: e.toString());
+      return TagLibraryPageState(error: e.toString());
     }
   }
 
@@ -444,7 +444,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
   /// 刷新数据
   void refresh() {
-    _loadData();
+    state = _loadData();
   }
 
   /// 清除错误

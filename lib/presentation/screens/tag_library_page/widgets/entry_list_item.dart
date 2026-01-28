@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/app_toast.dart';
 
 /// 词库条目列表项
 class EntryListItem extends StatefulWidget {
@@ -13,6 +14,7 @@ class EntryListItem extends StatefulWidget {
   final VoidCallback onAddToFixed;
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
+  final VoidCallback? onEdit;
 
   const EntryListItem({
     super.key,
@@ -21,6 +23,7 @@ class EntryListItem extends StatefulWidget {
     required this.onAddToFixed,
     required this.onDelete,
     required this.onToggleFavorite,
+    this.onEdit,
   });
 
   @override
@@ -125,14 +128,19 @@ class _EntryListItemState extends State<EntryListItem> {
         // 名称行
         Row(
           children: [
-            // 收藏图标
+            // 置顶图标
             if (entry.isFavorite)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Icon(
-                  Icons.star,
-                  size: 14,
-                  color: Colors.amber.shade600,
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                  color: Colors.amber,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.push_pin,
+                  size: 12,
+                  color: Colors.white,
                 ),
               ),
 
@@ -211,19 +219,56 @@ class _EntryListItemState extends State<EntryListItem> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: Icon(
-            widget.entry.isFavorite ? Icons.star : Icons.star_outline,
-            color: widget.entry.isFavorite ? Colors.amber : null,
+        // 置顶按钮
+        widget.entry.isFavorite
+            ? Material(
+                color: Colors.amber,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  onTap: widget.onToggleFavorite,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.push_pin,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          context.l10n.tagLibrary_pinned,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : IconButton(
+                icon: const Icon(Icons.push_pin_outlined),
+                tooltip: context.l10n.tagLibrary_addFavorite,
+                visualDensity: VisualDensity.compact,
+                onPressed: widget.onToggleFavorite,
+              ),
+        // 编辑按钮
+        if (widget.onEdit != null)
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: context.l10n.common_edit,
+            visualDensity: VisualDensity.compact,
+            onPressed: widget.onEdit,
           ),
-          tooltip: widget.entry.isFavorite
-              ? context.l10n.tagLibrary_removeFavorite
-              : context.l10n.tagLibrary_addFavorite,
-          visualDensity: VisualDensity.compact,
-          onPressed: widget.onToggleFavorite,
-        ),
+        // 添加到固定词
         IconButton(
-          icon: const Icon(Icons.push_pin_outlined),
+          icon: const Icon(Icons.add_box_outlined),
           tooltip: context.l10n.tagLibrary_addToFixed,
           visualDensity: VisualDensity.compact,
           onPressed: widget.onAddToFixed,
@@ -246,12 +291,7 @@ class _EntryListItemState extends State<EntryListItem> {
 
   void _copyToClipboard(String content) {
     Clipboard.setData(ClipboardData(text: content));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.common_copied),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppToast.success(context, context.l10n.common_copied);
   }
 }
 

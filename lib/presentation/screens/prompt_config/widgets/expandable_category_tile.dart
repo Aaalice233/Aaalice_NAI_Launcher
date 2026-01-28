@@ -324,7 +324,7 @@ class _ExpandableCategoryTileState
                       // 已选择的 tag 组名称列表
                       Expanded(
                         child: _buildSelectedTagGroupsPreview(
-                            theme, tagGroupMappings),
+                            theme, tagGroupMappings,),
                       ),
                       // 操作按钮区域
                       if (widget.onSettings != null) ...[
@@ -392,7 +392,7 @@ class _ExpandableCategoryTileState
                       // 概率显示徽章
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                            horizontal: 8, vertical: 2,),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.secondaryContainer
                               .withOpacity(0.5),

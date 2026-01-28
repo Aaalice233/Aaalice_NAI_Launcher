@@ -6,6 +6,7 @@ import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 
+import '../common/app_toast.dart';
 /// 账号头像下拉菜单组件（Google 风格）
 class AccountAvatarDropdown extends ConsumerWidget {
   /// 选择账号时的回调
@@ -141,9 +142,7 @@ class AccountAvatarDropdown extends ConsumerWidget {
 
     if (token == null) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-        );
+        AppToast.info(context, context.l10n.auth_tokenNotFound);
       }
       return;
     }

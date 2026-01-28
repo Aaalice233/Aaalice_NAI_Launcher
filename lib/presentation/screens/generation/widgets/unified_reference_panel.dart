@@ -13,6 +13,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/hover_image_preview.dart';
+import '../../../widgets/common/app_toast.dart';
 
 /// 参考模式类型
 enum ReferenceMode {
@@ -604,12 +605,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               notifier.addVibeReferencesV4(vibes);
             } catch (e) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to parse $fileName: $e'),
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                );
+                AppToast.error(context, 'Failed to parse $fileName: $e');
               }
             }
           }
@@ -617,11 +613,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.img2img_selectFailed(e.toString())),
-          ),
-        );
+        AppToast.error(
+            context, context.l10n.img2img_selectFailed(e.toString()),);
       }
     }
   }
@@ -916,11 +909,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.img2img_selectFailed(e.toString())),
-          ),
-        );
+        AppToast.error(
+            context, context.l10n.img2img_selectFailed(e.toString()),);
       }
     }
   }
