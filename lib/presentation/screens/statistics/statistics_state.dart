@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
@@ -314,5 +315,38 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     _cacheTimestamp = null;
     _statsCache.clear();
     await _loadStatistics();
+  }
+
+  /// 预热阶段专用：预加载数据但不触发UI更新
+  ///
+  /// 在应用启动时调用，将统计数据预先加载到缓存中，
+  /// 以便用户打开统计页面时能立即看到数据。
+  Future<void> preloadForWarmup() async {
+    try {
+      // 加载记录到缓存
+      await _ensureRecordsLoaded();
+
+      final records = _cachedRecords ?? [];
+      if (records.isEmpty) {
+        AppLogger.i('Statistics preload: no records found', 'Warmup');
+        return;
+      }
+
+      // 使用默认过滤器预计算统计
+      final service = ref.read(statisticsServiceProvider);
+      final statistics = await service.computeAllStatistics(records);
+
+      // 缓存结果
+      final cacheKey = _getCacheKey(const StatisticsFilter());
+      _statsCache[cacheKey] = statistics;
+
+      AppLogger.i(
+        'Statistics preloaded: ${records.length} records',
+        'Warmup',
+      );
+    } catch (e) {
+      AppLogger.w('Statistics preload failed: $e', 'Warmup');
+      // 不抛出异常，允许预热继续
+    }
   }
 }

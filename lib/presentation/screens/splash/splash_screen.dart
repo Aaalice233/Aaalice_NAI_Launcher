@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -214,6 +216,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_fonts;
       case 'warmup_imageCache':
         return l10n.warmup_imageCache;
+      case 'warmup_statistics':
+        return l10n.warmup_statistics;
       default:
         return taskKey;
     }
@@ -225,26 +229,70 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     WarmupProgress progress,
   ) {
     final translatedTask = _translateTaskKey(context, progress.currentTask);
+    final percentage = (progress.progress * 100).toInt();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Column(
         children: [
-          // 进度条
-          _buildProgressBar(theme, primaryColor, progress.progress),
+          // 进度条 + 百分比
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  child:
+                      _buildProgressBar(theme, primaryColor, progress.progress),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // 百分比文字（使用等宽数字特性）
+              SizedBox(
+                width: 42,
+                child: Text(
+                  '$percentage%',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: primaryColor,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
 
           const SizedBox(height: 16),
 
-          // 状态文字
+          // 当前任务（带加载指示器）
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Text(
-              translatedTask,
+            duration: const Duration(milliseconds: 200),
+            child: Row(
               key: ValueKey(progress.currentTask),
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!progress.isComplete) ...[
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  translatedTask,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -257,7 +305,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     return Container(
       height: 4,
-      constraints: const BoxConstraints(maxWidth: 300),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(2),
         color: theme.colorScheme.onSurface.withOpacity(0.1),

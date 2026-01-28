@@ -14,10 +14,14 @@ class WarmupTask {
   /// 权重（计算进度）
   final int weight;
 
+  /// 自定义超时时间（可选，默认使用全局超时）
+  final Duration? timeout;
+
   const WarmupTask({
     required this.name,
     required this.task,
     this.weight = 1,
+    this.timeout,
   });
 }
 
@@ -121,8 +125,9 @@ class AppWarmupService {
       final stopwatch = Stopwatch()..start();
 
       try {
-        // 执行任务
-        await task.task().timeout(_taskTimeout);
+        // 执行任务（使用任务级超时或全局超时）
+        final taskTimeout = task.timeout ?? _taskTimeout;
+        await task.task().timeout(taskTimeout);
 
         stopwatch.stop();
 

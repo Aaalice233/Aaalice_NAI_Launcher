@@ -1,13 +1,19 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
+import 'package:flutter/painting.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/tag_data_service.dart';
 import '../../core/services/warmup_metrics_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/tag_translation_service.dart';
+import '../screens/statistics/statistics_state.dart';
+import 'font_provider.dart';
 import 'prompt_config_provider.dart';
 
 part 'warmup_provider.g.dart';
@@ -71,7 +77,58 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   /// 注册所有预加载任务
   void _registerTasks() {
-    // 1. 加载标签翻译服务
+    // 1. 配置图片缓存（优先执行）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_imageCache',
+        weight: 1,
+        task: () async {
+          // 配置 Flutter 图片缓存大小
+          PaintingBinding.instance.imageCache.maximumSize = 500;
+          PaintingBinding.instance.imageCache.maximumSizeBytes =
+              100 * 1024 * 1024; // 100MB
+
+          // 初始化 Danbooru 缓存管理器（触发单例）
+          // ignore: unused_local_variable
+          final cacheManager = DanbooruImageCacheManager.instance;
+
+          AppLogger.i(
+            'Image cache configured: max=500, maxBytes=100MB',
+            'Warmup',
+          );
+        },
+      ),
+    );
+
+    // 2. 预加载用户选择的字体
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_fonts',
+        weight: 1,
+        task: () async {
+          final fontConfig = ref.read(fontNotifierProvider);
+
+          if (fontConfig.source == FontSource.google &&
+              fontConfig.fontFamily.isNotEmpty) {
+            try {
+              await GoogleFonts.pendingFonts([
+                GoogleFonts.getFont(fontConfig.fontFamily),
+              ]);
+              AppLogger.i(
+                'Preloaded Google Font: ${fontConfig.fontFamily}',
+                'Warmup',
+              );
+            } catch (e) {
+              AppLogger.w('Font preload failed: $e', 'Warmup');
+            }
+          } else {
+            AppLogger.i('Using system font, skip preload', 'Warmup');
+          }
+        },
+      ),
+    );
+
+    // 3. 加载标签翻译服务
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_loadingTranslation',
@@ -83,7 +140,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 2. 初始化标签数据服务（非阻塞式，网络下载在后台进行）
+    // 4. 初始化标签数据服务（非阻塞式，网络下载在后台进行）
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_initTagSystem',
@@ -101,7 +158,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 3. 加载随机提示词配置
+    // 5. 加载随机提示词配置
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_loadingPromptConfig',
@@ -119,7 +176,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 4. 初始化 Danbooru 认证状态（加载保存的凭据）
+    // 6. 初始化 Danbooru 认证状态（加载保存的凭据）
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_danbooruAuth',
@@ -132,45 +189,58 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 5. 预加载图片编辑器资源（stub 实现）
+    // 7. 预加载统计数据（最耗时任务，使用10秒超时）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_statistics',
+        weight: 3,
+        timeout: const Duration(seconds: 10),
+        task: () async {
+          try {
+            final notifier = ref.read(statisticsNotifierProvider.notifier);
+            await notifier.preloadForWarmup();
+          } catch (e) {
+            AppLogger.w('Statistics preload failed: $e', 'Warmup');
+          }
+        },
+      ),
+    );
+
+    // 8. 预热图片编辑器 Canvas
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_imageEditor',
         weight: 1,
         task: () async {
-          // Stub implementation for future image editor resource preloading
-          AppLogger.i('Image editor resources warmup (stub)', 'Warmup');
-          // Placeholder for future image editor resource initialization
-          await Future.delayed(const Duration(milliseconds: 100));
+          try {
+            // 轻量级预热：测试 Canvas 渲染能力
+            final recorder = ui.PictureRecorder();
+            final canvas = ui.Canvas(recorder);
+            final paint = ui.Paint()..color = const ui.Color(0xFF000000);
+            canvas.drawCircle(ui.Offset.zero, 10, paint);
+            final picture = recorder.endRecording();
+            final image = await picture.toImage(50, 50);
+            image.dispose();
+            picture.dispose();
+
+            AppLogger.i('Image editor canvas warmed up', 'Warmup');
+          } catch (e) {
+            AppLogger.w('Image editor warmup failed: $e', 'Warmup');
+          }
         },
       ),
     );
 
-    // 6. 预加载数据库内容（stub 实现）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_database',
-        weight: 1,
-        task: () async {
-          // Stub implementation for future database content warmup
-          AppLogger.i('Database content warmup (stub)', 'Warmup');
-          // Placeholder for future database content initialization (e.g., frequently accessed queries, indexes, cached data)
-          await Future.delayed(const Duration(milliseconds: 100));
-        },
-      ),
-    );
-
-    // 7. 检查网络连接状态（带超时）
+    // 9. 检查网络连接状态（带超时）
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_network',
         weight: 1,
         task: () async {
-          // Network connectivity check with timeout
           AppLogger.i('Network connectivity check started', 'Warmup');
 
           try {
-            // Simulate network connectivity check with timeout
+            // 模拟网络连接检查
             await Future.delayed(const Duration(milliseconds: 200))
                 .timeout(const Duration(seconds: 2));
             AppLogger.i('Network connectivity check completed', 'Warmup');
@@ -179,34 +249,6 @@ class WarmupNotifier extends _$WarmupNotifier {
           } catch (e) {
             AppLogger.w('Network connectivity check failed: $e', 'Warmup');
           }
-        },
-      ),
-    );
-
-    // 8. 预加载字体和图标（stub 实现）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_fonts',
-        weight: 1,
-        task: () async {
-          // Stub implementation for fonts and icons preloading
-          AppLogger.i('Fonts and icons warmup (stub)', 'Warmup');
-          // Placeholder for future fonts and icons initialization (e.g., custom fonts, icon packs, font caching)
-          await Future.delayed(const Duration(milliseconds: 100));
-        },
-      ),
-    );
-
-    // 9. 预加载图片缓存（stub 实现）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_imageCache',
-        weight: 1,
-        task: () async {
-          // Stub implementation for image cache warmup
-          AppLogger.i('Image cache warmup (stub)', 'Warmup');
-          // Placeholder for future image cache initialization (e.g., preloading common images, cache size configuration, memory limits)
-          await Future.delayed(const Duration(milliseconds: 100));
         },
       ),
     );
@@ -246,11 +288,5 @@ class WarmupNotifier extends _$WarmupNotifier {
     _subscription?.cancel();
     state = WarmupState.initial();
     _startWarmup();
-  }
-
-  /// 跳过预加载（直接进入应用）
-  void skip() {
-    _subscription?.cancel();
-    state = WarmupState.complete();
   }
 }
