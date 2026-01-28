@@ -48,7 +48,8 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final presetState = ref.watch(ucPresetNotifierProvider);
-    final customEntry = ref.watch(currentUcEntryProvider);
+    final customEntries = ref.watch(ucCustomEntriesProvider);
+    final currentEntry = ref.watch(currentUcEntryProvider);
 
     // 获取实际内容用于 Tooltip 显示
     final effectiveContent = ref
@@ -69,7 +70,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
               effectiveContent,
               isEnabled,
               presetState.isCustom,
-              customEntry,
+              currentEntry,
             ),
           ),
         ),
@@ -89,7 +90,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
         ),
         padding: const EdgeInsets.all(12),
         child: GestureDetector(
-          onTap: () => _showMenu(context, presetState, customEntry),
+          onTap: () => _showMenu(context, presetState, customEntries),
           child: AnimatedContainer(
             key: _buttonKey,
             duration: const Duration(milliseconds: 150),
@@ -121,7 +122,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _getDisplayLabel(context, presetState, customEntry),
+                  _getDisplayLabel(context, presetState, currentEntry),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
@@ -149,7 +150,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   Future<void> _showMenu(
     BuildContext context,
     UcPresetState presetState,
-    TagLibraryEntry? customEntry,
+    List<TagLibraryEntry> customEntries,
   ) async {
     final RenderBox button =
         _buttonKey.currentContext!.findRenderObject() as RenderBox;
@@ -170,7 +171,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       context: context,
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      items: _buildMenuItems(context, presetState, customEntry),
+      items: _buildMenuItems(context, presetState, customEntries),
     );
 
     if (result != null) {
@@ -193,7 +194,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   List<PopupMenuEntry<String>> _buildMenuItems(
     BuildContext context,
     UcPresetState state,
-    TagLibraryEntry? customEntry,
+    List<TagLibraryEntry> customEntries,
   ) {
     final theme = Theme.of(context);
     final items = <PopupMenuEntry<String>>[];
@@ -242,17 +243,22 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       ),
     ));
 
-    // 自定义条目（如果有）
-    if (customEntry != null) {
+    // 所有已添加的自定义条目
+    if (customEntries.isNotEmpty) {
       items.add(const PopupMenuDivider());
-      items.add(_CustomEntryMenuItem(
-        entry: customEntry,
-        isSelected: state.isCustom,
-        onDelete: () {
-          ref.read(ucPresetNotifierProvider.notifier).removeCustomEntry();
-          Navigator.of(context).pop();
-        },
-      ));
+      for (final entry in customEntries) {
+        final isSelected = state.isCustom && state.customEntryId == entry.id;
+        items.add(_CustomEntryMenuItem(
+          entry: entry,
+          isSelected: isSelected,
+          onDelete: () {
+            ref
+                .read(ucPresetNotifierProvider.notifier)
+                .removeCustomEntry(entry.id);
+            Navigator.of(context).pop();
+          },
+        ));
+      }
     }
 
     return items;

@@ -65,9 +65,12 @@ class StorageKeys {
   // 质量词预设（新版）
   static const String qualityPresetMode = 'quality_preset_mode';
   static const String qualityPresetCustomId = 'quality_preset_custom_id';
+  static const String qualityPresetCustomIds =
+      'quality_preset_custom_ids'; // 自定义条目ID列表
 
   // 负面词自定义条目
   static const String ucPresetCustomId = 'uc_preset_custom_id';
+  static const String ucPresetCustomIds = 'uc_preset_custom_ids'; // 自定义条目ID列表
   static const String randomPromptMode = 'random_prompt_mode';
   static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';

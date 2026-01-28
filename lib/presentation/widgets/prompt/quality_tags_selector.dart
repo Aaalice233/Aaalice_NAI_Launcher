@@ -43,7 +43,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final presetState = ref.watch(qualityPresetNotifierProvider);
-    final customEntry = ref.watch(currentQualityEntryProvider);
+    final customEntries = ref.watch(qualityCustomEntriesProvider);
     final isEnabled = presetState.mode != PromptPresetMode.none;
 
     return MouseRegion(
@@ -54,7 +54,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
         richMessage: WidgetSpan(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 320),
-            child: _buildTooltipContent(theme, presetState, customEntry),
+            child: _buildTooltipContent(theme, presetState, customEntries),
           ),
         ),
         preferBelow: true,
@@ -73,7 +73,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
         ),
         padding: const EdgeInsets.all(12),
         child: GestureDetector(
-          onTap: () => _showMenu(context, presetState, customEntry),
+          onTap: () => _showMenu(context, presetState, customEntries),
           child: CompositedTransformTarget(
             key: _buttonKey,
             link: _layerLink,
@@ -109,7 +109,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    _getDisplayLabel(context, presetState, customEntry),
+                    _getDisplayLabel(context, presetState, customEntries),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
@@ -138,7 +138,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   Future<void> _showMenu(
     BuildContext context,
     QualityPresetState presetState,
-    TagLibraryEntry? customEntry,
+    List<TagLibraryEntry> customEntries,
   ) async {
     final RenderBox button =
         _buttonKey.currentContext!.findRenderObject() as RenderBox;
@@ -159,7 +159,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       context: context,
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      items: _buildMenuItems(context, presetState, customEntry),
+      items: _buildMenuItems(context, presetState, customEntries),
     );
 
     if (result != null) {
@@ -170,7 +170,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   String _getDisplayLabel(
     BuildContext context,
     QualityPresetState state,
-    TagLibraryEntry? customEntry,
+    List<TagLibraryEntry> customEntries,
   ) {
     switch (state.mode) {
       case PromptPresetMode.naiDefault:
@@ -178,9 +178,14 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       case PromptPresetMode.none:
         return context.l10n.qualityTags_none;
       case PromptPresetMode.custom:
-        if (customEntry != null) {
+        // 找到当前选中的条目
+        final currentEntry = customEntries.cast<TagLibraryEntry?>().firstWhere(
+              (e) => e?.id == state.customEntryId,
+              orElse: () => null,
+            );
+        if (currentEntry != null) {
           // 截断名称
-          final name = customEntry.displayName;
+          final name = currentEntry.displayName;
           return name.length > 8 ? '${name.substring(0, 8)}...' : name;
         }
         return context.l10n.qualityTags_label;
@@ -190,7 +195,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   List<PopupMenuEntry<String>> _buildMenuItems(
     BuildContext context,
     QualityPresetState state,
-    TagLibraryEntry? customEntry,
+    List<TagLibraryEntry> customEntries,
   ) {
     final theme = Theme.of(context);
     final items = <PopupMenuEntry<String>>[];
@@ -265,17 +270,23 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       ),
     ));
 
-    // 自定义条目（如果有）
-    if (customEntry != null) {
+    // 所有已添加的自定义条目
+    if (customEntries.isNotEmpty) {
       items.add(const PopupMenuDivider());
-      items.add(_CustomEntryMenuItem(
-        entry: customEntry,
-        isSelected: state.mode == PromptPresetMode.custom,
-        onDelete: () {
-          ref.read(qualityPresetNotifierProvider.notifier).removeCustomEntry();
-          Navigator.of(context).pop();
-        },
-      ));
+      for (final entry in customEntries) {
+        final isSelected = state.mode == PromptPresetMode.custom &&
+            state.customEntryId == entry.id;
+        items.add(_CustomEntryMenuItem(
+          entry: entry,
+          isSelected: isSelected,
+          onDelete: () {
+            ref
+                .read(qualityPresetNotifierProvider.notifier)
+                .removeCustomEntry(entry.id);
+            Navigator.of(context).pop();
+          },
+        ));
+      }
     }
 
     return items;
@@ -318,7 +329,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   Widget _buildTooltipContent(
     ThemeData theme,
     QualityPresetState state,
-    TagLibraryEntry? customEntry,
+    List<TagLibraryEntry> customEntries,
   ) {
     if (state.mode == PromptPresetMode.none) {
       return Text(
@@ -331,8 +342,14 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     }
 
     String content;
-    if (state.mode == PromptPresetMode.custom && customEntry != null) {
-      content = customEntry.content;
+    if (state.mode == PromptPresetMode.custom && state.customEntryId != null) {
+      final currentEntry = customEntries.cast<TagLibraryEntry?>().firstWhere(
+            (e) => e?.id == state.customEntryId,
+            orElse: () => null,
+          );
+      content = currentEntry?.content ??
+          QualityTags.getQualityTags(widget.model) ??
+          'very aesthetic, masterpiece, no text';
     } else {
       content = QualityTags.getQualityTags(widget.model) ??
           'very aesthetic, masterpiece, no text';

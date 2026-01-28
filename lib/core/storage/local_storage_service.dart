@@ -221,6 +221,17 @@ class LocalStorageService {
     }
   }
 
+  /// 获取 UC 预设自定义条目 ID 列表
+  List<String> getUcPresetCustomIds() {
+    final data = getSetting<List<dynamic>>(StorageKeys.ucPresetCustomIds);
+    return data?.cast<String>() ?? [];
+  }
+
+  /// 保存 UC 预设自定义条目 ID 列表
+  Future<void> setUcPresetCustomIds(List<String> ids) async {
+    await setSetting(StorageKeys.ucPresetCustomIds, ids);
+  }
+
   // ==================== Quality Preset (新版) ====================
 
   /// 获取质量词预设模式 (默认 0 = naiDefault)
@@ -245,6 +256,17 @@ class LocalStorageService {
     } else {
       await deleteSetting(StorageKeys.qualityPresetCustomId);
     }
+  }
+
+  /// 获取质量词自定义条目 ID 列表
+  List<String> getQualityPresetCustomIds() {
+    final data = getSetting<List<dynamic>>(StorageKeys.qualityPresetCustomIds);
+    return data?.cast<String>() ?? [];
+  }
+
+  /// 保存质量词自定义条目 ID 列表
+  Future<void> setQualityPresetCustomIds(List<String> ids) async {
+    await setSetting(StorageKeys.qualityPresetCustomIds, ids);
   }
 
   // ==================== Random Prompt Mode ====================
