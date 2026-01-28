@@ -524,7 +524,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
 }
 
 /// Modern search field with glass-morphism style
-/// 现代搜索框 - 毛玻璃风格
+/// 现代搜索框 - 毛玻璃风格 + 精致设计
 class _ModernSearchField extends StatefulWidget {
   final TextEditingController controller;
   final String hintText;
@@ -544,10 +544,13 @@ class _ModernSearchField extends StatefulWidget {
   State<_ModernSearchField> createState() => _ModernSearchFieldState();
 }
 
-class _ModernSearchFieldState extends State<_ModernSearchField> {
+class _ModernSearchFieldState extends State<_ModernSearchField>
+    with SingleTickerProviderStateMixin {
   bool _isFocused = false;
   bool _isHovered = false;
   final FocusNode _focusNode = FocusNode();
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -555,12 +558,24 @@ class _ModernSearchFieldState extends State<_ModernSearchField> {
     _focusNode.addListener(() {
       if (mounted) {
         setState(() => _isFocused = _focusNode.hasFocus);
+        if (_focusNode.hasFocus) {
+          _pulseController.forward().then((_) => _pulseController.reverse());
+        }
       }
     });
+
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOutCubic),
+    );
   }
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -571,28 +586,31 @@ class _ModernSearchFieldState extends State<_ModernSearchField> {
     final isDark = theme.brightness == Brightness.dark;
     final hasText = widget.controller.text.isNotEmpty;
 
-    // Modern color scheme
+    // Premium glass-morphism color scheme
     final bgColor = isDark
         ? (_isFocused
-            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.8)
+            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.85)
             : (_isHovered
-                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.65)
-                : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5)))
+                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.7)
+                : theme.colorScheme.surfaceContainerHighest.withOpacity(0.55)))
         : (_isFocused
-            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.9)
+            ? Colors.white.withOpacity(0.95)
             : (_isHovered
-                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.6)
-                : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4)));
+                ? Colors.white.withOpacity(0.85)
+                : Colors.white.withOpacity(0.7)));
 
     final borderColor = _isFocused
-        ? theme.colorScheme.primary.withOpacity(isDark ? 0.7 : 0.5)
+        ? theme.colorScheme.primary.withOpacity(isDark ? 0.8 : 0.6)
         : (_isHovered
-            ? theme.colorScheme.outline.withOpacity(isDark ? 0.4 : 0.3)
-            : theme.colorScheme.outline.withOpacity(isDark ? 0.2 : 0.15));
+            ? theme.colorScheme.primary.withOpacity(isDark ? 0.4 : 0.25)
+            : theme.colorScheme.outline.withOpacity(isDark ? 0.25 : 0.18));
 
     final iconColor = _isFocused
         ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.7 : 0.6);
+        : (_isHovered
+            ? theme.colorScheme.primary.withOpacity(0.7)
+            : theme.colorScheme.onSurfaceVariant
+                .withOpacity(isDark ? 0.6 : 0.55));
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -601,37 +619,66 @@ class _ModernSearchFieldState extends State<_ModernSearchField> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        height: 36,
+        height: 38,
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: borderColor,
-            width: _isFocused ? 1.5 : 1,
+            width: _isFocused ? 1.8 : 1.2,
           ),
-          boxShadow: _isFocused
-              ? [
-                  BoxShadow(
-                    color: theme.colorScheme.primary
-                        .withOpacity(isDark ? 0.15 : 0.1),
-                    blurRadius: 8,
-                    spreadRadius: 0,
-                  ),
-                ]
-              : null,
+          boxShadow: [
+            if (_isFocused) ...[
+              BoxShadow(
+                color:
+                    theme.colorScheme.primary.withOpacity(isDark ? 0.25 : 0.15),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color:
+                    theme.colorScheme.primary.withOpacity(isDark ? 0.08 : 0.05),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ] else if (_isHovered)
+              BoxShadow(
+                color:
+                    theme.colorScheme.shadow.withOpacity(isDark ? 0.15 : 0.08),
+                blurRadius: 8,
+                spreadRadius: 0,
+                offset: const Offset(0, 2),
+              ),
+          ],
         ),
         child: Row(
           children: [
-            // Search icon
+            // Search icon with pulse animation
             Padding(
-              padding: const EdgeInsets.only(left: 12, right: 4),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  Icons.search_rounded,
-                  size: 18,
-                  color: iconColor,
-                ),
+              padding: const EdgeInsets.only(left: 14, right: 6),
+              child: AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _isFocused ? _pulseAnimation.value : 1.0,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: _isFocused
+                            ? theme.colorScheme.primary
+                                .withOpacity(isDark ? 0.15 : 0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: iconColor,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             // Text field
@@ -641,27 +688,29 @@ class _ModernSearchFieldState extends State<_ModernSearchField> {
                 focusNode: _focusNode,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
-                  fontSize: 13,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w400,
                 ),
                 decoration: InputDecoration(
                   hintText: widget.hintText,
                   hintStyle: TextStyle(
                     color: theme.colorScheme.onSurfaceVariant
-                        .withOpacity(isDark ? 0.5 : 0.45),
-                    fontSize: 13,
+                        .withOpacity(isDark ? 0.5 : 0.4),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w400,
                   ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   isDense: true,
                 ),
                 onChanged: widget.onChanged,
                 onSubmitted: widget.onSubmitted,
               ),
             ),
-            // Clear button
+            // Clear button with better styling
             if (hasText)
               Padding(
-                padding: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.only(right: 6),
                 child: _MicroIconButton(
                   icon: Icons.close_rounded,
                   size: 16,
@@ -669,7 +718,7 @@ class _ModernSearchFieldState extends State<_ModernSearchField> {
                 ),
               )
             else
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
           ],
         ),
       ),
@@ -730,14 +779,15 @@ class _MicroIconButtonState extends State<_MicroIconButton> {
   }
 }
 
-/// Compact icon button for toolbar - Modern style
-/// 工具栏紧凑图标按钮 - 现代风格
+/// Compact icon button for toolbar - Premium modern style
+/// 工具栏紧凑图标按钮 - 精致现代风格
 class _CompactIconButton extends StatefulWidget {
   final IconData icon;
   final String? label;
   final String? tooltip;
   final VoidCallback? onPressed;
   final bool isDanger;
+  final bool isPrimary;
 
   const _CompactIconButton({
     required this.icon,
@@ -745,15 +795,37 @@ class _CompactIconButton extends StatefulWidget {
     this.tooltip,
     this.onPressed,
     this.isDanger = false,
+    this.isPrimary = false,
   });
 
   @override
   State<_CompactIconButton> createState() => _CompactIconButtonState();
 }
 
-class _CompactIconButtonState extends State<_CompactIconButton> {
+class _CompactIconButtonState extends State<_CompactIconButton>
+    with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   bool _isPressed = false;
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -763,36 +835,89 @@ class _CompactIconButtonState extends State<_CompactIconButton> {
     final hasLabel = widget.label != null && widget.label!.isNotEmpty;
 
     Color iconColor;
+    Color labelColor;
     Color bgColor;
     Color borderColor;
+    List<BoxShadow>? shadows;
 
     if (widget.isDanger) {
       iconColor = isEnabled
           ? theme.colorScheme.error
           : theme.colorScheme.error.withOpacity(0.4);
+      labelColor = iconColor;
       bgColor = _isPressed
-          ? theme.colorScheme.error.withOpacity(isDark ? 0.25 : 0.15)
+          ? theme.colorScheme.error.withOpacity(isDark ? 0.28 : 0.18)
           : (_isHovered
-              ? theme.colorScheme.error.withOpacity(isDark ? 0.18 : 0.1)
-              : theme.colorScheme.error.withOpacity(isDark ? 0.06 : 0.03));
+              ? theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.12)
+              : theme.colorScheme.error.withOpacity(isDark ? 0.08 : 0.04));
       borderColor = _isHovered
-          ? theme.colorScheme.error.withOpacity(isDark ? 0.5 : 0.35)
-          : theme.colorScheme.error.withOpacity(isDark ? 0.25 : 0.15);
+          ? theme.colorScheme.error.withOpacity(isDark ? 0.6 : 0.4)
+          : theme.colorScheme.error.withOpacity(isDark ? 0.3 : 0.2);
+      if (_isHovered && isEnabled) {
+        shadows = [
+          BoxShadow(
+            color: theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.12),
+            blurRadius: 8,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
+          ),
+        ];
+      }
+    } else if (widget.isPrimary) {
+      iconColor = isEnabled
+          ? (_isHovered ? Colors.white : theme.colorScheme.primary)
+          : theme.colorScheme.primary.withOpacity(0.4);
+      labelColor = iconColor;
+      bgColor = _isPressed
+          ? theme.colorScheme.primary.withOpacity(isDark ? 0.95 : 0.9)
+          : (_isHovered
+              ? theme.colorScheme.primary.withOpacity(isDark ? 0.85 : 0.8)
+              : theme.colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1));
+      borderColor = _isHovered
+          ? theme.colorScheme.primary
+          : theme.colorScheme.primary.withOpacity(isDark ? 0.5 : 0.4);
+      if (_isHovered && isEnabled) {
+        shadows = [
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(isDark ? 0.35 : 0.25),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 3),
+          ),
+        ];
+      }
     } else {
       iconColor = isEnabled
           ? (_isHovered
               ? theme.colorScheme.primary
-              : theme.colorScheme.onSurfaceVariant)
-          : theme.colorScheme.onSurfaceVariant.withOpacity(0.35);
-      bgColor = _isPressed
-          ? theme.colorScheme.primary.withOpacity(isDark ? 0.18 : 0.12)
-          : (_isHovered
-              ? theme.colorScheme.primary.withOpacity(isDark ? 0.12 : 0.08)
               : theme.colorScheme.onSurfaceVariant
-                  .withOpacity(isDark ? 0.05 : 0.02));
+                  .withOpacity(isDark ? 0.85 : 0.75))
+          : theme.colorScheme.onSurfaceVariant.withOpacity(0.35);
+      labelColor = isEnabled
+          ? (_isHovered
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface.withOpacity(isDark ? 0.85 : 0.75))
+          : theme.colorScheme.onSurface.withOpacity(0.35);
+      bgColor = _isPressed
+          ? theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.14)
+          : (_isHovered
+              ? theme.colorScheme.primary.withOpacity(isDark ? 0.14 : 0.08)
+              : (isDark
+                  ? Colors.white.withOpacity(0.04)
+                  : Colors.white.withOpacity(0.6)));
       borderColor = _isHovered
-          ? theme.colorScheme.primary.withOpacity(isDark ? 0.4 : 0.3)
+          ? theme.colorScheme.primary.withOpacity(isDark ? 0.5 : 0.35)
           : theme.colorScheme.outline.withOpacity(isDark ? 0.2 : 0.15);
+      if (_isHovered && isEnabled) {
+        shadows = [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(isDark ? 0.15 : 0.08),
+            blurRadius: 6,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
+          ),
+        ];
+      }
     }
 
     return MouseRegion(
@@ -803,50 +928,72 @@ class _CompactIconButtonState extends State<_CompactIconButton> {
         message: widget.tooltip ?? widget.label ?? '',
         waitDuration: const Duration(milliseconds: 500),
         child: GestureDetector(
-          onTapDown:
-              isEnabled ? (_) => setState(() => _isPressed = true) : null,
-          onTapUp: isEnabled ? (_) => setState(() => _isPressed = false) : null,
-          onTapCancel:
-              isEnabled ? () => setState(() => _isPressed = false) : null,
+          onTapDown: isEnabled
+              ? (_) {
+                  setState(() => _isPressed = true);
+                  _scaleController.forward();
+                }
+              : null,
+          onTapUp: isEnabled
+              ? (_) {
+                  setState(() => _isPressed = false);
+                  _scaleController.reverse();
+                }
+              : null,
+          onTapCancel: isEnabled
+              ? () {
+                  setState(() => _isPressed = false);
+                  _scaleController.reverse();
+                }
+              : null,
           onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(
-              horizontal: hasLabel ? 10 : 8,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: borderColor,
-                width: _isHovered ? 1.2 : 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  transform: Matrix4.identity()..scale(_isPressed ? 0.92 : 1.0),
-                  transformAlignment: Alignment.center,
-                  child: Icon(widget.icon, size: 17, color: iconColor),
-                ),
-                if (hasLabel) ...[
-                  const SizedBox(width: 5),
-                  Text(
-                    widget.label!,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: iconColor,
-                      fontSize: 12,
-                      fontWeight:
-                          _isHovered ? FontWeight.w600 : FontWeight.w500,
-                    ),
+          child: AnimatedBuilder(
+            animation: _scaleAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: hasLabel ? 12 : 9,
+                    vertical: 7,
                   ),
-                ],
-              ],
-            ),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: borderColor,
+                      width: _isHovered ? 1.4 : 1.0,
+                    ),
+                    boxShadow: shadows,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.icon,
+                        size: 17,
+                        color: iconColor,
+                      ),
+                      if (hasLabel) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          widget.label!,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: labelColor,
+                            fontSize: 12.5,
+                            fontWeight:
+                                _isHovered ? FontWeight.w600 : FontWeight.w500,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

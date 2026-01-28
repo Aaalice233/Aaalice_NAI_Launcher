@@ -12,6 +12,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
+import 'common/animated_favorite_button.dart';
 import 'prompt/random_manager/components/pro_context_menu.dart';
 import '../widgets/common/themed_divider.dart';
 
@@ -27,6 +28,7 @@ class LocalImageCard extends StatefulWidget {
   final VoidCallback? onDeleted;
   final void Function(LocalImageRecord)? onReuseMetadata;
   final void Function(LocalImageRecord)? onSendToImg2Img;
+  final void Function(LocalImageRecord)? onFavoriteToggle;
 
   const LocalImageCard({
     super.key,
@@ -40,6 +42,7 @@ class LocalImageCard extends StatefulWidget {
     this.onDeleted,
     this.onReuseMetadata,
     this.onSendToImg2Img,
+    this.onFavoriteToggle,
   });
 
   @override
@@ -1027,6 +1030,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
               if (!widget.selectionMode)
                 _HoverOverlay(
                   record: widget.record,
+                  onFavoriteToggle: widget.onFavoriteToggle != null
+                      ? () => widget.onFavoriteToggle!(widget.record)
+                      : null,
                 ),
               // Pinch 缩略图预览 overlay
               if (_showThumbnailPreview && _scaleStartPosition != null)
@@ -1180,9 +1186,11 @@ class _SelectionIndicatorState extends State<_SelectionIndicator>
 /// This prevents hover state changes from causing the entire card to rebuild
 class _HoverOverlay extends StatefulWidget {
   final LocalImageRecord record;
+  final VoidCallback? onFavoriteToggle;
 
   const _HoverOverlay({
     required this.record,
+    this.onFavoriteToggle,
   });
 
   @override
@@ -1200,167 +1208,183 @@ class _HoverOverlayState extends State<_HoverOverlay> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        transform: Matrix4.identity()..scale(_isHovering ? 1.02 : 1.0),
-        transformAlignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: _isHovering
-              ? Border.all(
-                  color: colorScheme.primary.withOpacity(0.25),
-                  width: 2,
-                )
-              : null,
-          boxShadow: _isHovering
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
-                    blurRadius: 20,
-                    offset: const Offset(0, 6),
-                    spreadRadius: 2,
-                  ),
-                ]
-              : null,
-        ),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 150),
-          opacity: _isHovering ? 1.0 : 0.0,
-          child: Container(
+      child: Stack(
+        children: [
+          // 主体内容
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            transform: Matrix4.identity()..scale(_isHovering ? 1.02 : 1.0),
+            transformAlignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
-                colors: [Colors.transparent, Colors.black87],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.3, 1.0],
-              ),
+              border: _isHovering
+                  ? Border.all(
+                      color: colorScheme.primary.withOpacity(0.25),
+                      width: 2,
+                    )
+                  : null,
+              boxShadow: _isHovering
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
             ),
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  path.basename(widget.record.path),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: _isHovering ? 1.0 : 0.0,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Colors.transparent, Colors.black87],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0.3, 1.0],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Row(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        timeago.format(
-                          widget.record.modifiedAt,
-                          locale:
-                              Localizations.localeOf(context).languageCode ==
+                    Text(
+                      path.basename(widget.record.path),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            timeago.format(
+                              widget.record.modifiedAt,
+                              locale: Localizations.localeOf(context)
+                                          .languageCode ==
                                       'zh'
                                   ? 'zh'
                                   : 'en',
-                        ),
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 11,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    if (metadata?.seed != null) ...[
-                      Text(
-                        ' | ',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 11,
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          '${metadata!.seed}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 11,
+                            ),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
                         ),
-                      ),
-                    ],
-                    if (metadata?.width != null &&
-                        metadata?.height != null) ...[
-                      Text(
-                        ' | ',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 11,
-                        ),
-                      ),
-                      Text(
-                        '${metadata?.width}x${metadata?.height}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (metadata?.prompt.isNotEmpty == true)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6.0),
-                    child: Text(
-                      metadata!.prompt,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 11,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                // Tags display
-                if (widget.record.tags.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6.0),
-                    child: Wrap(
-                      spacing: 4.0,
-                      runSpacing: 4.0,
-                      children: widget.record.tags.take(3).map((tag) {
-                        final displayTag = tag.length > 12
-                            ? '${tag.substring(0, 12)}...'
-                            : tag;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            displayTag,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
+                        if (metadata?.seed != null) ...[
+                          Text(
+                            ' | ',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 11,
                             ),
                           ),
-                        );
-                      }).toList(),
+                          Flexible(
+                            child: Text(
+                              '${metadata!.seed}',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                        if (metadata?.width != null &&
+                            metadata?.height != null) ...[
+                          Text(
+                            ' | ',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 11,
+                            ),
+                          ),
+                          Text(
+                            '${metadata?.width}x${metadata?.height}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-              ],
+                    if (metadata?.prompt.isNotEmpty == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Text(
+                          metadata!.prompt,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 11,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    // Tags display
+                    if (widget.record.tags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Wrap(
+                          spacing: 4.0,
+                          runSpacing: 4.0,
+                          children: widget.record.tags.take(3).map((tag) {
+                            final displayTag = tag.length > 12
+                                ? '${tag.substring(0, 12)}...'
+                                : tag;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                displayTag,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          // 右上角收藏按钮（悬浮时显示）
+          if (_isHovering && widget.onFavoriteToggle != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: CardFavoriteButton(
+                isFavorite: widget.record.isFavorite,
+                onToggle: widget.onFavoriteToggle,
+                size: 18,
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -254,17 +254,17 @@ class _EntryListItemState extends State<EntryListItem> {
         // 名称行
         Row(
           children: [
-            // 收藏图标
+            // 收藏图标 - 红心徽章
             if (entry.isFavorite)
               Container(
                 margin: const EdgeInsets.only(right: 6),
                 padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(
-                  color: Colors.amber,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade400,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.star,
+                  Icons.favorite,
                   size: 12,
                   color: Colors.white,
                 ),
@@ -345,42 +345,27 @@ class _EntryListItemState extends State<EntryListItem> {
           ),
           const SizedBox(width: 4),
         ],
-        // 收藏按钮
+        // 收藏按钮 - 红心样式，无文字
         widget.entry.isFavorite
             ? Material(
-                color: Colors.amber,
+                color: Colors.red.shade400,
                 borderRadius: BorderRadius.circular(6),
                 child: InkWell(
                   onTap: widget.onToggleFavorite,
                   borderRadius: BorderRadius.circular(6),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          context.l10n.tagLibrary_pinned,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.favorite,
+                      size: 18,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               )
             : _buildActionIcon(
                 theme,
-                Icons.star_border,
+                Icons.favorite_border,
                 context.l10n.tagLibrary_addFavorite,
                 widget.onToggleFavorite,
               ),

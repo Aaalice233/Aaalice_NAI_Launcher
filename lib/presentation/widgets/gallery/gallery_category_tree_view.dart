@@ -105,8 +105,10 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
 
           // 收藏
           _CategoryItem(
-            icon: Icons.star_outline,
-            iconColor: Colors.amber,
+            icon: widget.selectedCategoryId == 'favorites'
+                ? Icons.favorite
+                : Icons.favorite_border,
+            iconColor: Colors.red.shade400,
             label: '收藏',
             count: widget.favoriteCount,
             isSelected: widget.selectedCategoryId == 'favorites',

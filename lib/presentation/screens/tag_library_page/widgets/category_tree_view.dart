@@ -102,8 +102,10 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
 
           // 收藏 - 不接收拖拽
           _CategoryItem(
-            icon: Icons.star_outline,
-            iconColor: Colors.amber,
+            icon: widget.selectedCategoryId == 'favorites'
+                ? Icons.favorite
+                : Icons.favorite_border,
+            iconColor: Colors.red.shade400,
             label: context.l10n.tagLibrary_favorites,
             count: widget.entries.where((e) => e.isFavorite).length,
             isSelected: widget.selectedCategoryId == 'favorites',
@@ -153,8 +155,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
     TagLibraryCategory category,
     int depth,
   ) {
-    final children =
-        widget.categories.getChildren(category.id).sortedByOrder();
+    final children = widget.categories.getChildren(category.id).sortedByOrder();
     final hasChildren = children.isNotEmpty;
     final isExpanded = _expandedIds.contains(category.id);
     final entryCount = _getCategoryEntryCount(category.id);
@@ -196,7 +197,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
 
     // 包装为拖拽目标（接收分类和词条）
     categoryItem = _buildCategoryDragTarget(theme, category, categoryItem);
-    categoryItem = _buildEntryDropTarget(categoryId: category.id, child: categoryItem);
+    categoryItem =
+        _buildEntryDropTarget(categoryId: category.id, child: categoryItem);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

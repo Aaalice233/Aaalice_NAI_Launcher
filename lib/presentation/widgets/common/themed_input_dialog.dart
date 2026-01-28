@@ -111,9 +111,12 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
   }
 
   void _validate(String value) {
-    if (widget.validator != null) {
-      setState(() => _errorText = widget.validator!(value));
-    }
+    setState(() {
+      if (widget.validator != null) {
+        _errorText = widget.validator!(value);
+      }
+      // 即使没有 validator，也需要触发 setState 以更新 _canSubmit 状态
+    });
   }
 
   bool get _canSubmit {

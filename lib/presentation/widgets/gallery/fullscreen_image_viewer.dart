@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
+import '../common/animated_favorite_button.dart';
 import 'metadata_panel.dart';
 
 /// 全屏图片预览器
@@ -19,6 +20,7 @@ class FullscreenImageViewer extends StatefulWidget {
   final List<LocalImageRecord> images;
   final int initialIndex;
   final void Function(LocalImageRecord record)? onReuseMetadata;
+  final void Function(LocalImageRecord record)? onFavoriteToggle;
   final String? heroTagPrefix;
 
   const FullscreenImageViewer({
@@ -26,6 +28,7 @@ class FullscreenImageViewer extends StatefulWidget {
     required this.images,
     required this.initialIndex,
     this.onReuseMetadata,
+    this.onFavoriteToggle,
     this.heroTagPrefix,
   });
 
@@ -35,6 +38,7 @@ class FullscreenImageViewer extends StatefulWidget {
     required List<LocalImageRecord> images,
     required int initialIndex,
     void Function(LocalImageRecord record)? onReuseMetadata,
+    void Function(LocalImageRecord record)? onFavoriteToggle,
     String? heroTagPrefix,
   }) {
     return Navigator.of(context).push(
@@ -53,6 +57,7 @@ class FullscreenImageViewer extends StatefulWidget {
               images: images,
               initialIndex: initialIndex,
               onReuseMetadata: onReuseMetadata,
+              onFavoriteToggle: onFavoriteToggle,
               heroTagPrefix: heroTagPrefix,
             ),
           );
@@ -325,15 +330,14 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               tooltip: '复用参数',
             ),
 
-          IconButton(
-            icon: Icon(
-              record.isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: record.isFavorite ? Colors.red : Colors.white,
-            ),
-            onPressed: () {
-              // TODO: 实现收藏切换
-            },
-            tooltip: record.isFavorite ? '取消收藏' : '收藏',
+          // 收藏按钮
+          AnimatedFavoriteButton(
+            isFavorite: record.isFavorite,
+            size: 24,
+            inactiveColor: Colors.white,
+            onToggle: widget.onFavoriteToggle != null
+                ? () => widget.onFavoriteToggle!(record)
+                : null,
           ),
         ],
       ),

@@ -335,7 +335,7 @@ class _EntryCardState extends State<EntryCard> {
             ),
           ),
 
-        // 右上角收藏按钮
+        // 右上角收藏按钮 - 红心样式
         Positioned(
           top: 8,
           right: 8,
@@ -343,51 +343,27 @@ class _EntryCardState extends State<EntryCard> {
             onTap: widget.onToggleFavorite,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: entry.isFavorite
-                  ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
-                  : const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: entry.isFavorite
-                    ? Colors.amber
+                    ? Colors.red.shade400
                     : Colors.black.withOpacity(0.5),
-                borderRadius: entry.isFavorite
-                    ? BorderRadius.circular(6)
-                    : BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
                     color: entry.isFavorite
-                        ? Colors.amber.withOpacity(0.4)
+                        ? Colors.red.shade400.withOpacity(0.4)
                         : Colors.black.withOpacity(0.2),
                     blurRadius: 8,
                     spreadRadius: entry.isFavorite ? 2 : 0,
                   ),
                 ],
               ),
-              child: entry.isFavorite
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          context.l10n.tagLibrary_pinned,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    )
-                  : const Icon(
-                      Icons.star_border,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+              child: Icon(
+                entry.isFavorite ? Icons.favorite : Icons.favorite_border,
+                size: 16,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
