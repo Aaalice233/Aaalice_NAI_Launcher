@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../providers/local_gallery_provider.dart';
 import '../common/animated_favorite_button.dart';
 import 'metadata_panel.dart';
 
@@ -16,7 +18,7 @@ import 'metadata_panel.dart';
 /// - 键盘导航支持
 /// - 桌面端右侧元数据面板
 /// - Hero 动画过渡效果
-class FullscreenImageViewer extends StatefulWidget {
+class FullscreenImageViewer extends ConsumerStatefulWidget {
   final List<LocalImageRecord> images;
   final int initialIndex;
   final void Function(LocalImageRecord record)? onReuseMetadata;
@@ -67,10 +69,11 @@ class FullscreenImageViewer extends StatefulWidget {
   }
 
   @override
-  State<FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+  ConsumerState<FullscreenImageViewer> createState() =>
+      _FullscreenImageViewerState();
 }
 
-class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
+class _FullscreenImageViewerState extends ConsumerState<FullscreenImageViewer> {
   late PageController _pageController;
   late ScrollController _thumbnailController;
   late int _currentIndex;
@@ -157,10 +160,44 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
     }
   }
 
+  /// 获取当前显示的图片列表（优先使用provider中的最新状态）
+  List<LocalImageRecord> get _currentImages {
+    final providerState = ref.read(localGalleryNotifierProvider);
+    // 如果provider中的列表与传入列表匹配，使用provider中的（包含最新状态）
+    if (providerState.currentImages.isNotEmpty &&
+        providerState.currentImages
+            .any((img) => widget.images.any((w) => w.path == img.path))) {
+      return providerState.currentImages;
+    }
+    return widget.images;
+  }
+
+  /// 获取指定路径图片的最新收藏状态
+  bool _getIsFavorite(String path) {
+    final providerState = ref.watch(localGalleryNotifierProvider);
+    final image = providerState.currentImages
+        .cast<LocalImageRecord?>()
+        .firstWhere((img) => img?.path == path, orElse: () => null);
+    if (image != null) {
+      return image.isFavorite;
+    }
+    // 回退到widget传入的数据
+    final widgetImage = widget.images
+        .cast<LocalImageRecord?>()
+        .firstWhere((img) => img?.path == path, orElse: () => null);
+    return widgetImage?.isFavorite ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currentRecord = widget.images[_currentIndex];
+    // 监听provider状态以获取收藏状态的实时更新
+    ref.watch(localGalleryNotifierProvider.select((s) => s.currentImages));
+
+    final images = _currentImages;
+    final currentRecord = images.isNotEmpty && _currentIndex < images.length
+        ? images[_currentIndex]
+        : widget.images[_currentIndex];
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 800;
 
@@ -332,9 +369,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
 
           // 收藏按钮
           AnimatedFavoriteButton(
-            isFavorite: record.isFavorite,
+            isFavorite: _getIsFavorite(record.path),
             size: 24,
             inactiveColor: Colors.white,
+            showBackground: true,
+            backgroundColor: Colors.black.withOpacity(0.4),
             onToggle: widget.onFavoriteToggle != null
                 ? () => widget.onFavoriteToggle!(record)
                 : null,

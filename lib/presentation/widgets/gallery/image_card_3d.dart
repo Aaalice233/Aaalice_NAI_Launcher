@@ -311,37 +311,9 @@ class _ImageCard3DState extends State<ImageCard3D>
 
     if (!showButton) return const SizedBox.shrink();
 
-    return MouseRegion(
-      cursor: widget.onFavoriteToggle != null
-          ? SystemMouseCursors.click
-          : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: widget.onFavoriteToggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? Colors.black.withOpacity(0.6)
-                : Colors.black.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: isFavorite
-                ? [
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.3),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Icon(
-            isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: isFavorite ? Colors.red : Colors.white,
-            size: 16,
-          ),
-        ),
-      ),
+    return _HoverFavoriteButton(
+      isFavorite: isFavorite,
+      onTap: widget.onFavoriteToggle,
     );
   }
 
@@ -667,5 +639,142 @@ class _GlossPainter extends CustomPainter {
   bool shouldRepaint(_GlossPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.intensity != intensity;
+  }
+}
+
+/// 收藏按钮Hover组件
+///
+/// 独立的StatefulWidget用于管理收藏按钮自身的hover状态
+class _HoverFavoriteButton extends StatefulWidget {
+  final bool isFavorite;
+  final VoidCallback? onTap;
+
+  const _HoverFavoriteButton({
+    required this.isFavorite,
+    this.onTap,
+  });
+
+  @override
+  State<_HoverFavoriteButton> createState() => _HoverFavoriteButtonState();
+}
+
+class _HoverFavoriteButtonState extends State<_HoverFavoriteButton>
+    with SingleTickerProviderStateMixin {
+  bool _isHovered = false;
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.3)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.3, end: 1.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void didUpdateWidget(_HoverFavoriteButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 当收藏状态从 false 变为 true 时，播放动画
+    if (widget.isFavorite && !oldWidget.isFavorite) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    if (widget.onTap == null) return;
+    // 如果将要变成收藏状态，预先播放动画
+    if (!widget.isFavorite) {
+      _controller.forward(from: 0);
+    }
+    widget.onTap!();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFavorite = widget.isFavorite;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: widget.onTap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: _handleTap,
+        child: Tooltip(
+          message: isFavorite ? '取消收藏' : '收藏',
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? Colors.black.withOpacity(0.7)
+                  : Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                if (isFavorite)
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.3),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                if (_isHovered && !isFavorite)
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.2),
+                    blurRadius: 6,
+                    spreadRadius: 0,
+                  ),
+              ],
+              border: _isHovered && !isFavorite
+                  ? Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    )
+                  : null,
+            ),
+            child: AnimatedBuilder(
+              animation: _scaleAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: isFavorite
+                      ? _scaleAnimation.value
+                      : (_isHovered ? 1.1 : 1.0),
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite
+                        ? Colors.red
+                        : (_isHovered
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.9)),
+                    size: 16,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

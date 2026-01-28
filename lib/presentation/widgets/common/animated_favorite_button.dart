@@ -133,11 +133,15 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
       animation: _scaleAnimation,
       builder: (context, child) {
         return Transform.scale(
-          scale: widget.isFavorite ? _scaleAnimation.value : 1.0,
+          scale: widget.isFavorite
+              ? _scaleAnimation.value
+              : (_isHovered ? 1.15 : 1.0),
           child: Icon(
             icon,
             size: widget.size,
-            color: color,
+            color: _isHovered && !widget.isFavorite
+                ? color.withOpacity(1.0)
+                : color,
           ),
         );
       },
@@ -169,7 +173,7 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
       );
     }
 
-    // 包装为可点击
+    // 包装为可点击，添加hover效果容器
     Widget button = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -179,7 +183,19 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
       child: GestureDetector(
         onTap: _handleTap,
         behavior: HitTestBehavior.opaque,
-        child: iconWidget,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding:
+              widget.showBackground ? EdgeInsets.zero : const EdgeInsets.all(4),
+          decoration: !widget.showBackground && _isHovered
+              ? BoxDecoration(
+                  color:
+                      (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(widget.size * 0.4),
+                )
+              : null,
+          child: iconWidget,
+        ),
       ),
     );
 
@@ -202,17 +218,35 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
 
 /// 卡片悬浮收藏按钮
 ///
-/// 专为卡片右上角设计的收藏按钮，带有半透明背景
+/// 专为卡片右上角设计的收藏按钮，带有半透明背景和完整hover效果
+/// 
+/// 特性：
+/// - hover时背景加深、图标放大、添加光晕
+/// - 收藏时显示红色发光效果
+/// - 点击时播放脉冲动画
 class CardFavoriteButton extends StatefulWidget {
+  /// 是否已收藏
   final bool isFavorite;
+
+  /// 切换收藏状态回调
   final VoidCallback? onToggle;
+
+  /// 图标大小
   final double size;
+
+  /// 是否启用触觉反馈
+  final bool enableHapticFeedback;
+
+  /// 圆角半径（默认16，方形按钮可设为8）
+  final double borderRadius;
 
   const CardFavoriteButton({
     super.key,
     required this.isFavorite,
     this.onToggle,
-    this.size = 20,
+    this.size = 16,
+    this.enableHapticFeedback = true,
+    this.borderRadius = 16,
   });
 
   @override
@@ -263,7 +297,9 @@ class _CardFavoriteButtonState extends State<CardFavoriteButton>
 
   void _handleTap() {
     if (widget.onToggle == null) return;
-    HapticFeedback.lightImpact();
+    if (widget.enableHapticFeedback) {
+      HapticFeedback.lightImpact();
+    }
     if (!widget.isFavorite) {
       _controller.forward(from: 0);
     }
@@ -272,34 +308,63 @@ class _CardFavoriteButtonState extends State<CardFavoriteButton>
 
   @override
   Widget build(BuildContext context) {
+    final isFavorite = widget.isFavorite;
     final activeColor = Colors.red.shade400;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
+      cursor: widget.onToggle != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       child: GestureDetector(
         onTap: _handleTap,
         child: Tooltip(
-          message: widget.isFavorite ? '取消收藏' : '收藏',
+          message: isFavorite ? '取消收藏' : '收藏',
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: _isHovered
-                  ? Colors.black.withOpacity(0.6)
-                  : Colors.black.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(8),
+                  ? Colors.black.withOpacity(0.7)
+                  : Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+              boxShadow: [
+                if (isFavorite)
+                  BoxShadow(
+                    color: activeColor.withOpacity(0.3),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                if (_isHovered && !isFavorite)
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.2),
+                    blurRadius: 6,
+                    spreadRadius: 0,
+                  ),
+              ],
+              border: _isHovered && !isFavorite
+                  ? Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    )
+                  : null,
             ),
             child: AnimatedBuilder(
               animation: _scaleAnimation,
               builder: (context, child) {
                 return Transform.scale(
-                  scale: widget.isFavorite ? _scaleAnimation.value : 1.0,
+                  scale: isFavorite
+                      ? _scaleAnimation.value
+                      : (_isHovered ? 1.1 : 1.0),
                   child: Icon(
-                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
                     size: widget.size,
-                    color: widget.isFavorite ? activeColor : Colors.white,
+                    color: isFavorite
+                        ? activeColor
+                        : (_isHovered
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.9)),
                   ),
                 );
               },
