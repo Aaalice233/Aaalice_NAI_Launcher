@@ -219,7 +219,7 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
 /// 卡片悬浮收藏按钮
 ///
 /// 专为卡片右上角设计的收藏按钮，带有半透明背景和完整hover效果
-/// 
+///
 /// 特性：
 /// - hover时背景加深、图标放大、添加光晕
 /// - 收藏时显示红色发光效果
