@@ -205,6 +205,11 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
           },
           onReuseMetadata: widget.onReuseMetadata,
           onSendToImg2Img: widget.onSendToImg2Img,
+          onFavoriteToggle: (record) {
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .toggleFavorite(record.path);
+          },
         );
       },
     );
@@ -356,6 +361,11 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
           },
           onReuseMetadata: widget.onReuseMetadata,
           onSendToImg2Img: widget.onSendToImg2Img,
+          onFavoriteToggle: (record) {
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .toggleFavorite(record.path);
+          },
         );
       },
     );

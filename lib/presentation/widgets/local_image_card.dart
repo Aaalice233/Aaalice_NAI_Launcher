@@ -1284,7 +1284,7 @@ class _HoverOverlayState extends State<_HoverOverlay> {
                             maxLines: 1,
                           ),
                         ),
-                        if (metadata?.seed != null) ...[
+                        if (metadata?.seed != null && metadata!.seed! > 0) ...[
                           Text(
                             ' | ',
                             style: TextStyle(

@@ -337,6 +337,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       onEditMetadata: _editSelectedMetadata,
       onMoveToFolder: _moveSelectedToFolder,
       showCategoryPanel: _showCategoryPanel,
+      onOpenFolder: () => _openGalleryFolder(),
     );
   }
 
@@ -507,6 +508,44 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       confirmText: context.l10n.localGallery_gotIt,
       icon: Icons.lightbulb_outline,
     );
+  }
+
+  // ============================================================
+  // Folder operations
+  // 文件夹操作
+  // ============================================================
+
+  /// 打开画廊文件夹
+  Future<void> _openGalleryFolder() async {
+    try {
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null || rootPath.isEmpty) {
+        if (mounted) {
+          AppToast.info(context, '未设置保存目录');
+        }
+        return;
+      }
+
+      final dir = Directory(rootPath);
+      if (!await dir.exists()) {
+        if (mounted) {
+          AppToast.info(context, '文件夹不存在');
+        }
+        return;
+      }
+
+      if (Platform.isWindows) {
+        await Process.run('explorer', [rootPath]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [rootPath]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [rootPath]);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '打开文件夹失败: $e');
+      }
+    }
   }
 
   // ============================================================

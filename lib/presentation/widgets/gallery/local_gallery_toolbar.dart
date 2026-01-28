@@ -328,17 +328,6 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                         ),
                 ],
               ),
-              const SizedBox(height: 6),
-              // Folder tabs
-              FolderTabs(
-                onFolderSelected: (folderId) {
-                  final folderState = ref.read(galleryFolderNotifierProvider);
-                  final selectedFolder = folderState.selectedFolder;
-                  ref
-                      .read(localGalleryNotifierProvider.notifier)
-                      .filterByFolder(selectedFolder?.path);
-                },
-              ),
             ],
           ),
         ),
