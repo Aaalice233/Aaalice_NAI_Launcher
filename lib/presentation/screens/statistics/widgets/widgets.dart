@@ -1,6 +1,7 @@
 // Navigation widgets exports
 export 'navigation/nav_chip.dart';
 export 'navigation/sticky_statistics_nav.dart';
+export 'navigation/dashboard_sidebar.dart';
 
 // Common widgets exports
 export 'common/section_container.dart';

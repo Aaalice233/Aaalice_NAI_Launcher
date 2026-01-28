@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../themes/theme_extension.dart';
 
 /// Section header widget
 /// 章节标题组件
@@ -36,14 +37,15 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// Chart card wrapper with consistent styling
-/// 图表卡片包装器，提供一致的样式
+/// Chart card wrapper with consistent styling and enhanced visual effects
+/// 图表卡片包装器，提供一致的样式和增强的视觉效果
 class ChartCard extends StatelessWidget {
   final Widget child;
   final String? title;
   final IconData? titleIcon;
   final Widget? trailing;
   final EdgeInsetsGeometry? padding;
+  final bool elevated;
 
   const ChartCard({
     super.key,
@@ -52,46 +54,84 @@ class ChartCard extends StatelessWidget {
     this.titleIcon,
     this.trailing,
     this.padding,
+    this.elevated = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final extension = theme.extension<AppThemeExtension>();
     final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final shadowIntensity = extension?.shadowIntensity ?? 0.1;
 
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: padding ?? EdgeInsets.all(isDesktop ? 20 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title != null) ...[
-              Row(
-                children: [
-                  if (titleIcon != null) ...[
-                    Icon(
-                      titleIcon,
-                      size: 20,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: Text(
-                      title!,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withOpacity(0.15),
+          width: 1,
+        ),
+        boxShadow: elevated
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(shadowIntensity),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: -4,
+                ),
+                BoxShadow(
+                  color: colorScheme.primary.withOpacity(0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                  spreadRadius: -8,
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: padding ?? EdgeInsets.all(isDesktop ? 20 : 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (title != null) ...[
+                Row(
+                  children: [
+                    if (titleIcon != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          titleIcon,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: Text(
+                        title!,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ),
-                  ),
-                  if (trailing != null) trailing!,
-                ],
-              ),
-              SizedBox(height: isDesktop ? 16 : 12),
+                    if (trailing != null) trailing!,
+                  ],
+                ),
+                SizedBox(height: isDesktop ? 16 : 12),
+              ],
+              child,
             ],
-            child,
-          ],
+          ),
         ),
       ),
     );

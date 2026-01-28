@@ -26,13 +26,13 @@ class MainNavRail extends ConsumerWidget {
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=statistics, 4=promptConfig, 5=tagLibraryPage, 6=settings
+    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=promptConfig, 4=tagLibraryPage, 5=statistics, 6=settings
     int selectedIndex = 0;
     if (currentIndex == 2) selectedIndex = 1; // localGallery
     if (currentIndex == 3) selectedIndex = 2; // onlineGallery
-    if (currentIndex == 6) selectedIndex = 3; // statistics
-    if (currentIndex == 5) selectedIndex = 4; // promptConfig
-    if (currentIndex == 7) selectedIndex = 5; // tagLibraryPage
+    if (currentIndex == 5) selectedIndex = 3; // promptConfig
+    if (currentIndex == 7) selectedIndex = 4; // tagLibraryPage
+    if (currentIndex == 6) selectedIndex = 5; // statistics
     if (currentIndex == 4) selectedIndex = 6; // settings
 
     return Container(
@@ -77,19 +77,11 @@ class MainNavRail extends ConsumerWidget {
             onTap: () => navigationShell.goBranch(3), // onlineGallery branch
           ),
 
-          // 画廊统计
-          _NavIcon(
-            icon: Icons.bar_chart, // Gallery Statistics
-            label: context.l10n.statistics_title,
-            isSelected: selectedIndex == 3,
-            onTap: () => navigationShell.goBranch(6), // statistics branch
-          ),
-
           // 随机配置
           _NavIcon(
             icon: Icons.casino, // Random prompt config
             label: context.l10n.nav_randomConfig,
-            isSelected: selectedIndex == 4,
+            isSelected: selectedIndex == 3,
             onTap: () => navigationShell.goBranch(5), // promptConfig branch
           ),
 
@@ -97,8 +89,16 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.book,
             label: context.l10n.nav_dictionary,
-            isSelected: selectedIndex == 5,
+            isSelected: selectedIndex == 4,
             onTap: () => navigationShell.goBranch(7), // tagLibraryPage branch
+          ),
+
+          // 画廊统计
+          _NavIcon(
+            icon: Icons.bar_chart, // Gallery Statistics
+            label: context.l10n.statistics_title,
+            isSelected: selectedIndex == 5,
+            onTap: () => navigationShell.goBranch(6), // statistics branch
           ),
 
           const Spacer(),

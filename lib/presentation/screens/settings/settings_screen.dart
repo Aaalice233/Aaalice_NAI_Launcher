@@ -134,7 +134,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // 队列设置
           _buildSectionHeader(theme, '队列'),
-          _buildQueueSettings(context, ref),
+          const _QueueSettingsSection(),
           const ThemedDivider(),
 
           // 关于
@@ -488,9 +488,52 @@ class SettingsScreen extends ConsumerWidget {
     // TODO: 实现登录导航
     AppToast.info(context, '请前往登录页面');
   }
+}
 
-  /// 构建队列设置
-  Widget _buildQueueSettings(BuildContext context, WidgetRef ref) {
+/// 队列设置分组
+class _QueueSettingsSection extends ConsumerStatefulWidget {
+  const _QueueSettingsSection();
+
+  @override
+  ConsumerState<_QueueSettingsSection> createState() =>
+      _QueueSettingsSectionState();
+}
+
+class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
+  late TextEditingController _retryCountController;
+  late TextEditingController _retryIntervalController;
+
+  @override
+  void initState() {
+    super.initState();
+    _retryCountController = TextEditingController();
+    _retryIntervalController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _retryCountController.dispose();
+    _retryIntervalController.dispose();
+    super.dispose();
+  }
+
+  void _updateRetryCount(int value) async {
+    final storage = ref.read(localStorageServiceProvider);
+    final clampedValue = value.clamp(1, 30);
+    await storage.setSetting(StorageKeys.queueRetryCount, clampedValue);
+    ref.invalidate(localStorageServiceProvider);
+  }
+
+  void _updateRetryInterval(double value) async {
+    final storage = ref.read(localStorageServiceProvider);
+    final clampedValue = value.clamp(0.5, 10.0);
+    await storage.setSetting(StorageKeys.queueRetryInterval, clampedValue);
+    ref.invalidate(localStorageServiceProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final storage = ref.watch(localStorageServiceProvider);
     final retryCount = storage.getSetting<int>(
           StorageKeys.queueRetryCount,
@@ -503,75 +546,241 @@ class SettingsScreen extends ConsumerWidget {
         ) ??
         1.0;
 
+    // 同步输入框文本（仅当未聚焦时更新，避免编辑中被覆盖）
+    if (_retryCountController.text != '$retryCount') {
+      _retryCountController.text = '$retryCount';
+    }
+    if (_retryIntervalController.text != retryInterval.toStringAsFixed(1)) {
+      _retryIntervalController.text = retryInterval.toStringAsFixed(1);
+    }
+
     return Column(
       children: [
-        ListTile(
-          leading: const Icon(Icons.replay_outlined),
-          title: const Text('重试次数'),
-          subtitle: Text('生成失败时最多重试 $retryCount 次'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        // 重试次数设置 - 单行布局
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
             children: [
+              // 图标
+              const Icon(Icons.replay_outlined),
+              const SizedBox(width: 16),
+              // 标题
+              SizedBox(
+                width: 80,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('重试次数'),
+                    Text(
+                      '最多 $retryCount 次',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 减少按钮
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
+                visualDensity: VisualDensity.compact,
                 onPressed: retryCount > 1
-                    ? () async {
-                        await storage.setSetting(
-                          StorageKeys.queueRetryCount,
-                          retryCount - 1,
-                        );
-                        ref.invalidate(localStorageServiceProvider);
-                      }
+                    ? () => _updateRetryCount(retryCount - 1)
                     : null,
               ),
-              Text('$retryCount'),
+              // 滑条
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 8,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 16,
+                    ),
+                  ),
+                  child: Slider(
+                    value: retryCount.toDouble(),
+                    min: 1,
+                    max: 30,
+                    onChanged: (value) => _updateRetryCount(value.round()),
+                  ),
+                ),
+              ),
+              // 增加按钮
               IconButton(
                 icon: const Icon(Icons.add_circle_outline),
+                visualDensity: VisualDensity.compact,
                 onPressed: retryCount < 30
-                    ? () async {
-                        await storage.setSetting(
-                          StorageKeys.queueRetryCount,
-                          retryCount + 1,
-                        );
-                        ref.invalidate(localStorageServiceProvider);
-                      }
+                    ? () => _updateRetryCount(retryCount + 1)
                     : null,
               ),
+              const SizedBox(width: 4),
+              // 数字输入框
+              SizedBox(
+                width: 56,
+                child: TextField(
+                  controller: _retryCountController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.primary,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final parsed = int.tryParse(value);
+                    if (parsed != null) {
+                      _updateRetryCount(parsed);
+                    } else {
+                      _retryCountController.text = '$retryCount';
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text('次'),
             ],
           ),
         ),
-        ListTile(
-          leading: const Icon(Icons.timer_outlined),
-          title: const Text('重试间隔'),
-          subtitle: Text('每次重试间隔 ${retryInterval.toStringAsFixed(1)} 秒'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        // 重试间隔设置 - 单行布局
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
             children: [
+              // 图标
+              const Icon(Icons.timer_outlined),
+              const SizedBox(width: 16),
+              // 标题
+              SizedBox(
+                width: 80,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('重试间隔'),
+                    Text(
+                      '${retryInterval.toStringAsFixed(1)} 秒',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 减少按钮
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
+                visualDensity: VisualDensity.compact,
                 onPressed: retryInterval > 0.5
-                    ? () async {
-                        await storage.setSetting(
-                          StorageKeys.queueRetryInterval,
-                          retryInterval - 0.5,
-                        );
-                        ref.invalidate(localStorageServiceProvider);
-                      }
+                    ? () => _updateRetryInterval(retryInterval - 0.5)
                     : null,
               ),
-              Text('${retryInterval.toStringAsFixed(1)}s'),
+              // 滑条
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 8,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 16,
+                    ),
+                  ),
+                  child: Slider(
+                    value: retryInterval,
+                    min: 0.5,
+                    max: 10.0,
+                    onChanged: (value) {
+                      final rounded = (value * 2).round() / 2;
+                      _updateRetryInterval(rounded);
+                    },
+                  ),
+                ),
+              ),
+              // 增加按钮
               IconButton(
                 icon: const Icon(Icons.add_circle_outline),
+                visualDensity: VisualDensity.compact,
                 onPressed: retryInterval < 10.0
-                    ? () async {
-                        await storage.setSetting(
-                          StorageKeys.queueRetryInterval,
-                          retryInterval + 0.5,
-                        );
-                        ref.invalidate(localStorageServiceProvider);
-                      }
+                    ? () => _updateRetryInterval(retryInterval + 0.5)
                     : null,
               ),
+              const SizedBox(width: 4),
+              // 数字输入框
+              SizedBox(
+                width: 56,
+                child: TextField(
+                  controller: _retryIntervalController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.primary,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    final parsed = double.tryParse(value);
+                    if (parsed != null) {
+                      _updateRetryInterval(parsed);
+                    } else {
+                      _retryIntervalController.text =
+                          retryInterval.toStringAsFixed(1);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text('秒'),
             ],
           ),
         ),
