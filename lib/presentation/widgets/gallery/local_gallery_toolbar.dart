@@ -7,11 +7,9 @@ import 'package:intl/intl.dart';
 
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
-import '../../providers/gallery_folder_provider.dart';
 import '../bulk_action_bar.dart';
 import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
-import 'folder_tabs.dart';
 
 import '../common/app_toast.dart';
 
@@ -780,7 +778,6 @@ class _CompactIconButton extends StatefulWidget {
   final String? tooltip;
   final VoidCallback? onPressed;
   final bool isDanger;
-  final bool isPrimary;
 
   const _CompactIconButton({
     required this.icon,
@@ -788,7 +785,6 @@ class _CompactIconButton extends StatefulWidget {
     this.tooltip,
     this.onPressed,
     this.isDanger = false,
-    this.isPrimary = false,
   });
 
   @override
@@ -853,29 +849,6 @@ class _CompactIconButtonState extends State<_CompactIconButton>
             blurRadius: 8,
             spreadRadius: 0,
             offset: const Offset(0, 2),
-          ),
-        ];
-      }
-    } else if (widget.isPrimary) {
-      iconColor = isEnabled
-          ? (_isHovered ? Colors.white : theme.colorScheme.primary)
-          : theme.colorScheme.primary.withOpacity(0.4);
-      labelColor = iconColor;
-      bgColor = _isPressed
-          ? theme.colorScheme.primary.withOpacity(isDark ? 0.95 : 0.9)
-          : (_isHovered
-              ? theme.colorScheme.primary.withOpacity(isDark ? 0.85 : 0.8)
-              : theme.colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1));
-      borderColor = _isHovered
-          ? theme.colorScheme.primary
-          : theme.colorScheme.primary.withOpacity(isDark ? 0.5 : 0.4);
-      if (_isHovered && isEnabled) {
-        shadows = [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(isDark ? 0.35 : 0.25),
-            blurRadius: 12,
-            spreadRadius: 0,
-            offset: const Offset(0, 3),
           ),
         ];
       }

@@ -538,6 +538,22 @@ class LocalStorageService {
   Future<void> setTagLibraryViewMode(int mode) async {
     await setSetting(StorageKeys.tagLibraryViewMode, mode);
   }
+
+  // ==================== Floating Button Background ====================
+
+  /// 获取悬浮球背景图片路径
+  String? getFloatingButtonBackgroundImage() {
+    return getSetting<String>(StorageKeys.floatingButtonBackgroundImage);
+  }
+
+  /// 保存悬浮球背景图片路径
+  Future<void> setFloatingButtonBackgroundImage(String? path) async {
+    if (path != null) {
+      await setSetting(StorageKeys.floatingButtonBackgroundImage, path);
+    } else {
+      await deleteSetting(StorageKeys.floatingButtonBackgroundImage);
+    }
+  }
 }
 
 /// LocalStorageService Provider

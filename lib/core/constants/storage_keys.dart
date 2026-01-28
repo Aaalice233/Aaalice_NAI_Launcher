@@ -104,6 +104,24 @@ class StorageKeys {
   // Queue Settings (队列设置)
   static const String queueRetryCount = 'queue_retry_count';
   static const String queueRetryInterval = 'queue_retry_interval';
+  static const String queueAutoExecute = 'queue_auto_execute';
+  static const String queueTaskInterval = 'queue_task_interval';
+  static const String queueFailureStrategy = 'queue_failure_strategy';
+
+  // Queue Execution State (队列执行状态)
+  static const String queueExecutionStateBox = 'queue_execution_state';
+  static const String queueExecutionStateData = 'queue_execution_state_data';
+  static const String queueFailedTasksData = 'queue_failed_tasks_data';
+  static const String queueExecutionHistory = 'queue_execution_history';
+
+  // Floating Button Position (悬浮球位置)
+  static const String floatingButtonX = 'floating_button_x';
+  static const String floatingButtonY = 'floating_button_y';
+  static const String floatingButtonFirstLaunch =
+      'floating_button_first_launch';
+  static const String floatingButtonExpanded = 'floating_button_expanded';
+  static const String floatingButtonBackgroundImage =
+      'floating_button_background_image';
 
   // Proxy Settings (代理设置)
   static const String proxyEnabled = 'proxy_enabled';

@@ -2853,6 +2853,208 @@
   },
   "settings_proxyRestartHint": "Proxy settings changed, restart recommended",
 
-  "tagLibrary_categoryNameExists": "Category name already exists"
+  "tagLibrary_categoryNameExists": "Category name already exists",
+
+  "queue_title": "Queue",
+  "queue_management": "Queue Management",
+  "queue_empty": "Queue is empty",
+  "queue_emptyHint": "No tasks in the queue",
+  "queue_taskCount": "{count} tasks",
+  "@queue_taskCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_pending": "Pending",
+  "queue_running": "Running",
+  "queue_completed": "Completed",
+  "queue_failed": "Failed",
+  "queue_skipped": "Skipped",
+  "queue_paused": "Paused",
+  "queue_idle": "Idle",
+  "queue_ready": "Ready",
+
+  "queue_executionProgress": "Execution Progress",
+  "queue_totalTasks": "Total",
+  "queue_completedTasks": "Completed",
+  "queue_failedTasks": "Failed",
+  "queue_remainingTasks": "Remaining",
+  "queue_estimatedTime": "Estimated: about {time}",
+  "@queue_estimatedTime": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "queue_seconds": "{count} seconds",
+  "@queue_seconds": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_minutes": "{count} minutes",
+  "@queue_minutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_hours": "{hours} hours {minutes} minutes",
+  "@queue_hours": {
+    "placeholders": {
+      "hours": {},
+      "minutes": {}
+    }
+  },
+
+  "queue_pause": "Pause",
+  "queue_resume": "Resume",
+  "queue_pauseExecution": "Pause Execution",
+  "queue_resumeExecution": "Resume Execution",
+  "queue_autoExecute": "Auto Execute",
+  "queue_autoExecuteOn": "Auto execute next task when completed",
+  "queue_autoExecuteOff": "Manual click required to generate",
+  "queue_taskInterval": "Task Interval",
+  "queue_taskIntervalHint": "Wait time between tasks (0-10 seconds)",
+
+  "queue_clearQueue": "Clear Queue",
+  "queue_clearQueueConfirm": "Are you sure you want to clear all queue tasks? This action cannot be undone.",
+  "queue_confirmClear": "Confirm Clear",
+
+  "queue_failureStrategy": "Failure Strategy",
+  "queue_failureStrategyAutoRetry": "Auto Retry",
+  "queue_failureStrategyAutoRetryDesc": "Move task to queue end after max retries",
+  "queue_failureStrategySkip": "Skip",
+  "queue_failureStrategySkipDesc": "Move failed task to failed pool, continue next",
+  "queue_failureStrategyPause": "Pause and Wait",
+  "queue_failureStrategyPauseDesc": "Pause queue, wait for manual handling",
+
+  "queue_retryCount": "Retry {current}/{max}",
+  "@queue_retryCount": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "queue_retry": "Retry",
+  "queue_requeue": "Requeue",
+  "queue_requeueToEnd": "Move to queue end",
+  "queue_clearFailedTasks": "Clear All",
+  "queue_noFailedTasks": "No failed tasks",
+  "queue_noCompletedTasks": "No completed records",
+
+  "queue_editTask": "Edit Task",
+  "queue_duplicateTask": "Duplicate Task",
+  "queue_taskDuplicated": "Task duplicated",
+  "queue_queueFull": "Queue is full, cannot duplicate",
+  "queue_positivePrompt": "Positive Prompt",
+  "queue_negativePrompt": "Negative Prompt",
+  "queue_enterPositivePrompt": "Enter positive prompt...",
+  "queue_enterNegativePrompt": "Enter negative prompt...",
+  "queue_parametersPreview": "Parameters Preview",
+  "queue_model": "Model",
+  "queue_seed": "Seed",
+  "queue_sampler": "Sampler",
+  "queue_steps": "Steps",
+  "queue_cfg": "CFG",
+  "queue_size": "Size",
+
+  "queue_pinToTop": "Pin to Top",
+  "queue_delete": "Delete",
+  "queue_edit": "Edit",
+  "queue_selectAll": "Select All",
+  "queue_invertSelection": "Invert",
+  "queue_cancelSelection": "Cancel",
+  "queue_selectedCount": "{count} selected",
+  "@queue_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_batchDelete": "Delete Selected",
+  "queue_batchPinToTop": "Pin Selected",
+  "queue_confirmDeleteSelected": "Are you sure you want to delete {count} selected tasks?",
+  "@queue_confirmDeleteSelected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "queue_export": "Export",
+  "queue_import": "Import",
+  "queue_exportImport": "Import/Export Queue",
+  "queue_exportFormat": "Export Format",
+  "queue_exportFormatJson": "JSON",
+  "queue_exportFormatJsonDesc": "Complete data with all parameters",
+  "queue_exportFormatCsv": "CSV",
+  "queue_exportFormatCsvDesc": "Table format with prompts and basic info",
+  "queue_exportFormatText": "Plain Text",
+  "queue_exportFormatTextDesc": "Prompts only, one per line",
+  "queue_importStrategy": "Import Strategy",
+  "queue_importStrategyMerge": "Merge",
+  "queue_importStrategyMergeDesc": "Add imported tasks to end of existing queue",
+  "queue_importStrategyReplace": "Replace",
+  "queue_importStrategyReplaceDesc": "Clear existing queue and replace with imported",
+  "queue_supportedFormats": "Supported formats:",
+  "queue_exportSuccess": "Export successful",
+  "queue_exportFailed": "Export failed: {error}",
+  "@queue_exportFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "queue_importSuccess": "Successfully imported {count} tasks",
+  "@queue_importSuccess": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_importFailed": "Import failed: {error}",
+  "@queue_importFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "queue_selectFile": "Select file to import",
+  "queue_noValidTasks": "No valid tasks in file",
+
+  "queue_settings": "Queue Settings",
+  "queue_currentQueueInfo": "Current queue contains {count} tasks",
+  "@queue_currentQueueInfo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "queue_tooltipTasksTotal": "Tasks: {count}",
+  "@queue_tooltipTasksTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipCompleted": "Completed: {count}",
+  "@queue_tooltipCompleted": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipFailed": "Failed: {count}",
+  "@queue_tooltipFailed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipCurrentTask": "Current: {task}",
+  "@queue_tooltipCurrentTask": {
+    "placeholders": {
+      "task": {}
+    }
+  },
+  "queue_tooltipNoTasks": "No tasks in queue",
+  "queue_tooltipClickToOpen": "Click to open queue management",
+  "queue_tooltipDragToMove": "Drag to reposition",
+  "queue_statusIdle": "Status: Idle",
+  "queue_statusReady": "Status: Ready",
+  "queue_statusRunning": "Status: Running",
+  "queue_statusPaused": "Status: Paused",
+  "queue_statusCompleted": "Status: Completed"
 
 }

@@ -23,7 +23,6 @@ import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/bulk_export_dialog.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
-import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
@@ -32,7 +31,6 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
-import '../../widgets/gallery_filter_panel.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
 import 'dart:async';
 
@@ -338,53 +336,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       onMoveToFolder: _moveSelectedToFolder,
       showCategoryPanel: _showCategoryPanel,
       onOpenFolder: () => _openGalleryFolder(),
-    );
-  }
-
-  /// Build selection bar for bulk operations
-  /// 构建选择模式时的批量操作栏
-  Widget _buildSelectionBar(
-    LocalGalleryState state,
-    BulkOperationState bulkOpState,
-  ) {
-    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-
-    // 不在选择模式时不显示
-    if (!selectionState.isActive) {
-      return const SizedBox.shrink();
-    }
-
-    final allImagePaths = state.currentImages.map((r) => r.path).toList();
-    final isAllSelected = allImagePaths.isNotEmpty &&
-        allImagePaths.every((p) => selectionState.selectedIds.contains(p));
-
-    return BulkActionBar(
-      onExit: () =>
-          ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
-      onAddToCollection: selectionState.selectedIds.isNotEmpty
-          ? _addSelectedToCollection
-          : null,
-      onDelete:
-          selectionState.selectedIds.isNotEmpty ? _deleteSelectedImages : null,
-      onExport:
-          selectionState.selectedIds.isNotEmpty ? _exportSelectedImages : null,
-      onEditMetadata:
-          selectionState.selectedIds.isNotEmpty ? _editSelectedMetadata : null,
-      onSelectAll: () {
-        if (isAllSelected) {
-          ref
-              .read(localGallerySelectionNotifierProvider.notifier)
-              .clearSelection();
-        } else {
-          ref
-              .read(localGallerySelectionNotifierProvider.notifier)
-              .selectAll(allImagePaths);
-        }
-      },
-      onMoveToFolder:
-          selectionState.selectedIds.isNotEmpty ? _moveSelectedToFolder : null,
-      isAllSelected: isAllSelected,
-      totalCount: allImagePaths.length,
     );
   }
 

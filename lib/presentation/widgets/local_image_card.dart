@@ -1294,7 +1294,7 @@ class _HoverOverlayState extends State<_HoverOverlay> {
                           ),
                           Flexible(
                             child: Text(
-                              '${metadata!.seed}',
+                              '${metadata.seed}',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.7),
                                 fontSize: 11,

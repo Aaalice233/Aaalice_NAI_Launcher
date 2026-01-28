@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -502,12 +504,25 @@ class _QueueSettingsSection extends ConsumerStatefulWidget {
 class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
   late TextEditingController _retryCountController;
   late TextEditingController _retryIntervalController;
+  String? _backgroundImagePath;
 
   @override
   void initState() {
     super.initState();
     _retryCountController = TextEditingController();
     _retryIntervalController = TextEditingController();
+    _loadBackgroundImage();
+  }
+
+  void _loadBackgroundImage() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final storage = ref.read(localStorageServiceProvider);
+        setState(() {
+          _backgroundImagePath = storage.getFloatingButtonBackgroundImage();
+        });
+      }
+    });
   }
 
   @override
@@ -784,8 +799,92 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
             ],
           ),
         ),
+
+        // 悬浮球背景图片设置
+        const SizedBox(height: 8),
+        ListTile(
+          leading: const Icon(Icons.image_outlined),
+          title: const Text('悬浮球背景'),
+          subtitle: Text(
+            _backgroundImagePath != null ? '已设置自定义背景' : '默认样式',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 预览图
+              if (_backgroundImagePath != null)
+                Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.3),
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: Image.file(
+                      File(_backgroundImagePath!),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.broken_image,
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                ),
+              // 清除按钮
+              if (_backgroundImagePath != null)
+                IconButton(
+                  icon: const Icon(Icons.clear),
+                  tooltip: '清除背景',
+                  onPressed: _clearBackgroundImage,
+                ),
+              // 选择按钮
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('选择图片'),
+                onPressed: _selectBackgroundImage,
+              ),
+            ],
+          ),
+        ),
       ],
     );
+  }
+
+  /// 选择背景图片
+  Future<void> _selectBackgroundImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      final path = result.files.first.path;
+      if (path != null) {
+        final storage = ref.read(localStorageServiceProvider);
+        await storage.setFloatingButtonBackgroundImage(path);
+        setState(() {
+          _backgroundImagePath = path;
+        });
+        ref.invalidate(localStorageServiceProvider);
+      }
+    }
+  }
+
+  /// 清除背景图片
+  Future<void> _clearBackgroundImage() async {
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setFloatingButtonBackgroundImage(null);
+    setState(() {
+      _backgroundImagePath = null;
+    });
+    ref.invalidate(localStorageServiceProvider);
   }
 }
 

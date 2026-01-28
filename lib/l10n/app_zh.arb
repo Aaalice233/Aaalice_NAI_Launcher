@@ -2527,6 +2527,208 @@
   },
   "settings_proxyRestartHint": "代理设置已更改，建议重启应用",
 
-  "tagLibrary_categoryNameExists": "该分类名称已存在"
+  "tagLibrary_categoryNameExists": "该分类名称已存在",
+
+  "queue_title": "队列",
+  "queue_management": "队列管理",
+  "queue_empty": "队列为空",
+  "queue_emptyHint": "没有待执行的任务",
+  "queue_taskCount": "{count} 个任务",
+  "@queue_taskCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_pending": "等待中",
+  "queue_running": "执行中",
+  "queue_completed": "已完成",
+  "queue_failed": "失败",
+  "queue_skipped": "已跳过",
+  "queue_paused": "已暂停",
+  "queue_idle": "空闲",
+  "queue_ready": "就绪",
+
+  "queue_executionProgress": "执行进度",
+  "queue_totalTasks": "总数",
+  "queue_completedTasks": "已完成",
+  "queue_failedTasks": "失败",
+  "queue_remainingTasks": "剩余",
+  "queue_estimatedTime": "预计：约 {time}",
+  "@queue_estimatedTime": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "queue_seconds": "{count} 秒",
+  "@queue_seconds": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_minutes": "{count} 分钟",
+  "@queue_minutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_hours": "{hours} 小时 {minutes} 分钟",
+  "@queue_hours": {
+    "placeholders": {
+      "hours": {},
+      "minutes": {}
+    }
+  },
+
+  "queue_pause": "暂停",
+  "queue_resume": "继续",
+  "queue_pauseExecution": "暂停执行",
+  "queue_resumeExecution": "继续执行",
+  "queue_autoExecute": "自动执行",
+  "queue_autoExecuteOn": "完成后自动执行下一个任务",
+  "queue_autoExecuteOff": "需要手动点击生成",
+  "queue_taskInterval": "任务间隔",
+  "queue_taskIntervalHint": "任务之间的等待时间（0-10秒）",
+
+  "queue_clearQueue": "清空队列",
+  "queue_clearQueueConfirm": "确定要清空所有队列任务吗？此操作不可撤销。",
+  "queue_confirmClear": "确认清空",
+
+  "queue_failureStrategy": "失败策略",
+  "queue_failureStrategyAutoRetry": "自动重试",
+  "queue_failureStrategyAutoRetryDesc": "达到最大重试次数后移至队列末尾",
+  "queue_failureStrategySkip": "跳过",
+  "queue_failureStrategySkipDesc": "将失败任务移入失败池，继续执行下一个",
+  "queue_failureStrategyPause": "暂停等待",
+  "queue_failureStrategyPauseDesc": "暂停队列，等待手动处理",
+
+  "queue_retryCount": "重试 {current}/{max}",
+  "@queue_retryCount": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "queue_retry": "重试",
+  "queue_requeue": "重新排队",
+  "queue_requeueToEnd": "移至队列末尾",
+  "queue_clearFailedTasks": "清空全部",
+  "queue_noFailedTasks": "暂无失败任务",
+  "queue_noCompletedTasks": "暂无完成记录",
+
+  "queue_editTask": "编辑任务",
+  "queue_duplicateTask": "复制任务",
+  "queue_taskDuplicated": "任务已复制",
+  "queue_queueFull": "队列已满，无法复制",
+  "queue_positivePrompt": "正向提示词",
+  "queue_negativePrompt": "负向提示词",
+  "queue_enterPositivePrompt": "输入正向提示词...",
+  "queue_enterNegativePrompt": "输入负向提示词...",
+  "queue_parametersPreview": "参数预览",
+  "queue_model": "模型",
+  "queue_seed": "种子",
+  "queue_sampler": "采样器",
+  "queue_steps": "步数",
+  "queue_cfg": "CFG",
+  "queue_size": "尺寸",
+
+  "queue_pinToTop": "置顶",
+  "queue_delete": "删除",
+  "queue_edit": "编辑",
+  "queue_selectAll": "全选",
+  "queue_invertSelection": "反选",
+  "queue_cancelSelection": "取消",
+  "queue_selectedCount": "已选 {count} 个",
+  "@queue_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_batchDelete": "删除选中",
+  "queue_batchPinToTop": "置顶选中",
+  "queue_confirmDeleteSelected": "确定要删除选中的 {count} 个任务吗？",
+  "@queue_confirmDeleteSelected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "queue_export": "导出",
+  "queue_import": "导入",
+  "queue_exportImport": "队列导入/导出",
+  "queue_exportFormat": "导出格式",
+  "queue_exportFormatJson": "JSON",
+  "queue_exportFormatJsonDesc": "完整数据，包含所有参数",
+  "queue_exportFormatCsv": "CSV",
+  "queue_exportFormatCsvDesc": "表格格式，含提示词和基本信息",
+  "queue_exportFormatText": "纯文本",
+  "queue_exportFormatTextDesc": "仅提示词，每行一个",
+  "queue_importStrategy": "导入策略",
+  "queue_importStrategyMerge": "合并",
+  "queue_importStrategyMergeDesc": "将导入的任务添加到现有队列末尾",
+  "queue_importStrategyReplace": "替换",
+  "queue_importStrategyReplaceDesc": "清空现有队列，使用导入的任务替换",
+  "queue_supportedFormats": "支持的格式：",
+  "queue_exportSuccess": "导出成功",
+  "queue_exportFailed": "导出失败：{error}",
+  "@queue_exportFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "queue_importSuccess": "成功导入 {count} 个任务",
+  "@queue_importSuccess": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_importFailed": "导入失败：{error}",
+  "@queue_importFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "queue_selectFile": "选择要导入的文件",
+  "queue_noValidTasks": "文件中没有有效任务",
+
+  "queue_settings": "队列设置",
+  "queue_currentQueueInfo": "当前队列包含 {count} 个任务",
+  "@queue_currentQueueInfo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "queue_tooltipTasksTotal": "任务数：{count}",
+  "@queue_tooltipTasksTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipCompleted": "已完成：{count}",
+  "@queue_tooltipCompleted": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipFailed": "失败：{count}",
+  "@queue_tooltipFailed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipCurrentTask": "当前任务：{task}",
+  "@queue_tooltipCurrentTask": {
+    "placeholders": {
+      "task": {}
+    }
+  },
+  "queue_tooltipNoTasks": "队列中没有任务",
+  "queue_tooltipClickToOpen": "点击打开队列管理",
+  "queue_tooltipDragToMove": "拖拽调整位置",
+  "queue_statusIdle": "状态：空闲",
+  "queue_statusReady": "状态：就绪",
+  "queue_statusRunning": "状态：运行中",
+  "queue_statusPaused": "状态：已暂停",
+  "queue_statusCompleted": "状态：已完成"
 
 }

@@ -18,8 +18,8 @@ import '../screens/image_comparison_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
-import '../widgets/queue/replication_queue_bar.dart';
-import '../providers/replication_queue_provider.dart';
+import '../widgets/queue/floating_queue_button.dart';
+import '../widgets/queue/queue_management_page.dart';
 
 part 'app_router.g.dart';
 
@@ -440,13 +440,6 @@ class DesktopShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = navigationShell.currentIndex;
-    // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
-    final showQueueBar =
-        currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
-    final queueState = ref.watch(replicationQueueNotifierProvider);
-    final hasQueueItems = !queueState.isEmpty;
-
     return Scaffold(
       body: Row(
         children: [
@@ -455,18 +448,20 @@ class DesktopShell extends ConsumerWidget {
 
           // 主内容区
           Expanded(
-            child: Stack(
-              children: [
-                content,
-                // 队列悬浮栏（仅在特定 Tab 且有队列项时显示）
-                if (showQueueBar && hasQueueItems)
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: ReplicationQueueBar(),
-                  ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    content,
+                    // 队列悬浮球 - 传入实际可用区域大小
+                    FloatingQueueButton(
+                      onTap: () => _openQueueManagementSheet(context),
+                      containerSize: Size(constraints.maxWidth, constraints.maxHeight),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -488,27 +483,21 @@ class MobileShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = navigationShell.currentIndex;
-    // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
-    final showQueueBar =
-        currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
-    final queueState = ref.watch(replicationQueueNotifierProvider);
-    final hasQueueItems = !queueState.isEmpty;
-
     return Scaffold(
-      body: Stack(
-        children: [
-          content,
-          // 队列悬浮栏（仅在特定 Tab 且有队列项时显示）
-          // 底部导航栏高度约 80px
-          if (showQueueBar && hasQueueItems)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 80,
-              child: ReplicationQueueBar(),
-            ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              content,
+              // 队列悬浮球 - 传入实际可用区域大小
+              FloatingQueueButton(
+                onTap: () => _openQueueManagementSheet(context),
+                containerSize: Size(constraints.maxWidth, constraints.maxHeight),
+              ),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _getSelectedIndex(),
@@ -561,4 +550,23 @@ class MobileShell extends ConsumerWidget {
     }
     navigationShell.goBranch(branchIndex);
   }
+}
+
+/// 打开队列管理面板
+void _openQueueManagementSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, __) => const ClipRRect(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        child: QueueManagementPage(),
+      ),
+    ),
+  );
 }
