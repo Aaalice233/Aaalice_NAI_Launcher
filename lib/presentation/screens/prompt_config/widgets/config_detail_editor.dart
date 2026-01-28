@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/prompt_config.dart' as pc;
+import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/themed_slider.dart';
 
 /// 配置详情编辑器
@@ -189,7 +190,7 @@ class _ConfigDetailEditorState extends State<ConfigDetailEditor> {
           ],
 
           const SizedBox(height: 24),
-          const Divider(),
+          const ThemedDivider(),
           const SizedBox(height: 16),
 
           // 权重括号
@@ -269,7 +270,7 @@ class _ConfigDetailEditorState extends State<ConfigDetailEditor> {
           ],
 
           const SizedBox(height: 24),
-          const Divider(),
+          const ThemedDivider(),
           const SizedBox(height: 16),
 
           // 标签内容

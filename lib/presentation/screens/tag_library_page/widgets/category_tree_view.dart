@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 分类树视图
 class CategoryTreeView extends StatefulWidget {
@@ -59,7 +60,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         ),
 
         if (widget.categories.isNotEmpty) ...[
-          const Divider(height: 16, indent: 12, endIndent: 12),
+          const ThemedDivider(height: 16, indent: 12, endIndent: 12),
         ],
 
         // 分类树

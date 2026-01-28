@@ -16,6 +16,7 @@ import '../../providers/random_mode_provider.dart';
 import '../../providers/tag_group_sync_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_divider.dart';
 import '../../widgets/prompt/category_settings_dialog.dart';
 import '../../widgets/prompt/new_preset_dialog.dart';
 import 'dialogs/dialogs.dart';
@@ -81,7 +82,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
           // 左侧预设列表
           _buildPresetPanel(theme),
           // 垂直分割线
-          VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor),
+          const ThemedDivider(height: 1, vertical: true),
           // NAI 模式：显示算法说明；自定义模式：显示配置组列表和详情
           if (currentMode == RandomGenerationMode.naiOfficial)
             Expanded(child: _buildNaiDetailPanel())
@@ -89,7 +90,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             // 中间配置组列表
             _buildConfigPanel(state),
             // 垂直分割线
-            VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor),
+            const ThemedDivider(height: 1, vertical: true),
             // 右侧详情编辑
             _buildDetailPanel(theme),
           ],
@@ -120,7 +121,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          Divider(height: 1, color: theme.dividerColor),
+          const ThemedDivider(height: 1),
 
           // 预设列表
           Expanded(

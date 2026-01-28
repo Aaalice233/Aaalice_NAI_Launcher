@@ -6,6 +6,7 @@ import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../../core/services/tag_counting_service.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 预设面板组件
 /// 左侧预设列表，支持NAI模式和自定义预设
@@ -36,7 +37,7 @@ class PresetPanel extends ConsumerWidget {
         children: [
           // 标题栏
           _buildHeader(context, theme),
-          Divider(height: 1, color: theme.dividerColor),
+          const ThemedDivider(height: 1),
 
           // 预设列表
           Expanded(

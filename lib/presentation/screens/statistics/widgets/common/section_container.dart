@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// Container for statistics sections with consistent styling
 class SectionContainer extends StatelessWidget {
@@ -71,10 +72,7 @@ class SectionContainer extends StatelessWidget {
           // Bottom divider
           if (showDivider) ...[
             const SizedBox(height: 24),
-            Divider(
-              color: colorScheme.outlineVariant.withOpacity(0.3),
-              height: 1,
-            ),
+            const ThemedDivider(height: 1),
           ],
         ],
       ),

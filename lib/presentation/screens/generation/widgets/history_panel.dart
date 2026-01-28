@@ -10,6 +10,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
@@ -103,7 +104,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 历史列表
         Expanded(

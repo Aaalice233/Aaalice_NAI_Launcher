@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/themed_slider.dart';
 
 /// 多角色面板组件 (仅 V4 模型支持)
@@ -98,7 +99,7 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Divider(),
+                  const ThemedDivider(),
 
                   // 说明文字
                   Text(

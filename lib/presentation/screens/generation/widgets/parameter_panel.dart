@@ -11,6 +11,7 @@ import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
 import '../../../widgets/common/themed_slider.dart';
+import '../../../widgets/common/themed_divider.dart';
 import 'img2img_panel.dart';
 import 'unified_reference_panel.dart';
 import 'prompt_input.dart';
@@ -108,7 +109,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             ),
           ),
           const SizedBox(height: 24),
-          const Divider(),
+          const ThemedDivider(),
           const SizedBox(height: 16),
         ],
 

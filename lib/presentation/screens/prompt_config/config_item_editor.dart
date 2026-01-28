@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_config.dart';
+import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/themed_slider.dart';
 
 /// 配置项编辑器
@@ -120,7 +121,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                 });
               },
             ),
-            const Divider(height: 32),
+            const ThemedDivider(height: 32),
 
             // 内容类型
             _buildSectionHeader(theme, context.l10n.configEditor_contentType),
@@ -250,7 +251,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                 },
               ),
 
-            const Divider(height: 32),
+            const ThemedDivider(height: 32),
 
             // 权重括号
             _buildSectionHeader(
@@ -340,7 +341,7 @@ class _ConfigItemEditorState extends ConsumerState<ConfigItemEditor> {
                 ),
               ),
 
-            const Divider(height: 32),
+            const ThemedDivider(height: 32),
 
             // 内容编辑
             _buildSectionHeader(theme, context.l10n.configEditor_content),

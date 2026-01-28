@@ -10,6 +10,7 @@ import '../../../../data/datasources/remote/danbooru_tag_group_service.dart';
 import '../../../../data/models/danbooru/danbooru_pool.dart';
 import '../../../../data/models/prompt/tag_group.dart';
 import '../../../widgets/common/emoji_picker_dialog.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 自定义词组搜索结果类型
 enum CustomGroupType {
@@ -322,7 +323,7 @@ class _CustomGroupSearchDialogState
 
                 // 选中项设置区域
                 if (_selectedTagGroup != null || _selectedPool != null) ...[
-                  const Divider(),
+                  const ThemedDivider(),
                   const SizedBox(height: 8),
                   Row(
                     children: [

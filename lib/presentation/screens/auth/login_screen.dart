@@ -13,6 +13,7 @@ import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/auth/network_troubleshooting_dialog.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerStatefulWidget {
@@ -350,7 +351,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 16),
 
               // 分割线
-              Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
+              const ThemedDivider(),
               const SizedBox(height: 8),
 
               // 添加账号按钮骨架
@@ -398,7 +399,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(height: 16),
 
         // 分割线
-        Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
+        const ThemedDivider(),
         const SizedBox(height: 8),
 
         // 添加账号按钮骨架
@@ -565,7 +566,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 16),
 
               // 分割线
-              Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
+              const ThemedDivider(),
               const SizedBox(height: 8),
 
               // 添加新账号
@@ -638,7 +639,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(height: 16),
 
         // 分割线
-        Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
+        const ThemedDivider(),
         const SizedBox(height: 8),
 
         // 添加新账号
@@ -788,7 +789,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   isSelected: account.id == currentAccount.id,
                 ),
               ),
-              const Divider(),
+              const ThemedDivider(),
               // 添加新账号
               ListTile(
                 leading: CircleAvatar(

@@ -18,6 +18,7 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/themed_switch.dart';
 import '../../../widgets/prompt/tag_group_settings_dialog.dart';
 import 'add_group_dialog.dart';
@@ -274,8 +275,9 @@ class _ExpandableCategoryTileState
                 onTap: () => widget.onExpandChanged(!widget.isExpanded),
                 borderRadius: BorderRadius.vertical(
                   top: const Radius.circular(14),
-                  bottom:
-                      widget.isExpanded ? Radius.zero : const Radius.circular(14),
+                  bottom: widget.isExpanded
+                      ? Radius.zero
+                      : const Radius.circular(14),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -321,11 +323,11 @@ class _ExpandableCategoryTileState
                       const SizedBox(width: 16),
                       // 已选择的 tag 组名称列表
                       Expanded(
-                        child:
-                            _buildSelectedTagGroupsPreview(theme, tagGroupMappings),
+                        child: _buildSelectedTagGroupsPreview(
+                            theme, tagGroupMappings),
                       ),
                       // 操作按钮区域
-                      if (widget.onSettings != null) ...[  
+                      if (widget.onSettings != null) ...[
                         TextButton.icon(
                           icon: Icon(
                             Icons.settings_outlined,
@@ -350,7 +352,7 @@ class _ExpandableCategoryTileState
                         ),
                         const SizedBox(width: 8),
                       ],
-                      if (widget.onRemove != null) ...[  
+                      if (widget.onRemove != null) ...[
                         TextButton.icon(
                           icon: Icon(
                             Icons.delete_outline,
@@ -389,11 +391,11 @@ class _ExpandableCategoryTileState
                       const SizedBox(width: 12),
                       // 概率显示徽章
                       Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                          color: theme.colorScheme.secondaryContainer
+                              .withOpacity(0.5),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -419,7 +421,8 @@ class _ExpandableCategoryTileState
                 ),
               ),
               // 展开内容（收起时不渲染，提升性能）
-              if (widget.isExpanded) _buildExpandedContent(theme, tagGroupMappings),
+              if (widget.isExpanded)
+                _buildExpandedContent(theme, tagGroupMappings),
             ],
           ),
         ),
@@ -473,7 +476,7 @@ class _ExpandableCategoryTileState
 
     return Column(
       children: [
-        Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.1)),
+        const ThemedDivider(height: 1),
         // 统一的分组管理区域
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/prompt_config.dart' as pc;
+import '../../../widgets/common/themed_divider.dart';
 import 'config_list_item.dart';
 
 /// 配置组面板组件
@@ -48,7 +49,7 @@ class ConfigPanel extends StatelessWidget {
         children: [
           // 标题栏
           _buildHeader(context, theme),
-          Divider(height: 1, color: theme.dividerColor),
+          const ThemedDivider(height: 1),
 
           // 预设名称编辑
           if (preset != null) _buildPresetNameField(context, theme),
@@ -70,7 +71,7 @@ class ConfigPanel extends StatelessWidget {
 
           // 保存按钮
           if (hasUnsavedChanges && preset != null) ...[
-            Divider(height: 1, color: theme.dividerColor),
+            const ThemedDivider(height: 1),
             Padding(
               padding: const EdgeInsets.all(12),
               child: FilledButton.icon(

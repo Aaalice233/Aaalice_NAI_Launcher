@@ -12,6 +12,7 @@ import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
+import '../../widgets/common/themed_divider.dart';
 import 'widgets/parameter_panel.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
@@ -624,7 +625,7 @@ class _BatchSettingsButton extends ConsumerWidget {
                   ),
 
                   const SizedBox(height: 16),
-                  const Divider(),
+                  const ThemedDivider(),
                   const SizedBox(height: 12),
 
                   // 计算公式

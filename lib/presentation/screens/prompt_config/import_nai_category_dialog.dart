@@ -8,6 +8,7 @@ import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/prompt/weighted_tag.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../utils/category_icon_utils.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 从NAI词库导入类别的弹窗
 ///
@@ -171,7 +172,7 @@ class _ImportNaiCategoryDialogState
               })),
 
             // 全选/取消全选
-            const Divider(height: 24),
+            const ThemedDivider(height: 24),
             Row(
               children: [
                 TextButton(

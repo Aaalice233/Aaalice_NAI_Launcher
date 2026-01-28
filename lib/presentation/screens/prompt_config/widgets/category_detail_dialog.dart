@@ -4,6 +4,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/tag_category.dart';
 import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../../utils/category_icon_utils.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 类别详情对话框
 ///
@@ -81,7 +82,7 @@ class CategoryDetailDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Divider(),
+            const ThemedDivider(),
             const SizedBox(height: 12),
             // 标签列表标题
             Text(

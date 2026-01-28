@@ -7,6 +7,7 @@ import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
+import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import '../../widgets/common/themed_button.dart';
 import 'widgets/prompt_input.dart';
@@ -70,7 +71,7 @@ class _MobileGenerationLayoutState
                   ],
                 ),
               ),
-              const Divider(),
+              const ThemedDivider(),
               const Expanded(
                 child: ParameterPanel(),
               ),
