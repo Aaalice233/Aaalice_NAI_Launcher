@@ -540,8 +540,10 @@ class GalleryCategoryRepository {
   }
 
   /// 统计文件夹内的图片数量
-  Future<int> _countImagesInFolder(String folderPath,
-      {bool recursive = false}) async {
+  Future<int> _countImagesInFolder(
+    String folderPath, {
+    bool recursive = false,
+  }) async {
     int count = 0;
     final dir = Directory(folderPath);
 

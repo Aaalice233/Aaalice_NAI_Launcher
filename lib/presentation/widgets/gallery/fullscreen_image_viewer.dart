@@ -550,10 +550,12 @@ class _ImagePageState extends State<_ImagePage>
     _animation = Matrix4Tween(
       begin: _transformController.value,
       end: endMatrix,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _animationController.forward(from: 0);
   }

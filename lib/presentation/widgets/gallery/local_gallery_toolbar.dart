@@ -347,65 +347,23 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   }
 
   /// Build search field
-  /// 构建搜索框
+  /// 构建搜索框 - Modern glass-style design
   Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.6)
-            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurface,
-        ),
-        decoration: InputDecoration(
-          hintText: '搜索文件名或 Prompt...',
-          hintStyle: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.6 : 0.5),
-            fontSize: 13,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.7 : 0.6),
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withOpacity(isDark ? 0.7 : 0.6),
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .setSearchQuery('');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          isDense: true,
-        ),
-        onChanged: (value) {
-          setState(() {}); // Update clear button visibility
-          _onSearchChanged(value);
-        },
-        onSubmitted: (value) {
-          _debounceTimer?.cancel();
-          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
-        },
-      ),
+    return _ModernSearchField(
+      controller: _searchController,
+      hintText: '搜索文件名或 Prompt...',
+      onChanged: (value) {
+        setState(() {}); // Update clear button visibility
+        _onSearchChanged(value);
+      },
+      onSubmitted: (value) {
+        _debounceTimer?.cancel();
+        ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
+      },
+      onClear: () {
+        _searchController.clear();
+        ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
+      },
     );
   }
 
@@ -565,8 +523,215 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   }
 }
 
-/// Compact icon button for toolbar
-/// 工具栏紧凑图标按钮
+/// Modern search field with glass-morphism style
+/// 现代搜索框 - 毛玻璃风格
+class _ModernSearchField extends StatefulWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onClear;
+
+  const _ModernSearchField({
+    required this.controller,
+    required this.hintText,
+    this.onChanged,
+    this.onSubmitted,
+    this.onClear,
+  });
+
+  @override
+  State<_ModernSearchField> createState() => _ModernSearchFieldState();
+}
+
+class _ModernSearchFieldState extends State<_ModernSearchField> {
+  bool _isFocused = false;
+  bool _isHovered = false;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (mounted) {
+        setState(() => _isFocused = _focusNode.hasFocus);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final hasText = widget.controller.text.isNotEmpty;
+
+    // Modern color scheme
+    final bgColor = isDark
+        ? (_isFocused
+            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.8)
+            : (_isHovered
+                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.65)
+                : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5)))
+        : (_isFocused
+            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.9)
+            : (_isHovered
+                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.6)
+                : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4)));
+
+    final borderColor = _isFocused
+        ? theme.colorScheme.primary.withOpacity(isDark ? 0.7 : 0.5)
+        : (_isHovered
+            ? theme.colorScheme.outline.withOpacity(isDark ? 0.4 : 0.3)
+            : theme.colorScheme.outline.withOpacity(isDark ? 0.2 : 0.15));
+
+    final iconColor = _isFocused
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.7 : 0.6);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.text,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        height: 36,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: borderColor,
+            width: _isFocused ? 1.5 : 1,
+          ),
+          boxShadow: _isFocused
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary
+                        .withOpacity(isDark ? 0.15 : 0.1),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            // Search icon
+            Padding(
+              padding: const EdgeInsets.only(left: 12, right: 4),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: iconColor,
+                ),
+              ),
+            ),
+            // Text field
+            Expanded(
+              child: TextField(
+                controller: widget.controller,
+                focusNode: _focusNode,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 13,
+                ),
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant
+                        .withOpacity(isDark ? 0.5 : 0.45),
+                    fontSize: 13,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  isDense: true,
+                ),
+                onChanged: widget.onChanged,
+                onSubmitted: widget.onSubmitted,
+              ),
+            ),
+            // Clear button
+            if (hasText)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: _MicroIconButton(
+                  icon: Icons.close_rounded,
+                  size: 16,
+                  onPressed: widget.onClear,
+                ),
+              )
+            else
+              const SizedBox(width: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Micro icon button for search field clear
+/// 搜索框清除按钮
+class _MicroIconButton extends StatefulWidget {
+  final IconData icon;
+  final double size;
+  final VoidCallback? onPressed;
+
+  const _MicroIconButton({
+    required this.icon,
+    this.size = 18,
+    this.onPressed,
+  });
+
+  @override
+  State<_MicroIconButton> createState() => _MicroIconButtonState();
+}
+
+class _MicroIconButtonState extends State<_MicroIconButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? theme.colorScheme.onSurfaceVariant
+                    .withOpacity(isDark ? 0.15 : 0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            widget.icon,
+            size: widget.size,
+            color: theme.colorScheme.onSurfaceVariant
+                .withOpacity(isDark ? 0.7 : 0.6),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact icon button for toolbar - Modern style
+/// 工具栏紧凑图标按钮 - 现代风格
 class _CompactIconButton extends StatefulWidget {
   final IconData icon;
   final String? label;
@@ -588,6 +753,7 @@ class _CompactIconButton extends StatefulWidget {
 
 class _CompactIconButtonState extends State<_CompactIconButton> {
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -601,21 +767,32 @@ class _CompactIconButtonState extends State<_CompactIconButton> {
     Color borderColor;
 
     if (widget.isDanger) {
-      iconColor = theme.colorScheme.error;
-      bgColor = _isHovered
-          ? theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.12)
-          : theme.colorScheme.error.withOpacity(isDark ? 0.08 : 0.04);
-      borderColor = theme.colorScheme.error.withOpacity(isDark ? 0.3 : 0.2);
+      iconColor = isEnabled
+          ? theme.colorScheme.error
+          : theme.colorScheme.error.withOpacity(0.4);
+      bgColor = _isPressed
+          ? theme.colorScheme.error.withOpacity(isDark ? 0.25 : 0.15)
+          : (_isHovered
+              ? theme.colorScheme.error.withOpacity(isDark ? 0.18 : 0.1)
+              : theme.colorScheme.error.withOpacity(isDark ? 0.06 : 0.03));
+      borderColor = _isHovered
+          ? theme.colorScheme.error.withOpacity(isDark ? 0.5 : 0.35)
+          : theme.colorScheme.error.withOpacity(isDark ? 0.25 : 0.15);
     } else {
       iconColor = isEnabled
-          ? theme.colorScheme.onSurfaceVariant
-          : theme.colorScheme.onSurfaceVariant.withOpacity(0.4);
-      bgColor = _isHovered
-          ? theme.colorScheme.onSurfaceVariant.withOpacity(isDark ? 0.15 : 0.1)
-          : theme.colorScheme.onSurfaceVariant
-              .withOpacity(isDark ? 0.06 : 0.03);
-      borderColor =
-          theme.colorScheme.outlineVariant.withOpacity(isDark ? 0.3 : 0.4);
+          ? (_isHovered
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant)
+          : theme.colorScheme.onSurfaceVariant.withOpacity(0.35);
+      bgColor = _isPressed
+          ? theme.colorScheme.primary.withOpacity(isDark ? 0.18 : 0.12)
+          : (_isHovered
+              ? theme.colorScheme.primary.withOpacity(isDark ? 0.12 : 0.08)
+              : theme.colorScheme.onSurfaceVariant
+                  .withOpacity(isDark ? 0.05 : 0.02));
+      borderColor = _isHovered
+          ? theme.colorScheme.primary.withOpacity(isDark ? 0.4 : 0.3)
+          : theme.colorScheme.outline.withOpacity(isDark ? 0.2 : 0.15);
     }
 
     return MouseRegion(
@@ -624,29 +801,45 @@ class _CompactIconButtonState extends State<_CompactIconButton> {
       cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       child: Tooltip(
         message: widget.tooltip ?? widget.label ?? '',
+        waitDuration: const Duration(milliseconds: 500),
         child: GestureDetector(
+          onTapDown:
+              isEnabled ? (_) => setState(() => _isPressed = true) : null,
+          onTapUp: isEnabled ? (_) => setState(() => _isPressed = false) : null,
+          onTapCancel:
+              isEnabled ? () => setState(() => _isPressed = false) : null,
           onTap: widget.onPressed,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
             padding: EdgeInsets.symmetric(
-              horizontal: hasLabel ? 10 : 6,
+              horizontal: hasLabel ? 10 : 8,
               vertical: 6,
             ),
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: borderColor, width: 1),
+              border: Border.all(
+                color: borderColor,
+                width: _isHovered ? 1.2 : 1,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(widget.icon, size: 18, color: iconColor),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  transform: Matrix4.identity()..scale(_isPressed ? 0.92 : 1.0),
+                  transformAlignment: Alignment.center,
+                  child: Icon(widget.icon, size: 17, color: iconColor),
+                ),
                 if (hasLabel) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Text(
                     widget.label!,
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: iconColor,
+                      fontSize: 12,
                       fontWeight:
                           _isHovered ? FontWeight.w600 : FontWeight.w500,
                     ),

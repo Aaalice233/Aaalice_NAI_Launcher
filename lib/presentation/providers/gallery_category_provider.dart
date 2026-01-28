@@ -69,7 +69,7 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      var categories = await _repository.loadCategories();
+      final categories = await _repository.loadCategories();
 
       // 更新每个分类的图片数量
       final updatedCategories = <GalleryCategory>[];

@@ -257,17 +257,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                     child: _buildImage(),
                   ),
 
-                  // 2. 全息棱镜效果（仅悬停时）
-                  if (_isHovered)
-                    RepaintBoundary(
-                      child: _HolographicOverlay(
-                        normalizedX: normalizedX,
-                        normalizedY: normalizedY,
-                        intensity: intensity.holographic,
-                      ),
-                    ),
-
-                  // 3. 边缘发光效果（仅悬停时，带淡入动画）
+                  // 2. 边缘发光效果（仅悬停时，带淡入动画）
                   if (_isHovered)
                     TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.0, end: 1.0),
@@ -281,7 +271,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                       },
                     ),
 
-                  // 4. 光泽扫过效果（仅悬停时）
+                  // 3. 光泽扫过效果（仅悬停时）
                   if (_isHovered)
                     RepaintBoundary(
                       child: AnimatedBuilder(
@@ -295,7 +285,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                       ),
                     ),
 
-                  // 5. 收藏指示器
+                  // 4. 收藏指示器
                   if (widget.showFavoriteIndicator && widget.record.isFavorite)
                     Positioned(
                       top: 8,
@@ -303,7 +293,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                       child: _buildFavoriteIndicator(),
                     ),
 
-                  // 6. 选中状态指示器
+                  // 5. 选中状态指示器
                   if (widget.isSelected)
                     Positioned(
                       top: 8,
@@ -311,7 +301,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                       child: _buildSelectionIndicator(colorScheme),
                     ),
 
-                  // 7. 选中覆盖层
+                  // 6. 选中覆盖层
                   if (widget.isSelected)
                     Positioned.fill(
                       child: Container(
@@ -322,7 +312,7 @@ class _ImageCard3DState extends State<ImageCard3D>
                       ),
                     ),
 
-                  // 8. 悬停时显示元数据预览
+                  // 7. 悬停时显示元数据预览
                   if (_isHovered && widget.record.metadata != null)
                     Positioned(
                       bottom: 0,
@@ -524,120 +514,6 @@ class _EffectIntensity {
   });
 }
 
-/// 全息棱镜效果覆盖层
-///
-/// 创建彩虹渐变效果，跟随鼠标位置变化
-class _HolographicOverlay extends StatelessWidget {
-  final double normalizedX;
-  final double normalizedY;
-  final double intensity;
-
-  const _HolographicOverlay({
-    required this.normalizedX,
-    required this.normalizedY,
-    this.intensity = 1.0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: CustomPaint(
-          painter: _HolographicPainter(
-            normalizedX: normalizedX,
-            normalizedY: normalizedY,
-            intensity: intensity,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 全息效果绘制器
-class _HolographicPainter extends CustomPainter {
-  final double normalizedX;
-  final double normalizedY;
-  final double intensity;
-
-  _HolographicPainter({
-    required this.normalizedX,
-    required this.normalizedY,
-    required this.intensity,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    // 径向渐变 - 彩虹光环效果
-    final radialPaint = Paint()
-      ..shader = RadialGradient(
-        center: Alignment(
-          normalizedX * 2 - 1,
-          normalizedY * 2 - 1,
-        ),
-        radius: 1.2,
-        colors: [
-          // 中心亮区
-          Colors.white.withOpacity(0.06 * intensity),
-          // 彩虹环
-          const Color(0xFFFF00FF).withOpacity(0.10 * intensity), // 品红
-          const Color(0xFF00FFFF).withOpacity(0.10 * intensity), // 青色
-          const Color(0xFFFFFF00).withOpacity(0.10 * intensity), // 黄色
-          const Color(0xFFFF00FF).withOpacity(0.10 * intensity), // 品红(循环)
-          // 外围透明
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-      ).createShader(rect)
-      ..blendMode = BlendMode.plus;
-
-    canvas.drawRect(rect, radialPaint);
-
-    // 线性渐变 - 根据鼠标位置旋转
-    final angle = normalizedX * math.pi; // 0 到 π
-    final linePaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        transform: GradientRotation(angle),
-        colors: [
-          Colors.transparent,
-          const Color(0xFF00FFFF).withOpacity(0.05 * intensity), // 青色
-          const Color(0xFFFF00FF).withOpacity(0.05 * intensity), // 品红
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.35, 0.65, 1.0],
-      ).createShader(rect)
-      ..blendMode = BlendMode.screen;
-
-    canvas.drawRect(rect, linePaint);
-
-    // 扫描线效果 - 微妙的水平条纹
-    final scanPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: List.generate(20, (i) {
-          return i.isEven
-              ? Colors.white.withOpacity(0.015 * intensity)
-              : Colors.transparent;
-        }),
-      ).createShader(rect)
-      ..blendMode = BlendMode.overlay;
-
-    canvas.drawRect(rect, scanPaint);
-  }
-
-  @override
-  bool shouldRepaint(_HolographicPainter oldDelegate) {
-    return oldDelegate.normalizedX != normalizedX ||
-        oldDelegate.normalizedY != normalizedY ||
-        oldDelegate.intensity != intensity;
-  }
-}
-
 /// 边缘发光效果覆盖层
 class _EdgeGlowOverlay extends StatelessWidget {
   final Color glowColor;
@@ -713,7 +589,11 @@ class _EdgeGlowPainter extends CustomPainter {
   }
 
   void _drawCornerHighlights(
-      Canvas canvas, Size size, Color color, double intensity) {
+    Canvas canvas,
+    Size size,
+    Color color,
+    double intensity,
+  ) {
     final highlightPaint = Paint()
       ..color = color.withOpacity(0.3 * intensity)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
@@ -723,7 +603,7 @@ class _EdgeGlowPainter extends CustomPainter {
 
     // 四个角落的高光点
     final corners = [
-      Offset(offset, offset),
+      const Offset(offset, offset),
       Offset(size.width - offset, offset),
       Offset(offset, size.height - offset),
       Offset(size.width - offset, size.height - offset),

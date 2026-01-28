@@ -32,6 +32,8 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/gallery_filter_panel.dart';
+import 'dart:async';
 
 /// 本地画廊屏幕
 /// Local gallery screen
@@ -51,6 +53,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// Focus node for keyboard shortcuts
   /// 用于键盘快捷键的焦点节点
   final FocusNode _shortcutsFocusNode = FocusNode();
+
+  /// 搜索框控制器
+  final TextEditingController _searchController = TextEditingController();
+
+  /// 搜索防抖定时器
+  Timer? _debounceTimer;
 
   /// 是否使用3D卡片视图
   /// Whether to use 3D card view mode
@@ -73,6 +81,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   @override
   void dispose() {
     _shortcutsFocusNode.dispose();
+    _searchController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -265,8 +275,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             Expanded(
               child: Column(
                 children: [
-                  // 批量操作栏（只在选择模式时显示）
-                  _buildSelectionBar(state, bulkOpState),
+                  // 批量操作栏（只在选择模式时显示）或工具栏
+                  _buildToolbarOrSelectionBar(state, bulkOpState),
                   // 主体内容
                   Expanded(
                     child: _buildBody(state, columns, itemWidth),
@@ -295,6 +305,158 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建工具栏或选择栏
+  Widget _buildToolbarOrSelectionBar(
+    LocalGalleryState state,
+    BulkOperationState bulkOpState,
+  ) {
+    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+
+    // 选择模式时显示批量操作栏
+    if (selectionState.isActive) {
+      return _buildSelectionBar(state, bulkOpState);
+    }
+
+    // 普通模式显示工具栏
+    return _buildCompactToolbar(state);
+  }
+
+  /// 构建紧凑工具栏（搜索+筛选+多选+刷新）
+  Widget _buildCompactToolbar(LocalGalleryState state) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.6)
+            : theme.colorScheme.surface.withOpacity(0.9),
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // 搜索框
+          Expanded(
+            child: _buildSearchField(theme, isDark),
+          ),
+          const SizedBox(width: 8),
+          // 筛选按钮
+          _ToolbarButton(
+            icon: Icons.tune_rounded,
+            tooltip: '筛选',
+            onPressed: () => showGalleryFilterPanel(context),
+            isActive: state.hasFilters,
+          ),
+          const SizedBox(width: 4),
+          // 清除筛选
+          if (state.hasFilters)
+            _ToolbarButton(
+              icon: Icons.filter_alt_off_rounded,
+              tooltip: '清除筛选',
+              onPressed: () {
+                _searchController.clear();
+                ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .clearAllFilters();
+              },
+              isDanger: true,
+            ),
+          if (state.hasFilters) const SizedBox(width: 4),
+          // 多选按钮
+          _ToolbarButton(
+            icon: Icons.checklist_rounded,
+            tooltip: '多选',
+            onPressed: () => ref
+                .read(localGallerySelectionNotifierProvider.notifier)
+                .enter(),
+          ),
+          const SizedBox(width: 4),
+          // 刷新按钮
+          state.isIndexing
+              ? const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : _ToolbarButton(
+                  icon: Icons.refresh_rounded,
+                  tooltip: '刷新',
+                  onPressed: () =>
+                      ref.read(localGalleryNotifierProvider.notifier).refresh(),
+                ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建搜索框
+  Widget _buildSearchField(ThemeData theme, bool isDark) {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.5)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+        ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: '搜索文件名或 Prompt...',
+          hintStyle: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref
+                        .read(localGalleryNotifierProvider.notifier)
+                        .setSearchQuery('');
+                    setState(() {});
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          isDense: true,
+        ),
+        onChanged: (value) {
+          setState(() {});
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .setSearchQuery(value);
+          });
+        },
       ),
     );
   }
@@ -749,5 +911,69 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         AppToast.info(context, '发送失败: $e');
       }
     }
+  }
+}
+
+/// 工具栏按钮组件
+class _ToolbarButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool isActive;
+  final bool isDanger;
+
+  const _ToolbarButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.isActive = false,
+    this.isDanger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Color getIconColor() {
+      if (isDanger) return theme.colorScheme.error;
+      if (isActive) return theme.colorScheme.primary;
+      return theme.colorScheme.onSurfaceVariant;
+    }
+
+    Color getBackgroundColor() {
+      if (isDanger) return theme.colorScheme.errorContainer.withOpacity(0.3);
+      if (isActive) return theme.colorScheme.primaryContainer.withOpacity(0.5);
+      return Colors.transparent;
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: getBackgroundColor(),
+              borderRadius: BorderRadius.circular(8),
+              border: isActive
+                  ? Border.all(
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                    )
+                  : null,
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: getIconColor(),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

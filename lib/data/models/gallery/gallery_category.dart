@@ -211,7 +211,7 @@ extension GalleryCategoryListExtension on List<GalleryCategory> {
         .map((e) => e.value.copyWith(
               sortOrder: e.key,
               updatedAt: DateTime.now(),
-            ))
+            ),)
         .toList();
   }
 
