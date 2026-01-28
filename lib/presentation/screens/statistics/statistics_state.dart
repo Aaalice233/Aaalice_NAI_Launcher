@@ -8,6 +8,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/services/statistics_cache_service.dart';
 import '../../../data/services/statistics_service.dart';
 
 part 'statistics_state.g.dart';
@@ -221,6 +222,12 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     final statistics = await service.computeAllStatistics(filteredRecords);
     _statsCache[cacheKey] = statistics;
 
+    // 如果是默认过滤器（无过滤条件），同步保存到持久化缓存
+    if (!_filter.hasActiveFilters) {
+      final cacheService = ref.read(statisticsCacheServiceProvider);
+      await cacheService.saveCache(statistics, records.length);
+    }
+
     state = StatisticsData(
       allRecords: records,
       filteredRecords: filteredRecords,
@@ -314,6 +321,9 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     _cachedRecords = null;
     _cacheTimestamp = null;
     _statsCache.clear();
+    // 清除持久化缓存
+    final cacheService = ref.read(statisticsCacheServiceProvider);
+    await cacheService.clearCache();
     await _loadStatistics();
   }
 
@@ -323,7 +333,33 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   /// 以便用户打开统计页面时能立即看到数据。
   Future<void> preloadForWarmup() async {
     try {
-      // 加载记录到缓存
+      final cacheService = ref.read(statisticsCacheServiceProvider);
+      final repository = LocalGalleryRepository.instance;
+
+      // Step 1: 快速获取当前图片数量
+      final files = await repository.getAllImageFiles();
+      final currentImageCount = files.length;
+
+      // Step 2: 尝试从持久化缓存加载
+      final cachedStats = cacheService.getCache();
+      if (cachedStats != null && cacheService.isCacheValid(currentImageCount)) {
+        // 缓存命中，直接使用
+        final cacheKey = _getCacheKey(const StatisticsFilter());
+        _statsCache[cacheKey] = cachedStats;
+        AppLogger.i(
+          'Statistics loaded from persistent cache: $currentImageCount images',
+          'Warmup',
+        );
+        return;
+      }
+
+      // Step 3: 缓存未命中或过期，执行完整计算
+      AppLogger.i(
+        'Statistics cache miss, computing for $currentImageCount images',
+        'Warmup',
+      );
+
+      // 加载记录到内存缓存
       await _ensureRecordsLoaded();
 
       final records = _cachedRecords ?? [];
@@ -336,12 +372,15 @@ class StatisticsNotifier extends _$StatisticsNotifier {
       final service = ref.read(statisticsServiceProvider);
       final statistics = await service.computeAllStatistics(records);
 
-      // 缓存结果
+      // 缓存结果到内存
       final cacheKey = _getCacheKey(const StatisticsFilter());
       _statsCache[cacheKey] = statistics;
 
+      // Step 4: 保存到持久化缓存
+      await cacheService.saveCache(statistics, records.length);
+
       AppLogger.i(
-        'Statistics preloaded: ${records.length} records',
+        'Statistics preloaded and cached: ${records.length} records',
         'Warmup',
       );
     } catch (e) {

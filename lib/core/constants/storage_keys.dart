@@ -121,4 +121,9 @@ class StorageKeys {
   static const String tagLibraryEntriesData = 'tag_library_entries_data';
   static const String tagLibraryCategoriesData = 'tag_library_categories_data';
   static const String tagLibraryViewMode = 'tag_library_view_mode';
+
+  // Statistics Cache (统计数据缓存)
+  static const String statisticsCacheBox = 'statistics_cache';
+  static const String statisticsCacheData = 'statistics_cache_data';
+  static const String statisticsCacheMetadata = 'statistics_cache_metadata';
 }

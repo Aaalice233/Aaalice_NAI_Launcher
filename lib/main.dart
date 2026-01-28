@@ -127,6 +127,8 @@ void main() async {
   await Hive.openBox(StorageKeys.localFavoritesBox);
   await Hive.openBox(StorageKeys.tagsBox);
   await Hive.openBox(StorageKeys.searchIndexBox);
+  // 统计数据缓存 Box
+  await Hive.openBox(StorageKeys.statisticsCacheBox);
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
@@ -229,8 +231,10 @@ void main() async {
         settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
 
     if (proxyEnabled) {
-      final proxyMode = settingsBox.get(StorageKeys.proxyMode,
-          defaultValue: 'auto',) as String;
+      final proxyMode = settingsBox.get(
+        StorageKeys.proxyMode,
+        defaultValue: 'auto',
+      ) as String;
 
       String? proxyAddress;
 
