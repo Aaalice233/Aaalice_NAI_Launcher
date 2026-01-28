@@ -169,6 +169,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             });
           },
           onFullscreen: () => _showFullscreen(context, history[index]),
+          enableContextMenu: true,
+          enableHoverScale: true,
+          onOpenInExplorer: () =>
+              _saveAndOpenInExplorer(context, history[index]),
         );
       },
     );
@@ -236,6 +240,47 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         setState(() {
           _selectedIndices.clear();
         });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
+  }
+
+  /// 保存图片并在文件夹中打开
+  Future<void> _saveAndOpenInExplorer(
+    BuildContext context,
+    Uint8List imageBytes,
+  ) async {
+    try {
+      // 获取保存目录
+      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+      Directory saveDir;
+
+      if (saveSettings.hasCustomPath) {
+        saveDir = Directory(saveSettings.customPath!);
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      } else {
+        final docDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${docDir.path}/NAI_Launcher');
+        if (!await saveDir.exists()) {
+          await saveDir.create(recursive: true);
+        }
+      }
+
+      // 保存图片
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${saveDir.path}/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      // 在文件夹中打开并选中文件
+      await Process.start('explorer', ['/select,${file.path}']);
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
       }
     } catch (e) {
       if (context.mounted) {

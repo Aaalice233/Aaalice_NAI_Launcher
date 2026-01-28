@@ -56,7 +56,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           onTap: () => _showFixedTagsDialog(context),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: hasEnabled
                   ? (_isHovering
@@ -65,7 +65,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                   : (_isHovering
                       ? theme.colorScheme.surfaceContainerHighest
                       : Colors.transparent),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: hasEnabled
                     ? theme.colorScheme.secondary.withOpacity(0.5)
@@ -77,16 +77,16 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
               children: [
                 Icon(
                   hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
-                  size: 16,
+                  size: 14,
                   color: hasEnabled
                       ? theme.colorScheme.secondary
                       : theme.colorScheme.onSurface.withOpacity(0.5),
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Text(
                   context.l10n.fixedTags_label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: hasEnabled ? FontWeight.w600 : FontWeight.w500,
                     color: hasEnabled
                         ? theme.colorScheme.secondary

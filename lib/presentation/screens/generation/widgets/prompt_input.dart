@@ -9,7 +9,7 @@ import '../../../providers/prompt_maximize_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
-import '../../../widgets/prompt/quality_tags_hint.dart';
+import '../../../widgets/prompt/quality_tags_selector.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
@@ -227,8 +227,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         .where((s) => s.trim().isNotEmpty)
         .length;
 
-    // 获取质量词设置和模型
-    final addQualityTags = ref.watch(qualityTagsSettingsProvider);
+    // 获取模型
     final model = ref.watch(generationParamsNotifierProvider).model;
 
     return Row(
@@ -244,14 +243,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         const SizedBox(width: 6),
 
-        // 质量词提示
-        QualityTagsHint(
-          enabled: addQualityTags,
-          model: model,
-          onTap: () {
-            ref.read(qualityTagsSettingsProvider.notifier).toggle();
-          },
-        ),
+        // 质量词选择器
+        QualityTagsSelector(model: model),
 
         const SizedBox(width: 6),
 
@@ -264,29 +257,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         const CharacterPromptButton(),
 
         const SizedBox(width: 8),
-
-        // 最大化按钮（仅在桌面布局中显示）
-        if (widget.onToggleMaximize != null) ...[
-          IconButton(
-            icon: Icon(
-              widget.isMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
-              size: 20,
-            ),
-            tooltip: widget.isMaximized
-                ? context.l10n.tooltip_restoreLayout
-                : context.l10n.tooltip_maximizePrompt,
-            onPressed: widget.onToggleMaximize,
-            style: IconButton.styleFrom(
-              backgroundColor: widget.isMaximized
-                  ? theme.colorScheme.primaryContainer
-                  : null,
-              foregroundColor: widget.isMaximized
-                  ? theme.colorScheme.onPrimaryContainer
-                  : null,
-            ),
-          ),
-          const SizedBox(width: 4),
-        ],
 
         // 使用共享的工具栏组件
         PromptEditorToolbar(
@@ -613,7 +583,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: InputDecoration(
         hintText: context.l10n.prompt_inputPrompt,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -791,6 +791,10 @@
   "qualityTags_label": "质量词",
   "qualityTags_disabled": "质量标签已关闭\n点击开启",
   "qualityTags_addToEnd": "添加到提示词末尾:",
+  "qualityTags_naiDefault": "NAI 默认",
+  "qualityTags_none": "无",
+  "qualityTags_addFromLibrary": "从词库添加",
+  "qualityTags_selectFromLibrary": "选择质量词条目",
 
   "ucPreset_label": "负面预设",
   "ucPreset_heavy": "重度",
@@ -801,6 +805,8 @@
   "ucPreset_disabled": "负面提示词预设已关闭",
   "ucPreset_addToNegative": "添加到负面提示词开头:",
   "ucPreset_nsfwHint": "💡 如需生成成人内容，请在正面提示词中添加 nsfw，负面提示词中的 nsfw 将自动移除",
+  "ucPreset_addFromLibrary": "从词库添加",
+  "ucPreset_selectFromLibrary": "选择负面词条目",
 
   "randomMode_enabledTip": "抽卡模式已开启\n每次生成后自动随机新提示词",
   "randomMode_disabledTip": "抽卡模式\n点击开启后每次生成自动随机提示词",
@@ -2474,6 +2480,11 @@
   "tagLibrary_categoryEmpty": "该分类暂无条目",
   "tagLibrary_empty": "词库为空",
   "tagLibrary_addFirstEntry": "点击上方按钮添加第一个条目",
+
+  "tagLibraryPicker_title": "选择词条",
+  "tagLibraryPicker_searchHint": "搜索词条...",
+  "tagLibraryPicker_allCategories": "全部分类",
+
   "tagLibrary_addToFixed": "添加到固定词",
   "tagLibrary_addedToFixed": "已添加到固定词",
   "tagLibrary_entryMoved": "条目已移动到目标分类",

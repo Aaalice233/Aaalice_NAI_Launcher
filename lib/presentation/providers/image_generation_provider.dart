@@ -358,6 +358,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final apiService = ref.read(naiImageGenerationApiServiceProvider);
     final batchSize = params.nSamples;
     final images = <Uint8List>[];
+    bool useNonStreamFallback = false; // 记录是否需要回退到非流式
 
     // 逐张生成以支持流式预览
     for (int i = 0; i < batchSize; i++) {
@@ -381,7 +382,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       Uint8List? image;
       for (int retry = 0; retry <= _maxRetries; retry++) {
         try {
+          // 如果已知流式不支持，直接使用非流式 API
+          if (useNonStreamFallback) {
+            final fallbackImages = await apiService.generateImageCancellable(
+              singleParams,
+              onProgress: (received, total) {},
+            );
+            if (fallbackImages.isNotEmpty) {
+              images.add(fallbackImages.first);
+              break;
+            }
+            continue;
+          }
+
           final stream = apiService.generateImageStream(singleParams);
+          bool streamingNotAllowed = false;
 
           await for (final chunk in stream) {
             if (_isCancelled) {
@@ -389,6 +404,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             }
 
             if (chunk.hasError) {
+              // 检测流式生成不被允许的错误，自动回退到非流式
+              final errorLower = chunk.error?.toLowerCase() ?? '';
+              if (errorLower.contains('streaming is not allowed') ||
+                  errorLower.contains('streaming not allowed') ||
+                  errorLower.contains('stream is not allowed') ||
+                  errorLower.contains('stream not allowed')) {
+                AppLogger.w(
+                  'Streaming not allowed for this model, falling back to non-stream API for batch',
+                  'Generation',
+                );
+                streamingNotAllowed = true;
+                useNonStreamFallback = true; // 后续所有图像都使用非流式
+                break;
+              }
               throw Exception(chunk.error);
             }
 
@@ -403,6 +432,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             if (chunk.isComplete && chunk.hasFinalImage) {
               image = chunk.finalImage;
             }
+          }
+
+          // 如果流式不支持，重新用非流式生成当前图像
+          if (streamingNotAllowed) {
+            final fallbackImages = await apiService.generateImageCancellable(
+              singleParams,
+              onProgress: (received, total) {},
+            );
+            if (fallbackImages.isNotEmpty) {
+              images.add(fallbackImages.first);
+              break;
+            }
+            continue;
           }
 
           if (image != null) {
@@ -422,6 +464,32 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         } catch (e) {
           if (_isCancelled || e.toString().contains('cancelled')) {
             return images;
+          }
+
+          // 检测流式生成不被允许的错误，自动回退到非流式
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('streaming is not allowed') ||
+              errorStr.contains('streaming not allowed') ||
+              errorStr.contains('stream is not allowed') ||
+              errorStr.contains('stream not allowed')) {
+            AppLogger.w(
+              'Streaming not allowed for this model (exception), falling back to non-stream API for batch',
+              'Generation',
+            );
+            useNonStreamFallback = true;
+            // 用非流式重新生成当前图像
+            try {
+              final fallbackImages = await apiService.generateImageCancellable(
+                singleParams,
+                onProgress: (received, total) {},
+              );
+              if (fallbackImages.isNotEmpty) {
+                images.add(fallbackImages.first);
+              }
+            } catch (fallbackError) {
+              AppLogger.e('非流式回退生成失败: $fallbackError');
+            }
+            break;
           }
 
           if (retry < _maxRetries) {
@@ -460,6 +528,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       final stream = apiService.generateImageStream(params);
 
       Uint8List? finalImage;
+      bool streamingNotAllowed = false;
 
       await for (final chunk in stream) {
         if (_isCancelled) {
@@ -474,6 +543,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
 
         if (chunk.hasError) {
+          // 检测流式生成不被允许的错误，自动回退到非流式
+          final errorLower = chunk.error?.toLowerCase() ?? '';
+          if (errorLower.contains('streaming is not allowed') ||
+              errorLower.contains('streaming not allowed') ||
+              errorLower.contains('stream is not allowed') ||
+              errorLower.contains('stream not allowed')) {
+            AppLogger.w(
+              'Streaming not allowed for this model, falling back to non-stream API',
+              'Generation',
+            );
+            streamingNotAllowed = true;
+            break;
+          }
           state = state.copyWith(
             status: GenerationStatus.error,
             errorMessage: chunk.error,
@@ -496,6 +578,25 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         if (chunk.isComplete && chunk.hasFinalImage) {
           finalImage = chunk.finalImage;
         }
+      }
+
+      // 如果流式不被支持，回退到非流式 API
+      if (streamingNotAllowed) {
+        final (images, vibeEncodings) = await _generateWithRetry(params);
+        state = state.copyWith(
+          status: GenerationStatus.completed,
+          currentImages: images,
+          history: [...images, ...state.history].take(50).toList(),
+          progress: 1.0,
+          currentImage: 0,
+          totalImages: 0,
+          clearStreamPreview: true,
+        );
+        // 保存 Vibe 编码哈希到状态
+        if (vibeEncodings.isNotEmpty) {
+          _saveVibeEncodings(vibeEncodings);
+        }
+        return;
       }
 
       if (finalImage != null) {
@@ -539,14 +640,51 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           clearStreamPreview: true,
         );
       } else {
-        state = state.copyWith(
-          status: GenerationStatus.error,
-          errorMessage: e.toString(),
-          progress: 0.0,
-          currentImage: 0,
-          totalImages: 0,
-          clearStreamPreview: true,
-        );
+        // 检测流式生成不被允许的错误，自动回退到非流式
+        final errorStr = e.toString().toLowerCase();
+        if (errorStr.contains('streaming is not allowed') ||
+            errorStr.contains('streaming not allowed') ||
+            errorStr.contains('stream is not allowed') ||
+            errorStr.contains('stream not allowed')) {
+          AppLogger.w(
+            'Streaming not allowed for this model (exception), falling back to non-stream API',
+            'Generation',
+          );
+          try {
+            final (images, vibeEncodings) = await _generateWithRetry(params);
+            state = state.copyWith(
+              status: GenerationStatus.completed,
+              currentImages: images,
+              history: [...images, ...state.history].take(50).toList(),
+              progress: 1.0,
+              currentImage: 0,
+              totalImages: 0,
+              clearStreamPreview: true,
+            );
+            if (vibeEncodings.isNotEmpty) {
+              _saveVibeEncodings(vibeEncodings);
+            }
+            return;
+          } catch (fallbackError) {
+            state = state.copyWith(
+              status: GenerationStatus.error,
+              errorMessage: fallbackError.toString(),
+              progress: 0.0,
+              currentImage: 0,
+              totalImages: 0,
+              clearStreamPreview: true,
+            );
+          }
+        } else {
+          state = state.copyWith(
+            status: GenerationStatus.error,
+            errorMessage: e.toString(),
+            progress: 0.0,
+            currentImage: 0,
+            totalImages: 0,
+            clearStreamPreview: true,
+          );
+        }
       }
     }
   }

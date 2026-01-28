@@ -1,14 +1,24 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/image_save_settings_provider.dart';
+import '../../themes/theme_extension.dart';
+import '../prompt/random_manager/components/pro_context_menu.dart';
 import 'app_toast.dart';
 
 /// 可选择的图像卡片组件
+///
+/// 支持：
+/// - 悬浮时显示操作按钮（保存、复制、放大）
+/// - 边缘发光效果
+/// - 光泽扫过动画（闪卡效果）
+/// - 悬浮时轻微放大和阴影增强
 class SelectableImageCard extends ConsumerStatefulWidget {
   final Uint8List imageBytes;
   final int? index;
@@ -17,6 +27,24 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final ValueChanged<bool>? onSelectionChanged;
   final VoidCallback? onFullscreen;
+
+  /// 是否启用右键菜单
+  final bool enableContextMenu;
+
+  /// 是否启用悬浮放大效果
+  final bool enableHoverScale;
+
+  /// 是否启用闪卡效果（边缘发光+光泽扫过）
+  final bool enableGlossEffect;
+
+  /// 是否启用选择框
+  final bool enableSelection;
+
+  /// 放大回调（用于单图显示放大按钮）
+  final VoidCallback? onUpscale;
+
+  /// 在文件夹中打开的回调（需要先保存图片）
+  final VoidCallback? onOpenInExplorer;
 
   const SelectableImageCard({
     super.key,
@@ -27,6 +55,12 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onTap,
     this.onSelectionChanged,
     this.onFullscreen,
+    this.enableContextMenu = true,
+    this.enableHoverScale = true,
+    this.enableGlossEffect = true,
+    this.enableSelection = true,
+    this.onUpscale,
+    this.onOpenInExplorer,
   });
 
   @override
@@ -34,52 +68,147 @@ class SelectableImageCard extends ConsumerStatefulWidget {
       _SelectableImageCardState();
 }
 
-class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
+class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
+    with SingleTickerProviderStateMixin {
   bool _isHovering = false;
+  late AnimationController _glossController;
+  late Animation<double> _glossAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _glossController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _glossAnimation = Tween<double>(begin: -1.5, end: 1.5).animate(
+      CurvedAnimation(parent: _glossController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _glossController.dispose();
+    super.dispose();
+  }
+
+  void _onHoverEnter() {
+    setState(() => _isHovering = true);
+    if (widget.enableGlossEffect) {
+      _glossController.forward(from: 0.0);
+    }
+  }
+
+  void _onHoverExit() {
+    setState(() => _isHovering = false);
+  }
+
+  /// 获取边缘发光颜色
+  Color _getGlowColor(BuildContext context) {
+    final theme = Theme.of(context);
+    final extension = theme.extension<AppThemeExtension>();
+    return extension?.glowColor ?? theme.colorScheme.primary;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final glowColor = _getGlowColor(context);
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => _onHoverEnter(),
+      onExit: (_) => _onHoverExit(),
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap ?? widget.onFullscreen,
+        onSecondaryTapDown: widget.enableContextMenu
+            ? (details) => _showContextMenu(context, details.globalPosition)
+            : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          transform: Matrix4.identity()
+            ..scale(widget.enableHoverScale && _isHovering ? 1.03 : 1.0),
+          transformAlignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: widget.isSelected
-                  ? theme.colorScheme.primary
-                  : (_isHovering
-                      ? theme.colorScheme.primary.withOpacity(0.5)
-                      : Colors.transparent),
-              width: widget.isSelected ? 2 : 1.5,
-            ),
+            borderRadius: BorderRadius.circular(12),
+            border: widget.isSelected
+                ? Border.all(color: theme.colorScheme.primary, width: 3)
+                : (_isHovering
+                    ? Border.all(
+                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        width: 2,
+                      )
+                    : null),
             boxShadow: [
+              // 主阴影
               BoxShadow(
                 color: widget.isSelected
                     ? theme.colorScheme.primary.withOpacity(0.3)
-                    : Colors.black.withOpacity(0.2),
-                blurRadius: widget.isSelected ? 12 : 6,
-                offset: const Offset(0, 2),
+                    : (_isHovering
+                        ? Colors.black.withOpacity(0.35)
+                        : Colors.black.withOpacity(0.12)),
+                blurRadius: widget.isSelected
+                    ? 16
+                    : (_isHovering ? 28 : 10),
+                offset: Offset(0, _isHovering ? 14 : 4),
+                spreadRadius: _isHovering ? 2 : 0,
               ),
+              // 次阴影（悬浮时增加深度感）
+              if (_isHovering)
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                  spreadRadius: -4,
+                ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(12),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // 图片
-                Image.memory(
-                  widget.imageBytes,
-                  fit: BoxFit.cover,
+                // 1. 图片层
+                RepaintBoundary(
+                  child: Image.memory(
+                    widget.imageBytes,
+                    fit: BoxFit.cover,
+                  ),
                 ),
 
-                // 悬浮/选中时的遮罩
+                // 2. 边缘发光效果（悬浮时）
+                if (_isHovering && widget.enableGlossEffect)
+                  Positioned.fill(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                      builder: (context, value, child) {
+                        return _EdgeGlowOverlay(
+                          glowColor: glowColor,
+                          intensity: value,
+                        );
+                      },
+                    ),
+                  ),
+
+                // 3. 光泽扫过效果（悬浮时）
+                if (_isHovering && widget.enableGlossEffect)
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: AnimatedBuilder(
+                        animation: _glossAnimation,
+                        builder: (context, child) {
+                          return _GlossOverlay(
+                            progress: _glossAnimation.value,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                // 4. 悬浮/选中时的渐变遮罩
                 if (_isHovering || widget.isSelected)
                   Container(
                     decoration: BoxDecoration(
@@ -94,27 +223,28 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
                     ),
                   ),
 
-                // 左上角：选择框（悬浮或选中时显示）
-                if (_isHovering || widget.isSelected)
+                // 5. 左上角：选择框（悬浮或选中时显示）
+                if (widget.enableSelection && (_isHovering || widget.isSelected))
                   Positioned(
-                    top: 4,
-                    left: 4,
+                    top: 8,
+                    left: 8,
                     child: _buildCheckbox(theme),
                   ),
 
-                // 右上角：操作按钮（选中时显示）
-                if (widget.isSelected || _isHovering)
+                // 6. 操作按钮（悬浮时显示）
+                if (_isHovering)
                   Positioned(
-                    top: 4,
-                    right: 4,
-                    child: _buildActionButtons(context, theme),
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    child: _buildHoverActionBar(context),
                   ),
 
-                // 左下角：序号
-                if (widget.showIndex && widget.index != null)
+                // 7. 左下角：序号
+                if (widget.showIndex && widget.index != null && !_isHovering)
                   Positioned(
-                    bottom: 4,
-                    left: 4,
+                    bottom: 8,
+                    left: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -134,9 +264,65 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
                       ),
                     ),
                   ),
+
+                // 8. 选中覆盖层
+                if (widget.isSelected)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// 悬浮时底部操作栏
+  Widget _buildHoverActionBar(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 保存按钮
+            _HoverActionButton(
+              icon: Icons.save_alt_rounded,
+              tooltip: context.l10n.image_save,
+              onTap: () => _saveImage(context),
+              isPrimary: true,
+            ),
+            const SizedBox(width: 8),
+            // 复制按钮
+            _HoverActionButton(
+              icon: Icons.copy_rounded,
+              tooltip: context.l10n.image_copy,
+              onTap: () => _copyImage(context),
+            ),
+            // 放大按钮（可选）
+            if (widget.onUpscale != null) ...[
+              const SizedBox(width: 8),
+              _HoverActionButton(
+                icon: Icons.zoom_out_map_rounded,
+                tooltip: context.l10n.image_upscale,
+                onTap: widget.onUpscale,
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -149,44 +335,32 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        width: 24,
-        height: 24,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
           color: widget.isSelected ? theme.colorScheme.primary : Colors.black45,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color:
                 widget.isSelected ? theme.colorScheme.primary : Colors.white70,
-            width: 1.5,
+            width: 2,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: widget.isSelected
-            ? const Icon(
+            ? Icon(
                 Icons.check,
-                color: Colors.white,
-                size: 16,
+                color: theme.colorScheme.onPrimary,
+                size: 18,
               )
             : null,
       ),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context, ThemeData theme) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _ActionButton(
-          icon: Icons.save_alt,
-          tooltip: '保存',
-          onTap: () => _saveImage(context),
-        ),
-        const SizedBox(width: 4),
-        _ActionButton(
-          icon: Icons.copy,
-          tooltip: '复制',
-          onTap: () => _copyImage(context),
-        ),
-      ],
     );
   }
 
@@ -246,40 +420,378 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard> {
       }
     }
   }
+
+  /// 显示右键菜单
+  void _showContextMenu(BuildContext context, Offset position) {
+    final items = <ProMenuItem>[
+      ProMenuItem(
+        id: 'save',
+        label: '保存图片',
+        icon: Icons.save_alt,
+        onTap: () => _saveImage(context),
+      ),
+      ProMenuItem(
+        id: 'copy',
+        label: '复制图片',
+        icon: Icons.copy,
+        onTap: () => _copyImage(context),
+      ),
+      if (widget.onOpenInExplorer != null) ...[
+        const ProMenuItem.divider(),
+        ProMenuItem(
+          id: 'open_folder',
+          label: '在文件夹中打开',
+          icon: Icons.folder_open,
+          onTap: widget.onOpenInExplorer!,
+        ),
+      ],
+    ];
+
+    Navigator.of(context).push(
+      _ContextMenuRoute(
+        position: position,
+        items: items,
+        onSelect: (item) {},
+      ),
+    );
+  }
 }
 
-/// 小型操作按钮
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
+/// 右键菜单路由
+class _ContextMenuRoute extends PopupRoute {
+  final Offset position;
+  final List<ProMenuItem> items;
+  final void Function(ProMenuItem) onSelect;
 
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
+  _ContextMenuRoute({
+    required this.position,
+    required this.items,
+    required this.onSelect,
   });
 
   @override
+  Color? get barrierColor => null;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  String? get barrierLabel => null;
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      removeLeft: true,
+      removeRight: true,
+      removeBottom: true,
+      child: Builder(
+        builder: (context) {
+          final screenSize = MediaQuery.of(context).size;
+          const menuWidth = 180.0;
+          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
+              items.where((i) => i.isDivider).length * 1.0;
+
+          double left = position.dx;
+          double top = position.dy;
+
+          if (left + menuWidth > screenSize.width) {
+            left = screenSize.width - menuWidth - 16;
+          }
+
+          if (top + menuHeight > screenSize.height) {
+            top = screenSize.height - menuHeight - 16;
+          }
+
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => Navigator.of(context).pop(),
+            child: Stack(
+              children: [
+                ProContextMenu(
+                  position: Offset(left, top),
+                  items: items,
+                  onSelect: (item) {
+                    onSelect(item);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 200);
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: animation,
+      child: ScaleTransition(
+        scale: CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// 悬浮操作按钮
+class _HoverActionButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final bool isPrimary;
+
+  const _HoverActionButton({
+    required this.icon,
+    required this.tooltip,
+    this.onTap,
+    this.isPrimary = false,
+  });
+
+  @override
+  State<_HoverActionButton> createState() => _HoverActionButtonState();
+}
+
+class _HoverActionButtonState extends State<_HoverActionButton> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.black54,
-        borderRadius: BorderRadius.circular(4),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            padding: const EdgeInsets.all(4),
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Tooltip(
+        message: widget.tooltip,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: widget.isPrimary
+                  ? (_isHovered ? primaryColor : primaryColor.withOpacity(0.9))
+                  : (_isHovered
+                      ? Colors.white.withOpacity(0.2)
+                      : Colors.transparent),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Icon(
-              icon,
-              color: Colors.white,
-              size: 16,
+              widget.icon,
+              size: 20,
+              color: widget.isPrimary
+                  ? Colors.white
+                  : (_isHovered ? Colors.white : Colors.white.withOpacity(0.8)),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// 边缘发光效果覆盖层
+class _EdgeGlowOverlay extends StatelessWidget {
+  final Color glowColor;
+  final double intensity;
+
+  const _EdgeGlowOverlay({
+    required this.glowColor,
+    this.intensity = 1.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _EdgeGlowPainter(
+          glowColor: glowColor,
+          intensity: intensity,
+        ),
+      ),
+    );
+  }
+}
+
+/// 边缘发光绘制器
+class _EdgeGlowPainter extends CustomPainter {
+  final Color glowColor;
+  final double intensity;
+
+  _EdgeGlowPainter({
+    required this.glowColor,
+    required this.intensity,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
+
+    // 多层内发光效果
+    for (int i = 0; i < 3; i++) {
+      final inset = (i + 1) * 1.5;
+      final innerRect = rect.deflate(inset);
+      final innerRRect = RRect.fromRectAndRadius(
+        innerRect,
+        Radius.circular(math.max(0, 12 - inset)),
+      );
+
+      final opacity = 0.12 * intensity * (3 - i) / 3;
+      final blurAmount = (3 - i) * 2.0;
+
+      final paint = Paint()
+        ..color = glowColor.withOpacity(opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurAmount);
+
+      canvas.drawRRect(innerRRect, paint);
+    }
+
+    // 外部高光边框
+    final borderPaint = Paint()
+      ..color = glowColor.withOpacity(0.25 * intensity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.0);
+
+    canvas.drawRRect(rrect, borderPaint);
+
+    // 角落高光点
+    _drawCornerHighlights(canvas, size, glowColor, intensity);
+  }
+
+  void _drawCornerHighlights(
+    Canvas canvas,
+    Size size,
+    Color color,
+    double intensity,
+  ) {
+    final highlightPaint = Paint()
+      ..color = color.withOpacity(0.3 * intensity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+
+    const radius = 3.0;
+    const offset = 16.0;
+
+    final corners = [
+      const Offset(offset, offset),
+      Offset(size.width - offset, offset),
+      Offset(offset, size.height - offset),
+      Offset(size.width - offset, size.height - offset),
+    ];
+
+    for (final corner in corners) {
+      canvas.drawCircle(corner, radius, highlightPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EdgeGlowPainter oldDelegate) {
+    return oldDelegate.glowColor != glowColor ||
+        oldDelegate.intensity != intensity;
+  }
+}
+
+/// 光泽扫过效果覆盖层
+class _GlossOverlay extends StatelessWidget {
+  final double progress;
+
+  const _GlossOverlay({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _GlossPainter(progress: progress),
+      ),
+    );
+  }
+}
+
+/// 光泽绘制器
+class _GlossPainter extends CustomPainter {
+  final double progress;
+
+  _GlossPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 主光泽层 - 白色高光
+    final mainPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.transparent,
+          Colors.white.withOpacity(0.06),
+          Colors.white.withOpacity(0.15),
+          Colors.white.withOpacity(0.06),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+      ).createShader(
+        Rect.fromLTWH(
+          size.width * progress - size.width * 0.5,
+          size.height * progress - size.height * 0.5,
+          size.width,
+          size.height,
+        ),
+      );
+
+    canvas.drawRect(Offset.zero & size, mainPaint);
+
+    // 珠光层 - 微妙的彩色光泽
+    final pearlPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.transparent,
+          const Color(0xFFB8E6F5).withOpacity(0.03), // 浅青色
+          const Color(0xFFFFF5E1).withOpacity(0.05), // 浅金色
+          const Color(0xFFE6B8F5).withOpacity(0.03), // 浅紫色
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+      ).createShader(
+        Rect.fromLTWH(
+          size.width * progress - size.width * 0.6,
+          size.height * progress - size.height * 0.6,
+          size.width * 1.2,
+          size.height * 1.2,
+        ),
+      )
+      ..blendMode = BlendMode.screen;
+
+    canvas.drawRect(Offset.zero & size, pearlPaint);
+  }
+
+  @override
+  bool shouldRepaint(_GlossPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

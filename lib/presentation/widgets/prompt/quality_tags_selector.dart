@@ -5,56 +5,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
-import '../../providers/uc_preset_provider.dart';
+import '../../providers/quality_preset_provider.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 
-/// UC 预设选择器组件
+/// 质量词选择器组件
 ///
-/// 支持 NAI 预设类型和从词库添加自定义条目
-class UcPresetSelector extends ConsumerStatefulWidget {
+/// 显示下拉菜单，支持选择 NAI 默认、无、或从词库添加自定义质量词
+class QualityTagsSelector extends ConsumerStatefulWidget {
   /// 当前选择的模型
   final String model;
 
-  const UcPresetSelector({
+  const QualityTagsSelector({
     super.key,
     required this.model,
   });
 
   @override
-  ConsumerState<UcPresetSelector> createState() => _UcPresetSelectorState();
+  ConsumerState<QualityTagsSelector> createState() =>
+      _QualityTagsSelectorState();
 }
 
-class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
+class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
   bool _isHovering = false;
+  final _layerLink = LayerLink();
   final _buttonKey = GlobalKey();
+  OverlayEntry? _previewOverlay;
 
-  String _getPresetDisplayName(BuildContext context, UcPresetType type) {
-    switch (type) {
-      case UcPresetType.heavy:
-        return context.l10n.ucPreset_heavy;
-      case UcPresetType.light:
-        return context.l10n.ucPreset_light;
-      case UcPresetType.furryFocus:
-        return context.l10n.ucPreset_furryFocus;
-      case UcPresetType.humanFocus:
-        return context.l10n.ucPreset_humanFocus;
-      case UcPresetType.none:
-        return context.l10n.ucPreset_none;
-    }
+  @override
+  void dispose() {
+    _hidePreviewOverlay();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final presetState = ref.watch(ucPresetNotifierProvider);
-    final customEntry = ref.watch(currentUcEntryProvider);
-
-    // 获取实际内容用于 Tooltip 显示
-    final effectiveContent = ref
-        .read(ucPresetNotifierProvider.notifier)
-        .getEffectiveContent(widget.model);
-    final isEnabled = !presetState.isDisabled;
+    final presetState = ref.watch(qualityPresetNotifierProvider);
+    final customEntry = ref.watch(currentQualityEntryProvider);
+    final isEnabled = presetState.mode != PromptPresetMode.none;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -63,14 +53,8 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       child: Tooltip(
         richMessage: WidgetSpan(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: _buildTooltipWidget(
-              theme,
-              effectiveContent,
-              isEnabled,
-              presetState.isCustom,
-              customEntry,
-            ),
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: _buildTooltipContent(theme, presetState, customEntry),
           ),
         ),
         preferBelow: true,
@@ -90,55 +74,60 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
         padding: const EdgeInsets.all(12),
         child: GestureDetector(
           onTap: () => _showMenu(context, presetState, customEntry),
-          child: AnimatedContainer(
+          child: CompositedTransformTarget(
             key: _buttonKey,
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isEnabled
-                  ? (_isHovering
-                      ? Colors.red.withOpacity(0.2)
-                      : Colors.red.withOpacity(0.1))
-                  : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.transparent),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
+            link: _layerLink,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
                 color: isEnabled
-                    ? Colors.red.withOpacity(0.3)
-                    : Colors.transparent,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isEnabled ? Icons.block : Icons.block_outlined,
-                  size: 14,
+                    ? (_isHovering
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.green.withOpacity(0.1))
+                    : (_isHovering
+                        ? theme.colorScheme.surfaceContainerHighest
+                        : Colors.transparent),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
                   color: isEnabled
-                      ? Colors.red.shade700
-                      : theme.colorScheme.onSurface.withOpacity(0.5),
+                      ? Colors.green.withOpacity(0.3)
+                      : Colors.transparent,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  _getDisplayLabel(context, presetState, customEntry),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isEnabled
+                        ? Icons.auto_awesome
+                        : Icons.auto_awesome_outlined,
+                    size: 14,
                     color: isEnabled
-                        ? Colors.red.shade700
+                        ? Colors.green.shade700
                         : theme.colorScheme.onSurface.withOpacity(0.5),
                   ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.arrow_drop_down,
-                  size: 14,
-                  color: isEnabled
-                      ? Colors.red.shade700
-                      : theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    _getDisplayLabel(context, presetState, customEntry),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
+                      color: isEnabled
+                          ? Colors.green.shade700
+                          : theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 14,
+                    color: isEnabled
+                        ? Colors.green.shade700
+                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -148,7 +137,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
 
   Future<void> _showMenu(
     BuildContext context,
-    UcPresetState presetState,
+    QualityPresetState presetState,
     TagLibraryEntry? customEntry,
   ) async {
     final RenderBox button =
@@ -180,47 +169,81 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
 
   String _getDisplayLabel(
     BuildContext context,
-    UcPresetState state,
+    QualityPresetState state,
     TagLibraryEntry? customEntry,
   ) {
-    if (state.isCustom && customEntry != null) {
-      final name = customEntry.displayName;
-      return name.length > 8 ? '${name.substring(0, 8)}...' : name;
+    switch (state.mode) {
+      case PromptPresetMode.naiDefault:
+        return context.l10n.qualityTags_label;
+      case PromptPresetMode.none:
+        return context.l10n.qualityTags_none;
+      case PromptPresetMode.custom:
+        if (customEntry != null) {
+          // 截断名称
+          final name = customEntry.displayName;
+          return name.length > 8 ? '${name.substring(0, 8)}...' : name;
+        }
+        return context.l10n.qualityTags_label;
     }
-    return _getPresetDisplayName(context, state.presetType);
   }
 
   List<PopupMenuEntry<String>> _buildMenuItems(
     BuildContext context,
-    UcPresetState state,
+    QualityPresetState state,
     TagLibraryEntry? customEntry,
   ) {
     final theme = Theme.of(context);
     final items = <PopupMenuEntry<String>>[];
 
-    // NAI 预设选项
-    for (final type in UcPresetType.values) {
-      final isSelected = !state.isCustom && state.presetType == type;
-      items.add(PopupMenuItem<String>(
-        value: 'preset_${type.index}',
-        child: Row(
-          children: [
-            if (isSelected)
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-            else
-              const SizedBox(width: 16),
-            const SizedBox(width: 8),
-            Text(
-              _getPresetDisplayName(context, type),
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? theme.colorScheme.primary : null,
-              ),
+    // NAI 默认
+    items.add(PopupMenuItem<String>(
+      value: 'nai_default',
+      child: Row(
+        children: [
+          if (state.mode == PromptPresetMode.naiDefault)
+            Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+          else
+            const SizedBox(width: 16),
+          const SizedBox(width: 8),
+          Text(
+            context.l10n.qualityTags_naiDefault,
+            style: TextStyle(
+              fontWeight: state.mode == PromptPresetMode.naiDefault
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+              color: state.mode == PromptPresetMode.naiDefault
+                  ? theme.colorScheme.primary
+                  : null,
             ),
-          ],
-        ),
-      ));
-    }
+          ),
+        ],
+      ),
+    ));
+
+    // 无
+    items.add(PopupMenuItem<String>(
+      value: 'none',
+      child: Row(
+        children: [
+          if (state.mode == PromptPresetMode.none)
+            Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+          else
+            const SizedBox(width: 16),
+          const SizedBox(width: 8),
+          Text(
+            context.l10n.qualityTags_none,
+            style: TextStyle(
+              fontWeight: state.mode == PromptPresetMode.none
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+              color: state.mode == PromptPresetMode.none
+                  ? theme.colorScheme.primary
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    ));
 
     // 分隔线
     items.add(const PopupMenuDivider());
@@ -233,7 +256,7 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
           Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Text(
-            context.l10n.ucPreset_addFromLibrary,
+            context.l10n.qualityTags_addFromLibrary,
             style: TextStyle(
               color: theme.colorScheme.primary,
             ),
@@ -247,9 +270,9 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       items.add(const PopupMenuDivider());
       items.add(_CustomEntryMenuItem(
         entry: customEntry,
-        isSelected: state.isCustom,
+        isSelected: state.mode == PromptPresetMode.custom,
         onDelete: () {
-          ref.read(ucPresetNotifierProvider.notifier).removeCustomEntry();
+          ref.read(qualityPresetNotifierProvider.notifier).removeCustomEntry();
           Navigator.of(context).pop();
         },
       ));
@@ -259,18 +282,24 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
   }
 
   void _onMenuItemSelected(String value) {
-    if (value.startsWith('preset_')) {
-      final index = int.tryParse(value.substring(7));
-      if (index != null && index < UcPresetType.values.length) {
-        ref
-            .read(ucPresetNotifierProvider.notifier)
-            .setPresetType(UcPresetType.values[index]);
-      }
-    } else if (value == 'add_from_library') {
-      _showTagLibraryPicker();
-    } else if (value.startsWith('custom_')) {
-      final entryId = value.substring(7);
-      ref.read(ucPresetNotifierProvider.notifier).setCustomEntry(entryId);
+    switch (value) {
+      case 'nai_default':
+        ref.read(qualityPresetNotifierProvider.notifier).setNaiDefault();
+        break;
+      case 'none':
+        ref.read(qualityPresetNotifierProvider.notifier).setNone();
+        break;
+      case 'add_from_library':
+        _showTagLibraryPicker();
+        break;
+      default:
+        // 选择自定义条目
+        if (value.startsWith('custom_')) {
+          final entryId = value.substring(7);
+          ref
+              .read(qualityPresetNotifierProvider.notifier)
+              .setCustomEntry(entryId);
+        }
     }
   }
 
@@ -278,24 +307,22 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     final entry = await showDialog<TagLibraryEntry>(
       context: context,
       builder: (context) => TagLibraryPickerDialog(
-        title: context.l10n.ucPreset_selectFromLibrary,
+        title: context.l10n.qualityTags_selectFromLibrary,
       ),
     );
     if (entry != null) {
-      ref.read(ucPresetNotifierProvider.notifier).setCustomEntry(entry.id);
+      ref.read(qualityPresetNotifierProvider.notifier).setCustomEntry(entry.id);
     }
   }
 
-  Widget _buildTooltipWidget(
+  Widget _buildTooltipContent(
     ThemeData theme,
-    String? presetContent,
-    bool isEnabled,
-    bool isCustom,
+    QualityPresetState state,
     TagLibraryEntry? customEntry,
   ) {
-    if (!isEnabled && !isCustom) {
+    if (state.mode == PromptPresetMode.none) {
       return Text(
-        context.l10n.ucPreset_disabled,
+        context.l10n.qualityTags_disabled,
         style: TextStyle(
           color: theme.colorScheme.onSurface,
           fontSize: 12,
@@ -303,17 +330,20 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
       );
     }
 
-    final content = presetContent ?? '';
-
-    // 检查预设内容是否包含 nsfw
-    final hasNsfw = content.toLowerCase().contains('nsfw');
+    String content;
+    if (state.mode == PromptPresetMode.custom && customEntry != null) {
+      content = customEntry.content;
+    } else {
+      content = QualityTags.getQualityTags(widget.model) ??
+          'very aesthetic, masterpiece, no text';
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.l10n.ucPreset_addToNegative,
+          context.l10n.qualityTags_addToEnd,
           style: TextStyle(
             color: theme.colorScheme.onSurface.withOpacity(0.7),
             fontSize: 11,
@@ -321,35 +351,19 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
         ),
         const SizedBox(height: 4),
         Text(
-          content,
+          ', $content',
           style: TextStyle(
-            color: theme.colorScheme.secondary,
+            color: Colors.green.shade700,
             fontSize: 11,
           ),
         ),
-        // 如果包含 nsfw，显示提示信息
-        if (hasNsfw && !isCustom) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: theme.colorScheme.primary.withOpacity(0.3),
-              ),
-            ),
-            child: Text(
-              context.l10n.ucPreset_nsfwHint,
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
       ],
     );
+  }
+
+  void _hidePreviewOverlay() {
+    _previewOverlay?.remove();
+    _previewOverlay = null;
   }
 }
 

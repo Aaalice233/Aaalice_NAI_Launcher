@@ -207,6 +207,46 @@ class LocalStorageService {
     await setSetting(StorageKeys.ucPresetType, value);
   }
 
+  /// 获取 UC 预设自定义条目 ID
+  String? getUcPresetCustomId() {
+    return getSetting<String>(StorageKeys.ucPresetCustomId);
+  }
+
+  /// 保存 UC 预设自定义条目 ID
+  Future<void> setUcPresetCustomId(String? value) async {
+    if (value != null) {
+      await setSetting(StorageKeys.ucPresetCustomId, value);
+    } else {
+      await deleteSetting(StorageKeys.ucPresetCustomId);
+    }
+  }
+
+  // ==================== Quality Preset (新版) ====================
+
+  /// 获取质量词预设模式 (默认 0 = naiDefault)
+  int getQualityPresetMode() {
+    return getSetting<int>(StorageKeys.qualityPresetMode, defaultValue: 0) ?? 0;
+  }
+
+  /// 保存质量词预设模式
+  Future<void> setQualityPresetMode(int value) async {
+    await setSetting(StorageKeys.qualityPresetMode, value);
+  }
+
+  /// 获取质量词预设自定义条目 ID
+  String? getQualityPresetCustomId() {
+    return getSetting<String>(StorageKeys.qualityPresetCustomId);
+  }
+
+  /// 保存质量词预设自定义条目 ID
+  Future<void> setQualityPresetCustomId(String? value) async {
+    if (value != null) {
+      await setSetting(StorageKeys.qualityPresetCustomId, value);
+    } else {
+      await deleteSetting(StorageKeys.qualityPresetCustomId);
+    }
+  }
+
   // ==================== Random Prompt Mode ====================
 
   /// 获取抽卡模式 (默认关闭)

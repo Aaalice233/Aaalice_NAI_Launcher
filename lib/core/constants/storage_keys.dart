@@ -61,6 +61,13 @@ class StorageKeys {
   static const String autoSaveImages = 'auto_save_images';
   static const String addQualityTags = 'add_quality_tags';
   static const String ucPresetType = 'uc_preset_type';
+
+  // 质量词预设（新版）
+  static const String qualityPresetMode = 'quality_preset_mode';
+  static const String qualityPresetCustomId = 'quality_preset_custom_id';
+
+  // 负面词自定义条目
+  static const String ucPresetCustomId = 'uc_preset_custom_id';
   static const String randomPromptMode = 'random_prompt_mode';
   static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';

@@ -1110,6 +1110,10 @@
   "qualityTags_label": "Quality",
   "qualityTags_disabled": "Quality tags disabled\nClick to enable",
   "qualityTags_addToEnd": "Add to prompt end:",
+  "qualityTags_naiDefault": "NAI Default",
+  "qualityTags_none": "None",
+  "qualityTags_addFromLibrary": "Add from Library",
+  "qualityTags_selectFromLibrary": "Select Quality Tag Entry",
 
   "ucPreset_label": "UC Preset",
   "ucPreset_heavy": "Heavy",
@@ -1120,6 +1124,8 @@
   "ucPreset_disabled": "Undesired content preset disabled",
   "ucPreset_addToNegative": "Add to negative prompt:",
   "ucPreset_nsfwHint": "💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt",
+  "ucPreset_addFromLibrary": "Add from Library",
+  "ucPreset_selectFromLibrary": "Select UC Entry",
 
   "randomMode_enabledTip": "Random mode enabled\nAuto-randomize prompt after each generation",
   "randomMode_disabledTip": "Random mode\nClick to auto-randomize prompts on generation",
@@ -2800,6 +2806,11 @@
   "tagLibrary_categoryEmpty": "This category is empty",
   "tagLibrary_empty": "Library is empty",
   "tagLibrary_addFirstEntry": "Click the button above to add your first entry",
+
+  "tagLibraryPicker_title": "Select Entry",
+  "tagLibraryPicker_searchHint": "Search entries...",
+  "tagLibraryPicker_allCategories": "All Categories",
+
   "tagLibrary_addToFixed": "Add to Fixed Tags",
   "tagLibrary_addedToFixed": "Added to Fixed Tags",
   "tagLibrary_entryMoved": "Entry moved to target category",

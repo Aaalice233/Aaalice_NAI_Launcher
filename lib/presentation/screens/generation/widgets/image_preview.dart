@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
@@ -26,34 +25,10 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 }
 
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
-  Set<int> _selectedIndices = {};
-  int _lastImageCount = 0;
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
     final theme = Theme.of(context);
-
-    // 当图片数量变化时，自动全选新增的图片
-    if (state.currentImages.length > _lastImageCount) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          // 全选所有图片
-          _selectedIndices = Set.from(
-            List.generate(state.currentImages.length, (i) => i),
-          );
-          _lastImageCount = state.currentImages.length;
-        });
-      });
-    } else if (state.currentImages.isEmpty && _lastImageCount > 0) {
-      // 清空时重置
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _selectedIndices = {};
-          _lastImageCount = 0;
-        });
-      });
-    }
 
     // 使用 GestureDetector 吸收整个区域的点击事件，避免 Windows 系统提示音
     return GestureDetector(
@@ -79,10 +54,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       return _buildErrorState(theme, state.errorMessage, context);
     }
 
-    // 单抽生成中：居中显示生成卡片
-    if (state.isGenerating &&
-        state.totalImages == 1 &&
-        state.currentImages.isEmpty) {
+    // 生成中：显示生成卡片
+    if (state.isGenerating && state.currentImages.isEmpty) {
       final params = ref.watch(generationParamsNotifierProvider);
       return _buildSingleGeneratingState(
         context,
@@ -93,20 +66,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       );
     }
 
-    // 多张图片生成中或已完成多张：显示网格视图
-    if (state.isGenerating || state.currentImages.length > 1) {
-      final params = ref.watch(generationParamsNotifierProvider);
-      return _buildMultiImageView(
-        context,
-        ref,
-        state,
-        theme,
-        params.width,
-        params.height,
-      );
-    }
-
-    // 单张图片完成
+    // 有图像：显示最新一张（固定单图显示，历史在队列中）
     if (state.hasImages) {
       return _buildImageView(context, ref, state.currentImages.first, theme);
     }
@@ -115,7 +75,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     return _buildEmptyState(theme, context);
   }
 
-  /// 单抽生成中的居中显示
+  /// 生成中的居中显示
   Widget _buildSingleGeneratingState(
     BuildContext context,
     ImageGenerationState state,
@@ -140,167 +100,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         ),
       ),
     );
-  }
-
-  /// 构建多图网格视图（包含生成中的卡片）
-  Widget _buildMultiImageView(
-    BuildContext context,
-    WidgetRef ref,
-    ImageGenerationState state,
-    ThemeData theme,
-    int imageWidth,
-    int imageHeight,
-  ) {
-    final images = state.currentImages;
-    final isGenerating = state.isGenerating;
-    final totalItems = isGenerating ? images.length + 1 : images.length;
-
-    return Column(
-      children: [
-        // 图片网格
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // 根据容器大小计算列数
-              final crossAxisCount = constraints.maxWidth > 800
-                  ? 4
-                  : constraints.maxWidth > 500
-                      ? 3
-                      : 2;
-
-              return GridView.builder(
-                padding: const EdgeInsets.all(8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: imageWidth / imageHeight,
-                ),
-                itemCount: totalItems,
-                itemBuilder: (context, index) {
-                  // 最后一个是生成中卡片
-                  if (isGenerating && index == images.length) {
-                    return _GeneratingImageCard(
-                      currentImage: state.currentImage,
-                      totalImages: state.totalImages,
-                      progress: state.progress,
-                      imageWidth: imageWidth,
-                      imageHeight: imageHeight,
-                      theme: theme,
-                      streamPreview: state.streamPreview,
-                    );
-                  }
-
-                  // 已生成的图片（使用可选择的卡片）
-                  return SelectableImageCard(
-                    imageBytes: images[index],
-                    index: index,
-                    isSelected: _selectedIndices.contains(index),
-                    onSelectionChanged: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedIndices.add(index);
-                        } else {
-                          _selectedIndices.remove(index);
-                        }
-                      });
-                    },
-                    onFullscreen: () =>
-                        _showFullscreenImage(context, images[index]),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-
-        // 底部操作栏（仅当有选中图片时显示）
-        if (_selectedIndices.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _buildMultiImageActions(context, ref, images, theme),
-        ],
-      ],
-    );
-  }
-
-  /// 构建多图操作栏
-  Widget _buildMultiImageActions(
-    BuildContext context,
-    WidgetRef ref,
-    List<Uint8List> images,
-    ThemeData theme,
-  ) {
-    final selectedCount = _selectedIndices.length;
-    final allSelected = selectedCount == images.length;
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        // 全选/取消全选按钮
-        OutlinedButton.icon(
-          onPressed: () {
-            setState(() {
-              if (allSelected) {
-                _selectedIndices.clear();
-              } else {
-                _selectedIndices = Set.from(
-                  List.generate(images.length, (i) => i),
-                );
-              }
-            });
-          },
-          icon: Icon(
-            allSelected ? Icons.deselect : Icons.select_all,
-            size: 20,
-          ),
-          label: Text(
-            allSelected
-                ? context.l10n.common_deselectAll
-                : context.l10n.common_selectAll,
-          ),
-        ),
-        // 保存选中按钮
-        FilledButton.icon(
-          onPressed: () => _saveSelectedImages(context, images),
-          icon: const Icon(Icons.save_alt, size: 20),
-          label: Text('${context.l10n.image_save} ($selectedCount)'),
-        ),
-      ],
-    );
-  }
-
-  /// 保存选中的图片
-  Future<void> _saveSelectedImages(
-    BuildContext context,
-    List<Uint8List> images,
-  ) async {
-    if (_selectedIndices.isEmpty) return;
-
-    try {
-      final saveDir = await _getSaveDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-      final sortedIndices = _selectedIndices.toList()..sort();
-      for (int i = 0; i < sortedIndices.length; i++) {
-        final index = sortedIndices[i];
-        final fileName = 'NAI_${timestamp}_${i + 1}.png';
-        final file = File('${saveDir.path}/$fileName');
-        await file.writeAsBytes(images[index]);
-      }
-
-      // 通知本地画廊刷新
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
-    }
   }
 
   Widget _buildEmptyState(ThemeData theme, BuildContext context) {
@@ -446,226 +245,25 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     Uint8List imageBytes,
     ThemeData theme,
   ) {
-    return Column(
-      children: [
-        // 图像显示
-        Expanded(
-          child: GestureDetector(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 500,
+          maxHeight: 650,
+        ),
+        child: AspectRatio(
+          aspectRatio: ref.watch(generationParamsNotifierProvider).width /
+              ref.watch(generationParamsNotifierProvider).height,
+          child: SelectableImageCard(
+            imageBytes: imageBytes,
+            showIndex: false,
+            enableSelection: false,
             onTap: () => _showFullscreenImage(context, imageBytes),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.memory(
-                  imageBytes,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
+            onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
           ),
         ),
-
-        // 操作按钮
-        const SizedBox(height: 12),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            // 保存按钮
-            FilledButton.icon(
-              onPressed: () => _saveImage(context, imageBytes),
-              icon: const Icon(Icons.save_alt, size: 20),
-              label: Text(context.l10n.image_save),
-            ),
-            // 复制按钮
-            OutlinedButton.icon(
-              onPressed: () => _copyImage(context, imageBytes),
-              icon: const Icon(Icons.copy, size: 20),
-              label: Text(context.l10n.image_copy),
-            ),
-            // 放大按钮
-            OutlinedButton.icon(
-              onPressed: () => UpscaleDialog.show(context, image: imageBytes),
-              icon: const Icon(Icons.zoom_out_map, size: 20),
-              label: Text(context.l10n.image_upscale),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
-  }
-
-  /// 获取保存目录（统一使用 LocalGalleryRepository）
-  Future<Directory> _getSaveDirectory() async {
-    // 使用 LocalGalleryRepository 获取保存目录，保证路径一致性
-    final dir = await LocalGalleryRepository.instance.getImageDirectory();
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
-  }
-
-  /// 保存图片到文件
-  Future<void> _saveImage(BuildContext context, Uint8List imageBytes) async {
-    try {
-      final saveDir = await _getSaveDirectory();
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
-
-      // 获取当前生成参数
-      final params = ref.read(generationParamsNotifierProvider);
-      final characterConfig = ref.read(characterPromptNotifierProvider);
-
-      // 尝试从 API 返回的图片中提取实际使用的 seed
-      int actualSeed = params.seed;
-      if (actualSeed == -1) {
-        // 尝试从图片元数据中提取实际的 seed
-        final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(imageBytes);
-        if (extractedMeta != null &&
-            extractedMeta.seed != null &&
-            extractedMeta.seed! > 0) {
-          actualSeed = extractedMeta.seed!;
-        } else {
-          // 如果无法提取，生成随机种子
-          actualSeed = Random().nextInt(4294967295);
-        }
-      }
-
-      // 构建 V4 多角色提示词结构
-      final charCaptions = <Map<String, dynamic>>[];
-      final charNegCaptions = <Map<String, dynamic>>[];
-
-      for (final char in characterConfig.characters
-          .where((c) => c.enabled && c.prompt.isNotEmpty)) {
-        charCaptions.add({
-          'char_caption': char.prompt,
-          'centers': [
-            {'x': 0.5, 'y': 0.5},
-          ],
-        });
-        charNegCaptions.add({
-          'char_caption': char.negativePrompt,
-          'centers': [
-            {'x': 0.5, 'y': 0.5},
-          ],
-        });
-      }
-
-      // 构造 NAI Comment 格式的元数据 JSON（与官网格式完全对齐）
-      final commentJson = <String, dynamic>{
-        'prompt': params.prompt,
-        'uc': params.negativePrompt,
-        'seed': actualSeed,
-        'steps': params.steps,
-        'width': params.width,
-        'height': params.height,
-        'scale': params.scale,
-        'uncond_scale': 0.0,
-        'cfg_rescale': params.cfgRescale,
-        'n_samples': 1,
-        'noise_schedule': params.noiseSchedule,
-        'sampler': params.sampler,
-        'sm': params.smea,
-        'sm_dyn': params.smeaDyn,
-      };
-
-      // 如果有角色提示词，添加 V4 格式
-      if (charCaptions.isNotEmpty) {
-        commentJson['v4_prompt'] = {
-          'caption': {
-            'base_caption': params.prompt,
-            'char_captions': charCaptions,
-          },
-          'use_coords': !characterConfig.globalAiChoice,
-          'use_order': true,
-        };
-        commentJson['v4_negative_prompt'] = {
-          'caption': {
-            'base_caption': params.negativePrompt,
-            'char_captions': charNegCaptions,
-          },
-          'use_coords': false,
-          'use_order': false,
-        };
-      }
-
-      // 构造完整的官网格式元数据
-      final metadata = {
-        'Description': params.prompt,
-        'Software': 'NovelAI',
-        'Source': _getModelSourceName(params.model),
-        'Comment': jsonEncode(commentJson),
-      };
-
-      // 嵌入元数据
-      final embeddedBytes = await NaiMetadataParser.embedMetadata(
-        imageBytes,
-        jsonEncode(metadata),
-      );
-
-      await file.writeAsBytes(embeddedBytes);
-
-      // 通知本地画廊刷新
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
-    }
-  }
-
-  /// 获取模型的 Source 名称
-  String _getModelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
-      return 'NovelAI Diffusion V4.5';
-    } else if (model.contains('diffusion-4')) {
-      return 'NovelAI Diffusion V4';
-    } else if (model.contains('diffusion-3')) {
-      return 'NovelAI Diffusion V3';
-    }
-    return 'NovelAI Diffusion';
-  }
-
-  /// 复制图片到剪贴板
-  Future<void> _copyImage(BuildContext context, Uint8List imageBytes) async {
-    try {
-      await Clipboard.setData(const ClipboardData(text: '')); // 清空剪贴板
-      // Windows 使用 native 方式复制图片
-      final tempDir = await getTemporaryDirectory();
-      final file = File(
-        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
-      );
-      await file.writeAsBytes(imageBytes);
-
-      // 使用 PowerShell 复制图片到剪贴板
-      await Process.run('powershell', [
-        '-command',
-        'Set-Clipboard -Path "${file.path}"',
-      ]);
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_copiedToClipboard);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_copyFailed(e.toString()));
-      }
-    }
   }
 
   void _showFullscreenImage(BuildContext context, Uint8List imageBytes) {
