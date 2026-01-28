@@ -2440,6 +2440,34 @@
   "tagLibrary_tagsHint": "输入标签，用逗号分隔",
   "tagLibrary_tagsHelper": "标签用于筛选和搜索",
   "tagLibrary_content": "提示词内容",
-  "tagLibrary_contentHint": "输入提示词内容，支持智能补全"
+  "tagLibrary_contentHint": "输入提示词内容，支持智能补全",
+
+  "settings_network": "网络",
+  "settings_enableProxy": "启用代理",
+  "settings_proxyEnabled": "已启用",
+  "settings_proxyDisabled": "直接连接网络",
+  "settings_proxyMode": "代理模式",
+  "settings_proxyModeAuto": "自动检测系统代理",
+  "settings_proxyModeManual": "手动配置",
+  "settings_auto": "自动",
+  "settings_manual": "手动",
+  "settings_proxyHost": "代理地址",
+  "settings_proxyPort": "端口",
+  "settings_proxyNotDetected": "未检测到系统代理",
+  "settings_testConnection": "测试连接",
+  "settings_testConnectionHint": "点击测试代理是否可用",
+  "settings_testSuccess": "连接成功 ({latency}ms)",
+  "@settings_testSuccess": {
+    "placeholders": {
+      "latency": {}
+    }
+  },
+  "settings_testFailed": "连接失败: {error}",
+  "@settings_testFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settings_proxyRestartHint": "代理设置已更改，建议重启应用"
 
 }

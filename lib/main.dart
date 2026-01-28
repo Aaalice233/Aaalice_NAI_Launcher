@@ -8,8 +8,8 @@ import 'dart:io';
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'core/constants/storage_keys.dart';
+import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
-import 'core/network/windows_proxy_helper.dart';
 import 'core/utils/app_logger.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
@@ -222,12 +222,45 @@ void main() async {
     }
   }
 
-  // Windows 系统代理配置
-  if (Platform.isWindows) {
-    final proxy = WindowsProxyHelper.getSystemProxy();
-    if (proxy != null && proxy != 'DIRECT') {
-      HttpOverrides.global = SystemProxyHttpOverrides(proxy);
-      AppLogger.i('Applied system proxy: $proxy', 'NETWORK');
+  // 系统代理配置（根据用户设置）
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    final settingsBox = Hive.box(StorageKeys.settingsBox);
+    final proxyEnabled =
+        settingsBox.get(StorageKeys.proxyEnabled, defaultValue: false) as bool;
+
+    if (proxyEnabled) {
+      final proxyMode =
+          settingsBox.get(StorageKeys.proxyMode, defaultValue: 'auto') as String;
+
+      String? proxyAddress;
+
+      if (proxyMode == 'manual') {
+        // 手动模式：从设置读取
+        final host = settingsBox.get(StorageKeys.proxyManualHost) as String?;
+        final port = settingsBox.get(StorageKeys.proxyManualPort) as int?;
+        if (host != null && host.isNotEmpty && port != null && port > 0) {
+          proxyAddress = '$host:$port';
+        }
+      } else {
+        // 自动模式：从系统获取
+        proxyAddress = ProxyService.getSystemProxyAddress();
+      }
+
+      if (proxyAddress != null && proxyAddress.isNotEmpty) {
+        HttpOverrides.global =
+            SystemProxyHttpOverrides('PROXY $proxyAddress');
+        AppLogger.i(
+          'Applied proxy: $proxyAddress (mode: $proxyMode)',
+          'NETWORK',
+        );
+      } else {
+        AppLogger.w(
+          'Proxy enabled but no proxy address available (mode: $proxyMode)',
+          'NETWORK',
+        );
+      }
+    } else {
+      AppLogger.d('Proxy disabled by user settings', 'NETWORK');
     }
   }
 

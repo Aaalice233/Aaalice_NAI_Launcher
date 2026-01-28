@@ -2766,6 +2766,34 @@
   "tagLibrary_tagsHint": "Enter tags, separated by commas",
   "tagLibrary_tagsHelper": "Tags are used for filtering and searching",
   "tagLibrary_content": "Prompt Content",
-  "tagLibrary_contentHint": "Enter prompt content, supports autocomplete"
+  "tagLibrary_contentHint": "Enter prompt content, supports autocomplete",
+
+  "settings_network": "Network",
+  "settings_enableProxy": "Enable Proxy",
+  "settings_proxyEnabled": "Enabled",
+  "settings_proxyDisabled": "Direct connection",
+  "settings_proxyMode": "Proxy Mode",
+  "settings_proxyModeAuto": "Auto-detect system proxy",
+  "settings_proxyModeManual": "Manual configuration",
+  "settings_auto": "Auto",
+  "settings_manual": "Manual",
+  "settings_proxyHost": "Proxy Host",
+  "settings_proxyPort": "Port",
+  "settings_proxyNotDetected": "No system proxy detected",
+  "settings_testConnection": "Test Connection",
+  "settings_testConnectionHint": "Click to test if proxy is working",
+  "settings_testSuccess": "Connection successful ({latency}ms)",
+  "@settings_testSuccess": {
+    "placeholders": {
+      "latency": {}
+    }
+  },
+  "settings_testFailed": "Connection failed: {error}",
+  "@settings_testFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settings_proxyRestartHint": "Proxy settings changed, restart recommended"
 
 }

@@ -105,6 +105,12 @@ class StorageKeys {
   static const String queueRetryCount = 'queue_retry_count';
   static const String queueRetryInterval = 'queue_retry_interval';
 
+  // Proxy Settings (代理设置)
+  static const String proxyEnabled = 'proxy_enabled';
+  static const String proxyMode = 'proxy_mode';
+  static const String proxyManualHost = 'proxy_manual_host';
+  static const String proxyManualPort = 'proxy_manual_port';
+
   // Fixed Tags (固定词相关)
   static const String fixedTagsBox = 'fixed_tags';
   static const String fixedTagsData = 'fixed_tags_data';

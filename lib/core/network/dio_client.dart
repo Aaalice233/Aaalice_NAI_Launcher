@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/services/token_refresh_service.dart';
 import '../../presentation/providers/auth_provider.dart';
+import '../../presentation/providers/proxy_settings_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
 import '../utils/app_logger.dart';
@@ -12,8 +13,15 @@ import '../utils/app_logger.dart';
 part 'dio_client.g.dart';
 
 /// Dio 客户端 Provider
+///
+/// 根据代理设置动态选择 HTTP 适配器：
+/// - 有代理时：使用默认 HTTP/1.1 适配器（配合 HttpOverrides.global 使用代理）
+/// - 无代理时：使用 HTTP/2 适配器（提升并发性能）
 @Riverpod(keepAlive: true)
 Dio dioClient(Ref ref) {
+  // 监听代理设置变化，当代理设置改变时会触发 Dio 重建
+  final proxyAddress = ref.watch(currentProxyAddressProvider);
+
   final dio = Dio(
     BaseOptions(
       connectTimeout: ApiConstants.connectTimeout,
@@ -28,14 +36,21 @@ Dio dioClient(Ref ref) {
   // 添加错误处理拦截器
   dio.interceptors.add(ErrorInterceptor());
 
-  // 配置 HTTP/2 适配器以支持多路复用（提升并发性能）
-  dio.httpClientAdapter = Http2Adapter(
-    ConnectionManager(
-      idleTimeout: const Duration(seconds: 15),
-      // 忽略证书验证（仅用于开发环境，Danbooru 使用有效证书）
-      // onBadCertificate: (_) => true,
-    ),
-  );
+  // 根据代理设置选择适配器
+  if (proxyAddress != null && proxyAddress.isNotEmpty) {
+    // 有代理时：使用默认 HTTP/1.1 适配器
+    // 默认适配器内部使用 dart:io.HttpClient，会自动遵循 HttpOverrides.global
+    AppLogger.i('Dio using proxy: $proxyAddress (HTTP/1.1 adapter)', 'NETWORK');
+    // 不设置 httpClientAdapter，使用默认值
+  } else {
+    // 无代理时：使用 HTTP/2 适配器以提升并发性能
+    AppLogger.d('Dio using HTTP/2 adapter (no proxy)', 'NETWORK');
+    dio.httpClientAdapter = Http2Adapter(
+      ConnectionManager(
+        idleTimeout: const Duration(seconds: 15),
+      ),
+    );
+  }
 
   // 注意：不要在 dispose 时关闭 Dio，因为 Provider 可能会被重建
   // ref.onDispose(dio.close);
