@@ -153,6 +153,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
+  /// 获取总收藏数量
+  int getTotalFavoriteCount() {
+    return _repository.getTotalFavoriteCount();
+  }
+
   /// 加载指定页面
   Future<void> loadPage(int page) async {
     // Handle empty list case (totalPages is 0)

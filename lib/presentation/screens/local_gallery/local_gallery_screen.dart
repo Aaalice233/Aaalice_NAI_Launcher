@@ -188,15 +188,24 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                       child: GalleryCategoryTreeView(
                         categories: categoryState.categories,
                         totalImageCount: state.allFiles.length,
-                        favoriteCount: state.currentImages
-                            .where((img) => img.isFavorite)
-                            .length,
+                        favoriteCount: ref
+                            .read(localGalleryNotifierProvider.notifier)
+                            .getTotalFavoriteCount(),
                         selectedCategoryId: categoryState.selectedCategoryId,
                         onCategorySelected: (id) {
                           ref
                               .read(galleryCategoryNotifierProvider.notifier)
                               .selectCategory(id);
-                          // TODO: 实现分类过滤
+                          // 处理收藏筛选
+                          if (id == 'favorites') {
+                            ref
+                                .read(localGalleryNotifierProvider.notifier)
+                                .setShowFavoritesOnly(true);
+                          } else {
+                            ref
+                                .read(localGalleryNotifierProvider.notifier)
+                                .setShowFavoritesOnly(false);
+                          }
                         },
                         onCategoryRename: (id, newName) async {
                           await ref

@@ -140,13 +140,15 @@ class LocalGalleryRepository {
       // 3. 执行数据迁移（如果需要）
       final migrationResult = await _migrationService.migrate();
       if (!migrationResult.alreadyMigrated) {
-        AppLogger.i('Migration completed: $migrationResult', 'LocalGalleryRepo');
+        AppLogger.i(
+            'Migration completed: $migrationResult', 'LocalGalleryRepo');
       }
 
       // 4. 检查是否需要首次扫描
       final stats = await _db.getStatistics();
       if (stats['total_images'] == 0) {
-        AppLogger.i('No images in database, starting initial scan...', 'LocalGalleryRepo');
+        AppLogger.i('No images in database, starting initial scan...',
+            'LocalGalleryRepo');
         final dir = await getImageDirectory();
         if (await dir.exists()) {
           await _scanService.fullScan(dir);
@@ -160,7 +162,8 @@ class LocalGalleryRepository {
         'LocalGalleryRepo',
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to initialize LocalGalleryRepository', e, stack, 'LocalGalleryRepo');
+      AppLogger.e('Failed to initialize LocalGalleryRepository', e, stack,
+          'LocalGalleryRepo');
       rethrow;
     }
   }
@@ -168,7 +171,8 @@ class LocalGalleryRepository {
   /// 确保已初始化
   void _ensureInitialized() {
     if (!_initialized) {
-      throw StateError('LocalGalleryRepository not initialized. Call initialize() first.');
+      throw StateError(
+          'LocalGalleryRepository not initialized. Call initialize() first.');
     }
   }
 
@@ -233,7 +237,8 @@ class LocalGalleryRepository {
       resolution: resolution,
     );
 
-    final records = results.map((row) => _db.mapToLocalImageRecord(row)).toList();
+    final records =
+        results.map((row) => _db.mapToLocalImageRecord(row)).toList();
 
     // 获取总数
     final totalCount = await _db.countImages();
@@ -249,7 +254,8 @@ class LocalGalleryRepository {
   }
 
   /// 搜索图片
-  Future<List<LocalImageRecord>> searchImages(String query, {int limit = 100}) async {
+  Future<List<LocalImageRecord>> searchImages(String query,
+      {int limit = 100}) async {
     _ensureInitialized();
 
     final searchResult = await _searchService.search(query, limit: limit);
@@ -399,7 +405,8 @@ class LocalGalleryRepository {
         final cached = _legacyCacheService.get(filePath);
         if (cached != null) {
           final cachedTs = cached['ts'] as DateTime;
-          if (cachedTs.millisecondsSinceEpoch == fileModified.millisecondsSinceEpoch) {
+          if (cachedTs.millisecondsSinceEpoch ==
+              fileModified.millisecondsSinceEpoch) {
             cacheHits++;
             final meta = cached['meta'] as NaiImageMetadata;
             return LocalImageRecord(
@@ -407,7 +414,8 @@ class LocalGalleryRepository {
               size: file.lengthSync(),
               modifiedAt: fileModified,
               metadata: meta,
-              metadataStatus: meta.hasData ? MetadataStatus.success : MetadataStatus.none,
+              metadataStatus:
+                  meta.hasData ? MetadataStatus.success : MetadataStatus.none,
               isFavorite: isFavorite(filePath),
               tags: getTags(filePath),
             );
@@ -418,7 +426,8 @@ class LocalGalleryRepository {
         cacheMisses++;
         try {
           final bytes = await file.readAsBytes();
-          final meta = await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
+          final meta =
+              await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
 
           // 写入缓存
           if (meta != null) {
@@ -437,7 +446,8 @@ class LocalGalleryRepository {
             tags: getTags(filePath),
           );
         } catch (e) {
-          AppLogger.w('Failed to parse metadata for $filePath: $e', 'LocalGalleryRepo');
+          AppLogger.w(
+              'Failed to parse metadata for $filePath: $e', 'LocalGalleryRepo');
           return LocalImageRecord(
             path: filePath,
             size: 0,
@@ -451,7 +461,8 @@ class LocalGalleryRepository {
     );
 
     stopwatch.stop();
-    final successCount = records.where((r) => r.metadataStatus == MetadataStatus.success).length;
+    final successCount =
+        records.where((r) => r.metadataStatus == MetadataStatus.success).length;
     AppLogger.i(
       'Page load completed: ${records.length} records ($successCount with metadata) '
           'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
@@ -466,7 +477,8 @@ class LocalGalleryRepository {
       final bytes = await file.readAsBytes();
       return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
-      AppLogger.e('Failed to parse metadata from file: ${file.path}', e, null, 'LocalGalleryRepo');
+      AppLogger.e('Failed to parse metadata from file: ${file.path}', e, null,
+          'LocalGalleryRepo');
       return null;
     }
   }
@@ -476,7 +488,8 @@ class LocalGalleryRepository {
     try {
       return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
-      AppLogger.e('Failed to parse metadata from bytes', e, null, 'LocalGalleryRepo');
+      AppLogger.e(
+          'Failed to parse metadata from bytes', e, null, 'LocalGalleryRepo');
       return null;
     }
   }
@@ -518,6 +531,17 @@ class LocalGalleryRepository {
     final newState = !current;
     await setFavorite(filePath, newState);
     return newState;
+  }
+
+  /// 获取总收藏数量
+  int getTotalFavoriteCount() {
+    int count = 0;
+    for (final key in _favoritesBox.keys) {
+      if (_favoritesBox.get(key, defaultValue: false) == true) {
+        count++;
+      }
+    }
+    return count;
   }
 
   // ============================================================
@@ -622,7 +646,8 @@ class LocalGalleryRepository {
     int failedCount = 0;
     final errors = <String>[];
 
-    AppLogger.i('Starting bulk delete: ${imagePaths.length} images', 'LocalGalleryRepo');
+    AppLogger.i('Starting bulk delete: ${imagePaths.length} images',
+        'LocalGalleryRepo');
 
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
@@ -764,14 +789,17 @@ class LocalGalleryRepository {
       }
       exportDir ??= Directory.systemTemp;
 
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final timestamp =
+          DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final fileName = 'nai_metadata_export_$timestamp.json';
       final filePath = '${exportDir.path}${Platform.pathSeparator}$fileName';
       final file = File(filePath);
 
-      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonData));
+      await file
+          .writeAsString(const JsonEncoder.withIndent('  ').convert(jsonData));
 
-      AppLogger.i('Exported ${records.length} images to $fileName', 'LocalGalleryRepo');
+      AppLogger.i(
+          'Exported ${records.length} images to $fileName', 'LocalGalleryRepo');
       return file;
     } catch (e) {
       AppLogger.e('Failed to export metadata', e, null, 'LocalGalleryRepo');
