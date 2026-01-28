@@ -353,7 +353,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       );
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: _getNetworkErrorMessage(e),
       );
     }
   }
@@ -415,7 +415,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       AppLogger.e('Failed to load favorites: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: _getNetworkErrorMessage(e),
       );
     }
   }
@@ -548,7 +548,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: _getNetworkErrorMessage(e),
       );
     }
   }
@@ -625,6 +625,34 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   List<DanbooruPost> _filterByRating(List<DanbooruPost> posts) {
     if (state.rating == 'all') return posts;
     return posts.where((p) => p.rating == state.rating).toList();
+  }
+
+  /// 将网络错误转换为用户友好的提示信息
+  String _getNetworkErrorMessage(dynamic error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionError:
+          return '网络连接失败，请检查网络设置或代理配置';
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return '网络请求超时，请检查网络连接';
+        case DioExceptionType.badResponse:
+          final statusCode = error.response?.statusCode;
+          if (statusCode == 403) return '访问被拒绝，可能需要登录或权限不足';
+          if (statusCode == 404) return '请求的资源不存在';
+          if (statusCode == 429) return '请求过于频繁，请稍后再试';
+          if (statusCode != null && statusCode >= 500) {
+            return '服务器错误，请稍后再试';
+          }
+          return '请求失败 (${statusCode ?? '未知状态'})';
+        case DioExceptionType.cancel:
+          return '请求已取消';
+        default:
+          return '网络请求失败，请稍后重试';
+      }
+    }
+    return '加载失败，请稍后重试';
   }
 
   /// 从 API 获取帖子，返回 (过滤后的列表, 原始数量)
