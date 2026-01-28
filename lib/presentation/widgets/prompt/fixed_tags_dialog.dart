@@ -307,7 +307,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             label: Text(context.l10n.fixedTags_openLibrary),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle: const TextStyle(fontSize: 13),
             ),
           ),
           const SizedBox(width: 8),
@@ -327,7 +326,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
               style: OutlinedButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                textStyle: const TextStyle(fontSize: 13),
                 side:
                     BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
               ),
@@ -340,8 +338,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             label: Text(context.l10n.fixedTags_add),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
           const SizedBox(width: 10),
@@ -352,8 +348,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             label: const Text('从词库添加'),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              textStyle:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
         ],

@@ -336,7 +336,6 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               minimumSize: const Size(0, 32),
-              textStyle: const TextStyle(fontSize: 12),
             ),
           ),
           const SizedBox(width: 6),
@@ -348,7 +347,6 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               minimumSize: const Size(0, 32),
-              textStyle: const TextStyle(fontSize: 12),
               backgroundColor: Colors.red.withOpacity(0.12),
               foregroundColor: Colors.red,
             ),
@@ -368,7 +366,6 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         minimumSize: const Size(0, 28),
-        textStyle: const TextStyle(fontSize: 12),
       ),
       child: Text(label),
     );
@@ -401,7 +398,8 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
         return AnimatedBuilder(
           animation: animation,
           builder: (context, _) {
-            final elevation = Tween<double>(begin: 0, end: 6).evaluate(animation);
+            final elevation =
+                Tween<double>(begin: 0, end: 6).evaluate(animation);
             return Material(
               elevation: elevation,
               borderRadius: BorderRadius.circular(12),
@@ -443,8 +441,8 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: queueState.completedTasks.length,
       itemBuilder: (context, index) {
-        final task =
-            queueState.completedTasks[queueState.completedTasks.length - 1 - index];
+        final task = queueState
+            .completedTasks[queueState.completedTasks.length - 1 - index];
         return TaskListItem(
           task: task,
           index: index,

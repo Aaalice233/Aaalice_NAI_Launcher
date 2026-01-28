@@ -202,62 +202,68 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     // NAI 预设选项
     for (final type in UcPresetType.values) {
       final isSelected = !state.isCustom && state.presetType == type;
-      items.add(PopupMenuItem<String>(
-        value: 'preset_${type.index}',
-        child: Row(
-          children: [
-            if (isSelected)
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-            else
-              const SizedBox(width: 16),
-            const SizedBox(width: 8),
-            Text(
-              _getPresetDisplayName(context, type),
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? theme.colorScheme.primary : null,
+      items.add(
+        PopupMenuItem<String>(
+          value: 'preset_${type.index}',
+          child: Row(
+            children: [
+              if (isSelected)
+                Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+              else
+                const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              Text(
+                _getPresetDisplayName(context, type),
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? theme.colorScheme.primary : null,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ));
+      );
     }
 
     // 分隔线
     items.add(const PopupMenuDivider());
 
     // 从词库添加
-    items.add(PopupMenuItem<String>(
-      value: 'add_from_library',
-      child: Row(
-        children: [
-          Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            context.l10n.ucPreset_addFromLibrary,
-            style: TextStyle(
-              color: theme.colorScheme.primary,
+    items.add(
+      PopupMenuItem<String>(
+        value: 'add_from_library',
+        child: Row(
+          children: [
+            Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              context.l10n.ucPreset_addFromLibrary,
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
 
     // 所有已添加的自定义条目
     if (customEntries.isNotEmpty) {
       items.add(const PopupMenuDivider());
       for (final entry in customEntries) {
         final isSelected = state.isCustom && state.customEntryId == entry.id;
-        items.add(_CustomEntryMenuItem(
-          entry: entry,
-          isSelected: isSelected,
-          onDelete: () {
-            ref
-                .read(ucPresetNotifierProvider.notifier)
-                .removeCustomEntry(entry.id);
-            Navigator.of(context).pop();
-          },
-        ));
+        items.add(
+          _CustomEntryMenuItem(
+            entry: entry,
+            isSelected: isSelected,
+            onDelete: () {
+              ref
+                  .read(ucPresetNotifierProvider.notifier)
+                  .removeCustomEntry(entry.id);
+              Navigator.of(context).pop();
+            },
+          ),
+        );
       }
     }
 

@@ -635,7 +635,6 @@ class _TagGroupEditorPanelState extends ConsumerState<_TagGroupEditorPanel> {
                     showCategory: true,
                     autoInsertComma: false,
                   ),
-                  enableAutoFormat: false,
                   maxLines: null,
                   expands: true,
                   child: ThemedInput(

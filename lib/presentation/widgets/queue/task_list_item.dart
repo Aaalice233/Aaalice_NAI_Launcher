@@ -35,14 +35,17 @@ class TaskListItem extends ConsumerWidget {
       index: index,
       enabled: !isSelectionMode,
       child: MouseRegion(
-        cursor: isSelectionMode ? SystemMouseCursors.click : SystemMouseCursors.grab,
+        cursor: isSelectionMode
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.grab,
         child: _TaskTooltipWrapper(
           task: task,
           enabled: !isSelectionMode,
           child: Dismissible(
             key: Key(task.id),
-            direction:
-                isSelectionMode ? DismissDirection.none : DismissDirection.endToStart,
+            direction: isSelectionMode
+                ? DismissDirection.none
+                : DismissDirection.endToStart,
             background: Container(
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 24),
@@ -50,13 +53,19 @@ class TaskListItem extends ConsumerWidget {
                 color: Colors.red.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.delete_rounded, color: Colors.white, size: 22),
+              child: const Icon(
+                Icons.delete_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
             ),
             confirmDismiss: (_) async {
               return await _confirmDelete(context, l10n);
             },
             onDismissed: (_) {
-              ref.read(replicationQueueNotifierProvider.notifier).remove(task.id);
+              ref
+                  .read(replicationQueueNotifierProvider.notifier)
+                  .remove(task.id);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -82,7 +91,8 @@ class TaskListItem extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? theme.colorScheme.primaryContainer.withOpacity(0.4)
-                          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                          : theme.colorScheme.surfaceContainerHighest
+                              .withOpacity(0.4),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
@@ -117,7 +127,8 @@ class TaskListItem extends ConsumerWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   height: 1.35,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.85),
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.85),
                                 ),
                               ),
                               // 错误信息
@@ -130,8 +141,7 @@ class TaskListItem extends ConsumerWidget {
                         ),
 
                         // 操作按钮（仅编辑，移除拖拽手柄）
-                        if (!isSelectionMode)
-                          _buildEditButton(theme, l10n),
+                        if (!isSelectionMode) _buildEditButton(theme, l10n),
                       ],
                     ),
                   ),
@@ -401,7 +411,8 @@ class _TaskTooltipWrapperState extends State<_TaskTooltipWrapper> {
 
         // 计算水平位置：优先显示在右侧，空间不足则显示在左侧
         double left;
-        final rightSpace = screenSize.width - (itemOffset.dx + itemSize.width + gap);
+        final rightSpace =
+            screenSize.width - (itemOffset.dx + itemSize.width + gap);
         if (rightSpace >= tooltipWidth) {
           // 右侧空间足够
           left = itemOffset.dx + itemSize.width + gap;
@@ -687,10 +698,11 @@ class FailedTaskListItem extends ConsumerWidget {
                     icon: const Icon(Icons.refresh_rounded, size: 16),
                     label: Text(l10n.queue_retry),
                     style: FilledButton.styleFrom(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 0,
+                      ),
                       minimumSize: const Size(0, 30),
-                      textStyle: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
@@ -716,7 +728,6 @@ class FailedTaskListItem extends ConsumerWidget {
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
         minimumSize: const Size(0, 30),
-        textStyle: const TextStyle(fontSize: 12),
         foregroundColor: color,
       ),
     );

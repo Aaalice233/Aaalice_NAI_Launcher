@@ -1,3 +1,5 @@
+import 'text_space_converter.dart';
+
 /// 括号位置信息
 class _BracketPos {
   final String char;
@@ -41,67 +43,10 @@ class NaiPromptFormatter {
 
   /// 格式化标签（将空格转为下划线，但保护特殊语法）
   static String _formatTags(String prompt) {
-    final buffer = StringBuffer();
-    final chars = prompt.split('');
-
-    for (var i = 0; i < chars.length; i++) {
-      final char = chars[i];
-
-      // 将空格转换为下划线（在标签内部，非分隔位置）
-      if (char == ' ') {
-        // 检查前后字符来判断是否是标签内部的空格
-        final prevChar = i > 0 ? chars[i - 1] : '';
-        final nextChar = i + 1 < chars.length ? chars[i + 1] : '';
-
-        // 查找前面第一个非空格字符
-        String? prevNonSpace;
-        for (var j = i - 1; j >= 0; j--) {
-          if (chars[j] != ' ') {
-            prevNonSpace = chars[j];
-            break;
-          }
-        }
-
-        // 查找后面第一个非空格字符
-        String? nextNonSpace;
-        for (var j = i + 1; j < chars.length; j++) {
-          if (chars[j] != ' ') {
-            nextNonSpace = chars[j];
-            break;
-          }
-        }
-
-        // 如果前面的非空格字符是逗号，或后面的非空格字符是逗号，保留空格
-        if (prevNonSpace == ',' || nextNonSpace == ',') {
-          buffer.write(char);
-        }
-        // 如果相邻字符是逗号，保留
-        else if (prevChar == ',' || nextChar == ',') {
-          buffer.write(char);
-        }
-        // 如果在括号边界，保留
-        else if (prevChar == '{' ||
-            prevChar == '[' ||
-            prevChar == '(' ||
-            nextChar == '}' ||
-            nextChar == ']' ||
-            nextChar == ')') {
-          buffer.write(char);
-        }
-        // 如果是双竖线语法中的空格，保留
-        else if (prevChar == '|' || nextChar == '|') {
-          buffer.write(char);
-        }
-        // 其他情况（包括权重语法内），将空格转为下划线
-        else {
-          buffer.write('_');
-        }
-      } else {
-        buffer.write(char);
-      }
-    }
-
-    return buffer.toString();
+    return TextSpaceConverter.convert(
+      prompt,
+      protectChars: TextSpaceConverter.naiFormat,
+    );
   }
 
   /// 补齐未闭合的括号

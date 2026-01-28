@@ -1,3 +1,5 @@
+import 'text_space_converter.dart';
+
 /// SD权重语法到NAI V4数值语法的转换工具
 ///
 /// 转换规则：
@@ -229,53 +231,6 @@ class SdToNaiConverter {
   /// 将文本中的空格转换为下划线
   /// 保护特殊位置的空格（逗号旁边等）
   static String _convertSpacesToUnderscores(String text) {
-    // 不转换逗号前后的空格
-    // 转换标签内部的空格
-    final result = StringBuffer();
-    final chars = text.split('');
-
-    for (var i = 0; i < chars.length; i++) {
-      final char = chars[i];
-
-      if (char == ' ') {
-        // 检查是否在逗号附近（需要向前/向后跳过其他空格）
-        final prevChar = i > 0 ? chars[i - 1] : '';
-        final nextChar = i < chars.length - 1 ? chars[i + 1] : '';
-
-        // 查找前面第一个非空格字符
-        String? prevNonSpace;
-        for (var j = i - 1; j >= 0; j--) {
-          if (chars[j] != ' ') {
-            prevNonSpace = chars[j];
-            break;
-          }
-        }
-
-        // 查找后面第一个非空格字符
-        String? nextNonSpace;
-        for (var j = i + 1; j < chars.length; j++) {
-          if (chars[j] != ' ') {
-            nextNonSpace = chars[j];
-            break;
-          }
-        }
-
-        // 如果前面的非空格字符是逗号，或后面的非空格字符是逗号，保留空格
-        if (prevNonSpace == ',' || nextNonSpace == ',') {
-          result.write(char);
-        }
-        // 如果相邻字符是逗号（向后兼容）
-        else if (prevChar == ',' || nextChar == ',') {
-          result.write(char);
-        } else {
-          // 转换为下划线
-          result.write('_');
-        }
-      } else {
-        result.write(char);
-      }
-    }
-
-    return result.toString();
+    return TextSpaceConverter.convert(text);
   }
 }

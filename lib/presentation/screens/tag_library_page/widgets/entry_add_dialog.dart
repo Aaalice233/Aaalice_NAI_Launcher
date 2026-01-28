@@ -361,7 +361,6 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
             showCategory: true,
             autoInsertComma: true,
           ),
-          enableAutoFormat: false,
           child: ThemedInput(
             controller: _tagsController,
             hintText: context.l10n.tagLibrary_tagsHint,

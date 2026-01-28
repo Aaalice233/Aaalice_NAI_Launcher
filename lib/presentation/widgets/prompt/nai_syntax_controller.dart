@@ -6,7 +6,31 @@ class NaiSyntaxController extends TextEditingController {
   /// 是否启用高亮
   bool highlightEnabled;
 
+  // 静态正则表达式，编译一次复用多次
+  static final RegExp _weightPattern = RegExp(r'(-?\d+\.?\d*)::([^:]+)::');
+
+  // 缓存：避免每次光标移动都重新解析
+  String? _cachedText;
+  bool? _cachedIsDark;
+  List<TextSpan>? _cachedSpans;
+
+  // 语法错误信息（用于 UI 显示）
+  List<String> _syntaxErrors = [];
+
+  /// 获取当前文本的语法错误列表
+  List<String> get syntaxErrors => _syntaxErrors;
+
+  /// 是否存在语法错误
+  bool get hasSyntaxErrors => _syntaxErrors.isNotEmpty;
+
   NaiSyntaxController({super.text, this.highlightEnabled = true});
+
+  /// 清除缓存（当主题变化等情况时调用）
+  void clearCache() {
+    _cachedText = null;
+    _cachedIsDark = null;
+    _cachedSpans = null;
+  }
 
   @override
   TextSpan buildTextSpan({
@@ -23,9 +47,22 @@ class NaiSyntaxController extends TextEditingController {
 
     final theme = Theme.of(context);
     final colors = NaiSyntaxColors.fromTheme(theme);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // 检查缓存是否有效（文本未变化且主题未变化）
+    if (_cachedText == text &&
+        _cachedIsDark == isDark &&
+        _cachedSpans != null) {
+      return TextSpan(style: baseStyle, children: _cachedSpans);
+    }
 
     // 解析并高亮文本
     final spans = _parseAndHighlight(text, baseStyle, colors);
+
+    // 更新缓存
+    _cachedText = text;
+    _cachedIsDark = isDark;
+    _cachedSpans = spans;
 
     return TextSpan(style: baseStyle, children: spans);
   }
@@ -36,47 +73,26 @@ class NaiSyntaxController extends TextEditingController {
     TextStyle baseStyle,
     NaiSyntaxColors colors,
   ) {
-    if (text.isEmpty) return [];
+    if (text.isEmpty) {
+      _syntaxErrors = [];
+      return [];
+    }
 
     final spans = <TextSpan>[];
     final matches = <_SyntaxMatch>[];
 
-    // 匹配多层花括号 {}, {{}}, {{{}}}, ...
-    final bracePattern = RegExp(r'\{+[^{}]+\}+');
-    for (final match in bracePattern.allMatches(text)) {
-      final matchText = match.group(0)!;
-      final depth = _countLeadingChar(matchText, '{').clamp(1, 5);
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.end,
-          text: matchText,
-          type: _SyntaxType.brace,
-          depth: depth,
-        ),
-      );
-    }
+    // 使用栈算法解析括号（支持嵌套）
+    _parseNestedBrackets(text, matches);
 
-    // 匹配多层方括号 [], [[]], ...
-    final bracketPattern = RegExp(r'\[+[^\[\]]+\]+');
-    for (final match in bracketPattern.allMatches(text)) {
-      final matchText = match.group(0)!;
-      final depth = _countLeadingChar(matchText, '[').clamp(1, 5);
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.end,
-          text: matchText,
-          type: _SyntaxType.bracket,
-          depth: depth,
-        ),
-      );
-    }
+    // 收集语法错误
+    _syntaxErrors = matches
+        .where((m) => m.type == _SyntaxType.error && m.errorMessage != null)
+        .map((m) => m.errorMessage!)
+        .toList();
 
     // 匹配权重语法 数字::内容::
     // 拆分为: (数字::内容) + (::)
-    final weightPattern = RegExp(r'(-?\d+\.?\d*)::([^:]+)::');
-    for (final match in weightPattern.allMatches(text)) {
+    for (final match in _weightPattern.allMatches(text)) {
       final weightStr = match.group(1)!;
       final content = match.group(2)!;
       final weight = double.tryParse(weightStr) ?? 1.0;
@@ -160,17 +176,101 @@ class NaiSyntaxController extends TextEditingController {
         : spans;
   }
 
-  /// 统计开头连续字符数量
-  int _countLeadingChar(String text, String char) {
-    int count = 0;
+  /// 使用栈算法解析嵌套括号
+  /// 支持 {a{b}c} 等嵌套结构
+  void _parseNestedBrackets(String text, List<_SyntaxMatch> matches) {
+    final braceStack = <_BracketInfo>[]; // 花括号栈
+    final bracketStack = <_BracketInfo>[]; // 方括号栈
+
     for (int i = 0; i < text.length; i++) {
-      if (text[i] == char) {
-        count++;
-      } else {
-        break;
+      final char = text[i];
+
+      if (char == '{') {
+        // 记录开括号位置和当前深度
+        final depth = braceStack.length + 1;
+        braceStack.add(_BracketInfo(char, i, depth));
+      } else if (char == '}') {
+        if (braceStack.isNotEmpty) {
+          // 找到匹配的开括号
+          final openBracket = braceStack.removeLast();
+          final matchText = text.substring(openBracket.position, i + 1);
+          matches.add(
+            _SyntaxMatch(
+              start: openBracket.position,
+              end: i + 1,
+              text: matchText,
+              type: _SyntaxType.brace,
+              depth: openBracket.depth.clamp(1, 5),
+            ),
+          );
+        } else {
+          // 没有匹配的开括号 - 语法错误
+          matches.add(
+            _SyntaxMatch(
+              start: i,
+              end: i + 1,
+              text: char,
+              type: _SyntaxType.error,
+              errorMessage: '未匹配的闭括号 "}"',
+            ),
+          );
+        }
+      } else if (char == '[') {
+        // 记录开括号位置和当前深度
+        final depth = bracketStack.length + 1;
+        bracketStack.add(_BracketInfo(char, i, depth));
+      } else if (char == ']') {
+        if (bracketStack.isNotEmpty) {
+          // 找到匹配的开括号
+          final openBracket = bracketStack.removeLast();
+          final matchText = text.substring(openBracket.position, i + 1);
+          matches.add(
+            _SyntaxMatch(
+              start: openBracket.position,
+              end: i + 1,
+              text: matchText,
+              type: _SyntaxType.bracket,
+              depth: openBracket.depth.clamp(1, 5),
+            ),
+          );
+        } else {
+          // 没有匹配的开括号 - 语法错误
+          matches.add(
+            _SyntaxMatch(
+              start: i,
+              end: i + 1,
+              text: char,
+              type: _SyntaxType.error,
+              errorMessage: '未匹配的闭括号 "]"',
+            ),
+          );
+        }
       }
     }
-    return count;
+
+    // 处理未闭合的开括号 - 语法错误
+    for (final unclosed in braceStack) {
+      matches.add(
+        _SyntaxMatch(
+          start: unclosed.position,
+          end: unclosed.position + 1,
+          text: '{',
+          type: _SyntaxType.error,
+          errorMessage: '未闭合的括号 "{"',
+        ),
+      );
+    }
+    for (final unclosed in bracketStack) {
+      matches.add(
+        _SyntaxMatch(
+          start: unclosed.position,
+          end: unclosed.position + 1,
+          text: '[',
+          type: _SyntaxType.error,
+          errorMessage: '未闭合的括号 "["',
+        ),
+      );
+    }
   }
 }
 
@@ -180,6 +280,7 @@ enum _SyntaxType {
   bracket, // [] 方括号
   weightMain, // 权重主体 (数字::内容)
   weightTrailing, // 权重结尾 (::)
+  error, // 语法错误（不匹配的括号）
 }
 
 /// 语法匹配结果
@@ -190,6 +291,7 @@ class _SyntaxMatch {
   final _SyntaxType type;
   final int depth; // 括号深度 (1-5)
   final double weight; // 权重值
+  final String? errorMessage; // 错误信息（仅 error 类型）
 
   _SyntaxMatch({
     required this.start,
@@ -198,7 +300,17 @@ class _SyntaxMatch {
     required this.type,
     this.depth = 1,
     this.weight = 1.0,
+    this.errorMessage,
   });
+}
+
+/// 括号信息（用于栈算法）
+class _BracketInfo {
+  final String char;
+  final int position;
+  final int depth; // 当前嵌套深度
+
+  _BracketInfo(this.char, this.position, this.depth);
 }
 
 /// NAI 语法背景色配置（参考 NovelAI 官网样式）
@@ -295,6 +407,16 @@ class NaiSyntaxColors {
       case _SyntaxType.weightTrailing:
         // 结尾 :: 使用绿色
         return trailingColonBg;
+      case _SyntaxType.error:
+        // 语法错误：红色背景
+        return _getErrorColor();
     }
+  }
+
+  /// 错误颜色（红色背景）
+  Color _getErrorColor() {
+    final alpha = isDark ? 0.50 : 0.45;
+    // 红色系：HSL(0, 70%, 40%)
+    return HSLColor.fromAHSL(alpha, 0, 0.70, 0.40).toColor();
   }
 }

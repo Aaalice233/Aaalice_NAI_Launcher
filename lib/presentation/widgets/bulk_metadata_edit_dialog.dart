@@ -416,7 +416,6 @@ class _BulkMetadataEditDialogState
                 showCategory: true,
                 autoInsertComma: false,
               ),
-              enableAutoFormat: false,
               child: ThemedInput(
                 controller: controller,
                 style: theme.textTheme.bodyMedium?.copyWith(

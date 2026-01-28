@@ -139,13 +139,15 @@ class _TagLibraryPickerDialogState
                 value: null,
                 child: Text(context.l10n.tagLibraryPicker_allCategories),
               ),
-              ...state.categories.map((category) => DropdownMenuItem<String?>(
-                    value: category.id,
-                    child: Text(
-                      category.name,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  )),
+              ...state.categories.map(
+                (category) => DropdownMenuItem<String?>(
+                  value: category.id,
+                  child: Text(
+                    category.name,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
             ],
             onChanged: (value) {
               setState(() => _selectedCategoryId = value);
@@ -166,9 +168,8 @@ class _TagLibraryPickerDialogState
         _selectedCategoryId!,
         ...state.categories.getDescendantIds(_selectedCategoryId!),
       };
-      entries = entries
-          .where((e) => categoryIds.contains(e.categoryId))
-          .toList();
+      entries =
+          entries.where((e) => categoryIds.contains(e.categoryId)).toList();
     }
 
     // 搜索过滤

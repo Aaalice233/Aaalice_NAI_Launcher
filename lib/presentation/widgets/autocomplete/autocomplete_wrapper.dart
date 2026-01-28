@@ -4,12 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/tag_data_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/localization_extension.dart';
-import '../../../core/utils/nai_prompt_formatter.dart';
-import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/models/tag/local_tag.dart';
 import '../../providers/locale_provider.dart';
-import '../common/app_toast.dart';
 import 'autocomplete_controller.dart';
 import 'autocomplete_overlay.dart';
 import 'autocomplete_utils.dart';
@@ -44,12 +40,6 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
   /// 是否启用自动补全
   final bool enabled;
 
-  /// 是否启用自动格式化（失焦时自动格式化提示词）
-  final bool enableAutoFormat;
-
-  /// 是否启用 SD 语法自动转换（失焦时将 SD 权重语法转换为 NAI 格式）
-  final bool enableSdSyntaxAutoConvert;
-
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
@@ -72,8 +62,6 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.focusNode,
     this.config = const AutocompleteConfig(),
     this.enabled = true,
-    this.enableAutoFormat = true,
-    this.enableSdSyntaxAutoConvert = false,
     this.onChanged,
     this.textStyle,
     this.contentPadding,
@@ -173,46 +161,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
       _hideSuggestions();
-      _formatOnBlur();
-    }
-  }
-
-  /// 失焦时格式化提示词
-  void _formatOnBlur() {
-    var text = widget.controller.text;
-    if (text.isEmpty) return;
-
-    var changed = false;
-    final messages = <String>[];
-
-    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
-    if (widget.enableSdSyntaxAutoConvert) {
-      final converted = SdToNaiConverter.convert(text);
-      if (converted != text) {
-        text = converted;
-        changed = true;
-        messages.add('SD→NAI');
-      }
-    }
-
-    // 自动格式化
-    if (widget.enableAutoFormat) {
-      final formatted = NaiPromptFormatter.format(text);
-      if (formatted != text) {
-        text = formatted;
-        changed = true;
-        if (!messages.contains('SD→NAI')) {
-          messages.add(context.l10n.prompt_formatted);
-        }
-      }
-    }
-
-    if (changed) {
-      widget.controller.text = text;
-      widget.onChanged?.call(text);
-      if (mounted && messages.isNotEmpty) {
-        AppToast.info(context, messages.join(' + '));
-      }
     }
   }
 

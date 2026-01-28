@@ -201,74 +201,80 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final items = <PopupMenuEntry<String>>[];
 
     // NAI 默认
-    items.add(PopupMenuItem<String>(
-      value: 'nai_default',
-      child: Row(
-        children: [
-          if (state.mode == PromptPresetMode.naiDefault)
-            Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-          else
-            const SizedBox(width: 16),
-          const SizedBox(width: 8),
-          Text(
-            context.l10n.qualityTags_naiDefault,
-            style: TextStyle(
-              fontWeight: state.mode == PromptPresetMode.naiDefault
-                  ? FontWeight.w600
-                  : FontWeight.normal,
-              color: state.mode == PromptPresetMode.naiDefault
-                  ? theme.colorScheme.primary
-                  : null,
+    items.add(
+      PopupMenuItem<String>(
+        value: 'nai_default',
+        child: Row(
+          children: [
+            if (state.mode == PromptPresetMode.naiDefault)
+              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+            else
+              const SizedBox(width: 16),
+            const SizedBox(width: 8),
+            Text(
+              context.l10n.qualityTags_naiDefault,
+              style: TextStyle(
+                fontWeight: state.mode == PromptPresetMode.naiDefault
+                    ? FontWeight.w600
+                    : FontWeight.normal,
+                color: state.mode == PromptPresetMode.naiDefault
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
 
     // 无
-    items.add(PopupMenuItem<String>(
-      value: 'none',
-      child: Row(
-        children: [
-          if (state.mode == PromptPresetMode.none)
-            Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-          else
-            const SizedBox(width: 16),
-          const SizedBox(width: 8),
-          Text(
-            context.l10n.qualityTags_none,
-            style: TextStyle(
-              fontWeight: state.mode == PromptPresetMode.none
-                  ? FontWeight.w600
-                  : FontWeight.normal,
-              color: state.mode == PromptPresetMode.none
-                  ? theme.colorScheme.primary
-                  : null,
+    items.add(
+      PopupMenuItem<String>(
+        value: 'none',
+        child: Row(
+          children: [
+            if (state.mode == PromptPresetMode.none)
+              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+            else
+              const SizedBox(width: 16),
+            const SizedBox(width: 8),
+            Text(
+              context.l10n.qualityTags_none,
+              style: TextStyle(
+                fontWeight: state.mode == PromptPresetMode.none
+                    ? FontWeight.w600
+                    : FontWeight.normal,
+                color: state.mode == PromptPresetMode.none
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
 
     // 分隔线
     items.add(const PopupMenuDivider());
 
     // 从词库添加
-    items.add(PopupMenuItem<String>(
-      value: 'add_from_library',
-      child: Row(
-        children: [
-          Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            context.l10n.qualityTags_addFromLibrary,
-            style: TextStyle(
-              color: theme.colorScheme.primary,
+    items.add(
+      PopupMenuItem<String>(
+        value: 'add_from_library',
+        child: Row(
+          children: [
+            Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              context.l10n.qualityTags_addFromLibrary,
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
 
     // 所有已添加的自定义条目
     if (customEntries.isNotEmpty) {
@@ -276,16 +282,18 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       for (final entry in customEntries) {
         final isSelected = state.mode == PromptPresetMode.custom &&
             state.customEntryId == entry.id;
-        items.add(_CustomEntryMenuItem(
-          entry: entry,
-          isSelected: isSelected,
-          onDelete: () {
-            ref
-                .read(qualityPresetNotifierProvider.notifier)
-                .removeCustomEntry(entry.id);
-            Navigator.of(context).pop();
-          },
-        ));
+        items.add(
+          _CustomEntryMenuItem(
+            entry: entry,
+            isSelected: isSelected,
+            onDelete: () {
+              ref
+                  .read(qualityPresetNotifierProvider.notifier)
+                  .removeCustomEntry(entry.id);
+              Navigator.of(context).pop();
+            },
+          ),
+        );
       }
     }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common/inset_shadow_container.dart';
+import '../prompt/prompt_formatter_wrapper.dart';
 import 'autocomplete_controller.dart';
 import 'autocomplete_wrapper.dart';
 
@@ -128,13 +129,11 @@ class AutocompleteTextField extends ConsumerWidget {
         : textField;
 
     // 使用 AutocompleteWrapper 提供自动补全功能
-    return AutocompleteWrapper(
+    Widget result = AutocompleteWrapper(
       controller: controller,
       focusNode: focusNode,
       config: config,
       enabled: enableAutocomplete,
-      enableAutoFormat: enableAutoFormat,
-      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
       onChanged: onChanged,
       textStyle: style,
       contentPadding: effectiveDecoration?.contentPadding,
@@ -142,5 +141,19 @@ class AutocompleteTextField extends ConsumerWidget {
       expands: expands,
       child: wrappedTextField,
     );
+
+    // 如果启用格式化功能，外层包装 PromptFormatterWrapper
+    if (enableAutoFormat || enableSdSyntaxAutoConvert) {
+      result = PromptFormatterWrapper(
+        controller: controller,
+        focusNode: focusNode,
+        enableAutoFormat: enableAutoFormat,
+        enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+        onChanged: onChanged,
+        child: result,
+      );
+    }
+
+    return result;
   }
 }

@@ -8,6 +8,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_controller.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../common/inset_shadow_container.dart';
+import '../prompt/prompt_formatter_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 任务编辑对话框
@@ -204,65 +205,73 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog>
             controller: _tabController,
             children: [
               // 正向提示词
-              AutocompleteWrapper(
+              PromptFormatterWrapper(
                 controller: _promptController,
                 focusNode: _promptFocusNode,
-                config: const AutocompleteConfig(
-                  maxSuggestions: 15,
-                  showTranslation: true,
-                  showCategory: true,
-                  autoInsertComma: true,
-                ),
                 enableAutoFormat: true,
-                maxLines: 6,
-                expands: false,
-                contentPadding: const EdgeInsets.all(12),
-                child: InsetShadowContainer(
-                  borderRadius: 8,
-                  child: ThemedInput(
-                    controller: _promptController,
-                    maxLines: 6,
-                    minLines: 6,
-                    textAlignVertical: TextAlignVertical.top,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(12),
-                      hintText: l10n.queue_enterPositivePrompt,
+                child: AutocompleteWrapper(
+                  controller: _promptController,
+                  focusNode: _promptFocusNode,
+                  config: const AutocompleteConfig(
+                    maxSuggestions: 15,
+                    showTranslation: true,
+                    showCategory: true,
+                    autoInsertComma: true,
+                  ),
+                  maxLines: 6,
+                  expands: false,
+                  contentPadding: const EdgeInsets.all(12),
+                  child: InsetShadowContainer(
+                    borderRadius: 8,
+                    child: ThemedInput(
+                      controller: _promptController,
+                      maxLines: 6,
+                      minLines: 6,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(12),
+                        hintText: l10n.queue_enterPositivePrompt,
+                      ),
                     ),
                   ),
                 ),
               ),
               // 负向提示词
-              AutocompleteWrapper(
+              PromptFormatterWrapper(
                 controller: _negativePromptController,
                 focusNode: _negativePromptFocusNode,
-                config: const AutocompleteConfig(
-                  maxSuggestions: 15,
-                  showTranslation: true,
-                  showCategory: true,
-                  autoInsertComma: true,
-                ),
                 enableAutoFormat: true,
-                maxLines: 6,
-                expands: false,
-                contentPadding: const EdgeInsets.all(12),
-                child: InsetShadowContainer(
-                  borderRadius: 8,
-                  child: ThemedInput(
-                    controller: _negativePromptController,
-                    maxLines: 6,
-                    minLines: 6,
-                    textAlignVertical: TextAlignVertical.top,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(12),
-                      hintText: l10n.queue_enterNegativePrompt,
+                child: AutocompleteWrapper(
+                  controller: _negativePromptController,
+                  focusNode: _negativePromptFocusNode,
+                  config: const AutocompleteConfig(
+                    maxSuggestions: 15,
+                    showTranslation: true,
+                    showCategory: true,
+                    autoInsertComma: true,
+                  ),
+                  maxLines: 6,
+                  expands: false,
+                  contentPadding: const EdgeInsets.all(12),
+                  child: InsetShadowContainer(
+                    borderRadius: 8,
+                    child: ThemedInput(
+                      controller: _negativePromptController,
+                      maxLines: 6,
+                      minLines: 6,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(12),
+                        hintText: l10n.queue_enterNegativePrompt,
+                      ),
                     ),
                   ),
                 ),

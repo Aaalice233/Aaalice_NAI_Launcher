@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../autocomplete/autocomplete_wrapper.dart';
 import '../nai_syntax_controller.dart';
+import '../prompt_formatter_wrapper.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -211,19 +212,47 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       onSubmitted: widget.onSubmitted,
     );
 
+    // 判断是否需要格式化功能
+    final needsFormatting = widget.config.enableAutoFormat ||
+        widget.config.enableSdSyntaxAutoConvert;
+
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
     if (widget.config.enableAutocomplete) {
-      return AutocompleteWrapper(
+      Widget result = AutocompleteWrapper(
         controller: _effectiveController,
         focusNode: _effectiveFocusNode,
         config: widget.config.autocompleteConfig,
         enabled: !widget.config.readOnly,
-        enableAutoFormat: widget.config.enableAutoFormat,
-        enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
         onChanged: _handleTextChanged,
         contentPadding: effectiveDecoration.contentPadding,
         maxLines: widget.maxLines,
         expands: widget.expands,
+        child: baseInput,
+      );
+
+      // 如果需要格式化，外层再包装 PromptFormatterWrapper
+      if (needsFormatting) {
+        result = PromptFormatterWrapper(
+          controller: _effectiveController,
+          focusNode: _effectiveFocusNode,
+          enableAutoFormat: widget.config.enableAutoFormat,
+          enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
+          onChanged: _handleTextChanged,
+          child: result,
+        );
+      }
+
+      return result;
+    }
+
+    // 不启用自动补全，但需要格式化
+    if (needsFormatting) {
+      return PromptFormatterWrapper(
+        controller: _effectiveController,
+        focusNode: _effectiveFocusNode,
+        enableAutoFormat: widget.config.enableAutoFormat,
+        enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
+        onChanged: _handleTextChanged,
         child: baseInput,
       );
     }
