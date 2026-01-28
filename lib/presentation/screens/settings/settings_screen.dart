@@ -368,7 +368,7 @@ class SettingsScreen extends ConsumerWidget {
                               );
                             }),
                             if (groupIndex < fontGroups.length - 1)
-                              const Divider(height: 1),
+                              const ThemedDivider(height: 1),
                           ],
                         );
                       },

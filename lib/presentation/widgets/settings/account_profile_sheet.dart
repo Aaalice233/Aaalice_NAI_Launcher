@@ -10,6 +10,7 @@ import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
 import '../common/app_toast.dart';
+import '../common/themed_divider.dart';
 import 'nickname_edit_dialog.dart';
 
 /// 账号资料底部操作面板
@@ -263,9 +264,7 @@ class _AccountProfileBottomSheetState
                   _buildAvatarActions(context),
                   const SizedBox(height: 16),
                   // 分割线
-                  Divider(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-                  ),
+                  const ThemedDivider(),
                   const SizedBox(height: 16),
                   // 昵称行
                   _buildNicknameRow(context),

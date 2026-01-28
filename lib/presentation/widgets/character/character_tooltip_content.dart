@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../common/themed_divider.dart';
 
 import '../../../data/models/character/character_prompt.dart';
 
@@ -142,10 +143,7 @@ class _DetailedContent extends StatelessWidget {
 
           const SizedBox(height: 10),
           // 底部分隔线
-          Divider(
-            height: 1,
-            color: colorScheme.outlineVariant.withOpacity(0.5),
-          ),
+          const ThemedDivider(height: 1),
           const SizedBox(height: 8),
 
           // 统计摘要

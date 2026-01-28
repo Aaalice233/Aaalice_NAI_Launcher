@@ -7,6 +7,7 @@ import '../common/themed_checkbox.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
 import '../../providers/random_preset_provider.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 人数类别配置对话框
 ///
@@ -165,7 +166,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           children: [
             // 标题栏
             _buildHeader(theme, l10n),
-            const Divider(height: 1),
+            const ThemedDivider(height: 1),
             // 类别列表
             Flexible(
               child: SingleChildScrollView(
@@ -177,7 +178,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                 ),
               ),
             ),
-            const Divider(height: 1),
+            const ThemedDivider(height: 1),
             // 底部按钮
             _buildFooter(theme, l10n),
           ],
@@ -341,7 +342,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           ),
           // 展开内容
           if (isExpanded) ...[
-            const Divider(height: 1),
+            const ThemedDivider(height: 1),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(

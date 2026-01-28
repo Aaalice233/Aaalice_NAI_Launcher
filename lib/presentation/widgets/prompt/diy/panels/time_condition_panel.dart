@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/time_condition.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 时间条件面板
 ///
@@ -314,7 +315,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               _updateCondition(_condition.copyWith(name: value));
             },
           ),
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
           SwitchListTile(
             title: const Text('每年重复'),
             subtitle: const Text('每年相同日期范围自动启用'),
@@ -325,7 +326,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                     _updateCondition(_condition.copyWith(recurring: value));
                   },
           ),
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
           SwitchListTile(
             title: const Text('启用'),
             value: _condition.enabled,

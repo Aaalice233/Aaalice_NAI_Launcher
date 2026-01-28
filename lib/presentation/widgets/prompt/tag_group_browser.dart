@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../common/themed_divider.dart';
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/tag/tag_suggestion.dart';
 import '../../providers/danbooru_suggestion_provider.dart';
@@ -156,7 +157,8 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
               }
 
               final isExpanded = _expandedCategories[category] ?? false;
-              final categoryName = TagSubCategoryHelper.getDisplayName(category);
+              final categoryName =
+                  TagSubCategoryHelper.getDisplayName(category);
 
               return _buildCategoryTile(
                 theme: theme,
@@ -213,7 +215,9 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
                   ),
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
+                    ref
+                        .read(danbooruSuggestionNotifierProvider.notifier)
+                        .clear();
                     setState(() {});
                   },
                 )
@@ -516,7 +520,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
 
     return Column(
       children: [
-        Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.1)),
+        const ThemedDivider(height: 1),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Wrap(

@@ -6,6 +6,7 @@ import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 笔刷预设
 class BrushPreset {
@@ -290,7 +291,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 笔刷预设
         Padding(
@@ -333,7 +334,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 大小
         _SettingRow(

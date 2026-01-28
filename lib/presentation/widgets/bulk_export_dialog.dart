@@ -9,6 +9,7 @@ import '../../data/repositories/local_gallery_repository.dart';
 import '../providers/bulk_operation_provider.dart';
 import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
+import '../widgets/common/themed_divider.dart';
 
 /// Bulk Export Dialog Widget
 /// 批量导出对话框组件
@@ -77,7 +78,7 @@ class _BulkExportDialogState extends ConsumerState<BulkExportDialog> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(),
+          const ThemedDivider(),
           const SizedBox(height: 16),
 
           // Export options
@@ -145,7 +146,7 @@ class _BulkExportDialogState extends ConsumerState<BulkExportDialog> {
           ),
 
           const SizedBox(height: 16),
-          const Divider(),
+          const ThemedDivider(),
           const SizedBox(height: 16),
 
           // Action buttons

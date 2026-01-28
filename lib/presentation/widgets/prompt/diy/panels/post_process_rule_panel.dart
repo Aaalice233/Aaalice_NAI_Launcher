@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/post_process_rule.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 后处理规则面板
 ///
@@ -178,7 +179,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: widget.rules.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, __) => const ThemedDivider(height: 1),
         itemBuilder: (context, index) {
           final rule = widget.rules[index];
           return ListTile(
@@ -240,7 +241,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                 ),
               ],
             ),
-            const Divider(),
+            const ThemedDivider(),
             TextFormField(
               initialValue: rule.name,
               decoration: const InputDecoration(labelText: '规则名称'),

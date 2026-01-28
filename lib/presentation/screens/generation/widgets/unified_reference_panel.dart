@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../widgets/common/themed_divider.dart';
 import '../../../../core/utils/nai_api_utils.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/image/image_params.dart';
@@ -208,7 +209,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Divider(color: showBackground ? Colors.white24 : null),
+                      const ThemedDivider(),
 
                       // 模式选择器 (SegmentedButton)
                       _buildModeSelector(

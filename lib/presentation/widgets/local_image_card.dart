@@ -13,6 +13,7 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
 import 'prompt/random_manager/components/pro_context_menu.dart';
+import '../widgets/common/themed_divider.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）
 class LocalImageCard extends StatefulWidget {
@@ -290,7 +291,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                     ],
                                   ),
                                 ),
-                                const Divider(height: 1),
+                                const ThemedDivider(height: 1),
                                 // 滚动内容
                                 Expanded(
                                   child: SingleChildScrollView(
@@ -302,7 +303,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                   ),
                                 ),
                                 // 底部操作栏
-                                const Divider(height: 1),
+                                const ThemedDivider(height: 1),
                                 Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Row(
@@ -396,7 +397,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                                       ],
                                     ),
                                   ),
-                                  const Divider(height: 1),
+                                  const ThemedDivider(height: 1),
                                   Expanded(
                                     child: SingleChildScrollView(
                                       padding: const EdgeInsets.all(16),

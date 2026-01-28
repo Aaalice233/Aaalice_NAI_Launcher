@@ -6,6 +6,7 @@ import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 图层面板
 class LayerPanel extends StatefulWidget {
@@ -129,7 +130,7 @@ class _LayerPanelState extends State<LayerPanel> {
                     : null,
               ),
 
-              const Divider(height: 1),
+              const ThemedDivider(height: 1),
 
               // 图层列表
               // 使用 RepaintBoundary 隔离整个图层列表，防止父组件更新触发重绘

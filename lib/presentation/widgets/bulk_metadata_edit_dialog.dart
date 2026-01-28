@@ -7,6 +7,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/bulk_operation_provider.dart';
 import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
+import '../widgets/common/themed_divider.dart';
 
 /// Bulk Metadata Edit Dialog Widget
 /// 批量元数据编辑对话框组件
@@ -207,7 +208,7 @@ class _BulkMetadataEditDialogState extends ConsumerState<BulkMetadataEditDialog>
               ],
             ),
             const SizedBox(height: 16),
-            const Divider(),
+            const ThemedDivider(),
             const SizedBox(height: 16),
 
             // Scrollable content
@@ -308,7 +309,7 @@ class _BulkMetadataEditDialogState extends ConsumerState<BulkMetadataEditDialog>
             ),
 
             const SizedBox(height: 16),
-            const Divider(),
+            const ThemedDivider(),
             const SizedBox(height: 16),
 
             // Action buttons

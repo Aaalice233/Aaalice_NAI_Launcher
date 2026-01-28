@@ -5,6 +5,7 @@ import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 橡皮擦工具
 class EraserTool extends EditorTool {
@@ -172,7 +173,7 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 大小
         Padding(

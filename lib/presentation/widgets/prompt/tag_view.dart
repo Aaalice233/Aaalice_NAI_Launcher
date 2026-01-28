@@ -14,6 +14,7 @@ import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
 import 'components/tag_chip/tag_chip_animations.dart';
 import 'core/prompt_tag_config.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 重构后的提示词标签视图组件
 /// 支持框选、拖拽排序、批量操作、内联编辑等
@@ -1303,7 +1304,7 @@ class _BreakdownMenu extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Divider(height: 1),
+                        const ThemedDivider(height: 1),
                         const SizedBox(height: 8),
                         // 分类统计列表
                         ...sortedCategories.map((entry) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/visibility_rule.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 可见性规则面板
 ///
@@ -141,7 +142,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: widget.rules.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, __) => const ThemedDivider(height: 1),
         itemBuilder: (context, index) {
           final rule = widget.rules[index];
           return ListTile(
@@ -203,7 +204,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
                 ),
               ],
             ),
-            const Divider(),
+            const ThemedDivider(),
             TextFormField(
               initialValue: rule.name,
               decoration: const InputDecoration(labelText: '规则名称'),

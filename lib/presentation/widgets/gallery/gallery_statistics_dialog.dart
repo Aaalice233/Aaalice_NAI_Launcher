@@ -6,6 +6,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
 import '../../providers/gallery_provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// Gallery Statistics Dialog
 ///
@@ -335,13 +336,13 @@ class _GalleryStatisticsDialogState
               l10n.statistics_averageFileSize,
               statistics.averageSizeFormatted,
             ),
-            const Divider(height: 24),
+            const ThemedDivider(height: 24),
             _buildStatRow(
               theme,
               l10n.statistics_withMetadata,
               '${statistics.imagesWithMetadata} (${statistics.metadataPercentage.toStringAsFixed(1)}%)',
             ),
-            const Divider(height: 24),
+            const ThemedDivider(height: 24),
             _buildStatRow(
               theme,
               l10n.statistics_calculatedAt,

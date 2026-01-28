@@ -6,6 +6,7 @@ import '../../../../data/models/prompt/sync_config.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_switch.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 词库设置组件
 ///
@@ -42,7 +43,7 @@ class TagLibrarySettings extends ConsumerWidget {
 
             // 词库状态
             _buildLibraryStatus(context, state, theme),
-            const Divider(height: 24),
+            const ThemedDivider(height: 24),
 
             // 自动同步开关
             _buildAutoSyncSwitch(context, ref, state, theme),

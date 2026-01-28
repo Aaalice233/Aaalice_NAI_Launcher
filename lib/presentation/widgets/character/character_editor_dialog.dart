@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../common/themed_divider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
@@ -170,11 +171,7 @@ class _CharacterEditorDialogState extends ConsumerState<CharacterEditorDialog>
                 ),
 
                 // 分隔线
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
+                const ThemedDivider(height: 1, vertical: true),
 
                 // 右侧：角色详情
                 Expanded(

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 图片目标类型
 enum ImageDestination {
@@ -148,7 +149,7 @@ class ImageDestinationDialog extends StatelessWidget {
                           .pop(ImageDestination.extractMetadata),
                     ),
                     const SizedBox(height: 16),
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
                     const SizedBox(height: 16),
                   ],
                   _DestinationButton(

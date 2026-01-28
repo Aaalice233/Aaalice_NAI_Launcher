@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/conditional_branch.dart';
 import '../../../common/themed_slider.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 条件分支配置面板
 ///
@@ -220,7 +221,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _config.branches.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, __) => const ThemedDivider(height: 1),
         itemBuilder: (context, index) {
           final branch = _config.branches[index];
           return ListTile(
@@ -289,7 +290,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                 ),
               ],
             ),
-            const Divider(),
+            const ThemedDivider(),
             TextFormField(
               initialValue: branch.name,
               decoration: const InputDecoration(labelText: '分支名称'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 角色位置画布组件
 ///
@@ -231,7 +232,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: widget.positions.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, __) => const ThemedDivider(height: 1),
         itemBuilder: (context, index) {
           final position = widget.positions[index];
           final isSelected = _selectedIndex == index;

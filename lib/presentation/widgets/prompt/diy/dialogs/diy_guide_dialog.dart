@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// DIY 功能指南弹窗
 ///
@@ -156,7 +157,7 @@ class _GuideSection extends StatelessWidget {
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Divider(),
+          const ThemedDivider(),
           Text(
             description,
             style: theme.textTheme.bodyMedium,

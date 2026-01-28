@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 预设导入/导出弹窗
 ///
@@ -168,7 +169,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const Divider(),
+                        const ThemedDivider(),
                         _buildInfoRow('名称', _previewPreset!.name),
                         if (_previewPreset!.description != null &&
                             _previewPreset!.description!.isNotEmpty)

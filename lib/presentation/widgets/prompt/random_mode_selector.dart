@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/random_prompt_result.dart';
 import '../../providers/random_mode_provider.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 随机模式选择器
 ///
@@ -284,7 +285,7 @@ class RandomModeBottomSheet extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8),
             child: RandomModeSelector(

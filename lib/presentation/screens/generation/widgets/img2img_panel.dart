@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
@@ -139,7 +140,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Divider(color: hasSourceImage ? Colors.white24 : null),
+                      const ThemedDivider(),
 
                       // 源图像选择
                       _buildSourceImageSection(theme, params),

@@ -10,6 +10,7 @@ import '../../../data/models/tag/tag_suggestion.dart';
 import '../../providers/danbooru_suggestion_provider.dart';
 import '../../providers/tag_favorite_provider.dart';
 import '../common/themed_container.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 标签收藏面板
 ///
@@ -346,7 +347,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 建议列表
         Expanded(
           child: ListView.separated(

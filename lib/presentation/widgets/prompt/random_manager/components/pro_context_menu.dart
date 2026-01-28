@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../common/themed_divider.dart';
 
 class ProMenuItem {
   final String id;
@@ -56,7 +57,8 @@ class ProContextMenu extends StatelessWidget {
                 : colorScheme.surface,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: colorScheme.outlineVariant.withOpacity(isDark ? 0.15 : 0.2),
+              color:
+                  colorScheme.outlineVariant.withOpacity(isDark ? 0.15 : 0.2),
             ),
             boxShadow: [
               BoxShadow(
@@ -73,11 +75,7 @@ class ProContextMenu extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: items.map((item) {
                 if (item.isDivider) {
-                  return Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: colorScheme.outlineVariant.withOpacity(0.15),
-                  );
+                  return const ThemedDivider(height: 1);
                 }
                 return _ContextMenuItem(
                   item: item,
@@ -112,9 +110,8 @@ class _ContextMenuItemState extends State<_ContextMenuItem> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final itemColor = widget.item.isDanger
-        ? colorScheme.error
-        : colorScheme.onSurface;
+    final itemColor =
+        widget.item.isDanger ? colorScheme.error : colorScheme.onSurface;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -149,7 +146,8 @@ class _ContextMenuItemState extends State<_ContextMenuItem> {
                   style: TextStyle(
                     fontSize: 13,
                     color: itemColor,
-                    fontWeight: _isHovered ? FontWeight.w500 : FontWeight.normal,
+                    fontWeight:
+                        _isHovered ? FontWeight.w500 : FontWeight.normal,
                   ),
                 ),
               ),

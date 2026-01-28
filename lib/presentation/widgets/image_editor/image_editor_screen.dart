@@ -17,6 +17,7 @@ import 'widgets/panels/layer_panel.dart';
 import 'widgets/panels/color_panel.dart';
 import 'widgets/panels/canvas_size_dialog.dart';
 import 'export/image_exporter_new.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 图像编辑器返回结果
 class ImageEditorResult {
@@ -252,13 +253,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                           flex: 2,
                           child: LayerPanel(state: _state),
                         ),
-                        const Divider(height: 1),
+                        const ThemedDivider(height: 1),
                         // 工具设置面板
                         Expanded(
                           flex: 2,
                           child: _buildToolSettingsPanel(),
                         ),
-                        const Divider(height: 1),
+                        const ThemedDivider(height: 1),
                         // 颜色面板
                         ColorPanel(state: _state),
                       ],
@@ -362,7 +363,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             tooltip: '加载蒙版',
           ),
 
-          const VerticalDivider(width: 1, indent: 8, endIndent: 8),
+          const ThemedDivider(height: 1, vertical: true, indent: 8, endIndent: 8),
 
           // 切换面板
           IconButton(
@@ -387,7 +388,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             tooltip: '快捷键帮助',
           ),
 
-          const VerticalDivider(width: 1, indent: 8, endIndent: 8),
+          const ThemedDivider(height: 1, vertical: true, indent: 8, endIndent: 8),
 
           // 导出按钮
           Padding(

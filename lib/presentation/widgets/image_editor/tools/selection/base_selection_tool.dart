@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
 import '../tool_base.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 选区工具基类
 /// 提供所有选区工具的共享功能
@@ -112,7 +113,7 @@ class SelectionSettingsPanel extends StatelessWidget {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 帮助文本（可选）
         if (helpText != null) ...[
@@ -144,7 +145,7 @@ class SelectionSettingsPanel extends StatelessWidget {
               ),
             ),
           ),
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
         ],
 
         // 操作按钮

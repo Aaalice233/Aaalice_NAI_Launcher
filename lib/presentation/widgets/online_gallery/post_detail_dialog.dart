@@ -15,6 +15,7 @@ import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../tag_chip.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 在线画廊帖子详情弹窗
 ///
@@ -267,18 +268,18 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       children: [
         // 标题栏
         _buildTitleBar(theme, authState, isFavorited),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 图片信息
         Padding(
           padding: const EdgeInsets.all(16),
           child: _buildInfoSection(theme),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 标签区域
         Expanded(
           child: _buildTagsSection(theme),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 操作按钮
         _buildActionButtons(theme),
       ],

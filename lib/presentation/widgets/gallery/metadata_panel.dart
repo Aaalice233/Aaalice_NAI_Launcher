@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
+import '../common/themed_divider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../data/models/gallery/local_image_record.dart';
@@ -89,7 +90,7 @@ class _MetadataPanelState extends State<MetadataPanel> {
           isExpanded: true,
           onToggle: _toggleExpanded,
         ),
-        Divider(height: 1, color: colorScheme.outline.withOpacity(0.2)),
+        const ThemedDivider(height: 1),
         // 内容区域
         Expanded(
           child: widget.currentImage == null
@@ -121,7 +122,8 @@ class _MetadataPanelState extends State<MetadataPanel> {
                                 Text(
                                   '此图片无元数据',
                                   style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,),
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ],
                             ),
@@ -131,7 +133,7 @@ class _MetadataPanelState extends State<MetadataPanel> {
         ),
         // 底部操作栏
         if (metadata != null && metadata.hasData) ...[
-          Divider(height: 1, color: colorScheme.outline.withOpacity(0.2)),
+          const ThemedDivider(height: 1),
           _ActionButtons(
             metadata: metadata,
           ),
@@ -280,7 +282,9 @@ class _MetadataContent extends StatelessWidget {
               _InfoRow(label: 'Noise', value: metadata.noiseSchedule!),
             if (metadata.cfgRescale != null && metadata.cfgRescale! > 0)
               _InfoRow(
-                  label: 'CFG Rescale', value: metadata.cfgRescale.toString(),),
+                label: 'CFG Rescale',
+                value: metadata.cfgRescale.toString(),
+              ),
           ],
         ),
         const SizedBox(height: 16),
@@ -369,12 +373,14 @@ class _InfoSection extends StatelessWidget {
           ),
           child: Column(
             children: validChildren
-                .map((child) => Padding(
-                      padding: EdgeInsets.only(
-                        bottom: child != validChildren.last ? 8 : 0,
-                      ),
-                      child: child,
-                    ),)
+                .map(
+                  (child) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: child != validChildren.last ? 8 : 0,
+                    ),
+                    child: child,
+                  ),
+                )
                 .toList(),
           ),
         ),
@@ -558,7 +564,8 @@ class _ActionButtons extends StatelessWidget {
                 label: 'Seed',
                 onPressed: () {
                   Clipboard.setData(
-                      ClipboardData(text: metadata.seed.toString()),);
+                    ClipboardData(text: metadata.seed.toString()),
+                  );
                   AppToast.success(context, 'Seed 已复制');
                 },
               ),

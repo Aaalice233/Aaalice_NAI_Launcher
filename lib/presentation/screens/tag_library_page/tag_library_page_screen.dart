@@ -11,6 +11,7 @@ import 'widgets/entry_list_item.dart';
 import 'widgets/entry_add_dialog.dart';
 import 'widgets/export_dialog.dart';
 import 'widgets/import_dialog.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 词库页面
 class TagLibraryPageScreen extends ConsumerStatefulWidget {
@@ -105,7 +106,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
             ),
           ),
 
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
 
           // 分类树
           Expanded(

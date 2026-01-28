@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 词库条目卡片
 class EntryCard extends StatefulWidget {
@@ -430,7 +431,7 @@ class _EntryPreviewOverlay extends StatelessWidget {
                           ),
 
                           const SizedBox(height: 8),
-                          const Divider(height: 1),
+                          const ThemedDivider(height: 1),
                           const SizedBox(height: 8),
 
                           // 完整内容
