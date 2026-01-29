@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/character/character_prompt.dart';
@@ -8,6 +11,109 @@ import '../nai_syntax_controller.dart';
 import '../prompt_formatter_wrapper.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+
+/// 文本撤回栈
+///
+/// 管理文本编辑历史，支持多步撤回和重做。
+class _TextUndoStack {
+  final List<String> _history = [];
+  int _currentIndex = -1;
+  
+  /// 最大历史记录数
+  static const int _maxHistory = 50;
+
+  /// 防抖定时器
+  Timer? _debounceTimer;
+
+  /// 防抖延迟（毫秒）
+  static const int _debounceMs = 500;
+
+  /// 是否正在执行撤回/重做操作（避免循环记录）
+  bool _isUndoRedoing = false;
+
+  _TextUndoStack();
+
+  /// 记录文本变化（带防抖）
+  void record(String text) {
+    if (_isUndoRedoing) return;
+
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: _debounceMs), () {
+      _recordImmediate(text);
+    });
+  }
+
+  /// 立即记录文本（不防抖，用于清空等重要操作）
+  void recordImmediate(String text) {
+    if (_isUndoRedoing) return;
+    _debounceTimer?.cancel();
+    _recordImmediate(text);
+  }
+
+  void _recordImmediate(String text) {
+    // 如果和当前状态相同，不记录
+    if (_currentIndex >= 0 && _history[_currentIndex] == text) {
+      return;
+    }
+
+    // 如果有重做历史，清除它们
+    if (_currentIndex < _history.length - 1) {
+      _history.removeRange(_currentIndex + 1, _history.length);
+    }
+
+    // 添加新记录
+    _history.add(text);
+    _currentIndex = _history.length - 1;
+
+    // 限制历史长度
+    while (_history.length > _maxHistory) {
+      _history.removeAt(0);
+      _currentIndex--;
+    }
+  }
+
+  /// 撤回，返回撤回后的文本，如果无法撤回返回 null
+  String? undo() {
+    if (!canUndo) return null;
+
+    _isUndoRedoing = true;
+    _currentIndex--;
+    final text = _history[_currentIndex];
+    _isUndoRedoing = false;
+
+    return text;
+  }
+
+  /// 重做，返回重做后的文本，如果无法重做返回 null
+  String? redo() {
+    if (!canRedo) return null;
+
+    _isUndoRedoing = true;
+    _currentIndex++;
+    final text = _history[_currentIndex];
+    _isUndoRedoing = false;
+
+    return text;
+  }
+
+  /// 是否可以撤回
+  bool get canUndo => _currentIndex > 0;
+
+  /// 是否可以重做
+  bool get canRedo => _currentIndex < _history.length - 1;
+
+  /// 清空历史
+  void clear() {
+    _debounceTimer?.cancel();
+    _history.clear();
+    _currentIndex = -1;
+  }
+
+  /// 释放资源
+  void dispose() {
+    _debounceTimer?.cancel();
+  }
+}
 
 /// 统一提示词输入组件
 ///
@@ -89,6 +195,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
+  /// 撤回栈
+  _TextUndoStack? _undoStack;
+
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
     if (widget.config.enableSyntaxHighlight) {
@@ -125,6 +234,16 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       _internalFocusNode = FocusNode();
     }
 
+    // 初始化撤回栈
+    if (widget.config.enableUndoRedo) {
+      _undoStack = _TextUndoStack();
+      // 记录初始状态
+      final initialText = _effectiveController.text;
+      if (initialText.isNotEmpty) {
+        _undoStack!.recordImmediate(initialText);
+      }
+    }
+
     // 监听外部控制器变化
     widget.controller?.addListener(_syncFromExternalController);
   }
@@ -155,6 +274,20 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         );
       }
     }
+
+    // 撤回功能配置变化
+    if (widget.config.enableUndoRedo != oldWidget.config.enableUndoRedo) {
+      if (widget.config.enableUndoRedo && _undoStack == null) {
+        _undoStack = _TextUndoStack();
+        final initialText = _effectiveController.text;
+        if (initialText.isNotEmpty) {
+          _undoStack!.recordImmediate(initialText);
+        }
+      } else if (!widget.config.enableUndoRedo && _undoStack != null) {
+        _undoStack!.dispose();
+        _undoStack = null;
+      }
+    }
   }
 
   @override
@@ -163,6 +296,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _internalController?.dispose();
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
+    _undoStack?.dispose();
     super.dispose();
   }
 
@@ -180,6 +314,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 处理文本变化
   void _handleTextChanged(String text) {
+    // 记录到撤回栈
+    _undoStack?.record(text);
+
     // 同步到外部控制器
     if (widget.controller != null && widget.controller!.text != text) {
       widget.controller!.text = text;
@@ -187,6 +324,48 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     // 触发回调
     widget.onChanged?.call(text);
+  }
+
+  /// 处理清空操作
+  void _handleClear() {
+    // 立即记录清空前的状态
+    _undoStack?.recordImmediate(_effectiveController.text);
+
+    _effectiveController.clear();
+    // 同步到外部控制器
+    if (widget.controller != null) {
+      widget.controller!.clear();
+    }
+
+    // 记录清空后的状态
+    _undoStack?.recordImmediate('');
+
+    widget.onChanged?.call('');
+    widget.config.onClearPressed?.call();
+  }
+
+  /// 执行撤回
+  void _performUndo() {
+    final text = _undoStack?.undo();
+    if (text != null) {
+      _effectiveController.text = text;
+      if (widget.controller != null) {
+        widget.controller!.text = text;
+      }
+      widget.onChanged?.call(text);
+    }
+  }
+
+  /// 执行重做
+  void _performRedo() {
+    final text = _undoStack?.redo();
+    if (text != null) {
+      _effectiveController.text = text;
+      if (widget.controller != null) {
+        widget.controller!.text = text;
+      }
+      widget.onChanged?.call(text);
+    }
   }
 
   @override
@@ -199,6 +378,43 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         controller: _effectiveController,
         enabled: !widget.config.readOnly,
         onImport: widget.onComfyuiImport,
+        child: result,
+      );
+    }
+
+    // 添加快捷键支持
+    if (widget.config.enableUndoRedo && _undoStack != null) {
+      result = Focus(
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+            final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+
+            // Ctrl+Z: 撤回
+            if (isCtrlPressed &&
+                !isShiftPressed &&
+                event.logicalKey == LogicalKeyboardKey.keyZ) {
+              if (_undoStack!.canUndo) {
+                _performUndo();
+                return KeyEventResult.handled;
+              }
+            }
+
+            // Ctrl+Shift+Z 或 Ctrl+Y: 重做
+            if ((isCtrlPressed &&
+                    isShiftPressed &&
+                    event.logicalKey == LogicalKeyboardKey.keyZ) ||
+                (isCtrlPressed &&
+                    !isShiftPressed &&
+                    event.logicalKey == LogicalKeyboardKey.keyY)) {
+              if (_undoStack!.canRedo) {
+                _performRedo();
+                return KeyEventResult.handled;
+              }
+            }
+          }
+          return KeyEventResult.ignored;
+        },
         child: result,
       );
     }
@@ -227,12 +443,16 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       focusNode: widget.config.enableAutocomplete ? null : _effectiveFocusNode,
       decoration: effectiveDecoration,
       maxLines: widget.expands ? null : widget.maxLines,
-      minLines: widget.expands ? 1 : (widget.minLines ?? 1),
+      minLines: widget.expands ? null : (widget.minLines ?? 1),
       expands: widget.expands,
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,
       onChanged: widget.config.enableAutocomplete ? null : _handleTextChanged,
       onSubmitted: widget.onSubmitted,
+      showClearButton: widget.config.showClearButton,
+      onClearPressed: widget.config.showClearButton ? _handleClear : null,
+      clearNeedsConfirm: widget.config.clearNeedsConfirm,
+      enableUndoRedo: false, // 禁用 ThemedInput 内置的撤回，使用自定义的
     );
 
     // 判断是否需要格式化功能

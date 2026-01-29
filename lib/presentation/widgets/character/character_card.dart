@@ -3,10 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../providers/tag_library_page_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../common/themed_switch.dart';
+import 'add_to_library_dialog.dart';
 
 /// 角色卡片组件（竖直ID身份卡样式）
 ///
@@ -17,7 +20,7 @@ import '../common/themed_switch.dart';
 /// - 金属质感分隔线
 /// - 底部状态徽章行
 /// - 背景纹理效果
-class CharacterCard extends StatefulWidget {
+class CharacterCard extends ConsumerStatefulWidget {
   final CharacterPrompt character;
   final bool globalAiChoice;
   final VoidCallback? onTap;
@@ -34,10 +37,10 @@ class CharacterCard extends StatefulWidget {
   });
 
   @override
-  State<CharacterCard> createState() => _CharacterCardState();
+  ConsumerState<CharacterCard> createState() => _CharacterCardState();
 }
 
-class _CharacterCardState extends State<CharacterCard>
+class _CharacterCardState extends ConsumerState<CharacterCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _glossController;
@@ -129,6 +132,14 @@ class _CharacterCardState extends State<CharacterCard>
     final intensity = _getEffectIntensity(context);
     final isEnabled = widget.character.enabled;
     final isLight = theme.extension<AppThemeExtension>()?.isLightTheme ?? false;
+
+    // 检查是否已收藏到词库
+    final libraryEntries = ref.watch(tagLibraryPageNotifierProvider).entries;
+    final isFavorited = libraryEntries.any(
+      (e) =>
+          e.content == widget.character.prompt &&
+          widget.character.prompt.isNotEmpty,
+    );
 
     return MouseRegion(
       onEnter: _onHoverEnter,
@@ -253,7 +264,38 @@ class _CharacterCardState extends State<CharacterCard>
                         ),
                       ),
 
-                    // 删除按钮（放在顶部条带右侧）
+                    // 悬浮时显示收藏按钮（左上角）
+                    if (_isHovered && isEnabled)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: _FavoriteButton(
+                          isFavorited: isFavorited,
+                          onTap: () async {
+                            final result = await AddToLibraryDialog.show(
+                              context,
+                              name:
+                                  '${widget.character.name} - ${AppLocalizations.of(context)!.prompt_positivePrompt}',
+                              content: widget.character.prompt,
+                            );
+                            if (result == true && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    AppLocalizations.of(context)!
+                                        .tagLibrary_addedToFixed,
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          genderColor: genderColor,
+                        ),
+                      ),
+
+                    // 悬浮时显示删除按钮（右上角）
                     if (_isHovered && widget.onDelete != null)
                       Positioned(
                         top: 0,
@@ -870,6 +912,100 @@ class _DeleteButton extends StatelessWidget {
             Icons.close,
             size: 14,
             color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 收藏按钮组件（位于左上角）
+class _FavoriteButton extends StatefulWidget {
+  final bool isFavorited;
+  final VoidCallback onTap;
+  final Color genderColor;
+
+  const _FavoriteButton({
+    required this.isFavorited,
+    required this.onTap,
+    required this.genderColor,
+  });
+
+  @override
+  State<_FavoriteButton> createState() => _FavoriteButtonState();
+}
+
+class _FavoriteButtonState extends State<_FavoriteButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFavorited = widget.isFavorited;
+    final l10n = AppLocalizations.of(context)!;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(12),
+            bottomRight: Radius.circular(8),
+          ),
+          child: Tooltip(
+            message: isFavorited
+                ? l10n.tagLibrary_pinned
+                : l10n.tagLibrary_addToLibrary,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: isFavorited
+                    ? Colors.red.shade400.withOpacity(0.9)
+                    : (_isHovered
+                        ? Colors.black.withOpacity(0.7)
+                        : Colors.black.withOpacity(0.5)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(8),
+                ),
+                border: Border(
+                  right: BorderSide(
+                    color: isFavorited
+                        ? Colors.red.shade400.withOpacity(0.5)
+                        : widget.genderColor.withOpacity(0.5),
+                    width: 1,
+                  ),
+                  bottom: BorderSide(
+                    color: isFavorited
+                        ? Colors.red.shade400.withOpacity(0.5)
+                        : widget.genderColor.withOpacity(0.5),
+                    width: 1,
+                  ),
+                ),
+                boxShadow: isFavorited || _isHovered
+                    ? [
+                        BoxShadow(
+                          color: Colors.red.shade400.withOpacity(0.4),
+                          blurRadius: 8,
+                          spreadRadius: isFavorited ? 1 : 0,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Icon(
+                isFavorited || _isHovered
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                size: 14,
+                color: isFavorited || _isHovered
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.9),
+              ),
+            ),
           ),
         ),
       ),

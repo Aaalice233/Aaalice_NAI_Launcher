@@ -16,9 +16,7 @@ import 'position_grid_selector.dart';
 /// 用于编辑单个角色的详细信息，包括：
 /// - 名称输入
 /// - 启用开关
-/// - 正向提示词编辑器
-/// - 负向提示词编辑器
-/// - 位置网格选择器
+/// - Tab切换式编辑器（正向提示词、负向提示词、位置）
 class CharacterEditDialog extends ConsumerStatefulWidget {
   final CharacterPrompt character;
   final bool globalAiChoice;
@@ -54,6 +52,7 @@ class _CharacterEditDialogState extends ConsumerState<CharacterEditDialog> {
   late TextEditingController _promptController;
   late TextEditingController _negativePromptController;
   late CharacterPrompt _editingCharacter;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
@@ -107,8 +106,8 @@ class _CharacterEditDialogState extends ConsumerState<CharacterEditDialog> {
             // 头部
             _buildHeader(theme, colorScheme, l10n, genderColor),
             // 内容
-            Flexible(
-              child: SingleChildScrollView(
+            Expanded(
+              child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,55 +121,72 @@ class _CharacterEditDialogState extends ConsumerState<CharacterEditDialog> {
                         final trimmed = value.trim();
                         if (trimmed.isNotEmpty) {
                           _updateCharacter(
-                              _editingCharacter.copyWith(name: trimmed),);
+                            _editingCharacter.copyWith(name: trimmed),
+                          );
                         }
                       },
                       onEnabledChanged: (value) {
                         _updateCharacter(
-                            _editingCharacter.copyWith(enabled: value),);
+                          _editingCharacter.copyWith(enabled: value),
+                        );
                       },
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 正向提示词
-                    _PromptSection(
-                      label: l10n.prompt_positivePrompt,
-                      controller: _promptController,
-                      onChanged: (value) {
-                        _updateCharacter(
-                            _editingCharacter.copyWith(prompt: value),);
-                      },
-                      hintText: l10n.characterEditor_promptHint,
                     ),
                     const SizedBox(height: 16),
 
-                    // 负向提示词
-                    _PromptSection(
-                      label: l10n.prompt_negativePrompt,
-                      controller: _negativePromptController,
-                      onChanged: (value) {
-                        _updateCharacter(
-                            _editingCharacter.copyWith(negativePrompt: value),);
-                      },
-                      hintText: l10n.characterEditor_negativePromptHint,
-                      maxLines: 3,
-                      compact: true,
+                    // Tab选项卡
+                    _EditorTabs(
+                      currentIndex: _currentTabIndex,
+                      onTabChanged: (index) =>
+                          setState(() => _currentTabIndex = index),
+                      genderColor: genderColor,
+                      showPositionTab: !widget.globalAiChoice,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
 
-                    // 位置网格（仅当全局AI选择未启用时显示）
-                    if (!widget.globalAiChoice)
-                      _PositionSection(
-                        customPosition: _editingCharacter.customPosition,
-                        onPositionSelected: (position) {
-                          _updateCharacter(
-                            _editingCharacter.copyWith(
-                              customPosition: position,
-                              positionMode: CharacterPositionMode.custom,
+                    // Tab内容区域
+                    Expanded(
+                      child: IndexedStack(
+                        index: _currentTabIndex,
+                        children: [
+                          // Tab 0: 正向提示词
+                          _PromptTabContent(
+                            controller: _promptController,
+                            onChanged: (value) {
+                              _updateCharacter(
+                                _editingCharacter.copyWith(prompt: value),
+                              );
+                            },
+                            hintText: l10n.characterEditor_promptHint,
+                          ),
+                          // Tab 1: 负向提示词
+                          _PromptTabContent(
+                            controller: _negativePromptController,
+                            onChanged: (value) {
+                              _updateCharacter(
+                                _editingCharacter.copyWith(
+                                  negativePrompt: value,
+                                ),
+                              );
+                            },
+                            hintText: l10n.characterEditor_negativePromptHint,
+                            compact: true,
+                          ),
+                          // Tab 2: 位置（仅当全局AI选择未启用时显示）
+                          if (!widget.globalAiChoice)
+                            _PositionTabContent(
+                              customPosition: _editingCharacter.customPosition,
+                              onPositionSelected: (position) {
+                                _updateCharacter(
+                                  _editingCharacter.copyWith(
+                                    customPosition: position,
+                                    positionMode: CharacterPositionMode.custom,
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -293,6 +309,167 @@ class _CharacterEditDialogState extends ConsumerState<CharacterEditDialog> {
   }
 }
 
+/// 填充背景式Tab选项卡
+class _EditorTabs extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTabChanged;
+  final Color genderColor;
+  final bool showPositionTab;
+
+  const _EditorTabs({
+    required this.currentIndex,
+    required this.onTabChanged,
+    required this.genderColor,
+    this.showPositionTab = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    final tabs = [
+      _TabItem(
+        label: l10n.prompt_positivePrompt,
+        icon: Icons.add_circle_outline,
+      ),
+      _TabItem(
+        label: l10n.prompt_negativePrompt,
+        icon: Icons.remove_circle_outline,
+      ),
+      if (showPositionTab)
+        _TabItem(
+          label: l10n.characterEditor_position,
+          icon: Icons.grid_on_rounded,
+        ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: tabs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final tab = entry.value;
+          return Expanded(
+            child: _TabButton(
+              label: tab.label,
+              icon: tab.icon,
+              isActive: currentIndex == index,
+              genderColor: genderColor,
+              onTap: () => onTabChanged(index),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _TabItem {
+  final String label;
+  final IconData icon;
+
+  const _TabItem({required this.label, required this.icon});
+}
+
+/// Tab按钮组件
+class _TabButton extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final Color genderColor;
+  final VoidCallback onTap;
+
+  const _TabButton({
+    required this.label,
+    required this.icon,
+    required this.isActive,
+    required this.genderColor,
+    required this.onTap,
+  });
+
+  @override
+  State<_TabButton> createState() => _TabButtonState();
+}
+
+class _TabButtonState extends State<_TabButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.isActive
+                ? widget.genderColor
+                : (_isHovered
+                    ? colorScheme.surfaceContainerHighest
+                    : Colors.transparent),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: widget.isActive
+                ? [
+                    BoxShadow(
+                      color: widget.genderColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 16,
+                color: widget.isActive
+                    ? Colors.white
+                    : (_isHovered
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: widget.isActive
+                        ? Colors.white
+                        : (_isHovered
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurfaceVariant),
+                    fontWeight:
+                        widget.isActive ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 名称行组件
 class _NameRow extends StatelessWidget {
   final TextEditingController nameController;
@@ -408,29 +585,22 @@ class _NameRow extends StatelessWidget {
   }
 }
 
-/// 提示词编辑区域组件
-class _PromptSection extends ConsumerWidget {
-  final String label;
+/// 提示词Tab内容组件
+class _PromptTabContent extends ConsumerWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final String? hintText;
-  final int maxLines;
   final bool compact;
 
-  const _PromptSection({
-    required this.label,
+  const _PromptTabContent({
     required this.controller,
     required this.onChanged,
     this.hintText,
-    this.maxLines = 5,
     this.compact = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
@@ -451,48 +621,30 @@ class _PromptSection extends ConsumerWidget {
       enableAutoFormat: enableAutoFormat,
       enableSyntaxHighlight: enableHighlight,
       enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+      showClearButton: true,
+      clearNeedsConfirm: true,
+      onClearPressed: () => onChanged(''),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            PromptEditorToolbar(
-              config: toolbarConfig,
-              onClearPressed: () => onChanged(''),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        PromptEditorWithToolbar(
-          toolbarConfig: toolbarConfig.copyWith(showClearButton: false),
-          inputConfig: inputConfig,
-          controller: controller,
-          onChanged: onChanged,
-          onCleared: () => onChanged(''),
-          maxLines: maxLines,
-          minLines: 3,
-        ),
-      ],
+    return PromptEditorWithToolbar(
+      toolbarConfig: toolbarConfig.copyWith(showClearButton: false),
+      inputConfig: inputConfig,
+      controller: controller,
+      onChanged: onChanged,
+      onCleared: () => onChanged(''),
+      maxLines: null,
+      minLines: null,
+      expands: true,
     );
   }
 }
 
-/// 位置网格区域组件
-class _PositionSection extends StatelessWidget {
+/// 位置Tab内容组件
+class _PositionTabContent extends StatelessWidget {
   final CharacterPosition? customPosition;
   final ValueChanged<CharacterPosition> onPositionSelected;
 
-  const _PositionSection({
+  const _PositionTabContent({
     this.customPosition,
     required this.onPositionSelected,
   });
@@ -507,18 +659,21 @@ class _PositionSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l10n.characterEditor_position,
-          style: theme.textTheme.labelMedium?.copyWith(
+          l10n.characterEditor_positionHint,
+          style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 8),
-        LabeledPositionGridSelector(
-          selectedPosition:
-              customPosition ?? const CharacterPosition(row: 2, column: 2),
-          onPositionSelected: onPositionSelected,
-          enabled: true,
+        const SizedBox(height: 16),
+        Expanded(
+          child: Center(
+            child: LabeledPositionGridSelector(
+              selectedPosition:
+                  customPosition ?? const CharacterPosition(row: 2, column: 2),
+              onPositionSelected: onPositionSelected,
+              enabled: true,
+            ),
+          ),
         ),
       ],
     );

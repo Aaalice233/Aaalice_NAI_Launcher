@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import '../../../widgets/autocomplete/autocomplete_controller.dart';
 
 /// 统一提示词输入配置
@@ -58,6 +60,18 @@ class UnifiedPromptConfig {
   /// 输入框提示文本
   final String? hintText;
 
+  /// 是否显示清空按钮（有内容时显示在输入框右上角）
+  final bool showClearButton;
+
+  /// 清空按钮回调（可选）
+  final VoidCallback? onClearPressed;
+
+  /// 清空前是否需要确认对话框
+  final bool clearNeedsConfirm;
+
+  /// 是否启用撤回/重做功能
+  final bool enableUndoRedo;
+
   // ==================== 自动补全配置 ====================
 
   /// 自动补全配置
@@ -74,6 +88,10 @@ class UnifiedPromptConfig {
     this.maxHeight,
     this.emptyHint,
     this.hintText,
+    this.showClearButton = false,
+    this.onClearPressed,
+    this.clearNeedsConfirm = false,
+    this.enableUndoRedo = true,
     this.autocompleteConfig = const AutocompleteConfig(),
   });
 
@@ -125,6 +143,10 @@ class UnifiedPromptConfig {
     double? maxHeight,
     String? emptyHint,
     String? hintText,
+    bool? showClearButton,
+    VoidCallback? onClearPressed,
+    bool? clearNeedsConfirm,
+    bool? enableUndoRedo,
     AutocompleteConfig? autocompleteConfig,
   }) {
     return UnifiedPromptConfig(
@@ -140,6 +162,10 @@ class UnifiedPromptConfig {
       maxHeight: maxHeight ?? this.maxHeight,
       emptyHint: emptyHint ?? this.emptyHint,
       hintText: hintText ?? this.hintText,
+      showClearButton: showClearButton ?? this.showClearButton,
+      onClearPressed: onClearPressed ?? this.onClearPressed,
+      clearNeedsConfirm: clearNeedsConfirm ?? this.clearNeedsConfirm,
+      enableUndoRedo: enableUndoRedo ?? this.enableUndoRedo,
       autocompleteConfig: autocompleteConfig ?? this.autocompleteConfig,
     );
   }
@@ -157,7 +183,10 @@ class UnifiedPromptConfig {
         other.readOnly == readOnly &&
         other.maxHeight == maxHeight &&
         other.emptyHint == emptyHint &&
-        other.hintText == hintText;
+        other.hintText == hintText &&
+        other.showClearButton == showClearButton &&
+        other.clearNeedsConfirm == clearNeedsConfirm &&
+        other.enableUndoRedo == enableUndoRedo;
   }
 
   @override
@@ -173,6 +202,9 @@ class UnifiedPromptConfig {
       maxHeight,
       emptyHint,
       hintText,
+      showClearButton,
+      clearNeedsConfirm,
+      enableUndoRedo,
     );
   }
 }

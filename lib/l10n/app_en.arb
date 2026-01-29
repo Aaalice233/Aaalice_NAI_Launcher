@@ -1315,6 +1315,7 @@
   "characterEditor_moveDown": "Move Down",
   "characterEditor_aiChoice": "AI",
   "characterEditor_positionLabel": "Position:",
+  "characterEditor_positionHint": "Select character position in the image",
   "characterEditor_promptLabel": "Prompt:",
   "characterEditor_disabled": "[Disabled]",
   "characterEditor_characterCount": "{count} characters",
@@ -2867,6 +2868,12 @@
   "settings_proxyRestartHint": "Proxy settings changed, restart recommended",
 
   "tagLibrary_categoryNameExists": "Category name already exists",
+  "tagLibrary_addToLibrary": "Add to Library",
+  "tagLibrary_uncategorized": "Uncategorized",
+  "tagLibrary_contentPreview": "Content Preview",
+  "tagLibrary_confirmAdd": "Confirm",
+  "tagLibrary_entryName": "Name",
+  "tagLibrary_entryNameHint": "Enter entry name",
 
   "queue_title": "Queue",
   "queue_management": "Queue Management",

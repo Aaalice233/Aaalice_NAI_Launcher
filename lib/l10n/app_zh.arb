@@ -981,6 +981,7 @@
   "characterEditor_moveDown": "下移",
   "characterEditor_aiChoice": "AI选择",
   "characterEditor_positionLabel": "位置:",
+  "characterEditor_positionHint": "在画面中选择角色的位置",
   "characterEditor_promptLabel": "提示词:",
   "characterEditor_disabled": "[禁用]",
   "characterEditor_characterCount": "{count} 角色",
@@ -2541,6 +2542,12 @@
   "settings_proxyRestartHint": "代理设置已更改，建议重启应用",
 
   "tagLibrary_categoryNameExists": "该分类名称已存在",
+  "tagLibrary_addToLibrary": "收藏到词库",
+  "tagLibrary_uncategorized": "未分类",
+  "tagLibrary_contentPreview": "内容预览",
+  "tagLibrary_confirmAdd": "确认收藏",
+  "tagLibrary_entryName": "名称",
+  "tagLibrary_entryNameHint": "输入条目名称",
 
   "queue_title": "队列",
   "queue_management": "队列管理",
