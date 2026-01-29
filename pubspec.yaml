@@ -88,6 +88,9 @@ dependencies:
   # 窗口管理 (桌面端)
   window_manager: ^0.3.9
   tray_manager: ^0.2.3
+
+  # 音效
+  audioplayers: ^6.0.0
   cached_network_image: ^3.4.1
   url_launcher: ^6.3.1
   flutter_staggered_grid_view: ^0.7.0
@@ -122,6 +125,7 @@ flutter:
     - assets/translations/
     - assets/data/
     - assets/data/wordlists/
+    - assets/sounds/
 
   fonts:
     - family: LXGW ZhenKai GB

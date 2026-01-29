@@ -123,8 +123,10 @@ class TagTranslationService {
       }
 
       // 2. 缓存未命中，使用 Isolate 并行解析 CSV
-      AppLogger.d('Translation cache miss, parsing CSV in isolate...',
-          'TagTranslation');
+      AppLogger.d(
+        'Translation cache miss, parsing CSV in isolate...',
+        'TagTranslation',
+      );
 
       // 先加载 CSV 文件内容（必须在主线程，因为 rootBundle 不能在 Isolate 中使用）
       final tagCsvContent =

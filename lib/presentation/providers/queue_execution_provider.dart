@@ -10,9 +10,11 @@ import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'image_generation_provider.dart';
+import 'notification_settings_provider.dart';
 import 'pending_prompt_provider.dart';
 import 'replication_queue_provider.dart';
 import 'character_prompt_provider.dart';
+import '../../core/services/notification_service.dart';
 
 part 'queue_execution_provider.g.dart';
 
@@ -533,6 +535,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         currentTaskId: null,
       );
       _saveToStorage();
+
+      // 触发队列完成通知
+      _triggerQueueCompletionNotification();
       return;
     }
 
@@ -609,6 +614,20 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       sessionStartTime: DateTime.now(),
     );
     _saveToStorage();
+  }
+
+  /// 触发队列完成音效
+  void _triggerQueueCompletionNotification() {
+    final settings = ref.read(notificationSettingsNotifierProvider);
+    if (!settings.soundEnabled) return;
+
+    // 使用 Future.microtask 避免在同步方法中直接 await
+    Future.microtask(() async {
+      await NotificationService.instance.notifyGenerationComplete(
+        playSound: settings.soundEnabled,
+        customSoundPath: settings.customSoundPath,
+      );
+    });
   }
 }
 

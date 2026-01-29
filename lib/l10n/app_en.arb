@@ -3066,6 +3066,14 @@
   "queue_statusReady": "Status: Ready",
   "queue_statusRunning": "Status: Running",
   "queue_statusPaused": "Status: Paused",
-  "queue_statusCompleted": "Status: Completed"
+  "queue_statusCompleted": "Status: Completed",
+
+  "settings_notification": "Sound",
+  "settings_notificationSound": "Completion Sound",
+  "settings_notificationSoundSubtitle": "Play sound when generation completes",
+  "settings_notificationCustomSound": "Custom Sound",
+  "settings_notificationCustomSoundSubtitle": "Select custom sound file",
+  "settings_notificationSelectSound": "Select Sound",
+  "settings_notificationResetSound": "Reset to Default"
 
 }

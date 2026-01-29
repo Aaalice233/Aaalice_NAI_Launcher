@@ -154,4 +154,9 @@ class StorageKeys {
   static const String statisticsCacheBox = 'statistics_cache';
   static const String statisticsCacheData = 'statistics_cache_data';
   static const String statisticsCacheMetadata = 'statistics_cache_metadata';
+
+  // Notification Settings (音效设置)
+  static const String notificationSoundEnabled = 'notification_sound_enabled';
+  static const String notificationCustomSoundPath =
+      'notification_custom_sound_path';
 }

@@ -173,8 +173,8 @@ class LocalStorageService {
 
   /// 获取是否自动保存图片
   bool getAutoSaveImages() {
-    return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: false) ??
-        false;
+    return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: true) ??
+        true;
   }
 
   /// 保存是否自动保存图片

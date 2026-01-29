@@ -2740,6 +2740,14 @@
   "queue_statusReady": "状态：就绪",
   "queue_statusRunning": "状态：运行中",
   "queue_statusPaused": "状态：已暂停",
-  "queue_statusCompleted": "状态：已完成"
+  "queue_statusCompleted": "状态：已完成",
+
+  "settings_notification": "音效",
+  "settings_notificationSound": "完成音效",
+  "settings_notificationSoundSubtitle": "生成完成时播放提示音效",
+  "settings_notificationCustomSound": "自定义音效",
+  "settings_notificationCustomSoundSubtitle": "选择自定义音效文件",
+  "settings_notificationSelectSound": "选择音效",
+  "settings_notificationResetSound": "恢复默认"
 
 }

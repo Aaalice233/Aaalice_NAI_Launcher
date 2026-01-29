@@ -18,6 +18,7 @@ import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/account_manager_provider.dart';
+import '../../providers/notification_settings_provider.dart';
 import '../../themes/app_theme.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
@@ -138,6 +139,11 @@ class SettingsScreen extends ConsumerWidget {
           // 队列设置
           _buildSectionHeader(theme, '队列'),
           const _QueueSettingsSection(),
+          const ThemedDivider(),
+
+          // 通知设置
+          _buildSectionHeader(theme, context.l10n.settings_notification),
+          const _NotificationSettingsSection(),
           const ThemedDivider(),
 
           // 关于
@@ -1099,6 +1105,71 @@ class _NetworkSettingsSectionState
           _testResult = l10n.settings_testFailed(e.toString());
         });
       }
+    }
+  }
+}
+
+/// 音效设置部分
+class _NotificationSettingsSection extends ConsumerWidget {
+  const _NotificationSettingsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(notificationSettingsNotifierProvider);
+    final notifier = ref.read(notificationSettingsNotifierProvider.notifier);
+    final l10n = context.l10n;
+
+    return Column(
+      children: [
+        // 音效开关
+        SwitchListTile(
+          secondary: const Icon(Icons.volume_up_outlined),
+          title: Text(l10n.settings_notificationSound),
+          subtitle: Text(l10n.settings_notificationSoundSubtitle),
+          value: settings.soundEnabled,
+          onChanged: (value) => notifier.setSoundEnabled(value),
+        ),
+
+        // 自定义音效（仅在音效开启时显示）
+        if (settings.soundEnabled)
+          ListTile(
+            leading: const Icon(Icons.audiotrack_outlined),
+            title: Text(l10n.settings_notificationCustomSound),
+            subtitle: Text(
+              settings.customSoundPath != null
+                  ? settings.customSoundPath!.split(Platform.pathSeparator).last
+                  : l10n.settings_notificationSelectSound,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (settings.customSoundPath != null)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: l10n.settings_notificationResetSound,
+                    onPressed: () => notifier.setCustomSoundPath(null),
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () => _selectCustomSound(context, notifier),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _selectCustomSound(
+    BuildContext context,
+    NotificationSettingsNotifier notifier,
+  ) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['mp3', 'wav', 'ogg', 'm4a'],
+    );
+    if (result != null && result.files.single.path != null) {
+      await notifier.setCustomSoundPath(result.files.single.path);
     }
   }
 }

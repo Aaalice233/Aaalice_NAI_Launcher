@@ -85,8 +85,10 @@ class TranslationCacheService {
       // 检查版本
       final version = json['version'] as int?;
       if (version != _cacheVersion) {
-        AppLogger.d('Cache version mismatch: $version != $_cacheVersion',
-            'TranslationCache');
+        AppLogger.d(
+          'Cache version mismatch: $version != $_cacheVersion',
+          'TranslationCache',
+        );
         return false;
       }
 
@@ -94,8 +96,10 @@ class TranslationCacheService {
       final cachedHash = json['assetHash'] as String?;
       final currentHash = await _computeAssetHash();
       if (cachedHash != currentHash) {
-        AppLogger.d('Cache hash mismatch: $cachedHash != $currentHash',
-            'TranslationCache');
+        AppLogger.d(
+          'Cache hash mismatch: $cachedHash != $currentHash',
+          'TranslationCache',
+        );
         return false;
       }
 
@@ -151,7 +155,11 @@ class TranslationCacheService {
       );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to load translation cache', e, stack, 'TranslationCache');
+        'Failed to load translation cache',
+        e,
+        stack,
+        'TranslationCache',
+      );
       return null;
     }
   }
@@ -179,7 +187,11 @@ class TranslationCacheService {
       );
     } catch (e, stack) {
       AppLogger.e(
-          'Failed to save translation cache', e, stack, 'TranslationCache');
+        'Failed to save translation cache',
+        e,
+        stack,
+        'TranslationCache',
+      );
     }
   }
 

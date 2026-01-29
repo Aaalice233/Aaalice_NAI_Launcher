@@ -325,7 +325,9 @@ class TagSearchIndex {
     if (_isBuilding || _isReady) return;
 
     AppLogger.d(
-        'Starting lazy index build for ${_allTags.length} tags', 'TagSearch');
+      'Starting lazy index build for ${_allTags.length} tags',
+      'TagSearch',
+    );
     buildIndex(_allTags, useIsolate: true);
   }
 
@@ -520,7 +522,9 @@ class TagSearchIndex {
     _allTags = List.from(tags)..sort((a, b) => b.count.compareTo(a.count));
     // 不立即构建索引，等待首次搜索时懒加载
     AppLogger.d(
-        'Tags set for lazy indexing: ${_allTags.length} tags', 'TagSearch');
+      'Tags set for lazy indexing: ${_allTags.length} tags',
+      'TagSearch',
+    );
   }
 
   /// 清空索引

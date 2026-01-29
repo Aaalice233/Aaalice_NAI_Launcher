@@ -26,7 +26,10 @@ import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
 import 'prompt_config_provider.dart';
+import 'queue_execution_provider.dart';
+import 'notification_settings_provider.dart';
 import 'subscription_provider.dart';
+import '../../core/services/notification_service.dart';
 
 part 'image_generation_provider.g.dart';
 
@@ -326,10 +329,34 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 生成完成后刷新 Anlas 余额
     ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
 
+    // 触发生成完成通知（非队列模式下）
+    if (!_isCancelled && allImages.isNotEmpty) {
+      await _triggerCompletionNotificationIfNeeded();
+    }
+
     // 自动保存：如果启用且生成成功，保存所有图像
     if (!_isCancelled && allImages.isNotEmpty) {
       await _autoSaveIfEnabled(allImages, baseParams);
     }
+  }
+
+  /// 触发生成完成通知（非队列模式下）
+  Future<void> _triggerCompletionNotificationIfNeeded() async {
+    // 检查是否为队列模式（队列模式由 QueueExecutionProvider 处理通知）
+    final queueState = ref.read(queueExecutionNotifierProvider);
+    final isQueueMode = queueState.status == QueueExecutionStatus.running ||
+        queueState.status == QueueExecutionStatus.ready;
+    if (isQueueMode) return;
+
+    // 读取音效设置
+    final settings = ref.read(notificationSettingsNotifierProvider);
+    if (!settings.soundEnabled) return;
+
+    // 触发音效
+    await NotificationService.instance.notifyGenerationComplete(
+      playSound: settings.soundEnabled,
+      customSoundPath: settings.customSoundPath,
+    );
   }
 
   /// 自动保存图像（如果启用）
