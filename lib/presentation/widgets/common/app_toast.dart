@@ -190,15 +190,22 @@ class AppToast {
     }
   }
 
+  /// 用于生成唯一 toast ID 的计数器
+  static int _toastIdCounter = 0;
+
   /// 桌面端：右上角堆叠toast
   static void _showDesktopToast(
-      BuildContext context, String message, ToastType type,) {
+    BuildContext context,
+    String message,
+    ToastType type,
+  ) {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
       return;
     }
 
-    final id = DateTime.now().millisecondsSinceEpoch;
+    // 使用递增计数器确保 ID 唯一，避免同一毫秒内创建的 toast 有相同 ID
+    final id = _toastIdCounter++;
 
     // 先创建 ActiveToast，entry 先为占位符
     final activeToast = _ActiveToast(
@@ -206,17 +213,18 @@ class AppToast {
       entry: OverlayEntry(builder: (_) => const SizedBox.shrink()),
     );
     _activeToasts.add(activeToast);
-    final index = _activeToasts.indexOf(activeToast);
 
     // 创建真正的 entry
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) {
+        // 动态计算当前 index，确保在 markNeedsBuild 后位置能正确更新
+        final currentIndex = _activeToasts.indexWhere((t) => t.id == id);
         return _SingleToastWidget(
           key: ValueKey(id),
           message: message,
           type: type,
-          index: index,
+          index: currentIndex,
           onDismiss: () {
             entry.remove();
             _activeToasts.remove(activeToast);
@@ -237,7 +245,10 @@ class AppToast {
 
   /// 移动端：底部SnackBar
   static void _showMobileSnackBar(
-      BuildContext context, String message, ToastType type,) {
+    BuildContext context,
+    String message,
+    ToastType type,
+  ) {
     final (icon, color) = _getTypeStyle(Theme.of(context), type);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
