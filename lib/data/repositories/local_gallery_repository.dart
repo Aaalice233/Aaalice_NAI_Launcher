@@ -141,14 +141,18 @@ class LocalGalleryRepository {
       final migrationResult = await _migrationService.migrate();
       if (!migrationResult.alreadyMigrated) {
         AppLogger.i(
-            'Migration completed: $migrationResult', 'LocalGalleryRepo');
+          'Migration completed: $migrationResult',
+          'LocalGalleryRepo',
+        );
       }
 
       // 4. 检查是否需要首次扫描
       final stats = await _db.getStatistics();
       if (stats['total_images'] == 0) {
-        AppLogger.i('No images in database, starting initial scan...',
-            'LocalGalleryRepo');
+        AppLogger.i(
+          'No images in database, starting initial scan...',
+          'LocalGalleryRepo',
+        );
         final dir = await getImageDirectory();
         if (await dir.exists()) {
           await _scanService.fullScan(dir);
@@ -162,8 +166,12 @@ class LocalGalleryRepository {
         'LocalGalleryRepo',
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to initialize LocalGalleryRepository', e, stack,
-          'LocalGalleryRepo');
+      AppLogger.e(
+        'Failed to initialize LocalGalleryRepository',
+        e,
+        stack,
+        'LocalGalleryRepo',
+      );
       rethrow;
     }
   }
@@ -172,7 +180,8 @@ class LocalGalleryRepository {
   void _ensureInitialized() {
     if (!_initialized) {
       throw StateError(
-          'LocalGalleryRepository not initialized. Call initialize() first.');
+        'LocalGalleryRepository not initialized. Call initialize() first.',
+      );
     }
   }
 
@@ -254,8 +263,10 @@ class LocalGalleryRepository {
   }
 
   /// 搜索图片
-  Future<List<LocalImageRecord>> searchImages(String query,
-      {int limit = 100}) async {
+  Future<List<LocalImageRecord>> searchImages(
+    String query, {
+    int limit = 100,
+  }) async {
     _ensureInitialized();
 
     final searchResult = await _searchService.search(query, limit: limit);
@@ -447,7 +458,9 @@ class LocalGalleryRepository {
           );
         } catch (e) {
           AppLogger.w(
-              'Failed to parse metadata for $filePath: $e', 'LocalGalleryRepo');
+            'Failed to parse metadata for $filePath: $e',
+            'LocalGalleryRepo',
+          );
           return LocalImageRecord(
             path: filePath,
             size: 0,
@@ -477,8 +490,12 @@ class LocalGalleryRepository {
       final bytes = await file.readAsBytes();
       return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
-      AppLogger.e('Failed to parse metadata from file: ${file.path}', e, null,
-          'LocalGalleryRepo');
+      AppLogger.e(
+        'Failed to parse metadata from file: ${file.path}',
+        e,
+        null,
+        'LocalGalleryRepo',
+      );
       return null;
     }
   }
@@ -489,7 +506,11 @@ class LocalGalleryRepository {
       return await NaiMetadataParser.extractFromBytes(bytes);
     } catch (e) {
       AppLogger.e(
-          'Failed to parse metadata from bytes', e, null, 'LocalGalleryRepo');
+        'Failed to parse metadata from bytes',
+        e,
+        null,
+        'LocalGalleryRepo',
+      );
       return null;
     }
   }
@@ -646,8 +667,10 @@ class LocalGalleryRepository {
     int failedCount = 0;
     final errors = <String>[];
 
-    AppLogger.i('Starting bulk delete: ${imagePaths.length} images',
-        'LocalGalleryRepo');
+    AppLogger.i(
+      'Starting bulk delete: ${imagePaths.length} images',
+      'LocalGalleryRepo',
+    );
 
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
@@ -799,7 +822,9 @@ class LocalGalleryRepository {
           .writeAsString(const JsonEncoder.withIndent('  ').convert(jsonData));
 
       AppLogger.i(
-          'Exported ${records.length} images to $fileName', 'LocalGalleryRepo');
+        'Exported ${records.length} images to $fileName',
+        'LocalGalleryRepo',
+      );
       return file;
     } catch (e) {
       AppLogger.e('Failed to export metadata', e, null, 'LocalGalleryRepo');
