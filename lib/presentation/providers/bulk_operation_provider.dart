@@ -9,7 +9,7 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart'
     hide BulkOperationResult;
 import '../../data/services/bulk_operation_service.dart';
-import '../../presentation/widgets/prompt/random_manager/states/undo_redo_history.dart';
+import '../../core/utils/undo_redo_history.dart';
 import 'collection_provider.dart';
 
 part 'bulk_operation_provider.freezed.dart';

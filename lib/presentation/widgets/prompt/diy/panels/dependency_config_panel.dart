@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
+import '../../../../widgets/common/elevated_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 依赖配置面板
 ///
 /// 用于配置标签选择的依赖关系
+/// 采用 Dimensional Layering 设计风格
 class DependencyConfigPanel extends StatefulWidget {
   /// 当前配置
   final DependencyConfig? config;
@@ -62,234 +64,684 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildHeader(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildTypeSelector(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildSourceCategorySelector(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildMappingRulesEditor(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildDefaultValueField(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildEnabledSwitch(),
       ],
     );
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Row(
       children: [
-        const Icon(Icons.link),
-        const SizedBox(width: 8),
+        // 图标容器 - 渐变背景
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colorScheme.tertiary.withOpacity(0.2),
+                colorScheme.tertiary.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.tertiary.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.link_rounded,
+            size: 20,
+            color: colorScheme.tertiary,
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            '依赖配置',
-            style: Theme.of(context).textTheme.titleMedium,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '依赖配置',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '配置标签选择的依赖关系',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
         if (widget.config != null && !widget.readOnly)
-          TextButton.icon(
-            onPressed: () => widget.onConfigChanged(null),
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('清除'),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => widget.onConfigChanged(null),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: colorScheme.error.withOpacity(0.5),
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      size: 16,
+                      color: colorScheme.error,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '清除',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
       ],
     );
   }
 
   Widget _buildTypeSelector() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '依赖类型',
-              style: Theme.of(context).textTheme.titleSmall,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // 类型图标和颜色
+    final typeIcons = {
+      DependencyType.count: Icons.numbers_rounded,
+      DependencyType.exists: Icons.check_circle_outline_rounded,
+      DependencyType.value: Icons.text_fields_rounded,
+      DependencyType.excludes: Icons.block_rounded,
+    };
+
+    final typeColors = {
+      DependencyType.count: colorScheme.primary,
+      DependencyType.exists: colorScheme.secondary,
+      DependencyType.value: colorScheme.tertiary,
+      DependencyType.excludes: colorScheme.error,
+    };
+
+    return ElevatedCard(
+      elevation: CardElevation.level1,
+      hoverElevation: CardElevation.level2,
+      enableHoverEffect: !widget.readOnly,
+      borderRadius: 12,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.category_rounded,
+                  size: 14,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '依赖类型',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 自定义类型选择器
+          Row(
+            children: DependencyType.values.map((type) {
+              final isSelected = _config.type == type;
+              final color = typeColors[type]!;
+              final icon = typeIcons[type]!;
+
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: widget.readOnly
+                          ? null
+                          : () => _updateConfig(_config.copyWith(type: type)),
+                      borderRadius: BorderRadius.circular(10),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: isSelected
+                              ? LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [color, color.withOpacity(0.8)],
+                                )
+                              : null,
+                          color: isSelected
+                              ? null
+                              : colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.transparent
+                                : colorScheme.outline.withOpacity(0.2),
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: color.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              icon,
+                              size: 20,
+                              color: isSelected
+                                  ? Colors.white
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _getDependencyTypeLabel(type),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? Colors.white
+                                    : colorScheme.onSurface,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          // 描述
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: colorScheme.outline.withOpacity(0.1),
+              ),
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: DependencyType.values.map((type) {
-                return ChoiceChip(
-                  label: Text(_getDependencyTypeLabel(type)),
-                  selected: _config.type == type,
-                  onSelected: widget.readOnly
-                      ? null
-                      : (selected) {
-                          if (selected) {
-                            _updateConfig(_config.copyWith(type: type));
-                          }
-                        },
-                );
-              }).toList(),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _getDependencyTypeDescription(_config.type),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              _getDependencyTypeDescription(_config.type),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSourceCategorySelector() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '源类别',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            if (widget.availableCategories.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _config.sourceCategoryId.isNotEmpty
-                    ? _config.sourceCategoryId
-                    : null,
-                decoration: const InputDecoration(
-                  hintText: '选择源类别',
-                  border: OutlineInputBorder(),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ElevatedCard(
+      elevation: CardElevation.level1,
+      hoverElevation: CardElevation.level2,
+      enableHoverEffect: !widget.readOnly,
+      borderRadius: 12,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: colorScheme.secondaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                items: widget.availableCategories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: widget.readOnly
-                    ? null
-                    : (value) {
-                        if (value != null) {
-                          _updateConfig(
-                            _config.copyWith(sourceCategoryId: value),
-                          );
-                        }
-                      },
-              )
-            else
-              ThemedFormInput(
-                initialValue: _config.sourceCategoryId,
-                decoration: const InputDecoration(
-                  labelText: '源类别 ID',
-                  hintText: '输入类别 ID',
-                  border: OutlineInputBorder(),
+                child: Icon(
+                  Icons.source_rounded,
+                  size: 14,
+                  color: colorScheme.secondary,
                 ),
-                readOnly: widget.readOnly,
-                onChanged: (value) {
-                  _updateConfig(_config.copyWith(sourceCategoryId: value));
-                },
               ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              Text(
+                '源类别',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (widget.availableCategories.isNotEmpty)
+            DropdownButtonFormField<String>(
+              value: _config.sourceCategoryId.isNotEmpty
+                  ? _config.sourceCategoryId
+                  : null,
+              decoration: InputDecoration(
+                hintText: '选择源类别',
+                prefixIcon: Icon(
+                  Icons.folder_outlined,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+              ),
+              items: widget.availableCategories.map((category) {
+                return DropdownMenuItem(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
+              onChanged: widget.readOnly
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        _updateConfig(
+                          _config.copyWith(sourceCategoryId: value),
+                        );
+                      }
+                    },
+            )
+          else
+            ThemedFormInput(
+              initialValue: _config.sourceCategoryId,
+              decoration: InputDecoration(
+                labelText: '源类别 ID',
+                hintText: '输入类别 ID',
+                prefixIcon: Icon(
+                  Icons.folder_outlined,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              readOnly: widget.readOnly,
+              onChanged: (value) {
+                _updateConfig(_config.copyWith(sourceCategoryId: value));
+              },
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildMappingRulesEditor() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '映射规则',
-                  style: Theme.of(context).textTheme.titleSmall,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ElevatedCard(
+      elevation: CardElevation.level1,
+      borderRadius: 12,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: colorScheme.tertiaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                const Spacer(),
-                if (!widget.readOnly)
-                  TextButton.icon(
-                    onPressed: _addMappingRule,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('添加'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (_config.mappingRules.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    '暂无映射规则',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                child: Icon(
+                  Icons.swap_horiz_rounded,
+                  size: 14,
+                  color: colorScheme.tertiary,
                 ),
-              )
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _config.mappingRules.length,
-                itemBuilder: (context, index) {
-                  final entry = _config.mappingRules.entries.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    title: Text('${entry.key} → ${entry.value}'),
-                    trailing: widget.readOnly
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18),
-                            onPressed: () => _removeMappingRule(entry.key),
-                          ),
-                  );
-                },
               ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              Text(
+                '映射规则',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (!widget.readOnly)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _addMappingRule,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: colorScheme.primary.withOpacity(0.5),
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_rounded,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '添加',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_config.mappingRules.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: colorScheme.outline.withOpacity(0.1),
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.rule_rounded,
+                      size: 32,
+                      color: colorScheme.outline,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '暂无映射规则',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _config.mappingRules.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final entry = _config.mappingRules.entries.elementAt(index);
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: colorScheme.outline.withOpacity(0.1),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // 源值
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          entry.key,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      // 目标值
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              colorScheme.secondaryContainer.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          entry.value,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.secondary,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (!widget.readOnly)
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: colorScheme.error.withOpacity(0.7),
+                          ),
+                          onPressed: () => _removeMappingRule(entry.key),
+                          tooltip: '删除规则',
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildDefaultValueField() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ThemedFormInput(
-          initialValue: _config.defaultValue ?? '',
-          decoration: const InputDecoration(
-            labelText: '默认值',
-            hintText: '当没有匹配规则时使用',
-            border: OutlineInputBorder(),
-          ),
-          readOnly: widget.readOnly,
-          onChanged: (value) {
-            _updateConfig(
-              _config.copyWith(
-                defaultValue: value.isEmpty ? null : value,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ElevatedCard(
+      elevation: CardElevation.level1,
+      hoverElevation: CardElevation.level2,
+      enableHoverEffect: !widget.readOnly,
+      borderRadius: 12,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.text_snippet_outlined,
+                  size: 14,
+                  color: colorScheme.primary,
+                ),
               ),
-            );
-          },
-        ),
+              const SizedBox(width: 10),
+              Text(
+                '默认值',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ThemedFormInput(
+            initialValue: _config.defaultValue ?? '',
+            decoration: InputDecoration(
+              hintText: '当没有匹配规则时使用',
+              prefixIcon: Icon(
+                Icons.edit_note_rounded,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+            ),
+            readOnly: widget.readOnly,
+            onChanged: (value) {
+              _updateConfig(
+                _config.copyWith(
+                  defaultValue: value.isEmpty ? null : value,
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEnabledSwitch() {
-    return Card(
-      child: SwitchListTile(
-        title: const Text('启用依赖配置'),
-        subtitle: const Text('禁用后此配置不会生效'),
-        value: _config.enabled,
-        onChanged: widget.readOnly
-            ? null
-            : (value) {
-                _updateConfig(_config.copyWith(enabled: value));
-              },
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ElevatedCard(
+      elevation: CardElevation.level1,
+      borderRadius: 12,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            _config.enabled ? Icons.check_circle_rounded : Icons.cancel_rounded,
+            size: 20,
+            color: _config.enabled ? colorScheme.primary : colorScheme.outline,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '启用依赖配置',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '禁用后此配置不会生效',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _config.enabled,
+            onChanged: widget.readOnly
+                ? null
+                : (value) {
+                    _updateConfig(_config.copyWith(enabled: value));
+                  },
+          ),
+        ],
       ),
     );
   }
 
   void _addMappingRule() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -297,22 +749,55 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
         String value = '';
 
         return AlertDialog(
-          title: const Text('添加映射规则'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.add_link_rounded,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('添加映射规则'),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ThemedInput(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: '源值',
                   hintText: '例如: 1, 2, 3',
+                  prefixIcon: Icon(
+                    Icons.input_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 onChanged: (v) => key = v,
               ),
               const SizedBox(height: 16),
               ThemedInput(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: '结果值',
                   hintText: '例如: 0-3, 0-2, 0-1',
+                  prefixIcon: Icon(
+                    Icons.output_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 onChanged: (v) => value = v,
               ),
@@ -350,13 +835,13 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
   String _getDependencyTypeLabel(DependencyType type) {
     switch (type) {
       case DependencyType.count:
-        return '数量依赖';
+        return '数量';
       case DependencyType.exists:
-        return '存在依赖';
+        return '存在';
       case DependencyType.value:
-        return '值依赖';
+        return '值';
       case DependencyType.excludes:
-        return '排斥依赖';
+        return '排斥';
     }
   }
 

@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../themes/theme_extension.dart';
-import '../prompt/random_manager/components/pro_context_menu.dart';
+import 'pro_context_menu.dart';
 import 'app_toast.dart';
 
 /// 可选择的图像卡片组件

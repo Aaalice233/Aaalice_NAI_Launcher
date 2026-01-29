@@ -1,3 +1,4 @@
+/// 历史命令抽象类
 abstract class HistoryCommand {
   final String description;
   HistoryCommand(this.description);
@@ -9,6 +10,7 @@ abstract class HistoryCommand {
   Future<void> undo();
 }
 
+/// 撤销/重做历史管理器
 class UndoRedoHistory {
   final List<HistoryCommand> _history = [];
   final List<HistoryCommand> _redoStack = [];

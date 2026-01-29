@@ -13,7 +13,7 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
 import 'common/animated_favorite_button.dart';
-import 'prompt/random_manager/components/pro_context_menu.dart';
+import 'common/pro_context_menu.dart';
 import '../widgets/common/themed_divider.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）

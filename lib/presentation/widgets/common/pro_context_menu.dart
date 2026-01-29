@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../common/themed_divider.dart';
+import 'themed_divider.dart';
 
+/// 上下文菜单项
 class ProMenuItem {
   final String id;
   final String label;
@@ -27,6 +28,7 @@ class ProMenuItem {
         isDanger = false;
 }
 
+/// 专业上下文菜单组件
 class ProContextMenu extends StatelessWidget {
   final Offset position;
   final List<ProMenuItem> items;
