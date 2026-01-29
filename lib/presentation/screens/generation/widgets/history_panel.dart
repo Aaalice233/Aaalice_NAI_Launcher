@@ -11,7 +11,6 @@ import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/local_gallery_repository.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
-import '../../../providers/prompt_maximize_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
@@ -115,10 +114,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
         // 历史列表
         Expanded(
-          child:
-              state.history.isEmpty && !_shouldShowCurrentGeneration(state, ref)
-                  ? _buildEmptyState(theme, context)
-                  : _buildHistoryGrid(state, theme, ref),
+          child: state.history.isEmpty && !_hasCurrentGeneration(state)
+              ? _buildEmptyState(theme, context)
+              : _buildHistoryGrid(state, theme, ref),
         ),
 
         // 底部操作栏（有选中时显示）
@@ -150,11 +148,19 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     );
   }
 
-  /// 判断是否应该在历史面板显示当前生成的图像（全屏模式下）
-  bool _shouldShowCurrentGeneration(ImageGenerationState state, WidgetRef ref) {
-    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
-    return isPromptMaximized &&
-        (state.isGenerating || state.currentImages.isNotEmpty);
+  /// 判断是否有当前正在生成的图像
+  bool _hasCurrentGeneration(ImageGenerationState state) {
+    return state.isGenerating || state.currentImages.isNotEmpty;
+  }
+
+  /// 计算当前生成区块的项目数
+  int _getCurrentGenerationCount(ImageGenerationState state) {
+    if (!_hasCurrentGeneration(state)) return 0;
+    int count = state.currentImages.length;
+    if (state.isGenerating) {
+      count += 1; // 加上生成中卡片
+    }
+    return count;
   }
 
   Widget _buildHistoryGrid(
@@ -162,38 +168,24 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     ThemeData theme,
     WidgetRef ref,
   ) {
-    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
     final params = ref.watch(generationParamsNotifierProvider);
     final history = state.history;
-
-    // 全屏模式下需要在前面显示当前生成的图像
-    final showCurrentGeneration = isPromptMaximized &&
-        (state.isGenerating || state.currentImages.isNotEmpty);
+    final aspectRatio = params.width / params.height;
 
     // 计算当前生成区块的项目数
-    int currentGenerationCount = 0;
-    if (showCurrentGeneration) {
-      currentGenerationCount = state.currentImages.length;
-      if (state.isGenerating) {
-        currentGenerationCount += 1; // 加上生成中卡片
-      }
-    }
+    final currentGenerationCount = _getCurrentGenerationCount(state);
 
     // 使用唯一 ID 去重：收集 currentImages 的 ID
     final currentImageIds = <String>{};
-    if (showCurrentGeneration) {
-      for (final img in state.currentImages) {
-        currentImageIds.add(img.id);
-      }
+    for (final img in state.currentImages) {
+      currentImageIds.add(img.id);
     }
 
     // 从历史中过滤掉已在 currentImages 中显示的图像
-    final deduplicatedHistory = showCurrentGeneration
-        ? history.where((img) => !currentImageIds.contains(img.id)).toList()
-        : history;
+    final deduplicatedHistory =
+        history.where((img) => !currentImageIds.contains(img.id)).toList();
 
     final totalCount = currentGenerationCount + deduplicatedHistory.length;
-    final aspectRatio = params.width / params.height;
 
     return GridView.builder(
       padding: const EdgeInsets.all(8),
@@ -205,7 +197,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       ),
       itemCount: totalCount,
       itemBuilder: (context, index) {
-        // 当前生成区块
+        // 当前生成区块（不参与选择）
         if (index < currentGenerationCount) {
           return _buildCurrentGenerationItem(
             context,
@@ -270,7 +262,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       );
     }
 
-    // 已完成的当前图像
+    // 已完成的当前图像（不可选择）
     if (index < completedImages.length) {
       final imageBytes = completedImages[index].bytes;
       return SelectableImageCard(
@@ -317,8 +309,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     if (_selectedIndices.isEmpty) return;
 
     try {
-      final saveDir =
-          await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -354,8 +345,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     Uint8List imageBytes,
   ) async {
     try {
-      final saveDir =
-          await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -422,8 +412,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) async {
     try {
       final imageBytes = await image.getImageBytes();
-      final saveDir =
-          await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
