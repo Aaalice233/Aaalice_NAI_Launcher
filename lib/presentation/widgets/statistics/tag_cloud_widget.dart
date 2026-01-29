@@ -98,7 +98,7 @@ class TagCloudWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '暂无标签数据', // TODO: i18n - will be localized in phase 5
+              l10n.statistics_noTagData,
               style: TextStyle(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -148,8 +148,10 @@ class TagCloudWidget extends StatelessWidget {
   /// 构建标签云
   Widget _buildTagCloud(List<TagStatistics> displayTags, ThemeData theme) {
     // 计算最大和最小频率，用于字体大小缩放
-    final maxCount = displayTags.map((t) => t.count).reduce((a, b) => a > b ? a : b);
-    final minCount = displayTags.map((t) => t.count).reduce((a, b) => a < b ? a : b);
+    final maxCount =
+        displayTags.map((t) => t.count).reduce((a, b) => a > b ? a : b);
+    final minCount =
+        displayTags.map((t) => t.count).reduce((a, b) => a < b ? a : b);
 
     return Wrap(
       spacing: 8,

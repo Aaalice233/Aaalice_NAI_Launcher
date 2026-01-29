@@ -2404,6 +2404,21 @@
   "statistics_tabTrends": "Trends",
   "statistics_tabDetails": "Details",
   "statistics_noData": "No statistics available",
+  "statistics_generatedCount": "Generated",
+  "statistics_favoriteCount": "Favorites",
+  "statistics_tooltipGenerated": "Generated: {count}",
+  "@statistics_tooltipGenerated": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_tooltipFavorite": "Favorites: {count}",
+  "@statistics_tooltipFavorite": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_noTagData": "No tag data",
   "statistics_generateFirst": "Generate some images first",
   "statistics_overview": "Overview",
   "statistics_totalImages": "Total Images",

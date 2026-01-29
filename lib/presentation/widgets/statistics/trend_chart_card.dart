@@ -64,7 +64,8 @@ class TrendChartCard extends StatelessWidget {
               height: 200,
               child: LineChart(
                 _buildChartData(theme, l10n),
-                duration: animate ? const Duration(milliseconds: 800) : Duration.zero,
+                duration:
+                    animate ? const Duration(milliseconds: 800) : Duration.zero,
               ),
             ),
 
@@ -130,14 +131,14 @@ class TrendChartCard extends StatelessWidget {
         _buildLegendItem(
           theme,
           theme.colorScheme.primary,
-          '生成数量', // TODO: i18n - will be localized in phase 5
+          l10n.statistics_generatedCount,
         ),
         const SizedBox(width: 16),
         if (trends.any((t) => t.favoriteCount > 0))
           _buildLegendItem(
             theme,
             Colors.red,
-            '收藏数', // TODO: i18n - will be localized in phase 5
+            l10n.statistics_favoriteCount,
           ),
       ],
     );
@@ -170,10 +171,8 @@ class TrendChartCard extends StatelessWidget {
     final sortedTrends = trends..sort((a, b) => a.date.compareTo(b.date));
 
     // 计算Y轴范围
-    final maxCount = sortedTrends
-            .map((t) => t.count)
-            .reduce((a, b) => a > b ? a : b) *
-        1.2;
+    final maxCount =
+        sortedTrends.map((t) => t.count).reduce((a, b) => a > b ? a : b) * 1.2;
 
     // 主线（生成数量）
     final mainSpots = sortedTrends.asMap().entries.map((entry) {
@@ -291,8 +290,8 @@ class TrendChartCard extends StatelessWidget {
 
               return LineTooltipItem(
                 '${trend.getFormattedDateShort()}\n'
-                '生成数量: ${trend.count}' // TODO: i18n - will be localized in phase 5
-                '${trend.favoriteCount > 0 ? '\n收藏数: ${trend.favoriteCount}' : ''}', // TODO: i18n - will be localized in phase 5
+                '${l10n.statistics_tooltipGenerated(trend.count)}'
+                '${trend.favoriteCount > 0 ? '\n${l10n.statistics_tooltipFavorite(trend.favoriteCount)}' : ''}',
                 TextStyle(
                   color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,

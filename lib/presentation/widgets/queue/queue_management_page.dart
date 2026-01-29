@@ -81,33 +81,6 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
             onPressed:
                 queueState.isEmpty ? null : () => _confirmClearQueue(context),
           ),
-          // 更多选项
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            position: PopupMenuPosition.under,
-            onSelected: (value) => _handleMenuAction(value),
-            itemBuilder: (context) => [
-              _buildPopupItem(
-                icon: Icons.upload_file_rounded,
-                label: l10n.queue_export,
-                value: 'export',
-              ),
-              _buildPopupItem(
-                icon: Icons.download_rounded,
-                label: l10n.queue_import,
-                value: 'import',
-              ),
-              const PopupMenuDivider(),
-              _buildPopupItem(
-                icon: Icons.settings_rounded,
-                label: l10n.queue_settings,
-                value: 'settings',
-              ),
-            ],
-          ),
           const SizedBox(width: 4),
         ],
         bottom: PreferredSize(
@@ -171,25 +144,6 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
               ? theme.colorScheme.primaryContainer.withOpacity(0.5)
               : null,
         ),
-      ),
-    );
-  }
-
-  /// 构建弹出菜单项
-  PopupMenuItem<String> _buildPopupItem({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 12),
-          Text(label),
-        ],
       ),
     );
   }
@@ -620,17 +574,4 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     }
   }
 
-  void _handleMenuAction(String action) {
-    switch (action) {
-      case 'export':
-        // TODO: 实现导出功能
-        break;
-      case 'import':
-        // TODO: 实现导入功能
-        break;
-      case 'settings':
-        // TODO: 打开设置对话框
-        break;
-    }
-  }
 }

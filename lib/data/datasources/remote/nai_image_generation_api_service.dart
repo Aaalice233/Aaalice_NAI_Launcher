@@ -16,6 +16,7 @@ import '../../../core/utils/zip_utils.dart';
 import '../../models/image/image_params.dart';
 import '../../models/image/image_stream_chunk.dart';
 import '../../models/vibe/vibe_reference_v4.dart';
+import 'nai_image_enhancement_api_service.dart';
 
 part 'nai_image_generation_api_service.g.dart';
 
@@ -23,8 +24,9 @@ part 'nai_image_generation_api_service.g.dart';
 /// 处理图像生成相关的 API 调用，包括流式和非流式生成
 class NAIImageGenerationApiService {
   final Dio _dio;
+  final NAIImageEnhancementApiService _enhancementService;
 
-  NAIImageGenerationApiService(this._dio);
+  NAIImageGenerationApiService(this._dio, this._enhancementService);
 
   // ==================== 采样器映射 ====================
 
@@ -269,13 +271,16 @@ class NAIImageGenerationApiService {
 
       // 打印完整请求体（调试用）
       if (params.isV4Model) {
-        AppLogger.d('V4 use_coords: ${requestParameters['use_coords']}', 'ImgGen');
+        AppLogger.d(
+            'V4 use_coords: ${requestParameters['use_coords']}', 'ImgGen');
         AppLogger.d(
           'V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}',
           'ImgGen',
         );
-        AppLogger.d('V4 legacy_uc: ${requestParameters['legacy_uc']}', 'ImgGen');
-        AppLogger.d('V4 v4_prompt: ${requestParameters['v4_prompt']}', 'ImgGen');
+        AppLogger.d(
+            'V4 legacy_uc: ${requestParameters['legacy_uc']}', 'ImgGen');
+        AppLogger.d(
+            'V4 v4_prompt: ${requestParameters['v4_prompt']}', 'ImgGen');
         AppLogger.d(
           'V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}',
           'ImgGen',
@@ -322,8 +327,6 @@ class NAIImageGenerationApiService {
 
       // V4 Vibe Transfer
       // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
-      // TODO: 重构此逻辑以依赖 NAIImageEnhancementApiService.encodeVibe
-      // 当前保留在此处以避免循环依赖，待后续优化
       if (params.vibeReferencesV4.isNotEmpty) {
         // 标准化强度设置
         requestParameters['normalize_reference_strength_multiple'] =
@@ -350,7 +353,6 @@ class NAIImageGenerationApiService {
             );
           }
           // 原始图片需要服务端编码（消耗 2 Anlas）
-          // TODO: 调用 NAIImageEnhancementApiService.encodeVibe 代替此内联实现
           else if (vibe.sourceType == VibeSourceType.rawImage &&
               vibe.rawImageData != null) {
             AppLogger.d(
@@ -358,7 +360,7 @@ class NAIImageGenerationApiService {
               'ImgGen',
             );
             try {
-              final encoding = await _encodeVibeInline(
+              final encoding = await _enhancementService.encodeVibe(
                 vibe.rawImageData!,
                 model: params.model,
                 informationExtracted: vibe.infoExtracted,
@@ -776,7 +778,6 @@ class NAIImageGenerationApiService {
 
       // V4 Vibe Transfer
       // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
-      // TODO: 重构此逻辑以依赖 NAIImageEnhancementApiService.encodeVibe
       if (params.vibeReferencesV4.isNotEmpty) {
         // 标准化强度设置
         requestParameters['normalize_reference_strength_multiple'] =
@@ -816,8 +817,7 @@ class NAIImageGenerationApiService {
           );
           for (final vibe in rawImageVibes) {
             try {
-              // TODO: 调用 NAIImageEnhancementApiService.encodeVibe 代替此内联实现
-              final encoding = await _encodeVibeInline(
+              final encoding = await _enhancementService.encodeVibe(
                 vibe.rawImageData!,
                 model: params.model,
                 informationExtracted: vibe.infoExtracted,
@@ -1078,7 +1078,8 @@ class NAIImageGenerationApiService {
                 try {
                   imageBytes = Uint8List.fromList(base64Decode(imageData));
                 } catch (e) {
-                  AppLogger.w('Failed to decode base64 image data: $e', 'Stream');
+                  AppLogger.w(
+                      'Failed to decode base64 image data: $e', 'Stream');
                 }
               }
 
@@ -1233,43 +1234,12 @@ class NAIImageGenerationApiService {
       _currentCancelToken = null;
     }
   }
-
-  /// 内联 Vibe 编码实现
-  ///
-  /// TODO: 此方法应被 NAIImageEnhancementApiService.encodeVibe 替代
-  /// 当前保留在此处以避免循环依赖问题
-  /// 将在后续重构中移除
-  Future<String> _encodeVibeInline(
-    Uint8List image, {
-    required String model,
-    double informationExtracted = 1.0,
-  }) async {
-    try {
-      final response = await _dio.post(
-        '${ApiConstants.imageBaseUrl}${ApiConstants.encodeVibeEndpoint}',
-        data: {
-          'image': base64Encode(image),
-          'model': model,
-          'informationExtracted': informationExtracted,
-        },
-        options: Options(
-          responseType: ResponseType.bytes,
-        ),
-      );
-
-      // API 返回二进制数据，需要 base64 编码
-      final bytes = response.data as Uint8List;
-      return base64Encode(bytes);
-    } catch (e) {
-      AppLogger.e('Encode vibe failed: $e', 'ImgGen');
-      rethrow;
-    }
-  }
 }
 
 /// NAIImageGenerationApiService Provider
 @riverpod
 NAIImageGenerationApiService naiImageGenerationApiService(Ref ref) {
   final dio = ref.watch(dioClientProvider);
-  return NAIImageGenerationApiService(dio);
+  final enhancementService = ref.watch(naiImageEnhancementApiServiceProvider);
+  return NAIImageGenerationApiService(dio, enhancementService);
 }

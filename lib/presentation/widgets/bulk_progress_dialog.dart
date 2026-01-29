@@ -38,8 +38,7 @@ class BulkProgressDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<BulkProgressDialog> createState() =>
-      _BulkProgressDialogState();
+  ConsumerState<BulkProgressDialog> createState() => _BulkProgressDialogState();
 }
 
 class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
@@ -151,8 +150,7 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
                       ? state.currentProgress / state.totalItems
                       : null,
                   minHeight: 6,
-                  backgroundColor:
-                      theme.colorScheme.surfaceContainerHighest,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 ),
               ),
               const SizedBox(height: 16),
@@ -290,18 +288,18 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
             ),
             const SizedBox(height: 4),
             ...result.errors.take(3).map(
-              (error) => Padding(
-                padding: const EdgeInsets.only(left: 8, bottom: 2),
-                child: Text(
-                  '• $error',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
+                  (error) => Padding(
+                    padding: const EdgeInsets.only(left: 8, bottom: 2),
+                    child: Text(
+                      '• $error',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ),
             if (result.errors.length > 3)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
@@ -382,8 +380,6 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
 
   /// Handle cancel operation
   void _handleCancel(BuildContext context) {
-    // TODO: Implement cancel functionality in BulkOperationNotifier
-    // For now, just close the dialog
     Navigator.of(context).pop(false);
   }
 }

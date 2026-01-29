@@ -482,7 +482,17 @@ class _CategoryEditorPanelState extends ConsumerState<_CategoryEditorPanel> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () {
-                  // TODO: Implement Add Tag Group
+                  final newTagGroup = ref
+                      .read(randomTreeDataProvider.notifier)
+                      .addTagGroup(widget.node.presetId, widget.node.id);
+                  // 自动选中新创建的标签组
+                  ref.read(selectedNodeProvider.notifier).select(
+                        TagGroupNode(
+                          widget.node.presetId,
+                          widget.node.id,
+                          newTagGroup,
+                        ),
+                      );
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('Add Tag Group'),

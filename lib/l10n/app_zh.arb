@@ -1973,6 +1973,21 @@
   "statistics_tabTrends": "趋势",
   "statistics_tabDetails": "详情",
   "statistics_noData": "暂无统计数据",
+  "statistics_generatedCount": "生成数量",
+  "statistics_favoriteCount": "收藏数",
+  "statistics_tooltipGenerated": "生成数量: {count}",
+  "@statistics_tooltipGenerated": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_tooltipFavorite": "收藏数: {count}",
+  "@statistics_tooltipFavorite": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_noTagData": "暂无标签数据",
   "statistics_generateFirst": "先生成一些图片吧",
   "statistics_overview": "总览",
   "statistics_totalImages": "总图片数",

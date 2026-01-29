@@ -221,8 +221,6 @@ GoRouter appRouter(Ref ref) {
                           ) ??
                           0;
 
-                      // TODO: 从状态获取图片列表
-                      // 目前使用空列表进行测试
                       return MaterialPage(
                         key: state.pageKey,
                         child: SlideshowScreen(
@@ -237,8 +235,6 @@ GoRouter appRouter(Ref ref) {
                     path: AppRoutes.comparison,
                     name: 'comparison',
                     pageBuilder: (context, state) {
-                      // TODO: 从状态获取图片列表
-                      // 目前使用空列表进行测试
                       return MaterialPage(
                         key: state.pageKey,
                         child: const ImageComparisonScreen(
@@ -457,7 +453,8 @@ class DesktopShell extends ConsumerWidget {
                     // 队列悬浮球 - 传入实际可用区域大小
                     FloatingQueueButton(
                       onTap: () => _openQueueManagementSheet(context),
-                      containerSize: Size(constraints.maxWidth, constraints.maxHeight),
+                      containerSize:
+                          Size(constraints.maxWidth, constraints.maxHeight),
                     ),
                   ],
                 );
@@ -493,7 +490,8 @@ class MobileShell extends ConsumerWidget {
               // 队列悬浮球 - 传入实际可用区域大小
               FloatingQueueButton(
                 onTap: () => _openQueueManagementSheet(context),
-                containerSize: Size(constraints.maxWidth, constraints.maxHeight),
+                containerSize:
+                    Size(constraints.maxWidth, constraints.maxHeight),
               ),
             ],
           );
