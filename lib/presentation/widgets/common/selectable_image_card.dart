@@ -484,9 +484,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                     : (_isHovering
                         ? Colors.black.withOpacity(0.35)
                         : Colors.black.withOpacity(0.12)),
-                blurRadius: widget.isSelected
-                    ? 16
-                    : (_isHovering ? 28 : 10),
+                blurRadius: widget.isSelected ? 16 : (_isHovering ? 28 : 10),
                 offset: Offset(0, _isHovering ? 14 : 4),
                 spreadRadius: _isHovering ? 2 : 0,
               ),
@@ -544,23 +542,26 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                     ),
                   ),
 
-                // 4. 悬浮/选中时的渐变遮罩
+                // 4. 悬浮/选中时的渐变遮罩（使用 IgnorePointer 让点击穿透）
                 if (_isHovering || widget.isSelected)
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.center,
-                        colors: [
-                          Colors.black.withOpacity(0.4),
-                          Colors.transparent,
-                        ],
+                  IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.center,
+                          colors: [
+                            Colors.black.withOpacity(0.4),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
                 // 5. 左上角：选择框（悬浮或选中时显示）
-                if (widget.enableSelection && (_isHovering || widget.isSelected))
+                if (widget.enableSelection &&
+                    (_isHovering || widget.isSelected))
                   Positioned(
                     top: 8,
                     left: 8,
@@ -601,13 +602,15 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                     ),
                   ),
 
-                // 8. 选中覆盖层
+                // 8. 选中覆盖层（使用 IgnorePointer 让点击穿透）
                 if (widget.isSelected)
                   Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -666,6 +669,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
 
   Widget _buildCheckbox(ThemeData theme) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         widget.onSelectionChanged?.call(!widget.isSelected);
       },

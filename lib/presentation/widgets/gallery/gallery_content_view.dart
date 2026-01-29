@@ -298,14 +298,19 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
     }
 
     return VirtualGalleryGrid(
-      key: const PageStorageKey<String>('local_gallery_3d_grid'),
+      // 使用动态 key，当选择模式变化时强制重建，确保 onTap 回调使用最新状态
+      key: PageStorageKey<String>(
+          'local_gallery_3d_grid_${selectionState.isActive}'),
       images: state.currentImages,
       columns: widget.columns,
       spacing: 12,
       padding: const EdgeInsets.all(16),
       selectedIndices: selectionState.isActive ? selectedIndices : null,
       onTap: (record, index) {
-        if (selectionState.isActive) {
+        // 实时读取最新的选择状态，避免闭包捕获旧值
+        final currentSelectionState =
+            ref.read(localGallerySelectionNotifierProvider);
+        if (currentSelectionState.isActive) {
           // Selection mode: toggle selection
           ref
               .read(localGallerySelectionNotifierProvider.notifier)

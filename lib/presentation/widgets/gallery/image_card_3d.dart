@@ -240,13 +240,15 @@ class _ImageCard3DState extends State<ImageCard3D>
                       child: _buildSelectionIndicator(colorScheme),
                     ),
 
-                  // 6. 选中覆盖层
+                  // 6. 选中覆盖层（使用 IgnorePointer 让点击穿透）
                   if (widget.isSelected)
                     Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
