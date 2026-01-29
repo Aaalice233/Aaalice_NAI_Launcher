@@ -2,21 +2,20 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path/path.dart' as p;
-import '../common/themed_divider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../data/models/gallery/local_image_record.dart';
-import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../common/app_toast.dart';
+import '../../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../app_toast.dart';
+import '../../themed_divider.dart';
+import '../image_detail_data.dart';
 
 /// 元数据面板组件
 ///
 /// 用于在全屏预览器右侧显示完整的图片元数据信息
 /// 支持折叠/展开功能
-class MetadataPanel extends StatefulWidget {
-  /// 当前显示的图片记录
-  final LocalImageRecord? currentImage;
+class DetailMetadataPanel extends StatefulWidget {
+  /// 当前显示的图片数据
+  final ImageDetailData? currentImage;
 
   /// 是否默认展开
   final bool initialExpanded;
@@ -27,7 +26,7 @@ class MetadataPanel extends StatefulWidget {
   /// 折叠宽度
   final double collapsedWidth;
 
-  const MetadataPanel({
+  const DetailMetadataPanel({
     super.key,
     this.currentImage,
     this.initialExpanded = true,
@@ -36,10 +35,10 @@ class MetadataPanel extends StatefulWidget {
   });
 
   @override
-  State<MetadataPanel> createState() => _MetadataPanelState();
+  State<DetailMetadataPanel> createState() => _DetailMetadataPanelState();
 }
 
-class _MetadataPanelState extends State<MetadataPanel> {
+class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   late bool _isExpanded;
 
   @override
@@ -85,13 +84,11 @@ class _MetadataPanelState extends State<MetadataPanel> {
 
     return Column(
       children: [
-        // 标题栏
         _PanelHeader(
           isExpanded: true,
           onToggle: _toggleExpanded,
         ),
         const ThemedDivider(height: 1),
-        // 内容区域
         Expanded(
           child: widget.currentImage == null
               ? Center(
@@ -105,7 +102,7 @@ class _MetadataPanelState extends State<MetadataPanel> {
                   child: metadata != null && metadata.hasData
                       ? _MetadataContent(
                           metadata: metadata,
-                          record: widget.currentImage!,
+                          fileInfo: widget.currentImage!.fileInfo,
                         )
                       : Center(
                           child: Padding(
@@ -131,7 +128,6 @@ class _MetadataPanelState extends State<MetadataPanel> {
                         ),
                 ),
         ),
-        // 底部操作栏
         if (metadata != null && metadata.hasData) ...[
           const ThemedDivider(height: 1),
           _ActionButtons(
@@ -227,11 +223,11 @@ class _PanelHeader extends StatelessWidget {
 /// 元数据内容
 class _MetadataContent extends StatelessWidget {
   final NaiImageMetadata metadata;
-  final LocalImageRecord record;
+  final FileInfo? fileInfo;
 
   const _MetadataContent({
     required this.metadata,
-    required this.record,
+    this.fileInfo,
   });
 
   @override
@@ -239,23 +235,25 @@ class _MetadataContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 基本信息
-        _InfoSection(
-          title: '基本信息',
-          icon: Icons.insert_drive_file_outlined,
-          children: [
-            _InfoRow(label: '文件名', value: p.basename(record.path)),
-            _InfoRow(
-              label: '修改时间',
-              value: _formatTime(context, record.modifiedAt),
-            ),
-            _InfoRow(
-              label: '文件大小',
-              value: _formatSize(record.size),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+        // 基本信息（仅在有文件信息时显示）
+        if (fileInfo != null) ...[
+          _InfoSection(
+            title: '基本信息',
+            icon: Icons.insert_drive_file_outlined,
+            children: [
+              _InfoRow(label: '文件名', value: fileInfo!.fileName),
+              _InfoRow(
+                label: '修改时间',
+                value: _formatTime(context, fileInfo!.modifiedAt),
+              ),
+              _InfoRow(
+                label: '文件大小',
+                value: _formatSize(fileInfo!.size),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
         // 生成参数
         _InfoSection(
           title: '生成参数',

@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/nai_metadata_parser.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/datasources/remote/nai_tag_suggestion_api_service.dart';
@@ -15,12 +19,46 @@ import '../../data/models/image/image_params.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
+import '../../data/repositories/local_gallery_repository.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
+import 'image_save_settings_provider.dart';
+import 'local_gallery_provider.dart';
 import 'prompt_config_provider.dart';
 import 'subscription_provider.dart';
 
 part 'image_generation_provider.g.dart';
+
+/// 生成的图像（带唯一ID）
+class GeneratedImage {
+  final String id;
+  final Uint8List bytes;
+  final DateTime createdAt;
+
+  GeneratedImage({
+    required this.id,
+    required this.bytes,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  /// 创建新的生成图像（自动生成ID）
+  factory GeneratedImage.create(Uint8List bytes) {
+    return GeneratedImage(
+      id: const Uuid().v4(),
+      bytes: bytes,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GeneratedImage &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
 
 /// 生成状态
 enum GenerationStatus {
@@ -34,8 +72,8 @@ enum GenerationStatus {
 /// 图像生成状态
 class ImageGenerationState {
   final GenerationStatus status;
-  final List<Uint8List> currentImages;
-  final List<Uint8List> history;
+  final List<GeneratedImage> currentImages;
+  final List<GeneratedImage> history;
   final String? errorMessage;
   final double progress;
   final int currentImage; // 当前第几张 (1-based)
@@ -57,8 +95,8 @@ class ImageGenerationState {
 
   ImageGenerationState copyWith({
     GenerationStatus? status,
-    List<Uint8List>? currentImages,
-    List<Uint8List>? history,
+    List<GeneratedImage>? currentImages,
+    List<GeneratedImage>? history,
     String? errorMessage,
     double? progress,
     int? currentImage,
@@ -192,7 +230,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       currentImages: [],
     );
 
-    final allImages = <Uint8List>[];
+    final allImages = <GeneratedImage>[];
     final random = Random();
     int generatedImages = 0;
 
@@ -238,18 +276,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
       try {
         // 使用流式 API 生成，支持预览
-        final images = await _generateBatchWithStream(
+        final imageBytes = await _generateBatchWithStream(
           batchParams,
           generatedImages + 1,
           totalImages,
         );
-        if (images.isNotEmpty) {
-          allImages.addAll(images);
-          generatedImages += images.length;
+        if (imageBytes.isNotEmpty) {
+          // 将字节数据包装成带唯一ID的 GeneratedImage
+          final generatedList =
+              imageBytes.map((b) => GeneratedImage.create(b)).toList();
+          allImages.addAll(generatedList);
+          generatedImages += imageBytes.length;
           // 立即更新显示和历史
           state = state.copyWith(
             currentImages: List.from(allImages),
-            history: [...images, ...state.history].take(50).toList(),
+            history: [...generatedList, ...state.history].take(50).toList(),
             clearStreamPreview: true,
           );
         } else {
@@ -283,6 +324,147 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     // 生成完成后刷新 Anlas 余额
     ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
+
+    // 自动保存：如果启用且生成成功，保存所有图像
+    if (!_isCancelled && allImages.isNotEmpty) {
+      await _autoSaveIfEnabled(allImages, baseParams);
+    }
+  }
+
+  /// 自动保存图像（如果启用）
+  Future<void> _autoSaveIfEnabled(
+    List<GeneratedImage> images,
+    ImageParams params,
+  ) async {
+    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+    if (!saveSettings.autoSave) return;
+
+    try {
+      final saveDir =
+          await LocalGalleryRepository.instance.getImageDirectory();
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      final characterConfig = ref.read(characterPromptNotifierProvider);
+
+      // 构建 V4 多角色提示词结构
+      final charCaptions = <Map<String, dynamic>>[];
+      final charNegCaptions = <Map<String, dynamic>>[];
+
+      for (final char in characterConfig.characters
+          .where((c) => c.enabled && c.prompt.isNotEmpty)) {
+        charCaptions.add({
+          'char_caption': char.prompt,
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
+        });
+        charNegCaptions.add({
+          'char_caption': char.negativePrompt,
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
+        });
+      }
+
+      int savedCount = 0;
+      for (final image in images) {
+        try {
+          // 从图片元数据中提取实际的 seed
+          int actualSeed = params.seed;
+          if (params.seed == -1) {
+            final extractedMeta =
+                await NaiMetadataParser.extractFromBytes(image.bytes);
+            if (extractedMeta != null &&
+                extractedMeta.seed != null &&
+                extractedMeta.seed! > 0) {
+              actualSeed = extractedMeta.seed!;
+            } else {
+              actualSeed = Random().nextInt(4294967295);
+            }
+          }
+
+          final commentJson = <String, dynamic>{
+            'prompt': params.prompt,
+            'uc': params.negativePrompt,
+            'seed': actualSeed,
+            'steps': params.steps,
+            'width': params.width,
+            'height': params.height,
+            'scale': params.scale,
+            'uncond_scale': 0.0,
+            'cfg_rescale': params.cfgRescale,
+            'n_samples': 1,
+            'noise_schedule': params.noiseSchedule,
+            'sampler': params.sampler,
+            'sm': params.smea,
+            'sm_dyn': params.smeaDyn,
+          };
+
+          if (charCaptions.isNotEmpty) {
+            commentJson['v4_prompt'] = {
+              'caption': {
+                'base_caption': params.prompt,
+                'char_captions': charCaptions,
+              },
+              'use_coords': !characterConfig.globalAiChoice,
+              'use_order': true,
+            };
+            commentJson['v4_negative_prompt'] = {
+              'caption': {
+                'base_caption': params.negativePrompt,
+                'char_captions': charNegCaptions,
+              },
+              'use_coords': false,
+              'use_order': false,
+            };
+          }
+
+          final metadata = {
+            'Description': params.prompt,
+            'Software': 'NovelAI',
+            'Source': _getModelSourceName(params.model),
+            'Comment': jsonEncode(commentJson),
+          };
+
+          final embeddedBytes = await NaiMetadataParser.embedMetadata(
+            image.bytes,
+            jsonEncode(metadata),
+          );
+
+          final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+          final file = File('${saveDir.path}/$fileName');
+          await file.writeAsBytes(embeddedBytes);
+          savedCount++;
+
+          // 避免文件名冲突
+          await Future.delayed(const Duration(milliseconds: 2));
+        } catch (e) {
+          AppLogger.e('自动保存图像失败: $e');
+        }
+      }
+
+      if (savedCount > 0) {
+        // 刷新本地图库
+        ref.read(localGalleryNotifierProvider.notifier).refresh();
+        AppLogger.d('自动保存完成: $savedCount 张图像', 'AutoSave');
+      }
+    } catch (e) {
+      AppLogger.e('自动保存失败: $e');
+    }
+  }
+
+  /// 获取模型源名称
+  String _getModelSourceName(String model) {
+    if (model.contains('diffusion-4-5')) {
+      return 'NovelAI Diffusion V4.5';
+    } else if (model.contains('diffusion-4')) {
+      return 'NovelAI Diffusion V4';
+    } else if (model.contains('diffusion-3')) {
+      return 'NovelAI Diffusion V3';
+    }
+    return 'NovelAI Diffusion';
   }
 
   /// 带重试的生成
@@ -582,11 +764,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
       // 如果流式不被支持，回退到非流式 API
       if (streamingNotAllowed) {
-        final (images, vibeEncodings) = await _generateWithRetry(params);
+        final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
+        final generatedList =
+            imageBytes.map((b) => GeneratedImage.create(b)).toList();
         state = state.copyWith(
           status: GenerationStatus.completed,
-          currentImages: images,
-          history: [...images, ...state.history].take(50).toList(),
+          currentImages: generatedList,
+          history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
           totalImages: 0,
@@ -596,30 +780,37 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         if (vibeEncodings.isNotEmpty) {
           _saveVibeEncodings(vibeEncodings);
         }
+        // 自动保存
+        await _autoSaveIfEnabled(generatedList, params);
         return;
       }
 
       if (finalImage != null) {
+        final generatedImage = GeneratedImage.create(finalImage);
         state = state.copyWith(
           status: GenerationStatus.completed,
-          currentImages: [finalImage],
-          history: [finalImage, ...state.history].take(50).toList(),
+          currentImages: [generatedImage],
+          history: [generatedImage, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
           totalImages: 0,
           clearStreamPreview: true,
         );
+        // 自动保存
+        await _autoSaveIfEnabled([generatedImage], params);
       } else {
         // 流式 API 未返回图像，回退到非流式 API
         AppLogger.w(
           'Stream API returned no image, falling back to non-stream API',
           'Generation',
         );
-        final (images, vibeEncodings) = await _generateWithRetry(params);
+        final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
+        final generatedList =
+            imageBytes.map((b) => GeneratedImage.create(b)).toList();
         state = state.copyWith(
           status: GenerationStatus.completed,
-          currentImages: images,
-          history: [...images, ...state.history].take(50).toList(),
+          currentImages: generatedList,
+          history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
           totalImages: 0,
@@ -629,6 +820,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         if (vibeEncodings.isNotEmpty) {
           _saveVibeEncodings(vibeEncodings);
         }
+        // 自动保存
+        await _autoSaveIfEnabled(generatedList, params);
       }
     } catch (e) {
       if (_isCancelled || e.toString().contains('cancelled')) {
@@ -651,11 +844,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             'Generation',
           );
           try {
-            final (images, vibeEncodings) = await _generateWithRetry(params);
+            final (imageBytes, vibeEncodings) =
+                await _generateWithRetry(params);
+            final generatedList =
+                imageBytes.map((b) => GeneratedImage.create(b)).toList();
             state = state.copyWith(
               status: GenerationStatus.completed,
-              currentImages: images,
-              history: [...images, ...state.history].take(50).toList(),
+              currentImages: generatedList,
+              history: [...generatedList, ...state.history].take(50).toList(),
               progress: 1.0,
               currentImage: 0,
               totalImages: 0,
@@ -664,6 +860,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             if (vibeEncodings.isNotEmpty) {
               _saveVibeEncodings(vibeEncodings);
             }
+            // 自动保存
+            await _autoSaveIfEnabled(generatedList, params);
             return;
           } catch (fallbackError) {
             state = state.copyWith(

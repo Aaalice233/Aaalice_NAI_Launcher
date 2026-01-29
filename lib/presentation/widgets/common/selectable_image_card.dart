@@ -19,8 +19,10 @@ import 'app_toast.dart';
 /// - 边缘发光效果
 /// - 光泽扫过动画（闪卡效果）
 /// - 悬浮时轻微放大和阴影增强
+/// - 生成中状态（流式预览、进度显示）
 class SelectableImageCard extends ConsumerStatefulWidget {
-  final Uint8List imageBytes;
+  /// 图像数据（生成完成时必须提供，生成中时可为空）
+  final Uint8List? imageBytes;
   final int? index;
   final bool isSelected;
   final bool showIndex;
@@ -46,9 +48,32 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   /// 在文件夹中打开的回调（需要先保存图片）
   final VoidCallback? onOpenInExplorer;
 
+  // ========== 生成中状态相关参数 ==========
+
+  /// 是否处于生成中状态
+  final bool isGenerating;
+
+  /// 生成进度 (0.0-1.0)
+  final double? progress;
+
+  /// 当前第几张图像 (1-based)
+  final int? currentImage;
+
+  /// 总共几张图像
+  final int? totalImages;
+
+  /// 流式预览图像（渐进式生成中显示）
+  final Uint8List? streamPreview;
+
+  /// 图像宽度（用于计算比例，生成中状态需要）
+  final int? imageWidth;
+
+  /// 图像高度（用于计算比例，生成中状态需要）
+  final int? imageHeight;
+
   const SelectableImageCard({
     super.key,
-    required this.imageBytes,
+    this.imageBytes,
     this.index,
     this.isSelected = false,
     this.showIndex = true,
@@ -61,7 +86,18 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.enableSelection = true,
     this.onUpscale,
     this.onOpenInExplorer,
-  });
+    // 生成中状态参数
+    this.isGenerating = false,
+    this.progress,
+    this.currentImage,
+    this.totalImages,
+    this.streamPreview,
+    this.imageWidth,
+    this.imageHeight,
+  }) : assert(
+          !isGenerating || (imageWidth != null && imageHeight != null),
+          'imageWidth and imageHeight are required when isGenerating is true',
+        );
 
   @override
   ConsumerState<SelectableImageCard> createState() =>
@@ -69,10 +105,14 @@ class SelectableImageCard extends ConsumerStatefulWidget {
 }
 
 class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _isHovering = false;
   late AnimationController _glossController;
   late Animation<double> _glossAnimation;
+
+  // 生成中状态的发光动画
+  AnimationController? _glowController;
+  Animation<double>? _glowAnimation;
 
   @override
   void initState() {
@@ -84,11 +124,42 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     _glossAnimation = Tween<double>(begin: -1.5, end: 1.5).animate(
       CurvedAnimation(parent: _glossController, curve: Curves.easeInOut),
     );
+
+    // 如果是生成中状态，初始化发光动画
+    if (widget.isGenerating) {
+      _initGlowAnimation();
+    }
+  }
+
+  void _initGlowAnimation() {
+    _glowController?.dispose();
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _glowAnimation = Tween<double>(begin: 0.1, end: 0.35).animate(
+      CurvedAnimation(parent: _glowController!, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(SelectableImageCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 状态变化时管理发光动画
+    if (widget.isGenerating && !oldWidget.isGenerating) {
+      _initGlowAnimation();
+    } else if (!widget.isGenerating && oldWidget.isGenerating) {
+      _glowController?.dispose();
+      _glowController = null;
+      _glowAnimation = null;
+    }
   }
 
   @override
   void dispose() {
     _glossController.dispose();
+    _glowController?.dispose();
     super.dispose();
   }
 
@@ -113,7 +184,272 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // 生成中状态使用专用的构建方法
+    if (widget.isGenerating) {
+      return _buildGeneratingCard(context, theme);
+    }
+
+    // 正常的已完成图像卡片
+    return _buildCompletedCard(context, theme);
+  }
+
+  /// 构建生成中状态的卡片
+  Widget _buildGeneratingCard(BuildContext context, ThemeData theme) {
+    final primaryColor = theme.colorScheme.primary;
+    final surfaceColor = theme.colorScheme.surface;
+    final hasPreview =
+        widget.streamPreview != null && widget.streamPreview!.isNotEmpty;
+
+    // 如果有流式预览，显示预览图像
+    if (hasPreview) {
+      return _buildPreviewCard(primaryColor, surfaceColor, theme);
+    }
+
+    // 否则显示加载动画
+    return _buildLoadingCard(primaryColor, surfaceColor, theme);
+  }
+
+  /// 构建带预览图像的生成中卡片
+  Widget _buildPreviewCard(
+    Color primaryColor,
+    Color surfaceColor,
+    ThemeData theme,
+  ) {
+    final progress = widget.progress ?? 0.0;
+    final currentImage = widget.currentImage ?? 0;
+    final totalImages = widget.totalImages ?? 0;
+
+    return AnimatedBuilder(
+      animation: _glowAnimation ?? const AlwaysStoppedAnimation(0.2),
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withOpacity(_glowAnimation?.value ?? 0.2),
+                blurRadius: 40,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 流式预览图像
+            Image.memory(
+              widget.streamPreview!,
+              fit: BoxFit.cover,
+              gaplessPlayback: true, // 平滑过渡，避免闪烁
+            ),
+            // 半透明遮罩 + 进度指示
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.4),
+                  ],
+                ),
+              ),
+            ),
+            // 底部进度信息
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: Row(
+                children: [
+                  // 进度环
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      value: progress > 0 ? progress : null,
+                      strokeWidth: 2,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 进度文字
+                  Text(
+                    '$currentImage/$totalImages',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // 百分比
+                  if (progress > 0)
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建加载动画卡片（无预览时）
+  Widget _buildLoadingCard(
+    Color primaryColor,
+    Color surfaceColor,
+    ThemeData theme,
+  ) {
+    final progress = widget.progress ?? 0.0;
+    final currentImage = widget.currentImage ?? 0;
+    final totalImages = widget.totalImages ?? 0;
+
+    return AnimatedBuilder(
+      animation: _glowAnimation ?? const AlwaysStoppedAnimation(0.2),
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: primaryColor.withOpacity(0.15),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withOpacity(_glowAnimation?.value ?? 0.2),
+                blurRadius: 40,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 进度环 + 图标
+          SizedBox(
+            width: 52,
+            height: 52,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: CircularProgressIndicator(
+                    value: progress > 0 ? progress : null,
+                    strokeWidth: 2.5,
+                    backgroundColor: primaryColor.withOpacity(0.1),
+                    color: primaryColor,
+                  ),
+                ),
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 22,
+                  color: primaryColor,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 当前 / 总数
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, -0.3),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Text(
+                  '$currentImage',
+                  key: ValueKey(currentImage),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                    height: 1,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '/',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: theme.colorScheme.onSurface.withOpacity(0.25),
+                    height: 1,
+                  ),
+                ),
+              ),
+              Text(
+                '$totalImages',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface.withOpacity(0.4),
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建已完成状态的卡片
+  Widget _buildCompletedCard(BuildContext context, ThemeData theme) {
     final glowColor = _getGlowColor(context);
+
+    // 确保有图像数据
+    if (widget.imageBytes == null) {
+      return const SizedBox.shrink();
+    }
 
     return MouseRegion(
       onEnter: (_) => _onHoverEnter(),
@@ -172,7 +508,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                 // 1. 图片层
                 RepaintBoundary(
                   child: Image.memory(
-                    widget.imageBytes,
+                    widget.imageBytes!,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -385,7 +721,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(widget.imageBytes);
+      await file.writeAsBytes(widget.imageBytes!);
 
       if (context.mounted) {
         AppToast.success(context, '已保存到 ${saveDir.path}');
@@ -404,7 +740,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       final file = File(
         '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
       );
-      await file.writeAsBytes(widget.imageBytes);
+      await file.writeAsBytes(widget.imageBytes!);
 
       await Process.run('powershell', [
         '-command',

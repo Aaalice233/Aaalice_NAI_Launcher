@@ -9,9 +9,10 @@ import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/local_image_card.dart';
+import '../common/image_detail/image_detail_data.dart';
+import '../common/image_detail/image_detail_viewer.dart';
 import '../common/shimmer_skeleton.dart';
 import 'virtual_gallery_grid.dart';
-import 'fullscreen_image_viewer.dart';
 import 'gallery_state_views.dart';
 
 /// Gallery content view with grouped/3D/masonry view modes
@@ -69,6 +70,51 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
   /// Aspect ratio cache
   /// 宽高比缓存
   final Map<String, double> _aspectRatioCache = {};
+
+  /// Show image detail viewer
+  /// 显示图像详情查看器
+  void _showImageDetailViewer(List<LocalImageRecord> images, int initialIndex) {
+    // 获取最新的收藏状态的函数
+    bool getFavoriteStatus(String path) {
+      final providerState = ref.read(localGalleryNotifierProvider);
+      final image = providerState.currentImages
+          .cast<LocalImageRecord?>()
+          .firstWhere((img) => img?.path == path, orElse: () => null);
+      return image?.isFavorite ?? false;
+    }
+
+    // 将 LocalImageRecord 转换为 ImageDetailData
+    final imageDataList = images.map((record) {
+      return LocalImageDetailData(
+        record,
+        getFavoriteStatus: getFavoriteStatus,
+      );
+    }).toList();
+
+    ImageDetailViewer.show(
+      context,
+      images: imageDataList,
+      initialIndex: initialIndex,
+      showMetadataPanel: true,
+      showThumbnails: images.length > 1,
+      callbacks: ImageDetailCallbacks(
+        onReuseMetadata: widget.onReuseMetadata != null
+            ? (data) {
+                if (data is LocalImageDetailData) {
+                  widget.onReuseMetadata!(data.record);
+                }
+              }
+            : null,
+        onFavoriteToggle: (data) {
+          if (data is LocalImageDetailData) {
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .toggleFavorite(data.record.path);
+          }
+        },
+      ),
+    );
+  }
 
   /// Calculate aspect ratio from metadata or image file
   /// 计算图片宽高比
@@ -266,31 +312,12 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
               .toggle(record.path);
         } else {
           // Normal mode: open fullscreen preview
-          FullscreenImageViewer.show(
-            context,
-            images: state.currentImages,
-            initialIndex: index,
-            onReuseMetadata: widget.onReuseMetadata,
-            onFavoriteToggle: (record) {
-              ref
-                  .read(localGalleryNotifierProvider.notifier)
-                  .toggleFavorite(record.path);
-            },
-          );
+          _showImageDetailViewer(state.currentImages, index);
         }
       },
       onDoubleTap: (record, index) {
         // Double tap to open fullscreen preview
-        FullscreenImageViewer.show(
-          context,
-          images: state.currentImages,
-          initialIndex: index,
-          onFavoriteToggle: (record) {
-            ref
-                .read(localGalleryNotifierProvider.notifier)
-                .toggleFavorite(record.path);
-          },
-        );
+        _showImageDetailViewer(state.currentImages, index);
       },
       onLongPress: (record, index) {
         if (!selectionState.isActive) {

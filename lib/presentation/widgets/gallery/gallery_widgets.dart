@@ -2,7 +2,6 @@
 /// Gallery UI components export
 library gallery_widgets;
 
-export 'fullscreen_image_viewer.dart';
 export 'image_card_3d.dart';
 export 'virtual_gallery_grid.dart';
 export 'local_gallery_toolbar.dart';

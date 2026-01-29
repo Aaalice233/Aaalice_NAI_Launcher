@@ -10,6 +10,7 @@ import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/generation/auto_save_toggle_chip.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
 import '../../widgets/common/themed_divider.dart';
@@ -375,7 +376,12 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Anlas 余额显示（移到抽卡按钮左边）
+        // 自动保存开关（最左侧）
+        const AutoSaveToggleChip(),
+
+        const SizedBox(width: 8),
+
+        // Anlas 余额显示
         const AnlasBalanceChip(),
 
         const SizedBox(width: 8),

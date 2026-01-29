@@ -1,14 +1,20 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_metadata_parser.dart';
+import '../../../../data/repositories/local_gallery_repository.dart';
 import '../../../providers/image_generation_provider.dart';
-import '../../../providers/image_save_settings_provider.dart';
+import '../../../providers/local_gallery_provider.dart';
+import '../../../providers/prompt_maximize_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/image_detail/image_detail_data.dart';
+import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -109,9 +115,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
         // 历史列表
         Expanded(
-          child: state.history.isEmpty
-              ? _buildEmptyState(theme, context)
-              : _buildHistoryGrid(state.history, theme),
+          child:
+              state.history.isEmpty && !_shouldShowCurrentGeneration(state, ref)
+                  ? _buildEmptyState(theme, context)
+                  : _buildHistoryGrid(state, theme, ref),
         ),
 
         // 底部操作栏（有选中时显示）
@@ -143,44 +150,146 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     );
   }
 
-  Widget _buildHistoryGrid(List<Uint8List> history, ThemeData theme) {
+  /// 判断是否应该在历史面板显示当前生成的图像（全屏模式下）
+  bool _shouldShowCurrentGeneration(ImageGenerationState state, WidgetRef ref) {
+    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
+    return isPromptMaximized &&
+        (state.isGenerating || state.currentImages.isNotEmpty);
+  }
+
+  Widget _buildHistoryGrid(
+    ImageGenerationState state,
+    ThemeData theme,
+    WidgetRef ref,
+  ) {
+    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
+    final params = ref.watch(generationParamsNotifierProvider);
+    final history = state.history;
+
+    // 全屏模式下需要在前面显示当前生成的图像
+    final showCurrentGeneration = isPromptMaximized &&
+        (state.isGenerating || state.currentImages.isNotEmpty);
+
+    // 计算当前生成区块的项目数
+    int currentGenerationCount = 0;
+    if (showCurrentGeneration) {
+      currentGenerationCount = state.currentImages.length;
+      if (state.isGenerating) {
+        currentGenerationCount += 1; // 加上生成中卡片
+      }
+    }
+
+    // 使用唯一 ID 去重：收集 currentImages 的 ID
+    final currentImageIds = <String>{};
+    if (showCurrentGeneration) {
+      for (final img in state.currentImages) {
+        currentImageIds.add(img.id);
+      }
+    }
+
+    // 从历史中过滤掉已在 currentImages 中显示的图像
+    final deduplicatedHistory = showCurrentGeneration
+        ? history.where((img) => !currentImageIds.contains(img.id)).toList()
+        : history;
+
+    final totalCount = currentGenerationCount + deduplicatedHistory.length;
+    final aspectRatio = params.width / params.height;
+
     return GridView.builder(
       padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
-        childAspectRatio: 0.75,
+        childAspectRatio: aspectRatio.clamp(0.5, 2.0),
       ),
-      itemCount: history.length,
+      itemCount: totalCount,
       itemBuilder: (context, index) {
+        // 当前生成区块
+        if (index < currentGenerationCount) {
+          return _buildCurrentGenerationItem(
+            context,
+            index,
+            state,
+            params.width,
+            params.height,
+          );
+        }
+
+        // 历史图像（已去重）
+        final historyIndex = index - currentGenerationCount;
+        final historyImage = deduplicatedHistory[historyIndex];
+        // 计算在原始 history 中的真实索引（用于选择操作）
+        final actualHistoryIndex = history.indexOf(historyImage);
         return SelectableImageCard(
-          imageBytes: history[index],
-          index: index,
+          imageBytes: historyImage.bytes,
+          index: actualHistoryIndex,
           showIndex: false,
-          isSelected: _selectedIndices.contains(index),
+          isSelected: _selectedIndices.contains(actualHistoryIndex),
           onSelectionChanged: (selected) {
             setState(() {
               if (selected) {
-                _selectedIndices.add(index);
+                _selectedIndices.add(actualHistoryIndex);
               } else {
-                _selectedIndices.remove(index);
+                _selectedIndices.remove(actualHistoryIndex);
               }
             });
           },
-          onFullscreen: () => _showFullscreen(context, history[index]),
+          onFullscreen: () => _showFullscreen(context, historyImage.bytes),
           enableContextMenu: true,
           enableHoverScale: true,
           onOpenInExplorer: () =>
-              _saveAndOpenInExplorer(context, history[index]),
+              _saveAndOpenInExplorer(context, historyImage.bytes),
         );
       },
     );
   }
 
+  /// 构建当前生成区块的单个项目
+  Widget _buildCurrentGenerationItem(
+    BuildContext context,
+    int index,
+    ImageGenerationState state,
+    int imageWidth,
+    int imageHeight,
+  ) {
+    final completedImages = state.currentImages;
+
+    // 如果正在生成，最后一个位置显示生成中卡片
+    if (state.isGenerating && index == completedImages.length) {
+      return SelectableImageCard(
+        isGenerating: true,
+        currentImage: state.currentImage,
+        totalImages: state.totalImages,
+        progress: state.progress,
+        streamPreview: state.streamPreview,
+        imageWidth: imageWidth,
+        imageHeight: imageHeight,
+        enableSelection: false,
+        enableContextMenu: false,
+      );
+    }
+
+    // 已完成的当前图像
+    if (index < completedImages.length) {
+      final imageBytes = completedImages[index].bytes;
+      return SelectableImageCard(
+        imageBytes: imageBytes,
+        index: index,
+        showIndex: true,
+        enableSelection: false,
+        onTap: () => _showFullscreen(context, imageBytes),
+        enableContextMenu: true,
+        enableHoverScale: true,
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
   Widget _buildBottomActions(
     BuildContext context,
-    List<Uint8List> history,
+    List<GeneratedImage> history,
     ThemeData theme,
   ) {
     return Container(
@@ -203,26 +312,15 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
   Future<void> _saveSelectedImages(
     BuildContext context,
-    List<Uint8List> history,
+    List<GeneratedImage> history,
   ) async {
     if (_selectedIndices.isEmpty) return;
 
     try {
-      // 优先使用设置中的自定义路径
-      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-      Directory saveDir;
-
-      if (saveSettings.hasCustomPath) {
-        saveDir = Directory(saveSettings.customPath!);
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-      } else {
-        final docDir = await getApplicationDocumentsDirectory();
-        saveDir = Directory('${docDir.path}/NAI_Launcher');
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
+      final saveDir =
+          await LocalGalleryRepository.instance.getImageDirectory();
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
       }
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -232,8 +330,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         final index = sortedIndices[i];
         final fileName = 'NAI_${timestamp}_${i + 1}.png';
         final file = File('${saveDir.path}/$fileName');
-        await file.writeAsBytes(history[index]);
+        await file.writeAsBytes(history[index].bytes);
       }
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
@@ -254,27 +354,18 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     Uint8List imageBytes,
   ) async {
     try {
-      // 获取保存目录
-      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-      Directory saveDir;
-
-      if (saveSettings.hasCustomPath) {
-        saveDir = Directory(saveSettings.customPath!);
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-      } else {
-        final docDir = await getApplicationDocumentsDirectory();
-        saveDir = Directory('${docDir.path}/NAI_Launcher');
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
+      final saveDir =
+          await LocalGalleryRepository.instance.getImageDirectory();
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
       }
 
       // 保存图片
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
       await file.writeAsBytes(imageBytes);
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       // 在文件夹中打开并选中文件
       await Process.start('explorer', ['/select,${file.path}']);
@@ -289,20 +380,140 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     }
   }
 
-  void _showFullscreen(BuildContext context, Uint8List imageBytes) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black87,
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return _FullscreenImageView(imageBytes: imageBytes);
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 200),
+  void _showFullscreen(BuildContext context, Uint8List imageBytes) async {
+    // 从图像中提取元数据
+    final metadata = await NaiMetadataParser.extractFromBytes(imageBytes);
+
+    final imageData = GeneratedImageDetailData.fromParams(
+      imageBytes: imageBytes,
+      prompt: metadata?.prompt ?? '',
+      negativePrompt: metadata?.negativePrompt ?? '',
+      seed: metadata?.seed ?? 0,
+      steps: metadata?.steps ?? 28,
+      scale: metadata?.scale ?? 5.0,
+      width: metadata?.width ?? 832,
+      height: metadata?.height ?? 1216,
+      model: metadata?.source ?? 'nai-diffusion-4-full',
+      sampler: metadata?.sampler ?? 'k_euler_ancestral',
+      smea: metadata?.smea ?? true,
+      smeaDyn: metadata?.smeaDyn ?? false,
+      noiseSchedule: metadata?.noiseSchedule ?? 'native',
+      cfgRescale: metadata?.cfgRescale ?? 0.0,
+      characterPrompts: metadata?.characterPrompts ?? [],
+      characterNegativePrompts: metadata?.characterNegativePrompts ?? [],
+    );
+
+    if (!context.mounted) return;
+
+    ImageDetailViewer.showSingle(
+      context,
+      image: imageData,
+      showMetadataPanel: true,
+      callbacks: ImageDetailCallbacks(
+        onSave: (image) => _saveImageFromDetail(context, image),
       ),
     );
+  }
+
+  /// 从详情页保存图像
+  Future<void> _saveImageFromDetail(
+    BuildContext context,
+    ImageDetailData image,
+  ) async {
+    try {
+      final imageBytes = await image.getImageBytes();
+      final saveDir =
+          await LocalGalleryRepository.instance.getImageDirectory();
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      // 从图像中提取元数据以获取正确的参数
+      final metadata = await NaiMetadataParser.extractFromBytes(imageBytes);
+
+      final commentJson = <String, dynamic>{
+        'prompt': metadata?.prompt ?? '',
+        'uc': metadata?.negativePrompt ?? '',
+        'seed': metadata?.seed ?? Random().nextInt(4294967295),
+        'steps': metadata?.steps ?? 28,
+        'width': metadata?.width ?? 832,
+        'height': metadata?.height ?? 1216,
+        'scale': metadata?.scale ?? 5.0,
+        'uncond_scale': 0.0,
+        'cfg_rescale': metadata?.cfgRescale ?? 0.0,
+        'n_samples': 1,
+        'noise_schedule': metadata?.noiseSchedule ?? 'native',
+        'sampler': metadata?.sampler ?? 'k_euler_ancestral',
+        'sm': metadata?.smea ?? true,
+        'sm_dyn': metadata?.smeaDyn ?? false,
+      };
+
+      // 添加 V4 多角色信息
+      if (metadata?.characterPrompts.isNotEmpty == true) {
+        final charCaptions = <Map<String, dynamic>>[];
+        final charNegCaptions = <Map<String, dynamic>>[];
+
+        for (int i = 0; i < metadata!.characterPrompts.length; i++) {
+          charCaptions.add({
+            'char_caption': metadata.characterPrompts[i],
+            'centers': [
+              {'x': 0.5, 'y': 0.5},
+            ],
+          });
+          if (i < metadata.characterNegativePrompts.length) {
+            charNegCaptions.add({
+              'char_caption': metadata.characterNegativePrompts[i],
+              'centers': [
+                {'x': 0.5, 'y': 0.5},
+              ],
+            });
+          }
+        }
+
+        commentJson['v4_prompt'] = {
+          'caption': {
+            'base_caption': metadata.prompt,
+            'char_captions': charCaptions,
+          },
+          'use_coords': false,
+          'use_order': true,
+        };
+        commentJson['v4_negative_prompt'] = {
+          'caption': {
+            'base_caption': metadata.negativePrompt,
+            'char_captions': charNegCaptions,
+          },
+          'use_coords': false,
+          'use_order': false,
+        };
+      }
+
+      final embeddedMetadata = {
+        'Description': metadata?.prompt ?? '',
+        'Software': 'NovelAI',
+        'Source': metadata?.source ?? 'NovelAI Diffusion',
+        'Comment': jsonEncode(commentJson),
+      };
+
+      final embeddedBytes = await NaiMetadataParser.embedMetadata(
+        imageBytes,
+        jsonEncode(embeddedMetadata),
+      );
+
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${saveDir.path}/$fileName');
+      await file.writeAsBytes(embeddedBytes);
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
   }
 
   void _showClearDialog(BuildContext context, WidgetRef ref) async {
@@ -321,143 +532,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       setState(() {
         _selectedIndices.clear();
       });
-    }
-  }
-}
-
-/// 沉浸式全屏图像查看器
-class _FullscreenImageView extends ConsumerStatefulWidget {
-  final Uint8List imageBytes;
-
-  const _FullscreenImageView({required this.imageBytes});
-
-  @override
-  ConsumerState<_FullscreenImageView> createState() =>
-      _FullscreenImageViewState();
-}
-
-class _FullscreenImageViewState extends ConsumerState<_FullscreenImageView> {
-  final TransformationController _transformController =
-      TransformationController();
-
-  @override
-  void dispose() {
-    _transformController.dispose();
-    super.dispose();
-  }
-
-  void _close() {
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 背景 + 图像（点击关闭）
-          GestureDetector(
-            onTap: _close,
-            child: Container(
-              color: Colors.black.withOpacity(0.95),
-              child: InteractiveViewer(
-                transformationController: _transformController,
-                minScale: 0.5,
-                maxScale: 5.0,
-                child: Center(
-                  child: Image.memory(
-                    widget.imageBytes,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // 左上角返回按钮
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 8,
-            child: _buildControlButton(
-              icon: Icons.arrow_back_rounded,
-              onTap: _close,
-              tooltip: context.l10n.common_back,
-            ),
-          ),
-
-          // 右上角保存按钮
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 8,
-            child: _buildControlButton(
-              icon: Icons.save_alt_rounded,
-              onTap: () => _saveImage(context),
-              tooltip: context.l10n.image_save,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControlButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    required String tooltip,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _saveImage(BuildContext context) async {
-    try {
-      // 优先使用设置中的自定义路径
-      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-      Directory saveDir;
-
-      if (saveSettings.hasCustomPath) {
-        saveDir = Directory(saveSettings.customPath!);
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-      } else {
-        final docDir = await getApplicationDocumentsDirectory();
-        saveDir = Directory('${docDir.path}/NAI_Launcher');
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-      }
-
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(widget.imageBytes);
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
     }
   }
 }
