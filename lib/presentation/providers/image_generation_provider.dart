@@ -20,6 +20,7 @@ import '../../data/models/tag/tag_suggestion.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
 import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/services/statistics_cache_service.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
@@ -340,8 +341,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!saveSettings.autoSave) return;
 
     try {
-      final saveDir =
-          await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -448,6 +448,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (savedCount > 0) {
         // 刷新本地图库
         ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+        // 增量更新统计缓存，避免下次启动时完全重新计算
+        try {
+          final cacheService = ref.read(statisticsCacheServiceProvider);
+          await cacheService.incrementImageCount(savedCount);
+        } catch (e) {
+          AppLogger.w('统计缓存增量更新失败: $e', 'AutoSave');
+        }
+
         AppLogger.d('自动保存完成: $savedCount 张图像', 'AutoSave');
       }
     } catch (e) {

@@ -128,11 +128,12 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 3. 加载标签翻译服务
+    // 3. 加载标签翻译服务（优化后：缓存优先 + Isolate 解析，< 1秒）
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_loadingTranslation',
         weight: 2,
+        timeout: const Duration(seconds: 5),
         task: () async {
           final translationService = ref.read(tagTranslationServiceProvider);
           await translationService.load();

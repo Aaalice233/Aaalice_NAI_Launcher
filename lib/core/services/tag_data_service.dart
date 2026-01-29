@@ -96,8 +96,8 @@ class TagDataService {
       // 2. 尝试从缓存加载
       final cacheLoaded = await _loadFromCache();
 
+      // 3. 缓存不存在，先用内置数据，后台下载
       if (!cacheLoaded) {
-        // 3. 缓存不存在，先用内置数据，后台下载
         await _loadBuiltinTags();
 
         // 标记为已初始化（使用内置数据）
@@ -114,14 +114,14 @@ class TagDataService {
         return;
       }
 
-      // 4. 构建搜索索引
+      // 4. 缓存加载成功，设置标签列表用于懒加载索引（不立即构建索引）
       if (_tags.isNotEmpty) {
-        await _searchIndex.buildIndex(_tags);
+        _searchIndex.setTags(_tags);
       }
 
       _isInitialized = true;
       AppLogger.i(
-        'TagDataService initialized: ${_tags.length} tags loaded',
+        'TagDataService initialized: ${_tags.length} tags loaded (index lazy)',
         'TagData',
       );
     } catch (e, stack) {
@@ -140,9 +140,9 @@ class TagDataService {
       try {
         await _downloadAndParseTags();
 
-        // 下载成功后重建索引
+        // 下载成功后设置标签列表用于懒加载索引（不立即构建）
         if (_tags.isNotEmpty) {
-          await _searchIndex.buildIndex(_tags);
+          _searchIndex.setTags(_tags);
         }
 
         AppLogger.i(

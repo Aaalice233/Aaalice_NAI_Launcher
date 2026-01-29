@@ -297,13 +297,18 @@ class TagSearchIndex {
         .add(index);
   }
 
-  /// 搜索标签
+  /// 搜索标签（支持懒加载）
   /// [query] 搜索词
   /// [limit] 最大返回数量
   List<LocalTag> search(String query, {int limit = 20}) {
     if (query.isEmpty) return [];
 
     final normalizedQuery = query.trim().toLowerCase();
+
+    // 索引未就绪且未在构建时，触发后台构建
+    if (!_isReady && !_isBuilding && _allTags.isNotEmpty) {
+      _buildIndexAsync();
+    }
 
     // 判断是否包含中文
     final containsChinese = _containsChinese(normalizedQuery);
@@ -313,6 +318,15 @@ class TagSearchIndex {
     } else {
       return _searchEnglish(normalizedQuery, limit);
     }
+  }
+
+  /// 异步构建索引（不阻塞主线程）
+  void _buildIndexAsync() {
+    if (_isBuilding || _isReady) return;
+
+    AppLogger.d(
+        'Starting lazy index build for ${_allTags.length} tags', 'TagSearch');
+    buildIndex(_allTags, useIsolate: true);
   }
 
   /// 英文前缀搜索
@@ -497,6 +511,16 @@ class TagSearchIndex {
   /// 判断字符串是否包含中文
   bool _containsChinese(String text) {
     return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
+  }
+
+  /// 设置标签列表（用于懒加载模式）
+  ///
+  /// 调用此方法后，索引不会立即构建，而是在首次搜索时触发
+  void setTags(List<LocalTag> tags) {
+    _allTags = List.from(tags)..sort((a, b) => b.count.compareTo(a.count));
+    // 不立即构建索引，等待首次搜索时懒加载
+    AppLogger.d(
+        'Tags set for lazy indexing: ${_allTags.length} tags', 'TagSearch');
   }
 
   /// 清空索引

@@ -1,17 +1,79 @@
+import 'dart:isolate';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/cache/translation_cache_service.dart';
 import '../../core/services/tag_data_service.dart';
 import '../../core/utils/app_logger.dart';
 
 part 'tag_translation_service.g.dart';
 
+/// Isolate 解析结果
+class _ParsedTranslationData {
+  final Map<String, String> tagTranslations;
+  final Map<String, String> characterTranslations;
+
+  _ParsedTranslationData({
+    required this.tagTranslations,
+    required this.characterTranslations,
+  });
+}
+
+/// Isolate 解析参数
+class _IsolateParseParams {
+  final String tagCsvContent;
+  final String charCsvContent;
+
+  _IsolateParseParams(this.tagCsvContent, this.charCsvContent);
+}
+
+/// 在 Isolate 中解析两个 CSV 文件（顶层函数）
+_ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
+  final tagTranslations = <String, String>{};
+  final characterTranslations = <String, String>{};
+
+  // 解析标签翻译 CSV
+  for (final line in params.tagCsvContent.split('\n')) {
+    if (line.trim().isEmpty) continue;
+    final parts = line.split(',');
+    if (parts.length >= 2) {
+      final englishTag = parts[0].trim().toLowerCase();
+      final chineseTranslation = parts.sublist(1).join(',').trim();
+      if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
+        tagTranslations[englishTag] = chineseTranslation;
+      }
+    }
+  }
+
+  // 解析角色翻译 CSV
+  for (final line in params.charCsvContent.split('\n')) {
+    if (line.trim().isEmpty) continue;
+    final parts = line.split(',');
+    if (parts.length >= 2) {
+      final chineseName = parts[0].trim();
+      final englishTag = parts.sublist(1).join(',').trim().toLowerCase();
+      if (englishTag.isNotEmpty && chineseName.isNotEmpty) {
+        characterTranslations[englishTag] = chineseName;
+      }
+    }
+  }
+
+  return _ParsedTranslationData(
+    tagTranslations: tagTranslations,
+    characterTranslations: characterTranslations,
+  );
+}
+
 /// 标签翻译服务
 ///
 /// 提供 Danbooru 标签的中文翻译功能
-/// 支持动态数据（从 TagDataService）和内置回退数据
+/// 支持二进制缓存 + Isolate 并行解析优化
 class TagTranslationService {
+  /// 缓存服务
+  final TranslationCacheService _cacheService;
+
   /// 通用标签翻译表 (英文 -> 中文)
   final Map<String, String> _tagTranslations = {};
 
@@ -26,6 +88,8 @@ class TagTranslationService {
 
   bool _isLoaded = false;
 
+  TagTranslationService(this._cacheService);
+
   /// 是否已加载
   bool get isLoaded => _isLoaded;
 
@@ -34,19 +98,65 @@ class TagTranslationService {
     _tagDataService = service;
   }
 
-  /// 加载翻译数据
+  /// 加载翻译数据（优化版：缓存优先 + Isolate 并行解析）
   Future<void> load() async {
     if (_isLoaded) return;
 
+    final stopwatch = Stopwatch()..start();
+
     try {
-      await Future.wait([
-        _loadTagTranslations(),
-        _loadCharacterTranslations(),
-      ]);
+      // 1. 尝试从二进制缓存加载（最快路径）
+      final cached = await _cacheService.loadCache();
+      if (cached != null) {
+        _tagTranslations.addAll(cached.tagTranslations);
+        _characterTranslations.addAll(cached.characterTranslations);
+        _buildReverseIndex();
+        _isLoaded = true;
+
+        stopwatch.stop();
+        AppLogger.i(
+          'Tag translations loaded from cache: ${_tagTranslations.length} tags, '
+              '${_characterTranslations.length} characters in ${stopwatch.elapsedMilliseconds}ms',
+          'TagTranslation',
+        );
+        return;
+      }
+
+      // 2. 缓存未命中，使用 Isolate 并行解析 CSV
+      AppLogger.d('Translation cache miss, parsing CSV in isolate...',
+          'TagTranslation');
+
+      // 先加载 CSV 文件内容（必须在主线程，因为 rootBundle 不能在 Isolate 中使用）
+      final tagCsvContent =
+          await rootBundle.loadString('assets/translations/danbooru.csv');
+      final charCsvContent =
+          await rootBundle.loadString('assets/translations/wai_characters.csv');
+
+      // 在 Isolate 中解析
+      final result = await Isolate.run(
+        () => _parseAllCsvInIsolate(
+          _IsolateParseParams(tagCsvContent, charCsvContent),
+        ),
+      );
+
+      _tagTranslations.addAll(result.tagTranslations);
+      _characterTranslations.addAll(result.characterTranslations);
+      _buildReverseIndex();
       _isLoaded = true;
+
+      stopwatch.stop();
       AppLogger.i(
-        'Tag translations loaded: ${_tagTranslations.length} tags, ${_characterTranslations.length} characters',
+        'Tag translations parsed: ${_tagTranslations.length} tags, '
+            '${_characterTranslations.length} characters in ${stopwatch.elapsedMilliseconds}ms',
         'TagTranslation',
+      );
+
+      // 3. 异步保存到缓存（不阻塞）
+      _cacheService.saveCache(
+        TranslationCacheData(
+          tagTranslations: _tagTranslations,
+          characterTranslations: _characterTranslations,
+        ),
       );
     } catch (e, stack) {
       AppLogger.e(
@@ -58,63 +168,16 @@ class TagTranslationService {
     }
   }
 
-  /// 加载通用标签翻译
-  Future<void> _loadTagTranslations() async {
-    try {
-      final csvData =
-          await rootBundle.loadString('assets/translations/danbooru.csv');
-      final lines = csvData.split('\n');
+  /// 构建反向索引
+  void _buildReverseIndex() {
+    _reverseTranslationMap.clear();
 
-      for (final line in lines) {
-        if (line.trim().isEmpty) continue;
-
-        // 格式: 英文标签,中文翻译
-        final parts = line.split(',');
-        if (parts.length >= 2) {
-          final englishTag = parts[0].trim().toLowerCase();
-          final chineseTranslation = parts.sublist(1).join(',').trim();
-          if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
-            _tagTranslations[englishTag] = chineseTranslation;
-
-            // 构建反向索引
-            _reverseTranslationMap
-                .putIfAbsent(chineseTranslation, () => [])
-                .add(englishTag);
-          }
-        }
-      }
-    } catch (e) {
-      AppLogger.w('Failed to load danbooru.csv: $e', 'TagTranslation');
+    for (final entry in _tagTranslations.entries) {
+      _reverseTranslationMap.putIfAbsent(entry.value, () => []).add(entry.key);
     }
-  }
 
-  /// 加载角色名翻译
-  Future<void> _loadCharacterTranslations() async {
-    try {
-      final csvData =
-          await rootBundle.loadString('assets/translations/wai_characters.csv');
-      final lines = csvData.split('\n');
-
-      for (final line in lines) {
-        if (line.trim().isEmpty) continue;
-
-        // 格式: 中文名称,英文标签
-        final parts = line.split(',');
-        if (parts.length >= 2) {
-          final chineseName = parts[0].trim();
-          final englishTag = parts.sublist(1).join(',').trim().toLowerCase();
-          if (englishTag.isNotEmpty && chineseName.isNotEmpty) {
-            _characterTranslations[englishTag] = chineseName;
-
-            // 构建反向索引
-            _reverseTranslationMap
-                .putIfAbsent(chineseName, () => [])
-                .add(englishTag);
-          }
-        }
-      }
-    } catch (e) {
-      AppLogger.w('Failed to load wai_characters.csv: $e', 'TagTranslation');
+    for (final entry in _characterTranslations.entries) {
+      _reverseTranslationMap.putIfAbsent(entry.value, () => []).add(entry.key);
     }
   }
 
@@ -285,7 +348,8 @@ class TagTranslationService {
 /// TagTranslationService Provider
 @Riverpod(keepAlive: true)
 TagTranslationService tagTranslationService(Ref ref) {
-  final service = TagTranslationService();
+  final cacheService = ref.read(translationCacheServiceProvider);
+  final service = TagTranslationService(cacheService);
 
   // 尝试获取 TagDataService 并关联
   try {
