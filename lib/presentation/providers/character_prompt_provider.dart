@@ -30,15 +30,24 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
 
   /// 添加新角色
   ///
+  /// [gender] 角色性别
   /// [name] 角色名称，为空时自动生成
-  /// [gender] 角色性别，默认为女性
+  /// [prompt] 正向提示词，为空时根据性别生成默认值
+  /// [thumbnailPath] 缩略图路径（词库导入时）
   ///
   /// Requirements: 1.2, 1.3
-  void addCharacter({
+  void addCharacter(
+    CharacterGender gender, {
     String? name,
-    CharacterGender gender = CharacterGender.female,
+    String? prompt,
+    String? thumbnailPath,
   }) {
-    state = state.addCharacter(name: name, gender: gender);
+    state = state.addCharacter(
+      gender: gender,
+      name: name,
+      prompt: prompt,
+      thumbnailPath: thumbnailPath,
+    );
     _saveConfig();
   }
 

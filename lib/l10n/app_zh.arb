@@ -975,6 +975,8 @@
   "characterEditor_addFemale": "女",
   "characterEditor_addMale": "男",
   "characterEditor_addOther": "其他",
+  "characterEditor_addFromLibrary": "词库",
+  "characterEditor_editCharacter": "编辑角色",
   "characterEditor_moveUp": "上移",
   "characterEditor_moveDown": "下移",
   "characterEditor_aiChoice": "AI选择",

@@ -81,6 +81,9 @@ class CharacterPrompt with _$CharacterPrompt {
 
     /// 是否启用
     @Default(true) bool enabled,
+
+    /// 缩略图路径（词库导入时保存）
+    String? thumbnailPath,
   }) = _CharacterPrompt;
 
   factory CharacterPrompt.fromJson(Map<String, dynamic> json) =>
@@ -94,6 +97,7 @@ class CharacterPrompt with _$CharacterPrompt {
     String negativePrompt = 'lowres, aliasing, ',
     CharacterPositionMode positionMode = CharacterPositionMode.aiChoice,
     CharacterPosition? customPosition,
+    String? thumbnailPath,
   }) {
     return CharacterPrompt(
       id: const Uuid().v4(),
@@ -103,6 +107,7 @@ class CharacterPrompt with _$CharacterPrompt {
       negativePrompt: negativePrompt,
       positionMode: positionMode,
       customPosition: customPosition,
+      thumbnailPath: thumbnailPath,
     );
   }
 
@@ -230,13 +235,16 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
   CharacterPromptConfig addCharacter({
     String? name,
     CharacterGender gender = CharacterGender.female,
+    String? prompt,
+    String? thumbnailPath,
   }) {
-    // 根据性别设置初始提示词
-    final initialPrompt = switch (gender) {
-      CharacterGender.female => 'girl, ',
-      CharacterGender.male => 'boy, ',
-      CharacterGender.other => '',
-    };
+    // 根据性别设置初始提示词（如果未指定）
+    final initialPrompt = prompt ??
+        switch (gender) {
+          CharacterGender.female => 'girl, ',
+          CharacterGender.male => 'boy, ',
+          CharacterGender.other => '',
+        };
 
     // 获取默认位置
     final defaultPosition = _getNextDefaultPosition();
@@ -247,6 +255,7 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
       prompt: initialPrompt,
       positionMode: CharacterPositionMode.custom,
       customPosition: defaultPosition,
+      thumbnailPath: thumbnailPath,
     );
     return copyWith(characters: [...characters, newCharacter]);
   }

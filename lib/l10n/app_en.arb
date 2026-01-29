@@ -1309,6 +1309,8 @@
   "characterEditor_addFemale": "F",
   "characterEditor_addMale": "M",
   "characterEditor_addOther": "Other",
+  "characterEditor_addFromLibrary": "Library",
+  "characterEditor_editCharacter": "Edit Character",
   "characterEditor_moveUp": "Move Up",
   "characterEditor_moveDown": "Move Down",
   "characterEditor_aiChoice": "AI",
