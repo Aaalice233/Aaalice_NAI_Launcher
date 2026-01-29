@@ -88,7 +88,7 @@ class _ChartCardState extends State<ChartCard> {
     final colorScheme = theme.colorScheme;
     final extension = theme.extension<AppThemeExtension>();
     final isDesktop = MediaQuery.of(context).size.width >= 900;
-    final shadowIntensity = extension?.shadowIntensity ?? 0.1;
+    final shadowIntensity = extension?.shadowIntensity ?? 0.08;
     final isDark = theme.brightness == Brightness.dark;
     final accentColor = widget.accentColor ?? colorScheme.primary;
 
@@ -96,125 +96,79 @@ class _ChartCardState extends State<ChartCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
+        transform: _isHovered
+            ? (Matrix4.identity()..translate(0.0, -2.0))
+            : Matrix4.identity(),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.surfaceContainerLow,
-              colorScheme.surfaceContainer.withOpacity(isDark ? 0.7 : 0.9),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
+          // Bento Box 风格：纯色背景
+          color: isDark ? colorScheme.surfaceContainerLow : colorScheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          // 极简边框
           border: Border.all(
-            color: _isHovered
-                ? accentColor.withOpacity(0.25)
-                : colorScheme.outlineVariant.withOpacity(0.12),
-            width: _isHovered ? 1.5 : 1,
+            color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
+            width: 1,
           ),
+          // 柔和单层阴影
           boxShadow: widget.elevated
               ? [
                   BoxShadow(
                     color: Colors.black.withOpacity(
                       _isHovered ? shadowIntensity * 1.5 : shadowIntensity,
                     ),
-                    blurRadius: _isHovered ? 18 : 12,
+                    blurRadius: _isHovered ? 16 : 12,
                     offset: Offset(0, _isHovered ? 6 : 4),
-                    spreadRadius: _isHovered ? -2 : -4,
+                    spreadRadius: -2,
                   ),
-                  // Subtle colored glow
-                  if (_isHovered)
-                    BoxShadow(
-                      color: accentColor.withOpacity(isDark ? 0.1 : 0.05),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                      spreadRadius: -6,
-                    ),
                 ]
               : null,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              // Subtle decorative gradient accent line at top
-              if (widget.title != null)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 3,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          accentColor.withOpacity(_isHovered ? 0.6 : 0.3),
-                          accentColor.withOpacity(_isHovered ? 0.3 : 0.1),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              // Main content
-              Padding(
-                padding: widget.padding ?? EdgeInsets.all(isDesktop ? 22 : 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (widget.title != null) ...[
-                      Row(
-                        children: [
-                          if (widget.titleIcon != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    accentColor.withOpacity(0.15),
-                                    accentColor.withOpacity(0.08),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: accentColor.withOpacity(0.12),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                widget.titleIcon,
-                                size: 18,
-                                color: accentColor,
-                              ),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: widget.padding ?? EdgeInsets.all(isDesktop ? 22 : 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.title != null) ...[
+                  Row(
+                    children: [
+                      if (widget.titleIcon != null) ...[
+                        // Bento 风格：简洁图标容器
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(
+                              isDark ? 0.15 : 0.1,
                             ),
-                            const SizedBox(width: 12),
-                          ],
-                          Expanded(
-                            child: Text(
-                              widget.title!,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          if (widget.trailing != null) widget.trailing!,
-                        ],
+                          child: Icon(
+                            widget.titleIcon,
+                            size: 18,
+                            color: accentColor,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Text(
+                          widget.title!,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
                       ),
-                      SizedBox(height: isDesktop ? 18 : 14),
+                      if (widget.trailing != null) widget.trailing!,
                     ],
-                    widget.child,
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                  SizedBox(height: isDesktop ? 18 : 14),
+                ],
+                widget.child,
+              ],
+            ),
           ),
         ),
       ),

@@ -28,30 +28,8 @@ class MetricCard extends StatefulWidget {
   State<MetricCard> createState() => _MetricCardState();
 }
 
-class _MetricCardState extends State<MetricCard>
-    with SingleTickerProviderStateMixin {
+class _MetricCardState extends State<MetricCard> {
   bool _isHovered = false;
-  late AnimationController _glowController;
-  late Animation<double> _glowAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _glowController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-    );
-    _glowController.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _glowController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,175 +37,123 @@ class _MetricCardState extends State<MetricCard>
     final colorScheme = theme.colorScheme;
     final extension = theme.extension<AppThemeExtension>();
     final effectiveIconColor = widget.iconColor ?? colorScheme.primary;
-    final shadowIntensity = extension?.shadowIntensity ?? 0.12;
+    final shadowIntensity = extension?.shadowIntensity ?? 0.08;
     final isDark = theme.brightness == Brightness.dark;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
-      child: AnimatedBuilder(
-        animation: _glowAnimation,
-        builder: (context, child) {
-          final glowValue = _glowAnimation.value * 0.3 + 0.7;
-
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: _isHovered
-                    ? [
-                        colorScheme.surfaceContainerHigh,
-                        colorScheme.surfaceContainerHighest.withOpacity(0.8),
-                      ]
-                    : [
-                        colorScheme.surfaceContainerLow,
-                        colorScheme.surfaceContainer,
-                      ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        transform: _isHovered
+            ? (Matrix4.identity()..translate(0.0, -2.0))
+            : Matrix4.identity(),
+        decoration: BoxDecoration(
+          // Bento Box 风格：纯色背景，无渐变
+          color: isDark ? colorScheme.surfaceContainerLow : colorScheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          // 极简边框
+          border: Border.all(
+            color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
+            width: 1,
+          ),
+          // 柔和单层阴影
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(
+                _isHovered ? shadowIntensity * 1.5 : shadowIntensity,
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: _isHovered
-                    ? effectiveIconColor.withOpacity(0.4 * glowValue)
-                    : colorScheme.outlineVariant.withOpacity(0.15),
-                width: _isHovered ? 1.5 : 1,
-              ),
-              boxShadow: [
-                // Base shadow
-                BoxShadow(
-                  color: Colors.black.withOpacity(
-                    _isHovered ? shadowIntensity * 1.8 : shadowIntensity,
-                  ),
-                  blurRadius: _isHovered ? 20 : 10,
-                  offset: Offset(0, _isHovered ? 6 : 3),
-                  spreadRadius: _isHovered ? -2 : -4,
-                ),
-                // Colored glow effect on hover
-                if (_isHovered)
-                  BoxShadow(
-                    color: effectiveIconColor
-                        .withOpacity(0.15 * glowValue * (isDark ? 1.5 : 1)),
-                    blurRadius: 24,
-                    offset: const Offset(0, 4),
-                    spreadRadius: -4,
-                  ),
-              ],
+              blurRadius: _isHovered ? 16 : 12,
+              offset: Offset(0, _isHovered ? 6 : 4),
+              spreadRadius: -2,
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: widget.onTap,
-                borderRadius: BorderRadius.circular(20),
-                splashColor: effectiveIconColor.withOpacity(0.1),
-                highlightColor: effectiveIconColor.withOpacity(0.05),
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(18),
+            splashColor: effectiveIconColor.withOpacity(0.08),
+            highlightColor: effectiveIconColor.withOpacity(0.04),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header row: icon + label
+                  Row(
                     children: [
-                      // Header row: icon + label
-                      Row(
-                        children: [
-                          // Enhanced icon container with gradient and glow
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  effectiveIconColor.withOpacity(
-                                    _isHovered ? 0.25 : 0.15,
-                                  ),
-                                  effectiveIconColor.withOpacity(
-                                    _isHovered ? 0.15 : 0.08,
-                                  ),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: effectiveIconColor.withOpacity(
-                                    _isHovered ? 0.25 * glowValue : 0.12,
-                                  ),
-                                  blurRadius: _isHovered ? 12 : 8,
-                                  offset: const Offset(0, 2),
-                                  spreadRadius: _isHovered ? 0 : -2,
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              widget.icon,
-                              size: 20,
-                              color: effectiveIconColor,
-                            ),
+                      // Bento 风格：简洁图标容器
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: effectiveIconColor.withOpacity(
+                            isDark ? 0.15 : 0.1,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              widget.label,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      // Value row with animated text
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 200),
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: _isHovered
-                                        ? colorScheme.onSurface
-                                        : colorScheme.onSurface
-                                            .withOpacity(0.95),
-                                    letterSpacing: -0.5,
-                                  ) ??
-                                  const TextStyle(),
-                              child: Text(
-                                widget.value,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                          if (widget.trend != null)
-                            TrendIndicator(data: widget.trend!),
-                        ],
-                      ),
-                      // Sparkline with enhanced styling
-                      if (widget.sparklineData != null &&
-                          widget.sparklineData!.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          height: 36,
-                          child: MiniSparkline(
-                            data: widget.sparklineData!,
-                            color: effectiveIconColor,
-                            strokeWidth: 2.5,
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
+                        child: Icon(
+                          widget.icon,
+                          size: 20,
+                          color: effectiveIconColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          widget.label,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  // Value row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.value,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                            letterSpacing: -0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (widget.trend != null)
+                        TrendIndicator(data: widget.trend!),
+                    ],
+                  ),
+                  // Sparkline
+                  if (widget.sparklineData != null &&
+                      widget.sparklineData!.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 36,
+                      child: MiniSparkline(
+                        data: widget.sparklineData!,
+                        color: effectiveIconColor,
+                        strokeWidth: 2.5,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

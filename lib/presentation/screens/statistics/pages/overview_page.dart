@@ -100,24 +100,21 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.surfaceContainerLow,
-            colorScheme.surfaceContainer.withOpacity(isDark ? 0.7 : 0.9),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        // Bento Box 风格：纯色背景
+        color: isDark ? colorScheme.surfaceContainerLow : colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        // 极简边框
         border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.15),
+          color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
+          width: 1,
         ),
+        // 柔和单层阴影
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
-            spreadRadius: -4,
+            spreadRadius: -2,
           ),
         ],
       ),
@@ -129,14 +126,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colorScheme.primary.withOpacity(0.15),
-                      colorScheme.primary.withOpacity(0.08),
-                    ],
-                  ),
+                  color: colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -203,24 +193,16 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            gradient: isActive
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12),
-                      colorScheme.primary.withOpacity(isDark ? 0.1 : 0.06),
-                    ],
-                  )
-                : null,
-            color: isActive ? null : colorScheme.surfaceContainerHigh,
+            color: isActive
+                ? colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1)
+                : colorScheme.surfaceContainerHigh,
             border: Border.all(
               color: isActive
-                  ? colorScheme.primary.withOpacity(0.4)
-                  : colorScheme.outline.withOpacity(0.2),
-              width: isActive ? 1.5 : 1,
+                  ? colorScheme.primary.withOpacity(0.3)
+                  : colorScheme.outline.withOpacity(0.15),
+              width: 1,
             ),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -291,24 +273,16 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        gradient: isActive
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12),
-                  colorScheme.primary.withOpacity(isDark ? 0.1 : 0.06),
-                ],
-              )
-            : null,
-        color: isActive ? null : colorScheme.surfaceContainerHigh,
+        color: isActive
+            ? colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1)
+            : colorScheme.surfaceContainerHigh,
         border: Border.all(
           color: isActive
-              ? colorScheme.primary.withOpacity(0.4)
-              : colorScheme.outline.withOpacity(0.2),
-          width: isActive ? 1.5 : 1,
+              ? colorScheme.primary.withOpacity(0.3)
+              : colorScheme.outline.withOpacity(0.15),
+          width: 1,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -355,24 +329,16 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        gradient: isActive
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12),
-                  colorScheme.primary.withOpacity(isDark ? 0.1 : 0.06),
-                ],
-              )
-            : null,
-        color: isActive ? null : colorScheme.surfaceContainerHigh,
+        color: isActive
+            ? colorScheme.primary.withOpacity(isDark ? 0.15 : 0.1)
+            : colorScheme.surfaceContainerHigh,
         border: Border.all(
           color: isActive
-              ? colorScheme.primary.withOpacity(0.4)
-              : colorScheme.outline.withOpacity(0.2),
-          width: isActive ? 1.5 : 1,
+              ? colorScheme.primary.withOpacity(0.3)
+              : colorScheme.outline.withOpacity(0.15),
+          width: 1,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -498,17 +464,12 @@ class _StatItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.surfaceContainerHigh.withOpacity(isDark ? 0.8 : 1.0),
-            colorScheme.surfaceContainerHighest.withOpacity(isDark ? 0.6 : 0.8),
-          ],
-        ),
+        // Bento Box 风格：纯色背景
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.15),
+          color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
+          width: 1,
         ),
       ),
       child: Column(
