@@ -46,6 +46,13 @@ Desktop.ini
 **/android/**/GeneratedPluginRegistrant.*
 **/android/key.properties
 *.jks
+*.keystore
+
+# Code Signing Certificates
+*.pfx
+*.p12
+*.cer
+cert_thumbprint.txt
 
 # iOS
 **/ios/**/*.mode1v3
