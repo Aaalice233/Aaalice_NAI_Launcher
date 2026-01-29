@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../common/image_picker_card/image_picker_card.dart';
 import '../common/themed_input.dart';
 
 /// 收藏到词库弹窗
@@ -45,6 +46,8 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
 class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
   late TextEditingController _nameController;
   String? _selectedCategoryId;
+  String? _thumbnailPath;
+  Uint8List? _thumbnailBytes;
   bool _isSaving = false;
 
   @override
@@ -69,6 +72,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
       await ref.read(tagLibraryPageNotifierProvider.notifier).addEntry(
             name: name,
             content: widget.content,
+            thumbnail: _thumbnailPath,
             categoryId: _selectedCategoryId,
             isFavorite: true,
           );
@@ -101,7 +105,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Container(
-        width: 400,
+        width: 480,
         constraints: const BoxConstraints(maxHeight: 500),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -115,11 +119,35 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 名称输入
-                    _buildNameField(theme, colorScheme, l10n),
-                    const SizedBox(height: 16),
-                    // 分类选择
-                    _buildCategoryField(theme, colorScheme, l10n, categories),
+                    // 预览图 + 名称/分类 横向布局
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 左侧预览图
+                          _buildThumbnailSection(theme, colorScheme, l10n),
+                          const SizedBox(width: 16),
+                          // 右侧表单
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 名称输入
+                                _buildNameField(theme, colorScheme, l10n),
+                                const SizedBox(height: 12),
+                                // 分类选择
+                                _buildCategoryField(
+                                  theme,
+                                  colorScheme,
+                                  l10n,
+                                  categories,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     // 内容预览
                     _buildContentPreview(theme, colorScheme, l10n),
@@ -188,6 +216,36 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     );
   }
 
+  Widget _buildThumbnailSection(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AppLocalizations l10n,
+  ) {
+    return SizedBox(
+      width: 100,
+      child: ImagePickerCard(
+        icon: Icons.add_photo_alternate_outlined,
+        label: l10n.tagLibrary_selectImage,
+        hintText: '(可选)',
+        height: 100,
+        selectedImage: _thumbnailBytes,
+        selectedPath: _thumbnailPath,
+        onImageSelected: (bytes, fileName, path) {
+          setState(() {
+            _thumbnailBytes = bytes;
+            _thumbnailPath = path;
+          });
+        },
+        onClear: () {
+          setState(() {
+            _thumbnailBytes = null;
+            _thumbnailPath = null;
+          });
+        },
+      ),
+    );
+  }
+
   Widget _buildNameField(
     ThemeData theme,
     ColorScheme colorScheme,
@@ -249,10 +307,10 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
             child: DropdownButton<String?>(
               value: _selectedCategoryId,
               isExpanded: true,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.zero,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               hint: Text(
-                l10n.tagLibrary_uncategorized,
+                l10n.tagLibrary_rootCategory,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -260,7 +318,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
               items: [
                 DropdownMenuItem<String?>(
                   value: null,
-                  child: Text(l10n.tagLibrary_uncategorized),
+                  child: Text(l10n.tagLibrary_rootCategory),
                 ),
                 ...categories.rootCategories.sortedByOrder().map(
                       (category) => DropdownMenuItem<String?>(

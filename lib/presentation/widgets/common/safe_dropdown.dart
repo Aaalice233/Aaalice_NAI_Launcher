@@ -55,7 +55,7 @@ class SafeDropdown<T> extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
           dropdownColor: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.zero,
           style: TextStyle(
             color: theme.colorScheme.onSurface,
             fontSize: 14,
