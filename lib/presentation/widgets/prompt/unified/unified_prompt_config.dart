@@ -27,6 +27,12 @@ class UnifiedPromptConfig {
   /// 启用后，自动将 Stable Diffusion 语法转换为 NAI 语法。
   final bool enableSdSyntaxAutoConvert;
 
+  /// 是否启用 ComfyUI 多角色语法导入
+  ///
+  /// 启用后，粘贴 ComfyUI Prompt Control 格式的多角色提示词时
+  /// 会弹出导入确认框，支持转换为 NAI 多角色格式。
+  final bool enableComfyuiImport;
+
   // ==================== 外观选项 ====================
 
   /// 是否紧凑模式
@@ -62,6 +68,7 @@ class UnifiedPromptConfig {
     this.enableSyntaxHighlight = true,
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
+    this.enableComfyuiImport = false,
     this.compact = false,
     this.readOnly = false,
     this.maxHeight,
@@ -112,6 +119,7 @@ class UnifiedPromptConfig {
     bool? enableSyntaxHighlight,
     bool? enableAutoFormat,
     bool? enableSdSyntaxAutoConvert,
+    bool? enableComfyuiImport,
     bool? compact,
     bool? readOnly,
     double? maxHeight,
@@ -126,6 +134,7 @@ class UnifiedPromptConfig {
       enableAutoFormat: enableAutoFormat ?? this.enableAutoFormat,
       enableSdSyntaxAutoConvert:
           enableSdSyntaxAutoConvert ?? this.enableSdSyntaxAutoConvert,
+      enableComfyuiImport: enableComfyuiImport ?? this.enableComfyuiImport,
       compact: compact ?? this.compact,
       readOnly: readOnly ?? this.readOnly,
       maxHeight: maxHeight ?? this.maxHeight,
@@ -143,6 +152,7 @@ class UnifiedPromptConfig {
         other.enableSyntaxHighlight == enableSyntaxHighlight &&
         other.enableAutoFormat == enableAutoFormat &&
         other.enableSdSyntaxAutoConvert == enableSdSyntaxAutoConvert &&
+        other.enableComfyuiImport == enableComfyuiImport &&
         other.compact == compact &&
         other.readOnly == readOnly &&
         other.maxHeight == maxHeight &&
@@ -157,6 +167,7 @@ class UnifiedPromptConfig {
       enableSyntaxHighlight,
       enableAutoFormat,
       enableSdSyntaxAutoConvert,
+      enableComfyuiImport,
       compact,
       readOnly,
       maxHeight,

@@ -300,7 +300,8 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
     return VirtualGalleryGrid(
       // 使用动态 key，当选择模式变化时强制重建，确保 onTap 回调使用最新状态
       key: PageStorageKey<String>(
-          'local_gallery_3d_grid_${selectionState.isActive}'),
+        'local_gallery_3d_grid_${selectionState.isActive}',
+      ),
       images: state.currentImages,
       columns: widget.columns,
       spacing: 12,

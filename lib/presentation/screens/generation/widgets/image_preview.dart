@@ -173,7 +173,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               index: index,
               showIndex: true,
               enableSelection: false,
-              onTap: () => _showFullscreenImage(context, imageBytes),
+              onTap: () => _showFullscreenImage(imageBytes),
               onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
             );
           },
@@ -232,7 +232,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               index: index,
               showIndex: true,
               enableSelection: false,
-              onTap: () => _showFullscreenImage(context, imageBytes),
+              onTap: () => _showFullscreenImage(imageBytes),
               onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
             );
           },
@@ -436,7 +436,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
             imageBytes: imageBytes,
             showIndex: false,
             enableSelection: false,
-            onTap: () => _showFullscreenImage(context, imageBytes),
+            onTap: () => _showFullscreenImage(imageBytes),
             onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
           ),
         ),
@@ -444,7 +444,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
   }
 
-  void _showFullscreenImage(BuildContext context, Uint8List imageBytes) async {
+  void _showFullscreenImage(Uint8List imageBytes) async {
     final state = ref.read(imageGenerationNotifierProvider);
     final params = ref.read(generationParamsNotifierProvider);
     final characterConfig = ref.read(characterPromptNotifierProvider);
@@ -465,37 +465,41 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         }
       }
 
-      allImages.add(GeneratedImageDetailData.fromParams(
-        imageBytes: img.bytes,
-        prompt: params.prompt,
-        negativePrompt: params.negativePrompt,
-        seed: actualSeed,
-        steps: params.steps,
-        scale: params.scale,
-        width: params.width,
-        height: params.height,
-        model: params.model,
-        sampler: params.sampler,
-        smea: params.smea,
-        smeaDyn: params.smeaDyn,
-        noiseSchedule: params.noiseSchedule,
-        cfgRescale: params.cfgRescale,
-        characterPrompts: characterConfig.characters
-            .where((c) => c.enabled && c.prompt.isNotEmpty)
-            .map((c) => c.prompt)
-            .toList(),
-        characterNegativePrompts: characterConfig.characters
-            .where((c) => c.enabled)
-            .map((c) => c.negativePrompt)
-            .toList(),
-        id: img.id,
-      ));
+      allImages.add(
+        GeneratedImageDetailData.fromParams(
+          imageBytes: img.bytes,
+          prompt: params.prompt,
+          negativePrompt: params.negativePrompt,
+          seed: actualSeed,
+          steps: params.steps,
+          scale: params.scale,
+          width: params.width,
+          height: params.height,
+          model: params.model,
+          sampler: params.sampler,
+          smea: params.smea,
+          smeaDyn: params.smeaDyn,
+          noiseSchedule: params.noiseSchedule,
+          cfgRescale: params.cfgRescale,
+          characterPrompts: characterConfig.characters
+              .where((c) => c.enabled && c.prompt.isNotEmpty)
+              .map((c) => c.prompt)
+              .toList(),
+          characterNegativePrompts: characterConfig.characters
+              .where((c) => c.enabled)
+              .map((c) => c.negativePrompt)
+              .toList(),
+          id: img.id,
+        ),
+      );
     }
 
     // 找到当前点击图像的索引
     final initialIndex = state.currentImages
         .indexWhere((img) => img.bytes == imageBytes)
         .clamp(0, allImages.length - 1);
+
+    if (!mounted) return;
 
     ImageDetailViewer.show(
       context,

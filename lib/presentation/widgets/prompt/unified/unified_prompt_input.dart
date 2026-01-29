@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../data/models/character/character_prompt.dart';
 import '../../autocomplete/autocomplete_wrapper.dart';
+import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import '../prompt_formatter_wrapper.dart';
 import 'unified_prompt_config.dart';
@@ -51,6 +53,14 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 是否扩展填满空间
   final bool expands;
 
+  /// ComfyUI 多角色导入回调
+  ///
+  /// 当用户确认导入 ComfyUI 格式的多角色提示词时触发。
+  /// [globalPrompt] 全局提示词，用于替换主输入框内容
+  /// [characters] 角色列表，用于替换角色配置
+  final void Function(String globalPrompt, List<CharacterPrompt> characters)?
+      onComfyuiImport;
+
   const UnifiedPromptInput({
     super.key,
     this.config = const UnifiedPromptConfig(),
@@ -62,6 +72,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.maxLines,
     this.minLines,
     this.expands = false,
+    this.onComfyuiImport,
   });
 
   @override
@@ -180,7 +191,19 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   @override
   Widget build(BuildContext context) {
-    return _buildTextField();
+    Widget result = _buildTextField();
+
+    // 如果启用 ComfyUI 导入，包装 ComfyuiImportWrapper
+    if (widget.config.enableComfyuiImport && widget.onComfyuiImport != null) {
+      result = ComfyuiImportWrapper(
+        controller: _effectiveController,
+        enabled: !widget.config.readOnly,
+        onImport: widget.onComfyuiImport,
+        child: result,
+      );
+    }
+
+    return result;
   }
 
   /// 构建文本输入框

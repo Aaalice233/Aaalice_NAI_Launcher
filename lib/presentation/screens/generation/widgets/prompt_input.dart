@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/multi_character_parser.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/prompt/comfyui_import_dialog.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_selector.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
@@ -465,46 +466,54 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 循环防护
     if (_isProcessingImport) return;
 
-    // 检查是否包含多角色分隔符
-    if (RegExp(r'\n\s*\|\s*').hasMatch(value)) {
-      setState(() => _isProcessingImport = true);
+    // 检测 ComfyUI 多角色语法（优先检测）
+    if (ComfyuiPromptParser.isComfyuiMultiCharacter(value)) {
+      final parseResult = ComfyuiPromptParser.tryParse(value);
+      if (parseResult != null && parseResult.hasCharacters) {
+        setState(() => _isProcessingImport = true);
 
-      try {
-        final result = MultiCharacterParser.parse(value);
+        try {
+          // 弹出确认弹窗
+          final importResult = await ComfyuiImportDialog.show(
+            context: context,
+            parseResult: parseResult,
+          );
 
-        if (result.hasMultipleCharacters) {
-          // 更新全局提示词
-          _promptController.text = result.globalPrompt;
-          ref
-              .read(generationParamsNotifierProvider.notifier)
-              .updatePrompt(result.globalPrompt);
+          if (importResult != null && mounted) {
+            // 转换为 NAI 角色列表
+            final characters = ComfyuiPromptParser.toNaiCharacters(
+              importResult.parseResult,
+              usePosition: importResult.usePosition,
+            );
 
-          // 替换角色列表
-          ref
-              .read(characterPromptNotifierProvider.notifier)
-              .replaceAll(result.characters);
+            // 清空现有角色并替换
+            ref.read(characterPromptNotifierProvider.notifier).clearAll();
+            ref
+                .read(characterPromptNotifierProvider.notifier)
+                .replaceAll(characters);
 
-          // 显示成功提示
-          if (mounted) {
+            // 更新全局提示词
+            _promptController.text = importResult.parseResult.globalPrompt;
+            ref
+                .read(generationParamsNotifierProvider.notifier)
+                .updatePrompt(importResult.parseResult.globalPrompt);
+
+            // 显示成功提示
             AppToast.success(
               context,
-              context.l10n.prompt_importedCharacters(result.characters.length),
+              '已导入 ${characters.length} 个角色',
             );
-          }
 
-          // 确保 UI 刷新后再解除防护
-          await Future.delayed(Duration.zero);
+            // 确保 UI 刷新后再解除防护
+            await Future.delayed(Duration.zero);
+          }
+        } finally {
+          if (mounted) {
+            setState(() => _isProcessingImport = false);
+          }
         }
-      } catch (e) {
-        if (mounted) {
-          AppToast.error(context, 'Failed to parse: $e');
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isProcessingImport = false);
-        }
+        return;
       }
-      return;
     }
 
     // 常规单提示词更新
