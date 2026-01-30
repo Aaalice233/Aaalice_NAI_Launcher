@@ -246,6 +246,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 如果只生成 1 张，直接生成（不需要再随机，已经在开头随机过了）
     if (batchCount == 1 && batchSize == 1) {
       await _generateSingle(baseParams, 1, 1);
+      // 单张生成完成后也触发音效
+      if (!_isCancelled) {
+        await _triggerCompletionNotificationIfNeeded();
+      }
       return;
     }
 
@@ -315,11 +319,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         if (imageBytes.isNotEmpty) {
           // 将字节数据包装成带唯一ID的 GeneratedImage
           final generatedList = imageBytes
-              .map((b) => GeneratedImage.create(
-                    b,
-                    width: batchParams.width,
-                    height: batchParams.height,
-                  ),)
+              .map(
+                (b) => GeneratedImage.create(
+                  b,
+                  width: batchParams.width,
+                  height: batchParams.height,
+                ),
+              )
               .toList();
           allImages.addAll(generatedList);
           generatedImages += imageBytes.length;
@@ -378,13 +384,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final queueState = ref.read(queueExecutionNotifierProvider);
     final isQueueMode = queueState.status == QueueExecutionStatus.running ||
         queueState.status == QueueExecutionStatus.ready;
-    if (isQueueMode) return;
+    if (isQueueMode) {
+      AppLogger.d('跳过音效：队列模式运行中', 'ImageGeneration');
+      return;
+    }
 
     // 读取音效设置
     final settings = ref.read(notificationSettingsNotifierProvider);
-    if (!settings.soundEnabled) return;
+    if (!settings.soundEnabled) {
+      AppLogger.d('跳过音效：音效已禁用', 'ImageGeneration');
+      return;
+    }
 
     // 触发音效
+    AppLogger.d('播放生成完成音效', 'ImageGeneration');
     await NotificationService.instance.notifyGenerationComplete(
       playSound: settings.soundEnabled,
       customSoundPath: settings.customSoundPath,
@@ -834,11 +847,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (streamingNotAllowed) {
         final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
         final generatedList = imageBytes
-            .map((b) => GeneratedImage.create(
-                  b,
-                  width: params.width,
-                  height: params.height,
-                ),)
+            .map(
+              (b) => GeneratedImage.create(
+                b,
+                width: params.width,
+                height: params.height,
+              ),
+            )
             .toList();
         state = state.copyWith(
           status: GenerationStatus.completed,
@@ -883,11 +898,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
         final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
         final generatedList = imageBytes
-            .map((b) => GeneratedImage.create(
-                  b,
-                  width: params.width,
-                  height: params.height,
-                ),)
+            .map(
+              (b) => GeneratedImage.create(
+                b,
+                width: params.width,
+                height: params.height,
+              ),
+            )
             .toList();
         state = state.copyWith(
           status: GenerationStatus.completed,
@@ -929,11 +946,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             final (imageBytes, vibeEncodings) =
                 await _generateWithRetry(params);
             final generatedList = imageBytes
-                .map((b) => GeneratedImage.create(
-                      b,
-                      width: params.width,
-                      height: params.height,
-                    ),)
+                .map(
+                  (b) => GeneratedImage.create(
+                    b,
+                    width: params.width,
+                    height: params.height,
+                  ),
+                )
                 .toList();
             state = state.copyWith(
               status: GenerationStatus.completed,
@@ -1008,7 +1027,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   /// 清除历史
   void clearHistory() {
-    state = state.copyWith(history: []);
+    state = state.copyWith(
+      history: [],
+      currentImages: [],
+      currentImage: 0,
+    );
   }
 
   /// 将 UI 层的角色提示词配置转换为 API 层的格式

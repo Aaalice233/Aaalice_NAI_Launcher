@@ -56,16 +56,13 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
   late final AnimationController _pulseController;
   late final AnimationController _glowController;
   late final AnimationController _hoverController;
-  late final AnimationController _iconController;
   late final AnimationController _rotationController;
-  late final AnimationController _breathController;
 
   // 动画
   late final Animation<double> _pulseAnimation;
   late final Animation<double> _glowAnimation;
   late final Animation<double> _hoverAnimation;
   late final Animation<double> _rotationAnimation;
-  late final Animation<double> _breathAnimation;
 
   @override
   void initState() {
@@ -98,32 +95,14 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
       CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
     );
 
-    // 图标动画（播放/暂停切换）
-    _iconController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
-    // 旋转动画 - 运行时的光环旋转
+    // 旋转动画 - 运行时的loading环
     _rotationController = AnimationController(
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     _rotationAnimation = Tween<double>(begin: 0.0, end: 2 * math.pi).animate(
       CurvedAnimation(parent: _rotationController, curve: Curves.linear),
     );
-
-    // 呼吸动画 - 空闲时的柔和缩放
-    _breathController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
-      vsync: this,
-    );
-    _breathAnimation = Tween<double>(begin: 0.97, end: 1.03).animate(
-      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
-    );
-
-    // 启动空闲呼吸动画
-    _breathController.repeat(reverse: true);
 
     _isInitialized = true;
   }
@@ -133,9 +112,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
     _pulseController.dispose();
     _glowController.dispose();
     _hoverController.dispose();
-    _iconController.dispose();
     _rotationController.dispose();
-    _breathController.dispose();
     super.dispose();
   }
 
@@ -216,7 +193,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
     }
 
     final tooltipMessage =
-        _buildTooltipMessage(l10n, queueState, executionState);
+        _buildTooltipMessage(l10n, queueState, executionState, theme);
 
     return Positioned(
       left: x,
@@ -226,7 +203,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
         onEnter: (_) => _onHoverEnter(),
         onExit: (_) => _onHoverExit(),
         child: Tooltip(
-          message: tooltipMessage,
+          richMessage: tooltipMessage,
           preferBelow: false,
           verticalOffset: _ballSize / 2 + 12,
           decoration: BoxDecoration(
@@ -240,17 +217,13 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
               ),
             ],
           ),
-          textStyle: TextStyle(
-            color: theme.colorScheme.onInverseSurface,
-            fontSize: 12,
-            height: 1.5,
-          ),
           waitDuration: const Duration(milliseconds: 400),
           child: GestureDetector(
             onPanStart: _onPanStart,
             onPanUpdate: _onPanUpdate,
             onPanEnd: _onPanEnd,
             onTap: _onTap,
+            onDoubleTap: _onDoubleTap,
             onLongPress: _onLongPress,
             child: AnimatedBuilder(
               animation: Listenable.merge([
@@ -258,17 +231,12 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
                 _glowAnimation,
                 _hoverAnimation,
                 _rotationAnimation,
-                _breathAnimation,
-                _iconController,
               ]),
               builder: (context, child) {
                 final glowIntensity = executionState.isRunning
                     ? _glowAnimation.value
                     : (_isHovering ? 0.8 : 0.4);
-                final hoverScale = _hoverAnimation.value;
-                final breathScale =
-                    !executionState.isRunning ? _breathAnimation.value : 1.0;
-                final scale = hoverScale * breathScale;
+                final scale = _hoverAnimation.value;
 
                 return Transform.scale(
                   scale: scale,
@@ -300,6 +268,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
     final progress = executionState.progress;
     final count = queueState.count;
     final isRunning = executionState.isRunning;
+    final isReady = executionState.isReady;
     final isPaused = executionState.isPaused;
     final hasError = executionState.hasFailedTasks || queueState.hasFailedTasks;
 
@@ -333,6 +302,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
             hasBgImage: hasBgImage,
             bgImagePath: bgImagePath,
             isRunning: isRunning,
+            isReady: isReady,
             isPaused: isPaused,
             hasError: hasError,
             theme: theme,
@@ -438,6 +408,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
     required bool hasBgImage,
     required String? bgImagePath,
     required bool isRunning,
+    required bool isReady,
     required bool isPaused,
     required bool hasError,
     required ThemeData theme,
@@ -533,7 +504,7 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
             ],
 
             // 中心图标
-            _buildCenterIcon(isRunning, isPaused, hasError),
+            _buildCenterIcon(isRunning, isReady, isPaused, hasError),
           ],
         ),
       ),
@@ -541,32 +512,30 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
   }
 
   /// 构建中心图标
-  Widget _buildCenterIcon(bool isRunning, bool isPaused, bool hasError) {
-    // 根据状态控制动画
-    if (isRunning) {
-      _iconController.forward();
-    } else {
-      _iconController.reverse();
+  Widget _buildCenterIcon(
+    bool isRunning,
+    bool isReady,
+    bool isPaused,
+    bool hasError,
+  ) {
+    if (hasError) {
+      return Icon(
+        Icons.warning_rounded,
+        size: 26,
+        color: Colors.white.withOpacity(0.95),
+      );
     }
 
-    return AnimatedBuilder(
-      animation: _iconController,
-      builder: (context, child) {
-        if (hasError) {
-          return Icon(
-            Icons.warning_rounded,
-            size: 26,
-            color: Colors.white.withOpacity(0.95),
-          );
-        }
-
-        return AnimatedIcon(
-          icon: AnimatedIcons.play_pause,
-          progress: _iconController,
-          size: 26,
-          color: Colors.white.withOpacity(0.95),
-        );
-      },
+    // 运行中或就绪状态显示暂停图标，其他状态显示播放图标
+    final showPauseIcon = isRunning || isReady;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: Icon(
+        showPauseIcon ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        key: ValueKey(showPauseIcon),
+        size: 28,
+        color: Colors.white.withOpacity(0.95),
+      ),
     );
   }
 
@@ -697,15 +666,8 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
       if (!_pulseController.isAnimating) _pulseController.repeat();
       if (!_glowController.isAnimating) _glowController.repeat(reverse: true);
       if (!_rotationController.isAnimating) _rotationController.repeat();
-      if (_breathController.isAnimating) {
-        _breathController.stop();
-        _breathController.value = 0.5;
-      }
     } else {
       _stopAnimations();
-      if (!_breathController.isAnimating) {
-        _breathController.repeat(reverse: true);
-      }
     }
   }
 
@@ -725,30 +687,69 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
     }
   }
 
-  String _buildTooltipMessage(
+  InlineSpan _buildTooltipMessage(
     AppLocalizations l10n,
     ReplicationQueueState queueState,
     QueueExecutionState executionState,
+    ThemeData theme,
   ) {
-    final lines = <String>[];
+    final normalStyle = TextStyle(
+      color: theme.colorScheme.onInverseSurface,
+      fontSize: 12,
+      height: 1.5,
+    );
+    final accentStyle = TextStyle(
+      color: theme.colorScheme.primary,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      height: 1.8,
+    );
+
+    final spans = <InlineSpan>[];
 
     // 状态
-    lines.add(_getStatusText(l10n, executionState.status));
+    spans.add(
+      TextSpan(
+        text: '${_getStatusText(l10n, executionState.status)}\n',
+        style: normalStyle,
+      ),
+    );
 
     // 任务数量
     if (queueState.count > 0) {
-      lines.add(l10n.queue_tooltipTasksTotal(queueState.count));
+      spans.add(
+        TextSpan(
+          text: '${l10n.queue_tooltipTasksTotal(queueState.count)}\n',
+          style: normalStyle,
+        ),
+      );
     } else {
-      lines.add(l10n.queue_tooltipNoTasks);
+      spans.add(
+        TextSpan(
+          text: '${l10n.queue_tooltipNoTasks}\n',
+          style: normalStyle,
+        ),
+      );
     }
 
     // 已完成/失败数量
     if (executionState.completedCount > 0) {
-      lines.add(l10n.queue_tooltipCompleted(executionState.completedCount));
+      spans.add(
+        TextSpan(
+          text:
+              '${l10n.queue_tooltipCompleted(executionState.completedCount)}\n',
+          style: normalStyle,
+        ),
+      );
     }
     final failedCount = executionState.failedCount + queueState.failedCount;
     if (failedCount > 0) {
-      lines.add(l10n.queue_tooltipFailed(failedCount));
+      spans.add(
+        TextSpan(
+          text: '${l10n.queue_tooltipFailed(failedCount)}\n',
+          style: normalStyle,
+        ),
+      );
     }
 
     // 当前任务
@@ -760,14 +761,39 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
       final preview = currentTask.prompt.length > 28
           ? '${currentTask.prompt.substring(0, 28)}...'
           : currentTask.prompt;
-      lines.add(l10n.queue_tooltipCurrentTask(preview));
+      spans.add(
+        TextSpan(
+          text: '${l10n.queue_tooltipCurrentTask(preview)}\n',
+          style: normalStyle,
+        ),
+      );
     }
 
-    lines.add('');
-    lines.add(l10n.queue_tooltipClickToOpen);
-    lines.add(l10n.queue_tooltipDragToMove);
+    spans.add(const TextSpan(text: '\n'));
 
-    return lines.join('\n');
+    // 双击打开队列管理 - 强调样式
+    spans.add(
+      TextSpan(
+        text: '${l10n.queue_tooltipDoubleClickToOpen}\n',
+        style: accentStyle,
+      ),
+    );
+
+    // 其他操作提示
+    spans.add(
+      TextSpan(
+        text: '${l10n.queue_tooltipClickToToggle}\n',
+        style: normalStyle,
+      ),
+    );
+    spans.add(
+      TextSpan(
+        text: l10n.queue_tooltipDragToMove,
+        style: normalStyle,
+      ),
+    );
+
+    return TextSpan(children: spans);
   }
 
   String _getStatusText(AppLocalizations l10n, QueueExecutionStatus status) {
@@ -824,7 +850,29 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
   }
 
   void _onTap() {
+    // 单击打开队列管理页面
     widget.onTap?.call();
+  }
+
+  void _onDoubleTap() {
+    // 双击切换开始/暂停
+    final executionState = ref.read(queueExecutionNotifierProvider);
+    final queueState = ref.read(replicationQueueNotifierProvider);
+
+    if (queueState.isEmpty) {
+      return;
+    }
+
+    if (executionState.isRunning || executionState.isReady) {
+      // 运行中/就绪 → 暂停
+      ref.read(queueExecutionNotifierProvider.notifier).pause();
+    } else if (executionState.isPaused) {
+      // 暂停 → 恢复
+      ref.read(queueExecutionNotifierProvider.notifier).resume();
+    } else {
+      // 空闲/完成 → 开始执行
+      ref.read(queueExecutionNotifierProvider.notifier).prepareNextTask();
+    }
   }
 
   void _onLongPress() {
@@ -923,7 +971,7 @@ class _ProgressRingPainter extends CustomPainter {
       oldDelegate.glowIntensity != glowIntensity;
 }
 
-/// 旋转光环绘制器
+/// Loading环绘制器 - 单弧渐变拖尾效果
 class _RotatingRingPainter extends CustomPainter {
   final Color primaryColor;
   final Color secondaryColor;
@@ -940,64 +988,78 @@ class _RotatingRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 2;
 
-    const segments = 3;
-    const gapAngle = math.pi / 5;
-    const arcLength = (2 * math.pi - segments * gapAngle) / segments;
+    // 绘制底层轨道（半透明）
+    final trackPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..color = primaryColor.withOpacity(0.15 * intensity);
 
-    for (int i = 0; i < segments; i++) {
-      final startAngle = i * (arcLength + gapAngle);
+    canvas.drawCircle(center, radius, trackPaint);
 
-      // 发光层
-      final glowPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5)
-        ..shader = SweepGradient(
-          startAngle: startAngle,
-          endAngle: startAngle + arcLength,
-          colors: [
-            primaryColor.withOpacity(0.1 * intensity),
-            primaryColor.withOpacity(0.5 * intensity),
-            secondaryColor.withOpacity(0.5 * intensity),
-            secondaryColor.withOpacity(0.1 * intensity),
-          ],
-          stops: const [0.0, 0.3, 0.7, 1.0],
-        ).createShader(Rect.fromCircle(center: center, radius: radius));
+    // Loading弧长度（约270度）
+    const arcLength = math.pi * 1.5;
 
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        arcLength,
-        false,
-        glowPaint,
-      );
+    // 发光层
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: arcLength,
+        colors: [
+          primaryColor.withOpacity(0),
+          primaryColor.withOpacity(0.3 * intensity),
+          secondaryColor.withOpacity(0.5 * intensity),
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
 
-      // 主体层
-      final mainPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          startAngle: startAngle,
-          endAngle: startAngle + arcLength,
-          colors: [
-            primaryColor.withOpacity(0.2 * intensity),
-            primaryColor.withOpacity(0.85 * intensity),
-            secondaryColor.withOpacity(0.85 * intensity),
-            secondaryColor.withOpacity(0.2 * intensity),
-          ],
-          stops: const [0.0, 0.3, 0.7, 1.0],
-        ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      0,
+      arcLength,
+      false,
+      glowPaint,
+    );
 
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        arcLength,
-        false,
-        mainPaint,
-      );
-    }
+    // 主体弧 - 渐变拖尾效果
+    final mainPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: arcLength,
+        colors: [
+          primaryColor.withOpacity(0),
+          primaryColor.withOpacity(0.6 * intensity),
+          secondaryColor.withOpacity(0.95 * intensity),
+        ],
+        stops: const [0.0, 0.4, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      0,
+      arcLength,
+      false,
+      mainPaint,
+    );
+
+    // 头部高亮点
+    final headX = center.dx + radius * math.cos(arcLength);
+    final headY = center.dy + radius * math.sin(arcLength);
+
+    final headGlowPaint = Paint()
+      ..color = secondaryColor.withOpacity(0.6 * intensity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawCircle(Offset(headX, headY), 4, headGlowPaint);
+
+    final headPaint = Paint()
+      ..color = Colors.white.withOpacity(0.9 * intensity);
+    canvas.drawCircle(Offset(headX, headY), 2.5, headPaint);
   }
 
   @override

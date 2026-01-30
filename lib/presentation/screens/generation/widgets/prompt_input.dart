@@ -206,6 +206,15 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       }
     });
 
+    // 监听待填充提示词变化（队列执行、画廊发送等）
+    ref.listen(hasPendingPromptProvider, (previous, next) {
+      if (next == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _consumePendingPrompt();
+        });
+      }
+    });
+
     // 监听高亮设置变化，更新控制器
     final highlightEnabled = ref.watch(highlightEmphasisSettingsProvider);
     _promptController.highlightEnabled = highlightEnabled;
@@ -250,44 +259,47 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 获取模型
     final model = ref.watch(generationParamsNotifierProvider).model;
 
-    return Row(
+    return Wrap(
+      spacing: 8, // 水平间距
+      runSpacing: 8, // 换行后的垂直间距
+      alignment: WrapAlignment.spaceBetween, // 两端对齐
+      crossAxisAlignment: WrapCrossAlignment.center, // 垂直居中
       children: [
-        // 正面/负面切换标签
+        // 正面/负面切换标签 - 左侧
         _buildPromptTypeSwitch(theme, promptCount, negativeCount),
 
-        // 使用 Expanded 填充剩余空间
-        const Expanded(child: SizedBox()),
+        // 右侧工具按钮组（也用 Wrap 支持极端情况换行）
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // 固定词按钮
+            const FixedTagsButton(),
 
-        // 固定词按钮
-        const FixedTagsButton(),
+            // 质量词选择器
+            QualityTagsSelector(model: model),
 
-        const SizedBox(width: 6),
+            // UC 预设选择器
+            UcPresetSelector(model: model),
 
-        // 质量词选择器
-        QualityTagsSelector(model: model),
+            // 多人角色编辑器按钮
+            const CharacterPromptButton(),
 
-        const SizedBox(width: 6),
-
-        // UC 预设选择器
-        UcPresetSelector(model: model),
-
-        const SizedBox(width: 8),
-
-        // 多人角色编辑器按钮
-        const CharacterPromptButton(),
-
-        const SizedBox(width: 8),
-
-        // 使用共享的工具栏组件
-        PromptEditorToolbar(
-          config: PromptEditorToolbarConfig.mainEditor,
-          onRandomPressed: _generateRandomPrompt,
-          onRandomLongPressed: _showRandomModeSelector,
-          // 使用传入的回调或 Provider 切换最大化
-          onFullscreenPressed: widget.onToggleMaximize ??
-              () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
-          onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
-          onSettingsPressed: () => _showSettingsMenu(context, theme),
+            // 工具栏（随机、全屏、清空、设置）
+            PromptEditorToolbar(
+              config: PromptEditorToolbarConfig.mainEditor,
+              onRandomPressed: _generateRandomPrompt,
+              onRandomLongPressed: _showRandomModeSelector,
+              // 使用传入的回调或 Provider 切换最大化
+              onFullscreenPressed: widget.onToggleMaximize ??
+                  () => ref
+                      .read(promptMaximizeNotifierProvider.notifier)
+                      .toggle(),
+              onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+              onSettingsPressed: () => _showSettingsMenu(context, theme),
+            ),
+          ],
         ),
       ],
     );

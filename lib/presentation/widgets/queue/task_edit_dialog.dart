@@ -24,33 +24,22 @@ class TaskEditDialog extends ConsumerStatefulWidget {
   ConsumerState<TaskEditDialog> createState() => _TaskEditDialogState();
 }
 
-class _TaskEditDialogState extends ConsumerState<TaskEditDialog>
-    with SingleTickerProviderStateMixin {
+class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   late TextEditingController _promptController;
-  late TextEditingController _negativePromptController;
-  late TabController _tabController;
   late FocusNode _promptFocusNode;
-  late FocusNode _negativePromptFocusNode;
   bool _showParameters = false;
 
   @override
   void initState() {
     super.initState();
     _promptController = TextEditingController(text: widget.task.prompt);
-    _negativePromptController =
-        TextEditingController(text: widget.task.negativePrompt);
-    _tabController = TabController(length: 2, vsync: this);
     _promptFocusNode = FocusNode();
-    _negativePromptFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _promptController.dispose();
-    _negativePromptController.dispose();
-    _tabController.dispose();
     _promptFocusNode.dispose();
-    _negativePromptFocusNode.dispose();
     super.dispose();
   }
 
@@ -125,8 +114,8 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog>
 
                     const SizedBox(height: 16),
 
-                    // 提示词 Tab 切换
-                    _buildPromptTabs(context, theme, l10n),
+                    // 提示词编辑器（只有正面提示词）
+                    _buildPromptEditor(context, theme, l10n),
 
                     const SizedBox(height: 16),
 
@@ -170,113 +159,65 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog>
     );
   }
 
-  Widget _buildPromptTabs(BuildContext context, ThemeData theme, dynamic l10n) {
+  Widget _buildPromptEditor(
+    BuildContext context,
+    ThemeData theme,
+    dynamic l10n,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tab 标签
-        Container(
-          height: 36,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(8),
+        // 标题
+        Text(
+          l10n.queue_positivePrompt,
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        // 提示词编辑器
+        SizedBox(
+          height: 160,
+          child: PromptFormatterWrapper(
+            controller: _promptController,
+            focusNode: _promptFocusNode,
+            enableAutoFormat: true,
+            child: AutocompleteWrapper(
+              controller: _promptController,
+              focusNode: _promptFocusNode,
+              config: const AutocompleteConfig(
+                maxSuggestions: 15,
+                showTranslation: true,
+                showCategory: true,
+                autoInsertComma: true,
+              ),
+              maxLines: 6,
+              expands: false,
+              contentPadding: const EdgeInsets.all(12),
+              child: InsetShadowContainer(
+                borderRadius: 8,
+                child: ThemedInput(
+                  controller: _promptController,
+                  maxLines: 6,
+                  minLines: 6,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(12),
+                    hintText: l10n.queue_enterPositivePrompt,
+                  ),
+                ),
+              ),
             ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            labelColor: theme.colorScheme.onPrimary,
-            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-            dividerColor: Colors.transparent,
-            tabs: [
-              Tab(text: l10n.queue_positivePrompt),
-              Tab(text: l10n.queue_negativePrompt),
-            ],
           ),
         ),
         const SizedBox(height: 8),
-        // Tab 内容
-        SizedBox(
-          height: 160,
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              // 正向提示词
-              PromptFormatterWrapper(
-                controller: _promptController,
-                focusNode: _promptFocusNode,
-                enableAutoFormat: true,
-                child: AutocompleteWrapper(
-                  controller: _promptController,
-                  focusNode: _promptFocusNode,
-                  config: const AutocompleteConfig(
-                    maxSuggestions: 15,
-                    showTranslation: true,
-                    showCategory: true,
-                    autoInsertComma: true,
-                  ),
-                  maxLines: 6,
-                  expands: false,
-                  contentPadding: const EdgeInsets.all(12),
-                  child: InsetShadowContainer(
-                    borderRadius: 8,
-                    child: ThemedInput(
-                      controller: _promptController,
-                      maxLines: 6,
-                      minLines: 6,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.all(12),
-                        hintText: l10n.queue_enterPositivePrompt,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // 负向提示词
-              PromptFormatterWrapper(
-                controller: _negativePromptController,
-                focusNode: _negativePromptFocusNode,
-                enableAutoFormat: true,
-                child: AutocompleteWrapper(
-                  controller: _negativePromptController,
-                  focusNode: _negativePromptFocusNode,
-                  config: const AutocompleteConfig(
-                    maxSuggestions: 15,
-                    showTranslation: true,
-                    showCategory: true,
-                    autoInsertComma: true,
-                  ),
-                  maxLines: 6,
-                  expands: false,
-                  contentPadding: const EdgeInsets.all(12),
-                  child: InsetShadowContainer(
-                    borderRadius: 8,
-                    child: ThemedInput(
-                      controller: _negativePromptController,
-                      maxLines: 6,
-                      minLines: 6,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.all(12),
-                        hintText: l10n.queue_enterNegativePrompt,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+        // 提示信息
+        Text(
+          l10n.queue_negativePromptFromMain,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
           ),
         ),
       ],
@@ -371,7 +312,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog>
   void _saveTask() {
     final updatedTask = widget.task.copyWith(
       prompt: _promptController.text.trim(),
-      negativePrompt: _negativePromptController.text.trim(),
+      // 不更新 negativePrompt，执行时会使用主界面设置
     );
 
     ref.read(replicationQueueNotifierProvider.notifier).updateTask(updatedTask);

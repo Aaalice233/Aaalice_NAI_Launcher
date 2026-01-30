@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
+import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
@@ -14,6 +15,9 @@ import 'notification_settings_provider.dart';
 import 'pending_prompt_provider.dart';
 import 'replication_queue_provider.dart';
 import 'character_prompt_provider.dart';
+import 'fixed_tags_provider.dart';
+import 'quality_preset_provider.dart';
+import 'uc_preset_provider.dart';
 import '../../core/services/notification_service.dart';
 
 part 'queue_execution_provider.g.dart';
@@ -324,10 +328,29 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 清空角色提示词
     ref.read(characterPromptNotifierProvider.notifier).clearAll();
 
+    // 1. 应用固定词到队列任务的正面提示词
+    final fixedTagsState = ref.read(fixedTagsNotifierProvider);
+    String finalPrompt = fixedTagsState.entries.applyToPrompt(task.prompt);
+
+    // 2. 应用质量词（如果启用）
+    final model = ref.read(generationParamsNotifierProvider).model;
+    final qualityContent = ref
+        .read(qualityPresetNotifierProvider.notifier)
+        .getEffectiveContent(model);
+    if (qualityContent != null && qualityContent.isNotEmpty) {
+      finalPrompt = finalPrompt.isEmpty
+          ? qualityContent
+          : '$finalPrompt, $qualityContent';
+    }
+
+    // 3. 获取主界面负面提示词（UC预设内容）
+    final ucContent =
+        ref.read(ucPresetNotifierProvider.notifier).getEffectiveContent(model);
+
     // 设置待填充提示词
     ref.read(pendingPromptNotifierProvider.notifier).set(
-          prompt: task.prompt,
-          negativePrompt: task.negativePrompt,
+          prompt: finalPrompt,
+          negativePrompt: ucContent ?? '',
         );
   }
 

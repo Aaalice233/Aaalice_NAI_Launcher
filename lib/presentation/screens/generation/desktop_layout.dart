@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/queue/replication_task.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
+import '../../providers/queue_execution_provider.dart';
+import '../../providers/replication_queue_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/generation/auto_save_toggle_chip.dart';
@@ -404,58 +407,162 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     final randomMode = ref.watch(randomPromptModeProvider);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // 自动保存开关（最左侧）
-        const AutoSaveToggleChip(),
+    // 监听队列执行状态
+    final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
+    // 只有 running 或 ready 状态才显示"加入队列"按钮，暂停时恢复为"生成"按钮
+    final isQueueActive =
+        queueExecutionState.isRunning || queueExecutionState.isReady;
 
-        const SizedBox(width: 8),
-
-        // Anlas 余额显示
-        const AnlasBalanceChip(),
-
-        const SizedBox(width: 8),
-
-        // 抽卡模式开关
-        _RandomModeToggle(enabled: randomMode),
-
-        const SizedBox(width: 12),
-
-        // 生成按钮 (包含价格徽章)
-        MouseRegion(
-          onEnter: (_) => setState(() => _isHovering = true),
-          onExit: (_) => setState(() => _isHovering = false),
-          child: _GenerateButtonWithCost(
-            isGenerating: isGenerating,
-            showCancel: showCancel,
-            generationState: generationState,
-            onGenerate: () => _handleGenerate(context, ref, params, randomMode),
-            onCancel: () =>
-                ref.read(imageGenerationNotifierProvider.notifier).cancel(),
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
-        // 生成数量选择器（移到按钮右边）
-        DraggableNumberInput(
-          value: params.nSamples,
-          min: 1,
-          prefix: '×',
-          onChanged: (value) {
-            ref
-                .read(generationParamsNotifierProvider.notifier)
-                .updateNSamples(value);
-          },
-        ),
-
-        const SizedBox(width: 8),
-
-        // 批量设置按钮
-        _BatchSettingsButton(),
-      ],
+    // 监听队列状态变化，当变为 ready 时自动触发生成
+    ref.listen<QueueExecutionState>(
+      queueExecutionNotifierProvider,
+      (previous, next) {
+        // 从非 ready 状态变为 ready 状态，且当前没有在生成
+        if (previous?.status != QueueExecutionStatus.ready &&
+            next.status == QueueExecutionStatus.ready) {
+          final currentGenerationState =
+              ref.read(imageGenerationNotifierProvider);
+          if (!currentGenerationState.isGenerating) {
+            // 延迟一帧确保提示词已填充
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final currentParams = ref.read(generationParamsNotifierProvider);
+              if (currentParams.prompt.isNotEmpty) {
+                ref
+                    .read(imageGenerationNotifierProvider.notifier)
+                    .generate(currentParams);
+              }
+            });
+          }
+        }
+      },
     );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 500;
+
+        if (isNarrow) {
+          // 窄屏布局：只显示核心组件
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _RandomModeToggle(enabled: randomMode),
+              const SizedBox(width: 8),
+              MouseRegion(
+                onEnter: (_) => setState(() => _isHovering = true),
+                onExit: (_) => setState(() => _isHovering = false),
+                child: isQueueActive && !isGenerating
+                    ? _AddToQueueButton(
+                        onPressed: () =>
+                            _handleAddToQueue(context, ref, params),
+                      )
+                    : _GenerateButtonWithCost(
+                        isGenerating: isGenerating,
+                        showCancel: showCancel,
+                        generationState: generationState,
+                        onGenerate: () =>
+                            _handleGenerate(context, ref, params, randomMode),
+                        onCancel: () => ref
+                            .read(imageGenerationNotifierProvider.notifier)
+                            .cancel(),
+                      ),
+              ),
+              const SizedBox(width: 8),
+              DraggableNumberInput(
+                value: params.nSamples,
+                min: 1,
+                prefix: '×',
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateNSamples(value);
+                },
+              ),
+            ],
+          );
+        }
+
+        // 正常布局 - 自动保存靠左，其他元素居中
+        return Row(
+          children: [
+            // 左侧 - 自动保存靠左
+            const AutoSaveToggleChip(),
+
+            const SizedBox(width: 16),
+
+            // 中间 - 其他元素居中
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const AnlasBalanceChip(),
+                  const SizedBox(width: 16),
+
+                  // 生成按钮区域
+                  _RandomModeToggle(enabled: randomMode),
+                  const SizedBox(width: 12),
+                  MouseRegion(
+                    onEnter: (_) => setState(() => _isHovering = true),
+                    onExit: (_) => setState(() => _isHovering = false),
+                    child: isQueueActive && !isGenerating
+                        ? _AddToQueueButton(
+                            onPressed: () =>
+                                _handleAddToQueue(context, ref, params),
+                          )
+                        : _GenerateButtonWithCost(
+                            isGenerating: isGenerating,
+                            showCancel: showCancel,
+                            generationState: generationState,
+                            onGenerate: () => _handleGenerate(
+                                context, ref, params, randomMode),
+                            onCancel: () => ref
+                                .read(imageGenerationNotifierProvider.notifier)
+                                .cancel(),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  DraggableNumberInput(
+                    value: params.nSamples,
+                    min: 1,
+                    prefix: '×',
+                    onChanged: (value) {
+                      ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .updateNSamples(value);
+                    },
+                  ),
+                  const SizedBox(width: 16),
+
+                  // 批量设置
+                  _BatchSettingsButton(),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _handleAddToQueue(
+    BuildContext context,
+    WidgetRef ref,
+    ImageParams params,
+  ) {
+    if (params.prompt.isEmpty) {
+      AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
+      return;
+    }
+
+    // 创建任务并添加到队列
+    final task = ReplicationTask.create(
+      prompt: params.prompt,
+      // 不需要 negativePrompt，执行时会使用主界面设置
+    );
+
+    ref.read(replicationQueueNotifierProvider.notifier).add(task);
+    AppToast.success(context, context.l10n.queue_taskAdded);
   }
 
   void _handleGenerate(
@@ -843,6 +950,26 @@ class _GenerateButtonWithCost extends ConsumerWidget {
         ),
         style:
             showCancel ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+      ),
+    );
+  }
+}
+
+/// 加入队列按钮
+class _AddToQueueButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _AddToQueueButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: ThemedButton(
+        onPressed: onPressed,
+        icon: const Icon(Icons.playlist_add),
+        label: Text(context.l10n.queue_addToQueue),
+        style: ThemedButtonStyle.filled,
       ),
     );
   }
