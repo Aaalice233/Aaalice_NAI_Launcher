@@ -95,7 +95,7 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                         colors: isDark
                             ? [
                                 _cuteOrangeDark.withOpacity(0.25),
-                                _cuteOrange.withOpacity(0.18)
+                                _cuteOrange.withOpacity(0.18),
                               ]
                             : [_cuteOrangeLight, _cuteOrangeBg],
                       )
@@ -165,7 +165,7 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
           height: 18,
           decoration: BoxDecoration(
             gradient: isEnabled
-                ? LinearGradient(
+                ? const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [_cuteOrange, _cuteOrangeDark],

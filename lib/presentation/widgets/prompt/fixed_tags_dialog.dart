@@ -194,6 +194,19 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
               ],
             ),
           ),
+          // 全开/全关切换按钮
+          if (totalCount > 0) ...[
+            ThemedSwitch(
+              value: enabledCount == totalCount,
+              onChanged: (value) {
+                ref
+                    .read(fixedTagsNotifierProvider.notifier)
+                    .setAllEnabled(value);
+              },
+              scale: 0.85,
+            ),
+            const SizedBox(width: 8),
+          ],
           // 关闭按钮美化
           Material(
             color: Colors.transparent,
@@ -961,7 +974,7 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                     // 位置标签
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 3),
+                          horizontal: 6, vertical: 3,),
                       decoration: BoxDecoration(
                         color: entry.enabled
                             ? posColor.withOpacity(0.15)
@@ -1001,7 +1014,7 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                       const SizedBox(width: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
+                            horizontal: 6, vertical: 3,),
                         decoration: BoxDecoration(
                           color: entry.enabled
                               ? theme.colorScheme.secondary.withOpacity(0.15)

@@ -540,7 +540,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                       const Icon(Icons.label_outline, size: 16),
                       const SizedBox(width: 6),
                       Text(
-                          '标签 (${ref.watch(groupTagCountProvider(_editingTagGroup))})'),
+                          '标签 (${ref.watch(groupTagCountProvider(_editingTagGroup))})',),
                     ],
                   ),
                 ),

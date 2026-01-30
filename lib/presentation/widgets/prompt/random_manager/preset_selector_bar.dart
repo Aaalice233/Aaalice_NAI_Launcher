@@ -177,7 +177,7 @@ class PresetSelectorBar extends ConsumerWidget {
 
   /// 显示创建预设对话框
   Future<void> _showCreatePresetDialog(
-      BuildContext context, WidgetRef ref) async {
+      BuildContext context, WidgetRef ref,) async {
     final result = await NewPresetDialog.show(context);
     if (result == null) return;
 

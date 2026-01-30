@@ -170,7 +170,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) {
     final params = ref.watch(generationParamsNotifierProvider);
     final history = state.history;
-    final aspectRatio = params.width / params.height;
+    // 使用批次分辨率（点击生成时捕获），fallback 到全局参数
+    final batchAspectRatio =
+        (state.batchWidth != null && state.batchHeight != null)
+            ? state.batchWidth! / state.batchHeight!
+            : params.width / params.height;
 
     // 计算当前生成区块的项目数
     final currentGenerationCount = _getCurrentGenerationCount(state);
@@ -187,51 +191,57 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
     final totalCount = currentGenerationCount + deduplicatedHistory.length;
 
-    return GridView.builder(
+    return ListView.builder(
       padding: const EdgeInsets.all(8),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: aspectRatio.clamp(0.5, 2.0),
-      ),
       itemCount: totalCount,
       itemBuilder: (context, index) {
-        // 当前生成区块（不参与选择）
+        // 当前生成区块（不参与选择）- 使用批次分辨率
         if (index < currentGenerationCount) {
-          return _buildCurrentGenerationItem(
-            context,
-            index,
-            state,
-            params.width,
-            params.height,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: AspectRatio(
+              aspectRatio: batchAspectRatio.clamp(0.5, 2.0),
+              child: _buildCurrentGenerationItem(
+                context,
+                index,
+                state,
+                state.batchWidth ?? params.width,
+                state.batchHeight ?? params.height,
+              ),
+            ),
           );
         }
 
-        // 历史图像（已去重）
+        // 历史图像（已去重）- 使用图像自己的宽高比
         final historyIndex = index - currentGenerationCount;
         final historyImage = deduplicatedHistory[historyIndex];
         // 计算在原始 history 中的真实索引（用于选择操作）
         final actualHistoryIndex = history.indexOf(historyImage);
-        return SelectableImageCard(
-          imageBytes: historyImage.bytes,
-          index: actualHistoryIndex,
-          showIndex: false,
-          isSelected: _selectedIndices.contains(actualHistoryIndex),
-          onSelectionChanged: (selected) {
-            setState(() {
-              if (selected) {
-                _selectedIndices.add(actualHistoryIndex);
-              } else {
-                _selectedIndices.remove(actualHistoryIndex);
-              }
-            });
-          },
-          onFullscreen: () => _showFullscreen(context, historyImage.bytes),
-          enableContextMenu: true,
-          enableHoverScale: true,
-          onOpenInExplorer: () =>
-              _saveAndOpenInExplorer(context, historyImage.bytes),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: AspectRatio(
+            aspectRatio: historyImage.aspectRatio.clamp(0.5, 2.0),
+            child: SelectableImageCard(
+              imageBytes: historyImage.bytes,
+              index: actualHistoryIndex,
+              showIndex: false,
+              isSelected: _selectedIndices.contains(actualHistoryIndex),
+              onSelectionChanged: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedIndices.add(actualHistoryIndex);
+                  } else {
+                    _selectedIndices.remove(actualHistoryIndex);
+                  }
+                });
+              },
+              onFullscreen: () => _showFullscreen(context, historyImage.bytes),
+              enableContextMenu: true,
+              enableHoverScale: true,
+              onOpenInExplorer: () =>
+                  _saveAndOpenInExplorer(context, historyImage.bytes),
+            ),
+          ),
         );
       },
     );

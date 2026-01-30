@@ -39,6 +39,10 @@ class _DesktopGenerationLayoutState
   static const double _promptAreaMinHeight = 100;
   static const double _promptAreaMaxHeight = 500;
 
+  // 拖拽状态（拖拽时禁用动画以避免粘滞感）
+  bool _isResizingLeft = false;
+  bool _isResizingRight = false;
+
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
     ref.read(promptMaximizeNotifierProvider.notifier).toggle();
@@ -62,6 +66,8 @@ class _DesktopGenerationLayoutState
         if (layoutState.leftPanelExpanded)
           _buildResizeHandle(
             theme,
+            onDragStart: () => setState(() => _isResizingLeft = true),
+            onDragEnd: () => setState(() => _isResizingLeft = false),
             onDrag: (dx) {
               final newWidth = (layoutState.leftPanelWidth + dx)
                   .clamp(_leftPanelMinWidth, _leftPanelMaxWidth);
@@ -135,6 +141,8 @@ class _DesktopGenerationLayoutState
         if (layoutState.rightPanelExpanded)
           _buildResizeHandle(
             theme,
+            onDragStart: () => setState(() => _isResizingRight = true),
+            onDragEnd: () => setState(() => _isResizingRight = false),
             onDrag: (dx) {
               final newWidth = (layoutState.rightPanelWidth - dx)
                   .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
@@ -151,86 +159,114 @@ class _DesktopGenerationLayoutState
   }
 
   Widget _buildLeftPanel(ThemeData theme, LayoutState layoutState) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: layoutState.leftPanelExpanded ? layoutState.leftPanelWidth : 40,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          right: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
-          ),
+    final width =
+        layoutState.leftPanelExpanded ? layoutState.leftPanelWidth : 40.0;
+    final decoration = BoxDecoration(
+      color: theme.colorScheme.surface,
+      border: Border(
+        right: BorderSide(
+          color: theme.dividerColor,
+          width: 1,
         ),
       ),
-      child: layoutState.leftPanelExpanded
-          ? Stack(
-              children: [
-                const ParameterPanel(),
-                // 折叠按钮
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _buildCollapseButton(
-                    theme,
-                    icon: Icons.chevron_left,
-                    onTap: () => ref
-                        .read(layoutStateNotifierProvider.notifier)
-                        .setLeftPanelExpanded(false),
-                  ),
+    );
+    final child = layoutState.leftPanelExpanded
+        ? Stack(
+            children: [
+              const ParameterPanel(),
+              // 折叠按钮
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _buildCollapseButton(
+                  theme,
+                  icon: Icons.chevron_left,
+                  onTap: () => ref
+                      .read(layoutStateNotifierProvider.notifier)
+                      .setLeftPanelExpanded(false),
                 ),
-              ],
-            )
-          : _buildCollapsedPanel(
-              theme,
-              icon: Icons.tune,
-              label: context.l10n.generation_params,
-              onTap: () => ref
-                  .read(layoutStateNotifierProvider.notifier)
-                  .setLeftPanelExpanded(true),
-            ),
+              ),
+            ],
+          )
+        : _buildCollapsedPanel(
+            theme,
+            icon: Icons.tune,
+            label: context.l10n.generation_params,
+            onTap: () => ref
+                .read(layoutStateNotifierProvider.notifier)
+                .setLeftPanelExpanded(true),
+          );
+
+    // 拖拽时不使用动画，避免粘滞感
+    if (_isResizingLeft) {
+      return Container(
+        width: width,
+        decoration: decoration,
+        child: child,
+      );
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: width,
+      decoration: decoration,
+      child: child,
     );
   }
 
   Widget _buildRightPanel(ThemeData theme, LayoutState layoutState) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: layoutState.rightPanelExpanded ? layoutState.rightPanelWidth : 40,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          left: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
-          ),
+    final width =
+        layoutState.rightPanelExpanded ? layoutState.rightPanelWidth : 40.0;
+    final decoration = BoxDecoration(
+      color: theme.colorScheme.surface,
+      border: Border(
+        left: BorderSide(
+          color: theme.dividerColor,
+          width: 1,
         ),
       ),
-      child: layoutState.rightPanelExpanded
-          ? Stack(
-              children: [
-                const HistoryPanel(),
-                // 折叠按钮
-                Positioned(
-                  top: 14,
-                  left: 8,
-                  child: _buildCollapseButton(
-                    theme,
-                    icon: Icons.chevron_right,
-                    onTap: () => ref
-                        .read(layoutStateNotifierProvider.notifier)
-                        .setRightPanelExpanded(false),
-                  ),
+    );
+    final child = layoutState.rightPanelExpanded
+        ? Stack(
+            children: [
+              const HistoryPanel(),
+              // 折叠按钮
+              Positioned(
+                top: 14,
+                left: 8,
+                child: _buildCollapseButton(
+                  theme,
+                  icon: Icons.chevron_right,
+                  onTap: () => ref
+                      .read(layoutStateNotifierProvider.notifier)
+                      .setRightPanelExpanded(false),
                 ),
-              ],
-            )
-          : _buildCollapsedPanel(
-              theme,
-              icon: Icons.history,
-              label: context.l10n.generation_history,
-              onTap: () => ref
-                  .read(layoutStateNotifierProvider.notifier)
-                  .setRightPanelExpanded(true),
-            ),
+              ),
+            ],
+          )
+        : _buildCollapsedPanel(
+            theme,
+            icon: Icons.history,
+            label: context.l10n.generation_history,
+            onTap: () => ref
+                .read(layoutStateNotifierProvider.notifier)
+                .setRightPanelExpanded(true),
+          );
+
+    // 拖拽时不使用动画，避免粘滞感
+    if (_isResizingRight) {
+      return Container(
+        width: width,
+        decoration: decoration,
+        child: child,
+      );
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: width,
+      decoration: decoration,
+      child: child,
     );
   }
 
@@ -298,10 +334,15 @@ class _DesktopGenerationLayoutState
   Widget _buildResizeHandle(
     ThemeData theme, {
     required void Function(double) onDrag,
+    VoidCallback? onDragStart,
+    VoidCallback? onDragEnd,
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(
+        onHorizontalDragStart:
+            onDragStart != null ? (_) => onDragStart() : null,
+        onHorizontalDragEnd: onDragEnd != null ? (_) => onDragEnd() : null,
         onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
         child: Container(
           width: 6,

@@ -38,20 +38,33 @@ class GeneratedImage {
   final String id;
   final Uint8List bytes;
   final DateTime createdAt;
+  final int width;
+  final int height;
 
   GeneratedImage({
     required this.id,
     required this.bytes,
+    required this.width,
+    required this.height,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   /// 创建新的生成图像（自动生成ID）
-  factory GeneratedImage.create(Uint8List bytes) {
+  factory GeneratedImage.create(
+    Uint8List bytes, {
+    required int width,
+    required int height,
+  }) {
     return GeneratedImage(
       id: const Uuid().v4(),
       bytes: bytes,
+      width: width,
+      height: height,
     );
   }
+
+  /// 获取宽高比
+  double get aspectRatio => width / height;
 
   @override
   bool operator ==(Object other) =>
@@ -86,6 +99,10 @@ class ImageGenerationState {
   /// 流式预览图像（渐进式生成过程中的预览）
   final Uint8List? streamPreview;
 
+  /// 当前批次的分辨率（点击生成时捕获）
+  final int? batchWidth;
+  final int? batchHeight;
+
   const ImageGenerationState({
     this.status = GenerationStatus.idle,
     this.currentImages = const [],
@@ -95,6 +112,8 @@ class ImageGenerationState {
     this.currentImage = 0,
     this.totalImages = 0,
     this.streamPreview,
+    this.batchWidth,
+    this.batchHeight,
   });
 
   ImageGenerationState copyWith({
@@ -107,6 +126,8 @@ class ImageGenerationState {
     int? totalImages,
     Uint8List? streamPreview,
     bool clearStreamPreview = false,
+    int? batchWidth,
+    int? batchHeight,
   }) {
     return ImageGenerationState(
       status: status ?? this.status,
@@ -118,6 +139,8 @@ class ImageGenerationState {
       totalImages: totalImages ?? this.totalImages,
       streamPreview:
           clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
+      batchWidth: batchWidth ?? this.batchWidth,
+      batchHeight: batchHeight ?? this.batchHeight,
     );
   }
 
@@ -176,6 +199,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     state = state.copyWith(
       currentImages: [],
       status: GenerationStatus.generating,
+      batchWidth: effectiveParams.width,
+      batchHeight: effectiveParams.height,
     );
 
     // nSamples = 批次数量（请求次数）
@@ -232,6 +257,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       currentImage: 1,
       totalImages: totalImages,
       currentImages: [],
+      batchWidth: baseParams.width,
+      batchHeight: baseParams.height,
     );
 
     final allImages = <GeneratedImage>[];
@@ -287,8 +314,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
         if (imageBytes.isNotEmpty) {
           // 将字节数据包装成带唯一ID的 GeneratedImage
-          final generatedList =
-              imageBytes.map((b) => GeneratedImage.create(b)).toList();
+          final generatedList = imageBytes
+              .map((b) => GeneratedImage.create(
+                    b,
+                    width: batchParams.width,
+                    height: batchParams.height,
+                  ),)
+              .toList();
           allImages.addAll(generatedList);
           generatedImages += imageBytes.length;
           // 立即更新显示和历史
@@ -801,8 +833,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       // 如果流式不被支持，回退到非流式 API
       if (streamingNotAllowed) {
         final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
-        final generatedList =
-            imageBytes.map((b) => GeneratedImage.create(b)).toList();
+        final generatedList = imageBytes
+            .map((b) => GeneratedImage.create(
+                  b,
+                  width: params.width,
+                  height: params.height,
+                ),)
+            .toList();
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: generatedList,
@@ -822,7 +859,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
 
       if (finalImage != null) {
-        final generatedImage = GeneratedImage.create(finalImage);
+        final generatedImage = GeneratedImage.create(
+          finalImage,
+          width: params.width,
+          height: params.height,
+        );
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: [generatedImage],
@@ -841,8 +882,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           'Generation',
         );
         final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
-        final generatedList =
-            imageBytes.map((b) => GeneratedImage.create(b)).toList();
+        final generatedList = imageBytes
+            .map((b) => GeneratedImage.create(
+                  b,
+                  width: params.width,
+                  height: params.height,
+                ),)
+            .toList();
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: generatedList,
@@ -882,8 +928,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           try {
             final (imageBytes, vibeEncodings) =
                 await _generateWithRetry(params);
-            final generatedList =
-                imageBytes.map((b) => GeneratedImage.create(b)).toList();
+            final generatedList = imageBytes
+                .map((b) => GeneratedImage.create(
+                      b,
+                      width: params.width,
+                      height: params.height,
+                    ),)
+                .toList();
             state = state.copyWith(
               status: GenerationStatus.completed,
               currentImages: generatedList,

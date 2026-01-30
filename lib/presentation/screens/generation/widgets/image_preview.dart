@@ -56,7 +56,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       return _buildErrorState(theme, state.errorMessage, context);
     }
 
+    // 使用批次分辨率（点击生成时捕获），fallback 到全局参数
     final params = ref.watch(generationParamsNotifierProvider);
+    final batchWidth = state.batchWidth ?? params.width;
+    final batchHeight = state.batchHeight ?? params.height;
 
     // 生成中状态
     if (state.isGenerating) {
@@ -67,8 +70,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           ref,
           state,
           theme,
-          params.width,
-          params.height,
+          batchWidth,
+          batchHeight,
         );
       }
       // 否则只显示生成中卡片
@@ -76,8 +79,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         context,
         state,
         theme,
-        params.width,
-        params.height,
+        batchWidth,
+        batchHeight,
       );
     }
 
@@ -88,7 +91,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         return _buildImageView(
           context,
           ref,
-          state.currentImages.first.bytes,
+          state.currentImages.first,
           theme,
         );
       } else {
@@ -149,8 +152,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     List<GeneratedImage> images,
     ThemeData theme,
   ) {
-    final params = ref.watch(generationParamsNotifierProvider);
-    final aspectRatio = params.width / params.height;
+    // 使用第一张图像的宽高比（同一批次图像分辨率相同）
+    final aspectRatio = images.isNotEmpty ? images.first.aspectRatio : 1.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -420,7 +423,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   Widget _buildImageView(
     BuildContext context,
     WidgetRef ref,
-    Uint8List imageBytes,
+    GeneratedImage image,
     ThemeData theme,
   ) {
     return Center(
@@ -430,14 +433,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           maxHeight: 650,
         ),
         child: AspectRatio(
-          aspectRatio: ref.watch(generationParamsNotifierProvider).width /
-              ref.watch(generationParamsNotifierProvider).height,
+          aspectRatio: image.aspectRatio,
           child: SelectableImageCard(
-            imageBytes: imageBytes,
+            imageBytes: image.bytes,
             showIndex: false,
             enableSelection: false,
-            onTap: () => _showFullscreenImage(imageBytes),
-            onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
+            onTap: () => _showFullscreenImage(image.bytes),
+            onUpscale: () => UpscaleDialog.show(context, image: image.bytes),
           ),
         ),
       ),

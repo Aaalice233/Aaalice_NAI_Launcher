@@ -228,9 +228,22 @@ class _CharacterItem extends StatelessWidget {
     required this.colorScheme,
   });
 
+  /// 根据性别获取颜色
+  Color _getGenderColor() {
+    switch (character.gender) {
+      case CharacterGender.female:
+        return const Color(0xFFEC4899); // 粉色
+      case CharacterGender.male:
+        return const Color(0xFF3B82F6); // 蓝色
+      case CharacterGender.other:
+        return const Color(0xFF8B5CF6); // 紫色
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEnabled = character.enabled;
+    final genderColor = _getGenderColor();
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -240,7 +253,7 @@ class _CharacterItem extends StatelessWidget {
         border: Border(
           left: BorderSide(
             width: 3,
-            color: isEnabled ? colorScheme.primary : colorScheme.outline,
+            color: isEnabled ? genderColor : colorScheme.outline,
           ),
         ),
       ),
@@ -258,8 +271,7 @@ class _CharacterItem extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color:
-                        isEnabled ? colorScheme.primary : colorScheme.outline,
+                    color: isEnabled ? genderColor : colorScheme.outline,
                   ),
                 ),
                 const SizedBox(width: 8),

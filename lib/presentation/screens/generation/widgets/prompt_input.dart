@@ -988,7 +988,7 @@ class _PositivePromptTooltip extends StatelessWidget {
     List<CharacterPrompt> enabledCharacters,
     bool isDark,
   ) {
-    final color = Colors.teal;
+    const color = Colors.teal;
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -1016,11 +1016,11 @@ class _PositivePromptTooltip extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Icon(Icons.people_rounded, size: 12, color: color),
+              const Icon(Icons.people_rounded, size: 12, color: color),
               const SizedBox(width: 4),
               Text(
                 l10n.prompt_characterPrompts,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: color,
@@ -1035,7 +1035,7 @@ class _PositivePromptTooltip extends StatelessWidget {
                 ),
                 child: Text(
                   '${enabledCharacters.length}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: color,
