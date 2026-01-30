@@ -384,6 +384,24 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     ImageGenerationState? previous,
     ImageGenerationState next,
   ) {
+    // 检测生成完成（优先处理，无论队列模式还是普通模式）
+    if (previous?.status == GenerationStatus.generating &&
+        next.status == GenerationStatus.completed) {
+      // 判断是否为队列模式
+      final isQueueMode = state.status == QueueExecutionStatus.running ||
+          state.status == QueueExecutionStatus.ready;
+
+      if (isQueueMode) {
+        // 队列模式：不播放单张完成音效，等队列全部完成后播放
+        _onTaskCompleted();
+      } else {
+        // 非队列模式：立即播放生成完成音效
+        _triggerSingleGenerationNotification();
+      }
+      return;
+    }
+
+    // 以下逻辑仅在队列模式下执行
     if (state.status != QueueExecutionStatus.running &&
         state.status != QueueExecutionStatus.ready) {
       return;
@@ -395,13 +413,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       if (state.status == QueueExecutionStatus.ready) {
         state = state.copyWith(status: QueueExecutionStatus.running);
       }
-      return;
-    }
-
-    // 生成完成
-    if (previous?.status == GenerationStatus.generating &&
-        next.status == GenerationStatus.completed) {
-      _onTaskCompleted();
       return;
     }
 
@@ -417,6 +428,19 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       stopExecution();
       return;
     }
+  }
+
+  /// 触发单张生成完成音效（非队列模式）
+  void _triggerSingleGenerationNotification() {
+    final settings = ref.read(notificationSettingsNotifierProvider);
+    if (!settings.soundEnabled) return;
+
+    Future.microtask(() async {
+      await NotificationService.instance.notifyGenerationComplete(
+        playSound: settings.soundEnabled,
+        customSoundPath: settings.customSoundPath,
+      );
+    });
   }
 
   /// 任务完成处理
