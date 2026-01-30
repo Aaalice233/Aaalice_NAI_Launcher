@@ -22,6 +22,7 @@ class CardActionButtons extends StatefulWidget {
   final bool visible;
   final Duration hoverDelay;
   final Duration animationDuration;
+  final Axis direction;
 
   const CardActionButtons({
     super.key,
@@ -29,6 +30,7 @@ class CardActionButtons extends StatefulWidget {
     required this.visible,
     this.hoverDelay = const Duration(milliseconds: 300),
     this.animationDuration = const Duration(milliseconds: 150),
+    this.direction = Axis.horizontal,
   });
 
   @override
@@ -88,7 +90,8 @@ class _CardActionButtonsState extends State<CardActionButtons>
       return const SizedBox.shrink();
     }
 
-    return Row(
+    return Flex(
+      direction: widget.direction,
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
       children: List.generate(widget.buttons.length, (index) {
@@ -113,7 +116,10 @@ class _CardActionButtonsState extends State<CardActionButtons>
           child: ScaleTransition(
             scale: animation,
             child: Padding(
-              padding: const EdgeInsets.only(left: 4),
+              padding: EdgeInsets.only(
+                left: widget.direction == Axis.horizontal ? 4 : 0,
+                top: widget.direction == Axis.vertical ? 4 : 0,
+              ),
               child: _CardActionButton(config: widget.buttons[buttonIndex]),
             ),
           ),

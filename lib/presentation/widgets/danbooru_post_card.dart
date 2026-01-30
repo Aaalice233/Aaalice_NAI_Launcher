@@ -161,15 +161,37 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
             onLongPress: widget.onLongPress,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
               height: itemHeight,
+              transform: Matrix4.identity()
+                ..translate(
+                  0.0,
+                  _isHovering && !widget.selectionMode ? -4.0 : 0.0,
+                )
+                ..scale(_isHovering && !widget.selectionMode ? 1.02 : 1.0),
+              transformAlignment: Alignment.center,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
+                border: widget.isSelected
+                    ? Border.all(color: theme.colorScheme.primary, width: 3)
+                    : _isHovering && !widget.selectionMode
+                        ? Border.all(
+                            color: theme.colorScheme.primary.withOpacity(0.4),
+                            width: 1.5,
+                          )
+                        : null,
                 boxShadow: _isHovering && !widget.selectionMode
                     ? [
                         BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.4),
-                          blurRadius: 12,
-                          spreadRadius: 1,
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                          spreadRadius: 2,
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 24,
+                          offset: const Offset(0, 12),
                         ),
                       ]
                     : [
@@ -178,12 +200,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           blurRadius: 4,
                         ),
                       ],
-                border: widget.isSelected
-                    ? Border.all(color: theme.colorScheme.primary, width: 3)
-                    : null,
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -318,6 +337,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           builder: (context, ref, _) {
                             return CardActionButtons(
                               visible: _isHovering,
+                              direction: Axis.vertical,
+                              hoverDelay: const Duration(milliseconds: 100),
                               buttons: [
                                 CardActionButtonConfig(
                                   icon: widget.isFavorited
@@ -330,50 +351,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   onPressed: widget.onFavoriteToggle,
                                 ),
                                 CardActionButtonConfig(
-                                  icon: Icons.copy,
-                                  tooltip: '复制标签',
-                                  onPressed: () async {
-                                    try {
-                                      await Clipboard.setData(
-                                        ClipboardData(
-                                          text: widget.post.tags.join(', '),
-                                        ),
-                                      );
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text('已复制'),
-                                            duration: Duration(seconds: 1),
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      // ignore
-                                    }
-                                  },
-                                ),
-                                CardActionButtonConfig(
-                                  icon: Icons.send,
-                                  tooltip: '发送到文生图',
-                                  onPressed: () {
-                                    ref
-                                        .read(
-                                          characterPromptNotifierProvider
-                                              .notifier,
-                                        )
-                                        .clearAll();
-                                    ref
-                                        .read(
-                                          pendingPromptNotifierProvider
-                                              .notifier,
-                                        )
-                                        .set(
-                                          prompt: widget.post.tags.join(', '),
-                                        );
-                                    context.go('/');
-                                    AppToast.info(context, '已发送到文生图');
-                                  },
+                                  icon: Icons.download,
+                                  tooltip: '下载原图',
+                                  onPressed: _handleDownload,
                                 ),
                                 CardActionButtonConfig(
                                   icon: Icons.playlist_add,
@@ -400,14 +380,50 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   },
                                 ),
                                 CardActionButtonConfig(
-                                  icon: Icons.download,
-                                  tooltip: '下载原图',
-                                  onPressed: _handleDownload,
+                                  icon: Icons.send,
+                                  tooltip: '发送到文生图',
+                                  onPressed: () {
+                                    ref
+                                        .read(
+                                          characterPromptNotifierProvider
+                                              .notifier,
+                                        )
+                                        .clearAll();
+                                    ref
+                                        .read(
+                                          pendingPromptNotifierProvider
+                                              .notifier,
+                                        )
+                                        .set(
+                                          prompt: widget.post.tags.join(', '),
+                                        );
+                                    context.go('/');
+                                    AppToast.info(context, '已发送到文生图');
+                                  },
                                 ),
                                 CardActionButtonConfig(
-                                  icon: Icons.info_outline,
-                                  tooltip: '详情',
-                                  onPressed: widget.onTap,
+                                  icon: Icons.copy,
+                                  tooltip: '复制标签',
+                                  onPressed: () async {
+                                    try {
+                                      await Clipboard.setData(
+                                        ClipboardData(
+                                          text: widget.post.tags.join(', '),
+                                        ),
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text('已复制'),
+                                            duration: Duration(seconds: 1),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      // ignore
+                                    }
+                                  },
                                 ),
                               ],
                             );
