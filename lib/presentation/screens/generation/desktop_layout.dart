@@ -69,7 +69,10 @@ class _DesktopGenerationLayoutState
             onDragStart: () => setState(() => _isResizingLeft = true),
             onDragEnd: () => setState(() => _isResizingLeft = false),
             onDrag: (dx) {
-              final newWidth = (layoutState.leftPanelWidth + dx)
+              // 读取最新的宽度值，避免闭包捕获旧值导致不跟手
+              final currentWidth =
+                  ref.read(layoutStateNotifierProvider).leftPanelWidth;
+              final newWidth = (currentWidth + dx)
                   .clamp(_leftPanelMinWidth, _leftPanelMaxWidth);
               ref
                   .read(layoutStateNotifierProvider.notifier)
@@ -144,7 +147,10 @@ class _DesktopGenerationLayoutState
             onDragStart: () => setState(() => _isResizingRight = true),
             onDragEnd: () => setState(() => _isResizingRight = false),
             onDrag: (dx) {
-              final newWidth = (layoutState.rightPanelWidth - dx)
+              // 读取最新的宽度值，避免闭包捕获旧值导致不跟手
+              final currentWidth =
+                  ref.read(layoutStateNotifierProvider).rightPanelWidth;
+              final newWidth = (currentWidth - dx)
                   .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
               ref
                   .read(layoutStateNotifierProvider.notifier)

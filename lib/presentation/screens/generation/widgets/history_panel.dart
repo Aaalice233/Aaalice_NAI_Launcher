@@ -28,7 +28,7 @@ class HistoryPanel extends ConsumerStatefulWidget {
 }
 
 class _HistoryPanelState extends ConsumerState<HistoryPanel> {
-  final Set<int> _selectedIndices = {};
+  final Set<String> _selectedIds = {};
 
   @override
   Widget build(BuildContext context) {
@@ -41,29 +41,33 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         // 标题栏
         Padding(
           padding:
-              const EdgeInsets.only(left: 8, right: 12, top: 12, bottom: 12),
+              const EdgeInsets.only(left: 8, right: 4, top: 12, bottom: 12),
           child: Row(
             children: [
               // 折叠按钮
               _buildCollapseButton(theme),
               const SizedBox(width: 8),
-              Text(
-                context.l10n.generation_historyRecord,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  context.l10n.generation_historyRecord,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (state.history.isNotEmpty) ...[
-                const SizedBox(width: 8),
+              if (state.history.isNotEmpty ||
+                  state.currentImages.isNotEmpty) ...[
+                const SizedBox(width: 4),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${state.history.length}',
+                    '${_getAllSelectableImages(state).length}',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onPrimaryContainer,
                     ),
@@ -72,44 +76,49 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               ],
               const Spacer(),
               // 全选按钮
-              if (state.history.isNotEmpty)
+              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
                 IconButton(
                   onPressed: () {
                     setState(() {
-                      if (_selectedIndices.length == state.history.length) {
-                        _selectedIndices.clear();
+                      final allImages = _getAllSelectableImages(state);
+                      if (_selectedIds.length == allImages.length) {
+                        _selectedIds.clear();
                       } else {
-                        _selectedIndices.clear();
-                        _selectedIndices.addAll(
-                          List.generate(state.history.length, (i) => i),
-                        );
+                        _selectedIds.clear();
+                        _selectedIds.addAll(allImages.map((img) => img.id));
                       }
                     });
                   },
                   icon: Icon(
-                    _selectedIndices.length == state.history.length
+                    _selectedIds.length == _getAllSelectableImages(state).length
                         ? Icons.deselect
                         : Icons.select_all,
                     size: 20,
                   ),
-                  tooltip: _selectedIndices.length == state.history.length
+                  tooltip: _selectedIds.length ==
+                          _getAllSelectableImages(state).length
                       ? context.l10n.common_deselectAll
                       : context.l10n.common_selectAll,
                   style: IconButton.styleFrom(
                     foregroundColor: theme.colorScheme.primary,
                   ),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(8),
                 ),
-              if (state.history.isNotEmpty)
-                TextButton.icon(
+              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                IconButton(
                   onPressed: () {
                     _showClearDialog(context, ref);
                   },
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: Text(context.l10n.common_clear),
-                  style: TextButton.styleFrom(
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  tooltip: context.l10n.common_clear,
+                  style: IconButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(8),
                 ),
             ],
           ),
@@ -124,8 +133,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         ),
 
         // 底部操作栏（有选中时显示）
-        if (_selectedIndices.isNotEmpty)
-          _buildBottomActions(context, state.history, theme),
+        if (_selectedIds.isNotEmpty) _buildBottomActions(context, state, theme),
       ],
     );
   }
@@ -174,6 +182,19 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         ],
       ),
     );
+  }
+
+  /// 获取所有可选择的图像（当前批次已完成 + 去重后的历史）
+  List<GeneratedImage> _getAllSelectableImages(ImageGenerationState state) {
+    // 当前批次已完成的图像（不包括正在生成中的）
+    final currentCompleted = state.currentImages;
+    final currentIds = currentCompleted.map((img) => img.id).toSet();
+
+    // 从历史中过滤掉已在 currentImages 中的图像
+    final deduplicatedHistory =
+        state.history.where((img) => !currentIds.contains(img.id)).toList();
+
+    return [...currentCompleted, ...deduplicatedHistory];
   }
 
   /// 判断是否有当前正在生成的图像
@@ -253,13 +274,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               imageBytes: historyImage.bytes,
               index: actualHistoryIndex,
               showIndex: false,
-              isSelected: _selectedIndices.contains(actualHistoryIndex),
+              isSelected: _selectedIds.contains(historyImage.id),
               onSelectionChanged: (selected) {
                 setState(() {
                   if (selected) {
-                    _selectedIndices.add(actualHistoryIndex);
+                    _selectedIds.add(historyImage.id);
                   } else {
-                    _selectedIndices.remove(actualHistoryIndex);
+                    _selectedIds.remove(historyImage.id);
                   }
                 });
               },
@@ -300,17 +321,28 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       );
     }
 
-    // 已完成的当前图像（不可选择）
+    // 已完成的当前图像（支持选择）
     if (index < completedImages.length) {
-      final imageBytes = completedImages[index].bytes;
+      final image = completedImages[index];
+      final imageBytes = image.bytes;
       return SelectableImageCard(
         imageBytes: imageBytes,
         index: index,
         showIndex: true,
-        enableSelection: false,
-        onTap: () => _showFullscreen(context, imageBytes),
+        isSelected: _selectedIds.contains(image.id),
+        onSelectionChanged: (selected) {
+          setState(() {
+            if (selected) {
+              _selectedIds.add(image.id);
+            } else {
+              _selectedIds.remove(image.id);
+            }
+          });
+        },
+        onFullscreen: () => _showFullscreen(context, imageBytes),
         enableContextMenu: true,
         enableHoverScale: true,
+        onOpenInExplorer: () => _saveAndOpenInExplorer(context, imageBytes),
       );
     }
 
@@ -319,7 +351,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
   Widget _buildBottomActions(
     BuildContext context,
-    List<GeneratedImage> history,
+    ImageGenerationState state,
     ThemeData theme,
   ) {
     return Container(
@@ -330,9 +362,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
       child: FilledButton.icon(
-        onPressed: () => _saveSelectedImages(context, history),
+        onPressed: () => _saveSelectedImages(context, state),
         icon: const Icon(Icons.save_alt, size: 20),
-        label: Text('${context.l10n.image_save} (${_selectedIndices.length})'),
+        label: Text('${context.l10n.image_save} (${_selectedIds.length})'),
         style: FilledButton.styleFrom(
           minimumSize: const Size(double.infinity, 44),
         ),
@@ -342,9 +374,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
   Future<void> _saveSelectedImages(
     BuildContext context,
-    List<GeneratedImage> history,
+    ImageGenerationState state,
   ) async {
-    if (_selectedIndices.isEmpty) return;
+    if (_selectedIds.isEmpty) return;
 
     try {
       final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
@@ -353,13 +385,16 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       }
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final sortedIndices = _selectedIndices.toList()..sort();
 
-      for (int i = 0; i < sortedIndices.length; i++) {
-        final index = sortedIndices[i];
+      // 从所有可选图像中查找选中的图像
+      final allImages = _getAllSelectableImages(state);
+      final selectedImages =
+          allImages.where((img) => _selectedIds.contains(img.id)).toList();
+
+      for (int i = 0; i < selectedImages.length; i++) {
         final fileName = 'NAI_${timestamp}_${i + 1}.png';
         final file = File('${saveDir.path}/$fileName');
-        await file.writeAsBytes(history[index].bytes);
+        await file.writeAsBytes(selectedImages[i].bytes);
       }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
@@ -367,7 +402,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
         setState(() {
-          _selectedIndices.clear();
+          _selectedIds.clear();
         });
       }
     } catch (e) {
@@ -557,7 +592,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     if (confirmed) {
       ref.read(imageGenerationNotifierProvider.notifier).clearHistory();
       setState(() {
-        _selectedIndices.clear();
+        _selectedIds.clear();
       });
     }
   }
