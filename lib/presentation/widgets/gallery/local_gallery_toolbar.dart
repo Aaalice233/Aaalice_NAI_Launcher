@@ -61,7 +61,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   /// 批量操作回调
   final VoidCallback? onAddToCollection;
   final VoidCallback? onDeleteSelected;
-  final VoidCallback? onExportSelected;
+  final VoidCallback? onPackSelected;
   final VoidCallback? onEditMetadata;
   final VoidCallback? onMoveToFolder;
 
@@ -87,7 +87,7 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.groupedGridViewKey,
     this.onAddToCollection,
     this.onDeleteSelected,
-    this.onExportSelected,
+    this.onPackSelected,
     this.onEditMetadata,
     this.onMoveToFolder,
     this.showCategoryPanel = true,
@@ -157,16 +157,16 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
             color: theme.colorScheme.secondary,
           ),
           BulkActionItem(
-            icon: Icons.download_outlined,
-            label: '导出',
-            onPressed: widget.onExportSelected,
-            color: theme.colorScheme.primary,
+            icon: Icons.archive_outlined,
+            label: '打包',
+            onPressed: widget.onPackSelected,
+            color: theme.colorScheme.tertiary,
           ),
           BulkActionItem(
             icon: Icons.edit_outlined,
             label: '编辑',
             onPressed: widget.onEditMetadata,
-            color: theme.colorScheme.tertiary,
+            color: theme.colorScheme.primary,
           ),
           BulkActionItem(
             icon: Icons.playlist_add,

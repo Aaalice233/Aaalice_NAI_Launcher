@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/zip_utils.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/local_gallery_repository.dart';
@@ -361,13 +363,33 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         border:
             Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
-      child: FilledButton.icon(
-        onPressed: () => _saveSelectedImages(context, state),
-        icon: const Icon(Icons.save_alt, size: 20),
-        label: Text('${context.l10n.image_save} (${_selectedIds.length})'),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(double.infinity, 44),
-        ),
+      child: Row(
+        children: [
+          // 打包按钮
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _packSelectedImages(context, state),
+              icon: const Icon(Icons.archive_outlined, size: 20),
+              label: Text('打包 (${_selectedIds.length})'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 44),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 保存按钮
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => _saveSelectedImages(context, state),
+              icon: const Icon(Icons.save_alt, size: 20),
+              label:
+                  Text('${context.l10n.image_save} (${_selectedIds.length})'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 44),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -408,6 +430,74 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
+  }
+
+  /// 打包选中的图片成压缩包
+  Future<void> _packSelectedImages(
+    BuildContext context,
+    ImageGenerationState state,
+  ) async {
+    if (_selectedIds.isEmpty) return;
+
+    // 直接使用保存文件对话框，用户可以选择路径并输入文件名
+    final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: '保存压缩包',
+      fileName: '$defaultName.zip',
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (outputPath == null || !context.mounted) return;
+
+    // 确保文件名以 .zip 结尾
+    final finalPath =
+        outputPath.endsWith('.zip') ? outputPath : '$outputPath.zip';
+
+    // 显示打包进度
+    AppToast.info(context, '正在打包 ${_selectedIds.length} 张图片...');
+
+    try {
+      // 先将选中的图片保存到临时目录
+      final tempDir = await Directory.systemTemp.createTemp('nai_pack_');
+      final imagePaths = <String>[];
+
+      final allImages = _getAllSelectableImages(state);
+      final selectedImages =
+          allImages.where((img) => _selectedIds.contains(img.id)).toList();
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      for (int i = 0; i < selectedImages.length; i++) {
+        final fileName = 'NAI_${timestamp}_${i + 1}.png';
+        final file = File('${tempDir.path}/$fileName');
+        await file.writeAsBytes(selectedImages[i].bytes);
+        imagePaths.add(file.path);
+      }
+
+      // 执行打包
+      final success = await ZipUtils.createZipFromImages(
+        imagePaths,
+        finalPath,
+      );
+
+      // 清理临时文件
+      await tempDir.delete(recursive: true);
+
+      if (context.mounted) {
+        if (success) {
+          AppToast.success(context, '已打包 ${selectedImages.length} 张图片');
+          setState(() {
+            _selectedIds.clear();
+          });
+        } else {
+          AppToast.error(context, '打包失败');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '打包失败: $e');
       }
     }
   }

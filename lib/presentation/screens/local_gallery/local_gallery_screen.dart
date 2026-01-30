@@ -12,6 +12,8 @@ import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
+import '../../../core/utils/zip_utils.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../providers/collection_provider.dart';
@@ -22,7 +24,6 @@ import '../../providers/image_generation_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
-import '../../widgets/bulk_export_dialog.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
@@ -342,7 +343,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       groupedGridViewKey: _groupedGridViewKey,
       onAddToCollection: _addSelectedToCollection,
       onDeleteSelected: _deleteSelectedImages,
-      onExportSelected: _exportSelectedImages,
+      onPackSelected: _packSelectedImages,
       onEditMetadata: _editSelectedMetadata,
       onMoveToFolder: _moveSelectedToFolder,
       showCategoryPanel: _showCategoryPanel,
@@ -589,11 +590,50 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  /// 批量导出选中的图片元数据
-  Future<void> _exportSelectedImages() async {
+  /// 批量打包选中的图片成压缩包
+  Future<void> _packSelectedImages() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
-    if (selectionState.selectedIds.isEmpty || !mounted) return;
-    showBulkExportDialog(context);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty || !mounted) return;
+
+    // 直接使用保存文件对话框，用户可以选择路径并输入文件名
+    final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: '保存压缩包',
+      fileName: '$defaultName.zip',
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (outputPath == null || !mounted) return;
+
+    // 确保文件名以 .zip 结尾
+    final finalPath =
+        outputPath.endsWith('.zip') ? outputPath : '$outputPath.zip';
+
+    // 显示打包进度
+    AppToast.info(context, '正在打包 ${selectedImages.length} 张图片...');
+
+    // 执行打包
+    final imagePaths = selectedImages.map((img) => img.path).toList();
+    final success = await ZipUtils.createZipFromImages(
+      imagePaths,
+      finalPath,
+    );
+
+    if (mounted) {
+      if (success) {
+        AppToast.success(context, '已打包 ${selectedImages.length} 张图片');
+        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+      } else {
+        AppToast.error(context, '打包失败');
+      }
+    }
   }
 
   /// 批量编辑选中的图片元数据
