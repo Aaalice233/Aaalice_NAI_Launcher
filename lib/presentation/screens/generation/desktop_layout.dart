@@ -515,7 +515,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                             showCancel: showCancel,
                             generationState: generationState,
                             onGenerate: () => _handleGenerate(
-                                context, ref, params, randomMode),
+                                context, ref, params, randomMode,),
                             onCancel: () => ref
                                 .read(imageGenerationNotifierProvider.notifier)
                                 .cancel(),
