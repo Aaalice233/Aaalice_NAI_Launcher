@@ -13,6 +13,8 @@ import '../grouped_grid_view.dart' show ImageDateGroup;
 
 import '../common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import '../autocomplete/autocomplete_wrapper.dart';
+import '../autocomplete/autocomplete_controller.dart';
 
 /// Local gallery toolbar with search, filter and actions
 /// 本地画廊工具栏（搜索、过滤、操作按钮）
@@ -357,21 +359,28 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   /// Build search field
   /// 构建搜索框 - Modern glass-style design
   Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
-    return _ModernSearchField(
+    return AutocompleteWrapper(
       controller: _searchController,
-      hintText: '搜索文件名或 Prompt...',
-      onChanged: (value) {
-        setState(() {}); // Update clear button visibility
-        _onSearchChanged(value);
-      },
-      onSubmitted: (value) {
-        _debounceTimer?.cancel();
-        ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
-      },
-      onClear: () {
-        _searchController.clear();
-        ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
-      },
+      config: const AutocompleteConfig(
+        minQueryLength: 2,
+        maxSuggestions: 8,
+      ),
+      child: _ModernSearchField(
+        controller: _searchController,
+        hintText: '搜索文件名或 Prompt...',
+        onChanged: (value) {
+          setState(() {}); // Update clear button visibility
+          _onSearchChanged(value);
+        },
+        onSubmitted: (value) {
+          _debounceTimer?.cancel();
+          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
+        },
+        onClear: () {
+          _searchController.clear();
+          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
+        },
+      ),
     );
   }
 

@@ -58,12 +58,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// 用于键盘快捷键的焦点节点
   final FocusNode _shortcutsFocusNode = FocusNode();
 
-  /// 搜索框控制器
-  final TextEditingController _searchController = TextEditingController();
-
-  /// 搜索防抖定时器
-  Timer? _debounceTimer;
-
   /// 是否使用3D卡片视图
   /// Whether to use 3D card view mode
   final bool _use3DCardView = true;
@@ -85,8 +79,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   @override
   void dispose() {
     _shortcutsFocusNode.dispose();
-    _searchController.dispose();
-    _debounceTimer?.cancel();
     super.dispose();
   }
 

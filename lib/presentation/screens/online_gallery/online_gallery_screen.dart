@@ -24,6 +24,7 @@ import '../../widgets/online_gallery/post_detail_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import '../../widgets/autocomplete/danbooru_autocomplete_wrapper.dart';
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -467,39 +468,48 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildSearchField(ThemeData theme) {
-    return Container(
-      height: 36,
-      constraints: const BoxConstraints(maxWidth: 400),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: ThemedInput(
-        controller: _searchController,
-        style: theme.textTheme.bodyMedium,
-        showClearButton: true,
-        onClearPressed: () {
-          _searchController.clear();
-          ref.read(onlineGalleryNotifierProvider.notifier).search('');
-        },
-        decoration: InputDecoration(
-          hintText: context.l10n.onlineGallery_searchTags,
-          hintStyle: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-            fontSize: 13,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          isDense: true,
+    return DanbooruAutocompleteWrapper(
+      controller: _searchController,
+      replaceAll: true,
+      appendSpace: false,
+      onSuggestionSelected: (tag) {
+        // 选中建议后自动搜索
+        ref.read(onlineGalleryNotifierProvider.notifier).search(tag.tag);
+      },
+      child: Container(
+        height: 36,
+        constraints: const BoxConstraints(maxWidth: 400),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(18),
         ),
-        onSubmitted: (value) {
-          ref.read(onlineGalleryNotifierProvider.notifier).search(value);
-        },
+        child: ThemedInput(
+          controller: _searchController,
+          style: theme.textTheme.bodyMedium,
+          showClearButton: true,
+          onClearPressed: () {
+            _searchController.clear();
+            ref.read(onlineGalleryNotifierProvider.notifier).search('');
+          },
+          decoration: InputDecoration(
+            hintText: context.l10n.onlineGallery_searchTags,
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              fontSize: 13,
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            isDense: true,
+          ),
+          onSubmitted: (value) {
+            ref.read(onlineGalleryNotifierProvider.notifier).search(value);
+          },
+        ),
       ),
     );
   }
