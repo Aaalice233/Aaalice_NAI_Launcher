@@ -7,7 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/permission_utils.dart';
+import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
@@ -775,20 +777,36 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     characterNotifier.clearAllCharacters();
 
     if (metadata.prompt.isNotEmpty) {
-      paramsNotifier.updatePrompt(metadata.prompt);
+      // 自动进行语法转换（SD→NAI + 格式化）
+      var prompt = metadata.prompt;
+      prompt = SdToNaiConverter.convert(prompt);
+      prompt = NaiPromptFormatter.format(prompt);
+      paramsNotifier.updatePrompt(prompt);
     }
     if (metadata.negativePrompt.isNotEmpty) {
-      paramsNotifier.updateNegativePrompt(metadata.negativePrompt);
+      // 自动进行语法转换（SD→NAI + 格式化）
+      var negativePrompt = metadata.negativePrompt;
+      negativePrompt = SdToNaiConverter.convert(negativePrompt);
+      negativePrompt = NaiPromptFormatter.format(negativePrompt);
+      paramsNotifier.updateNegativePrompt(negativePrompt);
     }
 
     // 应用多角色提示词（如果有）
     if (metadata.characterPrompts.isNotEmpty) {
       final characters = <char.CharacterPrompt>[];
       for (int i = 0; i < metadata.characterPrompts.length; i++) {
-        final prompt = metadata.characterPrompts[i];
-        final negPrompt = i < metadata.characterNegativePrompts.length
+        // 自动进行语法转换（SD→NAI + 格式化）
+        var prompt = metadata.characterPrompts[i];
+        prompt = SdToNaiConverter.convert(prompt);
+        prompt = NaiPromptFormatter.format(prompt);
+
+        var negPrompt = i < metadata.characterNegativePrompts.length
             ? metadata.characterNegativePrompts[i]
             : '';
+        if (negPrompt.isNotEmpty) {
+          negPrompt = SdToNaiConverter.convert(negPrompt);
+          negPrompt = NaiPromptFormatter.format(negPrompt);
+        }
 
         // 尝试从提示词推断性别
         final gender = _inferGenderFromPrompt(prompt);

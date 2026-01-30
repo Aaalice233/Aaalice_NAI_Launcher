@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/models/prompt/prompt_preset_mode.dart';
@@ -82,19 +84,29 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
       // 填充正向提示词
       if (consumed.prompt != null && consumed.prompt!.isNotEmpty) {
-        _promptController.text = consumed.prompt!;
+        // 自动进行语法转换（SD→NAI + 格式化）
+        var prompt = consumed.prompt!;
+        prompt = SdToNaiConverter.convert(prompt);
+        prompt = NaiPromptFormatter.format(prompt);
+
+        _promptController.text = prompt;
         ref
             .read(generationParamsNotifierProvider.notifier)
-            .updatePrompt(consumed.prompt!);
+            .updatePrompt(prompt);
       }
 
       // 填充负向提示词
       if (consumed.negativePrompt != null &&
           consumed.negativePrompt!.isNotEmpty) {
-        _negativeController.text = consumed.negativePrompt!;
+        // 自动进行语法转换（SD→NAI + 格式化）
+        var negativePrompt = consumed.negativePrompt!;
+        negativePrompt = SdToNaiConverter.convert(negativePrompt);
+        negativePrompt = NaiPromptFormatter.format(negativePrompt);
+
+        _negativeController.text = negativePrompt;
         ref
             .read(generationParamsNotifierProvider.notifier)
-            .updateNegativePrompt(consumed.negativePrompt!);
+            .updateNegativePrompt(negativePrompt);
       }
 
       // 触发 UI 更新
