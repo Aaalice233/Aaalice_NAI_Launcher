@@ -50,7 +50,7 @@ class _CardActionButtonsState extends State<CardActionButtons>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 400),
     );
   }
 

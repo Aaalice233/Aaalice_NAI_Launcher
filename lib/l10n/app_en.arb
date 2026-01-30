@@ -49,6 +49,7 @@
   "nav_dictionary": "Dictionary (WIP)",
   "nav_settings": "Settings",
   "nav_discordCommunity": "Discord Community",
+  "nav_githubRepo": "GitHub Repository",
 
   "auth_login": "Login",
   "auth_logout": "Logout",

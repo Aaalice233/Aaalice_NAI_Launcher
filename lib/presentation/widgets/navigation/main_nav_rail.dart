@@ -13,6 +13,7 @@ import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
 
 import '../common/app_toast.dart';
+
 class MainNavRail extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -113,8 +114,9 @@ class MainNavRail extends ConsumerWidget {
           ),
 
           // GitHub 仓库
-          const _GitHubIcon(
+          _GitHubIcon(
             url: 'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
+            label: context.l10n.nav_githubRepo,
           ),
 
           // Bottom Settings
@@ -134,8 +136,9 @@ class MainNavRail extends ConsumerWidget {
 /// GitHub 图标（自定义绘制）
 class _GitHubIcon extends StatefulWidget {
   final String url;
+  final String label;
 
-  const _GitHubIcon({required this.url});
+  const _GitHubIcon({required this.url, required this.label});
 
   @override
   State<_GitHubIcon> createState() => _GitHubIconState();
@@ -159,35 +162,40 @@ class _GitHubIconState extends State<_GitHubIcon> {
         ? Colors.white
         : const Color(0xFF24292E);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      width: 48,
-      height: 48,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _launchUrl,
-          onHover: (val) => setState(() => _isHovering = val),
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) => setState(() => _isPressed = false),
-          onTapCancel: () => setState(() => _isPressed = false),
-          borderRadius: BorderRadius.circular(8),
-          child: AnimatedScale(
-            scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: AnimatedContainer(
+    return Tooltip(
+      message: widget.label,
+      preferBelow: false,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        width: 48,
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _launchUrl,
+            onHover: (val) => setState(() => _isHovering = val),
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) => setState(() => _isPressed = false),
+            onTapCancel: () => setState(() => _isPressed = false),
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedScale(
+              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
               duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color:
-                    _isHovering ? color.withOpacity(0.15) : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: CustomPaint(
-                  size: const Size(24, 24),
-                  painter: _GitHubLogoPainter(
-                    color: color.withOpacity(_isHovering ? 1.0 : 0.7),
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: _isHovering
+                      ? color.withOpacity(0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: CustomPaint(
+                    size: const Size(24, 24),
+                    painter: _GitHubLogoPainter(
+                      color: color.withOpacity(_isHovering ? 1.0 : 0.7),
+                    ),
                   ),
                 ),
               ),
@@ -458,35 +466,39 @@ class _ExternalLinkIconState extends State<_ExternalLinkIcon> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      width: 48,
-      height: 48,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _launchUrl,
-          onHover: (val) => setState(() => _isHovering = val),
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) => setState(() => _isPressed = false),
-          onTapCancel: () => setState(() => _isPressed = false),
-          borderRadius: BorderRadius.circular(8),
-          child: AnimatedScale(
-            scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: AnimatedContainer(
+    return Tooltip(
+      message: widget.label,
+      preferBelow: false,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        width: 48,
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _launchUrl,
+            onHover: (val) => setState(() => _isHovering = val),
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) => setState(() => _isPressed = false),
+            onTapCancel: () => setState(() => _isPressed = false),
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedScale(
+              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
               duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: _isHovering
-                    ? widget.color.withOpacity(0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                widget.icon,
-                color: widget.color.withOpacity(_isHovering ? 1.0 : 0.7),
-                size: 24,
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: _isHovering
+                      ? widget.color.withOpacity(0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  widget.icon,
+                  color: widget.color.withOpacity(_isHovering ? 1.0 : 0.7),
+                  size: 24,
+                ),
               ),
             ),
           ),

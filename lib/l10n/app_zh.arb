@@ -49,6 +49,7 @@
   "nav_dictionary": "词库 (WIP)",
   "nav_settings": "设置",
   "nav_discordCommunity": "Discord 社群",
+  "nav_githubRepo": "GitHub 仓库",
 
   "auth_login": "登录",
   "auth_logout": "退出登录",
