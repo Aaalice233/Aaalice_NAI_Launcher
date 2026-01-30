@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -318,6 +319,15 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   late TabController _tabController;
   late TextEditingController _nameController;
   late RandomTagGroup _editingTagGroup;
+
+  /// 获取当前预设的类别名称列表
+  List<String> get _availableCategories {
+    final state = ref.read(randomPresetNotifierProvider);
+    final preset =
+        state.presets.firstWhereOrNull((p) => p.id == widget.presetId);
+    if (preset == null) return [];
+    return preset.categories.map((c) => c.name).toList();
+  }
 
   @override
   void initState() {
@@ -834,7 +844,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               );
             });
           },
-          availableCategories: const [], // TODO: 从预设中获取类别列表
+          availableCategories: _availableCategories,
         ),
       ),
     );
@@ -855,6 +865,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               );
             });
           },
+          availableCategories: _availableCategories,
         ),
       ),
     );
@@ -895,6 +906,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               );
             });
           },
+          availableCategories: _availableCategories,
         ),
       ),
     );

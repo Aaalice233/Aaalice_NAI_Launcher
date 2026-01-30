@@ -47,19 +47,19 @@ class PromptConfigScreen extends ConsumerWidget {
 
                 if (isWide) {
                   // 宽屏: 左右分栏布局
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  return const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 左侧: 算法配置 + 概率分布预览
-                        const SizedBox(
+                        SizedBox(
                           width: 420,
                           child: _LeftPanel(),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: 16),
                         // 右侧: 类别配置垂直列表
-                        const Expanded(
+                        Expanded(
                           child: CategoryCardList(),
                         ),
                       ],
