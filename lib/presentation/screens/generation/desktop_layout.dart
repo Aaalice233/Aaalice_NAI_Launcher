@@ -227,23 +227,7 @@ class _DesktopGenerationLayoutState
       ),
     );
     final child = layoutState.rightPanelExpanded
-        ? Stack(
-            children: [
-              const HistoryPanel(),
-              // 折叠按钮
-              Positioned(
-                top: 14,
-                left: 8,
-                child: _buildCollapseButton(
-                  theme,
-                  icon: Icons.chevron_right,
-                  onTap: () => ref
-                      .read(layoutStateNotifierProvider.notifier)
-                      .setRightPanelExpanded(false),
-                ),
-              ),
-            ],
-          )
+        ? const HistoryPanel()
         : _buildCollapsedPanel(
             theme,
             icon: Icons.history,

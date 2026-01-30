@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../providers/layout_state_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/local_gallery_repository.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -40,9 +41,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         // 标题栏
         Padding(
           padding:
-              const EdgeInsets.only(left: 36, right: 12, top: 12, bottom: 12),
+              const EdgeInsets.only(left: 8, right: 12, top: 12, bottom: 12),
           child: Row(
             children: [
+              // 折叠按钮
+              _buildCollapseButton(theme),
+              const SizedBox(width: 8),
               Text(
                 context.l10n.generation_historyRecord,
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -123,6 +127,30 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         if (_selectedIndices.isNotEmpty)
           _buildBottomActions(context, state.history, theme),
       ],
+    );
+  }
+
+  Widget _buildCollapseButton(ThemeData theme) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => ref
+            .read(layoutStateNotifierProvider.notifier)
+            .setRightPanelExpanded(false),
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.chevron_right,
+            size: 16,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
+      ),
     );
   }
 
