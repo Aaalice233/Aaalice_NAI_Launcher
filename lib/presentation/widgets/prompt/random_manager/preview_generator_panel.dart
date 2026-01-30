@@ -168,11 +168,15 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
-              ),
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: SelectableText(
               _result!.mergedPrompt,
@@ -273,7 +277,7 @@ class _GenerateButtonState extends State<_GenerateButton> {
                       colorScheme.secondary.withOpacity(0.8),
                     ],
             ),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             boxShadow: _isHovered && !widget.isGenerating
                 ? [
                     BoxShadow(
@@ -386,7 +390,7 @@ class _ErrorDisplay extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: colorScheme.errorContainer.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

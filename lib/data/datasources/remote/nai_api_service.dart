@@ -64,7 +64,8 @@ class NAIApiService {
   ///
   /// 返回验证结果，包含订阅信息；如果 Token 无效则抛出异常
   @Deprecated(
-      'Use NAIAuthApiService.validateToken via naiAuthApiServiceProvider')
+    'Use NAIAuthApiService.validateToken via naiAuthApiServiceProvider',
+  )
   Future<Map<String, dynamic>> validateToken(String token) async {
     return _authService.validateToken(token);
   }
@@ -75,7 +76,8 @@ class NAIApiService {
   ///
   /// 返回登录结果，包含 accessToken；如果登录失败则抛出异常
   @Deprecated(
-      'Use NAIAuthApiService.loginWithKey via naiAuthApiServiceProvider')
+    'Use NAIAuthApiService.loginWithKey via naiAuthApiServiceProvider',
+  )
   Future<Map<String, dynamic>> loginWithKey(String accessKey) async {
     return _authService.loginWithKey(accessKey);
   }
@@ -97,7 +99,8 @@ class NAIApiService {
   ///
   /// 返回建议的标签列表
   @Deprecated(
-      'Use NAITagSuggestionApiService.suggestTags via naiTagSuggestionApiServiceProvider')
+    'Use NAITagSuggestionApiService.suggestTags via naiTagSuggestionApiServiceProvider',
+  )
   Future<List<TagSuggestion>> suggestTags(
     String input, {
     String? model,
@@ -109,7 +112,8 @@ class NAIApiService {
   ///
   /// 这会解析提示词，提取最后一个不完整的标签，并返回建议
   @Deprecated(
-      'Use NAITagSuggestionApiService.suggestNextTag via naiTagSuggestionApiServiceProvider')
+    'Use NAITagSuggestionApiService.suggestNextTag via naiTagSuggestionApiServiceProvider',
+  )
   Future<List<TagSuggestion>> suggestNextTag(
     String prompt, {
     String? model,
@@ -128,13 +132,16 @@ class NAIApiService {
   /// - 图像列表：生成的图像字节数据
   /// - Vibe哈希映射：key=vibeReferencesV4索引, value=编码哈希
   @Deprecated(
-      'Use NAIImageGenerationApiService.generateImage via naiImageGenerationApiServiceProvider')
+    'Use NAIImageGenerationApiService.generateImage via naiImageGenerationApiServiceProvider',
+  )
   Future<(List<Uint8List>, Map<int, String>)> generateImage(
     ImageParams params, {
     void Function(int, int)? onProgress,
   }) async {
-    return _imageGenerationService.generateImage(params,
-        onProgress: onProgress);
+    return _imageGenerationService.generateImage(
+      params,
+      onProgress: onProgress,
+    );
   }
 
   /// 生成图像（可取消版本） - 保持向后兼容
@@ -142,19 +149,23 @@ class NAIApiService {
   /// 注意: 此方法仅返回图像列表，不返回 Vibe 哈希映射
   /// 如需获取 Vibe 哈希，请直接使用 generateImage()
   @Deprecated(
-      'Use NAIImageGenerationApiService.generateImageCancellable via naiImageGenerationApiServiceProvider')
+    'Use NAIImageGenerationApiService.generateImageCancellable via naiImageGenerationApiServiceProvider',
+  )
   Future<List<Uint8List>> generateImageCancellable(
     ImageParams params, {
     void Function(int, int)? onProgress,
   }) async {
-    final result = await _imageGenerationService.generateImage(params,
-        onProgress: onProgress);
+    final result = await _imageGenerationService.generateImage(
+      params,
+      onProgress: onProgress,
+    );
     return result.$1;
   }
 
   /// 取消当前生成
   @Deprecated(
-      'Use NAIImageGenerationApiService.cancelGeneration via naiImageGenerationApiServiceProvider')
+    'Use NAIImageGenerationApiService.cancelGeneration via naiImageGenerationApiServiceProvider',
+  )
   void cancelGeneration() {
     _imageGenerationService.cancelGeneration();
   }
@@ -167,7 +178,8 @@ class NAIApiService {
   ///
   /// 返回 ImageStreamChunk 流，包含渐进式预览和最终图像
   @Deprecated(
-      'Use NAIImageGenerationApiService.generateImageStream via naiImageGenerationApiServiceProvider')
+    'Use NAIImageGenerationApiService.generateImageStream via naiImageGenerationApiServiceProvider',
+  )
   Stream<ImageStreamChunk> generateImageStream(ImageParams params) {
     return _imageGenerationService.generateImageStream(params);
   }
@@ -182,14 +194,18 @@ class NAIApiService {
   ///
   /// 返回放大后的图像数据
   @Deprecated(
-      'Use NAIImageEnhancementApiService.upscaleImage via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.upscaleImage via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> upscaleImage(
     Uint8List image, {
     int scale = 2,
     void Function(int, int)? onProgress,
   }) async {
-    return _enhancementService.upscaleImage(image,
-        scale: scale, onProgress: onProgress);
+    return _enhancementService.upscaleImage(
+      image,
+      scale: scale,
+      onProgress: onProgress,
+    );
   }
 
   // ==================== Vibe Transfer API ====================
@@ -202,7 +218,8 @@ class NAIApiService {
   ///
   /// 返回编码后的特征向量（base64 字符串）
   @Deprecated(
-      'Use NAIImageEnhancementApiService.encodeVibe via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.encodeVibe via naiImageEnhancementApiServiceProvider',
+  )
   Future<String> encodeVibe(
     Uint8List image, {
     required String model,
@@ -234,7 +251,8 @@ class NAIApiService {
   ///
   /// 返回增强后的图像数据
   @Deprecated(
-      'Use NAIImageEnhancementApiService.augmentImage via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.augmentImage via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> augmentImage(
     Uint8List image, {
     required String reqType,
@@ -255,7 +273,8 @@ class NAIApiService {
   /// [prompt] 目标表情描述
   /// [defry] 强度 (0-5)
   @Deprecated(
-      'Use NAIImageEnhancementApiService.fixEmotion via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.fixEmotion via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> fixEmotion(
     Uint8List image, {
     required String prompt,
@@ -266,7 +285,8 @@ class NAIApiService {
 
   /// 移除背景
   @Deprecated(
-      'Use NAIImageEnhancementApiService.removeBackground via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.removeBackground via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> removeBackground(Uint8List image) async {
     return _enhancementService.removeBackground(image);
   }
@@ -277,7 +297,8 @@ class NAIApiService {
   /// [prompt] 上色提示词 (可选)
   /// [defry] 强度 (0-5)
   @Deprecated(
-      'Use NAIImageEnhancementApiService.colorize via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.colorize via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> colorize(
     Uint8List image, {
     String? prompt,
@@ -288,21 +309,24 @@ class NAIApiService {
 
   /// 去杂乱
   @Deprecated(
-      'Use NAIImageEnhancementApiService.declutter via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.declutter via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> declutter(Uint8List image) async {
     return _enhancementService.declutter(image);
   }
 
   /// 提取线稿
   @Deprecated(
-      'Use NAIImageEnhancementApiService.extractLineArt via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.extractLineArt via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> extractLineArt(Uint8List image) async {
     return _enhancementService.extractLineArt(image);
   }
 
   /// 素描化
   @Deprecated(
-      'Use NAIImageEnhancementApiService.toSketch via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.toSketch via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> toSketch(Uint8List image) async {
     return _enhancementService.toSketch(image);
   }
@@ -324,7 +348,8 @@ class NAIApiService {
   ///
   /// 返回标注结果（对于 wd-tagger 返回 JSON，其他返回图像）
   @Deprecated(
-      'Use NAIImageEnhancementApiService.annotateImage via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.annotateImage via naiImageEnhancementApiServiceProvider',
+  )
   Future<dynamic> annotateImage(
     Uint8List image, {
     required String annotateType,
@@ -336,28 +361,32 @@ class NAIApiService {
   ///
   /// 返回图像的自动生成标签
   @Deprecated(
-      'Use NAIImageEnhancementApiService.getImageTags via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.getImageTags via naiImageEnhancementApiServiceProvider',
+  )
   Future<Map<String, dynamic>> getImageTags(Uint8List image) async {
     return _enhancementService.getImageTags(image);
   }
 
   /// 提取 Canny 边缘
   @Deprecated(
-      'Use NAIImageEnhancementApiService.extractCannyEdge via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.extractCannyEdge via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> extractCannyEdge(Uint8List image) async {
     return _enhancementService.extractCannyEdge(image);
   }
 
   /// 生成深度图
   @Deprecated(
-      'Use NAIImageEnhancementApiService.generateDepthMap via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.generateDepthMap via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> generateDepthMap(Uint8List image) async {
     return _enhancementService.generateDepthMap(image);
   }
 
   /// 提取姿态
   @Deprecated(
-      'Use NAIImageEnhancementApiService.extractPose via naiImageEnhancementApiServiceProvider')
+    'Use NAIImageEnhancementApiService.extractPose via naiImageEnhancementApiServiceProvider',
+  )
   Future<Uint8List> extractPose(Uint8List image) async {
     return _enhancementService.extractPose(image);
   }
@@ -366,7 +395,8 @@ class NAIApiService {
 
   /// 获取用户订阅信息（包含 Anlas 余额）
   @Deprecated(
-      'Use NAIUserInfoApiService.getUserSubscription via naiUserInfoApiServiceProvider')
+    'Use NAIUserInfoApiService.getUserSubscription via naiUserInfoApiServiceProvider',
+  )
   Future<Map<String, dynamic>> getUserSubscription() async {
     return _userInfoService.getUserSubscription();
   }

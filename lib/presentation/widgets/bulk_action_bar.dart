@@ -97,7 +97,7 @@ class BulkActionBar extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primaryContainer.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '已选择 $selectedCount 项',

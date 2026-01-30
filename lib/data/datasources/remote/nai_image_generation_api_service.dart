@@ -272,15 +272,21 @@ class NAIImageGenerationApiService {
       // 打印完整请求体（调试用）
       if (params.isV4Model) {
         AppLogger.d(
-            'V4 use_coords: ${requestParameters['use_coords']}', 'ImgGen');
+          'V4 use_coords: ${requestParameters['use_coords']}',
+          'ImgGen',
+        );
         AppLogger.d(
           'V4 legacy_v3_extend: ${requestParameters['legacy_v3_extend']}',
           'ImgGen',
         );
         AppLogger.d(
-            'V4 legacy_uc: ${requestParameters['legacy_uc']}', 'ImgGen');
+          'V4 legacy_uc: ${requestParameters['legacy_uc']}',
+          'ImgGen',
+        );
         AppLogger.d(
-            'V4 v4_prompt: ${requestParameters['v4_prompt']}', 'ImgGen');
+          'V4 v4_prompt: ${requestParameters['v4_prompt']}',
+          'ImgGen',
+        );
         AppLogger.d(
           'V4 v4_negative_prompt: ${requestParameters['v4_negative_prompt']}',
           'ImgGen',
@@ -1079,7 +1085,9 @@ class NAIImageGenerationApiService {
                   imageBytes = Uint8List.fromList(base64Decode(imageData));
                 } catch (e) {
                   AppLogger.w(
-                      'Failed to decode base64 image data: $e', 'Stream');
+                    'Failed to decode base64 image data: $e',
+                    'Stream',
+                  );
                 }
               }
 

@@ -81,12 +81,12 @@ class _ModelRankRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: colorScheme.outlineVariant.withOpacity(0.2),
             ),

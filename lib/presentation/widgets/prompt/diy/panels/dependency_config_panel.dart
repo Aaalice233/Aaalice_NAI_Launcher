@@ -750,7 +750,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
 
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
           ),
           title: Row(
             children: [

@@ -12,11 +12,16 @@ import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 /// - insetShadowBlur: 阴影模糊范围
 ///
 /// 也可以通过参数手动覆盖这些值。
+///
+/// 设计理念：深度层叠风格
+/// - 小圆角（6px）
+/// - 无边框或极细边框
+/// - 用内阴影创造凹陷感
 class InsetShadowContainer extends StatelessWidget {
   /// 子组件
   final Widget child;
 
-  /// 容器圆角
+  /// 容器圆角（默认6px - 深度层叠风格）
   final double borderRadius;
 
   /// 内阴影深度（0.0-1.0），值越大阴影越明显
@@ -37,7 +42,7 @@ class InsetShadowContainer extends StatelessWidget {
   /// 边框颜色（如果为 null，使用主题的 outline）
   final Color? borderColor;
 
-  /// 边框宽度
+  /// 边框宽度（默认0.5px - 极细边框）
   final double borderWidth;
 
   /// 内边距
@@ -49,13 +54,13 @@ class InsetShadowContainer extends StatelessWidget {
   const InsetShadowContainer({
     super.key,
     required this.child,
-    this.borderRadius = 8.0,
+    this.borderRadius = 6.0,
     this.shadowDepth,
     this.shadowBlur,
     this.enabled,
     this.backgroundColor,
     this.borderColor,
-    this.borderWidth = 1.0,
+    this.borderWidth = 0.5,
     this.padding,
     this.hasError = false,
   });
@@ -77,10 +82,10 @@ class InsetShadowContainer extends StatelessWidget {
             ? Color.lerp(theme.colorScheme.surface, Colors.black, 0.3)!
             : Color.lerp(theme.colorScheme.surface, Colors.black, 0.02)!);
 
-    // 边框色 - 错误状态用红色
+    // 边框色 - 错误状态用红色，否则用极淡的边框
     final border = hasError
         ? theme.colorScheme.error
-        : (borderColor ?? theme.colorScheme.outline.withOpacity(0.2));
+        : (borderColor ?? theme.colorScheme.outline.withOpacity(0.1));
 
     // 如果禁用内阴影，直接返回简单容器
     if (!isEnabled) {
@@ -88,7 +93,9 @@ class InsetShadowContainer extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(color: border, width: borderWidth),
+          border: borderWidth > 0
+              ? Border.all(color: border, width: borderWidth)
+              : null,
         ),
         child: Padding(
           padding: padding ?? EdgeInsets.zero,
@@ -106,15 +113,19 @@ class InsetShadowContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: border, width: borderWidth),
+        border: borderWidth > 0
+            ? Border.all(color: border, width: borderWidth)
+            : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius - borderWidth),
+        borderRadius: BorderRadius.circular(
+          borderRadius - (borderWidth > 0 ? borderWidth : 0),
+        ),
         child: CustomPaint(
           foregroundPainter: _InsetShadowPainter(
             shadowColor: shadowColor,
             shadowBlur: blur,
-            borderRadius: borderRadius - borderWidth,
+            borderRadius: borderRadius - (borderWidth > 0 ? borderWidth : 0),
           ),
           child: Padding(
             padding: padding ?? EdgeInsets.zero,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../common/elevated_card.dart';
+import 'random_manager_widgets.dart';
 
 /// 预设对比视图组件
 ///
@@ -69,7 +70,7 @@ class _PresetCompareViewState extends ConsumerState<PresetCompareView> {
         height: 650,
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
               color: colorScheme.shadow.withOpacity(0.15),
@@ -262,9 +263,15 @@ class _PresetSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: DropdownButton<String>(
         value: preset.id,
@@ -306,67 +313,30 @@ class _StatisticsOverview extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          _StatItem(
+          StatItem(
             icon: Icons.category_outlined,
             label: '类别',
             value: '${preset.categories.length}',
             color: color,
+            layout: StatItemLayout.vertical,
+            expanded: true,
           ),
-          _StatItem(
+          StatItem(
             icon: Icons.layers_outlined,
             label: '词组',
             value:
                 '${preset.categories.fold<int>(0, (sum, c) => sum + c.groups.length)}',
             color: color,
+            layout: StatItemLayout.vertical,
+            expanded: true,
           ),
-          _StatItem(
+          StatItem(
             icon: Icons.tag,
             label: '标签',
             value: '${preset.totalTagCount}',
             color: color,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 统计项
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            layout: StatItemLayout.vertical,
+            expanded: true,
           ),
         ],
       ),
@@ -393,7 +363,7 @@ class _CategoryList extends StatelessWidget {
       elevation: CardElevation.level1,
       borderRadius: 10,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: preset.categories.length,
@@ -506,8 +476,8 @@ class _DifferenceSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

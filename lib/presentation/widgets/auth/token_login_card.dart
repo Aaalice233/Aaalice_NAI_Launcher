@@ -46,9 +46,9 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withOpacity(0.1),
         ),
       ),
       child: Padding(

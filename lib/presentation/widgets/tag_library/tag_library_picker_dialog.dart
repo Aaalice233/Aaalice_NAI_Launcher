@@ -36,7 +36,7 @@ class _TagLibraryPickerDialogState
     final state = ref.watch(tagLibraryPageNotifierProvider);
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: Container(
         width: 800,
         height: 600,

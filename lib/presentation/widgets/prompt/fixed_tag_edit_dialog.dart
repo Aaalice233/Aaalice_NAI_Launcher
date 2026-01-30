@@ -60,7 +60,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     final theme = Theme.of(context);
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 500,
@@ -296,7 +296,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                       color: _saveToLibrary
                           ? theme.colorScheme.primaryContainer.withOpacity(0.3)
                           : theme.colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: _saveToLibrary
                             ? theme.colorScheme.primary.withOpacity(0.4)

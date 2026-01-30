@@ -212,7 +212,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                                 .withOpacity(0.4)
                             : theme.colorScheme.primaryContainer
                                 .withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         state.hasFilters
@@ -422,7 +422,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
           data: Theme.of(context).copyWith(
             dialogTheme: DialogTheme(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -454,7 +454,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
           data: Theme.of(pickerContext).copyWith(
             dialogTheme: DialogTheme(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -611,7 +611,7 @@ class _ModernSearchFieldState extends State<_ModernSearchField>
         height: 38,
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: borderColor,
             width: _isFocused ? 1.8 : 1.2,
@@ -928,7 +928,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                   ),
                   decoration: BoxDecoration(
                     color: bgColor,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: borderColor,
                       width: _isHovered ? 1.4 : 1.0,

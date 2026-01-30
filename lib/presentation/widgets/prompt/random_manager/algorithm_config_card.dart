@@ -5,6 +5,7 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/algorithm_config.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../common/elevated_card.dart';
+import 'random_manager_widgets.dart';
 
 /// 算法配置卡片组件
 ///
@@ -37,14 +38,14 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
       elevation: CardElevation.level2,
       hoverElevation: CardElevation.level3,
       enableHoverEffect: false,
-      borderRadius: 14,
+      borderRadius: 8,
       gradientBorder: _isExpanded ? CardGradients.primary(colorScheme) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(14),
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +93,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
                   ],
                 )
               : null,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
         ),
         child: Row(
           children: [
@@ -214,7 +215,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           ),
         ),
         // 角色数量权重滑块
-        _SectionHeader(
+        SectionHeader(
           icon: Icons.people_outline,
           title: '角色数量权重',
           color: colorScheme.primary,
@@ -235,7 +236,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
         }),
         const SizedBox(height: 20),
         // 性别权重滑块
-        _SectionHeader(
+        SectionHeader(
           icon: Icons.wc_outlined,
           title: '性别权重',
           color: colorScheme.secondary,
@@ -267,7 +268,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
         ),
         const SizedBox(height: 20),
         // 全局设置
-        _SectionHeader(
+        SectionHeader(
           icon: Icons.settings_applications_outlined,
           title: '全局设置',
           color: colorScheme.tertiary,
@@ -447,21 +448,15 @@ class _CompactWeightCellState extends State<_CompactWeightCell> {
               : null,
           color: _isHovered ? null : colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _isHovered
-                ? widget.color.withOpacity(0.3)
-                : colorScheme.outlineVariant.withOpacity(0.3),
-            width: _isHovered ? 1.5 : 1,
-          ),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    color: widget.color.withOpacity(0.1),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow: [
+            BoxShadow(
+              color: _isHovered
+                  ? widget.color.withOpacity(0.15)
+                  : colorScheme.shadow.withOpacity(0.05),
+              blurRadius: _isHovered ? 8 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -618,15 +613,17 @@ class _SettingRowState extends State<_SettingRow> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _isHovered
-              ? colorScheme.surfaceContainerHigh
-              : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: _isHovered
-                ? colorScheme.outlineVariant.withOpacity(0.4)
-                : colorScheme.outlineVariant.withOpacity(0.2),
-          ),
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: _isHovered
+                  ? colorScheme.shadow.withOpacity(0.1)
+                  : colorScheme.shadow.withOpacity(0.05),
+              blurRadius: _isHovered ? 8 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -667,49 +664,6 @@ class _SettingRowState extends State<_SettingRow> {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// 章节标题组件
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.icon,
-    required this.title,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String title;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 }

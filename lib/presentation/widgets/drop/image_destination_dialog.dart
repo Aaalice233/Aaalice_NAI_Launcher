@@ -64,7 +64,7 @@ class ImageDestinationDialog extends StatelessWidget {
 
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
@@ -101,7 +101,7 @@ class ImageDestinationDialog extends StatelessWidget {
                     maxHeight: 200,
                   ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
@@ -111,7 +111,7 @@ class ImageDestinationDialog extends StatelessWidget {
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     child: Image.memory(
                       imageBytes,
                       fit: BoxFit.contain,
@@ -206,10 +206,10 @@ class _DestinationButton extends StatelessWidget {
       color: isPrimary
           ? theme.colorScheme.primaryContainer
           : theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,

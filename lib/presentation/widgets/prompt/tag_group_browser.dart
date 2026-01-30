@@ -227,7 +227,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
             vertical: 12,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide.none,
           ),
           filled: true,
@@ -311,14 +311,14 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _handleTagTap(suggestion.tag),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primary.withOpacity(0.15)
                 : theme.colorScheme.primaryContainer.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary.withOpacity(0.5)
@@ -387,7 +387,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
           color: theme.colorScheme.outline.withOpacity(0.1),
         ),
@@ -399,8 +399,8 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
           InkWell(
             onTap: () => _toggleCategory(category),
             borderRadius: BorderRadius.vertical(
-              top: const Radius.circular(12),
-              bottom: isExpanded ? Radius.zero : const Radius.circular(12),
+              top: const Radius.circular(8),
+              bottom: isExpanded ? Radius.zero : const Radius.circular(8),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -542,14 +542,14 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _handleTagTap(tagText),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primary.withOpacity(0.15)
                 : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary.withOpacity(0.5)

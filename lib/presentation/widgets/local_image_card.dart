@@ -220,7 +220,7 @@ class _LocalImageCardState extends State<LocalImageCard> {
                   const BoxConstraints(maxWidth: 1400, maxHeight: 1000),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.5),

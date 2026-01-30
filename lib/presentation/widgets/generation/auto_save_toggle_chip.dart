@@ -71,7 +71,7 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: _getBackgroundColor(theme, isEnabled),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: isEnabled
                     ? theme.colorScheme.primary.withOpacity(0.3)

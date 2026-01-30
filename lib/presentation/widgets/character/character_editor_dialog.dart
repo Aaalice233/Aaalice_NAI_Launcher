@@ -37,7 +37,7 @@ class CharacterEditorDialog extends ConsumerWidget {
     return Dialog(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: SizedBox(
         width: isDesktop ? 680 : double.infinity,

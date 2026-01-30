@@ -102,15 +102,10 @@ class _ChartCardState extends State<ChartCard> {
             ? (Matrix4.identity()..translate(0.0, -2.0))
             : Matrix4.identity(),
         decoration: BoxDecoration(
-          // Bento Box 风格：纯色背景
-          color: isDark ? colorScheme.surfaceContainerLow : colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          // 极简边框
-          border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
-            width: 1,
-          ),
-          // 柔和单层阴影
+          // 深度层叠风格：使用主题中明确定义的最亮容器色
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          // 多层阴影替代边框
           boxShadow: widget.elevated
               ? [
                   BoxShadow(
@@ -119,13 +114,17 @@ class _ChartCardState extends State<ChartCard> {
                     ),
                     blurRadius: _isHovered ? 16 : 12,
                     offset: Offset(0, _isHovered ? 6 : 4),
-                    spreadRadius: -2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(shadowIntensity * 0.5),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: widget.padding ?? EdgeInsets.all(isDesktop ? 22 : 18),
             child: Column(
@@ -135,14 +134,14 @@ class _ChartCardState extends State<ChartCard> {
                   Row(
                     children: [
                       if (widget.titleIcon != null) ...[
-                        // Bento 风格：简洁图标容器
+                        // 深度层叠风格：简洁图标容器
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: accentColor.withOpacity(
                               isDark ? 0.15 : 0.1,
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Icon(
                             widget.titleIcon,

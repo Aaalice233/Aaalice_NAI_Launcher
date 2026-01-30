@@ -164,23 +164,17 @@ class _SearchInputState extends State<_SearchInput> {
       decoration: BoxDecoration(
         color: _isFocused
             ? colorScheme.primaryContainer.withOpacity(0.2)
-            : colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: _isFocused
-              ? colorScheme.primary.withOpacity(0.5)
-              : colorScheme.outlineVariant.withOpacity(0.3),
-          width: _isFocused ? 1.5 : 1,
-        ),
-        boxShadow: _isFocused
-            ? [
-                BoxShadow(
-                  color: colorScheme.primary.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: _isFocused
+                ? colorScheme.primary.withOpacity(0.15)
+                : colorScheme.shadow.withOpacity(0.05),
+            blurRadius: _isFocused ? 8 : 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Focus(
         onFocusChange: (focused) => setState(() => _isFocused = focused),
@@ -364,11 +358,15 @@ class _FilterOptions extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.2),
-        ),
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,14 +489,23 @@ class _FilterChipState extends State<_FilterChip> {
                 ? colorScheme.primary.withOpacity(0.15)
                 : _isHovered
                     ? colorScheme.surfaceContainerHighest
-                    : colorScheme.surface,
+                    : colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.isSelected
-                  ? colorScheme.primary.withOpacity(0.5)
-                  : colorScheme.outlineVariant.withOpacity(0.3),
-              width: widget.isSelected ? 1.5 : 1,
-            ),
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: colorScheme.primary.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: colorScheme.shadow.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

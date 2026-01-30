@@ -95,7 +95,7 @@ class _CharacterEditDialogState extends ConsumerState<CharacterEditDialog> {
     return Dialog(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Container(
         width: 560,

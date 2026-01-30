@@ -100,21 +100,20 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        // Bento Box 风格：纯色背景
-        color: isDark ? colorScheme.surfaceContainerLow : colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        // 极简边框
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
-          width: 1,
-        ),
-        // 柔和单层阴影
+        // 深度层叠风格：使用主题中明确定义的最亮容器色
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        // 多层阴影替代边框
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
-            spreadRadius: -2,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -153,7 +152,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
                 ),
@@ -202,7 +201,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
                   : colorScheme.outline.withOpacity(0.15),
               width: 1,
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -294,7 +293,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             ),
           ),
           isDense: true,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           items: [
             DropdownMenuItem(
               value: '',
@@ -338,7 +337,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
               : colorScheme.outline.withOpacity(0.15),
           width: 1,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -350,7 +349,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage>
             ),
           ),
           isDense: true,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           items: [
             DropdownMenuItem(
               value: '',

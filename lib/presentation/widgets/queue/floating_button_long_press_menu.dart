@@ -48,7 +48,7 @@ class FloatingButtonLongPressMenu extends ConsumerWidget {
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

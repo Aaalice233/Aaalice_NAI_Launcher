@@ -64,7 +64,7 @@ class AccountDetailTile extends ConsumerWidget {
             theme.colorScheme.surfaceContainerHigh,
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           width: 1,
@@ -78,12 +78,12 @@ class AccountDetailTile extends ConsumerWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onEdit,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -127,7 +127,7 @@ class AccountDetailTile extends ConsumerWidget {
                       Container(
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
                           icon: Icon(
@@ -259,7 +259,7 @@ class AccountDetailTile extends ConsumerWidget {
             theme.colorScheme.surfaceContainerHigh,
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           width: 1,
@@ -273,12 +273,12 @@ class AccountDetailTile extends ConsumerWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onLogin,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
@@ -323,7 +323,7 @@ class AccountDetailTile extends ConsumerWidget {
                         vertical: 12,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),

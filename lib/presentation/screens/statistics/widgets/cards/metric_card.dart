@@ -51,15 +51,10 @@ class _MetricCardState extends State<MetricCard> {
             ? (Matrix4.identity()..translate(0.0, -2.0))
             : Matrix4.identity(),
         decoration: BoxDecoration(
-          // Bento Box 风格：纯色背景，无渐变
-          color: isDark ? colorScheme.surfaceContainerLow : colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          // 极简边框
-          border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(isDark ? 0.08 : 0.1),
-            width: 1,
-          ),
-          // 柔和单层阴影
+          // 深度层叠风格：使用主题中明确定义的最亮容器色
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          // 多层阴影替代边框
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(
@@ -67,7 +62,11 @@ class _MetricCardState extends State<MetricCard> {
               ),
               blurRadius: _isHovered ? 16 : 12,
               offset: Offset(0, _isHovered ? 6 : 4),
-              spreadRadius: -2,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(shadowIntensity * 0.5),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -75,7 +74,7 @@ class _MetricCardState extends State<MetricCard> {
           color: Colors.transparent,
           child: InkWell(
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(8),
             splashColor: effectiveIconColor.withOpacity(0.08),
             highlightColor: effectiveIconColor.withOpacity(0.04),
             child: Padding(
@@ -86,14 +85,14 @@ class _MetricCardState extends State<MetricCard> {
                   // Header row: icon + label
                   Row(
                     children: [
-                      // Bento 风格：简洁图标容器
+                      // 深度层叠风格：简洁图标容器
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: effectiveIconColor.withOpacity(
                             isDark ? 0.15 : 0.1,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Icon(
                           widget.icon,
@@ -229,7 +228,7 @@ class TrendIndicator extends StatelessWidget {
             secondaryColor.withOpacity(isDark ? 0.1 : 0.06),
           ],
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: primaryColor.withOpacity(0.2),
           width: 1,

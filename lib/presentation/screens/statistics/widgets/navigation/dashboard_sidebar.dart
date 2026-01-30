@@ -166,7 +166,7 @@ class _DashboardNavTileState extends State<_DashboardNavTile> {
             : colorScheme.onSurfaceVariant;
 
     // 获取边框圆角
-    final borderRadius = BorderRadius.circular(12);
+    final borderRadius = BorderRadius.circular(6);
 
     // 计算尺寸
     final tileHeight = widget.isCompact ? 44.0 : 48.0;

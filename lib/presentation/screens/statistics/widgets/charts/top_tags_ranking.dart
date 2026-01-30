@@ -155,7 +155,7 @@ class _TagRankRow extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: rankColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: rankColor.withOpacity(0.3),
                     ),

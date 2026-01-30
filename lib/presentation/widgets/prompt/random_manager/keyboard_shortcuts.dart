@@ -142,7 +142,7 @@ class ShortcutHelpDialog extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(6),
           boxShadow: [
             BoxShadow(
               color: colorScheme.shadow.withOpacity(0.15),
@@ -309,13 +309,10 @@ class _KeyBadge extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
-                ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.05),
-                    blurRadius: 2,
+                    color: colorScheme.shadow.withOpacity(0.08),
+                    blurRadius: 3,
                     offset: const Offset(0, 1),
                   ),
                 ],

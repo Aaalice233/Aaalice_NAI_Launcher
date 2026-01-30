@@ -148,7 +148,7 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
       backgroundColor: theme.colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Container(
         width: 400,

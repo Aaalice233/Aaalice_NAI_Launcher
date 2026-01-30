@@ -206,7 +206,7 @@ class TagCloudWidget extends StatelessWidget {
   ) {
     return InkWell(
       onTap: () => onTagTap?.call(tag),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(6),
       child: Chip(
         label: Text(
           tag.tagName,

@@ -377,11 +377,15 @@ class _BatchOperations extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.2),
-        ),
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Wrap(
         spacing: 12,
@@ -449,12 +453,18 @@ class _BatchOperationButtonState extends State<_BatchOperationButton> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: _isHovered && isEnabled
-                ? effectiveColor.withOpacity(0.12)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: effectiveColor.withOpacity(isEnabled ? 0.4 : 0.2),
-            ),
+                ? effectiveColor.withOpacity(0.15)
+                : effectiveColor.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: _isHovered && isEnabled
+                ? [
+                    BoxShadow(
+                      color: effectiveColor.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

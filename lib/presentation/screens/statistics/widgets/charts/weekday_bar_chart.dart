@@ -300,7 +300,7 @@ class _DaySummaryCardState extends State<_DaySummaryCard> {
               widget.secondaryColor.withOpacity(isDark ? 0.1 : 0.06),
             ],
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: widget.color.withOpacity(_isHovered ? 0.4 : 0.2),
             width: _isHovered ? 1.5 : 1,

@@ -9,6 +9,7 @@ import 'category_card.dart';
 import 'search_filter_bar.dart';
 import 'keyboard_shortcuts.dart';
 import 'preview_generator_panel.dart';
+import 'random_manager_widgets.dart';
 
 /// 随机词库管理器 - 仪表盘布局
 ///
@@ -74,13 +75,19 @@ class _RandomLibraryManagerState extends ConsumerState<RandomLibraryManager> {
             width: 1280,
             height: 820,
             decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.2),
-                width: 1,
-              ),
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
               boxShadow: [
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
                   blurRadius: 40,
@@ -90,12 +97,15 @@ class _RandomLibraryManagerState extends ConsumerState<RandomLibraryManager> {
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Title Bar
-                _TitleBar(
+                DialogTitleBar(
                   title: l10n.config_title,
                   onClose: () => Navigator.of(context).pop(),
                 ),
+                // 预设选择栏 - 独立于内容区，直接在对话框顶层
+                const PresetSelectorBar(),
                 // Dashboard Content
                 Expanded(
                   child: Row(
@@ -125,7 +135,7 @@ class _RandomLibraryManagerState extends ConsumerState<RandomLibraryManager> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainerLow,
+                                  color: colorScheme.surfaceContainerHighest,
                                   border: Border(
                                     bottom: BorderSide(
                                       color: colorScheme.outlineVariant
@@ -192,12 +202,10 @@ class _DashboardContent extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      color: colorScheme.surfaceContainerLow,
+      color: colorScheme.surfaceContainerHighest,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 预设选择栏
-          const PresetSelectorBar(),
-
           // 搜索筛选栏
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -251,22 +259,27 @@ class _AlgorithmSection extends StatelessWidget {
         final isWide = constraints.maxWidth > 800;
 
         if (isWide) {
-          // 宽屏: 左右布局
-          return const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 左侧: 算法配置卡片
-              Expanded(
-                flex: 3,
-                child: AlgorithmConfigCard(),
-              ),
-              SizedBox(width: 16),
-              // 右侧: 概率分布图表
-              Expanded(
-                flex: 2,
-                child: _ProbabilitySection(),
-              ),
-            ],
+          // 宽屏: 左右布局 - 使用 ConstrainedBox 限制右侧高度
+          return ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 400),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 左侧: 算法配置卡片
+                Expanded(
+                  flex: 3,
+                  child: AlgorithmConfigCard(),
+                ),
+                SizedBox(width: 16),
+                // 右侧: 概率分布图表
+                Expanded(
+                  flex: 2,
+                  child: SingleChildScrollView(
+                    child: ProbabilitySection(),
+                  ),
+                ),
+              ],
+            ),
           );
         } else {
           // 窄屏: 上下布局
@@ -274,150 +287,11 @@ class _AlgorithmSection extends StatelessWidget {
             children: [
               AlgorithmConfigCard(),
               SizedBox(height: 16),
-              _ProbabilitySection(),
+              ProbabilitySection(),
             ],
           );
         }
       },
-    );
-  }
-}
-
-/// 概率分布区域
-class _ProbabilitySection extends StatelessWidget {
-  const _ProbabilitySection();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        // 实心渐变背景 - 有层次感
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.surfaceContainerHighest,
-            colorScheme.surfaceContainerHigh,
-            colorScheme.surfaceContainer,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.15),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 标题 - 更有层次的设计
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  colorScheme.primary.withOpacity(0.15),
-                  colorScheme.primary.withOpacity(0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    Icons.bar_chart_rounded,
-                    size: 16,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  '概率分布预览',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 角色数量分布图 - 移除高度限制
-          const ProbabilityChart(),
-
-          const SizedBox(height: 12),
-
-          // 性别分布图
-          const GenderDistributionChart(),
-        ],
-      ),
-    );
-  }
-}
-
-class _TitleBar extends StatelessWidget {
-  const _TitleBar({
-    required this.title,
-    required this.onClose,
-  });
-
-  final String title;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      height: 38.0,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.2),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: onClose,
-            iconSize: 18,
-            splashRadius: 20,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-        ],
-      ),
     );
   }
 }

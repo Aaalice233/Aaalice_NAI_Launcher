@@ -282,17 +282,19 @@ class HistoryDropdown<T> extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
           BoxShadow(
             color: colorScheme.shadow.withOpacity(0.15),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.2),
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -301,9 +303,9 @@ class HistoryDropdown<T> extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLow,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+                top: Radius.circular(8),
               ),
             ),
             child: Row(

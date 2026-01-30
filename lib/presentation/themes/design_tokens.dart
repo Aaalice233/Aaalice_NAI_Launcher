@@ -69,20 +69,20 @@ abstract class DesignTokens {
   static const double glassBorderOpacity = 0.2;
 
   // ============================================
-  // 圆角常量 (Border Radius)
+  // 圆角常量 (Border Radius) - 深度层叠风格：小圆角
   // ============================================
 
-  /// 小圆角 - 8px
-  static const double radiusSm = 8.0;
+  /// 小圆角 - 4px
+  static const double radiusSm = 4.0;
 
-  /// 中圆角 - 12px
-  static const double radiusMd = 12.0;
+  /// 中圆角 - 6px
+  static const double radiusMd = 6.0;
 
-  /// 大圆角 - 16px
-  static const double radiusLg = 16.0;
+  /// 大圆角 - 8px
+  static const double radiusLg = 8.0;
 
-  /// 超大圆角 - 24px
-  static const double radiusXl = 24.0;
+  /// 超大圆角 - 12px
+  static const double radiusXl = 12.0;
 
   // ============================================
   // 图标大小常量 (Icon Sizes)

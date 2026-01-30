@@ -103,26 +103,35 @@ class _EntryCardState extends State<EntryCard> {
             duration: const Duration(milliseconds: 150),
             margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _isHovering
-                    ? theme.colorScheme.primary.withOpacity(0.5)
-                    : theme.colorScheme.outlineVariant.withOpacity(0.2),
-                width: 1.5,
-              ),
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+              // 深度层叠风格：多层阴影替代边框
               boxShadow: _isHovering
                   ? [
                       BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.15),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                        spreadRadius: 2,
+                        color: theme.colorScheme.primary.withOpacity(0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
                       ),
                     ]
                   : [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -182,18 +191,14 @@ class _EntryCardState extends State<EntryCard> {
   Widget _buildDragFeedback(ThemeData theme, TagLibraryEntry entry) {
     return Material(
       elevation: 12,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       color: theme.colorScheme.surfaceContainerHigh,
       shadowColor: Colors.black54,
       child: Container(
         width: 200,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.primary.withOpacity(0.5),
-            width: 2,
-          ),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -279,7 +284,7 @@ class _EntryCardState extends State<EntryCard> {
       children: [
         // 背景
         ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
           child: entry.hasThumbnail
               ? Image.file(
                   File(entry.thumbnail!),
@@ -295,7 +300,7 @@ class _EntryCardState extends State<EntryCard> {
           Positioned.fill(
             child: ClipRRect(
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(11)),
+                  const BorderRadius.vertical(top: Radius.circular(7)),
               child: Container(
                 color: Colors.black.withOpacity(0.3),
                 child: Center(
@@ -538,7 +543,7 @@ class _EntryPreviewOverlay extends StatelessWidget {
           onExit: (_) => onDismiss(),
           child: Material(
             elevation: 8,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             color: theme.colorScheme.surfaceContainerHigh,
             child: Container(
               width: previewWidth,
@@ -552,7 +557,7 @@ class _EntryPreviewOverlay extends StatelessWidget {
                     if (entry.hasThumbnail)
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
+                          top: Radius.circular(8),
                         ),
                         child: Image.file(
                           File(entry.thumbnail!),

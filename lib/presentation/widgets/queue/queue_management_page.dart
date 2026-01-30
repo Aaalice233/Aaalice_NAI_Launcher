@@ -249,7 +249,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: theme.colorScheme.primaryContainer.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               l10n.queue_selectedCount(queueState.selectedCount),
@@ -573,5 +573,4 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           .deleteSelected();
     }
   }
-
 }

@@ -84,19 +84,19 @@ class _AlgorithmSection extends StatelessWidget {
 
         if (isWide) {
           // 宽屏: 左右布局
-          return Row(
+          return const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 左侧: 算法配置卡片
-              const Expanded(
+              Expanded(
                 flex: 3,
                 child: AlgorithmConfigCard(),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               // 右侧: 概率分布图表
-              const Expanded(
+              Expanded(
                 flex: 2,
-                child: _ProbabilitySection(),
+                child: ProbabilitySection(),
               ),
             ],
           );
@@ -106,81 +106,11 @@ class _AlgorithmSection extends StatelessWidget {
             children: [
               AlgorithmConfigCard(),
               SizedBox(height: 16),
-              _ProbabilitySection(),
+              ProbabilitySection(),
             ],
           );
         }
       },
-    );
-  }
-}
-
-/// 概率分布区域
-class _ProbabilitySection extends StatelessWidget {
-  const _ProbabilitySection();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题
-          Row(
-            children: [
-              Icon(
-                Icons.bar_chart_rounded,
-                size: 18,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '概率分布预览',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // 角色数量分布图
-          Text(
-            '角色数量分布',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const SizedBox(
-            height: 80,
-            child: ProbabilityChart(),
-          ),
-
-          const SizedBox(height: 16),
-
-          // 性别分布图
-          Text(
-            '性别分布',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const GenderDistributionChart(),
-        ],
-      ),
     );
   }
 }

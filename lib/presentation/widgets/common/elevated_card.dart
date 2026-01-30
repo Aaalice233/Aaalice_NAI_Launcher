@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/themes/utils/layered_surfaces.dart';
+import 'package:nai_launcher/presentation/themes/utils/subtle_borders.dart';
 
 /// 层叠卡片层级枚举
 enum CardElevation {
@@ -27,12 +29,13 @@ class ElevatedCard extends StatefulWidget {
     this.enableHoverEffect = true,
     this.hoverTranslateY = -4.0,
     this.hoverScale = 1.0,
-    this.borderRadius = 12.0,
+    this.borderRadius = 6.0,
     this.padding,
     this.margin,
     this.backgroundColor,
     this.gradientBorder,
     this.gradientBorderWidth = 1.5,
+    this.enableSubtleBorder = false,
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
@@ -75,6 +78,9 @@ class ElevatedCard extends StatefulWidget {
 
   /// 渐变边框宽度
   final double gradientBorderWidth;
+
+  /// 是否启用微光边框（默认启用）
+  final bool enableSubtleBorder;
 
   /// 点击回调
   final VoidCallback? onTap;
@@ -119,68 +125,99 @@ class _ElevatedCardState extends State<ElevatedCard> {
   }
 
   List<BoxShadow> _getShadows(ColorScheme colorScheme) {
-    final shadowColor = colorScheme.shadow;
+    final isDark = colorScheme.brightness == Brightness.dark;
+    // 暗色主题阴影透明度提升约 50%
+    final baseOpacity = isDark ? 1.5 : 1.0;
+
     switch (_currentElevation) {
       case CardElevation.level1:
+        // Level 1: 轻微层叠（2层阴影）
         return [
           BoxShadow(
-            color: shadowColor.withOpacity(0.08),
+            color: Colors.black.withOpacity(0.04 * baseOpacity),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06 * baseOpacity),
             blurRadius: 4,
+            spreadRadius: -0.5,
             offset: const Offset(0, 2),
           ),
         ];
       case CardElevation.level2:
+        // Level 2: 标准层叠（3层阴影）
         return [
           BoxShadow(
-            color: shadowColor.withOpacity(0.06),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04 * baseOpacity),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
           BoxShadow(
-            color: shadowColor.withOpacity(0.12),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.08 * baseOpacity),
+            blurRadius: 6,
+            spreadRadius: -1,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12 * baseOpacity),
+            blurRadius: 12,
+            spreadRadius: -2,
+            offset: const Offset(0, 6),
           ),
         ];
       case CardElevation.level3:
+        // Level 3: 明显层叠（4层阴影）
         return [
           BoxShadow(
-            color: shadowColor.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.04 * baseOpacity),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
           BoxShadow(
-            color: shadowColor.withOpacity(0.08),
+            color: Colors.black.withOpacity(0.08 * baseOpacity),
             blurRadius: 8,
+            spreadRadius: -1,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: shadowColor.withOpacity(0.16),
+            color: Colors.black.withOpacity(0.12 * baseOpacity),
             blurRadius: 16,
+            spreadRadius: -2,
             offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.16 * baseOpacity),
+            blurRadius: 24,
+            spreadRadius: -3,
+            offset: const Offset(0, 12),
           ),
         ];
       case CardElevation.level4:
+        // Level 4: 极致层叠（4层阴影，更强）
         return [
           BoxShadow(
-            color: shadowColor.withOpacity(0.06),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.06 * baseOpacity),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
           BoxShadow(
-            color: shadowColor.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.10 * baseOpacity),
+            blurRadius: 12,
+            spreadRadius: -1,
+            offset: const Offset(0, 6),
           ),
           BoxShadow(
-            color: shadowColor.withOpacity(0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: shadowColor.withOpacity(0.20),
-            blurRadius: 24,
+            color: Colors.black.withOpacity(0.14 * baseOpacity),
+            blurRadius: 20,
+            spreadRadius: -2,
             offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.20 * baseOpacity),
+            blurRadius: 32,
+            spreadRadius: -4,
+            offset: const Offset(0, 18),
           ),
         ];
     }
@@ -196,8 +233,22 @@ class _ElevatedCardState extends State<ElevatedCard> {
     final scale =
         _isHovered && widget.enableHoverEffect ? widget.hoverScale : 1.0;
 
-    final backgroundColor =
-        widget.backgroundColor ?? colorScheme.surfaceContainerLow;
+    // 使用层次化背景色系统：卡片比页面亮 10%
+    final baseBackgroundColor =
+        widget.backgroundColor ?? LayeredSurfaces.cardBackground(colorScheme);
+    // 悬停时背景再提亮
+    final backgroundColor = _isHovered && widget.enableHoverEffect
+        ? LayeredSurfaces.brighten(
+            baseBackgroundColor,
+            colorScheme.brightness == Brightness.dark ? 5 : 2,
+          )
+        : baseBackgroundColor;
+
+    // 边框逻辑：优先渐变边框，其次微光边框，否则无边框
+    BoxBorder? border;
+    if (widget.gradientBorder == null && widget.enableSubtleBorder) {
+      border = SubtleBorders.auto(colorScheme);
+    }
 
     Widget card = AnimatedContainer(
       duration: widget.animationDuration,
@@ -211,18 +262,14 @@ class _ElevatedCardState extends State<ElevatedCard> {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(widget.borderRadius),
         boxShadow: _getShadows(colorScheme),
-        border: widget.gradientBorder == null
-            ? Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
-                width: 1,
-              )
-            : null,
+        border: border,
       ),
       child: widget.gradientBorder != null
           ? _GradientBorderWrapper(
               gradient: widget.gradientBorder!,
               borderRadius: widget.borderRadius,
               borderWidth: widget.gradientBorderWidth,
+              backgroundColor: backgroundColor,
               child: _buildContent(),
             )
           : _buildContent(),
@@ -272,12 +319,14 @@ class _GradientBorderWrapper extends StatelessWidget {
     required this.gradient,
     required this.borderRadius,
     required this.borderWidth,
+    required this.backgroundColor,
     required this.child,
   });
 
   final Gradient gradient;
   final double borderRadius;
   final double borderWidth;
+  final Color backgroundColor;
   final Widget child;
 
   @override
@@ -290,7 +339,7 @@ class _GradientBorderWrapper extends StatelessWidget {
       child: Container(
         margin: EdgeInsets.all(borderWidth),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(borderRadius - borderWidth),
         ),
         child: child,

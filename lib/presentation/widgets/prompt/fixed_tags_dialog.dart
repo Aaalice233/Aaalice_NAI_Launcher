@@ -36,9 +36,9 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
@@ -51,7 +51,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
               color: isDark
                   ? theme.colorScheme.surface.withOpacity(0.85)
                   : theme.colorScheme.surface.withOpacity(0.92),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isDark
                     ? Colors.white.withOpacity(0.08)
@@ -653,7 +653,7 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
     final filtered = _filteredEntries;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 420,

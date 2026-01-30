@@ -7,6 +7,7 @@ import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 
 import '../common/app_toast.dart';
+
 /// 账号头像下拉菜单组件（Google 风格）
 class AccountAvatarDropdown extends ConsumerWidget {
   /// 选择账号时的回调
@@ -45,9 +46,9 @@ class AccountAvatarDropdown extends ConsumerWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withOpacity(0.1),
         ),
       ),
       child: Padding(

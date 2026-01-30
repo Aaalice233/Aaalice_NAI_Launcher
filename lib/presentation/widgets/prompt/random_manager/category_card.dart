@@ -6,6 +6,7 @@ import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/tag_scope.dart';
 import '../../common/elevated_card.dart';
 import 'tag_group_card.dart';
+import 'random_manager_widgets.dart';
 
 /// 类别卡片组件
 ///
@@ -42,7 +43,7 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
       hoverElevation: CardElevation.level2,
       enableHoverEffect: true,
       hoverTranslateY: -3,
-      borderRadius: 14,
+      borderRadius: 8,
       gradientBorder: _isExpanded
           ? LinearGradient(
               begin: Alignment.topLeft,
@@ -113,7 +114,7 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
             children: [
               // 概率进度条
               Expanded(
-                child: _ProbabilityBar(
+                child: ProbabilityBar(
                   probability: category.probability,
                   enabled: category.enabled,
                 ),
@@ -237,11 +238,15 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.3),
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -374,11 +379,10 @@ class _ScopeTag extends StatelessWidget {
             color.withOpacity(0.1),
           ],
         ),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.4)),
+        borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
+            color: color.withOpacity(0.2),
             blurRadius: 6,
             spreadRadius: -1,
           ),
@@ -399,87 +403,6 @@ class _ScopeTag extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// 概率进度条组件 - 渐变填充版
-class _ProbabilityBar extends StatelessWidget {
-  const _ProbabilityBar({
-    required this.probability,
-    required this.enabled,
-  });
-
-  final double probability;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final primaryColor =
-        enabled ? colorScheme.primary : colorScheme.onSurfaceVariant;
-    final secondaryColor =
-        enabled ? colorScheme.secondary : colorScheme.onSurfaceVariant;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: probability,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: enabled
-                        ? [
-                            primaryColor.withOpacity(0.9),
-                            secondaryColor.withOpacity(0.7),
-                          ]
-                        : [
-                            primaryColor.withOpacity(0.4),
-                            secondaryColor.withOpacity(0.3),
-                          ],
-                  ),
-                  borderRadius: BorderRadius.circular(3),
-                  boxShadow: enabled
-                      ? [
-                          BoxShadow(
-                            color: primaryColor.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            '${(probability * 100).toInt()}%',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: primaryColor.withOpacity(enabled ? 1.0 : 0.6),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -510,7 +433,7 @@ class CategoryCardGrid extends ConsumerWidget {
     return ElevatedCard(
       elevation: CardElevation.level1,
       enableHoverEffect: false,
-      borderRadius: 16,
+      borderRadius: 8,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -684,7 +607,7 @@ class _EmptyCategoryPlaceholder extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(

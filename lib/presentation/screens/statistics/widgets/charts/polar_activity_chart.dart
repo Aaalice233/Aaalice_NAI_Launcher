@@ -349,7 +349,7 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
                     secondaryColor.withOpacity(isDark ? 0.15 : 0.08),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: primaryColor.withOpacity(_isHovered ? 0.5 : 0.3),
                   width: _isHovered ? 1.5 : 1,
@@ -370,7 +370,7 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: primaryColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
                       boxShadow: [
                         BoxShadow(
                           color: primaryColor.withOpacity(0.3),

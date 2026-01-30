@@ -169,7 +169,7 @@ class ThemedConfirmDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: theme.colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
       ),
       title: Row(
         children: [

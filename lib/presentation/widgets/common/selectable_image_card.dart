@@ -629,7 +629,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: Colors.white.withOpacity(0.1),
             width: 1,

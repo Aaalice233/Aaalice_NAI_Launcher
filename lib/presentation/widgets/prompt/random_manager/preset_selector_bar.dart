@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../../../data/models/prompt/random_preset.dart';
-import '../../common/elevated_card.dart';
 import '../../common/app_toast.dart';
+import 'random_manager_widgets.dart';
 
 /// 预设选择栏组件
 ///
@@ -26,101 +26,120 @@ class PresetSelectorBar extends ConsumerWidget {
     final presetState = ref.watch(randomPresetNotifierProvider);
     final selectedPreset = presetState.selectedPreset;
     final syncState = ref.watch(tagGroupSyncNotifierProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return ElevatedCard(
-      elevation: CardElevation.level3,
-      enableHoverEffect: false,
-      borderRadius: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // 响应式布局：窄屏时垂直排列
-          final isNarrow = constraints.maxWidth < 600;
+    // 方案: 微妙深色工具栏 - 比内容区稍深，有独立背景色
+    // 背景色填充整个区域，内部 padding 不会显示为间隔
+    return Container(
+      decoration: BoxDecoration(
+        // 稍深的背景色，与内容区形成微妙对比
+        color: Color.alphaBlend(
+          Colors.black.withOpacity(0.15),
+          colorScheme.surfaceContainerHighest,
+        ),
+        // 底部分隔线
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withOpacity(0.25),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // 响应式布局：窄屏时垂直排列
+            final isNarrow = constraints.maxWidth < 600;
 
-          if (isNarrow) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            if (isNarrow) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 预设选择下拉框
+                  _PresetDropdown(
+                    presets: presetState.presets,
+                    selectedPreset: selectedPreset,
+                    onSelected: (preset) {
+                      ref
+                          .read(randomPresetNotifierProvider.notifier)
+                          .selectPreset(preset.id);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // 统计信息 + 操作按钮
+                  Row(
+                    children: [
+                      if (selectedPreset != null)
+                        Expanded(
+                          child: _StatisticsInfo(preset: selectedPreset),
+                        ),
+                      _ActionButtons(
+                        onCreateNaiV4: () => _createNaiV4Preset(context, ref),
+                        onCopy: selectedPreset != null
+                            ? () => _copyPreset(context, ref, selectedPreset)
+                            : null,
+                        onDelete: selectedPreset != null &&
+                                !selectedPreset.isDefault
+                            ? () => _deletePreset(context, ref, selectedPreset)
+                            : null,
+                        onGeneratePreview: onGeneratePreview,
+                        onImportExport: onImportExport,
+                        onSync: () => _syncDanbooru(context, ref),
+                        isSyncing: syncState.isSyncing,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            // 宽屏布局：横向排列，带分隔线
+            return Row(
               children: [
                 // 预设选择下拉框
-                _PresetDropdown(
-                  presets: presetState.presets,
-                  selectedPreset: selectedPreset,
-                  onSelected: (preset) {
-                    ref
-                        .read(randomPresetNotifierProvider.notifier)
-                        .selectPreset(preset.id);
-                  },
+                Flexible(
+                  flex: 2,
+                  child: _PresetDropdown(
+                    presets: presetState.presets,
+                    selectedPreset: selectedPreset,
+                    onSelected: (preset) {
+                      ref
+                          .read(randomPresetNotifierProvider.notifier)
+                          .selectPreset(preset.id);
+                    },
+                  ),
                 ),
-                const SizedBox(height: 12),
-                // 统计信息 + 操作按钮
-                Row(
-                  children: [
-                    if (selectedPreset != null)
-                      Expanded(
-                        child: _StatisticsInfo(preset: selectedPreset),
-                      ),
-                    _ActionButtons(
-                      onCreateNaiV4: () => _createNaiV4Preset(context, ref),
-                      onCopy: selectedPreset != null
-                          ? () => _copyPreset(context, ref, selectedPreset)
-                          : null,
-                      onDelete: selectedPreset != null &&
-                              !selectedPreset.isDefault
-                          ? () => _deletePreset(context, ref, selectedPreset)
-                          : null,
-                      onGeneratePreview: onGeneratePreview,
-                      onImportExport: onImportExport,
-                      onSync: () => _syncDanbooru(context, ref),
-                      isSyncing: syncState.isSyncing,
-                    ),
-                  ],
+                // 垂直分隔线
+                _VerticalDivider(color: colorScheme.primary),
+                // 统计信息
+                if (selectedPreset != null)
+                  Flexible(
+                    flex: 3,
+                    child: _StatisticsInfo(preset: selectedPreset),
+                  ),
+                // 垂直分隔线
+                _VerticalDivider(color: colorScheme.secondary),
+                // 操作按钮组
+                _ActionButtons(
+                  onCreateNaiV4: () => _createNaiV4Preset(context, ref),
+                  onCopy: selectedPreset != null
+                      ? () => _copyPreset(context, ref, selectedPreset)
+                      : null,
+                  onDelete: selectedPreset != null && !selectedPreset.isDefault
+                      ? () => _deletePreset(context, ref, selectedPreset)
+                      : null,
+                  onGeneratePreview: onGeneratePreview,
+                  onImportExport: onImportExport,
+                  onSync: () => _syncDanbooru(context, ref),
+                  isSyncing: syncState.isSyncing,
                 ),
               ],
             );
-          }
-
-          // 宽屏布局：横向排列
-          return Row(
-            children: [
-              // 预设选择下拉框
-              Flexible(
-                flex: 2,
-                child: _PresetDropdown(
-                  presets: presetState.presets,
-                  selectedPreset: selectedPreset,
-                  onSelected: (preset) {
-                    ref
-                        .read(randomPresetNotifierProvider.notifier)
-                        .selectPreset(preset.id);
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              // 统计信息
-              if (selectedPreset != null)
-                Flexible(
-                  flex: 3,
-                  child: _StatisticsInfo(preset: selectedPreset),
-                ),
-              const SizedBox(width: 16),
-              // 操作按钮组
-              _ActionButtons(
-                onCreateNaiV4: () => _createNaiV4Preset(context, ref),
-                onCopy: selectedPreset != null
-                    ? () => _copyPreset(context, ref, selectedPreset)
-                    : null,
-                onDelete: selectedPreset != null && !selectedPreset.isDefault
-                    ? () => _deletePreset(context, ref, selectedPreset)
-                    : null,
-                onGeneratePreview: onGeneratePreview,
-                onImportExport: onImportExport,
-                onSync: () => _syncDanbooru(context, ref),
-                isSyncing: syncState.isSyncing,
-              ),
-            ],
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -146,7 +165,10 @@ class PresetSelectorBar extends ConsumerWidget {
   }
 
   Future<void> _copyPreset(
-      BuildContext context, WidgetRef ref, RandomPreset preset,) async {
+    BuildContext context,
+    WidgetRef ref,
+    RandomPreset preset,
+  ) async {
     final name = await _showNameDialog(context, '复制预设', '${preset.name} - 副本');
     if (name == null || name.isEmpty) return;
 
@@ -156,7 +178,10 @@ class PresetSelectorBar extends ConsumerWidget {
   }
 
   Future<void> _deletePreset(
-      BuildContext context, WidgetRef ref, RandomPreset preset,) async {
+    BuildContext context,
+    WidgetRef ref,
+    RandomPreset preset,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -198,7 +223,10 @@ class PresetSelectorBar extends ConsumerWidget {
   }
 
   Future<String?> _showNameDialog(
-      BuildContext context, String title, String initialValue,) async {
+    BuildContext context,
+    String title,
+    String initialValue,
+  ) async {
     final controller = TextEditingController(text: initialValue);
     return showDialog<String>(
       context: context,
@@ -246,9 +274,15 @@ class _PresetDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: DropdownButton<String>(
         value: selectedPreset?.id,
@@ -311,17 +345,20 @@ class _StatisticsInfo extends StatelessWidget {
             colorScheme.surfaceContainerHighest.withOpacity(0.6),
           ],
         ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.primary.withOpacity(0.15),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withOpacity(0.1),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           Flexible(
-            child: _StatItem(
+            child: StatItem(
               icon: Icons.category_outlined,
               label: '类别',
               value: '${preset.categoryCount}',
@@ -330,7 +367,7 @@ class _StatisticsInfo extends StatelessWidget {
           ),
           _GradientDivider(color: colorScheme.primary),
           Flexible(
-            child: _StatItem(
+            child: StatItem(
               icon: Icons.layers_outlined,
               label: '词组',
               value:
@@ -340,7 +377,7 @@ class _StatisticsInfo extends StatelessWidget {
           ),
           _GradientDivider(color: colorScheme.secondary),
           Flexible(
-            child: _StatItem(
+            child: StatItem(
               icon: Icons.label_outlined,
               label: '标签',
               value: '${preset.totalTagCount}',
@@ -381,42 +418,29 @@ class _GradientDivider extends StatelessWidget {
   }
 }
 
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+/// 垂直分隔线组件
+class _VerticalDivider extends StatelessWidget {
+  const _VerticalDivider({required this.color});
 
-  final IconData icon;
-  final String label;
-  final String value;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 4),
-        Text(
-          '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      width: 1,
+      height: 28,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withOpacity(0),
+            color.withOpacity(0.4),
+            color.withOpacity(0),
+          ],
         ),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -567,19 +591,14 @@ class _SyncButtonState extends State<_SyncButton>
                         syncColor.withOpacity(0.04),
                       ],
               ),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: syncColor.withOpacity(_isHovered ? 0.5 : 0.3),
-              ),
-              boxShadow: _isHovered && !widget.isSyncing
-                  ? [
-                      BoxShadow(
-                        color: syncColor.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                BoxShadow(
+                  color: syncColor.withOpacity(_isHovered ? 0.25 : 0.15),
+                  blurRadius: _isHovered ? 8 : 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -660,7 +679,7 @@ class _ActionButtonState extends State<_ActionButton> {
               color: _isHovered && isEnabled
                   ? effectiveColor.withOpacity(0.12)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(6),
               boxShadow: _isHovered && isEnabled
                   ? [
                       BoxShadow(

@@ -46,7 +46,7 @@ class SectionContainer extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: colorScheme.primaryContainer.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
                   icon,

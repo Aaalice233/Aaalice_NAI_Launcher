@@ -164,7 +164,7 @@ class _DraggableItemState<T> extends State<_DraggableItem<T>> {
     final targetIndicator = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: widget.isTarget ? colorScheme.primary : Colors.transparent,
           width: 2,

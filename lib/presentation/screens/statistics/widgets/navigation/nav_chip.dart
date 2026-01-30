@@ -96,7 +96,7 @@ class _NavChipState extends State<NavChip> with SingleTickerProviderStateMixin {
                     : _isHovered
                         ? colorScheme.surfaceContainerHighest
                         : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: widget.isActive
                       ? colorScheme.primary

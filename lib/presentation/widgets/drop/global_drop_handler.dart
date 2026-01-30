@@ -82,7 +82,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
               ),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: theme.colorScheme.primary,
                   width: 2,

@@ -9,6 +9,7 @@ import '../diy/panels/visibility_rule_panel.dart';
 import '../diy/panels/time_condition_panel.dart';
 import '../diy/panels/post_process_rule_panel.dart';
 import '../../common/elevated_card.dart';
+import 'random_manager_widgets.dart';
 
 /// 词组卡片组件
 ///
@@ -56,7 +57,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
           elevation: CardElevation.level1,
           hoverElevation: CardElevation.level2,
           enableHoverEffect: false, // 外层 MouseRegion 已处理
-          borderRadius: 10,
+          borderRadius: 8,
           gradientBorder: _isHovered && hasDiyAbility
               ? CardGradients.primary(colorScheme)
               : null,
@@ -72,7 +73,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
               color: _isHovered
                   ? colorScheme.surfaceContainerHighest
                   : colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               boxShadow: _isHovered
                   ? [
                       BoxShadow(
@@ -115,9 +116,11 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                 ),
                 const SizedBox(height: 8),
                 // 第二行：概率进度条 + 百分比
-                _ProbabilityIndicator(
+                ProbabilityBar(
                   probability: tagGroup.probability,
                   isHovered: _isHovered,
+                  height: 4.0,
+                  useBadgeStyle: false,
                 ),
                 const SizedBox(height: 6),
                 // 第三行：标签数量 + DIY 图标
@@ -266,14 +269,16 @@ class _DiyIconState extends State<_DiyIcon> {
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: _isHovered
-                    ? colorScheme.primary.withOpacity(0.2)
-                    : colorScheme.secondaryContainer.withOpacity(0.4),
+                    ? colorScheme.primary.withOpacity(0.25)
+                    : colorScheme.secondaryContainer.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(3),
-                border: _isHovered
-                    ? Border.all(
-                        color: colorScheme.primary.withOpacity(0.5),
-                        width: 1,
-                      )
+                boxShadow: _isHovered
+                    ? [
+                        BoxShadow(
+                          color: colorScheme.primary.withOpacity(0.2),
+                          blurRadius: 4,
+                        ),
+                      ]
                     : null,
               ),
               child: Icon(
@@ -285,77 +290,6 @@ class _DiyIconState extends State<_DiyIcon> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 概率指示器组件
-class _ProbabilityIndicator extends StatelessWidget {
-  const _ProbabilityIndicator({
-    required this.probability,
-    required this.isHovered,
-  });
-
-  final double probability;
-  final bool isHovered;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final percentValue = (probability * 100).toInt();
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 4,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: probability,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isHovered
-                        ? [
-                            colorScheme.primary,
-                            colorScheme.tertiary,
-                          ]
-                        : [
-                            colorScheme.primary.withOpacity(0.8),
-                            colorScheme.secondary.withOpacity(0.6),
-                          ],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                  boxShadow: isHovered
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$percentValue%',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: colorScheme.primary,
-            fontWeight: FontWeight.bold,
-            fontSize: 10,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -416,7 +350,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
         height: 520,
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
               color: colorScheme.shadow.withOpacity(0.08),
@@ -429,9 +363,6 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               offset: const Offset(0, 12),
             ),
           ],
-          border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(0.2),
-          ),
         ),
         child: Column(
           children: [
@@ -448,7 +379,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                   ],
                 ),
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                    const BorderRadius.vertical(top: Radius.circular(8)),
                 border: Border(
                   bottom: BorderSide(
                     color: colorScheme.outlineVariant.withOpacity(0.2),
@@ -529,9 +460,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(20)),
+                    const BorderRadius.vertical(bottom: Radius.circular(8)),
                 border: Border(
                   top: BorderSide(
                     color: colorScheme.outlineVariant.withOpacity(0.2),
@@ -669,11 +600,15 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             height: 150,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLow,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: _editingTagGroup.tags.isEmpty
                 ? Center(
@@ -788,11 +723,15 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLow,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -1012,26 +951,18 @@ class _DiySectionState extends State<_DiySection> {
           color: widget.enabled
               ? colorScheme.primaryContainer.withOpacity(0.3)
               : _isHovered
-                  ? colorScheme.surfaceContainerHigh
-                  : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: widget.enabled
-                ? colorScheme.primary.withOpacity(0.5)
-                : _isHovered
-                    ? colorScheme.outlineVariant.withOpacity(0.5)
-                    : colorScheme.outlineVariant.withOpacity(0.3),
-            width: widget.enabled ? 1.5 : 1,
-          ),
-          boxShadow: widget.enabled
-              ? [
-                  BoxShadow(
-                    color: colorScheme.primary.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+                  ? colorScheme.surfaceContainerHighest
+                  : colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: widget.enabled
+                  ? colorScheme.primary.withOpacity(0.15)
+                  : colorScheme.shadow.withOpacity(0.05),
+              blurRadius: widget.enabled ? 8 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -1150,7 +1081,7 @@ class _DiyConfigDialog extends StatelessWidget {
         height: 560,
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
               color: colorScheme.shadow.withOpacity(0.08),
@@ -1163,9 +1094,6 @@ class _DiyConfigDialog extends StatelessWidget {
               offset: const Offset(0, 12),
             ),
           ],
-          border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(0.2),
-          ),
         ),
         child: Column(
           children: [
@@ -1182,7 +1110,7 @@ class _DiyConfigDialog extends StatelessWidget {
                   ],
                 ),
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                    const BorderRadius.vertical(top: Radius.circular(8)),
                 border: Border(
                   bottom: BorderSide(
                     color: colorScheme.outlineVariant.withOpacity(0.2),
@@ -1234,9 +1162,9 @@ class _DiyConfigDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(20)),
+                    const BorderRadius.vertical(bottom: Radius.circular(8)),
                 border: Border(
                   top: BorderSide(
                     color: colorScheme.outlineVariant.withOpacity(0.2),

@@ -7,6 +7,7 @@ export 'presets/none_shadow.dart';
 export 'presets/soft_shadow.dart';
 export 'presets/hard_offset_shadow.dart';
 export 'presets/glow_shadow.dart';
+export 'presets/layered_shadow.dart';
 
 /// Base implementation of [ShadowModule].
 abstract class BaseShadowModule implements ShadowModule {

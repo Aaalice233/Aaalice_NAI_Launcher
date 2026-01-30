@@ -100,7 +100,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           ),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -110,7 +110,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
             child: isWide
                 ? _buildWideLayout(theme, authState, isFavorited)
                 : _buildNarrowLayout(theme, authState, isFavorited),
@@ -137,9 +137,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         Container(
           width: 320,
           decoration: BoxDecoration(
-              border: Border(
-                  left:
-                      BorderSide(color: theme.dividerColor.withOpacity(0.3)),),),
+            border: Border(
+              left: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+            ),
+          ),
           child: _buildInfoPanel(theme, authState, isFavorited),
         ),
       ],

@@ -127,7 +127,6 @@ class _CharacterCardState extends ConsumerState<CharacterCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final genderColor = _getGenderColor();
     final intensity = _getEffectIntensity(context);
     final isEnabled = widget.character.enabled;
@@ -158,26 +157,36 @@ class _CharacterCardState extends ConsumerState<CharacterCard>
             transformAlignment: Alignment.center,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _isHovered
-                      ? genderColor.withOpacity(0.6)
-                      : colorScheme.outlineVariant.withOpacity(0.4),
-                  width: _isHovered ? 2 : 1,
-                ),
+                borderRadius: BorderRadius.circular(8),
+                // 深度层叠风格：无边框，用多层阴影创造层次
                 boxShadow: [
+                  // 外层柔和阴影
                   BoxShadow(
                     color: _isHovered
-                        ? genderColor.withOpacity(0.2)
-                        : Colors.black.withOpacity(0.1),
-                    blurRadius: _isHovered ? 16 : 8,
+                        ? genderColor.withOpacity(0.15)
+                        : Colors.black.withOpacity(0.06),
+                    blurRadius: _isHovered ? 20 : 12,
                     offset: Offset(0, _isHovered ? 8 : 4),
-                    spreadRadius: _isHovered ? 1 : 0,
+                    spreadRadius: 0,
+                  ),
+                  // 中层阴影
+                  BoxShadow(
+                    color: _isHovered
+                        ? genderColor.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.04),
+                    blurRadius: _isHovered ? 8 : 6,
+                    offset: Offset(0, _isHovered ? 4 : 2),
+                  ),
+                  // 内层精细阴影
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
                 child: Stack(
                   children: [
                     // 背景纹理
@@ -885,7 +894,7 @@ class _DeleteButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(12),
+          topRight: Radius.circular(8),
           bottomLeft: Radius.circular(8),
         ),
         child: Container(
@@ -894,7 +903,7 @@ class _DeleteButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.5),
             borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(12),
+              topRight: Radius.circular(8),
               bottomLeft: Radius.circular(8),
             ),
             border: Border(
@@ -951,7 +960,7 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
         child: InkWell(
           onTap: widget.onTap,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(12),
+            topLeft: Radius.circular(8),
             bottomRight: Radius.circular(8),
           ),
           child: Tooltip(
@@ -969,7 +978,7 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
                         ? Colors.black.withOpacity(0.7)
                         : Colors.black.withOpacity(0.5)),
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
+                  topLeft: Radius.circular(8),
                   bottomRight: Radius.circular(8),
                 ),
                 border: Border(
@@ -1067,7 +1076,7 @@ class _EdgeHighlightPainter extends CustomPainter {
       final innerRect = rect.deflate(inset);
       final innerRRect = RRect.fromRectAndRadius(
         innerRect,
-        Radius.circular(math.max(0, 12 - inset)),
+        Radius.circular(math.max(0, 8 - inset)),
       );
 
       final opacity = 0.15 * intensity * (2 - i) / 2;

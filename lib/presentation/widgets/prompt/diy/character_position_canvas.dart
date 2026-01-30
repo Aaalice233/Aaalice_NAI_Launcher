@@ -487,7 +487,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -501,7 +501,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                   )
                 : null,
             color: isSelected ? null : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isSelected
                   ? Colors.transparent

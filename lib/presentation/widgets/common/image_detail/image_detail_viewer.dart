@@ -430,10 +430,10 @@ class _NavigationButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.black.withOpacity(0.3),
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Icon(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/random_preset_provider.dart';
+import 'random_manager_widgets.dart';
 
 /// 概率分布预览图表组件
 ///
@@ -42,19 +43,21 @@ class ProbabilityChart extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        // 实心深色渐变背景
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.surfaceContainerLowest,
-            colorScheme.surfaceContainerLow,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.1),
-        ),
+        // 实心背景 + 多层阴影，无边框
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,16 +141,26 @@ class _HorizontalBarState extends State<_HorizontalBar> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          // 实心背景 - 悬停时变化
+          // 实心背景 + 阴影，无边框
           color: _isHovered
-              ? widget.color.withOpacity(0.12)
+              ? widget.color.withOpacity(0.15)
               : colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _isHovered
-                ? widget.color.withOpacity(0.3)
-                : colorScheme.outline.withOpacity(0.08),
-          ),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: _isHovered
+              ? [
+                  BoxShadow(
+                    color: widget.color.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: colorScheme.shadow.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
         ),
         child: Row(
           children: [
@@ -158,9 +171,8 @@ class _HorizontalBarState extends State<_HorizontalBar> {
                 widget.label,
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: _isHovered
-                      ? widget.color
-                      : colorScheme.onSurfaceVariant,
+                  color:
+                      _isHovered ? widget.color : colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -170,7 +182,7 @@ class _HorizontalBarState extends State<_HorizontalBar> {
               child: Container(
                 height: 16,
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerLowest,
+                  color: colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Stack(
@@ -256,19 +268,21 @@ class GenderDistributionChart extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        // 实心渐变背景
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.surfaceContainerLowest,
-            colorScheme.surfaceContainerLow,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.1),
-        ),
+        // 实心背景 + 多层阴影，无边框
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,15 +307,19 @@ class GenderDistributionChart extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // 堆叠进度条
+          // 堆叠进度条 - 无边框
           Container(
             height: 24,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLowest,
+              color: colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: colorScheme.outline.withOpacity(0.1),
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.05),
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(5),
@@ -340,19 +358,19 @@ class GenderDistributionChart extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _GenderLegend(
+              ChartLegendItem(
                 icon: Icons.female,
                 label: '女',
                 value: female,
                 color: Colors.pink.shade400,
               ),
-              _GenderLegend(
+              ChartLegendItem(
                 icon: Icons.male,
                 label: '男',
                 value: male,
                 color: Colors.blue.shade400,
               ),
-              _GenderLegend(
+              ChartLegendItem(
                 icon: Icons.transgender,
                 label: '其他',
                 value: other,
@@ -392,7 +410,7 @@ class _GenderSegmentState extends State<_GenderSegment> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     if (widget.flex <= 0) return const SizedBox.shrink();
 
     return Expanded(
@@ -443,48 +461,89 @@ class _GenderSegmentState extends State<_GenderSegment> {
   }
 }
 
-/// 性别图例
-class _GenderLegend extends StatelessWidget {
-  const _GenderLegend({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final int value;
-  final Color color;
+/// 概率分布预览区域 - 公共组件
+///
+/// 包含角色数量分布图和性别分布图的完整预览区域
+/// 使用深度层叠设计，实心背景 + 多层阴影
+class ProbabilitySection extends StatelessWidget {
+  const ProbabilitySection({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(4),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          child: Icon(
-            icon,
-            size: 12,
-            color: color,
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '$label $value%',
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 标题
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.primary.withOpacity(0.15),
+                  colorScheme.primary.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    Icons.bar_chart_rounded,
+                    size: 14,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '概率分布预览',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+
+          // 角色数量分布图
+          const ProbabilityChart(),
+
+          const SizedBox(height: 12),
+
+          // 性别分布图
+          const GenderDistributionChart(),
+        ],
+      ),
     );
   }
 }
