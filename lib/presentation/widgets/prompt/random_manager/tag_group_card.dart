@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/random_preset_provider.dart';
@@ -20,13 +21,17 @@ class TagGroupCard extends ConsumerStatefulWidget {
     super.key,
     required this.tagGroup,
     required this.categoryId,
+    required this.categoryKey,
     required this.presetId,
+    this.isPresetDefault = false,
     this.onTap,
   });
 
   final RandomTagGroup tagGroup;
   final String categoryId;
+  final String categoryKey;
   final String presetId;
+  final bool isPresetDefault;
   final VoidCallback? onTap;
 
   @override
@@ -54,97 +59,131 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap ?? () => _showEditDialog(context),
-        child: ElevatedCard(
-          elevation: CardElevation.level1,
-          hoverElevation: CardElevation.level2,
-          enableHoverEffect: false, // 外层 MouseRegion 已处理
-          borderRadius: 8,
-          gradientBorder: _isHovered && hasDiyAbility
-              ? CardGradients.primary(colorScheme)
-              : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            width: 135,
-            padding: const EdgeInsets.all(12),
-            transform: Matrix4.identity()
-              ..translate(0.0, _isHovered ? -2.0 : 0.0),
-            transformAlignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _isHovered
-                  ? colorScheme.surfaceContainerHighest
-                  : colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: _isHovered
-                  ? [
-                      BoxShadow(
-                        color: colorScheme.primary.withOpacity(0.15),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 第一行：emoji + 名称
-                Row(
-                  children: [
-                    if (tagGroup.emoji.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(4),
+        child: Opacity(
+          opacity: tagGroup.enabled ? 1.0 : 0.5,
+          child: ElevatedCard(
+            elevation: CardElevation.level1,
+            hoverElevation: CardElevation.level2,
+            enableHoverEffect: false, // 外层 MouseRegion 已处理
+            borderRadius: 8,
+            gradientBorder: tagGroup.enabled && _isHovered && hasDiyAbility
+                ? CardGradients.primary(colorScheme)
+                : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              width: 135,
+              padding: const EdgeInsets.all(12),
+              transform: Matrix4.identity()
+                ..translate(0.0, _isHovered ? -2.0 : 0.0),
+              transformAlignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _isHovered
+                    ? colorScheme.surfaceContainerHighest
+                    : colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: _isHovered
+                    ? [
+                        BoxShadow(
+                          color: colorScheme.primary.withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
+                      ]
+                    : null,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 第一行：开关 + emoji + 名称
+                  Row(
+                    children: [
+                      // 启用开关
+                      SizedBox(
+                        width: 28,
+                        height: 20,
+                        child: Transform.scale(
+                          scale: 0.6,
+                          child: Switch(
+                            value: tagGroup.enabled,
+                            onChanged: widget.isPresetDefault
+                                ? null
+                                : (value) {
+                                    ref
+                                        .read(
+                                          randomPresetNotifierProvider.notifier,
+                                        )
+                                        .toggleGroupEnabled(
+                                          widget.categoryKey,
+                                          tagGroup.id,
+                                        );
+                                  },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      if (tagGroup.emoji.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color:
+                                colorScheme.primaryContainer.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            tagGroup.emoji,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      if (tagGroup.emoji.isNotEmpty) const SizedBox(width: 6),
+                      Expanded(
                         child: Text(
-                          tagGroup.emoji,
-                          style: const TextStyle(fontSize: 13),
+                          tagGroup.name,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            decoration: tagGroup.enabled
+                                ? null
+                                : TextDecoration.lineThrough,
+                            color: tagGroup.enabled
+                                ? null
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    if (tagGroup.emoji.isNotEmpty) const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        tagGroup.name,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // 第二行：概率进度条 + 百分比
-                ProbabilityBar(
-                  probability: tagGroup.probability,
-                  isHovered: _isHovered,
-                  height: 4.0,
-                  useBadgeStyle: false,
-                ),
-                const SizedBox(height: 6),
-                // 第三行：标签数量 + DIY 图标
-                Row(
-                  children: [
-                    Icon(
-                      Icons.label_outline,
-                      size: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${ref.watch(groupTagCountProvider(tagGroup))}',
-                      style: theme.textTheme.labelSmall?.copyWith(
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // 第二行：概率进度条 + 百分比
+                  ProbabilityBar(
+                    probability: tagGroup.probability,
+                    isHovered: _isHovered,
+                    height: 4.0,
+                    useBadgeStyle: false,
+                  ),
+                  const SizedBox(height: 6),
+                  // 第三行：标签数量 + DIY 图标
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.label_outline,
+                        size: 12,
                         color: colorScheme.onSurfaceVariant,
                       ),
-                    ),
-                    const Spacer(),
-                    // DIY 能力图标
-                    ..._buildDiyIcons(tagGroup),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 4),
+                      Text(
+                        '${ref.watch(groupTagCountProvider(tagGroup))}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const Spacer(),
+                      // DIY 能力图标
+                      ..._buildDiyIcons(tagGroup),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -226,6 +265,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
         tagGroup: widget.tagGroup,
         categoryId: widget.categoryId,
         presetId: widget.presetId,
+        isPresetDefault: widget.isPresetDefault,
         initialTabIndex: initialTabIndex,
       ),
     );
@@ -301,12 +341,14 @@ class _TagGroupEditDialog extends ConsumerStatefulWidget {
     required this.tagGroup,
     required this.categoryId,
     required this.presetId,
+    this.isPresetDefault = false,
     this.initialTabIndex = 0,
   });
 
   final RandomTagGroup tagGroup;
   final String categoryId;
   final String presetId;
+  final bool isPresetDefault;
   final int initialTabIndex;
 
   @override
@@ -484,14 +526,16 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 children: [
                   OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('取消'),
+                    child: Text(widget.isPresetDefault ? '关闭' : '取消'),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _saveChanges,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('保存'),
-                  ),
+                  if (!widget.isPresetDefault) ...[
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: _saveChanges,
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('保存'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -504,6 +548,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   Widget _buildBasicTab(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isReadOnly = widget.isPresetDefault;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -513,15 +558,25 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
           // 名称
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(
+            enabled: !isReadOnly,
+            decoration: InputDecoration(
               labelText: '名称',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
+              suffixIcon: isReadOnly
+                  ? Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.outline,
+                      size: 18,
+                    )
+                  : null,
             ),
-            onChanged: (value) {
-              setState(() {
-                _editingTagGroup = _editingTagGroup.copyWith(name: value);
-              });
-            },
+            onChanged: isReadOnly
+                ? null
+                : (value) {
+                    setState(() {
+                      _editingTagGroup = _editingTagGroup.copyWith(name: value);
+                    });
+                  },
           ),
           const SizedBox(height: 16),
           // 概率
@@ -533,18 +588,23 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Slider(
-                  value: _editingTagGroup.probability,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                  label: '${(_editingTagGroup.probability * 100).toInt()}%',
-                  onChanged: (value) {
-                    setState(() {
-                      _editingTagGroup =
-                          _editingTagGroup.copyWith(probability: value);
-                    });
-                  },
+                child: Opacity(
+                  opacity: isReadOnly ? 0.6 : 1.0,
+                  child: Slider(
+                    value: _editingTagGroup.probability,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    label: '${(_editingTagGroup.probability * 100).toInt()}%',
+                    onChanged: isReadOnly
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _editingTagGroup =
+                                  _editingTagGroup.copyWith(probability: value);
+                            });
+                          },
+                  ),
                 ),
               ),
               SizedBox(
@@ -585,14 +645,16 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                       child: Text('$label - $desc'),
                     );
                   }).toList(),
-                  onChanged: (mode) {
-                    if (mode != null) {
-                      setState(() {
-                        _editingTagGroup =
-                            _editingTagGroup.copyWith(selectionMode: mode);
-                      });
-                    }
-                  },
+                  onChanged: isReadOnly
+                      ? null
+                      : (mode) {
+                          if (mode != null) {
+                            setState(() {
+                              _editingTagGroup = _editingTagGroup.copyWith(
+                                  selectionMode: mode,);
+                            });
+                          }
+                        },
                 ),
               ),
             ],
@@ -663,6 +725,35 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   Widget _buildDiyTab(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    // 默认预设不支持 DIY 配置
+    if (widget.isPresetDefault) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 48,
+              color: colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.diyNotAvailableForDefault,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.diyNotAvailableHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

@@ -3098,6 +3098,19 @@
   "settings_notificationCustomSound": "Custom Sound",
   "settings_notificationCustomSoundSubtitle": "Select custom sound file",
   "settings_notificationSelectSound": "Select Sound",
-  "settings_notificationResetSound": "Reset to Default"
+  "settings_notificationResetSound": "Reset to Default",
+
+  "categoryConfiguration": "Category Configuration",
+  "resetToDefault": "Reset to Default",
+  "resetToDefaultTooltip": "Reset to default configuration",
+  "resetToDefaultConfirmTitle": "Reset to Default",
+  "resetToDefaultConfirmContent": "This will restore official default configuration. Your custom groups will be kept but disabled.",
+  "groupEnabled": "Group enabled",
+  "groupDisabled": "Group disabled",
+  "toggleGroupEnabled": "Toggle group enabled state",
+  "diyNotAvailableForDefault": "DIY not available for default preset",
+  "diyNotAvailableHint": "Please copy to a custom preset to edit",
+  "customGroupDisabledAfterReset": "Custom group (disabled)",
+  "confirmReset": "Confirm Reset"
 
 }

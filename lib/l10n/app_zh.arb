@@ -2772,6 +2772,19 @@
   "settings_notificationCustomSound": "自定义音效",
   "settings_notificationCustomSoundSubtitle": "选择自定义音效文件",
   "settings_notificationSelectSound": "选择音效",
-  "settings_notificationResetSound": "恢复默认"
+  "settings_notificationResetSound": "恢复默认",
+
+  "categoryConfiguration": "类别配置",
+  "resetToDefault": "重置为默认",
+  "resetToDefaultTooltip": "重置为默认配置",
+  "resetToDefaultConfirmTitle": "重置为默认配置",
+  "resetToDefaultConfirmContent": "将恢复官方默认配置。您添加的自定义词组会被保留但禁用。",
+  "groupEnabled": "词组已启用",
+  "groupDisabled": "词组已禁用",
+  "toggleGroupEnabled": "切换词组启用状态",
+  "diyNotAvailableForDefault": "默认预设不支持 DIY 配置",
+  "diyNotAvailableHint": "请复制为自定义预设后编辑",
+  "customGroupDisabledAfterReset": "自定义词组（已禁用）",
+  "confirmReset": "确认重置"
 
 }

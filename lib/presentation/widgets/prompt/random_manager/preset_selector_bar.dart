@@ -67,6 +67,14 @@ class PresetSelectorBar extends ConsumerWidget {
                         .selectPreset(preset.id);
                   },
                 ),
+                // 只读模式提示（窄屏时单独一行）
+                if (selectedPreset?.isDefault == true) ...[
+                  const SizedBox(height: 8),
+                  _ReadOnlyIndicator(
+                    onCopyPreset: () =>
+                        _copyPreset(context, ref, selectedPreset!),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 // 统计信息 + 操作按钮
                 Row(
@@ -83,6 +91,11 @@ class PresetSelectorBar extends ConsumerWidget {
                       onDelete: selectedPreset != null &&
                               !selectedPreset.isDefault
                           ? () => _deletePreset(context, ref, selectedPreset)
+                          : null,
+                      onResetToDefault: selectedPreset != null &&
+                              (selectedPreset.isDefault ||
+                                  selectedPreset.isBasedOnDefault)
+                          ? () => _resetToDefault(context, ref, selectedPreset)
                           : null,
                       onGeneratePreview: onGeneratePreview,
                       onImportExport: onImportExport,
@@ -113,19 +126,32 @@ class PresetSelectorBar extends ConsumerWidget {
               ),
               // 垂直分隔线
               _VerticalDivider(color: colorScheme.primary),
-              // 全局信息区域 - 显示预设描述或空
+              // 全局信息区域 - 显示预设描述 + 只读提示
               Expanded(
-                child: selectedPreset?.description != null &&
-                        selectedPreset!.description!.isNotEmpty
-                    ? Text(
-                        selectedPreset.description!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                child: Row(
+                  children: [
+                    if (selectedPreset?.description != null &&
+                        selectedPreset!.description!.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          selectedPreset.description!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      )
-                    : const SizedBox.shrink(),
+                      ),
+                    // 只读模式提示（默认预设时显示）
+                    if (selectedPreset?.isDefault == true) ...[
+                      const SizedBox(width: 12),
+                      _ReadOnlyIndicator(
+                        onCopyPreset: () =>
+                            _copyPreset(context, ref, selectedPreset!),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               // 垂直分隔线
               _VerticalDivider(color: colorScheme.secondary),
@@ -137,6 +163,11 @@ class PresetSelectorBar extends ConsumerWidget {
                     : null,
                 onDelete: selectedPreset != null && !selectedPreset.isDefault
                     ? () => _deletePreset(context, ref, selectedPreset)
+                    : null,
+                onResetToDefault: selectedPreset != null &&
+                        (selectedPreset.isDefault ||
+                            selectedPreset.isBasedOnDefault)
+                    ? () => _resetToDefault(context, ref, selectedPreset)
                     : null,
                 onGeneratePreview: onGeneratePreview,
                 onImportExport: onImportExport,
@@ -224,6 +255,39 @@ class PresetSelectorBar extends ConsumerWidget {
       } else {
         final error = ref.read(tagGroupSyncNotifierProvider).error;
         AppToast.error(context, '同步失败: ${error ?? "未知错误"}');
+      }
+    }
+  }
+
+  Future<void> _resetToDefault(
+    BuildContext context,
+    WidgetRef ref,
+    RandomPreset preset,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重置为默认配置'),
+        content: const Text('将恢复官方默认配置。\n您添加的自定义词组会被保留但禁用。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认重置'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref
+          .read(randomPresetNotifierProvider.notifier)
+          .resetToDefault(preset.id);
+      if (context.mounted) {
+        AppToast.success(context, '已重置为默认配置');
       }
     }
   }
@@ -456,6 +520,7 @@ class _ActionButtons extends StatelessWidget {
     required this.onCreateNaiV4,
     this.onCopy,
     this.onDelete,
+    this.onResetToDefault,
     this.onGeneratePreview,
     this.onImportExport,
     this.onSync,
@@ -465,6 +530,7 @@ class _ActionButtons extends StatelessWidget {
   final VoidCallback onCreateNaiV4;
   final VoidCallback? onCopy;
   final VoidCallback? onDelete;
+  final VoidCallback? onResetToDefault;
   final VoidCallback? onGeneratePreview;
   final VoidCallback? onImportExport;
   final VoidCallback? onSync;
@@ -490,6 +556,14 @@ class _ActionButtons extends StatelessWidget {
             tooltip: '生成预览',
             onPressed: onGeneratePreview,
             color: colorScheme.primary,
+          ),
+        // 重置为默认按钮
+        if (onResetToDefault != null)
+          _ActionButton(
+            icon: Icons.restart_alt,
+            tooltip: '重置为默认配置',
+            onPressed: onResetToDefault,
+            color: Colors.orange,
           ),
         // 一键 NAI V4 按钮
         _ActionButton(
@@ -709,6 +783,85 @@ class _ActionButtonState extends State<_ActionButton> {
                         : effectiveColor.withOpacity(0.8))
                     : colorScheme.onSurfaceVariant.withOpacity(0.4),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 只读模式指示器（紧凑版，用于顶栏）
+class _ReadOnlyIndicator extends StatefulWidget {
+  const _ReadOnlyIndicator({this.onCopyPreset});
+
+  final VoidCallback? onCopyPreset;
+
+  @override
+  State<_ReadOnlyIndicator> createState() => _ReadOnlyIndicatorState();
+}
+
+class _ReadOnlyIndicatorState extends State<_ReadOnlyIndicator> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Tooltip(
+        message: '当前预设为默认预设，所有配置项已锁定。点击复制为自定义预设。',
+        child: GestureDetector(
+          onTap: widget.onCopyPreset,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: _isHovered
+                    ? [
+                        Colors.amber.shade100.withOpacity(0.3),
+                        Colors.orange.shade100.withOpacity(0.2),
+                      ]
+                    : [
+                        Colors.amber.shade100.withOpacity(0.15),
+                        Colors.orange.shade100.withOpacity(0.1),
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color:
+                    Colors.amber.shade600.withOpacity(_isHovered ? 0.6 : 0.4),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  size: 14,
+                  color: Colors.amber.shade800,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '只读模式',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+                if (widget.onCopyPreset != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.copy_outlined,
+                    size: 12,
+                    color: Colors.amber.shade700,
+                  ),
+                ],
+              ],
             ),
           ),
         ),

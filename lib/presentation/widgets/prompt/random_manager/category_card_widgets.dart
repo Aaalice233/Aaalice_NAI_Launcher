@@ -11,10 +11,14 @@ class ScopeTripleSwitch extends StatefulWidget {
     super.key,
     required this.scope,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final TagScope scope;
   final ValueChanged<TagScope> onChanged;
+
+  /// 是否可交互
+  final bool enabled;
 
   @override
   State<ScopeTripleSwitch> createState() => _ScopeTripleSwitchState();
@@ -76,6 +80,7 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
   }
 
   void _onTap(int index) {
+    if (!widget.enabled) return;
     if (index == _currentIndex) return;
     setState(() => _currentIndex = index);
     widget.onChanged(_scopeOrder[index]);
@@ -86,106 +91,112 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final currentScope = _scopeOrder[_currentIndex];
-    final currentColor = _scopeColors[currentScope]!;
+    final currentColor =
+        widget.enabled ? _scopeColors[currentScope]! : colorScheme.outline;
 
-    return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.1),
-          width: 1,
+    return Opacity(
+      opacity: widget.enabled ? 1.0 : 0.6,
+      child: Container(
+        height: 32,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: colorScheme.outline.withOpacity(widget.enabled ? 0.1 : 0.05),
+            width: 1,
+          ),
         ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final itemWidth = constraints.maxWidth / 3;
-          return Stack(
-            children: [
-              // 滑动高亮背景
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                left: _currentIndex * itemWidth + 2,
-                top: 2,
-                bottom: 2,
-                width: itemWidth - 4,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        currentColor.withOpacity(0.9),
-                        currentColor.withOpacity(0.7),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: currentColor.withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = constraints.maxWidth / 3;
+            return Stack(
+              children: [
+                // 滑动高亮背景
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  left: _currentIndex * itemWidth + 2,
+                  top: 2,
+                  bottom: 2,
+                  width: itemWidth - 4,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          currentColor.withOpacity(0.9),
+                          currentColor.withOpacity(0.7),
+                        ],
                       ),
-                    ],
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: widget.enabled
+                          ? [
+                              BoxShadow(
+                                color: currentColor.withOpacity(0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
                   ),
                 ),
-              ),
-              // 选项按钮
-              Row(
-                children: List.generate(3, (index) {
-                  final isSelected = index == _currentIndex;
-                  final scope = _scopeOrder[index];
-                  final icon = _scopeIcons[scope]!;
-                  final label = _getLabel(l10n, scope);
-                  final tooltip = _getTooltip(l10n, scope);
-                  return Expanded(
-                    child: Tooltip(
-                      message: tooltip,
-                      preferBelow: false,
-                      verticalOffset: 20,
-                      child: GestureDetector(
-                        onTap: () => _onTap(index),
-                        behavior: HitTestBehavior.opaque,
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                icon,
-                                size: 14,
-                                color: isSelected
-                                    ? Colors.white
-                                    : colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 3),
-                              Flexible(
-                                child: Text(
-                                  label,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : colorScheme.onSurfaceVariant,
+                // 选项按钮
+                Row(
+                  children: List.generate(3, (index) {
+                    final isSelected = index == _currentIndex;
+                    final scope = _scopeOrder[index];
+                    final icon = _scopeIcons[scope]!;
+                    final label = _getLabel(l10n, scope);
+                    final tooltip = _getTooltip(l10n, scope);
+                    return Expanded(
+                      child: Tooltip(
+                        message: tooltip,
+                        preferBelow: false,
+                        verticalOffset: 20,
+                        child: GestureDetector(
+                          onTap: () => _onTap(index),
+                          behavior: HitTestBehavior.opaque,
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  icon,
+                                  size: 14,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 3),
+                                Flexible(
+                                  child: Text(
+                                    label,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          );
-        },
+                    );
+                  }),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -200,11 +211,15 @@ class ColorfulProbabilitySlider extends StatelessWidget {
     required this.probability,
     required this.onChanged,
     this.enabled = true,
+    this.interactive = true,
   });
 
   final double probability;
   final ValueChanged<double> onChanged;
   final bool enabled;
+
+  /// 是否可交互（默认预设时为 false，完全禁用滑条）
+  final bool interactive;
 
   @override
   Widget build(BuildContext context) {
@@ -278,7 +293,7 @@ class ColorfulProbabilitySlider extends StatelessWidget {
                   min: 0,
                   max: 1,
                   divisions: 20,
-                  onChanged: onChanged,
+                  onChanged: interactive ? onChanged : null,
                 ),
               ],
             ),
@@ -313,11 +328,13 @@ class AddTagGroupCard extends StatefulWidget {
   const AddTagGroupCard({
     super.key,
     required this.onTap,
-    this.isEmpty = false,
+    this.enabled = true,
   });
 
   final VoidCallback onTap;
-  final bool isEmpty;
+
+  /// 是否可交互（默认预设时为 false）
+  final bool enabled;
 
   @override
   State<AddTagGroupCard> createState() => _AddTagGroupCardState();
@@ -330,51 +347,57 @@ class _AddTagGroupCardState extends State<AddTagGroupCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isEnabled = widget.enabled;
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      cursor:
+          isEnabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
+      onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
+      onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
       child: GestureDetector(
-        onTap: widget.onTap,
-        child: SizedBox(
-          width: 135,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 图标
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _isHovered
-                        ? colorScheme.primary.withOpacity(0.15)
-                        : colorScheme.surfaceContainerHighest,
-                    shape: BoxShape.circle,
+        onTap: isEnabled ? widget.onTap : null,
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.5,
+          child: SizedBox(
+            width: 135,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 图标
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: (_isHovered && isEnabled)
+                          ? colorScheme.primary.withOpacity(0.15)
+                          : colorScheme.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isEnabled ? Icons.add_rounded : Icons.lock_outline,
+                      size: 20,
+                      color: (_isHovered && isEnabled)
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.add_rounded,
-                    size: 20,
-                    color: _isHovered
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 8),
+                  // 文字
+                  Text(
+                    isEnabled ? '添加词组' : '已锁定',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: (_isHovered && isEnabled)
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                      fontWeight: (_isHovered && isEnabled)
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                // 文字
-                Text(
-                  '添加词组',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: _isHovered
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
-                    fontWeight:
-                        _isHovered ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

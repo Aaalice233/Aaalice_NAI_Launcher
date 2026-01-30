@@ -33,6 +33,9 @@ class RandomPreset with _$RandomPreset {
     /// 是否为默认预设（不可删除）
     @Default(false) bool isDefault,
 
+    /// 是否基于默认预设创建（用于判断是否显示重置按钮）
+    @Default(false) bool isBasedOnDefault,
+
     /// 数据版本
     @Default(2) int version,
 

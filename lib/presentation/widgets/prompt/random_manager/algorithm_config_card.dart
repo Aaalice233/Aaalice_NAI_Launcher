@@ -11,7 +11,13 @@ import 'random_manager_widgets.dart';
 ///
 /// 显示和编辑角色数量权重、性别权重等核心算法配置
 class AlgorithmConfigCard extends ConsumerStatefulWidget {
-  const AlgorithmConfigCard({super.key});
+  const AlgorithmConfigCard({
+    super.key,
+    this.isPresetDefault = false,
+  });
+
+  /// 是否为默认预设（只读模式）
+  final bool isPresetDefault;
 
   @override
   ConsumerState<AlgorithmConfigCard> createState() =>
@@ -196,6 +202,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isReadOnly = widget.isPresetDefault || preset.isDefault;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,6 +236,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
             label: label,
             value: weight,
             color: colorScheme.primary,
+            enabled: !isReadOnly,
             onChanged: (newWeight) {
               _updateCharacterCountWeight(preset, count, newWeight);
             },
@@ -246,6 +254,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           label: '女性',
           value: config.genderWeights['female'] ?? 60,
           color: Colors.pink.shade400,
+          enabled: !isReadOnly,
           onChanged: (newWeight) {
             _updateGenderWeight(preset, 'female', newWeight);
           },
@@ -254,6 +263,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           label: '男性',
           value: config.genderWeights['male'] ?? 30,
           color: Colors.blue.shade400,
+          enabled: !isReadOnly,
           onChanged: (newWeight) {
             _updateGenderWeight(preset, 'male', newWeight);
           },
@@ -262,6 +272,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           label: '其他',
           value: config.genderWeights['other'] ?? 10,
           color: Colors.purple.shade400,
+          enabled: !isReadOnly,
           onChanged: (newWeight) {
             _updateGenderWeight(preset, 'other', newWeight);
           },
@@ -274,7 +285,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           color: colorScheme.tertiary,
         ),
         const SizedBox(height: 12),
-        _buildGlobalSettings(context, preset, config),
+        _buildGlobalSettings(context, preset, config, isReadOnly),
       ],
     );
   }
@@ -283,6 +294,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
     BuildContext context,
     RandomPreset preset,
     AlgorithmConfig config,
+    bool isReadOnly,
   ) {
     return Column(
       children: [
@@ -293,10 +305,13 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           subtitle: '圣诞节、万圣节等特殊日期词库',
           trailing: Switch(
             value: config.enableSeasonalWordlists,
-            onChanged: (value) {
-              final newConfig = config.copyWith(enableSeasonalWordlists: value);
-              _updateConfig(preset, newConfig);
-            },
+            onChanged: isReadOnly
+                ? null
+                : (value) {
+                    final newConfig =
+                        config.copyWith(enableSeasonalWordlists: value);
+                    _updateConfig(preset, newConfig);
+                  },
           ),
         ),
         const SizedBox(height: 8),
@@ -307,16 +322,21 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           subtitle: '${(config.globalEmphasisProbability * 100).toInt()}%',
           trailing: SizedBox(
             width: 120,
-            child: Slider(
-              value: config.globalEmphasisProbability,
-              min: 0,
-              max: 0.1,
-              divisions: 10,
-              onChanged: (value) {
-                final newConfig =
-                    config.copyWith(globalEmphasisProbability: value);
-                _updateConfig(preset, newConfig);
-              },
+            child: Opacity(
+              opacity: isReadOnly ? 0.6 : 1.0,
+              child: Slider(
+                value: config.globalEmphasisProbability,
+                min: 0,
+                max: 0.1,
+                divisions: 10,
+                onChanged: isReadOnly
+                    ? null
+                    : (value) {
+                        final newConfig =
+                            config.copyWith(globalEmphasisProbability: value);
+                        _updateConfig(preset, newConfig);
+                      },
+              ),
             ),
           ),
         ),
@@ -488,12 +508,14 @@ class _WeightSlider extends StatefulWidget {
     required this.value,
     required this.color,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String label;
   final int value;
   final Color color;
   final ValueChanged<int> onChanged;
+  final bool enabled;
 
   @override
   State<_WeightSlider> createState() => _WeightSliderState();
@@ -506,75 +528,98 @@ class _WeightSliderState extends State<_WeightSlider> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isEnabled = widget.enabled;
+    final effectiveColor = isEnabled ? widget.color : colorScheme.outline;
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        margin: const EdgeInsets.only(bottom: 4),
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? colorScheme.surfaceContainerHigh
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 90,
-              child: Text(
-                widget.label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: _isHovered
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                  fontWeight: _isHovered ? FontWeight.w500 : null,
+      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
+      onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
+      child: Opacity(
+        opacity: isEnabled ? 1.0 : 0.6,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          margin: const EdgeInsets.only(bottom: 4),
+          decoration: BoxDecoration(
+            color: (_isHovered && isEnabled)
+                ? colorScheme.surfaceContainerHigh
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 90,
+                child: Row(
+                  children: [
+                    if (!isEnabled) ...[
+                      Icon(
+                        Icons.lock_outline,
+                        size: 12,
+                        color: colorScheme.outline,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Expanded(
+                      child: Text(
+                        widget.label,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: (_isHovered && isEnabled)
+                              ? colorScheme.onSurface
+                              : colorScheme.onSurfaceVariant,
+                          fontWeight: (_isHovered && isEnabled)
+                              ? FontWeight.w500
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: widget.color,
-                  thumbColor: widget.color,
-                  inactiveTrackColor: widget.color.withOpacity(0.15),
-                  overlayColor: widget.color.withOpacity(0.1),
-                  trackHeight: 5,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 7,
-                    elevation: 2,
-                    pressedElevation: 4,
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: effectiveColor,
+                    thumbColor: effectiveColor,
+                    inactiveTrackColor: effectiveColor.withOpacity(0.15),
+                    overlayColor: effectiveColor.withOpacity(0.1),
+                    trackHeight: 5,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 7,
+                      elevation: 2,
+                      pressedElevation: 4,
+                    ),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 16),
                   ),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 16),
-                ),
-                child: Slider(
-                  value: widget.value.toDouble(),
-                  min: 0,
-                  max: 100,
-                  onChanged: (v) => widget.onChanged(v.round()),
-                ),
-              ),
-            ),
-            Container(
-              width: 50,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: widget.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${widget.value}%',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: widget.color,
+                  child: Slider(
+                    value: widget.value.toDouble(),
+                    min: 0,
+                    max: 100,
+                    onChanged:
+                        isEnabled ? (v) => widget.onChanged(v.round()) : null,
+                  ),
                 ),
               ),
-            ),
-          ],
+              Container(
+                width: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: effectiveColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${widget.value}%',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: effectiveColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -197,8 +197,15 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     String? description,
     bool copyFromCurrent = true,
   }) async {
-    final newPreset = copyFromCurrent && state.selectedPreset != null
-        ? RandomPreset.copyFrom(state.selectedPreset!, name: name)
+    final currentPreset = state.selectedPreset;
+    final isBasedOnDefault = copyFromCurrent &&
+        (currentPreset?.isDefault == true ||
+            currentPreset?.isBasedOnDefault == true);
+
+    final newPreset = copyFromCurrent && currentPreset != null
+        ? RandomPreset.copyFrom(currentPreset, name: name).copyWith(
+            isBasedOnDefault: isBasedOnDefault,
+          )
         : RandomPreset.create(name: name, description: description);
 
     final newPresets = [...state.presets, newPreset];
@@ -590,6 +597,74 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     }
 
     await updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
+  }
+
+  // ========== 重置与词组开关 ==========
+
+  /// 重置预设为默认配置
+  ///
+  /// 重置逻辑：
+  /// 1. 恢复所有官方默认词组的配置（概率、排序等）
+  /// 2. 保留用户自定义词组，但将其禁用（enabled = false）
+  /// 3. 恢复类别配置
+  Future<void> resetToDefault(String presetId) async {
+    final presetIndex = state.presets.indexWhere((p) => p.id == presetId);
+    if (presetIndex == -1) return;
+
+    final preset = state.presets[presetIndex];
+    final defaultPreset = RandomPreset.defaultPreset();
+
+    final mergedCategories = <RandomCategory>[];
+
+    for (final defaultCat in defaultPreset.categories) {
+      final existingCat = preset.categories.firstWhereOrNull(
+        (c) => c.key == defaultCat.key,
+      );
+
+      if (existingCat == null) {
+        // 类别不存在，直接添加默认类别
+        mergedCategories.add(defaultCat);
+      } else {
+        // 类别存在，合并词组
+        final mergedGroups = <RandomTagGroup>[];
+
+        // 1. 添加默认词组（恢复默认配置）
+        for (final defaultGroup in defaultCat.groups) {
+          mergedGroups.add(defaultGroup.copyWith(enabled: true));
+        }
+
+        // 2. 添加用户自定义词组（禁用）
+        for (final customGroup in existingCat.groups) {
+          final isDefaultGroup = defaultCat.groups.any(
+            (g) => g.sourceId == customGroup.sourceId && g.sourceId != null,
+          );
+          if (!isDefaultGroup &&
+              customGroup.sourceType == TagGroupSourceType.custom) {
+            mergedGroups.add(customGroup.copyWith(enabled: false));
+          }
+        }
+
+        mergedCategories.add(
+          existingCat.copyWith(
+            groups: mergedGroups,
+            probability: defaultCat.probability,
+            enabled: defaultCat.enabled,
+          ),
+        );
+      }
+    }
+
+    // 保存更新后的预设
+    final resetPreset = preset.copyWith(
+      categories: mergedCategories,
+      algorithmConfig: defaultPreset.algorithmConfig,
+      updatedAt: DateTime.now(),
+    );
+
+    final newPresets = [...state.presets];
+    newPresets[presetIndex] = resetPreset;
+    state = state.copyWith(presets: newPresets);
+    await _savePreset(resetPreset);
   }
 }
 

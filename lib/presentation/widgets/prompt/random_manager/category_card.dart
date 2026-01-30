@@ -29,11 +29,13 @@ class CategoryCard extends ConsumerStatefulWidget {
     super.key,
     required this.category,
     required this.presetId,
+    this.isPresetDefault = false,
     this.onEdit,
   });
 
   final RandomCategory category;
   final String presetId;
+  final bool isPresetDefault;
   final VoidCallback? onEdit;
 
   @override
@@ -50,37 +52,40 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
     final colorScheme = theme.colorScheme;
     final category = widget.category;
 
-    return ElevatedCard(
-      elevation: _isExpanded ? CardElevation.level2 : CardElevation.level1,
-      hoverElevation: CardElevation.level2,
-      enableHoverEffect: true,
-      hoverTranslateY: -3,
-      borderRadius: 8,
-      gradientBorder: _isExpanded
-          ? LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.primary.withOpacity(0.6),
-                colorScheme.secondary.withOpacity(0.4),
-              ],
-            )
-          : null,
-      gradientBorderWidth: 1.5,
-      onTap: () => setState(() => _isExpanded = !_isExpanded),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(context, category),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 250),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: const SizedBox.shrink(),
-            secondChild: _buildExpandedContent(context, category),
-          ),
-        ],
+    return Opacity(
+      opacity: category.enabled ? 1.0 : 0.5,
+      child: ElevatedCard(
+        elevation: _isExpanded ? CardElevation.level2 : CardElevation.level1,
+        hoverElevation: CardElevation.level2,
+        enableHoverEffect: category.enabled,
+        hoverTranslateY: -3,
+        borderRadius: 8,
+        gradientBorder: category.enabled && _isExpanded
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary.withOpacity(0.6),
+                  colorScheme.secondary.withOpacity(0.4),
+                ],
+              )
+            : null,
+        gradientBorderWidth: 1.5,
+        onTap: () => setState(() => _isExpanded = !_isExpanded),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context, category),
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 250),
+              crossFadeState: _isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: const SizedBox.shrink(),
+              secondChild: _buildExpandedContent(context, category),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -108,6 +113,10 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                   category.name,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    decoration:
+                        category.enabled ? null : TextDecoration.lineThrough,
+                    color:
+                        category.enabled ? null : colorScheme.onSurfaceVariant,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -117,6 +126,7 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                 width: 220,
                 child: ScopeTripleSwitch(
                   scope: category.scope,
+                  enabled: !widget.isPresetDefault,
                   onChanged: (scope) {
                     _updateCategory(category.copyWith(scope: scope));
                   },
@@ -130,9 +140,11 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                   fit: BoxFit.contain,
                   child: Switch(
                     value: category.enabled,
-                    onChanged: (value) {
-                      _updateCategory(category.copyWith(enabled: value));
-                    },
+                    onChanged: widget.isPresetDefault
+                        ? null
+                        : (value) {
+                            _updateCategory(category.copyWith(enabled: value));
+                          },
                   ),
                 ),
               ),
@@ -146,6 +158,7 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                 child: ColorfulProbabilitySlider(
                   probability: category.probability,
                   enabled: category.enabled,
+                  interactive: !widget.isPresetDefault,
                   onChanged: (value) {
                     _updateCategory(category.copyWith(probability: value));
                   },
@@ -199,7 +212,7 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
               if (category.groups.isEmpty)
                 AddTagGroupCard(
                   onTap: () => _addTagGroup(context),
-                  isEmpty: true,
+                  enabled: !widget.isPresetDefault,
                 )
               else
                 Wrap(
@@ -210,10 +223,15 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                       return TagGroupCard(
                         tagGroup: group,
                         categoryId: category.id,
+                        categoryKey: category.key,
                         presetId: widget.presetId,
+                        isPresetDefault: widget.isPresetDefault,
                       );
                     }),
-                    AddTagGroupCard(onTap: () => _addTagGroup(context)),
+                    AddTagGroupCard(
+                      onTap: () => _addTagGroup(context),
+                      enabled: !widget.isPresetDefault,
+                    ),
                   ],
                 ),
             ],

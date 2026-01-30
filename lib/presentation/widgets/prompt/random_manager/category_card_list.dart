@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../common/elevated_card.dart';
 import 'category_card.dart';
@@ -54,6 +56,7 @@ class CategoryCardList extends ConsumerWidget {
                   return CategoryCard(
                     category: category,
                     presetId: preset.id,
+                    isPresetDefault: preset.isDefault,
                   );
                 },
               ),
@@ -129,6 +132,7 @@ class CategoryCardGrid extends ConsumerWidget {
                       child: CategoryCard(
                         category: category,
                         presetId: preset.id,
+                        isPresetDefault: preset.isDefault,
                       ),
                     );
                   }).toList(),
@@ -148,13 +152,14 @@ class _CategoryHeader extends ConsumerWidget {
     required this.onAddCategory,
   });
 
-  final dynamic preset;
+  final RandomPreset preset;
   final VoidCallback? onAddCategory;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final tagCount = ref.watch(presetTotalTagCountProvider);
 
     return Row(
@@ -187,7 +192,7 @@ class _CategoryHeader extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '类别配置',
+                l10n.categoryConfiguration,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: colorScheme.primary,
