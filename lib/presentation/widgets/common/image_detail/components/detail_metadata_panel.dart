@@ -60,18 +60,27 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: _isExpanded ? widget.expandedWidth : widget.collapsedWidth,
-      child: ClipRRect(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(16),
           bottomLeft: Radius.circular(16),
         ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            color: colorScheme.surface.withOpacity(0.92),
-            child: _isExpanded
-                ? _buildExpandedPanel(theme)
-                : _buildCollapsedPanel(theme),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          color: colorScheme.surface.withOpacity(0.92),
+          // 使用 OverflowBox 允许子组件按固定宽度布局，避免动画过程中的溢出警告
+          child: OverflowBox(
+            maxWidth: widget.expandedWidth,
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: widget.expandedWidth,
+              child: _isExpanded
+                  ? _buildExpandedPanel(theme)
+                  : _buildCollapsedPanel(theme),
+            ),
           ),
         ),
       ),
@@ -459,6 +468,11 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
     _isExpanded = widget.initiallyExpanded;
   }
 
+  void _copyContent() {
+    Clipboard.setData(ClipboardData(text: widget.content));
+    AppToast.success(context, '${widget.title}已复制');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -467,30 +481,52 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: () => setState(() => _isExpanded = !_isExpanded),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: Row(
-              children: [
-                Icon(widget.icon, size: 16, color: colorScheme.primary),
-                const SizedBox(width: 6),
-                Text(
-                  widget.title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            // 可点击的标题区域
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _isExpanded = !_isExpanded),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Row(
+                    children: [
+                      Icon(widget.icon, size: 16, color: colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Icon(
-                  _isExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ],
+              ),
             ),
-          ),
+            // 复制按钮
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: _copyContent,
+              icon: Icon(
+                Icons.copy,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              tooltip: '复制${widget.title}',
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.all(6),
+                minimumSize: const Size(28, 28),
+              ),
+            ),
+          ],
         ),
         AnimatedCrossFade(
           firstChild: const SizedBox(height: 10),
