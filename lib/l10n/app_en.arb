@@ -2231,12 +2231,12 @@
 
   "scope_title": "Scope",
   "scope_titleDesc": "Set the applicable scope of this category/group",
-  "scope_global": "Global",
-  "scope_globalDesc": "Only for main prompt",
-  "scope_character": "Character",
-  "scope_characterDesc": "Only for character prompts",
-  "scope_all": "All",
-  "scope_allDesc": "Available for both main and character prompts",
+  "scope_global": "Main",
+  "scope_globalTooltip": "Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.",
+  "scope_character": "Char",
+  "scope_characterTooltip": "Prompt will only appear in character prompts\nGenerated separately for each character\nSuitable for: hair color, eye color, clothing, expression, etc.",
+  "scope_all": "Both",
+  "scope_allTooltip": "Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags",
 
   "tagGroupSettings_resetToCategory": "Reset to Category Settings",
 

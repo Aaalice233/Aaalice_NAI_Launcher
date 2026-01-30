@@ -1,5 +1,3 @@
-import 'dart:isolate';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -155,7 +153,9 @@ class WordlistService {
 
   /// 解析 CSV 内容（在 Isolate 中执行）
   Future<List<WordlistEntry>> _parseCsvContentAsync(String content) async {
-    return Isolate.run(() => _parseCsvContentSync(content));
+    // TODO: Isolate.run 在 Windows 上与 Freezed 对象有兼容性问题，暂时禁用
+    // return Isolate.run(() => _parseCsvContentSync(content));
+    return _parseCsvContentSync(content);
   }
 
   /// 同步解析 CSV 内容（供 Isolate 使用）

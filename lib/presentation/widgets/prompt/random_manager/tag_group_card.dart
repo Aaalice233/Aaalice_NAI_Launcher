@@ -134,7 +134,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${tagGroup.tagCount}',
+                      '${ref.watch(groupTagCountProvider(tagGroup))}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),

@@ -1897,12 +1897,12 @@
 
   "scope_title": "作用域",
   "scope_titleDesc": "设置此类别/词组的适用范围",
-  "scope_global": "全局",
-  "scope_globalDesc": "仅用于主提示词",
+  "scope_global": "主提示词",
+  "scope_globalTooltip": "提示词将出现在主提示词区域\n适合：背景、场景、画面风格等",
   "scope_character": "角色",
-  "scope_characterDesc": "仅用于角色提示词",
-  "scope_all": "全部",
-  "scope_allDesc": "主提示词和角色提示词都可用",
+  "scope_characterTooltip": "提示词将只出现在角色提示词内\n每个角色单独生成\n适合：发色、眵色、服装、表情等",
+  "scope_all": "通用",
+  "scope_allTooltip": "提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签",
 
   "tagGroupSettings_resetToCategory": "重置为类别设置",
 
