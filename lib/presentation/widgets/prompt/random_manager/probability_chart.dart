@@ -329,7 +329,7 @@ class GenderDistributionChart extends ConsumerWidget {
                   _GenderSegment(
                     flex: female,
                     color: Colors.pink.shade400,
-                    label: 'F',
+                    label: '女',
                     value: female,
                     total: total,
                   ),
@@ -337,7 +337,7 @@ class GenderDistributionChart extends ConsumerWidget {
                   _GenderSegment(
                     flex: male,
                     color: Colors.blue.shade400,
-                    label: 'M',
+                    label: '男',
                     value: male,
                     total: total,
                   ),
@@ -345,7 +345,7 @@ class GenderDistributionChart extends ConsumerWidget {
                   _GenderSegment(
                     flex: other,
                     color: Colors.purple.shade400,
-                    label: 'O',
+                    label: '其他',
                     value: other,
                     total: total,
                   ),

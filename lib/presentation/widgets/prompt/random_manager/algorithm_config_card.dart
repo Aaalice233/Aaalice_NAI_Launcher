@@ -76,52 +76,55 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
   }
 
   Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+
     return InkWell(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
       borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: _isExpanded
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    colorScheme.primaryContainer.withOpacity(0.2),
-                    colorScheme.secondaryContainer.withOpacity(0.1),
-                  ],
-                )
-              : null,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-        ),
         child: Row(
           children: [
+            // 标题容器 - 统一样式
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: _isExpanded
-                    ? colorScheme.primary.withOpacity(0.15)
-                    : colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.primary.withOpacity(0.15),
+                    colorScheme.primary.withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(
-                Icons.tune,
-                size: 18,
-                color: _isExpanded
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              '算法配置',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: _isExpanded ? colorScheme.primary : null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      Icons.tune,
+                      size: 14,
+                      color: colorScheme.primary,
+                    ),
                   ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '算法配置',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const Spacer(),
+            // 展开/收起按钮
             AnimatedRotation(
               duration: const Duration(milliseconds: 200),
               turns: _isExpanded ? 0.5 : 0,
@@ -148,42 +151,39 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 角色数量权重
-        Expanded(
-          child: _CompactWeightGroup(
-            title: '角色数量',
-            items: config.characterCountWeights.map((w) {
-              final count = w[0];
-              final weight = w[1];
-              final label = count == 0 ? '无' : '$count人';
-              return _WeightItem(label: label, weight: weight);
-            }).toList(),
-            color: colorScheme.primary,
-          ),
+        _CompactWeightGroup(
+          title: '角色数量',
+          items: config.characterCountWeights.map((w) {
+            final count = w[0];
+            final weight = w[1];
+            final label = count == 0 ? '无' : '$count人';
+            return _WeightItem(label: label, weight: weight);
+          }).toList(),
+          color: colorScheme.primary,
         ),
-        const SizedBox(width: 16),
+        const SizedBox(height: 12),
         // 性别权重
-        Expanded(
-          child: _CompactWeightGroup(
-            title: '性别',
-            items: [
-              _WeightItem(
-                label: 'F',
-                weight: config.genderWeights['female'] ?? 60,
-              ),
-              _WeightItem(
-                label: 'M',
-                weight: config.genderWeights['male'] ?? 30,
-              ),
-              _WeightItem(
-                label: 'O',
-                weight: config.genderWeights['other'] ?? 10,
-              ),
-            ],
-            color: colorScheme.secondary,
-          ),
+        _CompactWeightGroup(
+          title: '性别',
+          items: [
+            _WeightItem(
+              label: '女',
+              weight: config.genderWeights['female'] ?? 60,
+            ),
+            _WeightItem(
+              label: '男',
+              weight: config.genderWeights['male'] ?? 30,
+            ),
+            _WeightItem(
+              label: '其他',
+              weight: config.genderWeights['other'] ?? 10,
+            ),
+          ],
+          color: colorScheme.secondary,
         ),
       ],
     );
@@ -243,7 +243,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
         ),
         const SizedBox(height: 12),
         _WeightSlider(
-          label: '女性 (Female)',
+          label: '女性',
           value: config.genderWeights['female'] ?? 60,
           color: Colors.pink.shade400,
           onChanged: (newWeight) {
@@ -251,7 +251,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           },
         ),
         _WeightSlider(
-          label: '男性 (Male)',
+          label: '男性',
           value: config.genderWeights['male'] ?? 30,
           color: Colors.blue.shade400,
           onChanged: (newWeight) {
@@ -259,7 +259,7 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
           },
         ),
         _WeightSlider(
-          label: '其他 (Other)',
+          label: '其他',
           value: config.genderWeights['other'] ?? 10,
           color: Colors.purple.shade400,
           onChanged: (newWeight) {

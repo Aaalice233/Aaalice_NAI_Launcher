@@ -263,17 +263,17 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                   segments: const [
                     ButtonSegment(
                       value: TagScope.global,
-                      label: Text('Global'),
+                      label: Text('全局'),
                       icon: Icon(Icons.public, size: 16),
                     ),
                     ButtonSegment(
                       value: TagScope.character,
-                      label: Text('Character'),
+                      label: Text('角色'),
                       icon: Icon(Icons.person, size: 16),
                     ),
                     ButtonSegment(
                       value: TagScope.all,
-                      label: Text('All'),
+                      label: Text('全部'),
                       icon: Icon(Icons.all_inclusive, size: 16),
                     ),
                   ],
@@ -363,9 +363,9 @@ class _ScopeTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (scope) {
-      TagScope.global => ('G', Colors.blue, Icons.public),
-      TagScope.character => ('C', Colors.green, Icons.person),
-      TagScope.all => ('A', Colors.purple, Icons.all_inclusive),
+      TagScope.global => ('全局', Colors.blue, Icons.public),
+      TagScope.character => ('角色', Colors.green, Icons.person),
+      TagScope.all => ('全部', Colors.purple, Icons.all_inclusive),
     };
 
     return Container(
@@ -407,6 +407,116 @@ class _ScopeTag extends StatelessWidget {
   }
 }
 
+/// 类别卡片垂直列表组件
+///
+/// 用于在仪表盘中显示所有类别卡片（垂直列表布局）
+/// 采用 Dimensional Layering 风格设计
+class CategoryCardList extends ConsumerWidget {
+  const CategoryCardList({
+    super.key,
+    this.onAddCategory,
+  });
+
+  final VoidCallback? onAddCategory;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final presetState = ref.watch(randomPresetNotifierProvider);
+    final preset = presetState.selectedPreset;
+
+    if (preset == null) {
+      return const Center(child: Text('请选择一个预设'));
+    }
+
+    return ElevatedCard(
+      elevation: CardElevation.level1,
+      enableHoverEffect: false,
+      borderRadius: 8,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏 - 统一样式
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary.withOpacity(0.15),
+                      colorScheme.primary.withOpacity(0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        Icons.category_outlined,
+                        size: 14,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '类别配置',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              // 统计信息 - 类别数量、词组数量、标签数量
+              _CategoryStats(
+                categoryCount: preset.categoryCount,
+                groupCount:
+                    preset.categories.fold(0, (sum, c) => sum + c.groupCount),
+                tagCount: preset.totalTagCount,
+              ),
+              const Spacer(),
+              // 添加类别按钮
+              _AddCategoryButton(onPressed: onAddCategory),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // 类别卡片垂直列表
+          if (preset.categories.isEmpty)
+            _EmptyCategoryPlaceholder()
+          else
+            Expanded(
+              child: ListView.separated(
+                itemCount: preset.categories.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final category = preset.categories[index];
+                  return CategoryCard(
+                    category: category,
+                    presetId: preset.id,
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 类别卡片网格组件
 ///
 /// 用于在仪表盘中显示所有类别卡片
@@ -438,34 +548,54 @@ class CategoryCardGrid extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题栏
+          // 标题栏 - 统一样式
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                     colors: [
                       colorScheme.primary.withOpacity(0.15),
-                      colorScheme.secondary.withOpacity(0.1),
+                      colorScheme.primary.withOpacity(0.05),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(
-                  Icons.category_outlined,
-                  size: 20,
-                  color: colorScheme.primary,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        Icons.category_outlined,
+                        size: 14,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '类别配置',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                '类别配置',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              const SizedBox(width: 16),
+              // 统计信息 - 类别数量、词组数量、标签数量
+              _CategoryStats(
+                categoryCount: preset.categoryCount,
+                groupCount:
+                    preset.categories.fold(0, (sum, c) => sum + c.groupCount),
+                tagCount: preset.totalTagCount,
               ),
               const Spacer(),
               // 添加类别按钮
@@ -634,6 +764,93 @@ class _EmptyCategoryPlaceholder extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 类别统计信息组件
+class _CategoryStats extends StatelessWidget {
+  const _CategoryStats({
+    required this.categoryCount,
+    required this.groupCount,
+    required this.tagCount,
+  });
+
+  final int categoryCount;
+  final int groupCount;
+  final int tagCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _StatBadge(
+          icon: Icons.category_outlined,
+          label: '类别',
+          value: '$categoryCount',
+          color: colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        _StatBadge(
+          icon: Icons.layers_outlined,
+          label: '词组',
+          value: '$groupCount',
+          color: colorScheme.secondary,
+        ),
+        const SizedBox(width: 12),
+        _StatBadge(
+          icon: Icons.label_outlined,
+          label: '标签',
+          value: '$tagCount',
+          color: colorScheme.tertiary,
+        ),
+      ],
+    );
+  }
+}
+
+/// 统计徽章组件
+class _StatBadge extends StatelessWidget {
+  const _StatBadge({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          '$label:',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          value,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

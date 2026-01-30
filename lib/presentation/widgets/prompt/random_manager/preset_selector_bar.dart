@@ -32,6 +32,7 @@ class PresetSelectorBar extends ConsumerWidget {
     // 方案: 微妙深色工具栏 - 比内容区稍深，有独立背景色
     // 背景色填充整个区域，内部 padding 不会显示为间隔
     return Container(
+      padding: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         // 稍深的背景色，与内容区形成微妙对比
         color: Color.alphaBlend(
@@ -46,100 +47,105 @@ class PresetSelectorBar extends ConsumerWidget {
           ),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // 响应式布局：窄屏时垂直排列
-            final isNarrow = constraints.maxWidth < 600;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 响应式布局：窄屏时垂直排列
+          final isNarrow = constraints.maxWidth < 600;
 
-            if (isNarrow) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 预设选择下拉框
-                  _PresetDropdown(
-                    presets: presetState.presets,
-                    selectedPreset: selectedPreset,
-                    onSelected: (preset) {
-                      ref
-                          .read(randomPresetNotifierProvider.notifier)
-                          .selectPreset(preset.id);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  // 统计信息 + 操作按钮
-                  Row(
-                    children: [
-                      if (selectedPreset != null)
-                        Expanded(
-                          child: _StatisticsInfo(preset: selectedPreset),
-                        ),
-                      _ActionButtons(
-                        onCreateNaiV4: () => _createNaiV4Preset(context, ref),
-                        onCopy: selectedPreset != null
-                            ? () => _copyPreset(context, ref, selectedPreset)
-                            : null,
-                        onDelete: selectedPreset != null &&
-                                !selectedPreset.isDefault
-                            ? () => _deletePreset(context, ref, selectedPreset)
-                            : null,
-                        onGeneratePreview: onGeneratePreview,
-                        onImportExport: onImportExport,
-                        onSync: () => _syncDanbooru(context, ref),
-                        isSyncing: syncState.isSyncing,
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            }
-
-            // 宽屏布局：横向排列，带分隔线
-            return Row(
+          if (isNarrow) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 预设选择下拉框
-                Flexible(
-                  flex: 2,
-                  child: _PresetDropdown(
-                    presets: presetState.presets,
-                    selectedPreset: selectedPreset,
-                    onSelected: (preset) {
-                      ref
-                          .read(randomPresetNotifierProvider.notifier)
-                          .selectPreset(preset.id);
-                    },
-                  ),
+                _PresetDropdown(
+                  presets: presetState.presets,
+                  selectedPreset: selectedPreset,
+                  onSelected: (preset) {
+                    ref
+                        .read(randomPresetNotifierProvider.notifier)
+                        .selectPreset(preset.id);
+                  },
                 ),
-                // 垂直分隔线
-                _VerticalDivider(color: colorScheme.primary),
-                // 统计信息
-                if (selectedPreset != null)
-                  Flexible(
-                    flex: 3,
-                    child: _StatisticsInfo(preset: selectedPreset),
-                  ),
-                // 垂直分隔线
-                _VerticalDivider(color: colorScheme.secondary),
-                // 操作按钮组
-                _ActionButtons(
-                  onCreateNaiV4: () => _createNaiV4Preset(context, ref),
-                  onCopy: selectedPreset != null
-                      ? () => _copyPreset(context, ref, selectedPreset)
-                      : null,
-                  onDelete: selectedPreset != null && !selectedPreset.isDefault
-                      ? () => _deletePreset(context, ref, selectedPreset)
-                      : null,
-                  onGeneratePreview: onGeneratePreview,
-                  onImportExport: onImportExport,
-                  onSync: () => _syncDanbooru(context, ref),
-                  isSyncing: syncState.isSyncing,
+                const SizedBox(height: 12),
+                // 统计信息 + 操作按钮
+                Row(
+                  children: [
+                    if (selectedPreset != null)
+                      Expanded(
+                        child: _StatisticsInfo(preset: selectedPreset),
+                      ),
+                    _ActionButtons(
+                      onCreateNaiV4: () => _createNaiV4Preset(context, ref),
+                      onCopy: selectedPreset != null
+                          ? () => _copyPreset(context, ref, selectedPreset)
+                          : null,
+                      onDelete: selectedPreset != null &&
+                              !selectedPreset.isDefault
+                          ? () => _deletePreset(context, ref, selectedPreset)
+                          : null,
+                      onGeneratePreview: onGeneratePreview,
+                      onImportExport: onImportExport,
+                      onSync: () => _syncDanbooru(context, ref),
+                      isSyncing: syncState.isSyncing,
+                    ),
+                  ],
                 ),
               ],
             );
-          },
-        ),
+          }
+
+          // 宽屏布局：横向排列，带分隔线
+          return Row(
+            children: [
+              // 预设选择下拉框 - 固定宽度
+              SizedBox(
+                width: 220,
+                child: _PresetDropdown(
+                  presets: presetState.presets,
+                  selectedPreset: selectedPreset,
+                  onSelected: (preset) {
+                    ref
+                        .read(randomPresetNotifierProvider.notifier)
+                        .selectPreset(preset.id);
+                  },
+                ),
+              ),
+              // 垂直分隔线
+              _VerticalDivider(color: colorScheme.primary),
+              // 全局信息区域 - 显示预设描述或空
+              Expanded(
+                child: selectedPreset?.description != null &&
+                        selectedPreset!.description!.isNotEmpty
+                    ? Text(
+                        selectedPreset.description!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              // 垂直分隔线
+              _VerticalDivider(color: colorScheme.secondary),
+              // 操作按钮组
+              _ActionButtons(
+                onCreateNaiV4: () => _createNaiV4Preset(context, ref),
+                onCopy: selectedPreset != null
+                    ? () => _copyPreset(context, ref, selectedPreset)
+                    : null,
+                onDelete: selectedPreset != null && !selectedPreset.isDefault
+                    ? () => _deletePreset(context, ref, selectedPreset)
+                    : null,
+                onGeneratePreview: onGeneratePreview,
+                onImportExport: onImportExport,
+                onSync: () => _syncDanbooru(context, ref),
+                isSyncing: syncState.isSyncing,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
