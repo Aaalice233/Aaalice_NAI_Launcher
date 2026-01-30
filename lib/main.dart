@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
+import 'package:video_player_media_kit/video_player_media_kit.dart';
 import 'dart:io';
 
 import 'package:timeago/timeago.dart' as timeago;
@@ -110,6 +111,11 @@ class AppWindowListener extends WindowListener {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化 Windows 视频播放支持
+  VideoPlayerMediaKit.ensureInitialized(
+    windows: true,
+  );
 
   // 初始化日志系统
   await AppLogger.init();

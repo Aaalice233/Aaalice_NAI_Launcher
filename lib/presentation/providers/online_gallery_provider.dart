@@ -110,6 +110,9 @@ class OnlineGalleryState {
   /// 已收藏的帖子 ID 集合（用于快速查找）
   final Set<int> favoritedPostIds;
 
+  /// 正在执行收藏操作的帖子 ID 集合
+  final Set<int> favoriteLoadingPostIds;
+
   /// 日期范围筛选（搜索模式）
   final DateTime? dateRangeStart;
   final DateTime? dateRangeEnd;
@@ -127,6 +130,7 @@ class OnlineGalleryState {
     this.popularScale = PopularScale.day,
     this.popularDate,
     this.favoritedPostIds = const {},
+    this.favoriteLoadingPostIds = const {},
     this.dateRangeStart,
     this.dateRangeEnd,
   });
@@ -168,6 +172,7 @@ class OnlineGalleryState {
     PopularScale? popularScale,
     DateTime? popularDate,
     Set<int>? favoritedPostIds,
+    Set<int>? favoriteLoadingPostIds,
     DateTime? dateRangeStart,
     DateTime? dateRangeEnd,
     bool clearError = false,
@@ -187,6 +192,8 @@ class OnlineGalleryState {
       popularScale: popularScale ?? this.popularScale,
       popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
       favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
+      favoriteLoadingPostIds:
+          favoriteLoadingPostIds ?? this.favoriteLoadingPostIds,
       dateRangeStart:
           clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
       dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
@@ -348,7 +355,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         posts:
             refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
         page: page,
-        hasMore: posts.isNotEmpty,
+        hasMore: posts.length >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
@@ -419,7 +426,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final newCache = ModeCache(
         posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
-        hasMore: rawCount > 0,
+        hasMore: rawCount >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
@@ -445,11 +452,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<bool> addFavorite(int postId) async {
     if (!_authState.isLoggedIn) return false;
 
+    // 设置 loading 状态
+    state = state.copyWith(
+      favoriteLoadingPostIds: {...state.favoriteLoadingPostIds, postId},
+    );
+
     final success = await _apiService.addFavorite(postId);
+
+    // 清除 loading 状态
+    final loadingIds = {...state.favoriteLoadingPostIds};
+    loadingIds.remove(postId);
+
     if (success) {
       state = state.copyWith(
         favoritedPostIds: {...state.favoritedPostIds, postId},
+        favoriteLoadingPostIds: loadingIds,
       );
+    } else {
+      state = state.copyWith(favoriteLoadingPostIds: loadingIds);
     }
     return success;
   }
@@ -458,11 +478,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<bool> removeFavorite(int postId) async {
     if (!_authState.isLoggedIn) return false;
 
+    // 设置 loading 状态
+    state = state.copyWith(
+      favoriteLoadingPostIds: {...state.favoriteLoadingPostIds, postId},
+    );
+
     final success = await _apiService.removeFavorite(postId);
+
+    // 清除 loading 状态
+    final loadingIds = {...state.favoriteLoadingPostIds};
+    loadingIds.remove(postId);
+
     if (success) {
       final newIds = {...state.favoritedPostIds};
       newIds.remove(postId);
-      state = state.copyWith(favoritedPostIds: newIds);
+      state = state.copyWith(
+        favoritedPostIds: newIds,
+        favoriteLoadingPostIds: loadingIds,
+      );
 
       // 如果在收藏夹视图中，从列表中移除
       if (state.viewMode == GalleryViewMode.favorites) {
@@ -472,6 +505,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         );
         state = state.copyWith(favoritesCache: newCache);
       }
+    } else {
+      state = state.copyWith(favoriteLoadingPostIds: loadingIds);
     }
     return success;
   }
@@ -558,7 +593,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final newCache = ModeCache(
         posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
-        hasMore: rawCount > 0,
+        hasMore: rawCount >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 

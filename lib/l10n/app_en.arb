@@ -864,6 +864,8 @@
   "onlineGallery_favCount": "Favorites",
   "onlineGallery_rating": "Rating",
   "onlineGallery_type": "Type",
+  "mediaType_video": "Video",
+  "mediaType_gif": "GIF",
   "onlineGallery_tags": "Tags",
   "onlineGallery_artists": "Artists",
   "onlineGallery_characters": "Characters",

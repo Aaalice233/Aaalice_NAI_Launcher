@@ -416,10 +416,10 @@ class _ClearButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: colorScheme.surfaceContainerHighest.withOpacity(0.8),
-      borderRadius: BorderRadius.circular(4),
+      shape: const CircleBorder(),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(4),
+        customBorder: const CircleBorder(),
         child: Padding(
           padding: const EdgeInsets.all(4),
           child: Icon(

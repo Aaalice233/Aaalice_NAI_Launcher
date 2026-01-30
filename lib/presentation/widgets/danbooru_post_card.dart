@@ -28,6 +28,7 @@ class DanbooruPostCard extends StatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
   final bool isFavorited;
+  final bool isFavoriteLoading;
   final bool selectionMode;
   final bool isSelected;
   final bool canSelect;
@@ -42,6 +43,7 @@ class DanbooruPostCard extends StatefulWidget {
     required this.post,
     required this.itemWidth,
     required this.isFavorited,
+    this.isFavoriteLoading = false,
     this.selectionMode = false,
     this.isSelected = false,
     this.canSelect = true,
@@ -224,6 +226,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           fit: BoxFit.cover,
                           memCacheWidth: memCacheWidth,
                           cacheManager: DanbooruImageCacheManager.instance,
+                          errorListener: (error) {
+                            // 静默处理图片加载错误，避免控制台警告
+                          },
                           placeholder: (context, url) => Container(
                             color: theme.colorScheme.surfaceContainerHighest,
                             child: const Center(
@@ -282,7 +287,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                             ),
                         ],
                         if (!widget.selectionMode) ...[
-                          if (widget.post.mediaTypeLabel != null)
+                          if (widget.post.isVideo || widget.post.isAnimated)
                             Positioned(
                               top: 4,
                               left: 4,
@@ -309,7 +314,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                     ),
                                     const SizedBox(width: 2),
                                     Text(
-                                      widget.post.mediaTypeLabel!,
+                                      widget.post.isVideo
+                                          ? context.l10n.mediaType_video
+                                          : context.l10n.mediaType_gif,
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 9,
@@ -417,6 +424,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               iconColor: widget.isFavorited
                                   ? Colors.red
                                   : Colors.white,
+                              isLoading: widget.isFavoriteLoading,
                               onPressed: widget.onFavoriteToggle,
                             ),
                             CardActionButtonConfig(

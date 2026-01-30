@@ -7,12 +7,14 @@ class CardActionButtonConfig {
   final String tooltip;
   final VoidCallback onPressed;
   final Color? iconColor;
+  final bool isLoading;
 
   const CardActionButtonConfig({
     required this.icon,
     required this.tooltip,
     required this.onPressed,
     this.iconColor,
+    this.isLoading = false,
   });
 }
 
@@ -154,7 +156,7 @@ class _CardActionButtonState extends State<_CardActionButton> {
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
         child: GestureDetector(
-          onTap: widget.config.onPressed,
+          onTap: widget.config.isLoading ? null : widget.config.onPressed,
           child: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
@@ -169,11 +171,20 @@ class _CardActionButtonState extends State<_CardActionButton> {
                 ),
               ],
             ),
-            child: Icon(
-              widget.config.icon,
-              color: widget.config.iconColor ?? Colors.white,
-              size: 16,
-            ),
+            child: widget.config.isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    widget.config.icon,
+                    color: widget.config.iconColor ?? Colors.white,
+                    size: 16,
+                  ),
           ),
         ),
       ),

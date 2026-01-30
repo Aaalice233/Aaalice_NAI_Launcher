@@ -626,6 +626,8 @@
   "onlineGallery_favCount": "收藏",
   "onlineGallery_rating": "评级",
   "onlineGallery_type": "类型",
+  "mediaType_video": "视频",
+  "mediaType_gif": "动图",
   "onlineGallery_tags": "标签",
   "onlineGallery_artists": "艺术家",
   "onlineGallery_characters": "角色",

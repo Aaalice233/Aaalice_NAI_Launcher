@@ -477,6 +477,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       child: ThemedInput(
         controller: _searchController,
         style: theme.textTheme.bodyMedium,
+        showClearButton: true,
+        onClearPressed: () {
+          _searchController.clear();
+          ref.read(onlineGalleryNotifierProvider.notifier).search('');
+        },
         decoration: InputDecoration(
           hintText: context.l10n.onlineGallery_searchTags,
           hintStyle: TextStyle(
@@ -488,19 +493,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             size: 18,
             color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
           ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref.read(onlineGalleryNotifierProvider.notifier).search('');
-                  },
-                )
-              : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           isDense: true,
@@ -508,7 +500,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         onSubmitted: (value) {
           ref.read(onlineGalleryNotifierProvider.notifier).search(value);
         },
-        onChanged: (value) => setState(() {}),
       ),
     );
   }
@@ -919,6 +910,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
         final post = state.posts[index];
         final isFavorited = state.favoritedPostIds.contains(post.id);
+        final isFavoriteLoading =
+            state.favoriteLoadingPostIds.contains(post.id);
         final selectionState =
             ref.watch(onlineGallerySelectionNotifierProvider);
         final isSelected =
@@ -932,6 +925,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           post: post,
           itemWidth: itemWidth,
           isFavorited: isFavorited,
+          isFavoriteLoading: isFavoriteLoading,
           selectionMode: selectionState.isActive,
           isSelected: isSelected,
           canSelect: canSelect,
@@ -958,9 +952,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               _showLoginDialog(context);
               return;
             }
+            final wasFavorited = state.favoritedPostIds.contains(post.id);
             ref
                 .read(onlineGalleryNotifierProvider.notifier)
-                .toggleFavorite(post.id);
+                .toggleFavorite(post.id)
+                .then((success) {
+              if (context.mounted && success) {
+                AppToast.info(context, wasFavorited ? '已取消收藏' : '已收藏');
+              }
+            });
           },
         );
       },

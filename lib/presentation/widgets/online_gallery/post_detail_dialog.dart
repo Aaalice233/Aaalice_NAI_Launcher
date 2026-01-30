@@ -17,6 +17,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../tag_chip.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
+import 'video_player_widget.dart';
 
 /// 在线画廊帖子详情弹窗
 ///
@@ -176,15 +177,22 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 可交互图片查看器
-          InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: CachedNetworkImage(
-              imageUrl: widget.post.sampleUrl ??
-                  widget.post.fileUrl ??
+          // 根据媒体类型渲染不同组件
+          if (widget.post.isVideo)
+            // 视频播放器
+            VideoPlayerWidget(
+              videoUrl: widget.post.fileUrl ?? widget.post.sampleUrl ?? '',
+            )
+          else if (widget.post.isAnimated)
+            // GIF 自动循环播放
+            CachedNetworkImage(
+              imageUrl: widget.post.fileUrl ??
+                  widget.post.sampleUrl ??
                   widget.post.previewUrl,
               fit: BoxFit.contain,
+              errorListener: (error) {
+                // 静默处理图片加载错误
+              },
               placeholder: (context, url) => const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
@@ -195,27 +203,41 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                     Icon(Icons.error, color: Colors.white54, size: 48),
                     SizedBox(height: 8),
                     Text(
-                      '加载失败',
+                      'GIF加载失败',
                       style: TextStyle(color: Colors.white54),
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-          // 媒体类型标识
-          if (widget.post.isVideo || widget.post.isAnimated)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  shape: BoxShape.circle,
+            )
+          else
+            // 普通图片（支持缩放平移）
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: CachedNetworkImage(
+                imageUrl: widget.post.sampleUrl ??
+                    widget.post.fileUrl ??
+                    widget.post.previewUrl,
+                fit: BoxFit.contain,
+                errorListener: (error) {
+                  // 静默处理图片加载错误
+                },
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
                 ),
-                child: Icon(
-                  widget.post.isVideo ? Icons.play_arrow : Icons.gif,
-                  color: Colors.white,
-                  size: 56,
+                errorWidget: (context, url, error) => const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error, color: Colors.white54, size: 48),
+                      SizedBox(height: 8),
+                      Text(
+                        '加载失败',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -232,29 +254,30 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               ),
             ),
           ),
-          // 缩放提示
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.zoom_in, color: Colors.white54, size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    '双指缩放',
-                    style: TextStyle(color: Colors.white54, fontSize: 11),
-                  ),
-                ],
+          // 缩放提示（仅图片显示）
+          if (!widget.post.isVideo && !widget.post.isAnimated)
+            Positioned(
+              bottom: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.zoom_in, color: Colors.white54, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      '双指缩放',
+                      style: TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
