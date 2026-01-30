@@ -22,6 +22,7 @@ import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/bulk_action_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 在线画廊页面
@@ -330,55 +331,46 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
 
     if (selectionState.isActive) {
-      return Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          border: Border(
-            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+      final allPostIds = state.posts.map((p) => p.id.toString()).toList();
+      final isAllSelected = allPostIds.isNotEmpty &&
+          allPostIds.every((id) => selectionState.selectedIds.contains(id));
+
+      return BulkActionBar(
+        selectedCount: selectionState.selectedIds.length,
+        isAllSelected: isAllSelected,
+        onExit: () =>
+            ref.read(onlineGallerySelectionNotifierProvider.notifier).exit(),
+        onSelectAll: () {
+          if (isAllSelected) {
+            ref
+                .read(onlineGallerySelectionNotifierProvider.notifier)
+                .clearSelection();
+          } else {
+            ref
+                .read(onlineGallerySelectionNotifierProvider.notifier)
+                .selectAll(allPostIds);
+          }
+        },
+        actions: [
+          BulkActionItem(
+            icon: Icons.playlist_add,
+            label: '加入队列',
+            onPressed: _addSelectedToQueue,
+            color: theme.colorScheme.primary,
           ),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => ref
-                  .read(onlineGallerySelectionNotifierProvider.notifier)
-                  .exit(),
-              tooltip: '退出多选',
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '已选择 ${selectionState.selectedIds.length} 项',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.playlist_add),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _addSelectedToQueue
-                  : null,
-              tooltip: '加入队列',
-            ),
-            IconButton(
-              icon: const Icon(Icons.favorite_border),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _favoriteSelected
-                  : null,
-              tooltip: '批量收藏',
-            ),
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _downloadSelected
-                  : null,
-              tooltip: '批量下载',
-            ),
-          ],
-        ),
+          BulkActionItem(
+            icon: Icons.favorite_border,
+            label: '批量收藏',
+            onPressed: _favoriteSelected,
+            color: theme.colorScheme.secondary,
+          ),
+          BulkActionItem(
+            icon: Icons.download,
+            label: '批量下载',
+            onPressed: _downloadSelected,
+            color: theme.colorScheme.tertiary,
+          ),
+        ],
       );
     }
 
@@ -1296,10 +1288,10 @@ class _RatingDropdown extends StatelessWidget {
 
   List<(String, String, Color?)> _getRatings(BuildContext context) => [
         ('all', context.l10n.onlineGallery_all, null),
-        ('g', 'G', Colors.green),
-        ('s', 'S', Colors.amber),
-        ('q', 'Q', Colors.orange),
-        ('e', 'E', Colors.red),
+        ('g', context.l10n.onlineGallery_ratingGeneral, Colors.green),
+        ('s', context.l10n.onlineGallery_ratingSensitive, Colors.amber),
+        ('q', context.l10n.onlineGallery_ratingQuestionable, Colors.orange),
+        ('e', context.l10n.onlineGallery_ratingExplicit, Colors.red),
       ];
 
   @override

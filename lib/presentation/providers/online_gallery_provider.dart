@@ -212,6 +212,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   late Dio _dio;
   static const int _pageSize = 40;
 
+  /// 用于取消正在进行的请求
+  CancelToken? _cancelToken;
+
   @override
   OnlineGalleryState build() {
     // 保持状态在切换Tab时不被销毁
@@ -225,6 +228,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
 
     return const OnlineGalleryState();
+  }
+
+  /// 取消当前正在进行的加载请求
+  void _cancelCurrentRequest() {
+    if (_cancelToken != null && !_cancelToken!.isCancelled) {
+      _cancelToken!.cancel('用户取消请求');
+    }
+    _cancelToken = CancelToken();
   }
 
   /// 获取 API 服务
@@ -308,7 +319,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载排行榜帖子
   Future<void> _loadPopularPosts({bool refresh = false}) async {
-    if (state.isLoading) return;
+    // 取消之前的请求，支持打断
+    _cancelCurrentRequest();
 
     final currentCache = state.popularCache;
     final page = refresh ? 1 : currentCache.page;
@@ -345,6 +357,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         popularCache: newCache,
       );
     } catch (e, stack) {
+      // 如果是取消请求，不显示错误
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        return;
+      }
       AppLogger.e(
         'Failed to load popular posts: $e',
         e,
@@ -362,7 +378,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载收藏夹
   Future<void> _loadFavorites({bool refresh = false}) async {
-    if (state.isLoading) return;
+    // 取消之前的请求，支持打断
+    _cancelCurrentRequest();
 
     final authState = _authState;
     if (!authState.isLoggedIn || authState.user == null) {
@@ -412,6 +429,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         favoritedPostIds: favoritedIds,
       );
     } catch (e, stack) {
+      // 如果是取消请求，不显示错误
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        return;
+      }
       AppLogger.e('Failed to load favorites: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
@@ -508,7 +529,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载搜索帖子
   Future<void> _loadSearchPosts({bool refresh = false}) async {
-    if (state.isLoading) return;
+    // 取消之前的请求，支持打断
+    _cancelCurrentRequest();
 
     final currentCache = state.searchCache;
 
@@ -545,6 +567,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         searchCache: newCache,
       );
     } catch (e, stack) {
+      // 如果是取消请求，不显示错误
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        return;
+      }
       AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
@@ -705,6 +731,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           'User-Agent': 'NAI-Launcher/1.0',
         },
       ),
+      cancelToken: _cancelToken,
     );
 
     if (response.data is List) {

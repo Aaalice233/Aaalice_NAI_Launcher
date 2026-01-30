@@ -10,6 +10,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
@@ -18,6 +19,7 @@ import '../../providers/bulk_operation_provider.dart';
 import '../../providers/gallery_folder_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/character_prompt_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../widgets/bulk_export_dialog.dart';
@@ -727,12 +729,42 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
 
+    // 首先清空多角色提示词（套用元数据时总是清空）
+    final characterNotifier =
+        ref.read(characterPromptNotifierProvider.notifier);
+    characterNotifier.clearAllCharacters();
+
     if (metadata.prompt.isNotEmpty) {
       paramsNotifier.updatePrompt(metadata.prompt);
     }
     if (metadata.negativePrompt.isNotEmpty) {
       paramsNotifier.updateNegativePrompt(metadata.negativePrompt);
     }
+
+    // 应用多角色提示词（如果有）
+    if (metadata.characterPrompts.isNotEmpty) {
+      final characters = <char.CharacterPrompt>[];
+      for (int i = 0; i < metadata.characterPrompts.length; i++) {
+        final prompt = metadata.characterPrompts[i];
+        final negPrompt = i < metadata.characterNegativePrompts.length
+            ? metadata.characterNegativePrompts[i]
+            : '';
+
+        // 尝试从提示词推断性别
+        final gender = _inferGenderFromPrompt(prompt);
+
+        characters.add(
+          char.CharacterPrompt.create(
+            name: 'Character ${i + 1}',
+            gender: gender,
+            prompt: prompt,
+            negativePrompt: negPrompt,
+          ),
+        );
+      }
+      characterNotifier.replaceAll(characters);
+    }
+
     if (metadata.model != null) {
       paramsNotifier.updateModel(metadata.model!);
     }
@@ -762,6 +794,21 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     AppToast.info(context, '参数已复用到主界面');
+  }
+
+  /// 从提示词推断角色性别
+  char.CharacterGender _inferGenderFromPrompt(String prompt) {
+    final lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.contains('1girl') ||
+        lowerPrompt.contains('girl,') ||
+        lowerPrompt.startsWith('girl')) {
+      return char.CharacterGender.female;
+    } else if (lowerPrompt.contains('1boy') ||
+        lowerPrompt.contains('boy,') ||
+        lowerPrompt.startsWith('boy')) {
+      return char.CharacterGender.male;
+    }
+    return char.CharacterGender.other;
   }
 
   /// 发送图片到图生图

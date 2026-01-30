@@ -48,6 +48,7 @@ class CategoryCardList extends ConsumerWidget {
           else
             Expanded(
               child: ListView.separated(
+                clipBehavior: Clip.none,
                 itemCount: preset.categories.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 12),

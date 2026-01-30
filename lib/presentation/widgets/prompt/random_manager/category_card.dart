@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/random_category.dart';
+import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../common/elevated_card.dart';
+import '../../common/themed_confirm_dialog.dart';
 import 'add_tag_group_dialog.dart';
 import 'category_card_widgets.dart';
 import 'tag_group_card.dart';
@@ -45,6 +47,9 @@ class CategoryCard extends ConsumerStatefulWidget {
 class _CategoryCardState extends ConsumerState<CategoryCard>
     with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
+
+  /// 当前正在拖拽的词组（用于显示垃圾桶区域）
+  RandomTagGroup? _draggingGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -220,18 +225,59 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                   runSpacing: 8,
                   children: [
                     ...category.groups.map((group) {
-                      return TagGroupCard(
+                      // 判断该词组是否可删除：默认预设中的内置词组不可删除
+                      final canDelete =
+                          !(widget.isPresetDefault && group.isBuiltin);
+
+                      final card = TagGroupCard(
                         tagGroup: group,
                         categoryId: category.id,
                         categoryKey: category.key,
                         presetId: widget.presetId,
                         isPresetDefault: widget.isPresetDefault,
                       );
+
+                      // 可删除的词组可以拖拽
+                      if (canDelete) {
+                        return Draggable<_DragData>(
+                          data: _DragData(
+                            group: group,
+                            categoryKey: category.key,
+                          ),
+                          onDragStarted: () {
+                            setState(() => _draggingGroup = group);
+                          },
+                          onDragEnd: (_) {
+                            setState(() => _draggingGroup = null);
+                          },
+                          feedback: Material(
+                            elevation: 8,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Opacity(
+                              opacity: 0.9,
+                              child: card,
+                            ),
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.3,
+                            child: card,
+                          ),
+                          child: card,
+                        );
+                      }
+                      return card;
                     }),
-                    AddTagGroupCard(
-                      onTap: () => _addTagGroup(context),
-                      enabled: !widget.isPresetDefault,
-                    ),
+                    // 拖拽时显示垃圾桶区域
+                    if (_draggingGroup != null)
+                      _TrashDropZone(
+                        onAccept: (data) =>
+                            _showDeleteConfirmDialog(context, data),
+                      )
+                    else
+                      AddTagGroupCard(
+                        onTap: () => _addTagGroup(context),
+                        enabled: !widget.isPresetDefault,
+                      ),
                   ],
                 ),
             ],
@@ -253,6 +299,151 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
         category: widget.category,
         presetId: widget.presetId,
       ),
+    );
+  }
+
+  /// 显示删除确认对话框
+  void _showDeleteConfirmDialog(BuildContext context, _DragData data) async {
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: '删除词组',
+      content: '确定要删除词组「${data.group.name}」吗？此操作不可撤销。',
+      confirmText: '删除',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
+    );
+
+    if (confirmed) {
+      ref.read(randomPresetNotifierProvider.notifier).removeGroupFromCategory(
+            data.categoryKey,
+            data.group.id,
+          );
+    }
+  }
+}
+
+/// 拖拽数据
+class _DragData {
+  final RandomTagGroup group;
+  final String categoryKey;
+
+  _DragData({
+    required this.group,
+    required this.categoryKey,
+  });
+}
+
+/// 垃圾桶拖放区域
+class _TrashDropZone extends StatefulWidget {
+  const _TrashDropZone({
+    required this.onAccept,
+  });
+
+  final void Function(_DragData data) onAccept;
+
+  @override
+  State<_TrashDropZone> createState() => _TrashDropZoneState();
+}
+
+class _TrashDropZoneState extends State<_TrashDropZone>
+    with SingleTickerProviderStateMixin {
+  bool _isHovering = false;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return DragTarget<_DragData>(
+      onWillAcceptWithDetails: (details) {
+        setState(() => _isHovering = true);
+        _animationController.forward();
+        return true;
+      },
+      onLeave: (_) {
+        setState(() => _isHovering = false);
+        _animationController.reverse();
+      },
+      onAcceptWithDetails: (details) {
+        setState(() => _isHovering = false);
+        _animationController.reverse();
+        widget.onAccept(details.data);
+      },
+      builder: (context, candidateData, rejectedData) {
+        return ScaleTransition(
+          scale: _scaleAnimation,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 135,
+            height: 80,
+            decoration: BoxDecoration(
+              color: _isHovering
+                  ? colorScheme.errorContainer
+                  : colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _isHovering
+                    ? colorScheme.error
+                    : colorScheme.outline.withOpacity(0.3),
+                width: _isHovering ? 2 : 1,
+                strokeAlign: BorderSide.strokeAlignInside,
+              ),
+              boxShadow: _isHovering
+                  ? [
+                      BoxShadow(
+                        color: colorScheme.error.withOpacity(0.3),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _isHovering ? Icons.delete_forever : Icons.delete_outline,
+                  size: _isHovering ? 32 : 28,
+                  color: _isHovering
+                      ? colorScheme.error
+                      : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _isHovering ? '松开删除' : '拖到这里删除',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: _isHovering
+                        ? colorScheme.error
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: _isHovering ? FontWeight.bold : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -5,6 +5,7 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../common/app_toast.dart';
+import '../new_preset_dialog.dart';
 import 'random_manager_widgets.dart';
 
 /// 预设选择栏组件
@@ -66,14 +67,12 @@ class PresetSelectorBar extends ConsumerWidget {
                         .read(randomPresetNotifierProvider.notifier)
                         .selectPreset(preset.id);
                   },
+                  onCreateNew: () => _showCreatePresetDialog(context, ref),
                 ),
                 // 只读模式提示（窄屏时单独一行）
                 if (selectedPreset?.isDefault == true) ...[
                   const SizedBox(height: 8),
-                  _ReadOnlyIndicator(
-                    onCopyPreset: () =>
-                        _copyPreset(context, ref, selectedPreset!),
-                  ),
+                  const _ReadOnlyIndicator(),
                 ],
                 const SizedBox(height: 12),
                 // 统计信息 + 操作按钮
@@ -84,22 +83,21 @@ class PresetSelectorBar extends ConsumerWidget {
                         child: _StatisticsInfo(preset: selectedPreset),
                       ),
                     _ActionButtons(
-                      onCreateNaiV4: () => _createNaiV4Preset(context, ref),
-                      onCopy: selectedPreset != null
-                          ? () => _copyPreset(context, ref, selectedPreset)
-                          : null,
                       onDelete: selectedPreset != null &&
                               !selectedPreset.isDefault
                           ? () => _deletePreset(context, ref, selectedPreset)
                           : null,
                       onResetToDefault: selectedPreset != null &&
-                              (selectedPreset.isDefault ||
-                                  selectedPreset.isBasedOnDefault)
+                              !selectedPreset.isDefault &&
+                              selectedPreset.isBasedOnDefault
                           ? () => _resetToDefault(context, ref, selectedPreset)
                           : null,
                       onGeneratePreview: onGeneratePreview,
                       onImportExport: onImportExport,
-                      onSync: () => _syncDanbooru(context, ref),
+                      onSync:
+                          selectedPreset != null && !selectedPreset.isDefault
+                              ? () => _syncDanbooru(context, ref)
+                              : null,
                       isSyncing: syncState.isSyncing,
                     ),
                   ],
@@ -122,6 +120,7 @@ class PresetSelectorBar extends ConsumerWidget {
                         .read(randomPresetNotifierProvider.notifier)
                         .selectPreset(preset.id);
                   },
+                  onCreateNew: () => _showCreatePresetDialog(context, ref),
                 ),
               ),
               // 垂直分隔线
@@ -145,10 +144,7 @@ class PresetSelectorBar extends ConsumerWidget {
                     // 只读模式提示（默认预设时显示）
                     if (selectedPreset?.isDefault == true) ...[
                       const SizedBox(width: 12),
-                      _ReadOnlyIndicator(
-                        onCopyPreset: () =>
-                            _copyPreset(context, ref, selectedPreset!),
-                      ),
+                      const _ReadOnlyIndicator(),
                     ],
                   ],
                 ),
@@ -157,21 +153,19 @@ class PresetSelectorBar extends ConsumerWidget {
               _VerticalDivider(color: colorScheme.secondary),
               // 操作按钮组
               _ActionButtons(
-                onCreateNaiV4: () => _createNaiV4Preset(context, ref),
-                onCopy: selectedPreset != null
-                    ? () => _copyPreset(context, ref, selectedPreset)
-                    : null,
                 onDelete: selectedPreset != null && !selectedPreset.isDefault
                     ? () => _deletePreset(context, ref, selectedPreset)
                     : null,
                 onResetToDefault: selectedPreset != null &&
-                        (selectedPreset.isDefault ||
-                            selectedPreset.isBasedOnDefault)
+                        !selectedPreset.isDefault &&
+                        selectedPreset.isBasedOnDefault
                     ? () => _resetToDefault(context, ref, selectedPreset)
                     : null,
                 onGeneratePreview: onGeneratePreview,
                 onImportExport: onImportExport,
-                onSync: () => _syncDanbooru(context, ref),
+                onSync: selectedPreset != null && !selectedPreset.isDefault
+                    ? () => _syncDanbooru(context, ref)
+                    : null,
                 isSyncing: syncState.isSyncing,
               ),
             ],
@@ -181,37 +175,24 @@ class PresetSelectorBar extends ConsumerWidget {
     );
   }
 
-  Future<void> _createNaiV4Preset(BuildContext context, WidgetRef ref) async {
+  /// 显示创建预设对话框
+  Future<void> _showCreatePresetDialog(
+      BuildContext context, WidgetRef ref) async {
+    final result = await NewPresetDialog.show(context);
+    if (result == null) return;
+
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
-    final preset = await notifier.createPreset(
-      name: 'NAI V4 官方预设',
-      copyFromCurrent: false,
+    final copyFromDefault = result.mode == PresetCreationMode.template;
+
+    final newPreset = await notifier.createPreset(
+      name: result.name,
+      copyFromCurrent: copyFromDefault,
     );
-    // 使用默认的 V4 配置重置
-    await notifier.updatePreset(preset.resetToDefault());
-    await notifier.selectPreset(preset.id);
+    await notifier.selectPreset(newPreset.id);
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已创建 NAI V4 官方预设'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppToast.success(context, '已创建预设 "${result.name}"');
     }
-  }
-
-  Future<void> _copyPreset(
-    BuildContext context,
-    WidgetRef ref,
-    RandomPreset preset,
-  ) async {
-    final name = await _showNameDialog(context, '复制预设', '${preset.name} - 副本');
-    if (name == null || name.isEmpty) return;
-
-    final notifier = ref.read(randomPresetNotifierProvider.notifier);
-    final newPreset = await notifier.createPreset(name: name);
-    await notifier.selectPreset(newPreset.id);
   }
 
   Future<void> _deletePreset(
@@ -291,104 +272,129 @@ class PresetSelectorBar extends ConsumerWidget {
       }
     }
   }
-
-  Future<String?> _showNameDialog(
-    BuildContext context,
-    String title,
-    String initialValue,
-  ) async {
-    final controller = TextEditingController(text: initialValue);
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '名称',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _PresetDropdown extends StatelessWidget {
+class _PresetDropdown extends StatefulWidget {
   const _PresetDropdown({
     required this.presets,
     required this.selectedPreset,
     required this.onSelected,
+    required this.onCreateNew,
   });
 
   final List<RandomPreset> presets;
   final RandomPreset? selectedPreset;
   final ValueChanged<RandomPreset> onSelected;
+  final VoidCallback onCreateNew;
+
+  @override
+  State<_PresetDropdown> createState() => _PresetDropdownState();
+}
+
+class _PresetDropdownState extends State<_PresetDropdown> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: _isHovered
+              ? colorScheme.surfaceContainerHighest
+              : colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: _isHovered
+                ? colorScheme.primary.withOpacity(0.3)
+                : colorScheme.outlineVariant.withOpacity(0.2),
+            width: 1,
           ),
-        ],
-      ),
-      child: DropdownButton<String>(
-        value: selectedPreset?.id,
-        isExpanded: true,
-        underline: const SizedBox.shrink(),
-        icon: Icon(Icons.keyboard_arrow_down, color: colorScheme.onSurface),
-        items: presets.map((preset) {
-          return DropdownMenuItem<String>(
-            value: preset.id,
-            child: Row(
-              children: [
-                Icon(
-                  preset.isDefault ? Icons.star : Icons.folder_outlined,
-                  size: 18,
-                  color: preset.isDefault
-                      ? Colors.amber
-                      : colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    preset.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
-              ],
+        ),
+        child: DropdownButton<String>(
+          value: widget.selectedPreset?.id,
+          isExpanded: true,
+          underline: const SizedBox.shrink(),
+          isDense: true,
+          icon: AnimatedRotation(
+            duration: const Duration(milliseconds: 150),
+            turns: 0,
+            child: Icon(
+              Icons.expand_more,
+              size: 18,
+              color: _isHovered
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
-          );
-        }).toList(),
-        onChanged: (id) {
-          if (id != null) {
-            final preset = presets.firstWhere((p) => p.id == id);
-            onSelected(preset);
-          }
-        },
+          ),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface,
+          ),
+          items: [
+            // 现有预设列表
+            ...widget.presets.map((preset) {
+              return DropdownMenuItem<String>(
+                value: preset.id,
+                child: Row(
+                  children: [
+                    Icon(
+                      preset.isDefault
+                          ? Icons.star_rounded
+                          : Icons.folder_outlined,
+                      size: 14,
+                      color: preset.isDefault
+                          ? Colors.amber
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        preset.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            // 分隔线 + 新建预设选项（开发中）
+            DropdownMenuItem<String>(
+              value: '__create_new__',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.add_circle_outline,
+                    size: 14,
+                    color: colorScheme.onSurface.withOpacity(0.35),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '新建预设...',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          onChanged: (id) {
+            if (id == '__create_new__') {
+              AppToast.warning(context, '开发中');
+            } else if (id != null) {
+              final preset = widget.presets.firstWhere((p) => p.id == id);
+              widget.onSelected(preset);
+            }
+          },
+        ),
       ),
     );
   }
@@ -517,8 +523,6 @@ class _VerticalDivider extends StatelessWidget {
 
 class _ActionButtons extends StatelessWidget {
   const _ActionButtons({
-    required this.onCreateNaiV4,
-    this.onCopy,
     this.onDelete,
     this.onResetToDefault,
     this.onGeneratePreview,
@@ -527,8 +531,6 @@ class _ActionButtons extends StatelessWidget {
     this.isSyncing = false,
   });
 
-  final VoidCallback onCreateNaiV4;
-  final VoidCallback? onCopy;
   final VoidCallback? onDelete;
   final VoidCallback? onResetToDefault;
   final VoidCallback? onGeneratePreview;
@@ -543,12 +545,14 @@ class _ActionButtons extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Danbooru 同步按钮
-        _SyncButton(
-          onPressed: onSync,
-          isSyncing: isSyncing,
-        ),
-        const SizedBox(width: 4),
+        // Danbooru 同步按钮（默认预设不显示）
+        if (onSync != null) ...[
+          _SyncButton(
+            onPressed: onSync,
+            isSyncing: isSyncing,
+          ),
+          const SizedBox(width: 4),
+        ],
         // 生成预览按钮
         if (onGeneratePreview != null)
           _ActionButton(
@@ -558,33 +562,15 @@ class _ActionButtons extends StatelessWidget {
             color: colorScheme.primary,
           ),
         // 重置为默认按钮
-        if (onResetToDefault != null)
-          _ActionButton(
-            icon: Icons.restart_alt,
-            tooltip: '重置为默认配置',
-            onPressed: onResetToDefault,
-            color: Colors.orange,
-          ),
-        // 一键 NAI V4 按钮
-        _ActionButton(
-          icon: Icons.auto_fix_high,
-          tooltip: '一键创建 NAI V4 预设',
-          onPressed: onCreateNaiV4,
-          color: Colors.amber,
-        ),
-        // 复制按钮
-        _ActionButton(
-          icon: Icons.copy_outlined,
-          tooltip: '复制预设',
-          onPressed: onCopy,
-        ),
+        if (onResetToDefault != null) _ResetButton(onPressed: onResetToDefault),
         // 删除按钮
-        _ActionButton(
-          icon: Icons.delete_outline,
-          tooltip: '删除预设',
-          onPressed: onDelete,
-          color: onDelete != null ? Colors.red.shade400 : null,
-        ),
+        if (onDelete != null)
+          _ActionButton(
+            icon: Icons.delete_outline,
+            tooltip: '删除预设',
+            onPressed: onDelete,
+            color: Colors.red.shade400,
+          ),
         // 导入/导出按钮
         if (onImportExport != null)
           _ActionButton(
@@ -715,6 +701,88 @@ class _SyncButtonState extends State<_SyncButton>
   }
 }
 
+/// 重置按钮组件
+class _ResetButton extends StatefulWidget {
+  const _ResetButton({this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  State<_ResetButton> createState() => _ResetButtonState();
+}
+
+class _ResetButtonState extends State<_ResetButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const resetColor = Colors.orange;
+    final isEnabled = widget.onPressed != null;
+
+    return MouseRegion(
+      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Tooltip(
+        message: '重置为默认配置',
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: _isHovered && isEnabled
+                    ? [resetColor.withOpacity(0.2), resetColor.withOpacity(0.1)]
+                    : [
+                        resetColor.withOpacity(0.08),
+                        resetColor.withOpacity(0.04),
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: _isHovered && isEnabled
+                  ? [
+                      BoxShadow(
+                        color: resetColor.withOpacity(0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: resetColor.withOpacity(0.15),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.restart_alt,
+                  size: 16,
+                  color: isEnabled ? resetColor : resetColor.withOpacity(0.4),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '重置',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isEnabled ? resetColor : resetColor.withOpacity(0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionButton extends StatefulWidget {
   const _ActionButton({
     required this.icon,
@@ -792,78 +860,47 @@ class _ActionButtonState extends State<_ActionButton> {
 }
 
 /// 只读模式指示器（紧凑版，用于顶栏）
-class _ReadOnlyIndicator extends StatefulWidget {
-  const _ReadOnlyIndicator({this.onCopyPreset});
-
-  final VoidCallback? onCopyPreset;
-
-  @override
-  State<_ReadOnlyIndicator> createState() => _ReadOnlyIndicatorState();
-}
-
-class _ReadOnlyIndicatorState extends State<_ReadOnlyIndicator> {
-  bool _isHovered = false;
+class _ReadOnlyIndicator extends StatelessWidget {
+  const _ReadOnlyIndicator();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Tooltip(
-        message: '当前预设为默认预设，所有配置项已锁定。点击复制为自定义预设。',
-        child: GestureDetector(
-          onTap: widget.onCopyPreset,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _isHovered
-                    ? [
-                        Colors.amber.shade100.withOpacity(0.3),
-                        Colors.orange.shade100.withOpacity(0.2),
-                      ]
-                    : [
-                        Colors.amber.shade100.withOpacity(0.15),
-                        Colors.orange.shade100.withOpacity(0.1),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color:
-                    Colors.amber.shade600.withOpacity(_isHovered ? 0.6 : 0.4),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.lock_outline,
-                  size: 14,
-                  color: Colors.amber.shade800,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '只读模式',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade900,
-                  ),
-                ),
-                if (widget.onCopyPreset != null) ...[
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.copy_outlined,
-                    size: 12,
-                    color: Colors.amber.shade700,
-                  ),
-                ],
-              ],
-            ),
+    return Tooltip(
+      message: '当前预设为默认预设，所有配置项已锁定',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.amber.shade100.withOpacity(0.15),
+              Colors.orange.shade100.withOpacity(0.1),
+            ],
           ),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: Colors.amber.shade600.withOpacity(0.4),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 14,
+              color: Colors.amber.shade800,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '只读模式',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.amber.shade900,
+              ),
+            ),
+          ],
         ),
       ),
     );

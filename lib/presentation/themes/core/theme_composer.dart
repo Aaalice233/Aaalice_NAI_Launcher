@@ -122,13 +122,19 @@ class ThemeComposer {
         space: divider.thickness,
       ),
 
-      // 深度层叠风格：卡片使用阴影层次
+      // 深度层叠风格：卡片使用纯色背景 + 无边框 + 边缘阴影
       cardTheme: CardTheme(
-        shape: shape.cardShape,
-        elevation: 0, // 使用自定义 BoxShadow
-        color: colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(shape.largeRadius),
+          side: BorderSide.none,
+        ),
+        elevation: 4,
+        color: effectiveBrightness == Brightness.dark
+            ? const Color(0xFF2A2A2A)
+            : const Color(0xFFFFFFFF),
         surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withOpacity(0.25),
+        margin: EdgeInsets.zero,
       ),
 
       // 深度层叠风格：按钮配置
@@ -166,13 +172,12 @@ class ThemeComposer {
         ),
       ),
 
-      // 深度层叠风格：输入框使用背景色差 + 无边框
-      // 通过 InsetShadowContainer 组件实现内阴影效果
+      // 深度层叠风格：输入框使用纯色背景 + 无边框
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: effectiveBrightness == Brightness.dark
-            ? Color.lerp(colorScheme.surface, Colors.black, 0.3)
-            : Color.lerp(colorScheme.surface, Colors.black, 0.02),
+            ? const Color(0xFF1A1A1A)
+            : const Color(0xFFF5F5F5),
         // 深度层叠：移除边框，使用纯背景色差
         border: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),

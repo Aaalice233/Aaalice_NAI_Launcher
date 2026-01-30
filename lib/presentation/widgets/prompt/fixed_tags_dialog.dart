@@ -840,191 +840,218 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
     final posColor =
         entry.isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-        decoration: BoxDecoration(
-          color: _isHovering
-              ? theme.colorScheme.surfaceContainerHighest
-                  .withOpacity(isDark ? 0.8 : 0.6)
-              : theme.colorScheme.surfaceContainerHigh
-                  .withOpacity(isDark ? 0.5 : 0.4),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
+    // 禁用状态透明度
+    final disabledOpacity = entry.enabled ? 1.0 : 0.5;
+
+    return ReorderableDragStartListener(
+      index: widget.index,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            // 色差背景：启用时用主题色深背景，禁用时发灰
             color: entry.enabled
-                ? theme.colorScheme.secondary
-                    .withOpacity(_isHovering ? 0.4 : 0.2)
-                : theme.colorScheme.outline
-                    .withOpacity(_isHovering ? 0.15 : 0.08),
-            width: entry.enabled ? 1.2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            // 拖拽手柄 - 极简
-            ReorderableDragStartListener(
-              index: widget.index,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.grab,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                  child: Icon(
-                    Icons.drag_indicator_rounded,
-                    size: 16,
-                    color: theme.colorScheme.outline.withOpacity(
-                      _isHovering ? 0.5 : 0.25,
+                ? (isDark
+                    ? theme.colorScheme.surfaceContainerHigh
+                    : theme.colorScheme.surfaceContainerHighest)
+                : theme.colorScheme.surfaceContainerLow.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(12),
+            // 无边框 + 阴影
+            boxShadow: entry.enabled
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow
+                          .withOpacity(isDark ? 0.3 : 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                      spreadRadius: -2,
                     ),
+                    if (_isHovering)
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                  ]
+                : [
+                    // 禁用状态也有轻微阴影
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+          ),
+          child: Opacity(
+            opacity: disabledOpacity,
+            child: Row(
+              children: [
+                // 启用开关
+                ThemedSwitch(
+                  value: entry.enabled,
+                  onChanged: (_) => widget.onToggleEnabled(),
+                  scale: 0.7,
+                ),
+
+                const SizedBox(width: 10),
+
+                // 名称 + 内容
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 名称
+                      Text(
+                        entry.displayName,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: entry.enabled
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.onSurface.withOpacity(0.5),
+                          // 禁用时显示删除线
+                          decoration:
+                              entry.enabled ? null : TextDecoration.lineThrough,
+                          decorationColor:
+                              theme.colorScheme.outline.withOpacity(0.6),
+                          decorationThickness: 2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      // 内容预览 - 仅内容与名称不同时显示
+                      if (entry.content.isNotEmpty &&
+                          entry.content != entry.displayName)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            entry.content.replaceAll('\n', ' '),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: entry.enabled
+                                  ? theme.colorScheme.outline.withOpacity(0.8)
+                                  : theme.colorScheme.outline.withOpacity(0.5),
+                              height: 1.2,
+                              decoration: entry.enabled
+                                  ? null
+                                  : TextDecoration.lineThrough,
+                              decorationColor:
+                                  theme.colorScheme.outline.withOpacity(0.4),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-            ),
 
-            // 启用开关
-            ThemedSwitch(
-              value: entry.enabled,
-              onChanged: (_) => widget.onToggleEnabled(),
-              scale: 0.7,
-            ),
+                const SizedBox(width: 8),
 
-            const SizedBox(width: 6),
-
-            // 名称 + 内容
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 名称
-                  Text(
-                    entry.displayName,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: entry.enabled
-                          ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withOpacity(0.4),
-                      decoration:
-                          entry.enabled ? null : TextDecoration.lineThrough,
-                      decorationColor:
-                          theme.colorScheme.outline.withOpacity(0.4),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  // 内容预览 - 仅悬停显示或内容与名称不同时
-                  if (entry.content.isNotEmpty &&
-                      entry.content != entry.displayName)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Text(
-                        entry.content.replaceAll('\n', ' '),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.colorScheme.outline.withOpacity(0.7),
-                          height: 1.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                // 标签区 - 紧凑
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 位置标签
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: entry.enabled
+                            ? posColor.withOpacity(0.15)
+                            : theme.colorScheme.outline.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            entry.isPrefix
+                                ? Icons.arrow_forward_rounded
+                                : Icons.arrow_back_rounded,
+                            size: 10,
+                            color: entry.enabled
+                                ? posColor
+                                : theme.colorScheme.outline,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            entry.isPrefix
+                                ? context.l10n.fixedTags_prefix
+                                : context.l10n.fixedTags_suffix,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: entry.enabled
+                                  ? posColor
+                                  : theme.colorScheme.outline,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
-              ),
-            ),
+                    // 权重标签
+                    if (entry.weight != 1.0) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: entry.enabled
+                              ? theme.colorScheme.secondary.withOpacity(0.15)
+                              : theme.colorScheme.outline.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${entry.weight.toStringAsFixed(1)}x',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: entry.enabled
+                                ? theme.colorScheme.secondary
+                                : theme.colorScheme.outline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
 
-            const SizedBox(width: 6),
+                const SizedBox(width: 6),
 
-            // 标签区 - 紧凑
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 位置标签
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: posColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                // 操作按钮 - 紧凑
+                AnimatedOpacity(
+                  opacity: _isHovering ? 1.0 : 0.4,
+                  duration: const Duration(milliseconds: 120),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        entry.isPrefix
-                            ? Icons.arrow_forward_rounded
-                            : Icons.arrow_back_rounded,
-                        size: 9,
-                        color: posColor,
+                      _CompactIconButton(
+                        icon: Icons.edit_outlined,
+                        onPressed: widget.onEdit,
+                        tooltip: context.l10n.common_edit,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        hoverColor: theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 2),
-                      Text(
-                        entry.isPrefix
-                            ? context.l10n.fixedTags_prefix
-                            : context.l10n.fixedTags_suffix,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: posColor,
-                        ),
+                      _CompactIconButton(
+                        icon: Icons.close_rounded,
+                        onPressed: widget.onDelete,
+                        tooltip: context.l10n.common_delete,
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        hoverColor: theme.colorScheme.error,
                       ),
                     ],
                   ),
                 ),
-                // 权重标签
-                if (entry.weight != 1.0) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${entry.weight.toStringAsFixed(1)}x',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.secondary,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
-
-            const SizedBox(width: 4),
-
-            // 操作按钮 - 紧凑
-            AnimatedOpacity(
-              opacity: _isHovering ? 1.0 : 0.4,
-              duration: const Duration(milliseconds: 120),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _CompactIconButton(
-                    icon: Icons.edit_outlined,
-                    onPressed: widget.onEdit,
-                    tooltip: context.l10n.common_edit,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    hoverColor: theme.colorScheme.primary,
-                  ),
-                  _CompactIconButton(
-                    icon: Icons.close_rounded,
-                    onPressed: widget.onDelete,
-                    tooltip: context.l10n.common_delete,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    hoverColor: theme.colorScheme.error,
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -99,6 +99,55 @@ class TagLibraryEntry with _$TagLibraryEntry {
   /// 是否有预览图
   bool get hasThumbnail => thumbnail != null && thumbnail!.isNotEmpty;
 
+  /// 计算内容中的实际标签数量（按逗号分隔，正确处理嵌套语法）
+  int get promptTagCount {
+    if (content.isEmpty) return 0;
+
+    int count = 0;
+    int braceDepth = 0; // {}
+    int bracketDepth = 0; // []
+    int parenDepth = 0; // ()
+    bool hasContent = false;
+
+    for (int i = 0; i < content.length; i++) {
+      final char = content[i];
+
+      if (char == '{') {
+        braceDepth++;
+      } else if (char == '}') {
+        braceDepth--;
+      } else if (char == '[') {
+        bracketDepth++;
+      } else if (char == ']') {
+        bracketDepth--;
+      } else if (char == '(') {
+        parenDepth++;
+      } else if (char == ')') {
+        parenDepth--;
+      }
+
+      // 在顶层遇到逗号时计数
+      if (char == ',' &&
+          braceDepth == 0 &&
+          bracketDepth == 0 &&
+          parenDepth == 0) {
+        if (hasContent) {
+          count++;
+          hasContent = false;
+        }
+      } else if (char != ' ' && char != '\t' && char != '\n') {
+        hasContent = true;
+      }
+    }
+
+    // 最后一个片段
+    if (hasContent) {
+      count++;
+    }
+
+    return count;
+  }
+
   /// 计算权重所需的嵌套层数
   static int calculateWeightLayers(double weight) {
     if (weight == 1.0) return 0;

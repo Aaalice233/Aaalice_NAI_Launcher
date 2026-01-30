@@ -159,6 +159,7 @@
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
   "settings_selectStyle": "选择风格",
+  "settings_defaultPreset": "默认预设",
   "settings_selectFont": "选择字体",
   "settings_selectLanguage": "选择语言",
   "settings_loadFailed": "加载失败: {error}",
@@ -261,6 +262,18 @@
   "prompt_negative": "负面",
   "prompt_positivePrompt": "正向提示词",
   "prompt_negativePrompt": "负向提示词",
+  "prompt_mainPositive": "主提示词（正面）",
+  "prompt_mainNegative": "主提示词（负面）",
+  "prompt_characterPrompts": "多角色提示词",
+  "prompt_characterPromptItem": "{name}：{content}",
+  "@prompt_characterPromptItem": {
+    "placeholders": {
+      "name": {},
+      "content": {}
+    }
+  },
+  "prompt_finalPrompt": "最终生效提示词",
+  "prompt_finalNegative": "最终生效负面词",
   "prompt_tags": "{count} 个标签",
   "prompt_importedCharacters": "已导入 {count} 个角色",
   "@prompt_importedCharacters": {
@@ -622,6 +635,10 @@
   "onlineGallery_copyTags": "复制标签",
   "onlineGallery_open": "打开",
   "onlineGallery_all": "全部",
+  "onlineGallery_ratingGeneral": "全年龄",
+  "onlineGallery_ratingSensitive": "敏感",
+  "onlineGallery_ratingQuestionable": "可疑",
+  "onlineGallery_ratingExplicit": "限制级",
   "onlineGallery_clear": "清除",
   "onlineGallery_previousPage": "上一页",
   "onlineGallery_nextPage": "下一页",
@@ -789,6 +806,8 @@
   "presetEdit_bracketRange": "{min}-{max} 层括号",
 
   "qualityTags_label": "质量词",
+  "qualityTags_positive": "质量词（正面）",
+  "qualityTags_negative": "质量词（负面）",
   "qualityTags_disabled": "质量标签已关闭\n点击开启",
   "qualityTags_addToEnd": "添加到提示词末尾:",
   "qualityTags_naiDefault": "NAI 默认",
@@ -802,6 +821,7 @@
   "ucPreset_furryFocus": "Furry",
   "ucPreset_humanFocus": "人物",
   "ucPreset_none": "无",
+  "ucPreset_custom": "自定义",
   "ucPreset_disabled": "负面提示词预设已关闭",
   "ucPreset_addToNegative": "添加到负面提示词开头:",
   "ucPreset_nsfwHint": "💡 如需生成成人内容，请在正面提示词中添加 nsfw，负面提示词中的 nsfw 将自动移除",

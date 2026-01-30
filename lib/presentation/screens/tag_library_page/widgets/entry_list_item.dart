@@ -11,10 +11,12 @@ import '../../../widgets/common/app_toast.dart';
 class EntryListItem extends StatefulWidget {
   final TagLibraryEntry entry;
   final VoidCallback onTap;
-  final VoidCallback onAddToFixed;
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
+
+  /// 所属分类名称
+  final String? categoryName;
 
   /// 是否启用拖拽到分类功能
   final bool enableDrag;
@@ -23,10 +25,10 @@ class EntryListItem extends StatefulWidget {
     super.key,
     required this.entry,
     required this.onTap,
-    required this.onAddToFixed,
     required this.onDelete,
     required this.onToggleFavorite,
     this.onEdit,
+    this.categoryName,
     this.enableDrag = false,
   });
 
@@ -50,30 +52,58 @@ class _EntryListItemState extends State<EntryListItem> {
         }
       },
       onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           padding: const EdgeInsets.all(12),
+          // 悬停时微微上移
+          transform: Matrix4.identity()
+            ..translate(0.0, _isHovering ? -2.0 : 0.0),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _isHovering
-                  ? theme.colorScheme.primary.withOpacity(0.5)
-                  : theme.colorScheme.outlineVariant.withOpacity(0.2),
-              width: 1.5,
-            ),
+            // 色差背景 - 悬停时稍亮
+            color: _isHovering
+                ? theme.colorScheme.surfaceContainerHighest
+                : theme.colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            // 无边框 + 多层阴影
             boxShadow: _isHovering
                 ? [
+                    // 主阴影 - 带主题色
                     BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      color: theme.colorScheme.primary.withOpacity(0.15),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                    // 中层阴影
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withOpacity(0.08),
                       blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                    // 底层阴影
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ]
-                : null,
+                : [
+                    // 静态阴影
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
           ),
           child: Row(
             children: [
@@ -296,6 +326,74 @@ class _EntryListItemState extends State<EntryListItem> {
           overflow: TextOverflow.ellipsis,
         ),
 
+        const SizedBox(height: 6),
+
+        // 统计信息行：分类 + 标签数 + 使用次数
+        Row(
+          children: [
+            // 分类标签（始终显示，无分类时显示根目录）
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 11,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.categoryName?.isNotEmpty == true
+                        ? widget.categoryName!
+                        : context.l10n.tagLibrary_rootCategory,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 标签数量
+            Icon(
+              Icons.sell_outlined,
+              size: 11,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 2),
+            Text(
+              '${entry.promptTagCount}',
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            // 使用次数
+            if (entry.useCount > 0) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.repeat,
+                size: 11,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${entry.useCount}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ],
+        ),
+
         // 标签
         if (entry.tags.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -315,36 +413,6 @@ class _EntryListItemState extends State<EntryListItem> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // 使用次数
-        if (widget.entry.useCount > 0) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.repeat,
-                  size: 14,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  widget.entry.useCount.toString(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-        ],
         // 收藏按钮 - 红心样式，无文字
         widget.entry.isFavorite
             ? Material(
@@ -380,14 +448,6 @@ class _EntryListItemState extends State<EntryListItem> {
           ),
           const SizedBox(width: 4),
         ],
-        // 添加到固定词
-        _buildActionIcon(
-          theme,
-          Icons.add_box_outlined,
-          context.l10n.tagLibrary_addToFixed,
-          widget.onAddToFixed,
-        ),
-        const SizedBox(width: 4),
         // 复制
         _buildActionIcon(
           theme,

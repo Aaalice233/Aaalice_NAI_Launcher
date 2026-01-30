@@ -8,8 +8,7 @@ import '../../../data/datasources/remote/nai_auth_api_service.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../common/app_toast.dart';
-import '../common/inset_shadow_container.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
+import '../common/floating_label_input.dart';
 
 /// Token 登录卡片组件
 class TokenLoginCard extends ConsumerStatefulWidget {
@@ -43,249 +42,196 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
     final authState = ref.watch(authNotifierProvider);
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.1),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题
-              Row(
-                children: [
-                  Icon(
-                    Icons.key_rounded,
-                    color: theme.colorScheme.primary,
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 昵称输入框（必填）
+          FloatingLabelInput(
+            label: context.l10n.auth_nicknameOptional
+                .replaceAll('（可选）', '')
+                .replaceAll('(optional)', ''),
+            controller: _nicknameController,
+            hintText: context.l10n.auth_nicknameHint,
+            prefixIcon: Icons.person_outline,
+            textInputAction: TextInputAction.next,
+            required: true,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return context.l10n.auth_nicknameRequired;
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Token 输入框
+          FloatingLabelInput(
+            label: 'API Token',
+            controller: _tokenController,
+            hintText: context.l10n.auth_tokenHint,
+            prefixIcon: Icons.vpn_key_outlined,
+            obscureText: _obscureToken,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _handleLogin(),
+            required: true,
+            suffix: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 粘贴按钮
+                IconButton(
+                  icon: const Icon(Icons.paste, size: 20),
+                  tooltip: context.l10n.common_paste,
+                  onPressed: _pasteFromClipboard,
+                  splashRadius: 20,
+                ),
+                // 显示/隐藏切换
+                IconButton(
+                  icon: Icon(
+                    _obscureToken
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  onPressed: () {
+                    setState(() {
+                      _obscureToken = !_obscureToken;
+                    });
+                  },
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return context.l10n.auth_tokenRequired;
+              }
+              if (!NAIAuthApiService.isValidTokenFormat(value)) {
+                return context.l10n.auth_tokenInvalid;
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // 登录按钮
+          FilledButton.icon(
+            onPressed: authState.isLoading ? null : _handleLogin,
+            icon: authState.isLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.login),
+            label: Text(context.l10n.auth_validateAndLogin),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+
+          // 错误提示
+          if (authState.hasError) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getErrorMessage(authState.errorCode),
+                          style: TextStyle(
+                            color: theme.colorScheme.error,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // 显示恢复建议
+                  if (_getErrorRecoveryHint(
+                        authState.errorCode,
+                        authState.httpStatusCode,
+                      ) !=
+                      null) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: Text(
+                        _getErrorRecoveryHint(
+                          authState.errorCode,
+                          authState.httpStatusCode,
+                        )!,
+                        style: TextStyle(
+                          color: theme.colorScheme.error.withOpacity(0.8),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                  // 网络错误显示重试按钮
+                  if (_isNetworkError(authState.errorCode)) ...[
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: authState.isLoading ? null : _handleLogin,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: Text(context.l10n.common_retry),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.error,
+                        foregroundColor: theme.colorScheme.onError,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+
+          // Token 获取指引
+          InkWell(
+            onTap: _openTokenGuide,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.help_outline,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
                   Text(
-                    context.l10n.auth_tokenLogin,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    context.l10n.auth_tokenGuide,
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              // 昵称输入框（必填）
-              InsetShadowContainer(
-                borderRadius: 8,
-                child: ThemedFormInput(
-                  controller: _nicknameController,
-                  decoration: InputDecoration(
-                    labelText:
-                        '${context.l10n.auth_nicknameOptional.replaceAll('（可选）', '').replaceAll('(optional)', '')} *',
-                    hintText: context.l10n.auth_nicknameHint,
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    focusedErrorBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
-                    ),
-                  ),
-                  textInputAction: TextInputAction.next,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return context.l10n.auth_nicknameRequired;
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Token 输入框
-              InsetShadowContainer(
-                borderRadius: 8,
-                child: ThemedFormInput(
-                  controller: _tokenController,
-                  decoration: InputDecoration(
-                    labelText: 'API Token *',
-                    hintText: context.l10n.auth_tokenHint,
-                    prefixIcon: const Icon(Icons.vpn_key_outlined),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    focusedErrorBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
-                    ),
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // 粘贴按钮
-                        IconButton(
-                          icon: const Icon(Icons.paste),
-                          tooltip: context.l10n.common_paste,
-                          onPressed: _pasteFromClipboard,
-                        ),
-                        // 显示/隐藏切换
-                        IconButton(
-                          icon: Icon(
-                            _obscureToken
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscureToken = !_obscureToken;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  obscureText: _obscureToken,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _handleLogin(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return context.l10n.auth_tokenRequired;
-                    }
-                    if (!NAIAuthApiService.isValidTokenFormat(value)) {
-                      return context.l10n.auth_tokenInvalid;
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // 登录按钮
-              FilledButton.icon(
-                onPressed: authState.isLoading ? null : _handleLogin,
-                icon: authState.isLoading
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.login),
-                label: Text(context.l10n.auth_validateAndLogin),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-
-              // 错误提示
-              if (authState.hasError) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: theme.colorScheme.error,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _getErrorMessage(authState.errorCode),
-                              style: TextStyle(
-                                color: theme.colorScheme.error,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      // 显示恢复建议
-                      if (_getErrorRecoveryHint(
-                            authState.errorCode,
-                            authState.httpStatusCode,
-                          ) !=
-                          null) ...[
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 32),
-                          child: Text(
-                            _getErrorRecoveryHint(
-                              authState.errorCode,
-                              authState.httpStatusCode,
-                            )!,
-                            style: TextStyle(
-                              color: theme.colorScheme.error.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                      // 网络错误显示重试按钮
-                      if (_isNetworkError(authState.errorCode)) ...[
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: authState.isLoading ? null : _handleLogin,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: Text(context.l10n.common_retry),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.error,
-                            foregroundColor: theme.colorScheme.onError,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              // Token 获取指引
-              InkWell(
-                onTap: _openTokenGuide,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.help_outline,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.l10n.auth_tokenGuide,
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

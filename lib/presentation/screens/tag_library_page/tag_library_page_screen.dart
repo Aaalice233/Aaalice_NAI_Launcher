@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../providers/fixed_tags_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/sliding_toggle.dart';
@@ -223,7 +221,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      fillColor: Color.alphaBlend(
+                        Colors.black.withOpacity(0.15),
+                        theme.colorScheme.surfaceContainerHighest,
+                      ),
                       contentPadding:
                           const EdgeInsets.symmetric(horizontal: 12),
                     ),
@@ -348,6 +349,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
   /// 构建卡片网格
   Widget _buildCardGrid(ThemeData theme, List entries) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -359,12 +361,14 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
+        final categoryName =
+            _getCategoryName(state.categories, entry.categoryId);
         return EntryCard(
           key: ValueKey(entry.id),
           entry: entry,
+          categoryName: categoryName,
           enableDrag: true,
           onTap: () => _showEntryDetail(entry),
-          onAddToFixed: () => _addToFixedTags(entry),
           onDelete: () => _showDeleteEntryConfirmation(entry.id),
           onEdit: () => _showEditDialog(entry),
           onToggleFavorite: () {
@@ -379,19 +383,22 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
   /// 构建列表视图
   Widget _buildListView(ThemeData theme, List entries) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
+        final categoryName =
+            _getCategoryName(state.categories, entry.categoryId);
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: EntryListItem(
             key: ValueKey(entry.id),
             entry: entry,
+            categoryName: categoryName,
             enableDrag: true,
             onTap: () => _showEntryDetail(entry),
-            onAddToFixed: () => _addToFixedTags(entry),
             onDelete: () => _showDeleteEntryConfirmation(entry.id),
             onEdit: () => _showEditDialog(entry),
             onToggleFavorite: () {
@@ -403,6 +410,16 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         );
       },
     );
+  }
+
+  /// 获取分类名称（如果没有分类则返回空字符串表示根目录）
+  String _getCategoryName(List categories, String? categoryId) {
+    if (categoryId == null) return ''; // 空字符串表示根目录
+    final category = categories.cast().firstWhere(
+          (c) => c?.id == categoryId,
+          orElse: () => null,
+        );
+    return category?.displayName ?? '';
   }
 
   // ==================== 对话框方法 ====================
@@ -567,23 +584,6 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         entry: entry,
       ),
     );
-  }
-
-  void _addToFixedTags(dynamic entry) {
-    // 添加到固定词
-    ref.read(fixedTagsNotifierProvider.notifier).addEntry(
-          name: entry.name.isNotEmpty ? entry.name : entry.displayName,
-          content: entry.content,
-          weight: 1.0,
-          position: FixedTagPosition.prefix,
-          enabled: true,
-        );
-
-    // 记录使用
-    ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
-
-    // 显示提示
-    AppToast.success(context, context.l10n.tagLibrary_addedToFixed);
   }
 
   void _showImportDialog() {

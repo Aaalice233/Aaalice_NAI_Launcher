@@ -134,20 +134,10 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
           allImagePaths.every((p) => selectionState.selectedIds.contains(p));
 
       return BulkActionBar(
+        selectedCount: selectionState.selectedIds.length,
+        isAllSelected: isAllSelected,
         onExit: () =>
             ref.read(localGallerySelectionNotifierProvider.notifier).exit(),
-        onAddToCollection: selectionState.selectedIds.isNotEmpty
-            ? widget.onAddToCollection
-            : null,
-        onDelete: selectionState.selectedIds.isNotEmpty
-            ? widget.onDeleteSelected
-            : null,
-        onExport: selectionState.selectedIds.isNotEmpty
-            ? widget.onExportSelected
-            : null,
-        onEditMetadata: selectionState.selectedIds.isNotEmpty
-            ? widget.onEditMetadata
-            : null,
         onSelectAll: () {
           if (isAllSelected) {
             ref
@@ -159,11 +149,40 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                 .selectAll(allImagePaths);
           }
         },
-        onMoveToFolder: selectionState.selectedIds.isNotEmpty
-            ? widget.onMoveToFolder
-            : null,
-        isAllSelected: isAllSelected,
-        totalCount: allImagePaths.length,
+        actions: [
+          BulkActionItem(
+            icon: Icons.drive_file_move_outline,
+            label: '移动',
+            onPressed: widget.onMoveToFolder,
+            color: theme.colorScheme.secondary,
+          ),
+          BulkActionItem(
+            icon: Icons.download_outlined,
+            label: '导出',
+            onPressed: widget.onExportSelected,
+            color: theme.colorScheme.primary,
+          ),
+          BulkActionItem(
+            icon: Icons.edit_outlined,
+            label: '编辑',
+            onPressed: widget.onEditMetadata,
+            color: theme.colorScheme.tertiary,
+          ),
+          BulkActionItem(
+            icon: Icons.playlist_add,
+            label: '收藏',
+            onPressed: widget.onAddToCollection,
+            color: theme.colorScheme.secondary,
+          ),
+          BulkActionItem(
+            icon: Icons.delete_outline,
+            label: '删除',
+            onPressed: widget.onDeleteSelected,
+            color: theme.colorScheme.error,
+            isDanger: true,
+            showDividerBefore: true,
+          ),
+        ],
       );
     }
 

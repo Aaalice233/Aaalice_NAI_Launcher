@@ -1,69 +1,40 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/selection_mode_provider.dart';
+/// 通用批量操作工具栏
+///
+/// 用于本地画廊和在线画廊的批量操作
+class BulkActionBar extends StatelessWidget {
+  /// 选中数量
+  final int selectedCount;
 
-/// Bulk action bar for selected images
-/// 显示批量操作按钮的工具栏
-class BulkActionBar extends ConsumerWidget {
-  /// Callback when delete button is pressed
-  /// 删除按钮回调
-  final VoidCallback? onDelete;
-
-  /// Callback when export button is pressed
-  /// 导出按钮回调
-  final VoidCallback? onExport;
-
-  /// Callback when edit metadata button is pressed
-  /// 编辑元数据按钮回调
-  final VoidCallback? onEditMetadata;
-
-  /// Callback when add to collection button is pressed
-  /// 添加到集合按钮回调
-  final VoidCallback? onAddToCollection;
-
-  /// Callback when exit button is pressed
-  /// 退出按钮回调
-  final VoidCallback? onExit;
-
-  /// Callback when select all button is pressed
-  /// 全选按钮回调
-  final VoidCallback? onSelectAll;
-
-  /// Callback when move to folder button is pressed
-  /// 移动到文件夹按钮回调
-  final VoidCallback? onMoveToFolder;
-
-  /// Whether all items are selected
   /// 是否已全选
   final bool isAllSelected;
 
-  /// Total number of items that can be selected
-  /// 可选择的总数
-  final int totalCount;
+  /// 退出多选模式回调
+  final VoidCallback? onExit;
+
+  /// 全选/取消全选回调
+  final VoidCallback? onSelectAll;
+
+  /// 操作按钮列表
+  final List<BulkActionItem> actions;
 
   const BulkActionBar({
     super.key,
-    this.onDelete,
-    this.onExport,
-    this.onEditMetadata,
-    this.onAddToCollection,
+    required this.selectedCount,
+    required this.isAllSelected,
     this.onExit,
     this.onSelectAll,
-    this.onMoveToFolder,
-    this.isAllSelected = false,
-    this.totalCount = 0,
+    this.actions = const [],
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
     final isDark = theme.brightness == Brightness.dark;
-    final hasSelection = selectionState.selectedIds.isNotEmpty;
-    final selectedCount = selectionState.selectedIds.length;
+    final hasSelection = selectedCount > 0;
 
     return ClipRRect(
       child: BackdropFilter(
@@ -82,7 +53,7 @@ class BulkActionBar extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              // Exit button
+              // 退出按钮
               _ActionButton(
                 icon: Icons.close,
                 label: '退出',
@@ -91,7 +62,7 @@ class BulkActionBar extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
 
-              // Selection count badge
+              // 选中数量徽章
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -109,7 +80,7 @@ class BulkActionBar extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
 
-              // Select all / Deselect all button
+              // 全选/取消全选按钮
               _ActionButton(
                 icon: isAllSelected ? Icons.deselect : Icons.select_all,
                 label: isAllSelected ? '取消全选' : '全选',
@@ -119,62 +90,29 @@ class BulkActionBar extends ConsumerWidget {
 
               const Spacer(),
 
-              // Action buttons group
+              // 操作按钮组
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Move to folder button
-                  _ActionButton(
-                    icon: Icons.drive_file_move_outline,
-                    label: '移动',
-                    onPressed: hasSelection ? onMoveToFolder : null,
-                    color: theme.colorScheme.secondary,
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Export button
-                  _ActionButton(
-                    icon: Icons.download_outlined,
-                    label: '导出',
-                    onPressed: hasSelection ? onExport : null,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Edit metadata button
-                  _ActionButton(
-                    icon: Icons.edit_outlined,
-                    label: '编辑',
-                    onPressed: hasSelection ? onEditMetadata : null,
-                    color: theme.colorScheme.tertiary,
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Add to collection button
-                  _ActionButton(
-                    icon: Icons.playlist_add,
-                    label: '收藏',
-                    onPressed: hasSelection ? onAddToCollection : null,
-                    color: theme.colorScheme.secondary,
-                  ),
-                  const SizedBox(width: 16),
-
-                  // Divider
-                  Container(
-                    width: 1,
-                    height: 28,
-                    color: theme.dividerColor.withOpacity(0.3),
-                  ),
-                  const SizedBox(width: 16),
-
-                  // Delete button (danger)
-                  _ActionButton(
-                    icon: Icons.delete_outline,
-                    label: '删除',
-                    onPressed: hasSelection ? onDelete : null,
-                    color: theme.colorScheme.error,
-                    isDanger: true,
-                  ),
+                  for (int i = 0; i < actions.length; i++) ...[
+                    if (i > 0 && actions[i].showDividerBefore) ...[
+                      const SizedBox(width: 16),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: theme.dividerColor.withOpacity(0.3),
+                      ),
+                      const SizedBox(width: 16),
+                    ] else if (i > 0)
+                      const SizedBox(width: 8),
+                    _ActionButton(
+                      icon: actions[i].icon,
+                      label: actions[i].label,
+                      onPressed: hasSelection ? actions[i].onPressed : null,
+                      color: actions[i].color,
+                      isDanger: actions[i].isDanger,
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -183,6 +121,25 @@ class BulkActionBar extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 批量操作项配置
+class BulkActionItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final bool isDanger;
+  final bool showDividerBefore;
+
+  const BulkActionItem({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+    this.color,
+    this.isDanger = false,
+    this.showDividerBefore = false,
+  });
 }
 
 /// Action button with icon and optional label

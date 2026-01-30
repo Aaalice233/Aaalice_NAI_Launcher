@@ -4,7 +4,9 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/random_preset_provider.dart';
+import '../../../providers/tag_library_provider.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
+import '../../../../data/models/prompt/tag_category.dart';
 import '../diy/panels/conditional_branch_panel.dart';
 import '../diy/panels/dependency_config_panel.dart';
 import '../diy/panels/visibility_rule_panel.dart';
@@ -53,142 +55,187 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
         tagGroup.hasPostProcessRules ||
         tagGroup.emphasisProbability > 0;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap ?? () => _showEditDialog(context),
-        child: Opacity(
-          opacity: tagGroup.enabled ? 1.0 : 0.5,
-          child: ElevatedCard(
-            elevation: CardElevation.level1,
-            hoverElevation: CardElevation.level2,
-            enableHoverEffect: false, // 外层 MouseRegion 已处理
-            borderRadius: 8,
-            gradientBorder: tagGroup.enabled && _isHovered && hasDiyAbility
-                ? CardGradients.primary(colorScheme)
-                : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              width: 135,
-              padding: const EdgeInsets.all(12),
-              transform: Matrix4.identity()
-                ..translate(0.0, _isHovered ? -2.0 : 0.0),
-              transformAlignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: _isHovered
-                    ? colorScheme.surfaceContainerHighest
-                    : colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: _isHovered
-                    ? [
-                        BoxShadow(
-                          color: colorScheme.primary.withOpacity(0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 第一行：开关 + emoji + 名称
-                  Row(
-                    children: [
-                      // 启用开关
-                      SizedBox(
-                        width: 28,
-                        height: 20,
-                        child: Transform.scale(
-                          scale: 0.6,
-                          child: Switch(
-                            value: tagGroup.enabled,
-                            onChanged: widget.isPresetDefault
-                                ? null
-                                : (value) {
-                                    ref
-                                        .read(
-                                          randomPresetNotifierProvider.notifier,
-                                        )
-                                        .toggleGroupEnabled(
-                                          widget.categoryKey,
-                                          tagGroup.id,
-                                        );
-                                  },
+    // 获取标签预览内容
+    final tooltipText = _buildTagPreview(tagGroup);
+
+    return Tooltip(
+      message: tooltipText,
+      waitDuration: const Duration(milliseconds: 500),
+      preferBelow: false,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap ?? () => _showEditDialog(context),
+          child: Opacity(
+            opacity: tagGroup.enabled ? 1.0 : 0.5,
+            child: ElevatedCard(
+              elevation: CardElevation.level1,
+              hoverElevation: CardElevation.level2,
+              enableHoverEffect: false, // 外层 MouseRegion 已处理
+              borderRadius: 8,
+              gradientBorder: tagGroup.enabled && _isHovered && hasDiyAbility
+                  ? CardGradients.primary(colorScheme)
+                  : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                width: 135,
+                padding: const EdgeInsets.all(12),
+                transform: Matrix4.identity()
+                  ..translate(0.0, _isHovered ? -2.0 : 0.0),
+                transformAlignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _isHovered
+                      ? colorScheme.surfaceContainerHighest
+                      : colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: _isHovered
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      if (tagGroup.emoji.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color:
-                                colorScheme.primaryContainer.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(4),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 第一行：emoji + 名称 + 开关
+                    Row(
+                      children: [
+                        if (tagGroup.emoji.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color:
+                                  colorScheme.primaryContainer.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              tagGroup.emoji,
+                              style: const TextStyle(fontSize: 13),
+                            ),
                           ),
+                        if (tagGroup.emoji.isNotEmpty) const SizedBox(width: 6),
+                        Expanded(
                           child: Text(
-                            tagGroup.emoji,
-                            style: const TextStyle(fontSize: 13),
+                            tagGroup.name,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              decoration: tagGroup.enabled
+                                  ? null
+                                  : TextDecoration.lineThrough,
+                              color: tagGroup.enabled
+                                  ? null
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      if (tagGroup.emoji.isNotEmpty) const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          tagGroup.name,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            decoration: tagGroup.enabled
-                                ? null
-                                : TextDecoration.lineThrough,
-                            color: tagGroup.enabled
-                                ? null
-                                : colorScheme.onSurfaceVariant,
+                        const SizedBox(width: 4),
+                        // 启用开关（移到右侧）
+                        SizedBox(
+                          width: 28,
+                          height: 20,
+                          child: Transform.scale(
+                            scale: 0.6,
+                            child: Switch(
+                              value: tagGroup.enabled,
+                              onChanged: widget.isPresetDefault
+                                  ? null
+                                  : (value) {
+                                      ref
+                                          .read(
+                                            randomPresetNotifierProvider
+                                                .notifier,
+                                          )
+                                          .toggleGroupEnabled(
+                                            widget.categoryKey,
+                                            tagGroup.id,
+                                          );
+                                    },
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 第二行：概率进度条 + 百分比
-                  ProbabilityBar(
-                    probability: tagGroup.probability,
-                    isHovered: _isHovered,
-                    height: 4.0,
-                    useBadgeStyle: false,
-                  ),
-                  const SizedBox(height: 6),
-                  // 第三行：标签数量 + DIY 图标
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.label_outline,
-                        size: 12,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${ref.watch(groupTagCountProvider(tagGroup))}',
-                        style: theme.textTheme.labelSmall?.copyWith(
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // 第二行：概率进度条 + 百分比
+                    ProbabilityBar(
+                      probability: tagGroup.probability,
+                      isHovered: _isHovered,
+                      height: 4.0,
+                      useBadgeStyle: false,
+                    ),
+                    const SizedBox(height: 6),
+                    // 第三行：标签数量 + DIY 图标
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.label_outline,
+                          size: 12,
                           color: colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                      const Spacer(),
-                      // DIY 能力图标
-                      ..._buildDiyIcons(tagGroup),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 4),
+                        Text(
+                          '${ref.watch(groupTagCountProvider(tagGroup))}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const Spacer(),
+                        // DIY 能力图标
+                        ..._buildDiyIcons(tagGroup),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// 构建标签预览文本
+  String _buildTagPreview(RandomTagGroup tagGroup) {
+    List<String> tags = [];
+
+    if (tagGroup.sourceType == TagGroupSourceType.builtin) {
+      // 内置词库类型：从 TagLibrary 获取
+      final libraryState = ref.read(tagLibraryNotifierProvider);
+      if (libraryState.library != null && tagGroup.sourceId != null) {
+        final category =
+            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+                  (c) => c?.name == tagGroup.sourceId,
+                  orElse: () => null,
+                );
+        if (category != null) {
+          tags = libraryState.library!
+              .getCategory(category)
+              .map((t) => t.tag)
+              .toList();
+        }
+      }
+    } else {
+      // 其他类型：使用 tags 字段
+      tags = tagGroup.tags.map((t) => t.tag).toList();
+    }
+
+    if (tags.isEmpty) return '暂无标签';
+
+    // 显示前10个标签
+    const maxShow = 10;
+    final preview = tags.take(maxShow).join(', ');
+    if (tags.length > maxShow) {
+      return '$preview ... (共${tags.length}个)';
+    }
+    return preview;
   }
 
   List<Widget> _buildDiyIcons(RandomTagGroup tagGroup) {
@@ -375,7 +422,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
@@ -399,7 +446,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
       backgroundColor: Colors.transparent,
       child: Container(
         width: 620,
-        height: 520,
+        height: 620,
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
@@ -475,8 +522,8 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             // 标签页
             TabBar(
               controller: _tabController,
-              tabs: const [
-                Tab(
+              tabs: [
+                const Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -487,6 +534,17 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                   ),
                 ),
                 Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.label_outline, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                          '标签 (${ref.watch(groupTagCountProvider(_editingTagGroup))})'),
+                    ],
+                  ),
+                ),
+                const Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -504,6 +562,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                 controller: _tabController,
                 children: [
                   _buildBasicTab(context),
+                  _buildTagsTab(context),
                   _buildDiyTab(context),
                 ],
               ),
@@ -651,7 +710,8 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                           if (mode != null) {
                             setState(() {
                               _editingTagGroup = _editingTagGroup.copyWith(
-                                  selectionMode: mode,);
+                                selectionMode: mode,
+                              );
                             });
                           }
                         },
@@ -659,63 +719,94 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // 标签列表
+        ],
+      ),
+    );
+  }
+
+  /// 构建标签列表Tab
+  Widget _buildTagsTab(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final tagCount = ref.watch(groupTagCountProvider(_editingTagGroup));
+
+    // 获取标签列表
+    List<String> tagList = [];
+
+    if (_editingTagGroup.sourceType == TagGroupSourceType.builtin) {
+      // 内置词库类型：从 TagLibrary 获取
+      final libraryState = ref.watch(tagLibraryNotifierProvider);
+      if (libraryState.library != null && _editingTagGroup.sourceId != null) {
+        final category =
+            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+                  (c) => c?.name == _editingTagGroup.sourceId,
+                  orElse: () => null,
+                );
+        if (category != null) {
+          tagList = libraryState.library!
+              .getCategory(category)
+              .map((t) => t.tag)
+              .toList();
+        }
+      }
+    } else {
+      // 其他类型：使用 tags 字段的标签名
+      tagList = _editingTagGroup.tags.map((t) => t.tag).toList();
+    }
+
+    final isEmpty = tagList.isEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标签列表标题
           Text(
-            '标签列表 (${_editingTagGroup.tagCount} 个)',
+            '标签列表 ($tagCount 个)',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            height: 150,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.shadow.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: _editingTagGroup.tags.isEmpty
-                ? Center(
-                    child: Text(
-                      '暂无标签',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _editingTagGroup.tags.length,
-                    itemBuilder: (context, index) {
-                      final tag = _editingTagGroup.tags[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                tag.tag,
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                            Text(
-                              'w:${tag.weight}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+          const SizedBox(height: 12),
+          // 标签列表容器
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorScheme.shadow.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
                   ),
+                ],
+              ),
+              child: isEmpty
+                  ? Center(
+                      child: Text(
+                        '暂无标签',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: tagList.length,
+                      itemBuilder: (context, index) {
+                        final tag = tagList[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            tag,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        );
+                      },
+                    ),
+            ),
           ),
         ],
       ),

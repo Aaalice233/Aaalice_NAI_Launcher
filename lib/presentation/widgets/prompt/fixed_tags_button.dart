@@ -131,26 +131,10 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
 
   Widget _buildTooltipContent(ThemeData theme, FixedTagsState state) {
     final entries = state.entries;
+    final isDark = theme.brightness == Brightness.dark;
 
     if (entries.isEmpty) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 16,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            context.l10n.fixedTags_empty,
-            style: TextStyle(
-              color: theme.colorScheme.outline,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      );
+      return _buildEmptyState(theme);
     }
 
     final enabledPrefixes = state.enabledPrefixes;
@@ -161,122 +145,401 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 统计摘要 - 玻璃态风格
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.colorScheme.primary.withOpacity(0.12),
-                theme.colorScheme.secondary.withOpacity(0.08),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: theme.colorScheme.primary.withOpacity(0.2),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.push_pin_rounded,
-                  size: 12,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${enabledPrefixes.length}${context.l10n.fixedTags_prefix}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  '·',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-              Text(
-                '${enabledSuffixes.length}${context.l10n.fixedTags_suffix}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.tertiary,
-                ),
-              ),
-            ],
-          ),
+        // 顶部双列统计卡片
+        _buildStatisticsHeader(
+          theme,
+          isDark,
+          enabledPrefixes.length,
+          enabledSuffixes.length,
         ),
 
-        // 启用的前缀
-        if (enabledPrefixes.isNotEmpty) ...[
+        // 启用的条目列表
+        if (enabledPrefixes.isNotEmpty || enabledSuffixes.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _buildSectionHeader(
+          _buildEnabledEntriesSection(
             theme,
-            Icons.arrow_forward_rounded,
-            context.l10n.fixedTags_prefix,
-            theme.colorScheme.primary,
-          ),
-          const SizedBox(height: 8),
-          ...enabledPrefixes.map(
-            (entry) => _buildEntryCard(theme, entry, isEnabled: true),
-          ),
-        ],
-
-        // 启用的后缀
-        if (enabledSuffixes.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          _buildSectionHeader(
-            theme,
-            Icons.arrow_back_rounded,
-            context.l10n.fixedTags_suffix,
-            theme.colorScheme.tertiary,
-          ),
-          const SizedBox(height: 8),
-          ...enabledSuffixes.map(
-            (entry) => _buildEntryCard(theme, entry, isEnabled: true),
+            isDark,
+            enabledPrefixes,
+            enabledSuffixes,
           ),
         ],
 
         // 禁用的条目
         if (disabledEntries.isNotEmpty) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          _buildDisabledSection(theme, isDark, disabledEntries),
+        ],
+
+        // 底部操作提示
+        const SizedBox(height: 10),
+        _buildFooterHint(theme),
+      ],
+    );
+  }
+
+  /// 空状态 - 精致插画风格
+  Widget _buildEmptyState(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Container(
-            width: double.infinity,
-            height: 1,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.transparent,
-                  theme.colorScheme.outlineVariant.withOpacity(0.4),
-                  Colors.transparent,
+                  theme.colorScheme.surfaceContainerHighest,
+                  theme.colorScheme.surfaceContainerHigh,
                 ],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.push_pin_outlined,
+              size: 18,
+              color: theme.colorScheme.outline.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.l10n.fixedTags_empty,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                context.l10n.fixedTags_clickToManage,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 顶部统计卡片 - 双列 Bento 风格
+  Widget _buildStatisticsHeader(
+    ThemeData theme,
+    bool isDark,
+    int prefixCount,
+    int suffixCount,
+  ) {
+    return Row(
+      children: [
+        // 前缀统计卡片
+        Expanded(
+          child: _buildStatCard(
+            theme,
+            isDark,
+            icon: Icons.arrow_forward_rounded,
+            count: prefixCount,
+            label: context.l10n.fixedTags_prefix,
+            color: theme.colorScheme.primary,
+            isActive: prefixCount > 0,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 后缀统计卡片
+        Expanded(
+          child: _buildStatCard(
+            theme,
+            isDark,
+            icon: Icons.arrow_back_rounded,
+            count: suffixCount,
+            label: context.l10n.fixedTags_suffix,
+            color: theme.colorScheme.tertiary,
+            isActive: suffixCount > 0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 单个统计卡片
+  Widget _buildStatCard(
+    ThemeData theme,
+    bool isDark, {
+    required IconData icon,
+    required int count,
+    required String label,
+    required Color color,
+    required bool isActive,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isActive
+              ? [
+                  color.withOpacity(isDark ? 0.2 : 0.12),
+                  color.withOpacity(isDark ? 0.1 : 0.06),
+                ]
+              : [
+                  theme.colorScheme.surfaceContainerHigh.withOpacity(0.5),
+                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? color.withOpacity(0.3)
+              : theme.colorScheme.outlineVariant.withOpacity(0.2),
+        ),
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        children: [
+          // 图标容器
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? color.withOpacity(0.15)
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 14,
+              color: isActive ? color : theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // 数字和标签
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? color : theme.colorScheme.outline,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: isActive
+                      ? color.withOpacity(0.8)
+                      : theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 启用条目列表区域
+  Widget _buildEnabledEntriesSection(
+    ThemeData theme,
+    bool isDark,
+    List<FixedTagEntry> prefixes,
+    List<FixedTagEntry> suffixes,
+  ) {
+    final allEnabled = [
+      ...prefixes.map((e) => (entry: e, isPrefix: true)),
+      ...suffixes.map((e) => (entry: e, isPrefix: false)),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.3)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < allEnabled.length; i++) ...[
+            if (i > 0) const SizedBox(height: 6),
+            _buildCompactEntryRow(
+              theme,
+              allEnabled[i].entry,
+              allEnabled[i].isPrefix,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 紧凑条目行
+  Widget _buildCompactEntryRow(
+    ThemeData theme,
+    FixedTagEntry entry,
+    bool isPrefix,
+  ) {
+    final color =
+        isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
+    final hasWeight = entry.weight != 1.0;
+    final showContent = entry.content.isNotEmpty &&
+        entry.content.trim() != entry.displayName.trim();
+    final truncatedContent = entry.content.length > 25
+        ? '${entry.content.substring(0, 25)}...'
+        : entry.content;
+
+    return Row(
+      children: [
+        // 位置指示条
+        Container(
+          width: 3,
+          height: 20,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [color, color.withOpacity(0.4)],
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 名称
+        Flexible(
+          child: Text(
+            entry.displayName,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        // 权重徽章
+        if (hasWeight) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: entry.weight > 1.0
+                  ? theme.colorScheme.error.withOpacity(0.12)
+                  : theme.colorScheme.tertiary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${entry.weight.toStringAsFixed(2)}x',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: entry.weight > 1.0
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.tertiary,
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          _buildSectionHeader(
-            theme,
-            Icons.visibility_off_rounded,
-            '${context.l10n.fixedTags_disabled} (${disabledEntries.length})',
-            theme.colorScheme.outline,
+        ],
+        // 内容预览
+        if (showContent) ...[
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              truncatedContent,
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const SizedBox(height: 8),
+        ] else
+          const Spacer(),
+        // 位置标签
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            isPrefix
+                ? context.l10n.fixedTags_prefix
+                : context.l10n.fixedTags_suffix,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 禁用条目区域
+  Widget _buildDisabledSection(
+    ThemeData theme,
+    bool isDark,
+    List<FixedTagEntry> disabledEntries,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 区域标题
+          Row(
+            children: [
+              Icon(
+                Icons.visibility_off_rounded,
+                size: 12,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${context.l10n.fixedTags_disabled} (${disabledEntries.length})',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // 禁用标签
           Wrap(
             spacing: 6,
             runSpacing: 4,
@@ -285,192 +548,52 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 .toList(),
           ),
         ],
-
-        const SizedBox(height: 12),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.touch_app_rounded,
-                  size: 12,
-                  color: theme.colorScheme.outline,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  context.l10n.fixedTags_clickToManage,
-                  style: TextStyle(
-                    color: theme.colorScheme.outline,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(
-    ThemeData theme,
-    IconData icon,
-    String label,
-    Color color,
-  ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 3,
-          height: 16,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                color,
-                color.withOpacity(0.4),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: color,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 启用条目的卡片样式 - 单行紧凑布局
-  Widget _buildEntryCard(
-    ThemeData theme,
-    FixedTagEntry entry, {
-    required bool isEnabled,
-  }) {
-    final isPrefix = entry.position == FixedTagPosition.prefix;
-    final positionColor =
-        isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
-
-    // 判断名称和内容是否不同（需要显示内容）
-    final showContent = entry.content.isNotEmpty &&
-        entry.content.trim() != entry.displayName.trim();
-    // 截断内容
-    final truncatedContent = entry.content.length > 30
-        ? '${entry.content.substring(0, 30)}...'
-        : entry.content;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: positionColor.withOpacity(0.2),
-        ),
       ),
+    );
+  }
+
+  /// 底部操作提示
+  Widget _buildFooterHint(ThemeData theme) {
+    return Center(
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 左侧位置标识条
           Container(
-            width: 3,
-            height: 18,
+            width: 20,
+            height: 1,
             decoration: BoxDecoration(
-              color: positionColor,
-              borderRadius: BorderRadius.circular(2),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  theme.colorScheme.outlineVariant.withOpacity(0.4),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
-          // 名称
+          Icon(
+            Icons.touch_app_rounded,
+            size: 11,
+            color: theme.colorScheme.outline.withOpacity(0.6),
+          ),
+          const SizedBox(width: 4),
           Text(
-            entry.displayName,
+            context.l10n.fixedTags_clickToManage,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
+              fontSize: 10,
+              color: theme.colorScheme.outline.withOpacity(0.6),
             ),
           ),
-          // 权重徽章（紧跟名称）
-          if (entry.weight != 1.0) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: entry.weight > 1.0
-                    ? theme.colorScheme.error.withOpacity(0.12)
-                    : theme.colorScheme.tertiary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                '${entry.weight.toStringAsFixed(2)}x',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: entry.weight > 1.0
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.tertiary,
-                ),
-              ),
-            ),
-          ],
-          // 分隔点 + 内容
-          if (showContent) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Container(
-                width: 3,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outline.withOpacity(0.4),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                truncatedContent,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ] else
-            const Spacer(),
-          // 末尾位置标识
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            width: 20,
+            height: 1,
             decoration: BoxDecoration(
-              color: positionColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              isPrefix
-                  ? context.l10n.fixedTags_prefix
-                  : context.l10n.fixedTags_suffix,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: positionColor,
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.outlineVariant.withOpacity(0.4),
+                  Colors.transparent,
+                ],
               ),
             ),
           ),

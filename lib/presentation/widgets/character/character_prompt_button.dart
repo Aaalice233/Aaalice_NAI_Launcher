@@ -186,9 +186,6 @@ class _CharacterTooltipWrapper extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.3),
-        ),
       ),
       waitDuration: const Duration(milliseconds: 400),
       showDuration: const Duration(seconds: 8),

@@ -59,7 +59,11 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.palette_outlined),
             title: Text(context.l10n.settings_style),
-            subtitle: Text(currentTheme.displayName),
+            subtitle: Text(
+              currentTheme == AppStyle.retroWave
+                  ? context.l10n.settings_defaultPreset
+                  : currentTheme.displayName,
+            ),
             onTap: () => _showThemeDialog(context, ref, currentTheme),
           ),
 
@@ -192,6 +196,12 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     AppStyle currentTheme,
   ) {
+    // 将 retroWave 置顶，其余保持原顺序
+    final sortedStyles = [
+      AppStyle.retroWave, // 默认预设置顶
+      ...AppStyle.values.where((s) => s != AppStyle.retroWave),
+    ];
+
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -202,9 +212,13 @@ class SettingsScreen extends ConsumerWidget {
             height: 400,
             child: ListView(
               shrinkWrap: true,
-              children: AppStyle.values.map((style) {
+              children: sortedStyles.map((style) {
+                // retroWave 使用多语言的"默认预设"
+                final displayName = style == AppStyle.retroWave
+                    ? context.l10n.settings_defaultPreset
+                    : style.displayName;
                 return RadioListTile<AppStyle>(
-                  title: Text(style.displayName),
+                  title: Text(displayName),
                   value: style,
                   groupValue: currentTheme,
                   onChanged: (value) {

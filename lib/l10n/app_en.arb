@@ -164,6 +164,7 @@
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
   "settings_selectStyle": "Select Style",
+  "settings_defaultPreset": "Default Preset",
   "settings_selectFont": "Select Font",
   "settings_selectLanguage": "Select Language",
   "settings_loadFailed": "Load failed: {error}",
@@ -338,6 +339,18 @@
   "prompt_negative": "Negative",
   "prompt_positivePrompt": "Positive Prompt",
   "prompt_negativePrompt": "Negative Prompt",
+  "prompt_mainPositive": "Main Prompt (Positive)",
+  "prompt_mainNegative": "Main Prompt (Negative)",
+  "prompt_characterPrompts": "Multi-Character Prompts",
+  "prompt_characterPromptItem": "{name}: {content}",
+  "@prompt_characterPromptItem": {
+    "placeholders": {
+      "name": {},
+      "content": {}
+    }
+  },
+  "prompt_finalPrompt": "Final Effective Prompt",
+  "prompt_finalNegative": "Final Effective Negative",
   "prompt_tags": "{count} tags",
   "@prompt_tags": {
     "placeholders": {
@@ -860,6 +873,10 @@
   "onlineGallery_copyTags": "Copy Tags",
   "onlineGallery_open": "Open",
   "onlineGallery_all": "All",
+  "onlineGallery_ratingGeneral": "General",
+  "onlineGallery_ratingSensitive": "Sensitive",
+  "onlineGallery_ratingQuestionable": "Questionable",
+  "onlineGallery_ratingExplicit": "Explicit",
   "onlineGallery_clear": "Clear",
   "onlineGallery_previousPage": "Previous Page",
   "onlineGallery_nextPage": "Next Page",
@@ -1108,6 +1125,8 @@
   },
 
   "qualityTags_label": "Quality",
+  "qualityTags_positive": "Quality (Positive)",
+  "qualityTags_negative": "Quality (Negative)",
   "qualityTags_disabled": "Quality tags disabled\nClick to enable",
   "qualityTags_addToEnd": "Add to prompt end:",
   "qualityTags_naiDefault": "NAI Default",
@@ -1121,6 +1140,7 @@
   "ucPreset_furryFocus": "Furry",
   "ucPreset_humanFocus": "Human",
   "ucPreset_none": "None",
+  "ucPreset_custom": "Custom",
   "ucPreset_disabled": "Undesired content preset disabled",
   "ucPreset_addToNegative": "Add to negative prompt:",
   "ucPreset_nsfwHint": "💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt",

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/prompt/random_manager/preset_selector_bar.dart';
 import '../../widgets/prompt/random_manager/algorithm_config_card.dart';
-import '../../widgets/prompt/random_manager/probability_chart.dart';
 import '../../widgets/prompt/random_manager/category_card.dart';
 
 /// 随机提示词配置页面 - 左右分栏布局
@@ -74,8 +73,6 @@ class PromptConfigScreen extends ConsumerWidget {
                       children: [
                         const AlgorithmConfigCard(),
                         const SizedBox(height: 16),
-                        const ProbabilitySection(),
-                        const SizedBox(height: 16),
                         Divider(
                           color: colorScheme.outlineVariant.withOpacity(0.3),
                           height: 1,
@@ -95,7 +92,7 @@ class PromptConfigScreen extends ConsumerWidget {
   }
 }
 
-/// 左侧面板 - 算法配置 + 概率分布预览
+/// 左侧面板 - 算法配置
 class _LeftPanel extends StatelessWidget {
   const _LeftPanel();
 
@@ -107,9 +104,6 @@ class _LeftPanel extends StatelessWidget {
         children: [
           // 算法配置卡片
           AlgorithmConfigCard(),
-          SizedBox(height: 16),
-          // 概率分布预览
-          ProbabilitySection(),
         ],
       ),
     );

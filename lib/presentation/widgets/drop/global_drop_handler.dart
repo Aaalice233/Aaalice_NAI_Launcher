@@ -9,7 +9,9 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../core/utils/vibe_file_parser.dart';
+import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
+import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../common/app_toast.dart';
 import 'image_destination_dialog.dart';
@@ -313,6 +315,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       // 应用元数据到生成参数
       int appliedCount = 0;
 
+      // 首先清空多角色提示词（套用元数据时总是清空）
+      final characterNotifier =
+          ref.read(characterPromptNotifierProvider.notifier);
+      characterNotifier.clearAllCharacters();
+
       // 应用 Prompt
       if (metadata.prompt.isNotEmpty) {
         notifier.updatePrompt(metadata.prompt);
@@ -322,6 +329,31 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       // 应用负向提示词
       if (metadata.negativePrompt.isNotEmpty) {
         notifier.updateNegativePrompt(metadata.negativePrompt);
+        appliedCount++;
+      }
+
+      // 应用多角色提示词（如果有）
+      if (metadata.characterPrompts.isNotEmpty) {
+        final characters = <char.CharacterPrompt>[];
+        for (int i = 0; i < metadata.characterPrompts.length; i++) {
+          final prompt = metadata.characterPrompts[i];
+          final negPrompt = i < metadata.characterNegativePrompts.length
+              ? metadata.characterNegativePrompts[i]
+              : '';
+
+          // 尝试从提示词推断性别
+          final gender = _inferGenderFromPrompt(prompt);
+
+          characters.add(
+            char.CharacterPrompt.create(
+              name: 'Character ${i + 1}',
+              gender: gender,
+              prompt: prompt,
+              negativePrompt: negPrompt,
+            ),
+          );
+        }
+        characterNotifier.replaceAll(characters);
         appliedCount++;
       }
 
@@ -393,6 +425,21 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
       _showError('提取元数据失败: $e');
     }
+  }
+
+  /// 从提示词推断角色性别
+  char.CharacterGender _inferGenderFromPrompt(String prompt) {
+    final lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.contains('1girl') ||
+        lowerPrompt.contains('girl,') ||
+        lowerPrompt.startsWith('girl')) {
+      return char.CharacterGender.female;
+    } else if (lowerPrompt.contains('1boy') ||
+        lowerPrompt.contains('boy,') ||
+        lowerPrompt.startsWith('boy')) {
+      return char.CharacterGender.male;
+    }
+    return char.CharacterGender.other;
   }
 
   /// 显示元数据应用成功对话框

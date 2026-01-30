@@ -6,9 +6,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../common/inset_shadow_container.dart';
+import '../common/floating_label_input.dart';
 import '../common/themed_checkbox.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 邮箱密码登录表单
 class CredentialsLoginForm extends ConsumerStatefulWidget {
@@ -55,82 +54,48 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 邮箱输入
-          InsetShadowContainer(
-            borderRadius: 12,
-            child: ThemedFormInput(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: context.l10n.auth_email,
-                hintText: 'user@example.com',
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return context.l10n.auth_emailRequired;
-                }
-                if (!value.contains('@')) {
-                  return context.l10n.auth_emailInvalid;
-                }
-                return null;
-              },
-            ),
+          FloatingLabelInput(
+            label: context.l10n.auth_email,
+            controller: emailController,
+            hintText: 'user@example.com',
+            prefixIcon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            required: true,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return context.l10n.auth_emailRequired;
+              }
+              if (!value.contains('@')) {
+                return context.l10n.auth_emailInvalid;
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
 
           // 密码输入
-          InsetShadowContainer(
-            borderRadius: 12,
-            child: ThemedFormInput(
-              controller: passwordController,
-              obscureText: obscurePassword,
-              decoration: InputDecoration(
-                labelText: context.l10n.auth_password,
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () {
-                    ref
-                        .read(authModeNotifierProvider.notifier)
-                        .togglePasswordVisibility();
-                  },
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _handleLogin(),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return context.l10n.auth_passwordRequired;
-                }
-                if (value.length < 6) {
-                  return context.l10n.auth_passwordTooShort;
-                }
-                return null;
-              },
-            ),
+          FloatingLabelPasswordInput(
+            label: context.l10n.auth_password,
+            controller: passwordController,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _handleLogin(),
+            required: true,
+            isVisible: !obscurePassword,
+            onVisibilityChanged: (_) {
+              ref
+                  .read(authModeNotifierProvider.notifier)
+                  .togglePasswordVisibility();
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return context.l10n.auth_passwordRequired;
+              }
+              if (value.length < 6) {
+                return context.l10n.auth_passwordTooShort;
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
 

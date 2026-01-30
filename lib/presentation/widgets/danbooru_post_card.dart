@@ -8,12 +8,15 @@ import 'package:path/path.dart' as path;
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
+import '../../data/models/queue/replication_task.dart';
 import '../../data/services/tag_translation_service.dart';
 import '../providers/character_prompt_provider.dart';
 import '../providers/pending_prompt_provider.dart';
+import '../providers/replication_queue_provider.dart';
 import 'common/card_action_buttons.dart';
 
 import 'common/app_toast.dart';
+
 /// 图片卡片组件
 ///
 /// 性能优化：
@@ -370,6 +373,30 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                         );
                                     context.go('/');
                                     AppToast.info(context, '已发送到文生图');
+                                  },
+                                ),
+                                CardActionButtonConfig(
+                                  icon: Icons.playlist_add,
+                                  tooltip: '添加到队列',
+                                  onPressed: () async {
+                                    final task = ReplicationTask.create(
+                                      prompt: widget.post.tags.join(', '),
+                                      thumbnailUrl: widget.post.previewUrl,
+                                      source: ReplicationTaskSource.online,
+                                    );
+                                    final success = await ref
+                                        .read(
+                                          replicationQueueNotifierProvider
+                                              .notifier,
+                                        )
+                                        .add(task);
+                                    if (context.mounted) {
+                                      if (success) {
+                                        AppToast.info(context, '已添加到队列');
+                                      } else {
+                                        AppToast.info(context, '队列已满');
+                                      }
+                                    }
                                   },
                                 ),
                                 CardActionButtonConfig(

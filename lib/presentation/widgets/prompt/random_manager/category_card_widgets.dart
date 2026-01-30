@@ -235,8 +235,11 @@ class ColorfulProbabilitySlider extends StatelessWidget {
           child: SliderTheme(
             data: SliderThemeData(
               trackHeight: 6,
+              // 隐藏默认轨道，使用自定义背景
               activeTrackColor: Colors.transparent,
-              inactiveTrackColor: colorScheme.surfaceContainerHighest,
+              inactiveTrackColor: Colors.transparent,
+              // 移除轨道两端的默认 padding
+              trackShape: const RectangularSliderTrackShape(),
               thumbColor: primaryColor,
               thumbShape: const RoundSliderThumbShape(
                 enabledThumbRadius: 7,
@@ -248,42 +251,48 @@ class ColorfulProbabilitySlider extends StatelessWidget {
             child: Stack(
               alignment: Alignment.centerLeft,
               children: [
-                // 背景轨道
-                Container(
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                // 彩色渐变进度
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: probability,
+                // 背景轨道（添加水平 padding 补偿滑块半径）
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
                   child: Container(
                     height: 6,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: enabled
-                            ? [
-                                primaryColor.withOpacity(0.9),
-                                secondaryColor.withOpacity(0.7),
-                              ]
-                            : [
-                                primaryColor.withOpacity(0.4),
-                                secondaryColor.withOpacity(0.3),
-                              ],
-                      ),
+                      color: colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(3),
-                      boxShadow: enabled
-                          ? [
-                              BoxShadow(
-                                color: primaryColor.withOpacity(0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ]
-                          : null,
+                    ),
+                  ),
+                ),
+                // 彩色渐变进度
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: probability,
+                    child: Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: enabled
+                              ? [
+                                  primaryColor.withOpacity(0.9),
+                                  secondaryColor.withOpacity(0.7),
+                                ]
+                              : [
+                                  primaryColor.withOpacity(0.4),
+                                  secondaryColor.withOpacity(0.3),
+                                ],
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                        boxShadow: enabled
+                            ? [
+                                BoxShadow(
+                                  color: primaryColor.withOpacity(0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
+                      ),
                     ),
                   ),
                 ),

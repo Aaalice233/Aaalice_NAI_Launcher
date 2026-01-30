@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math' as math;
 
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/image_save_settings_provider.dart';
 
 /// 自动保存图像开关芯片
 ///
-/// 精致的复选框样式，显示在生成控制栏左侧
+/// Q萌可爱的胶囊样式，显示在生成控制栏左侧
 /// 勾选后自动保存每次生成的图像到设置的保存路径
 class AutoSaveToggleChip extends ConsumerStatefulWidget {
   const AutoSaveToggleChip({super.key});
@@ -19,19 +20,27 @@ class AutoSaveToggleChip extends ConsumerStatefulWidget {
 class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
     with SingleTickerProviderStateMixin {
   bool _isHovering = false;
+  bool _isPressed = false;
   late AnimationController _checkController;
   late Animation<double> _checkAnimation;
+
+  // Q萌配色
+  static const _cuteOrange = Color(0xFFFF9F6B);
+  static const _cuteOrangeDark = Color(0xFFFF8C4A);
+  static const _cuteOrangeLight = Color(0xFFFFE4D4);
+  static const _cuteOrangeBg = Color(0xFFFFF5EE);
+  static const _sparkleColor = Color(0xFFFFD700);
 
   @override
   void initState() {
     super.initState();
     _checkController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     _checkAnimation = CurvedAnimation(
       parent: _checkController,
-      curve: Curves.easeOutBack,
+      curve: Curves.elasticOut,
     );
   }
 
@@ -44,6 +53,7 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final saveSettings = ref.watch(imageSaveSettingsNotifierProvider);
     final isEnabled = saveSettings.autoSave;
 
@@ -65,38 +75,80 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
         message: tooltipMessage,
         preferBelow: true,
         child: GestureDetector(
-          onTap: _handleTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: _getBackgroundColor(theme, isEnabled),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) {
+            setState(() => _isPressed = false);
+            _handleTap();
+          },
+          onTapCancel: () => setState(() => _isPressed = false),
+          child: AnimatedScale(
+            scale: _isPressed ? 0.92 : 1.0,
+            duration: const Duration(milliseconds: 100),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: isEnabled
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isDark
+                            ? [
+                                _cuteOrangeDark.withOpacity(0.25),
+                                _cuteOrange.withOpacity(0.18)
+                              ]
+                            : [_cuteOrangeLight, _cuteOrangeBg],
+                      )
+                    : null,
                 color: isEnabled
-                    ? theme.colorScheme.primary.withOpacity(0.3)
-                    : theme.colorScheme.outline.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 精致的复选框
-                _buildCheckbox(theme, isEnabled),
-                const SizedBox(width: 6),
-                // 文字
-                Text(
-                  context.l10n.settings_autoSave,
-                  style: TextStyle(
-                    color: isEnabled
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
+                    ? null
+                    : (_isHovering
+                        ? theme.colorScheme.surfaceContainerHighest
+                        : theme.colorScheme.surfaceContainerHigh),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isEnabled
+                      ? (_isHovering ? _cuteOrangeDark : _cuteOrange)
+                          .withOpacity(isDark ? 0.5 : 0.6)
+                      : theme.colorScheme.outline
+                          .withOpacity(_isHovering ? 0.3 : 0.15),
+                  width: isEnabled ? 1.5 : 1,
                 ),
-              ],
+                boxShadow: isEnabled && _isHovering
+                    ? [
+                        BoxShadow(
+                          color: _cuteOrange.withOpacity(0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Q萌复选框
+                  _buildCuteCheckbox(theme, isEnabled, isDark),
+                  const SizedBox(width: 7),
+                  // 文字
+                  Text(
+                    context.l10n.settings_autoSave,
+                    style: TextStyle(
+                      color: isEnabled
+                          ? (isDark ? _cuteOrange : _cuteOrangeDark)
+                          : theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  // 启用时显示可爱的小星星
+                  if (isEnabled) ...[
+                    const SizedBox(width: 4),
+                    _buildSparkle(isDark),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -104,46 +156,75 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
     );
   }
 
-  Color _getBackgroundColor(ThemeData theme, bool isEnabled) {
-    if (isEnabled) {
-      return _isHovering
-          ? theme.colorScheme.primary.withOpacity(0.18)
-          : theme.colorScheme.primary.withOpacity(0.12);
-    }
-    return _isHovering
-        ? theme.colorScheme.surfaceContainerHighest
-        : theme.colorScheme.surfaceContainerHigh;
-  }
-
-  Widget _buildCheckbox(ThemeData theme, bool isEnabled) {
+  Widget _buildCuteCheckbox(ThemeData theme, bool isEnabled, bool isDark) {
     return AnimatedBuilder(
       animation: _checkAnimation,
       builder: (context, child) {
         return Container(
-          width: 16,
-          height: 16,
+          width: 18,
+          height: 18,
           decoration: BoxDecoration(
-            color: isEnabled ? theme.colorScheme.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(4),
+            gradient: isEnabled
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_cuteOrange, _cuteOrangeDark],
+                  )
+                : null,
+            color: isEnabled ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isEnabled
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline.withOpacity(0.5),
+                  ? Colors.transparent
+                  : theme.colorScheme.outline.withOpacity(0.4),
               width: 1.5,
             ),
+            boxShadow: isEnabled
+                ? [
+                    BoxShadow(
+                      color: _cuteOrange.withOpacity(0.4),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
           ),
           child: isEnabled
               ? Center(
                   child: Transform.scale(
                     scale: _checkAnimation.value,
-                    child: Icon(
-                      Icons.check_rounded,
-                      size: 12,
-                      color: theme.colorScheme.onPrimary,
+                    child: Transform.rotate(
+                      angle: (1 - _checkAnimation.value) * 0.3,
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 13,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 )
               : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildSparkle(bool isDark) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.elasticOut,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value,
+          child: Transform.rotate(
+            angle: (1 - value) * math.pi * 0.5,
+            child: Icon(
+              Icons.auto_awesome,
+              size: 12,
+              color: isDark ? _sparkleColor : _cuteOrangeDark.withOpacity(0.8),
+            ),
+          ),
         );
       },
     );

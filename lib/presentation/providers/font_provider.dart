@@ -37,6 +37,22 @@ class FontConfig {
       final source =
           parts[0] == 'google' ? FontSource.google : FontSource.system;
       final fontFamily = parts.sublist(1).join(':'); // 处理字体名中包含冒号的情况
+
+      // 检查是否是默认字体
+      if (fontFamily == defaultFont.fontFamily) {
+        return defaultFont;
+      }
+
+      // 检查 Google Fonts 预设
+      if (source == FontSource.google) {
+        final preset = GoogleFontPresets.all.where(
+          (f) => f.fontFamily == fontFamily,
+        );
+        if (preset.isNotEmpty) {
+          return preset.first;
+        }
+      }
+
       return FontConfig(
         displayName: fontFamily,
         fontFamily: fontFamily,

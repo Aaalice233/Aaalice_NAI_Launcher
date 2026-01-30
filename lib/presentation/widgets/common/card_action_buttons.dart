@@ -93,35 +93,16 @@ class _CardActionButtonsState extends State<CardActionButtons>
       mainAxisAlignment: MainAxisAlignment.end,
       children: List.generate(widget.buttons.length, (index) {
         // 从右向左展开：右边的按钮先出现
-        // 假设 buttons 列表顺序是从左到右显示的 (A, B, C, D, E)
-        // E 是最右边。
-        // 我们希望 E 先出现，然后 D，然后 C...
-        // 列表索引: 0..4. 长度 5.
-        // index 4 (E) delay 0
-        // index 3 (D) delay 1
-        // ...
-        // delay = (length - 1 - index) * 50ms
-
         final buttonIndex = index;
         final reversedIndex = widget.buttons.length - 1 - index;
-        // Delay calculated but applied via Interval animation below
-        // final delay = Duration(milliseconds: reversedIndex * 50);
 
-        // 计算每个按钮的动画区间
-        // 总时长 = 基础时长 + 最大延迟
-        // 这里简化处理：使用 SlideTransition/ScaleTransition 配合 Interval
-
-        // 实际上，为了简单的 staggered 效果，我们可以让每个按钮有自己的动画进度
-        // 或者使用同一个 controller 但不同的 Interval
-
-        final startTime = reversedIndex * 0.1; // 0.0, 0.1, 0.2...
-        final endTime = startTime + 0.6; // 持续 0.6 的时间片段
-        // 归一化到 0.0 - 1.0
+        final startTime = reversedIndex * 0.1;
+        final endTime = startTime + 0.6;
 
         final animation = CurvedAnimation(
           parent: _controller,
           curve: Interval(
-            (startTime * 0.5).clamp(0.0, 1.0), // 压缩一下时间以适应 controller
+            (startTime * 0.5).clamp(0.0, 1.0),
             (endTime * 0.5).clamp(0.0, 1.0),
             curve: Curves.easeOutBack,
           ),
@@ -133,29 +114,79 @@ class _CardActionButtonsState extends State<CardActionButtons>
             scale: animation,
             child: Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: _buildButton(widget.buttons[buttonIndex]),
+              child: _CardActionButton(config: widget.buttons[buttonIndex]),
             ),
           ),
         );
       }),
     );
   }
+}
 
-  Widget _buildButton(CardActionButtonConfig config) {
+/// 单个卡片操作按钮（带悬浮动效）
+class _CardActionButton extends StatefulWidget {
+  final CardActionButtonConfig config;
+
+  const _CardActionButton({required this.config});
+
+  @override
+  State<_CardActionButton> createState() => _CardActionButtonState();
+}
+
+class _CardActionButtonState extends State<_CardActionButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Tooltip(
-      message: config.tooltip,
-      child: GestureDetector(
-        onTap: config.onPressed,
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.6),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            config.icon,
-            color: config.iconColor ?? Colors.white,
-            size: 18,
+      message: widget.config.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: GestureDetector(
+          onTap: widget.config.onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.all(6),
+            transform: Matrix4.identity()..scale(_isHovering ? 1.15 : 1.0),
+            transformAlignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _isHovering
+                  ? Colors.white.withOpacity(0.25)
+                  : Colors.black.withOpacity(0.55),
+              shape: BoxShape.circle,
+              boxShadow: _isHovering
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, -1),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                      ),
+                    ],
+              border: _isHovering
+                  ? Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    )
+                  : null,
+            ),
+            child: Icon(
+              widget.config.icon,
+              color: widget.config.iconColor ?? Colors.white,
+              size: 16,
+            ),
           ),
         ),
       ),

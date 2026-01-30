@@ -13,10 +13,12 @@ import '../../../widgets/common/themed_divider.dart';
 class EntryCard extends StatefulWidget {
   final TagLibraryEntry entry;
   final VoidCallback onTap;
-  final VoidCallback onAddToFixed;
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
+
+  /// 所属分类名称
+  final String? categoryName;
 
   /// 是否启用拖拽到分类功能
   final bool enableDrag;
@@ -25,10 +27,10 @@ class EntryCard extends StatefulWidget {
     super.key,
     required this.entry,
     required this.onTap,
-    required this.onAddToFixed,
     required this.onDelete,
     required this.onToggleFavorite,
     this.onEdit,
+    this.categoryName,
     this.enableDrag = false,
   });
 
@@ -103,35 +105,47 @@ class _EntryCardState extends State<EntryCard> {
             duration: const Duration(milliseconds: 150),
             margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              // 深度层叠风格：多层阴影替代边框
+              color: theme.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
+              // 精致边框 - 增强卡片边界感
+              border: Border.all(
+                color: _isHovering
+                    ? theme.colorScheme.primary.withOpacity(0.4)
+                    : theme.colorScheme.outlineVariant.withOpacity(0.15),
+                width: 1,
+              ),
+              // 深度层叠风格：多层阴影
               boxShadow: _isHovering
                   ? [
+                      // 主阴影 - 带主题色
                       BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.12),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
+                        color: theme.colorScheme.primary.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
+                      // 中层阴影
                       BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
+                      // 底层阴影
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
                     ]
                   : [
+                      // 静态主阴影
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                      // 静态底层阴影
                       BoxShadow(
                         color: Colors.black.withOpacity(0.06),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -284,7 +298,7 @@ class _EntryCardState extends State<EntryCard> {
       children: [
         // 背景
         ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
           child: entry.hasThumbnail
               ? Image.file(
                   File(entry.thumbnail!),
@@ -300,20 +314,13 @@ class _EntryCardState extends State<EntryCard> {
           Positioned.fill(
             child: ClipRRect(
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(7)),
+                  const BorderRadius.vertical(top: Radius.circular(11)),
               child: Container(
                 color: Colors.black.withOpacity(0.3),
                 child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 添加到固定词按钮
-                      _ActionButton(
-                        icon: Icons.add_box_outlined,
-                        tooltip: context.l10n.tagLibrary_addToFixed,
-                        onTap: widget.onAddToFixed,
-                      ),
-                      const SizedBox(width: 8),
                       if (widget.onEdit != null)
                         _ActionButton(
                           icon: Icons.edit_outlined,
@@ -390,19 +397,57 @@ class _EntryCardState extends State<EntryCard> {
   }
 
   Widget _buildInfo(ThemeData theme, TagLibraryEntry entry) {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        // 底部微妙渐变背景
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.colorScheme.surfaceContainerHigh,
+            theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(11)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 名称
-          Text(
-            entry.displayName,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          // 名称行
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.displayName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // 分类标签
+              if (widget.categoryName != null &&
+                  widget.categoryName!.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    widget.categoryName!,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
 
@@ -421,34 +466,70 @@ class _EntryCardState extends State<EntryCard> {
           // 底部信息
           Row(
             children: [
-              if (entry.useCount > 0) ...[
-                Icon(
-                  Icons.repeat,
-                  size: 12,
+              // 所属分类
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withOpacity(0.2),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.folder_outlined,
+                      size: 10,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      widget.categoryName?.isNotEmpty == true
+                          ? widget.categoryName!
+                          : context.l10n.tagLibrary_rootCategory,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 标签数量
+              Icon(
+                Icons.sell_outlined,
+                size: 10,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${entry.promptTagCount}',
+                style: TextStyle(
+                  fontSize: 10,
                   color: theme.colorScheme.outline,
                 ),
-                const SizedBox(width: 4),
+              ),
+              if (entry.useCount > 0) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.repeat,
+                  size: 10,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 2),
                 Text(
-                  entry.useCount.toString(),
+                  '${entry.useCount}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: theme.colorScheme.outline,
                   ),
                 ),
-                const SizedBox(width: 12),
               ],
-              if (entry.tags.isNotEmpty)
-                Expanded(
-                  child: Text(
-                    entry.tags.take(2).join(', '),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.outline,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
             ],
           ),
         ],

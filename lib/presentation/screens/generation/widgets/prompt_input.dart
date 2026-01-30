@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/character/character_prompt.dart';
+import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../providers/character_prompt_provider.dart';
+import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
+import '../../../providers/quality_preset_provider.dart';
+import '../../../providers/uc_preset_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/prompt/comfyui_import_dialog.dart';
@@ -428,6 +435,26 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     int promptCount,
     int negativeCount,
   ) {
+    // 获取固定词数据
+    final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
+    final enabledPrefixes = fixedTagsState.enabledPrefixes;
+    final enabledSuffixes = fixedTagsState.enabledSuffixes;
+
+    // 获取质量词数据
+    final qualityState = ref.watch(qualityPresetNotifierProvider);
+    final params = ref.watch(generationParamsNotifierProvider);
+    final qualityContent = ref
+        .watch(qualityPresetNotifierProvider.notifier)
+        .getEffectiveContent(params.model);
+
+    // 获取负面词预设数据
+    final ucState = ref.watch(ucPresetNotifierProvider);
+    final ucPresetContent =
+        UcPresets.getPresetContent(params.model, ucState.presetType);
+
+    // 获取多角色数据
+    final characterConfig = ref.watch(characterPromptNotifierProvider);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -439,6 +466,17 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           isSelected: !_isNegativeMode,
           color: theme.colorScheme.primary,
           onTap: () => setState(() => _isNegativeMode = false),
+          tooltipBuilder: (theme) => _PositivePromptTooltip(
+            theme: theme,
+            userPrompt: _promptController.text,
+            prefixes: enabledPrefixes,
+            suffixes: enabledSuffixes,
+            qualityMode: qualityState.mode,
+            qualityContent: qualityContent,
+            characters: characterConfig.characters,
+            globalAiChoice: characterConfig.globalAiChoice,
+            l10n: context.l10n,
+          ),
         ),
         const SizedBox(width: 8),
         // 负面提示词按钮
@@ -449,6 +487,14 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           isSelected: _isNegativeMode,
           color: theme.colorScheme.error,
           onTap: () => setState(() => _isNegativeMode = true),
+          tooltipBuilder: (theme) => _NegativePromptTooltip(
+            theme: theme,
+            userNegativePrompt: _negativeController.text,
+            ucPresetType: ucState.presetType,
+            ucPresetContent: ucPresetContent,
+            isCustom: ucState.isCustom,
+            l10n: context.l10n,
+          ),
         ),
       ],
     );
@@ -622,6 +668,686 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 }
 
+/// 正面提示词悬浮提示内容
+class _PositivePromptTooltip extends StatelessWidget {
+  final ThemeData theme;
+  final String userPrompt;
+  final List<FixedTagEntry> prefixes;
+  final List<FixedTagEntry> suffixes;
+  final PromptPresetMode qualityMode;
+  final String? qualityContent;
+  final List<CharacterPrompt> characters;
+  final bool globalAiChoice;
+  final dynamic l10n;
+
+  const _PositivePromptTooltip({
+    required this.theme,
+    required this.userPrompt,
+    required this.prefixes,
+    required this.suffixes,
+    required this.qualityMode,
+    required this.qualityContent,
+    required this.characters,
+    required this.globalAiChoice,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = theme.brightness == Brightness.dark;
+    final hasPrefixes = prefixes.isNotEmpty;
+    final hasSuffixes = suffixes.isNotEmpty;
+    final hasQuality = qualityContent != null && qualityContent!.isNotEmpty;
+    final enabledCharacters =
+        characters.where((c) => c.enabled && c.prompt.isNotEmpty).toList();
+    final hasCharacters = enabledCharacters.isNotEmpty;
+
+    // 构建最终生效的完整提示词
+    final effectivePrompt = _buildEffectivePrompt();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 顶部统计标题
+        _buildHeader(isDark),
+
+        const SizedBox(height: 10),
+
+        // 固定词（前缀）
+        if (hasPrefixes) ...[
+          _buildSection(
+            icon: Icons.arrow_forward_rounded,
+            label: l10n.fixedTags_prefix,
+            color: theme.colorScheme.primary,
+            content: prefixes.map((e) => e.content).join(', '),
+            isDark: isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 用户输入
+        if (userPrompt.trim().isNotEmpty) ...[
+          _buildSection(
+            icon: Icons.edit_rounded,
+            label: l10n.prompt_mainPositive,
+            color: theme.colorScheme.secondary,
+            content: userPrompt.trim(),
+            isDark: isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 质量词
+        if (hasQuality) ...[
+          _buildSection(
+            icon: Icons.star_rounded,
+            label: l10n.qualityTags_positive,
+            color: Colors.amber,
+            content: qualityContent!,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 多角色提示词
+        if (hasCharacters) ...[
+          _buildCharacterSection(
+            enabledCharacters,
+            isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 固定词（后缀）
+        if (hasSuffixes) ...[
+          _buildSection(
+            icon: Icons.arrow_back_rounded,
+            label: l10n.fixedTags_suffix,
+            color: theme.colorScheme.tertiary,
+            content: suffixes.map((e) => e.content).join(', '),
+            isDark: isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 分隔线
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          height: 1,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.transparent,
+                theme.colorScheme.outlineVariant.withOpacity(0.4),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        // 最终生效提示词
+        _buildFinalPromptSection(effectivePrompt, isDark),
+      ],
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
+            theme.colorScheme.primary.withOpacity(isDark ? 0.1 : 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.auto_awesome,
+            size: 14,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            l10n.prompt_positivePrompt,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required String content,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.4)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [color, color.withOpacity(0.4)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 120),
+            child: SingleChildScrollView(
+              child: Text(
+                content,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinalPromptSection(String prompt, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.primaryContainer.withOpacity(isDark ? 0.3 : 0.4),
+            theme.colorScheme.secondaryContainer
+                .withOpacity(isDark ? 0.2 : 0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.output_rounded,
+                size: 12,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                l10n.prompt_finalPrompt,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 150),
+            child: SingleChildScrollView(
+              child: Text(
+                prompt,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _buildEffectivePrompt() {
+    final parts = <String>[];
+
+    // 前缀
+    for (final p in prefixes) {
+      if (p.content.trim().isNotEmpty) parts.add(p.content.trim());
+    }
+
+    // 用户输入
+    if (userPrompt.trim().isNotEmpty) parts.add(userPrompt.trim());
+
+    // 质量词
+    if (qualityContent != null && qualityContent!.isNotEmpty) {
+      parts.add(qualityContent!);
+    }
+
+    // 多角色提示词
+    final enabledCharacters =
+        characters.where((c) => c.enabled && c.prompt.isNotEmpty);
+    for (final character in enabledCharacters) {
+      parts.add(character.toNaiPrompt(useAiPosition: globalAiChoice));
+    }
+
+    // 后缀
+    for (final s in suffixes) {
+      if (s.content.trim().isNotEmpty) parts.add(s.content.trim());
+    }
+
+    return parts.join(', ');
+  }
+
+  Widget _buildCharacterSection(
+    List<CharacterPrompt> enabledCharacters,
+    bool isDark,
+  ) {
+    final color = Colors.teal;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.4)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [color, color.withOpacity(0.4)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.people_rounded, size: 12, color: color),
+              const SizedBox(width: 4),
+              Text(
+                l10n.prompt_characterPrompts,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${enabledCharacters.length}',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 120),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: enabledCharacters.map((character) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          character.gender == CharacterGender.female
+                              ? Icons.female
+                              : character.gender == CharacterGender.male
+                                  ? Icons.male
+                                  : Icons.person,
+                          size: 11,
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 负面提示词悬浮提示内容
+class _NegativePromptTooltip extends StatelessWidget {
+  final ThemeData theme;
+  final String userNegativePrompt;
+  final UcPresetType ucPresetType;
+  final String ucPresetContent;
+  final bool isCustom;
+  final dynamic l10n;
+
+  const _NegativePromptTooltip({
+    required this.theme,
+    required this.userNegativePrompt,
+    required this.ucPresetType,
+    required this.ucPresetContent,
+    required this.isCustom,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = theme.brightness == Brightness.dark;
+    final hasUserInput = userNegativePrompt.trim().isNotEmpty;
+    final hasPreset = ucPresetContent.isNotEmpty;
+
+    // 构建最终生效的完整负面提示词
+    final effectiveNegative = _buildEffectiveNegative();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 顶部标题
+        _buildHeader(isDark),
+
+        const SizedBox(height: 10),
+
+        // UC预设
+        if (hasPreset) ...[
+          _buildSection(
+            icon: Icons.shield_rounded,
+            label: l10n.qualityTags_negative,
+            color: theme.colorScheme.error,
+            content: ucPresetContent,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 用户输入
+        if (hasUserInput) ...[
+          _buildSection(
+            icon: Icons.edit_rounded,
+            label: l10n.prompt_mainNegative,
+            color: theme.colorScheme.tertiary,
+            content: userNegativePrompt.trim(),
+            isDark: isDark,
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 分隔线
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          height: 1,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.transparent,
+                theme.colorScheme.outlineVariant.withOpacity(0.4),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+
+        // 最终生效负面提示词
+        _buildFinalSection(effectiveNegative, isDark),
+      ],
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.1),
+            theme.colorScheme.error.withOpacity(isDark ? 0.1 : 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.error.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.block,
+            size: 14,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            l10n.prompt_negativePrompt,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required String content,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.4)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [color, color.withOpacity(0.4)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 120),
+            child: SingleChildScrollView(
+              child: Text(
+                content,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinalSection(String prompt, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.errorContainer.withOpacity(isDark ? 0.3 : 0.4),
+            theme.colorScheme.surfaceContainerHighest
+                .withOpacity(isDark ? 0.2 : 0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.error.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.output_rounded,
+                size: 12,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                l10n.prompt_finalNegative,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 150),
+            child: SingleChildScrollView(
+              child: Text(
+                prompt.isEmpty ? '-' : prompt,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _buildEffectiveNegative() {
+    final parts = <String>[];
+
+    // UC预设
+    if (ucPresetContent.isNotEmpty) {
+      parts.add(ucPresetContent);
+    }
+
+    // 用户输入
+    if (userNegativePrompt.trim().isNotEmpty) {
+      parts.add(userNegativePrompt.trim());
+    }
+
+    return parts.join(', ');
+  }
+}
+
 /// 提示词类型切换按钮
 class _PromptTypeButton extends StatefulWidget {
   final IconData icon;
@@ -630,6 +1356,7 @@ class _PromptTypeButton extends StatefulWidget {
   final bool isSelected;
   final Color color;
   final VoidCallback onTap;
+  final Widget Function(ThemeData theme)? tooltipBuilder;
 
   const _PromptTypeButton({
     required this.icon,
@@ -638,6 +1365,7 @@ class _PromptTypeButton extends StatefulWidget {
     required this.isSelected,
     required this.color,
     required this.onTap,
+    this.tooltipBuilder,
   });
 
   @override
@@ -672,7 +1400,7 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return MouseRegion(
+    final button = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
@@ -794,5 +1522,35 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
         ),
       ),
     );
+
+    // 如果有 tooltipBuilder，包裹 Tooltip
+    if (widget.tooltipBuilder != null) {
+      return Tooltip(
+        richMessage: WidgetSpan(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: widget.tooltipBuilder!(theme),
+          ),
+        ),
+        preferBelow: true,
+        verticalOffset: 20,
+        waitDuration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(12),
+        child: button,
+      );
+    }
+
+    return button;
   }
 }

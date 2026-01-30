@@ -66,65 +66,75 @@ class SlidingToggle<T> extends StatelessWidget {
     final theme = Theme.of(context);
     final selectedIndex = options.indexWhere((o) => o.value == value);
 
+    // 点击整个开关切换到另一个选项
+    void toggle() {
+      if (enabled && onChanged != null) {
+        final otherIndex = selectedIndex == 0 ? 1 : 0;
+        onChanged!(options[otherIndex].value);
+      }
+    }
+
     return Opacity(
       opacity: enabled ? 1.0 : 0.5,
-      child: Container(
-        height: height,
-        width: itemWidth * 2,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(borderRadius),
-        ),
-        child: Stack(
-          children: [
-            // 滑动高亮背景
-            AnimatedPositioned(
-              duration: animationDuration,
-              curve: Curves.easeInOut,
-              left: selectedIndex == 0 ? 2 : itemWidth + 2,
-              top: 2,
-              child: Container(
-                width: itemWidth - 4,
-                height: height - 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(thumbRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
+      child: MouseRegion(
+        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: GestureDetector(
+          onTap: toggle,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            height: height,
+            width: itemWidth * 2,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(borderRadius),
             ),
-            // 选项按钮
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: options.asMap().entries.map((entry) {
-                final index = entry.key;
-                final option = entry.value;
-                final isSelected = index == selectedIndex;
-
-                return GestureDetector(
-                  onTap: enabled && onChanged != null
-                      ? () => onChanged!(option.value)
-                      : null,
+            child: Stack(
+              children: [
+                // 滑动高亮背景
+                AnimatedPositioned(
+                  duration: animationDuration,
+                  curve: Curves.easeInOut,
+                  left: selectedIndex == 0 ? 2 : itemWidth + 2,
+                  top: 2,
                   child: Container(
-                    width: itemWidth,
-                    height: height,
-                    alignment: Alignment.center,
-                    child: _buildOptionContent(
-                      context,
-                      option,
-                      isSelected,
+                    width: itemWidth - 4,
+                    height: height - 4,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(thumbRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+                // 选项图标
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: options.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final option = entry.value;
+                    final isSelected = index == selectedIndex;
+
+                    return Container(
+                      width: itemWidth,
+                      height: height,
+                      alignment: Alignment.center,
+                      child: _buildOptionContent(
+                        context,
+                        option,
+                        isSelected,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
