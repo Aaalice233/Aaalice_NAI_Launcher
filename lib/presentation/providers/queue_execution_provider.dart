@@ -346,11 +346,17 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 3. 获取主界面负面提示词（UC预设内容）
     final ucContent =
         ref.read(ucPresetNotifierProvider.notifier).getEffectiveContent(model);
+    final finalNegativePrompt = ucContent ?? '';
 
-    // 设置待填充提示词
+    // 4. 直接更新生成参数（确保生成时使用正确的提示词）
+    ref.read(generationParamsNotifierProvider.notifier)
+      ..updatePrompt(finalPrompt)
+      ..updateNegativePrompt(finalNegativePrompt);
+
+    // 5. 同时设置 pendingPrompt 用于 UI 同步（更新文本框显示）
     ref.read(pendingPromptNotifierProvider.notifier).set(
           prompt: finalPrompt,
-          negativePrompt: ucContent ?? '',
+          negativePrompt: finalNegativePrompt,
         );
   }
 
