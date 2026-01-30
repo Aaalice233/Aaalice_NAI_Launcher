@@ -155,7 +155,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(context.l10n.appTitle),
-            subtitle: Text(context.l10n.settings_version('1.0.0')),
+            subtitle: Text(context.l10n.settings_version('Beta .2')),
           ),
           ListTile(
             leading: const Icon(Icons.code),

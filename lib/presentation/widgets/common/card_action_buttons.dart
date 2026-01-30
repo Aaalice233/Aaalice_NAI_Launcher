@@ -48,7 +48,7 @@ class _CardActionButtonsState extends State<CardActionButtons>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: widget.animationDuration,
+      duration: const Duration(milliseconds: 600),
     );
   }
 
@@ -95,32 +95,36 @@ class _CardActionButtonsState extends State<CardActionButtons>
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
       children: List.generate(widget.buttons.length, (index) {
-        // 从右向左展开：右边的按钮先出现
-        final buttonIndex = index;
-        final reversedIndex = widget.buttons.length - 1 - index;
-
-        final startTime = reversedIndex * 0.1;
-        final endTime = startTime + 0.6;
+        // 依次展开：第一个按钮先出现
+        final staggerDelay = index * 0.12;
+        final startTime = staggerDelay.clamp(0.0, 0.6);
+        final endTime = (startTime + 0.4).clamp(0.0, 1.0);
 
         final animation = CurvedAnimation(
           parent: _controller,
-          curve: Interval(
-            (startTime * 0.5).clamp(0.0, 1.0),
-            (endTime * 0.5).clamp(0.0, 1.0),
-            curve: Curves.easeOutBack,
-          ),
+          curve: Interval(startTime, endTime, curve: Curves.elasticOut),
         );
 
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: animation,
+        // 根据布局方向决定滑动方向：
+        // 垂直布局：从上往下滑入
+        // 水平布局：从左往右滑入
+        final slideAnimation = Tween<Offset>(
+          begin: widget.direction == Axis.vertical
+              ? const Offset(0, -0.5)
+              : const Offset(-0.5, 0),
+          end: Offset.zero,
+        ).animate(animation);
+
+        return SlideTransition(
+          position: slideAnimation,
+          child: FadeTransition(
+            opacity: animation,
             child: Padding(
               padding: EdgeInsets.only(
                 left: widget.direction == Axis.horizontal ? 4 : 0,
                 top: widget.direction == Axis.vertical ? 4 : 0,
               ),
-              child: _CardActionButton(config: widget.buttons[buttonIndex]),
+              child: _CardActionButton(config: widget.buttons[index]),
             ),
           ),
         );
@@ -151,42 +155,19 @@ class _CardActionButtonState extends State<_CardActionButton> {
         onExit: (_) => setState(() => _isHovering = false),
         child: GestureDetector(
           onTap: widget.config.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
+          child: Container(
             padding: const EdgeInsets.all(6),
-            transform: Matrix4.identity()..scale(_isHovering ? 1.15 : 1.0),
-            transformAlignment: Alignment.center,
             decoration: BoxDecoration(
               color: _isHovering
                   ? Colors.white.withOpacity(0.25)
                   : Colors.black.withOpacity(0.55),
               shape: BoxShape.circle,
-              boxShadow: _isHovering
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.1),
-                        blurRadius: 2,
-                        offset: const Offset(0, -1),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 4,
-                      ),
-                    ],
-              border: _isHovering
-                  ? Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
-                    )
-                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 4,
+                ),
+              ],
             ),
             child: Icon(
               widget.config.icon,

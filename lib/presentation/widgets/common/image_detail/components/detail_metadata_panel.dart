@@ -61,8 +61,8 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
       curve: Curves.easeInOut,
       width: _isExpanded ? widget.expandedWidth : widget.collapsedWidth,
       clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
           bottomLeft: Radius.circular(16),
         ),

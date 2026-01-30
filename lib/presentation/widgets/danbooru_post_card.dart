@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
+import '../../core/utils/localization_extension.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/services/tag_translation_service.dart';
@@ -137,6 +138,14 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final memCacheWidth = (widget.itemWidth * pixelRatio).toInt();
 
+    // 根据图片宽高比决定按钮布局方向
+    // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
+    // 竖图（宽高比小）：垂直布局
+    final aspectRatio = widget.post.width > 0 && widget.post.height > 0
+        ? widget.post.width / widget.post.height
+        : 1.0;
+    final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
+
     return RepaintBoundary(
       child: CompositedTransformTarget(
         link: _layerLink,
@@ -159,328 +168,332 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                 ? (widget.canSelect ? widget.onSelectionToggle : null)
                 : widget.onTap,
             onLongPress: widget.onLongPress,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeOut,
-              height: itemHeight,
-              transform: Matrix4.identity()
-                ..translate(
-                  0.0,
-                  _isHovering && !widget.selectionMode ? -4.0 : 0.0,
-                )
-                ..scale(_isHovering && !widget.selectionMode ? 1.02 : 1.0),
-              transformAlignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: widget.isSelected
-                    ? Border.all(color: theme.colorScheme.primary, width: 3)
-                    : _isHovering && !widget.selectionMode
-                        ? Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.4),
-                            width: 1.5,
-                          )
-                        : null,
-                boxShadow: _isHovering && !widget.selectionMode
-                    ? [
-                        BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.3),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                          spreadRadius: 2,
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 24,
-                          offset: const Offset(0, 12),
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: widget.post.previewUrl,
-                      fit: BoxFit.cover,
-                      memCacheWidth: memCacheWidth,
-                      cacheManager: DanbooruImageCacheManager.instance,
-                      placeholder: (context, url) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.broken_image,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    if (widget.selectionMode) ...[
-                      // Selection Overlay
-                      if (widget.isSelected)
-                        Container(
-                          color: theme.colorScheme.primary.withOpacity(0.2),
-                        ),
-                      // Disabled Overlay
-                      if (!widget.canSelect)
-                        Container(
-                          color: Colors.grey.withOpacity(0.7),
-                          child: const Center(
-                            child: Icon(Icons.block, color: Colors.white54),
-                          ),
-                        ),
-                      // Checkbox
-                      if (widget.canSelect)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: widget.isSelected
-                                  ? theme.colorScheme.primary
-                                  : Colors.black.withOpacity(0.4),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                  height: itemHeight,
+                  transform: Matrix4.identity()
+                    ..translate(
+                      0.0,
+                      _isHovering && !widget.selectionMode ? -4.0 : 0.0,
+                    )
+                    ..scale(_isHovering && !widget.selectionMode ? 1.02 : 1.0),
+                  transformAlignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: widget.isSelected
+                        ? Border.all(color: theme.colorScheme.primary, width: 3)
+                        : _isHovering && !widget.selectionMode
+                            ? Border.all(
+                                color:
+                                    theme.colorScheme.primary.withOpacity(0.4),
+                                width: 1.5,
+                              )
+                            : null,
+                    boxShadow: _isHovering && !widget.selectionMode
+                        ? [
+                            BoxShadow(
+                              color: theme.colorScheme.primary.withOpacity(0.3),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                              spreadRadius: 2,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.check,
-                                size: 16,
-                                color: widget.isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : Colors.transparent,
-                              ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 24,
+                              offset: const Offset(0, 12),
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: widget.post.previewUrl,
+                          fit: BoxFit.cover,
+                          memCacheWidth: memCacheWidth,
+                          cacheManager: DanbooruImageCacheManager.instance,
+                          placeholder: (context, url) => Container(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.broken_image,
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
-                    ],
-                    if (!widget.selectionMode) ...[
-                      if (widget.post.mediaTypeLabel != null)
-                        Positioned(
-                          top: 4,
-                          left: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 2,
+                        if (widget.selectionMode) ...[
+                          // Selection Overlay
+                          if (widget.isSelected)
+                            Container(
+                              color: theme.colorScheme.primary.withOpacity(0.2),
                             ),
-                            decoration: BoxDecoration(
-                              color: widget.post.isVideo
-                                  ? Colors.purple
-                                  : Colors.blue,
-                              borderRadius: BorderRadius.circular(3),
+                          // Disabled Overlay
+                          if (!widget.canSelect)
+                            Container(
+                              color: Colors.grey.withOpacity(0.7),
+                              child: const Center(
+                                child: Icon(Icons.block, color: Colors.white54),
+                              ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  widget.post.isVideo
-                                      ? Icons.play_circle_fill
-                                      : Icons.gif_box,
-                                  size: 10,
-                                  color: Colors.white,
+                          // Checkbox
+                          if (widget.canSelect)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: widget.isSelected
+                                      ? theme.colorScheme.primary
+                                      : Colors.black.withOpacity(0.4),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  widget.post.mediaTypeLabel!,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: widget.isSelected
+                                        ? theme.colorScheme.onPrimary
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                        if (!widget.selectionMode) ...[
+                          if (widget.post.mediaTypeLabel != null)
+                            Positioned(
+                              top: 4,
+                              left: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: widget.post.isVideo
+                                      ? Colors.purple
+                                      : Colors.blue,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      widget.post.isVideo
+                                          ? Icons.play_circle_fill
+                                          : Icons.gif_box,
+                                      size: 10,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      widget.post.mediaTypeLabel!,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (!_isHovering)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getRatingColor(widget.post.rating),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  _getRatingLabel(context, widget.post.rating),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      if (!_isHovering)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getRatingColor(widget.post.rating),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              widget.post.rating.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(6, 16, 6, 4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.7),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.arrow_upward,
+                                    size: 10,
+                                    color: Colors.white70,
+                                  ),
+                                  Text(
+                                    '${widget.post.score}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.favorite,
+                                    size: 10,
+                                    color: Colors.white70,
+                                  ),
+                                  Text(
+                                    '${widget.post.favCount}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: Consumer(
-                          builder: (context, ref, _) {
-                            return CardActionButtons(
-                              visible: _isHovering,
-                              direction: Axis.vertical,
-                              hoverDelay: const Duration(milliseconds: 100),
-                              buttons: [
-                                CardActionButtonConfig(
-                                  icon: widget.isFavorited
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  tooltip: '收藏',
-                                  iconColor: widget.isFavorited
-                                      ? Colors.red
-                                      : Colors.white,
-                                  onPressed: widget.onFavoriteToggle,
-                                ),
-                                CardActionButtonConfig(
-                                  icon: Icons.download,
-                                  tooltip: '下载原图',
-                                  onPressed: _handleDownload,
-                                ),
-                                CardActionButtonConfig(
-                                  icon: Icons.playlist_add,
-                                  tooltip: '添加到队列',
-                                  onPressed: () async {
-                                    final task = ReplicationTask.create(
-                                      prompt: widget.post.tags.join(', '),
-                                      thumbnailUrl: widget.post.previewUrl,
-                                      source: ReplicationTaskSource.online,
-                                    );
-                                    final success = await ref
-                                        .read(
-                                          replicationQueueNotifierProvider
-                                              .notifier,
-                                        )
-                                        .add(task);
-                                    if (context.mounted) {
-                                      if (success) {
-                                        AppToast.info(context, '已添加到队列');
-                                      } else {
-                                        AppToast.info(context, '队列已满');
-                                      }
-                                    }
-                                  },
-                                ),
-                                CardActionButtonConfig(
-                                  icon: Icons.send,
-                                  tooltip: '发送到文生图',
-                                  onPressed: () {
-                                    ref
-                                        .read(
-                                          characterPromptNotifierProvider
-                                              .notifier,
-                                        )
-                                        .clearAll();
-                                    ref
-                                        .read(
-                                          pendingPromptNotifierProvider
-                                              .notifier,
-                                        )
-                                        .set(
-                                          prompt: widget.post.tags.join(', '),
-                                        );
-                                    context.go('/');
-                                    AppToast.info(context, '已发送到文生图');
-                                  },
-                                ),
-                                CardActionButtonConfig(
-                                  icon: Icons.copy,
-                                  tooltip: '复制标签',
-                                  onPressed: () async {
-                                    try {
-                                      await Clipboard.setData(
-                                        ClipboardData(
-                                          text: widget.post.tags.join(', '),
-                                        ),
-                                      );
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text('已复制'),
-                                            duration: Duration(seconds: 1),
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      // ignore
-                                    }
-                                  },
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.fromLTRB(6, 16, 6, 4),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.7),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.arrow_upward,
-                                size: 10,
-                                color: Colors.white70,
-                              ),
-                              Text(
-                                '${widget.post.score}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.favorite,
-                                size: 10,
-                                color: Colors.white70,
-                              ),
-                              Text(
-                                '${widget.post.favCount}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                if (!widget.selectionMode)
+                  Positioned(
+                    // 垂直布局：右上角向下展开
+                    // 水平布局：左上角向右展开
+                    top: 4,
+                    right: buttonDirection == Axis.vertical ? 4 : null,
+                    left: buttonDirection == Axis.horizontal ? 4 : null,
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        return CardActionButtons(
+                          visible: _isHovering,
+                          direction: buttonDirection,
+                          hoverDelay: const Duration(milliseconds: 100),
+                          buttons: [
+                            CardActionButtonConfig(
+                              icon: widget.isFavorited
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              tooltip: '收藏',
+                              iconColor: widget.isFavorited
+                                  ? Colors.red
+                                  : Colors.white,
+                              onPressed: widget.onFavoriteToggle,
+                            ),
+                            CardActionButtonConfig(
+                              icon: Icons.download,
+                              tooltip: '下载原图',
+                              onPressed: _handleDownload,
+                            ),
+                            CardActionButtonConfig(
+                              icon: Icons.playlist_add,
+                              tooltip: '添加到队列',
+                              onPressed: () async {
+                                final task = ReplicationTask.create(
+                                  prompt: widget.post.tags.join(', '),
+                                  thumbnailUrl: widget.post.previewUrl,
+                                  source: ReplicationTaskSource.online,
+                                );
+                                final success = await ref
+                                    .read(
+                                      replicationQueueNotifierProvider.notifier,
+                                    )
+                                    .add(task);
+                                if (context.mounted) {
+                                  if (success) {
+                                    AppToast.info(context, '已添加到队列');
+                                  } else {
+                                    AppToast.info(context, '队列已满');
+                                  }
+                                }
+                              },
+                            ),
+                            CardActionButtonConfig(
+                              icon: Icons.send,
+                              tooltip: '发送到文生图',
+                              onPressed: () {
+                                ref
+                                    .read(
+                                      characterPromptNotifierProvider.notifier,
+                                    )
+                                    .clearAll();
+                                ref
+                                    .read(
+                                      pendingPromptNotifierProvider.notifier,
+                                    )
+                                    .set(prompt: widget.post.tags.join(', '));
+                                context.go('/');
+                                AppToast.info(context, '已发送到文生图');
+                              },
+                            ),
+                            CardActionButtonConfig(
+                              icon: Icons.copy,
+                              tooltip: '复制标签',
+                              onPressed: () async {
+                                try {
+                                  await Clipboard.setData(
+                                    ClipboardData(
+                                      text: widget.post.tags.join(', '),
+                                    ),
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('已复制'),
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  // ignore
+                                }
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -500,6 +513,21 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _getRatingLabel(BuildContext context, String rating) {
+    switch (rating) {
+      case 'g':
+        return context.l10n.onlineGallery_ratingGeneral;
+      case 's':
+        return context.l10n.onlineGallery_ratingSensitive;
+      case 'q':
+        return context.l10n.onlineGallery_ratingQuestionable;
+      case 'e':
+        return context.l10n.onlineGallery_ratingExplicit;
+      default:
+        return rating.toUpperCase();
     }
   }
 }
@@ -624,7 +652,7 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            post.rating.toUpperCase(),
+                            _getRatingLabel(context, post.rating),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -684,6 +712,21 @@ class _HoverPreviewCardInner extends ConsumerWidget {
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _getRatingLabel(BuildContext context, String rating) {
+    switch (rating) {
+      case 'g':
+        return context.l10n.onlineGallery_ratingGeneral;
+      case 's':
+        return context.l10n.onlineGallery_ratingSensitive;
+      case 'q':
+        return context.l10n.onlineGallery_ratingQuestionable;
+      case 'e':
+        return context.l10n.onlineGallery_ratingExplicit;
+      default:
+        return rating.toUpperCase();
     }
   }
 }
