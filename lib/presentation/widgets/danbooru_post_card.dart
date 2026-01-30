@@ -484,12 +484,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                     ),
                                   );
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('已复制'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
+                                    AppToast.success(context, '已复制');
                                   }
                                 } catch (e) {
                                   // ignore
