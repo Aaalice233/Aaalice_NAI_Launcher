@@ -80,13 +80,23 @@ class AccountDetailTile extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        account.displayName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      // 名字 + 徽章
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              account.displayName,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 订阅徽章
+                          _buildCompactBadges(context, subscriptionState),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -101,9 +111,6 @@ class AccountDetailTile extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                // 订阅徽章区域
-                _buildCompactBadges(context, subscriptionState),
                 const SizedBox(width: 8),
                 // 编辑箭头
                 Icon(
@@ -169,7 +176,7 @@ class AccountDetailTile extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.toll_rounded,
+                    Icons.diamond_outlined,
                     size: 12,
                     color: theme.colorScheme.tertiary,
                   ),
