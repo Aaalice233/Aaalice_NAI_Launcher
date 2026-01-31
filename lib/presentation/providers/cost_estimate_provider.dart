@@ -11,36 +11,46 @@ part 'cost_estimate_provider.g.dart';
 /// 预估消耗 Provider
 ///
 /// 根据当前参数实时计算预估的 Anlas 消耗
-/// 考虑批次数量(nSamples)和每批图片数(imagesPerRequest)
+///
+/// 计费逻辑：
+/// - nSamples（批次数量）：应用内循环，每次是独立请求，每次都可享受 Opus 免费
+/// - imagesPerRequest（批次大小）：单次请求生成多张，只有第一张免费
 @riverpod
 int estimatedCost(Ref ref) {
   final params = ref.watch(generationParamsNotifierProvider);
   final isOpus = ref.watch(isOpusSubscriptionProvider);
   final imagesPerRequest = ref.watch(imagesPerRequestProvider);
 
-  // 总图片数 = nSamples × imagesPerRequest
-  final totalImages = params.nSamples * imagesPerRequest;
+  // nSamples = 批次数量（应用内循环次数，每次独立请求）
+  // imagesPerRequest = 批次大小（单次请求的图片数）
+  final batchCount = params.nSamples;
+  final batchSize = imagesPerRequest;
 
-  if (totalImages <= 0) return 0;
+  if (batchCount <= 0 || batchSize <= 0) return 0;
 
-  // 计算总消耗：只有第一张可能享受 Opus 免费
-  int totalCost = 0;
-  for (int i = 0; i < totalImages; i++) {
-    final isFirstImage = i == 0;
-    totalCost += AnlasCalculator.calculateFromValues(
+  // 计算单次请求的消耗
+  // 单次请求内：只有第一张可能享受 Opus 免费
+  int singleRequestCost = 0;
+  for (int i = 0; i < batchSize; i++) {
+    final isFirstImageInRequest = i == 0;
+    singleRequestCost += AnlasCalculator.calculateFromValues(
       width: params.width,
       height: params.height,
       steps: params.steps,
-      nSamples: 1, // 每张单独计算
+      nSamples: 1,
       smea: params.smea,
       smeaDyn: params.smeaDyn,
       model: params.model,
-      isOpus: isOpus && isFirstImage,
+      isOpus: isOpus && isFirstImageInRequest,
       strength: params.action == ImageGenerationAction.img2img
           ? params.strength
           : 1.0,
     );
   }
+
+  // 总消耗 = 单次请求消耗 × 批次数量
+  // 每次独立请求都可享受 Opus 免费（如果符合条件）
+  int totalCost = singleRequestCost * batchCount;
 
   // 加上 Vibe 编码成本 (每张非预编码图片 2 Anlas)
   totalCost += params.vibeEncodingCost;
