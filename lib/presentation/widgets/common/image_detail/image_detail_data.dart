@@ -54,9 +54,14 @@ class FileInfo {
 }
 
 /// 本地图库图像数据适配器
+///
+/// 包含大图内存优化：超过阈值的图像会使用 ResizeImage 限制内存占用
 class LocalImageDetailData implements ImageDetailData {
   final LocalImageRecord record;
   final bool Function(String path)? getFavoriteStatus;
+
+  /// 图像最大维度阈值（超过此值会进行缩放优化）
+  static const int _maxImageDimension = 4096;
 
   LocalImageDetailData(
     this.record, {
@@ -65,7 +70,36 @@ class LocalImageDetailData implements ImageDetailData {
 
   @override
   ImageProvider getImageProvider() {
-    return FileImage(File(record.path));
+    final meta = record.metadata;
+    final fileImage = FileImage(File(record.path));
+
+    // 如果有元数据且图像尺寸超过阈值，使用 ResizeImage 限制内存
+    if (meta != null) {
+      final width = meta.width ?? 0;
+      final height = meta.height ?? 0;
+
+      if (width > _maxImageDimension || height > _maxImageDimension) {
+        // 计算缩放后的尺寸，保持宽高比
+        final int? targetWidth;
+        final int? targetHeight;
+
+        if (width > height) {
+          targetWidth = _maxImageDimension;
+          targetHeight = null; // 保持宽高比
+        } else {
+          targetWidth = null;
+          targetHeight = _maxImageDimension;
+        }
+
+        return ResizeImage(
+          fileImage,
+          width: targetWidth,
+          height: targetHeight,
+        );
+      }
+    }
+
+    return fileImage;
   }
 
   @override

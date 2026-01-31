@@ -580,10 +580,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     required bool randomMode,
     required bool shouldShowFloatingButton,
   }) {
-    // 使用 Row 横向布局，hover时"加入队列"按钮从左侧弹出
+    // 使用 Row + AnimatedSize 让"加入队列"按钮在布局内滑出
     return MouseRegion(
       onEnter: (_) {
-        if (!_showAddToQueueButton) {
+        if (!_showAddToQueueButton && shouldShowFloatingButton) {
           setState(() {
             _isHovering = true;
             _showAddToQueueButton = true;
@@ -591,17 +591,15 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         }
       },
       onExit: (_) {
-        if (_showAddToQueueButton) {
-          setState(() {
-            _isHovering = false;
-            _showAddToQueueButton = false;
-          });
-        }
+        setState(() {
+          _isHovering = false;
+          _showAddToQueueButton = false;
+        });
       },
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 悬浮球存在 + hover时 → 左侧横向弹出"加入队列"按钮
+          // 悬浮球存在 + hover时 → 左侧滑出仅图标的"加入队列"按钮
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
@@ -609,23 +607,8 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             child: shouldShowFloatingButton && _showAddToQueueButton
                 ? Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.elasticOut,
-                      builder: (context, value, child) {
-                        return Transform.scale(
-                          scale: value,
-                          alignment: Alignment.centerRight,
-                          child: Opacity(
-                            opacity: value.clamp(0.0, 1.0),
-                            child: _AddToQueueButton(
-                              onPressed: () =>
-                                  _handleAddToQueue(context, ref, params),
-                            ),
-                          ),
-                        );
-                      },
+                    child: _AddToQueueIconButton(
+                      onPressed: () => _handleAddToQueue(context, ref, params),
                     ),
                   )
                 : const SizedBox.shrink(),
@@ -1054,21 +1037,32 @@ class _GenerateButtonWithCost extends ConsumerWidget {
   }
 }
 
-/// 加入队列按钮
-class _AddToQueueButton extends StatelessWidget {
+/// 加入队列按钮（仅图标）
+class _AddToQueueIconButton extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const _AddToQueueButton({required this.onPressed});
+  const _AddToQueueIconButton({required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
+      width: 48,
       height: 48,
-      child: ThemedButton(
-        onPressed: onPressed,
-        icon: const Icon(Icons.playlist_add),
-        label: Text(context.l10n.queue_addToQueue),
-        style: ThemedButtonStyle.filled,
+      child: Tooltip(
+        message: context.l10n.queue_addToQueue,
+        child: FilledButton(
+          onPressed: onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Icon(Icons.playlist_add, size: 24),
+        ),
       ),
     );
   }

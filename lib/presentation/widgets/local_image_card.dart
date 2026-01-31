@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,11 +9,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
-import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
 import 'common/animated_favorite_button.dart';
+import 'common/image_detail/image_detail_data.dart';
+import 'common/image_detail/image_detail_viewer.dart';
 import 'common/pro_context_menu.dart';
-import '../widgets/common/themed_divider.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）
 class LocalImageCard extends StatefulWidget {
@@ -57,10 +56,29 @@ class _LocalImageCardState extends State<LocalImageCard> {
   Offset? _scaleStartPosition;
   bool _showThumbnailPreview = false;
 
+  /// 是否已预缓存详情图片
+  bool _isPrecached = false;
+
   @override
   void dispose() {
     _longPressTimer?.cancel();
     super.dispose();
+  }
+
+  /// 预缓存详情图片
+  ///
+  /// 在鼠标悬停时预加载图片，提升点击后的响应速度
+  void _precacheDetailImage() {
+    if (_isPrecached) return;
+    _isPrecached = true;
+
+    // 异步预加载，不阻塞 UI
+    precacheImage(
+      FileImage(File(widget.record.path)),
+      context,
+    ).catchError((_) {
+      // 忽略预加载错误
+    });
   }
 
   /// 显示上下文菜单
@@ -199,256 +217,29 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   /// 显示详情对话框
+  ///
+  /// 使用统一的 ImageDetailViewer 组件显示图片详情
   void _showDetailsDialog() {
-    final metadata = widget.record.metadata;
-    if (metadata == null) return;
-
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black87,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              height: MediaQuery.of(context).size.height * 0.9,
-              constraints:
-                  const BoxConstraints(maxWidth: 1400, maxHeight: 1000),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isDesktop = constraints.maxWidth > 800;
-
-                  final closeButton = IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: '关闭',
-                  );
-
-                  if (isDesktop) {
-                    return Row(
-                      children: [
-                        // 左侧：大图预览
-                        Expanded(
-                          flex: 7,
-                          child: Container(
-                            color: Colors.black,
-                            child: Stack(
-                              children: [
-                                InteractiveViewer(
-                                  minScale: 0.5,
-                                  maxScale: 4.0,
-                                  child: Center(
-                                    child: Image.file(
-                                      File(widget.record.path),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // 右侧：元数据面板
-                        Expanded(
-                          flex: 3,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                  color: Theme.of(context).dividerColor,
-                                ),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                // 标题栏
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '图片详情',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge,
-                                      ),
-                                      closeButton,
-                                    ],
-                                  ),
-                                ),
-                                const ThemedDivider(height: 1),
-                                // 滚动内容
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(16),
-                                    child: _buildMetadataContent(
-                                      context,
-                                      metadata,
-                                    ),
-                                  ),
-                                ),
-                                // 底部操作栏
-                                const ThemedDivider(height: 1),
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          onPressed: () {
-                                            Clipboard.setData(
-                                              ClipboardData(
-                                                text: metadata.fullPrompt,
-                                              ),
-                                            );
-                                            AppToast.success(
-                                              context,
-                                              'Prompt 已复制',
-                                            );
-                                          },
-                                          icon: const Icon(Icons.copy),
-                                          label: const Text('复制 Prompt'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // 移动端布局
-                    return Stack(
-                      children: [
-                        Column(
-                          children: [
-                            // 图片区域
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                color: Colors.black,
-                                child: InteractiveViewer(
-                                  child: Center(
-                                    child: Image.file(
-                                      File(widget.record.path),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // 元数据区域
-                            Expanded(
-                              flex: 5,
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '图片详情',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium,
-                                        ),
-                                        ElevatedButton.icon(
-                                          onPressed: () {
-                                            Clipboard.setData(
-                                              ClipboardData(
-                                                text: metadata.fullPrompt,
-                                              ),
-                                            );
-                                            AppToast.success(
-                                              context,
-                                              'Prompt 已复制',
-                                            );
-                                          },
-                                          icon:
-                                              const Icon(Icons.copy, size: 16),
-                                          label: const Text('复制 Prompt'),
-                                          style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 8,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const ThemedDivider(height: 1),
-                                  Expanded(
-                                    child: SingleChildScrollView(
-                                      padding: const EdgeInsets.all(16),
-                                      child: _buildMetadataContent(
-                                        context,
-                                        metadata,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        // 浮动关闭按钮
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: CircleAvatar(
-                            backgroundColor: Colors.black54,
-                            child: IconButton(
-                              icon:
-                                  const Icon(Icons.close, color: Colors.white),
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            ),
-            child: child,
-          ),
-        );
-      },
+    // 使用统一的 ImageDetailViewer 替代自定义 Dialog
+    // 即使没有元数据也可以查看图片
+    ImageDetailViewer.showSingle(
+      context,
+      image: LocalImageDetailData(
+        widget.record,
+        getFavoriteStatus: (_) => widget.record.isFavorite,
+      ),
+      showMetadataPanel: true,
+      callbacks: ImageDetailCallbacks(
+        onFavoriteToggle: widget.onFavoriteToggle != null
+            ? (image) => widget.onFavoriteToggle!(widget.record)
+            : null,
+        onReuseMetadata: widget.onReuseMetadata != null
+            ? (image) {
+                widget.onReuseMetadata!(widget.record);
+              }
+            : null,
+      ),
+      heroTag: 'local_image_${widget.record.path.hashCode}',
     );
   }
 
@@ -604,281 +395,6 @@ class _LocalImageCardState extends State<LocalImageCard> {
     }
   }
 
-  Widget _buildMetadataContent(
-    BuildContext context,
-    NaiImageMetadata metadata,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildInfoCard(
-          context,
-          title: '基本信息',
-          children: [
-            _buildInfoRow(
-              context,
-              Icons.insert_drive_file_outlined,
-              '文件名',
-              path.basename(widget.record.path),
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Icons.folder_open_outlined,
-              '路径',
-              widget.record.path,
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Icons.data_usage,
-              '大小',
-              '${(widget.record.size / 1024).toStringAsFixed(2)} KB',
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Icons.access_time,
-              '修改时间',
-              '${timeago.format(widget.record.modifiedAt, locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en')} (${widget.record.modifiedAt.toString().substring(0, 19)})',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildInfoCard(
-          context,
-          title: '生成参数',
-          children: [
-            if (metadata.seed != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.tag,
-                'Seed',
-                metadata.seed.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.steps != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.repeat,
-                'Steps',
-                metadata.steps.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.scale != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.tune,
-                'CFG Scale',
-                metadata.scale.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.sampler != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.shuffle,
-                'Sampler',
-                metadata.displaySampler,
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.sizeString.isNotEmpty) ...[
-              _buildInfoRow(
-                context,
-                Icons.aspect_ratio,
-                '尺寸',
-                metadata.sizeString,
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.model != null) ...[
-              _buildInfoRow(context, Icons.smart_toy, '模型', metadata.model!),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.smea == true || metadata.smeaDyn == true) ...[
-              _buildInfoRow(
-                context,
-                Icons.auto_awesome,
-                'SMEA',
-                metadata.smeaDyn == true
-                    ? 'DYN'
-                    : (metadata.smea == true ? 'ON' : 'OFF'),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.noiseSchedule != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.waves,
-                'Noise Schedule',
-                metadata.noiseSchedule!,
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.cfgRescale != null && metadata.cfgRescale! > 0) ...[
-              _buildInfoRow(
-                context,
-                Icons.balance,
-                'CFG Rescale',
-                metadata.cfgRescale.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            // 获取图片实际尺寸
-            FutureBuilder<ui.ImageDescriptor>(
-              future: _getImageSize(widget.record.path),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && metadata.sizeString.isEmpty) {
-                  return _buildInfoRow(
-                    context,
-                    Icons.aspect_ratio,
-                    '尺寸',
-                    '${snapshot.data!.width} x ${snapshot.data!.height}',
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildInfoCard(
-          context,
-          title: 'Prompt',
-          children: [
-            SelectableText(
-              metadata.fullPrompt.isNotEmpty ? metadata.fullPrompt : '(无)',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    height: 1.5,
-                  ),
-            ),
-          ],
-        ),
-        if (metadata.negativePrompt.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _buildInfoCard(
-            context,
-            title: '负向提示词 (UC)',
-            children: [
-              SelectableText(
-                metadata.negativePrompt,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
-                      height: 1.5,
-                      color:
-                          Theme.of(context).colorScheme.error.withOpacity(0.8),
-                    ),
-              ),
-            ],
-          ),
-        ],
-        if (metadata.rawJson != null) ...[
-          const SizedBox(height: 16),
-          _buildInfoCard(
-            context,
-            title: '原始 JSON',
-            children: [
-              SelectableText(
-                metadata.rawJson!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      height: 1.5,
-                    ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Future<ui.ImageDescriptor> _getImageSize(String path) async {
-    final buffer = await ui.ImmutableBuffer.fromFilePath(path);
-    final descriptor = await ui.ImageDescriptor.encoded(buffer);
-    return descriptor;
-  }
-
-  Widget _buildInfoCard(
-    BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context)
-          .colorScheme
-          .surfaceContainerHighest
-          .withOpacity(0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side:
-            BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              SelectableText(
-                value,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
@@ -893,6 +409,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
         cursor: widget.selectionMode
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
+        // 鼠标悬停时预缓存详情图片
+        onEnter: (_) => _precacheDetailImage(),
         child: GestureDetector(
           // 点击
           onTap: () {

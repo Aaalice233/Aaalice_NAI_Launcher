@@ -5,6 +5,7 @@ import '../image_detail_data.dart';
 /// 单张图像页面组件
 ///
 /// 支持缩放、平移和双击缩放功能
+/// 包含加载状态指示器和渐进式加载优化
 class DetailImagePage extends StatefulWidget {
   final ImageDetailData data;
   final String? heroTag;
@@ -26,6 +27,9 @@ class _DetailImagePageState extends State<DetailImagePage>
   late AnimationController _animationController;
   Animation<Matrix4>? _animation;
   TapDownDetails? _doubleTapDetails;
+
+  /// 加载状态
+  bool _isLoading = true;
 
   static const double _minScale = 0.5;
   static const double _maxScale = 4.0;
@@ -86,21 +90,77 @@ class _DetailImagePageState extends State<DetailImagePage>
     _animationController.forward(from: 0);
   }
 
+  /// 构建加载指示器
+  Widget _buildLoadingIndicator() {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Colors.white.withOpacity(0.6),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '加载中...',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 标记加载完成
+  void _markLoadingComplete() {
+    if (_isLoading && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget imageWidget = Image(
       image: widget.data.getImageProvider(),
       fit: BoxFit.contain,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded) return child;
+        // 同步加载完成（缓存命中）
+        if (wasSynchronouslyLoaded) {
+          _markLoadingComplete();
+          return child;
+        }
+
+        // 异步加载完成
+        if (frame != null) {
+          _markLoadingComplete();
+        }
+
+        // 渐进式淡入动画
         return AnimatedOpacity(
           opacity: frame == null ? 0 : 1,
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
           child: child,
         );
       },
       errorBuilder: (context, error, stackTrace) {
+        // 加载失败也要隐藏加载指示器
+        _markLoadingComplete();
         return const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -124,15 +184,26 @@ class _DetailImagePageState extends State<DetailImagePage>
       );
     }
 
-    return GestureDetector(
-      onDoubleTapDown: _handleDoubleTapDown,
-      onDoubleTap: _handleDoubleTap,
-      child: InteractiveViewer(
-        transformationController: _transformController,
-        minScale: _minScale,
-        maxScale: _maxScale,
-        child: Center(child: imageWidget),
-      ),
+    return Stack(
+      children: [
+        // 主图像区域
+        GestureDetector(
+          onDoubleTapDown: _handleDoubleTapDown,
+          onDoubleTap: _handleDoubleTap,
+          child: InteractiveViewer(
+            transformationController: _transformController,
+            minScale: _minScale,
+            maxScale: _maxScale,
+            child: Center(child: imageWidget),
+          ),
+        ),
+
+        // 加载指示器
+        if (_isLoading)
+          Positioned.fill(
+            child: _buildLoadingIndicator(),
+          ),
+      ],
     );
   }
 }
