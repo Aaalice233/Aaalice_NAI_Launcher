@@ -44,14 +44,8 @@ class CharacterEditorDialog extends ConsumerWidget {
         height: isDesktop ? 620 : MediaQuery.of(context).size.height * 0.9,
         child: Column(
           children: [
-            // 头部
+            // 头部（包含添加按钮）
             _DialogHeader(onClose: () => Navigator.of(context).pop()),
-
-            // 添加按钮行
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: AddCharacterButtons(),
-            ),
 
             // 卡片网格
             Expanded(
@@ -148,19 +142,19 @@ class CharacterEditorDialog extends ConsumerWidget {
 }
 
 /// 对话框头部组件
-class _DialogHeader extends StatelessWidget {
+class _DialogHeader extends ConsumerWidget {
   final VoidCallback onClose;
 
   const _DialogHeader({required this.onClose});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         border: Border(
@@ -184,7 +178,12 @@ class _DialogHeader extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 24),
+          // 添加按钮组（集成到标题栏）
+          const Expanded(
+            child: AddCharacterButtons(),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             onPressed: onClose,
             icon: const Icon(Icons.close),

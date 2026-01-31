@@ -10,6 +10,7 @@ import '../tag_library/tag_library_picker_dialog.dart';
 /// 添加角色按钮组件
 ///
 /// 包含性别按钮（女/男/其他）和词库按钮，横向布局
+/// 采用无边框+色差的简洁风格
 class AddCharacterButtons extends ConsumerWidget {
   const AddCharacterButtons({super.key});
 
@@ -18,8 +19,8 @@ class AddCharacterButtons extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 4,
+      runSpacing: 4,
       children: [
         // 女性按钮
         _GenderButton(
@@ -75,7 +76,7 @@ class AddCharacterButtons extends ConsumerWidget {
   }
 }
 
-/// 性别按钮组件
+/// 性别按钮组件（无边框+色差风格）
 class _GenderButton extends StatefulWidget {
   final IconData icon;
   final String label;
@@ -109,49 +110,37 @@ class _GenderButtonState extends State<_GenderButton> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
+            // 无边框，常态淡背景，悬停时加深
             color: _isHovered
-                ? widget.color.withOpacity(0.15)
-                : colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _isHovered
-                  ? widget.color.withOpacity(0.5)
-                  : colorScheme.outlineVariant.withOpacity(0.3),
-              width: 1,
-            ),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: widget.color.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+                ? widget.color.withOpacity(0.18)
+                : widget.color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.add,
-                size: 16,
-                color: _isHovered ? widget.color : colorScheme.onSurfaceVariant,
+                size: 15,
+                color: _isHovered
+                    ? widget.color
+                    : colorScheme.onSurfaceVariant.withOpacity(0.7),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 2),
               Icon(
                 widget.icon,
-                size: 18,
+                size: 17,
                 color: widget.color,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Text(
                 widget.label,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color:
                       _isHovered ? widget.color : colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
             ],
@@ -162,7 +151,7 @@ class _GenderButtonState extends State<_GenderButton> {
   }
 }
 
-/// 词库按钮组件
+/// 词库按钮组件（无边框+色差风格）
 class _LibraryButton extends StatefulWidget {
   final VoidCallback onTap;
 
@@ -190,43 +179,29 @@ class _LibraryButtonState extends State<_LibraryButton> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
+            // 无边框，常态淡背景，悬停时加深
             color: _isHovered
-                ? accentColor.withOpacity(0.15)
-                : colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _isHovered
-                  ? accentColor.withOpacity(0.5)
-                  : colorScheme.outlineVariant.withOpacity(0.3),
-              width: 1,
-            ),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: accentColor.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+                ? accentColor.withOpacity(0.18)
+                : accentColor.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.library_books_outlined,
-                size: 18,
+                size: 17,
                 color: _isHovered ? accentColor : colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Text(
                 l10n.characterEditor_addFromLibrary,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color:
                       _isHovered ? accentColor : colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
             ],
