@@ -397,6 +397,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       status: _isCancelled
           ? GenerationStatus.cancelled
           : GenerationStatus.completed,
+      currentImages: List.from(allImages),
+      displayImages: List.from(allImages), // 确保中央区域显示所有生成的图片
+      displayWidth: baseParams.width,
+      displayHeight: baseParams.height,
       progress: 1.0,
       currentImage: 0,
       totalImages: 0,
