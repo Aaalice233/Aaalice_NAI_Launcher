@@ -7,7 +7,8 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/models/tag/local_tag.dart';
 import '../../providers/locale_provider.dart';
 import 'autocomplete_controller.dart';
-import 'autocomplete_overlay.dart';
+import 'generic_autocomplete_overlay.dart';
+import 'generic_suggestion_tile.dart';
 import 'autocomplete_utils.dart';
 
 /// 自动补全包装器
@@ -43,6 +44,9 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
+  /// 选择补全建议后的回调（传递更新后的完整文本）
+  final ValueChanged<String>? onSuggestionSelected;
+
   /// 文本样式（用于计算光标位置）
   final TextStyle? textStyle;
 
@@ -63,6 +67,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.config = const AutocompleteConfig(),
     this.enabled = true,
     this.onChanged,
+    this.onSuggestionSelected,
     this.textStyle,
     this.contentPadding,
     this.maxLines,
@@ -96,6 +101,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _ownsFocusNode = true;
     }
     _focusNode.addListener(_onFocusChanged);
+    // 直接在 focusNode 上注册键盘事件，而不是使用 Focus widget
+    AppLogger.d(
+      'AutocompleteWrapper: Setting onKeyEvent handler',
+      'Autocomplete',
+    );
     _focusNode.onKeyEvent = _handleKeyEvent;
     widget.controller.addListener(_onTextChanged);
   }
@@ -166,6 +176,22 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _onTextChanged() {
     if (!widget.enabled) return;
+
+    // 检查是否正在进行 IME 组合输入，如果是则跳过处理
+    // 这对于中文、日文、韩文等输入法的兼容性至关重要
+    final composing = widget.controller.value.composing;
+    AppLogger.d(
+      'AutocompleteWrapper._onTextChanged: text="${widget.controller.text}", '
+          'composing.isValid=${composing.isValid}, composing.isCollapsed=${composing.isCollapsed}',
+      'Autocomplete',
+    );
+    if (composing.isValid && !composing.isCollapsed) {
+      AppLogger.d(
+        'AutocompleteWrapper: skipping due to composing',
+        'Autocomplete',
+      );
+      return;
+    }
 
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
@@ -262,10 +288,24 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
             link: _layerLink,
             showWhenUnlinked: false,
             offset: offset,
-            child: AutocompleteOverlay(
-              suggestions: _autocompleteController?.suggestions ?? [],
+            child: GenericAutocompleteOverlay(
+              suggestions: (_autocompleteController?.suggestions ?? [])
+                  .map(
+                    (tag) => SuggestionData(
+                      tag: tag.tag,
+                      category: tag.category,
+                      count: tag.count,
+                      translation: tag.translation,
+                    ),
+                  )
+                  .toList(),
               selectedIndex: _selectedIndex,
-              onSelect: _selectSuggestion,
+              onSelect: (index) {
+                final suggestions = _autocompleteController?.suggestions ?? [];
+                if (index >= 0 && index < suggestions.length) {
+                  _selectSuggestion(suggestions[index]);
+                }
+              },
               config: widget.config,
               isLoading: _autocompleteController?.isLoading ?? false,
               scrollController: _scrollController,
@@ -302,15 +342,36 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     );
 
     _hideSuggestions();
+
+    // 通知外部选择了补全建议
+    widget.onSuggestionSelected?.call(newText);
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // 补全菜单未显示时，不阻止任何键
-    if (!_showSuggestions) return KeyEventResult.ignored;
+    if (!_showSuggestions) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.enter) {
+        AppLogger.d(
+          'Autocomplete: Enter pressed but suggestions not shown',
+          'Autocomplete',
+        );
+      }
+      return KeyEventResult.ignored;
+    }
 
     final suggestions = _autocompleteController?.suggestions ?? [];
     // 没有建议时，不阻止任何键
-    if (suggestions.isEmpty) return KeyEventResult.ignored;
+    if (suggestions.isEmpty) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.enter) {
+        AppLogger.d(
+          'Autocomplete: Enter pressed but suggestions empty',
+          'Autocomplete',
+        );
+      }
+      return KeyEventResult.ignored;
+    }
 
     // 只处理 KeyDownEvent 和 KeyRepeatEvent（长按）
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
@@ -331,12 +392,25 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.tab) {
+        AppLogger.d(
+          'Autocomplete: Enter/Tab pressed, selectedIndex=$_selectedIndex, '
+              'suggestionsLength=${suggestions.length}',
+          'Autocomplete',
+        );
         if (event is KeyDownEvent &&
             _selectedIndex >= 0 &&
             _selectedIndex < suggestions.length) {
+          AppLogger.d(
+            'Autocomplete: Selecting suggestion',
+            'Autocomplete',
+          );
           _selectSuggestion(suggestions[_selectedIndex]);
           return KeyEventResult.handled;
         }
+        AppLogger.d(
+          'Autocomplete: Enter ignored (no valid selection)',
+          'Autocomplete',
+        );
         return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
         if (event is KeyDownEvent) {
@@ -377,10 +451,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return widget.child;
     }
 
+    // 使用 Focus widget 拦截键盘事件
+    // 这样即使子组件（TextField）有自己的 FocusNode，我们也能捕获键盘事件
     return CompositedTransformTarget(
       link: _layerLink,
       child: Focus(
-        focusNode: _focusNode,
+        onKeyEvent: _handleKeyEvent,
         child: widget.child,
       ),
     );

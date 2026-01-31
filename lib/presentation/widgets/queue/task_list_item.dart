@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_status.dart';
+import '../../providers/image_generation_provider.dart';
+import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 
 /// 任务列表项 - 紧凑美观的现代设计
@@ -33,6 +35,7 @@ class TaskListItem extends ConsumerStatefulWidget {
 class _TaskListItemState extends ConsumerState<TaskListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _shimmerController;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -73,13 +76,32 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     final l10n = context.l10n;
     final isRunning = widget.task.status == ReplicationTaskStatus.running;
 
+    // 获取当前执行任务ID和生成进度
+    String? currentTaskId;
+    double generationProgress = 0.0;
+    try {
+      final executionState = ref.watch(queueExecutionNotifierProvider);
+      currentTaskId = executionState.currentTaskId;
+      if (currentTaskId == widget.task.id && executionState.isRunning) {
+        final genState = ref.watch(imageGenerationNotifierProvider);
+        generationProgress = genState.progress;
+      }
+    } catch (e) {
+      // Provider 未初始化
+    }
+
+    // 判断是否是当前正在执行的任务（有实际进度）
+    final isCurrentRunningTask = isRunning && currentTaskId == widget.task.id;
+
     return ReorderableDragStartListener(
       index: widget.index,
-      enabled: !widget.isSelectionMode,
+      enabled: !widget.isSelectionMode && !isRunning,
       child: MouseRegion(
         cursor: widget.isSelectionMode
             ? SystemMouseCursors.click
             : SystemMouseCursors.grab,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
         child: _TaskTooltipWrapper(
           task: widget.task,
           enabled: !widget.isSelectionMode,
@@ -143,17 +165,33 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                                         .withOpacity(0.1),
                             width: 1,
                           ),
-                          gradient:
-                              isRunning ? _buildRunningGradient(theme) : null,
-                          color: isRunning
-                              ? null
-                              : widget.isSelected
-                                  ? theme.colorScheme.primaryContainer
-                                      .withOpacity(0.4)
-                                  : theme.colorScheme.surfaceContainerHighest
-                                      .withOpacity(0.4),
+                          // 如果是当前正在执行的任务，显示实心进度条；否则显示普通背景
+                          color: widget.isSelected
+                              ? theme.colorScheme.primaryContainer
+                                  .withOpacity(0.4)
+                              : theme.colorScheme.surfaceContainerHighest
+                                  .withOpacity(0.4),
                         ),
-                        child: child,
+                        child: Stack(
+                          children: [
+                            // 进度条背景（动态条纹 + 垂直切割末端）
+                            if (isCurrentRunningTask)
+                              Positioned.fill(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(11),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: generationProgress.clamp(0.0, 1.0),
+                                    child: _AnimatedStripeProgress(
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            // 内容
+                            child!,
+                          ],
+                        ),
                       );
                     },
                     child: Row(
@@ -197,7 +235,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
 
                         // 操作按钮
                         if (!widget.isSelectionMode)
-                          _buildEditButton(theme, l10n),
+                          _buildActionButtons(theme, l10n),
                       ],
                     ),
                   ),
@@ -207,30 +245,6 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
           ),
         ),
       ),
-    );
-  }
-
-  /// 构建运行中的流动渐变背景
-  LinearGradient _buildRunningGradient(ThemeData theme) {
-    final progress = _shimmerController.value;
-    final primaryColor = theme.colorScheme.primary;
-
-    // 创建流动的条纹效果
-    return LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        primaryColor.withOpacity(0.08),
-        primaryColor.withOpacity(0.15),
-        primaryColor.withOpacity(0.08),
-        theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-      ],
-      stops: [
-        0.0,
-        progress,
-        progress + 0.1 > 1.0 ? 1.0 : progress + 0.1,
-        1.0,
-      ],
     );
   }
 
@@ -420,23 +434,58 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     );
   }
 
-  /// 构建编辑按钮
-  Widget _buildEditButton(ThemeData theme, dynamic l10n) {
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: IconButton(
-        icon: Icon(
-          Icons.edit_rounded,
-          size: 20,
-          color: theme.colorScheme.outline,
-        ),
-        onPressed: widget.onEdit,
-        tooltip: l10n.queue_edit,
-        padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
+  /// 构建操作按钮组（悬浮时显示）
+  Widget _buildActionButtons(ThemeData theme, dynamic l10n) {
+    return AnimatedOpacity(
+      opacity: _isHovered ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 150),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 编辑按钮
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: IconButton(
+              icon: Icon(
+                Icons.edit_rounded,
+                size: 18,
+                color: theme.colorScheme.outline,
+              ),
+              onPressed: widget.onEdit,
+              tooltip: l10n.queue_edit,
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          const SizedBox(width: 4),
+          // 删除按钮
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: IconButton(
+              icon: Icon(
+                Icons.delete_outline_rounded,
+                size: 18,
+                color: theme.colorScheme.outline,
+              ),
+              onPressed: () => _handleDelete(l10n),
+              tooltip: l10n.common_delete,
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  /// 处理删除操作
+  Future<void> _handleDelete(dynamic l10n) async {
+    final confirmed = await _confirmDelete(context, l10n);
+    if (confirmed) {
+      ref.read(replicationQueueNotifierProvider.notifier).remove(widget.task.id);
+    }
   }
 
   /// 确认删除对话框
@@ -830,4 +879,104 @@ class FailedTaskListItem extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 动态条纹进度条背景
+///
+/// 半透明斜条纹流动效果，末端垂直切割（无三角形斜角）
+class _AnimatedStripeProgress extends StatefulWidget {
+  final Color color;
+
+  const _AnimatedStripeProgress({required this.color});
+
+  @override
+  State<_AnimatedStripeProgress> createState() => _AnimatedStripeProgressState();
+}
+
+class _AnimatedStripeProgressState extends State<_AnimatedStripeProgress>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _StripeProgressPainter(
+            color: widget.color,
+            animationValue: _controller.value,
+          ),
+          child: const SizedBox.expand(),
+        );
+      },
+    );
+  }
+}
+
+/// 条纹绘制器（垂直切割末端）
+class _StripeProgressPainter extends CustomPainter {
+  final Color color;
+  final double animationValue;
+
+  _StripeProgressPainter({
+    required this.color,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 背景填充
+    final bgPaint = Paint()..color = color.withOpacity(0.18);
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    // 裁剪区域，确保条纹不超出边界（关键：末端垂直切割）
+    canvas.clipRect(Offset.zero & size);
+
+    // 斜条纹
+    final stripePaint = Paint()
+      ..color = color.withOpacity(0.12)
+      ..style = PaintingStyle.fill;
+
+    const stripeWidth = 10.0;
+    const stripeGap = 14.0;
+    const stripeSpacing = stripeWidth + stripeGap;
+
+    // 动画偏移
+    final offset = animationValue * stripeSpacing;
+
+    // 绘制斜条纹（45度）
+    final path = Path();
+    for (double x = -stripeSpacing * 2 + offset;
+        x < size.width + size.height + stripeSpacing;
+        x += stripeSpacing) {
+      path.moveTo(x, size.height);
+      path.lineTo(x + stripeWidth, size.height);
+      path.lineTo(x + size.height + stripeWidth, 0);
+      path.lineTo(x + size.height, 0);
+      path.close();
+    }
+
+    canvas.drawPath(path, stripePaint);
+  }
+
+  @override
+  bool shouldRepaint(_StripeProgressPainter oldDelegate) =>
+      animationValue != oldDelegate.animationValue ||
+      color != oldDelegate.color;
 }

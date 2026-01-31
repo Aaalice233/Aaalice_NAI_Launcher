@@ -2653,6 +2653,7 @@
   "queue_taskIntervalHint": "任务之间的等待时间（0-10秒）",
 
   "queue_clearQueue": "清空队列",
+  "queue_closeFloatingButton": "关闭悬浮球",
   "queue_clearQueueConfirm": "确定要清空所有队列任务吗？此操作不可撤销。",
   "queue_confirmClear": "确认清空",
 

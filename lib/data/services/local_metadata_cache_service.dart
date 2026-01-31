@@ -53,6 +53,11 @@ class LocalMetadataCacheService {
     return _cacheBox.containsKey(filePath);
   }
 
+  /// 删除指定文件的缓存
+  Future<void> delete(String filePath) async {
+    await _cacheBox.delete(filePath);
+  }
+
   /// 清空所有缓存
   Future<void> clear() async {
     await _cacheBox.clear();

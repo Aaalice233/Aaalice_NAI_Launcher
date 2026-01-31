@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../router/app_router.dart';
 import 'execution_stats_panel.dart';
 import 'task_list_item.dart';
 import 'task_edit_dialog.dart';
@@ -74,13 +75,24 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
               },
               isHighlighted: executionState.isPaused,
             ),
-          // 清空按钮
-          _buildActionButton(
-            icon: Icons.delete_sweep_rounded,
-            tooltip: l10n.queue_clearQueue,
-            onPressed:
-                queueState.isEmpty ? null : () => _confirmClearQueue(context),
-          ),
+          // 清空按钮 / 关闭悬浮球按钮
+          if (queueState.isEmpty && queueState.failedTasks.isEmpty)
+            // 队列为空时显示“关闭悬浮球”按钮
+            _buildActionButton(
+              icon: Icons.close_rounded,
+              tooltip: l10n.queue_closeFloatingButton,
+              onPressed: () {
+                ref.read(floatingButtonClosedProvider.notifier).state = true;
+                ref.read(queueManagementVisibleProvider.notifier).state = false;
+              },
+            )
+          else
+            // 队列非空时显示“清空队列”按钮
+            _buildActionButton(
+              icon: Icons.delete_sweep_rounded,
+              tooltip: l10n.queue_clearQueue,
+              onPressed: () => _confirmClearQueue(context),
+            ),
           const SizedBox(width: 4),
         ],
         bottom: PreferredSize(

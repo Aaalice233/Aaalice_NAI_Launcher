@@ -172,9 +172,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final randomMode = ref.read(randomPromptModeProvider);
 
     // 检查队列执行状态 - 队列运行时不应用抽卡模式
-    final queueExecutionState = ref.read(queueExecutionNotifierProvider);
-    final isQueueExecuting =
-        queueExecutionState.isRunning || queueExecutionState.isReady;
+    // 使用 try-catch 避免循环依赖错误（QueueExecutionNotifier 监听 ImageGenerationNotifier）
+    bool isQueueExecuting = false;
+    try {
+      final queueExecutionState = ref.read(queueExecutionNotifierProvider);
+      isQueueExecuting =
+          queueExecutionState.isRunning || queueExecutionState.isReady;
+    } catch (e) {
+      // 循环依赖或 provider 未初始化时，默认不在队列执行中
+      isQueueExecuting = false;
+    }
 
     // 如果开启抽卡模式且不在队列执行中，先随机提示词再生成
     // 这样生成的图像和显示的提示词能对应上

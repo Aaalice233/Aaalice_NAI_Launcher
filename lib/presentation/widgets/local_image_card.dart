@@ -1000,6 +1000,21 @@ class _LocalImageCardState extends State<LocalImageCard> {
                           cacheWidth: cacheWidth, // 优化内存占用
                           fit: BoxFit.cover,
                           width: double.infinity,
+                          gaplessPlayback: true, // 防止图片切换时闪白
+                          frameBuilder:
+                              (context, child, frame, wasSynchronouslyLoaded) {
+                            if (wasSynchronouslyLoaded) return child;
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: frame != null
+                                  ? child
+                                  : Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                    ),
+                            );
+                          },
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: Theme.of(context)

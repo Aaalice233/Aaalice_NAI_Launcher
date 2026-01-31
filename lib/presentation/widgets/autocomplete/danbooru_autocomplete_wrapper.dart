@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/tag_data_service.dart';
 import '../../../data/models/tag/tag_suggestion.dart';
 import '../../providers/danbooru_suggestion_provider.dart';
+import 'autocomplete_controller.dart';
+import 'generic_autocomplete_overlay.dart';
+import 'generic_suggestion_tile.dart';
 
 /// Danbooru 标签自动补全包装器
 ///
@@ -36,11 +40,17 @@ class DanbooruAutocompleteWrapper extends ConsumerStatefulWidget {
   /// 选中建议后的回调
   final ValueChanged<TagSuggestion>? onSuggestionSelected;
 
-  /// 是否在选中建议后追加空格（用于多标签输入）
-  final bool appendSpace;
+  /// 选中建议后更新文本的回调（传递更新后的完整文本）
+  final ValueChanged<String>? onTextUpdated;
+
+  /// 是否在选中建议后追加分隔符（用于多标签输入）
+  final bool appendSeparator;
 
   /// 是否替换整个文本（false 则只替换最后一个词）
   final bool replaceAll;
+
+  /// 标签分隔符（默认为空格，可设置为逗号支持多标签输入）
+  final String separator;
 
   /// 最小触发字符数
   final int minQueryLength;
@@ -55,8 +65,10 @@ class DanbooruAutocompleteWrapper extends ConsumerStatefulWidget {
     this.focusNode,
     this.enabled = true,
     this.onSuggestionSelected,
-    this.appendSpace = true,
+    this.onTextUpdated,
+    this.appendSeparator = true,
     this.replaceAll = false,
+    this.separator = ' ',
     this.minQueryLength = 2,
     this.maxOverlayWidth = 400,
   });
@@ -141,12 +153,39 @@ class _DanbooruAutocompleteWrapperState
   void _onTextChanged() {
     if (!widget.enabled) return;
 
+    // 检查是否正在进行 IME 组合输入，如果是则跳过处理
+    // 这对于中文、日文、韩文等输入法的兼容性至关重要
+    final composing = widget.controller.value.composing;
+    if (composing.isValid && !composing.isCollapsed) {
+      return;
+    }
+
     final text = widget.controller.text.trim();
 
-    // 获取当前正在输入的词（最后一个空格后的内容）
-    final query = widget.replaceAll ? text : _getLastWord(text);
+    // 获取当前正在输入的词（根据分隔符获取最后一个词）
+    final query = widget.replaceAll ? text : _getLastTag(text);
 
-    if (query.length >= widget.minQueryLength) {
+    // 检测是否为中文输入（中文1个字符即可触发搜索）
+    final isChinese = RegExp(r'[\u4e00-\u9fa5]').hasMatch(query);
+    final effectiveMinLength = isChinese ? 1 : widget.minQueryLength;
+
+    if (query.length >= effectiveMinLength) {
+      if (isChinese) {
+        // 中文搜索：先从本地翻译表查找对应英文标签
+        final tagDataService = ref.read(tagDataServiceProvider);
+        if (tagDataService.isInitialized) {
+          final results = tagDataService.search(query, limit: 20);
+          if (results.isNotEmpty) {
+            // 使用第一个匹配的英文标签进行搜索
+            ref
+                .read(danbooruSuggestionNotifierProvider.notifier)
+                .search(results.first.tag);
+            return;
+          }
+        }
+      }
+
+      // 英文搜索或中文无匹配时，直接搜索
       ref.read(danbooruSuggestionNotifierProvider.notifier).search(query);
     } else {
       ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
@@ -154,10 +193,14 @@ class _DanbooruAutocompleteWrapperState
     }
   }
 
-  /// 获取最后一个词（空格分隔）
-  String _getLastWord(String text) {
-    final parts = text.split(' ');
-    return parts.isNotEmpty ? parts.last : '';
+  /// 获取最后一个标签（根据分隔符分割）
+  String _getLastTag(String text) {
+    // 支持中英文逗号和空格作为分隔符
+    final separatorPattern = widget.separator == ','
+        ? RegExp(r'[,，]')
+        : RegExp(RegExp.escape(widget.separator));
+    final parts = text.split(separatorPattern);
+    return parts.isNotEmpty ? parts.last.trim() : '';
   }
 
   void _showSuggestionsOverlay() {
@@ -195,7 +238,6 @@ class _DanbooruAutocompleteWrapperState
     return OverlayEntry(
       builder: (context) {
         final state = ref.watch(danbooruSuggestionNotifierProvider);
-        final theme = Theme.of(context);
 
         // 获取输入框的尺寸
         final renderBox = this.context.findRenderObject() as RenderBox?;
@@ -215,51 +257,41 @@ class _DanbooruAutocompleteWrapperState
           return const SizedBox.shrink();
         }
 
+        // 将 TagSuggestion 转换为 SuggestionData
+        final suggestions = state.suggestions
+            .map(
+              (tag) => SuggestionData(
+                tag: tag.tag,
+                category: tag.category,
+                count: tag.count,
+                translation: tag.translation,
+                alias: tag.alias,
+              ),
+            )
+            .toList();
+
         return Positioned(
           width: size.width.clamp(280.0, widget.maxOverlayWidth),
           child: CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
             offset: Offset(0, size.height + 4),
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(12),
-              color: theme.colorScheme.surfaceContainerHigh,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 300),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                  ),
-                ),
-                child: state.isLoading && state.suggestions.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: state.suggestions.length,
-                        itemBuilder: (context, index) {
-                          final tag = state.suggestions[index];
-                          final isSelected = index == _selectedIndex;
-                          return _DanbooruSuggestionTile(
-                            tag: tag,
-                            isSelected: isSelected,
-                            onTap: () => _selectSuggestion(tag),
-                          );
-                        },
-                      ),
+            child: GenericAutocompleteOverlay(
+              suggestions: suggestions,
+              selectedIndex: _selectedIndex,
+              onSelect: (index) {
+                if (index >= 0 && index < state.suggestions.length) {
+                  _selectSuggestion(state.suggestions[index]);
+                }
+              },
+              config: const AutocompleteConfig(
+                showCategory: true,
+                showTranslation: true,
+                showCount: true,
               ),
+              isLoading: state.isLoading,
+              scrollController: _scrollController,
+              languageCode: 'zh',
             ),
           ),
         );
@@ -275,18 +307,24 @@ class _DanbooruAutocompleteWrapperState
       // 替换整个文本
       newText = tag.tag;
     } else {
-      // 只替换最后一个词
-      final parts = text.split(' ');
+      // 只替换最后一个标签
+      final separatorPattern = widget.separator == ','
+          ? RegExp(r'[,，]')
+          : RegExp(RegExp.escape(widget.separator));
+      final parts = text.split(separatorPattern);
       if (parts.isNotEmpty) {
         parts[parts.length - 1] = tag.tag;
       } else {
         parts.add(tag.tag);
       }
-      newText = parts.join(' ');
+      // 使用英文逗号连接（统一格式）
+      final joinSeparator = widget.separator == ',' ? ', ' : widget.separator;
+      newText = parts.join(joinSeparator);
     }
 
-    if (widget.appendSpace) {
-      newText = '$newText ';
+    if (widget.appendSeparator) {
+      final appendStr = widget.separator == ',' ? ', ' : widget.separator;
+      newText = '$newText$appendStr';
     }
 
     widget.controller.value = TextEditingValue(
@@ -295,6 +333,7 @@ class _DanbooruAutocompleteWrapperState
     );
 
     widget.onSuggestionSelected?.call(tag);
+    widget.onTextUpdated?.call(newText); // 通知外部更新后的文本
     _hideSuggestions();
     ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
 
@@ -383,103 +422,11 @@ class _DanbooruAutocompleteWrapperState
       return widget.child;
     }
 
+    // 不使用 Focus widget 包装，避免焦点冲突
+    // 键盘事件通过 focusNode.onKeyEvent 直接处理
     return CompositedTransformTarget(
       link: _layerLink,
-      child: Focus(
-        focusNode: _focusNode,
-        child: widget.child,
-      ),
+      child: widget.child,
     );
-  }
-}
-
-/// Danbooru 标签建议项
-class _DanbooruSuggestionTile extends StatelessWidget {
-  final TagSuggestion tag;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _DanbooruSuggestionTile({
-    required this.tag,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        color: isSelected
-            ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-            : null,
-        child: Row(
-          children: [
-            // 类别指示器
-            Container(
-              width: 4,
-              height: 28,
-              decoration: BoxDecoration(
-                color: _getCategoryColor(tag.category),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // 标签名
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    tag.tag.replaceAll('_', ' '),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (tag.alias != null && tag.alias!.isNotEmpty)
-                    Text(
-                      tag.alias!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            // 数量
-            if (tag.count > 0)
-              Text(
-                tag.formattedCount,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getCategoryColor(int category) {
-    switch (category) {
-      case 0:
-        return Colors.blue; // general
-      case 1:
-        return Colors.purple; // character (danbooru uses 1 for character)
-      case 3:
-        return Colors.deepPurple; // copyright
-      case 4:
-        return Colors.red; // artist
-      case 5:
-        return Colors.orange; // meta
-      default:
-        return Colors.grey;
-    }
   }
 }

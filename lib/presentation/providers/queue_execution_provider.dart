@@ -300,9 +300,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
 
     final nextTask = queueState.tasks.first;
-    _fillPrompt(nextTask);
 
-    // 记录会话开始
+    // 记录会话开始，先更新状态为 ready
+    // 重要：必须在 _fillPrompt 之前更新状态，
+    // 这样 prompt_input 才能检测到队列正在执行，从而跳过同步
     final isNewSession = state.totalTasksInSession == 0;
     state = state.copyWith(
       status: QueueExecutionStatus.ready,
@@ -313,11 +314,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       sessionStartTime: isNewSession ? DateTime.now() : state.sessionStartTime,
     );
 
-    // 更新任务状态为 running
-    ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
-          nextTask.id,
-          ReplicationTaskStatus.running,
-        );
+    // 填充提示词（此时状态已是 ready，prompt_input 不会同步）
+    _fillPrompt(nextTask);
+
+    // 注意：这里不更新任务状态，任务保持 pending 状态
+    // 只有在实际开始生成时（startExecution）才更新为 running
   }
 
   /// 填充提示词到主界面
@@ -367,6 +368,14 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     if (state.status != QueueExecutionStatus.ready) return;
 
     state = state.copyWith(status: QueueExecutionStatus.running);
+
+    // 实际开始执行时，更新当前任务状态为 running
+    if (state.currentTaskId != null) {
+      ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
+            state.currentTaskId!,
+            ReplicationTaskStatus.running,
+          );
+    }
   }
 
   /// 停止执行队列
@@ -410,7 +419,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     if (previous?.status != GenerationStatus.generating &&
         next.status == GenerationStatus.generating) {
       if (state.status == QueueExecutionStatus.ready) {
-        state = state.copyWith(status: QueueExecutionStatus.running);
+        startExecution(); // 调用 startExecution 来同时更新队列状态和任务状态
       }
       return;
     }
@@ -587,21 +596,21 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       return;
     }
 
-    // 填充下一个任务的提示词
+    // 先更新状态为 ready
+    // 重要：必须在 _fillPrompt 之前更新状态，
+    // 这样 prompt_input 才能检测到队列正在执行，从而跳过同步
     final nextTask = queueState.tasks.first;
-    _fillPrompt(nextTask);
-
-    // 更新任务状态为 running
-    ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
-          nextTask.id,
-          ReplicationTaskStatus.running,
-        );
-
     state = state.copyWith(
       status: QueueExecutionStatus.ready,
       currentTaskId: nextTask.id,
       retryCount: 0,
     );
+
+    // 填充下一个任务的提示词（此时状态已是 ready）
+    _fillPrompt(nextTask);
+
+    // 注意：这里不更新任务状态，任务保持 pending 状态
+    // 只有在自动执行模式下自动触发生成时才更新为 running
 
     // 自动执行模式下自动触发
     if (state.autoExecuteEnabled) {

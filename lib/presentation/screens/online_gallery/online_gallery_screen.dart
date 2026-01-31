@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +25,7 @@ import '../../widgets/online_gallery/post_detail_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import '../../widgets/common/themed_input.dart';
 import '../../widgets/autocomplete/danbooru_autocomplete_wrapper.dart';
 
 /// 在线画廊页面
@@ -38,7 +40,11 @@ class OnlineGalleryScreen extends ConsumerStatefulWidget {
 class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+
+  /// 搜索防抖定时器
+  Timer? _searchDebounceTimer;
 
   /// 日期格式化服务实例
   final _dateFormattingService = DateFormattingService();
@@ -109,9 +115,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _pageFocusNode.removeListener(_onPageFocusChange);
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     _pageController.dispose();
     _pageFocusNode.dispose();
@@ -470,11 +478,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   Widget _buildSearchField(ThemeData theme) {
     return DanbooruAutocompleteWrapper(
       controller: _searchController,
-      replaceAll: true,
-      appendSpace: false,
-      onSuggestionSelected: (tag) {
-        // 选中建议后自动搜索
-        ref.read(onlineGalleryNotifierProvider.notifier).search(tag.tag);
+      focusNode: _searchFocusNode,
+      replaceAll: false,
+      separator: ',',
+      appendSeparator: false,
+      onTextUpdated: (value) {
+        // 选择补全建议后立即触发搜索
+        _searchDebounceTimer?.cancel();
+        ref.read(onlineGalleryNotifierProvider.notifier).search(value);
       },
       child: Container(
         height: 36,
@@ -483,14 +494,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
           borderRadius: BorderRadius.circular(18),
         ),
-        child: ThemedInput(
+        child: TextField(
           controller: _searchController,
+          focusNode: _searchFocusNode,
           style: theme.textTheme.bodyMedium,
-          showClearButton: true,
-          onClearPressed: () {
-            _searchController.clear();
-            ref.read(onlineGalleryNotifierProvider.notifier).search('');
-          },
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_searchTags,
             hintStyle: TextStyle(
@@ -502,11 +509,32 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               size: 18,
               color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
             ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      size: 16,
+                      color:
+                          theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref
+                          .read(onlineGalleryNotifierProvider.notifier)
+                          .search('');
+                      setState(() {});
+                    },
+                  )
+                : null,
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
+          onChanged: (value) {
+            setState(() {}); // 仅更新清除按钮可见性，不触发搜索
+          },
           onSubmitted: (value) {
+            // 按 Enter 时才搜索
             ref.read(onlineGalleryNotifierProvider.notifier).search(value);
           },
         ),

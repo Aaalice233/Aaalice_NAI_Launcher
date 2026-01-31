@@ -1,19 +1,63 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/models/tag/local_tag.dart';
 import 'autocomplete_controller.dart';
 
-/// 自动补全建议项
-class AutocompleteSuggestionTile extends StatelessWidget {
-  final LocalTag tag;
+/// 通用补全建议项数据
+class SuggestionData {
+  final String tag;
+  final int category;
+  final int count;
+  final String? translation;
+  final String? alias;
+
+  const SuggestionData({
+    required this.tag,
+    required this.category,
+    required this.count,
+    this.translation,
+    this.alias,
+  });
+
+  /// 获取分类名称
+  String get categoryName {
+    switch (category) {
+      case 1:
+        return '艺术家';
+      case 3:
+        return '版权';
+      case 4:
+        return '角色';
+      case 5:
+        return '元数据';
+      default:
+        return '通用';
+    }
+  }
+
+  /// 格式化显示的计数
+  String get formattedCount {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
+  }
+}
+
+/// 通用自动补全建议项
+///
+/// 支持任意数据源，通过 [SuggestionData] 统一接口
+class GenericSuggestionTile extends StatelessWidget {
+  final SuggestionData data;
   final bool isSelected;
   final VoidCallback onTap;
   final AutocompleteConfig config;
   final String languageCode;
 
-  const AutocompleteSuggestionTile({
+  const GenericSuggestionTile({
     super.key,
-    required this.tag,
+    required this.data,
     required this.isSelected,
     required this.onTap,
     required this.config,
@@ -54,8 +98,8 @@ class AutocompleteSuggestionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final categoryColor = _getCategoryColor(tag.category);
-    final filteredTranslation = _filterTranslation(tag.translation);
+    final categoryColor = _getCategoryColor(data.category);
+    final filteredTranslation = _filterTranslation(data.translation);
 
     return Material(
       color: isSelected
@@ -77,7 +121,7 @@ class AutocompleteSuggestionTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
-                    tag.categoryName,
+                    data.categoryName,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: categoryColor,
                       fontWeight: FontWeight.w500,
@@ -93,7 +137,7 @@ class AutocompleteSuggestionTile extends StatelessWidget {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: tag.tag.replaceAll('_', ' '),
+                        text: data.tag.replaceAll('_', ' '),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                           color: isSelected ? theme.colorScheme.primary : null,
@@ -119,7 +163,7 @@ class AutocompleteSuggestionTile extends StatelessWidget {
               if (config.showCount) ...[
                 const SizedBox(width: 8),
                 Text(
-                  tag.formattedCount,
+                  data.formattedCount,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

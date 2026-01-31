@@ -399,6 +399,12 @@ class TagSearchIndex {
 
   /// 中文搜索
   List<LocalTag> _searchChinese(String query, int limit) {
+    AppLogger.d(
+      'Chinese search (indexed): query="$query", isReady=$_isReady, '
+          'chineseIndexSize=${_chineseIndex.length}',
+      'TagSearch',
+    );
+
     if (!_isReady) {
       return _simpleChineseSearch(query, limit);
     }
@@ -498,12 +504,20 @@ class TagSearchIndex {
 
   /// 简单中文搜索
   List<LocalTag> _simpleChineseSearch(String query, int limit) {
+    AppLogger.d(
+      'Chinese search: query="$query", totalTags=${_allTags.length}, '
+          'tagsWithTranslation=${_allTags.where((t) => t.translation != null).length}',
+      'TagSearch',
+    );
+
     final results = _allTags
         .where((tag) {
           return tag.translation?.contains(query) ?? false;
         })
         .take(limit * 2)
         .toList();
+
+    AppLogger.d('Chinese search results: ${results.length}', 'TagSearch');
 
     results.sort((a, b) => b.count.compareTo(a.count));
 

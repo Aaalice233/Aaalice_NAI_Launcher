@@ -26,6 +26,12 @@ part 'app_router.g.dart';
 /// 队列管理面板显示状态 Provider
 final queueManagementVisibleProvider = StateProvider<bool>((ref) => false);
 
+/// 悬浮球手动关闭状态 Provider
+///
+/// 当用户主动关闭悬浮球时设为 true，悬浮球将不再显示
+/// 当队列有新任务添加时自动重置为 false
+final floatingButtonClosedProvider = StateProvider<bool>((ref) => false);
+
 /// Navigator Keys for StatefulShellRoute branches
 // ignore: unused_element
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');

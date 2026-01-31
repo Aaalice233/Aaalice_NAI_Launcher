@@ -383,21 +383,36 @@ class LocalGalleryRepository {
     final stopwatch = Stopwatch()..start();
     int cacheHits = 0;
     int cacheMisses = 0;
+    int deletedFiles = 0;
+
+    AppLogger.d(
+      'loadRecords: Starting with ${files.length} files',
+      'LocalGalleryRepo',
+    );
 
     final records = await Future.wait(
       files.map((file) async {
+        final filePath = file.path;
+
+        // 跳过不存在的文件，返回 null（必须在缓存检查之前）
         if (!file.existsSync()) {
-          return LocalImageRecord(
-            path: file.path,
-            size: 0,
-            modifiedAt: DateTime.now(),
-            metadataStatus: MetadataStatus.none,
-            isFavorite: isFavorite(file.path),
-            tags: getTags(file.path),
+          deletedFiles++;
+          AppLogger.w(
+            'loadRecords: File not exists, cleaning cache: $filePath',
+            'LocalGalleryRepo',
           );
+          // 清理缓存中的无效记录
+          if (_initialized) {
+            final imageId = await _db.getImageIdByPath(filePath);
+            if (imageId != null) {
+              await _cacheService.invalidate(imageId);
+              await _db.markAsDeleted(filePath);
+            }
+          }
+          await _legacyCacheService.delete(filePath);
+          return null;
         }
 
-        final filePath = file.path;
         final fileModified = file.lastModifiedSync();
 
         // 尝试从SQLite获取
@@ -473,15 +488,28 @@ class LocalGalleryRepository {
       }),
     );
 
+    // 过滤掉 null 值（不存在的文件）
+    final validRecords = records.whereType<LocalImageRecord>().toList();
+
     stopwatch.stop();
-    final successCount =
-        records.where((r) => r.metadataStatus == MetadataStatus.success).length;
+    final successCount = validRecords
+        .where((r) => r.metadataStatus == MetadataStatus.success)
+        .length;
+
+    if (deletedFiles > 0) {
+      AppLogger.w(
+        'loadRecords: Found $deletedFiles deleted files out of ${files.length}',
+        'LocalGalleryRepo',
+      );
+    }
+
     AppLogger.i(
-      'Page load completed: ${records.length} records ($successCount with metadata) '
-          'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
+      'loadRecords: Returning ${validRecords.length} valid records '
+          '($successCount with metadata) from ${files.length} files '
+          'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses, deleted: $deletedFiles]',
       'LocalGalleryRepo',
     );
-    return records;
+    return validRecords;
   }
 
   /// 从单个文件解析元数据

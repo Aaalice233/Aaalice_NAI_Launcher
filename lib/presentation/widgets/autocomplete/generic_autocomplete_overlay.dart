@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/models/tag/local_tag.dart';
 import 'autocomplete_controller.dart';
-import 'autocomplete_suggestion_tile.dart';
+import 'generic_suggestion_tile.dart';
 
-/// 自动补全建议浮层
-class AutocompleteOverlay extends StatelessWidget {
-  final List<LocalTag> suggestions;
+/// 通用自动补全建议浮层
+///
+/// 支持任意数据源，通过 [SuggestionData] 统一接口
+class GenericAutocompleteOverlay extends StatelessWidget {
+  final List<SuggestionData> suggestions;
   final int selectedIndex;
-  final ValueChanged<LocalTag> onSelect;
+  final ValueChanged<int> onSelect;
   final AutocompleteConfig config;
   final bool isLoading;
   final ScrollController? scrollController;
   final String languageCode;
 
-  const AutocompleteOverlay({
+  const GenericAutocompleteOverlay({
     super.key,
     required this.suggestions,
     required this.selectedIndex,
@@ -70,11 +71,11 @@ class AutocompleteOverlay extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: suggestions.length,
                   itemBuilder: (context, index) {
-                    final tag = suggestions[index];
-                    return AutocompleteSuggestionTile(
-                      tag: tag,
+                    final data = suggestions[index];
+                    return GenericSuggestionTile(
+                      data: data,
                       isSelected: index == selectedIndex,
-                      onTap: () => onSelect(tag),
+                      onTap: () => onSelect(index),
                       config: config,
                       languageCode: languageCode,
                     );

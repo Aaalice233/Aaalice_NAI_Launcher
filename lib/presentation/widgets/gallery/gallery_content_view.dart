@@ -356,6 +356,7 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
       crossAxisCount: widget.columns,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
+      cacheExtent: 1000, // 增加缓存范围，防止滚动时图片被回收
       itemCount: state.currentImages.length,
       itemBuilder: (c, i) {
         final record = state.currentImages[i];

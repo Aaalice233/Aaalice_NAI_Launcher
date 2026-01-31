@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/tag_data_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/sync_config.dart';
 import '../../../providers/tag_library_provider.dart';
@@ -64,6 +65,11 @@ class TagLibrarySettings extends ConsumerWidget {
             // 同步进度
             if (state.isSyncing && state.syncProgress != null)
               _buildSyncProgress(context, state, theme),
+
+            const ThemedDivider(height: 24),
+
+            // 智能补全词库刷新
+            _buildAutocompleteRefreshSection(context, ref, theme),
           ],
         ),
       ),
@@ -315,6 +321,126 @@ class TagLibrarySettings extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAutocompleteRefreshSection(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+  ) {
+    final tagDataService = ref.watch(tagDataServiceProvider);
+    final isInitialized = tagDataService.isInitialized;
+    final tagCount = tagDataService.tagCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.auto_awesome, color: theme.colorScheme.secondary),
+            const SizedBox(width: 8),
+            Text(
+              '智能补全词库',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isInitialized ? Icons.check_circle : Icons.hourglass_empty,
+                size: 16,
+                color: isInitialized
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isInitialized ? '已加载 $tagCount 个标签' : '正在初始化...',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '智能补全词库包含标签翻译，用于提示词输入和在线画廊搜索。',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _AutocompleteRefreshButton(),
+      ],
+    );
+  }
+}
+
+/// 智能补全刷新按钮
+class _AutocompleteRefreshButton extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_AutocompleteRefreshButton> createState() =>
+      _AutocompleteRefreshButtonState();
+}
+
+class _AutocompleteRefreshButtonState
+    extends ConsumerState<_AutocompleteRefreshButton> {
+  bool _isRefreshing = false;
+
+  Future<void> _refresh() async {
+    if (_isRefreshing) return;
+
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      final tagDataService = ref.read(tagDataServiceProvider);
+      await tagDataService.refresh();
+
+      if (mounted) {
+        AppToast.success(context, '智能补全词库已刷新');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '刷新失败: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _isRefreshing ? null : _refresh,
+        icon: _isRefreshing
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.refresh),
+        label: Text(_isRefreshing ? '正在刷新...' : '刷新智能补全词库'),
       ),
     );
   }

@@ -364,8 +364,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         popularCache: newCache,
       );
     } catch (e, stack) {
-      // 如果是取消请求，不显示错误
+      // 如果是取消请求，重置加载状态但不显示错误
       if (e is DioException && e.type == DioExceptionType.cancel) {
+        state = state.copyWith(isLoading: false);
         return;
       }
       AppLogger.e(
@@ -436,8 +437,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         favoritedPostIds: favoritedIds,
       );
     } catch (e, stack) {
-      // 如果是取消请求，不显示错误
+      // 如果是取消请求，重置加载状态但不显示错误
       if (e is DioException && e.type == DioExceptionType.cancel) {
+        state = state.copyWith(isLoading: false);
         return;
       }
       AppLogger.e('Failed to load favorites: $e', e, stack, 'OnlineGallery');
@@ -602,8 +604,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         searchCache: newCache,
       );
     } catch (e, stack) {
-      // 如果是取消请求，不显示错误
+      // 如果是取消请求，重置加载状态但不显示错误
       if (e is DioException && e.type == DioExceptionType.cancel) {
+        state = state.copyWith(isLoading: false);
         return;
       }
       AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
@@ -637,17 +640,71 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   /// 搜索
+  ///
+  /// 支持：
+  /// - 逗号分隔多个 tag（AND 逻辑，结果必须包含所有 tag）
+  /// - 模糊匹配（自动添加通配符）
+  /// - 末尾逗号会被忽略
   Future<void> search(String query) async {
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
+    final processedQuery = _processSearchQuery(query);
     state = state.copyWith(
-      searchQuery: query.trim(),
+      searchQuery: processedQuery,
       viewMode: GalleryViewMode.search,
     );
     await loadPosts(refresh: true);
   }
 
+  /// 处理搜索查询
+  ///
+  /// 将逗号分隔的 tag 转换为 Danbooru API 格式：
+  /// - 逗号分隔 → 空格分隔（AND 逻辑）
+  /// - 每个 tag 添加通配符实现模糊匹配
+  /// - 忽略空 tag（处理末尾逗号）
+  String _processSearchQuery(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return '';
+
+    // 按逗号分隔，处理中英文逗号
+    final tags = trimmed
+        .split(RegExp(r'[,，]'))
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+
+    if (tags.isEmpty) return '';
+
+    // 对每个 tag 进行处理
+    final processedTags = tags.map((tag) {
+      // 如果 tag 已经包含特殊语法（如 rating:, order:, date:, *）则不处理
+      if (_isSpecialTag(tag)) {
+        return tag;
+      }
+      // 添加通配符实现模糊匹配
+      return '*$tag*';
+    }).toList();
+
+    // 用空格连接（Danbooru 的 AND 语法）
+    return processedTags.join(' ');
+  }
+
+  /// 检查是否为特殊标签（不应添加通配符）
+  bool _isSpecialTag(String tag) {
+    // 已包含通配符
+    if (tag.contains('*')) return true;
+    // 包含冒号的元标签（rating:, order:, date:, score:, etc.）
+    if (tag.contains(':')) return true;
+    // 包含波浪号的排除标签
+    if (tag.startsWith('-')) return true;
+    return false;
+  }
+
   /// 设置数据源
   Future<void> setSource(String source) async {
     if (state.source == source) return;
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(source: source);
     await loadPosts(refresh: true);
   }
@@ -655,12 +712,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 设置评级筛选
   Future<void> setRating(String rating) async {
     if (state.rating == rating) return;
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(rating: rating);
     await loadPosts(refresh: true);
   }
 
   /// 设置日期范围筛选（搜索模式）
   Future<void> setDateRange(DateTime? start, DateTime? end) async {
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(
       dateRangeStart: start,
       dateRangeEnd: end,
@@ -672,6 +733,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 清除日期范围
   Future<void> clearDateRange() async {
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(clearDateRange: true);
     await loadPosts(refresh: true);
   }

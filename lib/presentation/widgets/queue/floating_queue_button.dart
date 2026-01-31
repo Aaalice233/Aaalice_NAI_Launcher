@@ -10,6 +10,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../providers/floating_button_position_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../router/app_router.dart';
 import 'floating_button_long_press_menu.dart';
 
 /// 队列悬浮球组件 - 精致现代风格设计
@@ -160,11 +161,15 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
       // 使用默认执行状态
     }
 
-    // 队列为空且未在执行时不显示
-    final shouldHide = queueState.isEmpty &&
-        queueState.failedTasks.isEmpty &&
-        executionState.isIdle &&
-        !executionState.hasFailedTasks;
+    // 检查是否被用户手动关闭
+    final isManuallyClosed = ref.watch(floatingButtonClosedProvider);
+
+    // 队列为空且未在执行时不显示，或者被用户手动关闭
+    final shouldHide = isManuallyClosed ||
+        (queueState.isEmpty &&
+            queueState.failedTasks.isEmpty &&
+            executionState.isIdle &&
+            !executionState.hasFailedTasks);
 
     if (shouldHide) {
       _stopAnimations();

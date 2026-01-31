@@ -112,6 +112,10 @@ class AppWindowListener extends WindowListener {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
+  PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
+
   // 初始化 Windows 视频播放支持
   VideoPlayerMediaKit.ensureInitialized(
     windows: true,

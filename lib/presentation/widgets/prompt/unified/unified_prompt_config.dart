@@ -69,9 +69,6 @@ class UnifiedPromptConfig {
   /// 清空前是否需要确认对话框
   final bool clearNeedsConfirm;
 
-  /// 是否启用撤回/重做功能
-  final bool enableUndoRedo;
-
   // ==================== 自动补全配置 ====================
 
   /// 自动补全配置
@@ -91,7 +88,6 @@ class UnifiedPromptConfig {
     this.showClearButton = false,
     this.onClearPressed,
     this.clearNeedsConfirm = false,
-    this.enableUndoRedo = true,
     this.autocompleteConfig = const AutocompleteConfig(),
   });
 
@@ -146,7 +142,6 @@ class UnifiedPromptConfig {
     bool? showClearButton,
     VoidCallback? onClearPressed,
     bool? clearNeedsConfirm,
-    bool? enableUndoRedo,
     AutocompleteConfig? autocompleteConfig,
   }) {
     return UnifiedPromptConfig(
@@ -165,7 +160,6 @@ class UnifiedPromptConfig {
       showClearButton: showClearButton ?? this.showClearButton,
       onClearPressed: onClearPressed ?? this.onClearPressed,
       clearNeedsConfirm: clearNeedsConfirm ?? this.clearNeedsConfirm,
-      enableUndoRedo: enableUndoRedo ?? this.enableUndoRedo,
       autocompleteConfig: autocompleteConfig ?? this.autocompleteConfig,
     );
   }
@@ -185,8 +179,7 @@ class UnifiedPromptConfig {
         other.emptyHint == emptyHint &&
         other.hintText == hintText &&
         other.showClearButton == showClearButton &&
-        other.clearNeedsConfirm == clearNeedsConfirm &&
-        other.enableUndoRedo == enableUndoRedo;
+        other.clearNeedsConfirm == clearNeedsConfirm;
   }
 
   @override
@@ -204,7 +197,6 @@ class UnifiedPromptConfig {
       hintText,
       showClearButton,
       clearNeedsConfirm,
-      enableUndoRedo,
     );
   }
 }

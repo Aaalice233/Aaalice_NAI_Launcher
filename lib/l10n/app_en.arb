@@ -2979,6 +2979,7 @@
   "queue_taskIntervalHint": "Wait time between tasks (0-10 seconds)",
 
   "queue_clearQueue": "Clear Queue",
+  "queue_closeFloatingButton": "Close Floating Button",
   "queue_clearQueueConfirm": "Are you sure you want to clear all queue tasks? This action cannot be undone.",
   "queue_confirmClear": "Confirm Clear",
 

@@ -12,7 +12,6 @@ import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
 
 import '../common/app_toast.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../autocomplete/autocomplete_controller.dart';
 
@@ -103,11 +102,13 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
 
 class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounceTimer;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _debounceTimer?.cancel();
     super.dispose();
   }
@@ -357,29 +358,77 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   }
 
   /// Build search field
-  /// 构建搜索框 - Modern glass-style design
+  /// 构建搜索框 - 类似在线画廊的简洁圆角样式
   Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
     return AutocompleteWrapper(
       controller: _searchController,
+      focusNode: _searchFocusNode,
       config: const AutocompleteConfig(
         minQueryLength: 2,
         maxSuggestions: 8,
+        showTranslation: true,
+        showCategory: true,
+        showCount: true,
       ),
-      child: _ModernSearchField(
-        controller: _searchController,
-        hintText: '搜索文件名或 Prompt...',
-        onChanged: (value) {
-          setState(() {}); // Update clear button visibility
-          _onSearchChanged(value);
-        },
-        onSubmitted: (value) {
-          _debounceTimer?.cancel();
-          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
-        },
-        onClear: () {
-          _searchController.clear();
-          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
-        },
+      onSuggestionSelected: (value) {
+        // 选择补全建议后立即触发搜索
+        _debounceTimer?.cancel();
+        ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
+      },
+      child: Container(
+        height: 36,
+        constraints: const BoxConstraints(maxWidth: 300),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: TextField(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: '搜索文件名或 Prompt...',
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              fontSize: 13,
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      size: 16,
+                      color:
+                          theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref
+                          .read(localGalleryNotifierProvider.notifier)
+                          .setSearchQuery('');
+                      setState(() {});
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            isDense: true,
+          ),
+          onChanged: (value) {
+            setState(() {}); // 更新清除按钮可见性
+            _onSearchChanged(value);
+          },
+          onSubmitted: (value) {
+            _debounceTimer?.cancel();
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .setSearchQuery(value);
+          },
+        ),
       ),
     );
   }
@@ -537,265 +586,6 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
         );
       }
     }
-  }
-}
-
-/// Modern search field with glass-morphism style
-/// 现代搜索框 - 毛玻璃风格 + 精致设计
-class _ModernSearchField extends StatefulWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final ValueChanged<String>? onChanged;
-  final ValueChanged<String>? onSubmitted;
-  final VoidCallback? onClear;
-
-  const _ModernSearchField({
-    required this.controller,
-    required this.hintText,
-    this.onChanged,
-    this.onSubmitted,
-    this.onClear,
-  });
-
-  @override
-  State<_ModernSearchField> createState() => _ModernSearchFieldState();
-}
-
-class _ModernSearchFieldState extends State<_ModernSearchField>
-    with SingleTickerProviderStateMixin {
-  bool _isFocused = false;
-  bool _isHovered = false;
-  final FocusNode _focusNode = FocusNode();
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(() {
-      if (mounted) {
-        setState(() => _isFocused = _focusNode.hasFocus);
-        if (_focusNode.hasFocus) {
-          _pulseController.forward().then((_) => _pulseController.reverse());
-        }
-      }
-    });
-
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOutCubic),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final hasText = widget.controller.text.isNotEmpty;
-
-    // Premium glass-morphism color scheme
-    final bgColor = isDark
-        ? (_isFocused
-            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.85)
-            : (_isHovered
-                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.7)
-                : theme.colorScheme.surfaceContainerHighest.withOpacity(0.55)))
-        : (_isFocused
-            ? Colors.white.withOpacity(0.95)
-            : (_isHovered
-                ? Colors.white.withOpacity(0.85)
-                : Colors.white.withOpacity(0.7)));
-
-    final borderColor = _isFocused
-        ? theme.colorScheme.primary.withOpacity(isDark ? 0.8 : 0.6)
-        : (_isHovered
-            ? theme.colorScheme.primary.withOpacity(isDark ? 0.4 : 0.25)
-            : theme.colorScheme.outline.withOpacity(isDark ? 0.25 : 0.18));
-
-    final iconColor = _isFocused
-        ? theme.colorScheme.primary
-        : (_isHovered
-            ? theme.colorScheme.primary.withOpacity(0.7)
-            : theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.6 : 0.55));
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.text,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        height: 38,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: borderColor,
-            width: _isFocused ? 1.8 : 1.2,
-          ),
-          boxShadow: [
-            if (_isFocused) ...[
-              BoxShadow(
-                color:
-                    theme.colorScheme.primary.withOpacity(isDark ? 0.25 : 0.15),
-                blurRadius: 12,
-                spreadRadius: 1,
-              ),
-              BoxShadow(
-                color:
-                    theme.colorScheme.primary.withOpacity(isDark ? 0.08 : 0.05),
-                blurRadius: 20,
-                spreadRadius: 4,
-              ),
-            ] else if (_isHovered)
-              BoxShadow(
-                color:
-                    theme.colorScheme.shadow.withOpacity(isDark ? 0.15 : 0.08),
-                blurRadius: 8,
-                spreadRadius: 0,
-                offset: const Offset(0, 2),
-              ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Search icon with pulse animation
-            Padding(
-              padding: const EdgeInsets.only(left: 14, right: 6),
-              child: AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _isFocused ? _pulseAnimation.value : 1.0,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: _isFocused
-                            ? theme.colorScheme.primary
-                                .withOpacity(isDark ? 0.15 : 0.1)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.search_rounded,
-                        size: 18,
-                        color: iconColor,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            // Text field
-            Expanded(
-              child: ThemedInput(
-                controller: widget.controller,
-                focusNode: _focusNode,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w400,
-                ),
-                decoration: InputDecoration(
-                  hintText: widget.hintText,
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withOpacity(isDark ? 0.5 : 0.4),
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  isDense: true,
-                ),
-                onChanged: widget.onChanged,
-                onSubmitted: widget.onSubmitted,
-              ),
-            ),
-            // Clear button with better styling
-            if (hasText)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: _MicroIconButton(
-                  icon: Icons.close_rounded,
-                  size: 16,
-                  onPressed: widget.onClear,
-                ),
-              )
-            else
-              const SizedBox(width: 10),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Micro icon button for search field clear
-/// 搜索框清除按钮
-class _MicroIconButton extends StatefulWidget {
-  final IconData icon;
-  final double size;
-  final VoidCallback? onPressed;
-
-  const _MicroIconButton({
-    required this.icon,
-    this.size = 18,
-    this.onPressed,
-  });
-
-  @override
-  State<_MicroIconButton> createState() => _MicroIconButtonState();
-}
-
-class _MicroIconButtonState extends State<_MicroIconButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? theme.colorScheme.onSurfaceVariant
-                    .withOpacity(isDark ? 0.15 : 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Icon(
-            widget.icon,
-            size: widget.size,
-            color: theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.7 : 0.6),
-          ),
-        ),
-      ),
-    );
   }
 }
 

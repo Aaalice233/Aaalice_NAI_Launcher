@@ -109,9 +109,6 @@ class ThemedInput extends StatefulWidget {
   /// 清空前是否需要确认对话框
   final bool clearNeedsConfirm;
 
-  /// 是否启用撤回/重做功能
-  final bool enableUndoRedo;
-
   const ThemedInput({
     super.key,
     this.controller,
@@ -150,7 +147,6 @@ class ThemedInput extends StatefulWidget {
     this.showClearButton = false,
     this.onClearPressed,
     this.clearNeedsConfirm = false,
-    this.enableUndoRedo = false,
   });
 
   /// 创建多行输入框
@@ -189,7 +185,6 @@ class ThemedInput extends StatefulWidget {
     this.showClearButton = false,
     this.onClearPressed,
     this.clearNeedsConfirm = false,
-    this.enableUndoRedo = false,
   });
 
   @override
@@ -198,7 +193,6 @@ class ThemedInput extends StatefulWidget {
 
 class _ThemedInputState extends State<ThemedInput> {
   late TextEditingController _effectiveController;
-  UndoHistoryController? _undoController;
   bool _hasContent = false;
 
   @override
@@ -208,9 +202,6 @@ class _ThemedInputState extends State<ThemedInput> {
     _hasContent = _effectiveController.text.isNotEmpty;
     if (widget.showClearButton) {
       _effectiveController.addListener(_onTextChanged);
-    }
-    if (widget.enableUndoRedo) {
-      _undoController = UndoHistoryController();
     }
   }
 
@@ -230,15 +221,6 @@ class _ThemedInputState extends State<ThemedInput> {
         _effectiveController.addListener(_onTextChanged);
       }
     }
-    // 处理 enableUndoRedo 变化
-    if (widget.enableUndoRedo != oldWidget.enableUndoRedo) {
-      if (widget.enableUndoRedo && _undoController == null) {
-        _undoController = UndoHistoryController();
-      } else if (!widget.enableUndoRedo && _undoController != null) {
-        _undoController!.dispose();
-        _undoController = null;
-      }
-    }
   }
 
   @override
@@ -249,7 +231,6 @@ class _ThemedInputState extends State<ThemedInput> {
     if (widget.controller == null) {
       _effectiveController.dispose();
     }
-    _undoController?.dispose();
     super.dispose();
   }
 
@@ -310,6 +291,8 @@ class _ThemedInputState extends State<ThemedInput> {
     // 如果提供了额外的 decoration，合并属性
     if (widget.decoration != null) {
       inputDecoration = inputDecoration.copyWith(
+        hintText: widget.decoration!.hintText ?? widget.hintText,
+        hintStyle: widget.decoration!.hintStyle ?? widget.hintStyle,
         labelText: widget.decoration!.labelText,
         labelStyle: widget.decoration!.labelStyle,
         floatingLabelStyle: widget.decoration!.floatingLabelStyle,
@@ -317,9 +300,11 @@ class _ThemedInputState extends State<ThemedInput> {
         helperStyle: widget.decoration!.helperStyle,
         errorText: widget.decoration!.errorText,
         errorStyle: widget.decoration!.errorStyle,
+        prefixIcon: widget.decoration!.prefixIcon ?? widget.prefixIcon,
         prefix: widget.decoration!.prefix,
         prefixText: widget.decoration!.prefixText,
         prefixStyle: widget.decoration!.prefixStyle,
+        suffixIcon: widget.decoration!.suffixIcon ?? widget.suffixIcon,
         suffix: widget.decoration!.suffix,
         suffixText: widget.decoration!.suffixText,
         suffixStyle: widget.decoration!.suffixStyle,
@@ -327,13 +312,15 @@ class _ThemedInputState extends State<ThemedInput> {
         counterStyle: widget.decoration!.counterStyle,
         filled: widget.decoration!.filled,
         fillColor: widget.decoration!.fillColor,
+        contentPadding:
+            widget.decoration!.contentPadding ?? widget.contentPadding,
+        isDense: widget.decoration!.isDense,
       );
     }
 
     final textField = TextField(
       controller: _effectiveController,
       focusNode: widget.focusNode,
-      undoController: _undoController,
       maxLines: widget.maxLines,
       minLines: widget.minLines,
       expands: widget.expands,

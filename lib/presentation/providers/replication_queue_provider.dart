@@ -4,6 +4,7 @@ import '../../core/storage/replication_queue_storage.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
+import '../router/app_router.dart';
 
 part 'replication_queue_provider.g.dart';
 
@@ -97,8 +98,18 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     try {
       final tasks = _storage.load();
       final failedTasks = _stateStorage.loadFailedTasks();
+
+      // 加载时将所有 running 状态的任务重置为 pending
+      // （因为应用重启后实际上没有任务在运行）
+      final restoredTasks = tasks.map((task) {
+        if (task.status == ReplicationTaskStatus.running) {
+          return task.copyWith(status: ReplicationTaskStatus.pending);
+        }
+        return task;
+      }).toList();
+
       return ReplicationQueueState(
-        tasks: tasks,
+        tasks: restoredTasks,
         failedTasks: failedTasks,
         isLoading: false,
       );
@@ -128,6 +139,10 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       tasks: [...state.tasks, task],
     );
     await _saveToStorage();
+
+    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
+    ref.read(floatingButtonClosedProvider.notifier).state = false;
+
     return true;
   }
 
@@ -145,6 +160,10 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       tasks: [...state.tasks, ...toAdd],
     );
     await _saveToStorage();
+
+    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
+    ref.read(floatingButtonClosedProvider.notifier).state = false;
+
     return toAdd.length;
   }
 
@@ -465,8 +484,17 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
 
   /// 从持久化数据恢复队列
   void restore(List<ReplicationTask> tasks) {
+    // 恢复时将所有 running 状态的任务重置为 pending
+    // （因为应用重启后实际上没有任务在运行）
+    final restoredTasks = tasks.take(kMaxQueueCapacity).map((task) {
+      if (task.status == ReplicationTaskStatus.running) {
+        return task.copyWith(status: ReplicationTaskStatus.pending);
+      }
+      return task;
+    }).toList();
+
     state = state.copyWith(
-      tasks: tasks.take(kMaxQueueCapacity).toList(),
+      tasks: restoredTasks,
       isLoading: false,
     );
   }

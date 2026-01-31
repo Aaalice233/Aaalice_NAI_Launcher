@@ -12,6 +12,7 @@ import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../router/app_router.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/generation/auto_save_toggle_chip.dart';
@@ -413,11 +414,15 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
     final queueState = ref.watch(replicationQueueNotifierProvider);
 
-    // 判断悬浮球是否可见（队列有任务或正在执行）
-    final shouldShowFloatingButton = !(queueState.isEmpty &&
-        queueState.failedTasks.isEmpty &&
-        queueExecutionState.isIdle &&
-        !queueExecutionState.hasFailedTasks);
+    // 检查悬浮球是否被手动关闭
+    final isFloatingButtonClosed = ref.watch(floatingButtonClosedProvider);
+
+    // 判断悬浮球是否可见（队列有任务或正在执行，且未被手动关闭）
+    final shouldShowFloatingButton = !isFloatingButtonClosed &&
+        !(queueState.isEmpty &&
+            queueState.failedTasks.isEmpty &&
+            queueExecutionState.isIdle &&
+            !queueExecutionState.hasFailedTasks);
 
     // 监听队列状态变化，当变为 ready 时自动触发生成
     ref.listen<QueueExecutionState>(
@@ -445,132 +450,121 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     );
 
     // Enter 键处理函数
-    void handleEnterKey() {
-      // 检查焦点是否在输入框内（避免与自动补全冲突）
-      final focusNode = FocusManager.instance.primaryFocus;
-      final focusContext = focusNode?.context;
-      if (focusContext != null) {
-        // 检查焦点是否在 EditableText 或其子组件内
-        bool isInEditableText = false;
-        focusContext.visitAncestorElements((element) {
-          if (element.widget is EditableText) {
-            isInEditableText = true;
-            return false; // 停止遍历
-          }
-          return true; // 继续遍历
-        });
-        if (isInEditableText) return;
-      }
+    KeyEventResult handleEnterKey(FocusNode node, KeyEvent event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.enter) {
+        // Shift+Enter 不处理（留给输入框换行）
+        if (HardwareKeyboard.instance.isShiftPressed) {
+          return KeyEventResult.ignored;
+        }
 
-      if (params.prompt.isEmpty) {
-        AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
-        return;
-      }
-      if (isGenerating) return;
+        if (params.prompt.isEmpty) {
+          AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
+          return KeyEventResult.handled;
+        }
+        if (isGenerating) return KeyEventResult.handled;
 
-      // 悬浮球存在且队列运行中时，只能加入队列
-      if (shouldShowFloatingButton &&
-          (queueExecutionState.isRunning || queueExecutionState.isReady)) {
-        _handleAddToQueue(context, ref, params);
-      } else {
-        _handleGenerate(context, ref, params, randomMode);
+        // 悬浮球存在时加入队列，否则生图
+        if (shouldShowFloatingButton) {
+          _handleAddToQueue(context, ref, params);
+        } else {
+          _handleGenerate(context, ref, params, randomMode);
+        }
+        return KeyEventResult.handled;
       }
+      return KeyEventResult.ignored;
     }
 
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.enter): handleEnterKey,
-      },
-      child: Focus(
-        autofocus: false, // 不自动获取焦点，避免干扰输入框
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 500;
+    return Focus(
+      autofocus: true,
+      onKeyEvent: handleEnterKey,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 500;
 
-            if (isNarrow) {
-              // 窄屏布局：只显示核心组件
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _RandomModeToggle(enabled: randomMode),
-                  const SizedBox(width: 8),
-                  // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
-                  _buildGenerateButtonWithHover(
-                    context: context,
-                    ref: ref,
-                    params: params,
-                    isGenerating: isGenerating,
-                    showCancel: showCancel,
-                    generationState: generationState,
-                    randomMode: randomMode,
-                    shouldShowFloatingButton: shouldShowFloatingButton,
-                  ),
-                  const SizedBox(width: 8),
-                  DraggableNumberInput(
-                    value: params.nSamples,
-                    min: 1,
-                    prefix: '×',
-                    onChanged: (value) {
-                      ref
-                          .read(generationParamsNotifierProvider.notifier)
-                          .updateNSamples(value);
-                    },
-                  ),
-                ],
-              );
-            }
-
-            // 正常布局 - 自动保存靠左，其他元素居中
+          if (isNarrow) {
+            // 窄屏布局：只显示核心组件
             return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 左侧 - 自动保存靠左
-                const AutoSaveToggleChip(),
-
-                const SizedBox(width: 16),
-
-                // 中间 - 其他元素居中
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const AnlasBalanceChip(),
-                      const SizedBox(width: 16),
-
-                      // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
-                      _RandomModeToggle(enabled: randomMode),
-                      const SizedBox(width: 12),
-                      _buildGenerateButtonWithHover(
-                        context: context,
-                        ref: ref,
-                        params: params,
-                        isGenerating: isGenerating,
-                        showCancel: showCancel,
-                        generationState: generationState,
-                        randomMode: randomMode,
-                        shouldShowFloatingButton: shouldShowFloatingButton,
-                      ),
-                      const SizedBox(width: 12),
-                      DraggableNumberInput(
-                        value: params.nSamples,
-                        min: 1,
-                        prefix: '×',
-                        onChanged: (value) {
-                          ref
-                              .read(generationParamsNotifierProvider.notifier)
-                              .updateNSamples(value);
-                        },
-                      ),
-                      const SizedBox(width: 16),
-
-                      // 批量设置
-                      _BatchSettingsButton(),
-                    ],
-                  ),
+                _RandomModeToggle(enabled: randomMode),
+                const SizedBox(width: 8),
+                // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
+                _buildGenerateButtonWithHover(
+                  context: context,
+                  ref: ref,
+                  params: params,
+                  isGenerating: isGenerating,
+                  showCancel: showCancel,
+                  generationState: generationState,
+                  randomMode: randomMode,
+                  shouldShowFloatingButton: shouldShowFloatingButton,
+                ),
+                const SizedBox(width: 8),
+                DraggableNumberInput(
+                  value: params.nSamples,
+                  min: 1,
+                  prefix: '×',
+                  onChanged: (value) {
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updateNSamples(value);
+                  },
                 ),
               ],
             );
-          },
-        ),
+          }
+
+          // 正常布局 - 自动保存靠左，其他元素居中
+          return Row(
+            children: [
+              // 左侧 - 自动保存靠左
+              const AutoSaveToggleChip(),
+
+              const SizedBox(width: 16),
+
+              // 中间 - 其他元素居中
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AnlasBalanceChip(),
+                    const SizedBox(width: 16),
+
+                    // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
+                    _RandomModeToggle(enabled: randomMode),
+                    const SizedBox(width: 12),
+                    _buildGenerateButtonWithHover(
+                      context: context,
+                      ref: ref,
+                      params: params,
+                      isGenerating: isGenerating,
+                      showCancel: showCancel,
+                      generationState: generationState,
+                      randomMode: randomMode,
+                      shouldShowFloatingButton: shouldShowFloatingButton,
+                    ),
+                    const SizedBox(width: 12),
+                    DraggableNumberInput(
+                      value: params.nSamples,
+                      min: 1,
+                      prefix: '×',
+                      onChanged: (value) {
+                        ref
+                            .read(generationParamsNotifierProvider.notifier)
+                            .updateNSamples(value);
+                      },
+                    ),
+                    const SizedBox(width: 16),
+
+                    // 批量设置
+                    _BatchSettingsButton(),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

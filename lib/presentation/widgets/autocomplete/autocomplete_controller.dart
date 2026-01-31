@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/services/tag_data_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/tag/local_tag.dart';
 
 /// 自动补全控制器
@@ -54,12 +55,20 @@ class AutocompleteController extends ChangeNotifier {
   /// [query] 搜索词
   /// [immediate] 是否立即搜索（跳过防抖）
   void search(String query, {bool immediate = false}) {
+    AppLogger.d(
+      'AutocompleteController.search: query="$query"',
+      'Autocomplete',
+    );
     _debounceTimer?.cancel();
 
     final trimmedQuery = query.trim();
 
+    // 检测是否包含中文（中文1个字符即可触发搜索）
+    final containsChinese = RegExp(r'[\u4e00-\u9fa5]').hasMatch(trimmedQuery);
+    final effectiveMinLength = containsChinese ? 1 : minQueryLength;
+
     // 空查询或太短，清空建议
-    if (trimmedQuery.length < minQueryLength) {
+    if (trimmedQuery.length < effectiveMinLength) {
       clear();
       return;
     }
@@ -84,9 +93,23 @@ class AutocompleteController extends ChangeNotifier {
 
   /// 执行搜索
   void _performSearch(String query) {
+    AppLogger.d(
+      'AutocompleteController._performSearch: query="$query", serviceInit=${_tagDataService.isInitialized}',
+      'Autocomplete',
+    );
     try {
       _suggestions = _tagDataService.search(query, limit: maxSuggestions);
+      AppLogger.d(
+        'AutocompleteController._performSearch: results=${_suggestions.length}',
+        'Autocomplete',
+      );
     } catch (e) {
+      AppLogger.e(
+        'AutocompleteController._performSearch error',
+        e,
+        null,
+        'Autocomplete',
+      );
       _suggestions = [];
     } finally {
       _isLoading = false;

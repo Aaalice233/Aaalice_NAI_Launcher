@@ -169,13 +169,73 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     if (page < 0 || page >= state.totalPages) return;
 
+    AppLogger.d(
+      'loadPage: Starting page $page, filteredFiles: ${state.filteredFiles.length}, pageSize: ${state.pageSize}',
+      'LocalGalleryNotifier',
+    );
+
     state = state.copyWith(isPageLoading: true, currentPage: page);
     try {
       final start = page * state.pageSize;
       final end = min(start + state.pageSize, state.filteredFiles.length);
       final batch = state.filteredFiles.sublist(start, end);
 
+      AppLogger.d(
+        'loadPage: Loading batch [$start-$end], batch size: ${batch.length}',
+        'LocalGalleryNotifier',
+      );
+
       final records = await _repository.loadRecords(batch);
+
+      AppLogger.d(
+        'loadPage: Got ${records.length} records from ${batch.length} files',
+        'LocalGalleryNotifier',
+      );
+
+      // 检查是否有文件被过滤掉（不存在）
+      if (records.length < batch.length) {
+        AppLogger.w(
+          'loadPage: Detected ${batch.length - records.length} missing files, updating lists',
+          'LocalGalleryNotifier',
+        );
+
+        // 同步更新 filteredFiles 和 allFiles，移除不存在的文件
+        final updatedFilteredFiles =
+            state.filteredFiles.where((f) => f.existsSync()).toList();
+        final updatedAllFiles =
+            state.allFiles.where((f) => f.existsSync()).toList();
+
+        AppLogger.i(
+          'loadPage: Updated filteredFiles: ${state.filteredFiles.length} -> ${updatedFilteredFiles.length}, '
+              'allFiles: ${state.allFiles.length} -> ${updatedAllFiles.length}',
+          'LocalGalleryNotifier',
+        );
+
+        // 清理 _recordCache 中的无效条目
+        final validPaths = records.map((r) => r.path).toSet();
+        for (final file in batch) {
+          if (!validPaths.contains(file.path)) {
+            _recordCache.remove(file.path);
+          }
+        }
+
+        state = state.copyWith(
+          filteredFiles: updatedFilteredFiles,
+          allFiles: updatedAllFiles,
+          isPageLoading: false,
+        );
+
+        // 重新加载当前页（因为文件列表已更新）
+        // 使用 Future.microtask 避免递归调用
+        final newPage =
+            min(page, state.totalPages - 1).clamp(0, state.totalPages - 1);
+        AppLogger.d(
+          'loadPage: Scheduling reload of page $newPage (totalPages: ${state.totalPages})',
+          'LocalGalleryNotifier',
+        );
+        Future.microtask(() => loadPage(newPage));
+        return;
+      }
 
       // 缓存记录用于搜索
       for (final record in records) {
@@ -184,8 +244,17 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         _indexRecordInBackground(record);
       }
 
+      AppLogger.d(
+        'loadPage: Setting currentImages to ${records.length} records',
+        'LocalGalleryNotifier',
+      );
+
       state = state.copyWith(currentImages: records, isPageLoading: false);
     } catch (e) {
+      AppLogger.e(
+        'loadPage: Error: $e',
+        'LocalGalleryNotifier',
+      );
       state = state.copyWith(isPageLoading: false, error: e.toString());
     }
   }

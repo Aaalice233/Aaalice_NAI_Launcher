@@ -25,6 +25,7 @@ import '../../widgets/common/themed_divider.dart';
 import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'widgets/tag_library_settings.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerWidget {
@@ -138,6 +139,11 @@ class SettingsScreen extends ConsumerWidget {
           // 网络设置
           _buildSectionHeader(theme, context.l10n.settings_network),
           const _NetworkSettingsSection(),
+          const ThemedDivider(),
+
+          // 词库设置
+          _buildSectionHeader(theme, '标签词库'),
+          const TagLibrarySettings(),
           const ThemedDivider(),
 
           // 队列设置

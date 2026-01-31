@@ -93,7 +93,7 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
   int _lastVisibleIndex = 0;
 
   /// 缓冲区屏幕数
-  static const double _bufferScreens = 1.0;
+  static const double _bufferScreens = 3.0; // 增加缓冲区，避免白块
 
   @override
   void initState() {
@@ -142,13 +142,8 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
     const itemHeight = ResponsiveLayout.fixedCardHeight;
     final rowHeight = itemHeight + widget.spacing;
 
-    // 计算当前屏幕宽度的列数
-    final screenWidth = _scrollController.position.viewportDimension;
-    final columns = ResponsiveLayout.calculateColumns(
-      screenWidth,
-      spacing: widget.spacing,
-      padding: widget.padding.horizontal / 2,
-    ).clamp(2, 8);
+    // 使用 widget.columns 而不是重新计算，避免 viewportDimension 返回高度的 bug
+    final columns = widget.columns.clamp(2, 8);
 
     final firstRow = (visibleStart / rowHeight).floor();
     final lastRow = (visibleEnd / rowHeight).ceil();
