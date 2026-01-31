@@ -229,133 +229,86 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     );
   }
 
-  /// 顶部统计卡片 - 双列 Bento 风格
+  /// 顶部统计卡片 - 紧凑行内风格
   Widget _buildStatisticsHeader(
     ThemeData theme,
     bool isDark,
     int prefixCount,
     int suffixCount,
   ) {
-    return Row(
-      children: [
-        // 前缀统计卡片
-        Expanded(
-          child: _buildStatCard(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark
+            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.4)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 前缀统计
+          _buildCompactStat(
             theme,
-            isDark,
             icon: Icons.arrow_forward_rounded,
             count: prefixCount,
             label: context.l10n.fixedTags_prefix,
             color: theme.colorScheme.primary,
             isActive: prefixCount > 0,
           ),
-        ),
-        const SizedBox(width: 8),
-        // 后缀统计卡片
-        Expanded(
-          child: _buildStatCard(
+          // 分隔线
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            width: 1,
+            height: 16,
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          ),
+          // 后缀统计
+          _buildCompactStat(
             theme,
-            isDark,
             icon: Icons.arrow_back_rounded,
             count: suffixCount,
             label: context.l10n.fixedTags_suffix,
             color: theme.colorScheme.tertiary,
             isActive: suffixCount > 0,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  /// 单个统计卡片
-  Widget _buildStatCard(
-    ThemeData theme,
-    bool isDark, {
+  /// 紧凑统计项
+  Widget _buildCompactStat(
+    ThemeData theme, {
     required IconData icon,
     required int count,
     required String label,
     required Color color,
     required bool isActive,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isActive
-              ? [
-                  color.withOpacity(isDark ? 0.2 : 0.12),
-                  color.withOpacity(isDark ? 0.1 : 0.06),
-                ]
-              : [
-                  theme.colorScheme.surfaceContainerHigh.withOpacity(0.5),
-                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isActive
-              ? color.withOpacity(0.3)
-              : theme.colorScheme.outlineVariant.withOpacity(0.2),
-        ),
-        boxShadow: isActive
-            ? [
-                BoxShadow(
-                  color: color.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
-      child: Row(
-        children: [
-          // 图标容器
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? color.withOpacity(0.15)
-                  : theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              size: 14,
-              color: isActive ? color : theme.colorScheme.outline,
-            ),
+    final displayColor = isActive ? color : theme.colorScheme.outline;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: displayColor),
+        const SizedBox(width: 4),
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: displayColor,
           ),
-          const SizedBox(width: 10),
-          // 数字和标签
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                count.toString(),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: isActive ? color : theme.colorScheme.outline,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: isActive
-                      ? color.withOpacity(0.8)
-                      : theme.colorScheme.outline,
-                ),
-              ),
-            ],
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: displayColor.withOpacity(0.8),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

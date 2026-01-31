@@ -556,20 +556,20 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         }
       }
 
-      // 构建 V4 多角色提示词结构
+      // 构建 V4 多角色提示词结构（解析别名）
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
 
       for (final char in characterConfig.characters
           .where((c) => c.enabled && c.prompt.isNotEmpty)) {
         charCaptions.add({
-          'char_caption': char.prompt,
+          'char_caption': aliasResolver.resolveAliases(char.prompt),
           'centers': [
             {'x': 0.5, 'y': 0.5},
           ],
         });
         charNegCaptions.add({
-          'char_caption': char.negativePrompt,
+          'char_caption': aliasResolver.resolveAliases(char.negativePrompt),
           'centers': [
             {'x': 0.5, 'y': 0.5},
           ],

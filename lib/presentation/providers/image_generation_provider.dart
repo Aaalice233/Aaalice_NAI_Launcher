@@ -247,15 +247,22 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final ucPresetValue = ucPresetType.index; // enum index 正好对应 API 值
 
     // 解析别名（将 <词库名> 展开为实际内容）
+    // 统一在此处解析所有提示词（主提示词、负向提示词）
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
     final promptWithAliases =
         aliasResolver.resolveAliases(effectiveParams.prompt);
-    if (promptWithAliases != effectiveParams.prompt) {
+    final negativeWithAliases =
+        aliasResolver.resolveAliases(effectiveParams.negativePrompt);
+    if (promptWithAliases != effectiveParams.prompt ||
+        negativeWithAliases != effectiveParams.negativePrompt) {
       AppLogger.d(
-        'Resolved aliases in prompt',
+        'Resolved aliases in prompts',
         'AliasResolver',
       );
-      effectiveParams = effectiveParams.copyWith(prompt: promptWithAliases);
+      effectiveParams = effectiveParams.copyWith(
+        prompt: promptWithAliases,
+        negativePrompt: negativeWithAliases,
+      );
     }
 
     // 应用固定词到提示词
@@ -432,14 +439,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         await saveDir.create(recursive: true);
       }
 
+      // 使用已解析别名的角色提示词（来自 params.characters）
       final characterConfig = ref.read(characterPromptNotifierProvider);
 
-      // 构建 V4 多角色提示词结构
+      // 构建 V4 多角色提示词结构（直接使用已解析的 params.characters）
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
 
-      for (final char in characterConfig.characters
-          .where((c) => c.enabled && c.prompt.isNotEmpty)) {
+      for (final char in params.characters) {
         charCaptions.add({
           'char_caption': char.prompt,
           'centers': [
@@ -1063,6 +1070,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   ///
   /// [config] UI 层的角色提示词配置
   /// 返回 API 层的 CharacterPrompt 列表
+  ///
+  /// 注意：此方法会统一解析角色提示词中的别名
   List<CharacterPrompt> _convertCharactersToApiFormat(
     ui_character.CharacterPromptConfig config,
   ) {
@@ -1075,6 +1084,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       return [];
     }
 
+    // 获取别名解析器统一解析角色提示词
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+
     return enabledCharacters.map((uiChar) {
       // 计算位置字符串
       String? position;
@@ -1084,9 +1096,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         position = uiChar.customPosition!.toNaiString();
       }
 
+      // 解析角色提示词中的别名
       return CharacterPrompt(
-        prompt: uiChar.prompt,
-        negativePrompt: uiChar.negativePrompt,
+        prompt: aliasResolver.resolveAliases(uiChar.prompt),
+        negativePrompt: aliasResolver.resolveAliases(uiChar.negativePrompt),
         position: position,
       );
     }).toList();
@@ -1204,14 +1217,20 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 更新提示词
   void updatePrompt(String prompt) {
-    state = state.copyWith(prompt: prompt);
-    _storage.setLastPrompt(prompt);
+    // 使用 Future.microtask 延迟更新，避免在 widget tree 构建期间修改 provider
+    Future.microtask(() {
+      state = state.copyWith(prompt: prompt);
+      _storage.setLastPrompt(prompt);
+    });
   }
 
   /// 更新负向提示词
   void updateNegativePrompt(String negativePrompt) {
-    state = state.copyWith(negativePrompt: negativePrompt);
-    _storage.setLastNegativePrompt(negativePrompt);
+    // 使用 Future.microtask 延迟更新，避免在 widget tree 构建期间修改 provider
+    Future.microtask(() {
+      state = state.copyWith(negativePrompt: negativePrompt);
+      _storage.setLastNegativePrompt(negativePrompt);
+    });
   }
 
   /// 更新模型

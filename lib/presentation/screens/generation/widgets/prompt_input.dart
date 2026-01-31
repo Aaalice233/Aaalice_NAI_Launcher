@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
@@ -490,6 +491,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 获取多角色数据
     final characterConfig = ref.watch(characterPromptNotifierProvider);
 
+    // 预先获取别名解析器，避免在子组件 build 中访问 provider
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -511,7 +515,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             characters: characterConfig.characters,
             globalAiChoice: characterConfig.globalAiChoice,
             l10n: context.l10n,
-            ref: ref,
+            aliasResolver: aliasResolver,
           ),
         ),
         const SizedBox(width: 8),
@@ -530,7 +534,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ucPresetContent: ucPresetContent,
             isCustom: ucState.isCustom,
             l10n: context.l10n,
-            ref: ref,
+            aliasResolver: aliasResolver,
           ),
         ),
       ],
@@ -687,7 +691,7 @@ class _PositivePromptTooltip extends StatelessWidget {
   final List<CharacterPrompt> characters;
   final bool globalAiChoice;
   final dynamic l10n;
-  final WidgetRef ref;
+  final AliasResolverService aliasResolver;
 
   const _PositivePromptTooltip({
     required this.theme,
@@ -699,7 +703,7 @@ class _PositivePromptTooltip extends StatelessWidget {
     required this.characters,
     required this.globalAiChoice,
     required this.l10n,
-    required this.ref,
+    required this.aliasResolver,
   });
 
   @override
@@ -724,25 +728,27 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        // 固定词（前缀）
+        // 固定词（前缀）- 解析别名
         if (hasPrefixes) ...[
           _buildSection(
             icon: Icons.arrow_forward_rounded,
             label: l10n.fixedTags_prefix,
             color: theme.colorScheme.primary,
-            content: prefixes.map((e) => e.content).join(', '),
+            content: prefixes
+                .map((e) => aliasResolver.resolveAliases(e.content))
+                .join(', '),
             isDark: isDark,
           ),
           const SizedBox(height: 8),
         ],
 
-        // 用户输入
+        // 用户输入 - 解析别名
         if (userPrompt.trim().isNotEmpty) ...[
           _buildSection(
             icon: Icons.edit_rounded,
             label: l10n.prompt_mainPositive,
             color: theme.colorScheme.secondary,
-            content: userPrompt.trim(),
+            content: aliasResolver.resolveAliases(userPrompt.trim()),
             isDark: isDark,
           ),
           const SizedBox(height: 8),
@@ -769,13 +775,15 @@ class _PositivePromptTooltip extends StatelessWidget {
           const SizedBox(height: 8),
         ],
 
-        // 固定词（后缀）
+        // 固定词（后缀）- 解析别名
         if (hasSuffixes) ...[
           _buildSection(
             icon: Icons.arrow_back_rounded,
             label: l10n.fixedTags_suffix,
             color: theme.colorScheme.tertiary,
-            content: suffixes.map((e) => e.content).join(', '),
+            content: suffixes
+                .map((e) => aliasResolver.resolveAliases(e.content))
+                .join(', '),
             isDark: isDark,
           ),
           const SizedBox(height: 8),
@@ -888,12 +896,18 @@ class _PositivePromptTooltip extends StatelessWidget {
           const SizedBox(height: 4),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 120),
-            child: SingleChildScrollView(
-              child: Text(
-                content,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+            child: ScrollbarTheme(
+              data: ScrollbarThemeData(
+                thumbVisibility: WidgetStateProperty.all(true),
+                thickness: WidgetStateProperty.all(4),
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface.withOpacity(0.8),
+                  ),
                 ),
               ),
             ),
@@ -942,18 +956,30 @@ class _PositivePromptTooltip extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
               ),
+              const Spacer(),
+              // 复制按钮
+              _CopyIconButton(
+                content: prompt,
+                color: theme.colorScheme.primary,
+              ),
             ],
           ),
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 150),
-            child: SingleChildScrollView(
-              child: Text(
-                prompt,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.4,
+            child: ScrollbarTheme(
+              data: ScrollbarThemeData(
+                thumbVisibility: WidgetStateProperty.all(true),
+                thickness: WidgetStateProperty.all(4),
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  prompt,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ),
@@ -965,9 +991,6 @@ class _PositivePromptTooltip extends StatelessWidget {
 
   String _buildEffectivePrompt() {
     final parts = <String>[];
-
-    // 别名解析器
-    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
 
     // 前缀
     for (final p in prefixes) {
@@ -1116,7 +1139,7 @@ class _NegativePromptTooltip extends StatelessWidget {
   final String ucPresetContent;
   final bool isCustom;
   final dynamic l10n;
-  final WidgetRef ref;
+  final AliasResolverService aliasResolver;
 
   const _NegativePromptTooltip({
     required this.theme,
@@ -1125,7 +1148,7 @@ class _NegativePromptTooltip extends StatelessWidget {
     required this.ucPresetContent,
     required this.isCustom,
     required this.l10n,
-    required this.ref,
+    required this.aliasResolver,
   });
 
   @override
@@ -1158,13 +1181,13 @@ class _NegativePromptTooltip extends StatelessWidget {
           const SizedBox(height: 8),
         ],
 
-        // 用户输入
+        // 用户输入 - 解析别名
         if (hasUserInput) ...[
           _buildSection(
             icon: Icons.edit_rounded,
             label: l10n.prompt_mainNegative,
             color: theme.colorScheme.tertiary,
-            content: userNegativePrompt.trim(),
+            content: aliasResolver.resolveAliases(userNegativePrompt.trim()),
             isDark: isDark,
           ),
           const SizedBox(height: 8),
@@ -1277,12 +1300,18 @@ class _NegativePromptTooltip extends StatelessWidget {
           const SizedBox(height: 4),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 120),
-            child: SingleChildScrollView(
-              child: Text(
-                content,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+            child: ScrollbarTheme(
+              data: ScrollbarThemeData(
+                thumbVisibility: WidgetStateProperty.all(true),
+                thickness: WidgetStateProperty.all(4),
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface.withOpacity(0.8),
+                  ),
                 ),
               ),
             ),
@@ -1331,18 +1360,31 @@ class _NegativePromptTooltip extends StatelessWidget {
                   color: theme.colorScheme.error,
                 ),
               ),
+              const Spacer(),
+              // 复制按钮
+              if (prompt.isNotEmpty)
+                _CopyIconButton(
+                  content: prompt,
+                  color: theme.colorScheme.error,
+                ),
             ],
           ),
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 150),
-            child: SingleChildScrollView(
-              child: Text(
-                prompt.isEmpty ? '-' : prompt,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.4,
+            child: ScrollbarTheme(
+              data: ScrollbarThemeData(
+                thumbVisibility: WidgetStateProperty.all(true),
+                thickness: WidgetStateProperty.all(4),
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  prompt.isEmpty ? '-' : prompt,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ),
@@ -1354,9 +1396,6 @@ class _NegativePromptTooltip extends StatelessWidget {
 
   String _buildEffectiveNegative() {
     final parts = <String>[];
-
-    // 别名解析器
-    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
 
     // UC预设
     if (ucPresetContent.isNotEmpty) {
@@ -1576,5 +1615,59 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
     }
 
     return button;
+  }
+}
+
+/// 复制图标按钮
+class _CopyIconButton extends StatefulWidget {
+  final String content;
+  final Color color;
+
+  const _CopyIconButton({
+    required this.content,
+    required this.color,
+  });
+
+  @override
+  State<_CopyIconButton> createState() => _CopyIconButtonState();
+}
+
+class _CopyIconButtonState extends State<_CopyIconButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () async {
+          await Clipboard.setData(ClipboardData(text: widget.content));
+          if (context.mounted) {
+            AppToast.success(context, l10n.common_copied);
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: _isHovering
+                ? widget.color.withOpacity(0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.copy_rounded,
+            size: 14,
+            color: _isHovering
+                ? widget.color
+                : widget.color.withOpacity(0.6),
+          ),
+        ),
+      ),
+    );
   }
 }

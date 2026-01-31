@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/alias_parser.dart';
+import '../../core/utils/app_logger.dart';
 import '../../presentation/providers/tag_library_page_provider.dart';
 import '../models/tag_library/tag_library_entry.dart';
 
@@ -41,6 +42,12 @@ class AliasResolverService extends _$AliasResolverService {
       final resolvedContent = _resolveReference(ref);
       if (resolvedContent != null) {
         result = result.replaceRange(ref.start, ref.end, resolvedContent);
+      } else {
+        // 别名未找到，记录警告
+        AppLogger.w(
+          '别名未找到: ${ref.rawText}，请检查词库中是否存在该条目',
+          'AliasResolver',
+        );
       }
     }
 
