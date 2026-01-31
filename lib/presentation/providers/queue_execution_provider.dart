@@ -13,7 +13,6 @@ import '../../data/models/queue/failure_handling_strategy.dart';
 import 'image_generation_provider.dart';
 import 'notification_settings_provider.dart';
 import 'replication_queue_provider.dart';
-import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'quality_preset_provider.dart';
 import 'uc_preset_provider.dart';
@@ -323,9 +322,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
   /// 填充提示词到主界面
   void _fillPrompt(ReplicationTask task) {
-    // 清空角色提示词
-    ref.read(characterPromptNotifierProvider.notifier).clearAll();
-
     // 1. 应用固定词到队列任务的正面提示词
     final fixedTagsState = ref.read(fixedTagsNotifierProvider);
     String finalPrompt = fixedTagsState.entries.applyToPrompt(task.prompt);
