@@ -259,12 +259,20 @@ class PeakTimeIndicator extends StatefulWidget {
   final int peakHour;
   final int count;
   final String? label;
+  final String? morningLabel;
+  final String? afternoonLabel;
+  final String? eveningLabel;
+  final String? nightLabel;
 
   const PeakTimeIndicator({
     super.key,
     required this.peakHour,
     required this.count,
     this.label,
+    this.morningLabel,
+    this.afternoonLabel,
+    this.eveningLabel,
+    this.nightLabel,
   });
 
   @override
@@ -308,25 +316,25 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
     Color secondaryColor;
 
     if (widget.peakHour >= 6 && widget.peakHour < 12) {
-      timeLabel = 'Morning';
+      timeLabel = widget.morningLabel ?? 'Morning';
       timeIcon = Icons.wb_sunny_rounded;
       primaryColor = const Color(0xFFF59E0B); // Amber
       secondaryColor = const Color(0xFFFBBF24);
     } else if (widget.peakHour >= 12 && widget.peakHour < 18) {
-      timeLabel = 'Afternoon';
+      timeLabel = widget.afternoonLabel ?? 'Afternoon';
       timeIcon = Icons.wb_sunny_outlined;
       primaryColor = const Color(0xFFEF6C00); // Deep Orange
       secondaryColor = const Color(0xFFFF9800);
     } else if (widget.peakHour >= 18 && widget.peakHour < 22) {
-      timeLabel = 'Evening';
-      timeIcon = Icons.nights_stay_outlined;
-      primaryColor = const Color(0xFF7C3AED); // Purple
-      secondaryColor = const Color(0xFF8B5CF6);
+      timeLabel = widget.eveningLabel ?? 'Evening';
+      timeIcon = Icons.nightlight_round;
+      primaryColor = const Color(0xFF3B82F6); // Blue (twilight sky)
+      secondaryColor = const Color(0xFF60A5FA);
     } else {
-      timeLabel = 'Night';
-      timeIcon = Icons.nights_stay_rounded;
-      primaryColor = const Color(0xFF4F46E5); // Indigo
-      secondaryColor = const Color(0xFF6366F1);
+      timeLabel = widget.nightLabel ?? 'Night';
+      timeIcon = Icons.dark_mode_rounded;
+      primaryColor = const Color(0xFFFBBF24); // Moon yellow
+      secondaryColor = const Color(0xFFF59E0B);
     }
 
     return MouseRegion(

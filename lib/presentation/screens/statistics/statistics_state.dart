@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
@@ -12,47 +11,6 @@ import '../../../data/services/statistics_cache_service.dart';
 import '../../../data/services/statistics_service.dart';
 
 part 'statistics_state.g.dart';
-
-/// Statistics filter state
-class StatisticsFilter {
-  final DateTimeRange? dateRange;
-  final String? selectedModel;
-  final String? selectedResolution;
-  final String timeGranularity;
-
-  const StatisticsFilter({
-    this.dateRange,
-    this.selectedModel,
-    this.selectedResolution,
-    this.timeGranularity = 'day',
-  });
-
-  StatisticsFilter copyWith({
-    DateTimeRange? dateRange,
-    String? selectedModel,
-    String? selectedResolution,
-    String? timeGranularity,
-    bool clearDateRange = false,
-    bool clearModel = false,
-    bool clearResolution = false,
-  }) {
-    return StatisticsFilter(
-      dateRange: clearDateRange ? null : (dateRange ?? this.dateRange),
-      selectedModel: clearModel ? null : (selectedModel ?? this.selectedModel),
-      selectedResolution: clearResolution
-          ? null
-          : (selectedResolution ?? this.selectedResolution),
-      timeGranularity: timeGranularity ?? this.timeGranularity,
-    );
-  }
-
-  bool get hasActiveFilters =>
-      dateRange != null ||
-      (selectedModel != null && selectedModel!.isNotEmpty) ||
-      (selectedResolution != null && selectedResolution!.isNotEmpty);
-
-  StatisticsFilter clear() => const StatisticsFilter();
-}
 
 /// Statistics data state
 class StatisticsData {
@@ -90,66 +48,32 @@ class StatisticsData {
       lastUpdate: lastUpdate ?? this.lastUpdate,
     );
   }
-
-  List<String> get availableModels {
-    final models = allRecords
-        .map((r) => r.metadata?.model)
-        .whereType<String>()
-        .toSet()
-        .toList();
-    models.sort();
-    return models;
-  }
-
-  List<String> get availableResolutions {
-    final resolutions = allRecords
-        .where((r) => r.metadata != null && r.metadata!.hasData)
-        .map((r) => '${r.metadata!.width}x${r.metadata!.height}')
-        .toSet()
-        .toList();
-    resolutions.sort();
-    return resolutions;
-  }
 }
 
 /// Statistics notifier for managing state with caching
 /// keepAlive: true ensures data persists when navigating away from statistics screen
 @Riverpod(keepAlive: true)
 class StatisticsNotifier extends _$StatisticsNotifier {
-  StatisticsFilter _filter = const StatisticsFilter();
-
   // === Caching mechanism ===
   List<LocalImageRecord>? _cachedRecords;
   DateTime? _cacheTimestamp;
   static const _cacheValidDuration = Duration(minutes: 5);
+  static const _defaultCacheKey = 'default';
 
-  // Statistics result cache (by filter condition)
+  // Statistics result cache
   final Map<String, GalleryStatistics> _statsCache = {};
-
-  // Debounce timer for filter updates
-  Timer? _debounceTimer;
 
   bool get _isCacheValid =>
       _cachedRecords != null &&
       _cacheTimestamp != null &&
       DateTime.now().difference(_cacheTimestamp!) < _cacheValidDuration;
 
-  String _getCacheKey(StatisticsFilter filter) {
-    return '${filter.dateRange?.start.millisecondsSinceEpoch}_'
-        '${filter.dateRange?.end.millisecondsSinceEpoch}_'
-        '${filter.selectedModel}_${filter.selectedResolution}';
-  }
-
   @override
   StatisticsData build() {
-    // Clean up timer on dispose
-    ref.onDispose(() => _debounceTimer?.cancel());
     // Defer loading to avoid blocking UI during navigation
     Future.microtask(() => _loadStatistics());
     return const StatisticsData();
   }
-
-  StatisticsFilter get filter => _filter;
 
   /// Main load method: prefer using cache
   Future<void> _loadStatistics() async {
@@ -162,8 +86,8 @@ class StatisticsNotifier extends _$StatisticsNotifier {
       // Step 1: Load data (use cache if valid)
       await _ensureRecordsLoaded();
 
-      // Step 2: Apply filter and compute statistics
-      await _applyFilterAndCompute();
+      // Step 2: Compute statistics
+      await _computeStatistics();
     } catch (e) {
       state = state.copyWith(
         error: e.toString(),
@@ -199,18 +123,16 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     _cacheTimestamp = DateTime.now();
   }
 
-  /// Apply filter and compute statistics (with result caching)
-  Future<void> _applyFilterAndCompute() async {
+  /// Compute statistics (with result caching)
+  Future<void> _computeStatistics() async {
     final records = _cachedRecords ?? [];
-    final filteredRecords = _applyFilters(records);
-    final cacheKey = _getCacheKey(_filter);
 
     // Check statistics result cache
-    if (_statsCache.containsKey(cacheKey)) {
+    if (_statsCache.containsKey(_defaultCacheKey)) {
       state = StatisticsData(
         allRecords: records,
-        filteredRecords: filteredRecords,
-        statistics: _statsCache[cacheKey],
+        filteredRecords: records,
+        statistics: _statsCache[_defaultCacheKey],
         isLoading: false,
         lastUpdate: DateTime.now(),
       );
@@ -219,101 +141,20 @@ class StatisticsNotifier extends _$StatisticsNotifier {
 
     // Compute new statistics and cache
     final service = ref.read(statisticsServiceProvider);
-    final statistics = await service.computeAllStatistics(filteredRecords);
-    _statsCache[cacheKey] = statistics;
+    final statistics = await service.computeAllStatistics(records);
+    _statsCache[_defaultCacheKey] = statistics;
 
-    // 如果是默认过滤器（无过滤条件），同步保存到持久化缓存
-    if (!_filter.hasActiveFilters) {
-      final cacheService = ref.read(statisticsCacheServiceProvider);
-      await cacheService.saveCache(statistics, records.length);
-    }
+    // Save to persistent cache
+    final cacheService = ref.read(statisticsCacheServiceProvider);
+    await cacheService.saveCache(statistics, records.length);
 
     state = StatisticsData(
       allRecords: records,
-      filteredRecords: filteredRecords,
+      filteredRecords: records,
       statistics: statistics,
       isLoading: false,
       lastUpdate: DateTime.now(),
     );
-  }
-
-  List<LocalImageRecord> _applyFilters(List<LocalImageRecord> records) {
-    var filtered = records;
-
-    if (_filter.dateRange != null) {
-      filtered = filtered.where((record) {
-        final fileDate = record.modifiedAt;
-        return !fileDate.isBefore(_filter.dateRange!.start) &&
-            !fileDate.isAfter(_filter.dateRange!.end);
-      }).toList();
-    }
-
-    if (_filter.selectedModel != null && _filter.selectedModel!.isNotEmpty) {
-      filtered = filtered.where((record) {
-        return record.metadata?.model == _filter.selectedModel;
-      }).toList();
-    }
-
-    if (_filter.selectedResolution != null &&
-        _filter.selectedResolution!.isNotEmpty) {
-      filtered = filtered.where((record) {
-        if (record.metadata == null) return false;
-        final resolution =
-            '${record.metadata!.width}x${record.metadata!.height}';
-        return resolution == _filter.selectedResolution;
-      }).toList();
-    }
-
-    return filtered;
-  }
-
-  /// Schedule filter update with debounce
-  void _scheduleFilterUpdate() {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      _applyFilterAndCompute();
-    });
-  }
-
-  void updateFilter(StatisticsFilter newFilter) {
-    _filter = newFilter;
-    state = state.copyWith(isLoading: true);
-    _scheduleFilterUpdate();
-  }
-
-  void setDateRange(DateTimeRange? range) {
-    _filter = _filter.copyWith(dateRange: range, clearDateRange: range == null);
-    state = state.copyWith(isLoading: true);
-    _scheduleFilterUpdate();
-  }
-
-  void setModel(String? model) {
-    _filter = _filter.copyWith(
-      selectedModel: model,
-      clearModel: model == null || model.isEmpty,
-    );
-    state = state.copyWith(isLoading: true);
-    _scheduleFilterUpdate();
-  }
-
-  void setResolution(String? resolution) {
-    _filter = _filter.copyWith(
-      selectedResolution: resolution,
-      clearResolution: resolution == null || resolution.isEmpty,
-    );
-    state = state.copyWith(isLoading: true);
-    _scheduleFilterUpdate();
-  }
-
-  void setTimeGranularity(String granularity) {
-    _filter = _filter.copyWith(timeGranularity: granularity);
-    state = state.copyWith(); // Trigger rebuild without reloading data
-  }
-
-  void clearFilters() {
-    _filter = const StatisticsFilter();
-    state = state.copyWith(isLoading: true);
-    _scheduleFilterUpdate();
   }
 
   /// Force refresh: clear all caches
@@ -321,31 +162,30 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     _cachedRecords = null;
     _cacheTimestamp = null;
     _statsCache.clear();
-    // 清除持久化缓存
+    // Clear persistent cache
     final cacheService = ref.read(statisticsCacheServiceProvider);
     await cacheService.clearCache();
     await _loadStatistics();
   }
 
-  /// 预热阶段专用：预加载数据但不触发UI更新
+  /// Preload for warmup: preload data without triggering UI updates
   ///
-  /// 在应用启动时调用，将统计数据预先加载到缓存中，
-  /// 以便用户打开统计页面时能立即看到数据。
+  /// Called during app startup to preload statistics data into cache,
+  /// so users see data immediately when opening the statistics page.
   Future<void> preloadForWarmup() async {
     try {
       final cacheService = ref.read(statisticsCacheServiceProvider);
       final repository = LocalGalleryRepository.instance;
 
-      // Step 1: 快速获取当前图片数量
+      // Step 1: Quickly get current image count
       final files = await repository.getAllImageFiles();
       final currentImageCount = files.length;
 
-      // Step 2: 尝试从持久化缓存加载
+      // Step 2: Try loading from persistent cache
       final cachedStats = cacheService.getCache();
       if (cachedStats != null && cacheService.isCacheValid(currentImageCount)) {
-        // 缓存命中，直接使用
-        final cacheKey = _getCacheKey(const StatisticsFilter());
-        _statsCache[cacheKey] = cachedStats;
+        // Cache hit, use directly
+        _statsCache[_defaultCacheKey] = cachedStats;
         AppLogger.i(
           'Statistics loaded from persistent cache: $currentImageCount images',
           'Warmup',
@@ -353,13 +193,13 @@ class StatisticsNotifier extends _$StatisticsNotifier {
         return;
       }
 
-      // Step 3: 缓存未命中或过期，执行完整计算
+      // Step 3: Cache miss or expired, perform full computation
       AppLogger.i(
         'Statistics cache miss, computing for $currentImageCount images',
         'Warmup',
       );
 
-      // 加载记录到内存缓存
+      // Load records into memory cache
       await _ensureRecordsLoaded();
 
       final records = _cachedRecords ?? [];
@@ -368,15 +208,14 @@ class StatisticsNotifier extends _$StatisticsNotifier {
         return;
       }
 
-      // 使用默认过滤器预计算统计
+      // Compute statistics
       final service = ref.read(statisticsServiceProvider);
       final statistics = await service.computeAllStatistics(records);
 
-      // 缓存结果到内存
-      final cacheKey = _getCacheKey(const StatisticsFilter());
-      _statsCache[cacheKey] = statistics;
+      // Cache result in memory
+      _statsCache[_defaultCacheKey] = statistics;
 
-      // Step 4: 保存到持久化缓存
+      // Step 4: Save to persistent cache
       await cacheService.saveCache(statistics, records.length);
 
       AppLogger.i(
@@ -385,7 +224,7 @@ class StatisticsNotifier extends _$StatisticsNotifier {
       );
     } catch (e) {
       AppLogger.w('Statistics preload failed: $e', 'Warmup');
-      // 不抛出异常，允许预热继续
+      // Don't throw, allow warmup to continue
     }
   }
 }

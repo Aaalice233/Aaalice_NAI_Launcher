@@ -12,6 +12,7 @@ class MetricCard extends StatefulWidget {
   final TrendData? trend;
   final List<double>? sparklineData;
   final VoidCallback? onTap;
+  final bool compact; // 单行紧凑布局
 
   const MetricCard({
     super.key,
@@ -22,6 +23,7 @@ class MetricCard extends StatefulWidget {
     this.trend,
     this.sparklineData,
     this.onTap,
+    this.compact = false,
   });
 
   @override
@@ -78,82 +80,149 @@ class _MetricCardState extends State<MetricCard> {
             splashColor: effectiveIconColor.withOpacity(0.08),
             highlightColor: effectiveIconColor.withOpacity(0.04),
             child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header row: icon + label
-                  Row(
-                    children: [
-                      // 深度层叠风格：简洁图标容器
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: effectiveIconColor.withOpacity(
-                            isDark ? 0.15 : 0.1,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(
-                          widget.icon,
-                          size: 20,
-                          color: effectiveIconColor,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          widget.label,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Value row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.value,
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                            letterSpacing: -0.5,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (widget.trend != null)
-                        TrendIndicator(data: widget.trend!),
-                    ],
-                  ),
-                  // Sparkline
-                  if (widget.sparklineData != null &&
-                      widget.sparklineData!.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: 36,
-                      child: MiniSparkline(
-                        data: widget.sparklineData!,
-                        color: effectiveIconColor,
-                        strokeWidth: 2.5,
-                      ),
+              padding: EdgeInsets.all(widget.compact ? 14 : 18),
+              child: widget.compact
+                  ? _buildCompactLayout(
+                      theme,
+                      colorScheme,
+                      effectiveIconColor,
+                      isDark,
+                    )
+                  : _buildDefaultLayout(
+                      theme,
+                      colorScheme,
+                      effectiveIconColor,
+                      isDark,
                     ),
-                  ],
-                ],
-              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// 紧凑单行布局
+  Widget _buildCompactLayout(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    Color effectiveIconColor,
+    bool isDark,
+  ) {
+    return Row(
+      children: [
+        // Icon container
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: effectiveIconColor.withOpacity(isDark ? 0.15 : 0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            widget.icon,
+            size: 18,
+            color: effectiveIconColor,
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Label
+        Text(
+          widget.label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const Spacer(),
+        // Value
+        Text(
+          widget.value,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+            letterSpacing: -0.3,
+          ),
+        ),
+        if (widget.trend != null) ...[
+          const SizedBox(width: 10),
+          TrendIndicator(data: widget.trend!),
+        ],
+      ],
+    );
+  }
+
+  /// 默认两行布局
+  Widget _buildDefaultLayout(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    Color effectiveIconColor,
+    bool isDark,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header row: icon + label
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: effectiveIconColor.withOpacity(isDark ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                widget.icon,
+                size: 20,
+                color: effectiveIconColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                widget.label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Value row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Text(
+                widget.value,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                  letterSpacing: -0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (widget.trend != null) TrendIndicator(data: widget.trend!),
+          ],
+        ),
+        // Sparkline
+        if (widget.sparklineData != null &&
+            widget.sparklineData!.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 36,
+            child: MiniSparkline(
+              data: widget.sparklineData!,
+              color: effectiveIconColor,
+              strokeWidth: 2.5,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

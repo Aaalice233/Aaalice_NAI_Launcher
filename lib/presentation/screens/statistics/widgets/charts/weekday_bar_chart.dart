@@ -142,12 +142,21 @@ class _WeekdayBarChartState extends State<WeekdayBarChart> {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
+            checkToShowHorizontalLine: (value) => true,
             getDrawingHorizontalLine: (value) => FlLine(
               color: colorScheme.outlineVariant.withOpacity(0.2),
               strokeWidth: 1,
             ),
           ),
-          borderData: FlBorderData(show: false),
+          borderData: FlBorderData(
+            show: true,
+            border: Border(
+              bottom: BorderSide(
+                color: colorScheme.outlineVariant.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+          ),
           barGroups: List.generate(7, (index) {
             final dayNum = index + 1;
             final count = widget.weekdayData[dayNum] ?? 0;

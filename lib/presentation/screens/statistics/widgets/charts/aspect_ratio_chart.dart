@@ -67,7 +67,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
             children: [
               // Pie chart
               Expanded(
-                flex: 3,
+                flex: 2,
                 child: PieChart(
                   PieChartData(
                     pieTouchData: PieTouchData(
@@ -84,7 +84,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
                       },
                     ),
                     sectionsSpace: 2,
-                    centerSpaceRadius: 40,
+                    centerSpaceRadius: 36,
                     sections: widget.items.asMap().entries.map((entry) {
                       final index = entry.key;
                       final item = entry.value;
@@ -98,7 +98,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
                         title: isTouched
                             ? '${item.percentage.toStringAsFixed(1)}%'
                             : '',
-                        radius: isTouched ? 60 : 50,
+                        radius: isTouched ? 50 : 42,
                         titleStyle: theme.textTheme.labelMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -110,9 +110,9 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
               ),
               // Aspect ratio preview cards
               if (widget.showLegend) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 140,
                   child: _buildLegend(context),
                 ),
               ],
@@ -126,9 +126,9 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
   Widget _buildLegend(BuildContext context) {
     return ListView.separated(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(right: 8),
       itemCount: widget.items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, index) {
         final item = widget.items[index];
         final color =
@@ -170,18 +170,18 @@ class _AspectRatioLegendItem extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: isHighlighted
               ? color.withOpacity(0.15)
               : colorScheme.surfaceContainerLow.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: isHighlighted ? color : Colors.transparent,
-            width: 1.5,
+            width: 1,
           ),
         ),
         child: Row(
@@ -190,9 +190,9 @@ class _AspectRatioLegendItem extends StatelessWidget {
             _AspectRatioPreview(
               ratio: item.ratio,
               color: color,
-              size: 24,
+              size: 20,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             // Info
             Expanded(
               child: Column(
@@ -201,7 +201,7 @@ class _AspectRatioLegendItem extends StatelessWidget {
                 children: [
                   Text(
                     item.ratio,
-                    style: theme.textTheme.labelMedium?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -209,6 +209,7 @@ class _AspectRatioLegendItem extends StatelessWidget {
                     item.label,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -217,7 +218,7 @@ class _AspectRatioLegendItem extends StatelessWidget {
             // Count
             Text(
               '${item.count}',
-              style: theme.textTheme.labelMedium?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
               ),

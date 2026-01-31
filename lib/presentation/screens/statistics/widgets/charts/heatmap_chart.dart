@@ -253,7 +253,7 @@ class _HeatmapChartState extends State<HeatmapChart>
     AppLocalizations l10n,
   ) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(
           l10n.statistics_heatmapLess,
@@ -263,7 +263,7 @@ class _HeatmapChartState extends State<HeatmapChart>
             color: colorScheme.onSurfaceVariant.withOpacity(0.7),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         ...List.generate(5, (index) {
           final value = index / 4;
           return Container(
@@ -288,7 +288,7 @@ class _HeatmapChartState extends State<HeatmapChart>
             ),
           );
         }),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         Text(
           l10n.statistics_heatmapMore,
           style: theme.textTheme.bodySmall?.copyWith(

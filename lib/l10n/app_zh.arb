@@ -2045,6 +2045,15 @@
       "count": {}
     }
   },
+  "statistics_anlasCost": "点数消耗",
+  "statistics_totalAnlasCost": "总消耗",
+  "statistics_avgDailyCost": "日均消耗",
+  "statistics_noAnlasData": "暂无点数消耗数据",
+  "statistics_peakActivity": "活跃高峰",
+  "statistics_timeMorning": "上午",
+  "statistics_timeAfternoon": "下午",
+  "statistics_timeEvening": "傍晚",
+  "statistics_timeNight": "深夜",
 
   "layer_duplicate": "复制图层",
   "layer_delete": "删除图层",

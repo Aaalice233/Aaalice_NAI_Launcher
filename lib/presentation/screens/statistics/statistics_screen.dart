@@ -1,135 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../themes/theme_extension.dart';
 import 'statistics_state.dart';
-import 'pages/pages.dart';
-import 'widgets/navigation/dashboard_sidebar.dart';
+import 'widgets/widgets.dart';
 
-/// Statistics Screen - Sidebar navigation design
-/// 统计屏幕 - 左侧边栏导航设计
-class StatisticsScreen extends ConsumerStatefulWidget {
+/// Statistics Screen - Single page waterfall dashboard layout
+/// 统计屏幕 - 单页瀑布流仪表盘布局
+class StatisticsScreen extends ConsumerWidget {
   const StatisticsScreen({super.key});
 
   @override
-  ConsumerState<StatisticsScreen> createState() => _StatisticsScreenState();
-}
-
-class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
-  int _selectedIndex = 0;
-  bool _sidebarCollapsed = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = theme.colorScheme;
     final extension = theme.extension<AppThemeExtension>();
     final data = ref.watch(statisticsNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
 
-    // 导航项列表
-    final navItems = [
-      DashboardNavItem(
-        icon: Icons.dashboard_outlined,
-        label: l10n.statistics_navOverview,
-      ),
-      DashboardNavItem(
-        icon: Icons.category_outlined,
-        label: l10n.statistics_navModels,
-      ),
-      DashboardNavItem(
-        icon: Icons.local_offer_outlined,
-        label: l10n.statistics_navTags,
-      ),
-      DashboardNavItem(
-        icon: Icons.tune_outlined,
-        label: l10n.statistics_navParameters,
-      ),
-      DashboardNavItem(
-        icon: Icons.show_chart_outlined,
-        label: l10n.statistics_navTrends,
-      ),
-      DashboardNavItem(
-        icon: Icons.access_time_outlined,
-        label: l10n.statistics_navActivity,
-      ),
-    ];
+    // 响应式列数
+    final crossAxisCount = _getCrossAxisCount(screenWidth);
 
-    // 页面列表
-    const pages = [
-      OverviewPage(),
-      ModelPage(),
-      TagPage(),
-      ParameterPage(),
-      TrendsPage(),
-      ActivityPage(),
-    ];
-
-    // 移动端使用底部导航 + PageView
-    if (isMobile) {
-      return _buildMobileLayout(
-        context,
-        theme,
-        l10n,
-        colorScheme,
-        data,
-        navItems,
-        pages,
-      );
-    }
-
-    // 桌面端使用左侧边栏布局
-    return _buildDesktopLayout(
-      context,
-      theme,
-      l10n,
-      colorScheme,
-      extension,
-      data,
-      navItems,
-      pages,
-    );
-  }
-
-  /// 桌面端布局：左侧边栏 + 内容区
-  Widget _buildDesktopLayout(
-    BuildContext context,
-    ThemeData theme,
-    AppLocalizations l10n,
-    ColorScheme colorScheme,
-    AppThemeExtension? extension,
-    StatisticsData data,
-    List<DashboardNavItem> navItems,
-    List<Widget> pages,
-  ) {
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          // 左侧边栏
-          DashboardSidebar(
-            selectedIndex: _selectedIndex,
-            onIndexChanged: (index) {
-              setState(() => _selectedIndex = index);
-            },
-            items: navItems,
-            isCollapsed: _sidebarCollapsed,
-            onCollapsedChanged: () {
-              setState(() => _sidebarCollapsed = !_sidebarCollapsed);
-            },
-          ),
-          // 内容区
+          // 顶部标题栏
+          _buildHeader(context, theme, l10n, colorScheme, extension),
+          // 内容区域
           Expanded(
-            child: _buildContentArea(
+            child: _buildContent(
               context,
               theme,
               l10n,
               colorScheme,
-              extension,
               data,
-              pages,
+              ref,
+              crossAxisCount,
             ),
           ),
         ],
@@ -137,71 +46,20 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     );
   }
 
-  /// 内容区域构建
-  Widget _buildContentArea(
+  /// 根据屏幕宽度获取列数
+  int _getCrossAxisCount(double width) {
+    if (width < 600) return 1;
+    if (width < 900) return 2;
+    return 3;
+  }
+
+  /// 顶部标题栏
+  Widget _buildHeader(
     BuildContext context,
     ThemeData theme,
     AppLocalizations l10n,
     ColorScheme colorScheme,
     AppThemeExtension? extension,
-    StatisticsData data,
-    List<Widget> pages,
-  ) {
-    final shadowIntensity = extension?.shadowIntensity ?? 0.15;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        // 左侧内阴影效果，增加层次感
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(shadowIntensity * 0.3),
-            blurRadius: 8,
-            offset: const Offset(-2, 0),
-            spreadRadius: -4,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 顶部标题栏
-          _buildHeader(theme, l10n, colorScheme, extension, data),
-          // 页面内容
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.02, 0),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey(_selectedIndex),
-                child: pages[_selectedIndex],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 顶部标题栏
-  Widget _buildHeader(
-    ThemeData theme,
-    AppLocalizations l10n,
-    ColorScheme colorScheme,
-    AppThemeExtension? extension,
-    StatisticsData data,
   ) {
     final borderColor = extension?.borderColor ?? colorScheme.outlineVariant;
 
@@ -233,107 +91,127 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             ),
           ),
           const Spacer(),
-          // 刷新按钮
-          if (data.isLoading)
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            _buildRefreshButton(theme, l10n, colorScheme),
+          // 刷新按钮 (自带加载动画)
+          const AnimatedRefreshButton(),
         ],
       ),
     );
   }
 
-  /// 刷新按钮
-  Widget _buildRefreshButton(
-    ThemeData theme,
-    AppLocalizations l10n,
-    ColorScheme colorScheme,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: () => ref.read(statisticsNotifierProvider.notifier).refresh(),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withOpacity(0.5),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.refresh,
-                size: 18,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                l10n.statistics_refresh,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 移动端布局：底部导航
-  Widget _buildMobileLayout(
+  /// 内容区域
+  Widget _buildContent(
     BuildContext context,
     ThemeData theme,
     AppLocalizations l10n,
     ColorScheme colorScheme,
     StatisticsData data,
-    List<DashboardNavItem> navItems,
-    List<Widget> pages,
+    WidgetRef ref,
+    int crossAxisCount,
   ) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.statistics_title),
-        actions: [
-          if (data.isLoading)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: l10n.statistics_refresh,
-              onPressed: () =>
-                  ref.read(statisticsNotifierProvider.notifier).refresh(),
-            ),
-          const SizedBox(width: 8),
+    if (data.isLoading && data.statistics == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (data.error != null && data.statistics == null) {
+      return _buildErrorState(context, l10n, data.error!, ref);
+    }
+
+    final stats = data.statistics;
+    if (stats == null || stats.totalImages == 0) {
+      return _buildEmptyState(l10n);
+    }
+
+    final records = data.filteredRecords;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: StaggeredGrid.count(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        children: [
+          // 概览统计行 - 全宽
+          StaggeredGridTile.fit(
+            crossAxisCellCount: crossAxisCount,
+            child: OverviewStatsRow(stats: stats),
+          ),
+
+          // 其他统计卡片 - 1列
+          StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: OtherStatsCard(stats: stats),
+          ),
+
+          // 点数花费统计卡片 - 1列
+          const StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: AnlasCostCard(),
+          ),
+
+          // 采样器分布卡片 - 1列
+          StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: SamplerDistributionCard(stats: stats),
+          ),
+
+          // 宽高比分布卡片 - 1列
+          StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: AspectRatioCard(stats: stats),
+          ),
+
+          // 活动热力图卡片 - 1列
+          StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: ActivityHeatmapCard(records: records),
+          ),
+
+          // 小时分布卡片 - 1列
+          StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: HourlyDistributionCard(records: records),
+          ),
+
+          // 星期分布卡片 - 1列
+          StaggeredGridTile.fit(
+            crossAxisCellCount: 1,
+            child: WeekdayDistributionCard(records: records),
+          ),
         ],
       ),
-      body: pages[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        destinations: navItems.map((item) {
-          return NavigationDestination(
-            icon: Icon(item.icon),
-            label: item.label,
-          );
-        }).toList(),
+    );
+  }
+
+  Widget _buildErrorState(
+    BuildContext context,
+    AppLocalizations l10n,
+    String error,
+    WidgetRef ref,
+  ) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          Text(l10n.statistics_error(error)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () =>
+                ref.read(statisticsNotifierProvider.notifier).refresh(),
+            child: Text(l10n.statistics_retry),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(AppLocalizations l10n) {
+    return Center(
+      child: ChartEmptyState(
+        icon: Icons.bar_chart_outlined,
+        title: l10n.statistics_noData,
+        subtitle: l10n.statistics_generateFirst,
       ),
     );
   }

@@ -202,21 +202,24 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
     ColorScheme colorScheme,
     ThemeData theme,
   ) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: widget.items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final item = widget.items[index];
-        return _HorizontalBarRow(
-          item: item,
-          maxValue: maxValue,
-          color: item.color ?? colorScheme.primary,
-          onTap:
-              widget.onItemTap != null ? () => widget.onItemTap!(item) : null,
-        );
-      },
+    return Align(
+      alignment: Alignment.topLeft,
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: widget.items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final item = widget.items[index];
+          return _HorizontalBarRow(
+            item: item,
+            maxValue: maxValue,
+            color: item.color ?? colorScheme.primary,
+            onTap:
+                widget.onItemTap != null ? () => widget.onItemTap!(item) : null,
+          );
+        },
+      ),
     );
   }
 }
@@ -243,53 +246,55 @@ class _HorizontalBarRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 80,
-              child: Text(
-                item.label,
-                style: theme.textTheme.bodySmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Stack(
-                children: [
-                  Container(
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color:
-                          colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Tooltip(
+                    message: item.label,
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: Text(
+                      item.label,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  FractionallySizedBox(
-                    widthFactor: (item.count / maxValue).clamp(0.0, 1.0),
-                    child: Container(
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 60,
-              child: Text(
-                '${item.count}',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
                 ),
-                textAlign: TextAlign.end,
-              ),
+                const SizedBox(width: 8),
+                Text(
+                  '${item.count}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Stack(
+              children: [
+                Container(
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                FractionallySizedBox(
+                  widthFactor: (item.count / maxValue).clamp(0.0, 1.0),
+                  child: Container(
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

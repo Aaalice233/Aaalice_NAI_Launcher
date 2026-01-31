@@ -2476,6 +2476,15 @@
       "count": {}
     }
   },
+  "statistics_anlasCost": "Anlas Cost",
+  "statistics_totalAnlasCost": "Total Cost",
+  "statistics_avgDailyCost": "Daily Average",
+  "statistics_noAnlasData": "No Anlas consumption data",
+  "statistics_peakActivity": "Peak Activity",
+  "statistics_timeMorning": "Morning",
+  "statistics_timeAfternoon": "Afternoon",
+  "statistics_timeEvening": "Evening",
+  "statistics_timeNight": "Night",
 
   "localGallery_favoritesOnly": "Favorites Only",
   "localGallery_noFavorites": "No favorites yet",

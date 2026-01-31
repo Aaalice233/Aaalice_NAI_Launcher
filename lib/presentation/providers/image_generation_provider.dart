@@ -20,6 +20,7 @@ import '../../data/models/tag/tag_suggestion.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
 import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/services/anlas_statistics_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import 'character_prompt_provider.dart';
 import '../../data/services/alias_resolver_service.dart';
@@ -223,6 +224,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
     }
 
+    // 记录生成前的余额，用于计算点数消耗
+    final balanceBefore = ref.read(anlasBalanceProvider);
+
     // 开始生成前清空当前图片
     state = state.copyWith(
       currentImages: [],
@@ -413,8 +417,22 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       totalImages: 0,
     );
 
-    // 生成完成后刷新 Anlas 余额
-    ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
+    // 生成完成后刷新 Anlas 余额并记录消耗
+    await ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
+
+    // 计算并记录点数消耗
+    if (balanceBefore != null && !_isCancelled) {
+      final balanceAfter = ref.read(anlasBalanceProvider);
+      if (balanceAfter != null) {
+        final cost = balanceBefore - balanceAfter;
+        if (cost > 0) {
+          final anlasService =
+              await ref.read(anlasStatisticsServiceProvider.future);
+          await anlasService.recordCost(cost);
+          AppLogger.d('Recorded Anlas cost: $cost', 'AnlasStats');
+        }
+      }
+    }
 
     // 注意：生成完成通知由 QueueExecutionNotifier 统一管理
     // 以避免循环依赖（ImageGenerationNotifier ↔ QueueExecutionNotifier）
