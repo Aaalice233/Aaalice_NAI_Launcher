@@ -110,9 +110,9 @@ class GenericAutocompleteOverlay extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildShortcutHint(theme, '↑↓', '选择'),
+                          _buildShortcutHint(theme, '↑↓/滚轮', '选择'),
                           const SizedBox(width: 12),
-                          _buildShortcutHint(theme, 'Enter', '确认'),
+                          _buildShortcutHint(theme, 'Enter/Tab', '确认'),
                           const SizedBox(width: 12),
                           _buildShortcutHint(theme, 'Esc', '关闭'),
                         ],

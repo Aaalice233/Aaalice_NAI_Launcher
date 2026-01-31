@@ -9,6 +9,10 @@ class SuggestionData {
   final int count;
   final String? translation;
   final String? alias;
+  final String? thumbnailPath;
+
+  /// 词库条目分类标识
+  static const int categoryLibrary = 99;
 
   const SuggestionData({
     required this.tag,
@@ -16,7 +20,11 @@ class SuggestionData {
     required this.count,
     this.translation,
     this.alias,
+    this.thumbnailPath,
   });
+
+  /// 是否为词库条目
+  bool get isLibraryEntry => category == categoryLibrary;
 
   /// 获取分类名称
   String get categoryName {
@@ -29,6 +37,8 @@ class SuggestionData {
         return '角色';
       case 5:
         return '元数据';
+      case categoryLibrary:
+        return '词库';
       default:
         return '通用';
     }

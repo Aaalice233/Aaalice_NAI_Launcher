@@ -99,7 +99,7 @@ class _DanbooruAutocompleteWrapperState
       _ownsFocusNode = true;
     }
     _focusNode.addListener(_onFocusChanged);
-    _focusNode.onKeyEvent = _handleKeyEvent;
+    // 键盘事件通过 build() 中的 Focus widget 处理
     widget.controller.addListener(_onTextChanged);
   }
 
@@ -123,7 +123,6 @@ class _DanbooruAutocompleteWrapperState
         _ownsFocusNode = true;
       }
       _focusNode.addListener(_onFocusChanged);
-      _focusNode.onKeyEvent = _handleKeyEvent;
     }
   }
 
@@ -422,11 +421,15 @@ class _DanbooruAutocompleteWrapperState
       return widget.child;
     }
 
-    // 不使用 Focus widget 包装，避免焦点冲突
-    // 键盘事件通过 focusNode.onKeyEvent 直接处理
+    // 使用 Focus widget 拦截键盘事件
     return CompositedTransformTarget(
       link: _layerLink,
-      child: widget.child,
+      child: Focus(
+        skipTraversal: true,
+        canRequestFocus: false,
+        onKeyEvent: (node, event) => _handleKeyEvent(node, event),
+        child: widget.child,
+      ),
     );
   }
 }

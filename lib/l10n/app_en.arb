@@ -681,6 +681,7 @@
   "unifiedRef_switchTitle": "Switch Mode",
   "unifiedRef_switchContent": "Switching modes will clear current references. Continue?",
 
+  "character_buttonLabel": "Characters",
   "character_title": "Multi-Character (V4 Only)",
   "character_hint": "Define independent prompts and positions for each character (max 6)",
   "character_addCharacter": "Add Character",
@@ -3142,6 +3143,22 @@
   "diyNotAvailableForDefault": "DIY not available for default preset",
   "diyNotAvailableHint": "Please copy to a custom preset to edit",
   "customGroupDisabledAfterReset": "Custom group (disabled)",
-  "confirmReset": "Confirm Reset"
+  "confirmReset": "Confirm Reset",
+
+  "alias_hintText": "Enter prompts, or use <library name> to reference library content",
+  "alias_libraryCategory": "Library",
+  "alias_tagCount": "{count} tags",
+  "@alias_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "alias_useCount": "Used {count} times",
+  "@alias_useCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "alias_favorited": "Favorited"
 
 }

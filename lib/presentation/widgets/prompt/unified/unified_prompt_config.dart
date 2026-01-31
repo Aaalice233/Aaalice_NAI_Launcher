@@ -127,6 +127,27 @@ class UnifiedPromptConfig {
     ),
   );
 
+  /// 主提示词输入框预设配置
+  ///
+  /// 适用于生成页面的主提示词输入框。
+  /// 包含词库别名功能的提示说明。
+  static const mainPromptInput = UnifiedPromptConfig(
+    enableAutocomplete: true,
+    enableSyntaxHighlight: true,
+    enableAutoFormat: true,
+    enableSdSyntaxAutoConvert: false,
+    enableComfyuiImport: true,
+    compact: false,
+    readOnly: false,
+    hintText: '输入提示词，或使用 <词库名称> 引用词库内容',
+    autocompleteConfig: AutocompleteConfig(
+      maxSuggestions: 15,
+      showTranslation: true,
+      showCategory: true,
+      autoInsertComma: true,
+    ),
+  );
+
   /// 创建配置副本并覆盖指定属性
   UnifiedPromptConfig copyWith({
     bool? enableAutocomplete,

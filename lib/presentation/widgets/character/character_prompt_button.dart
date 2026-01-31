@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
@@ -25,49 +26,66 @@ class CharacterPromptButton extends ConsumerWidget {
 
     return _CharacterTooltipWrapper(
       config: config,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => CharacterEditorDialog.show(context),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => CharacterEditorDialog.show(context),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: hasCharacters
-                    ? colorScheme.primary.withOpacity(0.5)
-                    : colorScheme.outline.withOpacity(0.3),
-                width: 1,
-              ),
-              color: hasCharacters
-                  ? colorScheme.primary.withOpacity(0.1)
-                  : Colors.transparent,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.people_outline,
-                  size: 18,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: hasCharacters
+                        ? colorScheme.primary.withOpacity(0.5)
+                        : colorScheme.outline.withOpacity(0.3),
+                    width: 1,
+                  ),
                   color: hasCharacters
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
+                      ? colorScheme.primary.withOpacity(0.1)
+                      : Colors.transparent,
                 ),
-                if (hasCharacters) ...[
-                  const SizedBox(width: 4),
-                  _CharacterCountBadge(count: characterCount),
-                ],
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _DynamicCharacterIcon(
+                      characters: config.characters,
+                      size: 18,
+                      emptyColor: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      AppLocalizations.of(context)!.character_buttonLabel,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: hasCharacters
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          // 按钮右上角角标
+          if (hasCharacters)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: _CharacterCountBadge(count: characterCount),
+            ),
+        ],
       ),
     );
   }
 }
 
-/// 角色数量徽章
+/// 角色数量角标
 class _CharacterCountBadge extends StatelessWidget {
   final int count;
 
@@ -79,17 +97,24 @@ class _CharacterCountBadge extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      constraints: const BoxConstraints(
+        minWidth: 14,
+        minHeight: 14,
+      ),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: colorScheme.primary,
-        borderRadius: BorderRadius.circular(10),
+        shape: BoxShape.circle,
       ),
-      child: Text(
-        count.toString(),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: colorScheme.onPrimary,
-          fontWeight: FontWeight.w600,
-          fontSize: 11,
+      child: Center(
+        child: Text(
+          count.toString(),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 9,
+            height: 1,
+          ),
         ),
       ),
     );
@@ -117,11 +142,10 @@ class CharacterPromptIconButton extends ConsumerWidget {
         children: [
           IconButton(
             onPressed: () => CharacterEditorDialog.show(context),
-            icon: Icon(
-              hasCharacters ? Icons.people : Icons.people_outline,
-              color: hasCharacters
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+            icon: _DynamicCharacterIcon(
+              characters: config.characters,
+              size: 24,
+              emptyColor: colorScheme.onSurfaceVariant,
             ),
           ),
           if (hasCharacters)
@@ -152,6 +176,187 @@ class CharacterPromptIconButton extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// 动态角色图标组件
+///
+/// 根据角色列表动态显示人形图标：
+/// - 无角色：显示空心人形轮廓
+/// - 有角色：根据性别显示不同颜色的人形（粉色=女，蓝色=男，灰色=其他）
+class _DynamicCharacterIcon extends StatelessWidget {
+  final List<CharacterPrompt> characters;
+  final double size;
+  final Color emptyColor;
+
+  const _DynamicCharacterIcon({
+    required this.characters,
+    required this.size,
+    required this.emptyColor,
+  });
+
+  /// 根据性别获取对应颜色
+  static Color getGenderColor(CharacterGender gender) {
+    switch (gender) {
+      case CharacterGender.female:
+        return const Color(0xFFE91E63); // 粉色
+      case CharacterGender.male:
+        return const Color(0xFF2196F3); // 蓝色
+      case CharacterGender.other:
+        return const Color(0xFF9E9E9E); // 灰色
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabledCharacters = characters.where((c) => c.enabled).toList();
+
+    if (enabledCharacters.isEmpty) {
+      // 空状态：显示空心人形图标
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: _EmptyPersonPainter(color: emptyColor),
+        ),
+      );
+    }
+
+    // 有角色时：显示多个彩色人形
+    // 最多显示4个人形图标，超过时仅显示前4个
+    final displayCharacters = enabledCharacters.take(4).toList();
+    final personWidth = size * 0.55;
+    final overlap = personWidth * 0.3; // 重叠量
+    final step = personWidth - overlap;
+    final totalWidth = personWidth + (displayCharacters.length - 1) * step;
+
+    return SizedBox(
+      width: totalWidth,
+      height: size,
+      child: Stack(
+        children: [
+          for (int i = 0; i < displayCharacters.length; i++)
+            Positioned(
+              left: i * step,
+              top: 0,
+              bottom: 0,
+              width: personWidth,
+              child: CustomPaint(
+                size: Size(personWidth, size),
+                painter: _FilledPersonPainter(
+                  color: getGenderColor(displayCharacters[i].gender),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 空心人形图标绘制器
+class _EmptyPersonPainter extends CustomPainter {
+  final Color color;
+
+  _EmptyPersonPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final centerX = size.width / 2;
+    final headRadius = size.height * 0.16;
+    final bodyHeight = size.height * 0.48;
+    final gap = size.height * 0.04;
+
+    // 计算总高度并居中
+    final totalHeight = headRadius * 2 + gap + bodyHeight;
+    final startY = (size.height - totalHeight) / 2;
+    final headCenterY = startY + headRadius;
+
+    // 绘制头部（圆形）
+    canvas.drawCircle(
+      Offset(centerX, headCenterY),
+      headRadius,
+      paint,
+    );
+
+    // 绘制身体（简化的圆角矩形躯干）
+    final bodyTop = headCenterY + headRadius + gap;
+    final bodyRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(
+        centerX - size.width * 0.30,
+        bodyTop,
+        size.width * 0.60,
+        bodyHeight,
+      ),
+      topLeft: const Radius.circular(6),
+      topRight: const Radius.circular(6),
+      bottomLeft: const Radius.circular(3),
+      bottomRight: const Radius.circular(3),
+    );
+    canvas.drawRRect(bodyRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _EmptyPersonPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}
+
+/// 实心人形图标绘制器
+class _FilledPersonPainter extends CustomPainter {
+  final Color color;
+
+  _FilledPersonPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final centerX = size.width / 2;
+    final headRadius = size.height * 0.16;
+    final bodyHeight = size.height * 0.48;
+    final gap = size.height * 0.04;
+
+    // 计算总高度并居中
+    final totalHeight = headRadius * 2 + gap + bodyHeight;
+    final startY = (size.height - totalHeight) / 2;
+    final headCenterY = startY + headRadius;
+
+    // 绘制头部（圆形）
+    canvas.drawCircle(
+      Offset(centerX, headCenterY),
+      headRadius,
+      paint,
+    );
+
+    // 绘制身体（简化的圆角矩形躯干）
+    final bodyTop = headCenterY + headRadius + gap;
+    final bodyRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(
+        centerX - size.width * 0.32,
+        bodyTop,
+        size.width * 0.64,
+        bodyHeight,
+      ),
+      topLeft: const Radius.circular(6),
+      topRight: const Radius.circular(6),
+      bottomLeft: const Radius.circular(3),
+      bottomRight: const Radius.circular(3),
+    );
+    canvas.drawRRect(bodyRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FilledPersonPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 

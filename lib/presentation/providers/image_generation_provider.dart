@@ -1006,12 +1006,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
-  /// 清除历史
+  /// 清除历史记录（保留当前图像）
   void clearHistory() {
     state = state.copyWith(
       history: [],
-      currentImages: [],
-      currentImage: 0,
     );
   }
 

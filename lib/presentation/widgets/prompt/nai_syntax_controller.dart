@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/alias_parser.dart';
+
 /// NAI 语法高亮控制器
 /// 继承 TextEditingController，重写 buildTextSpan 实现语法着色
 class NaiSyntaxController extends TextEditingController {
@@ -117,6 +119,19 @@ class NaiSyntaxController extends TextEditingController {
           text: '::',
           type: _SyntaxType.weightTrailing,
           weight: weight,
+        ),
+      );
+    }
+
+    // 匹配别名语法 <xxx>
+    final aliasRefs = AliasParser.parse(text);
+    for (final ref in aliasRefs) {
+      matches.add(
+        _SyntaxMatch(
+          start: ref.start,
+          end: ref.end,
+          text: ref.rawText,
+          type: _SyntaxType.alias,
         ),
       );
     }
@@ -281,6 +296,7 @@ enum _SyntaxType {
   weightMain, // 权重主体 (数字::内容)
   weightTrailing, // 权重结尾 (::)
   error, // 语法错误（不匹配的括号）
+  alias, // <xxx> 别名引用
 }
 
 /// 语法匹配结果
@@ -410,7 +426,16 @@ class NaiSyntaxColors {
       case _SyntaxType.error:
         // 语法错误：红色背景
         return _getErrorColor();
+      case _SyntaxType.alias:
+        // 别名：青色背景
+        return _getAliasColor();
     }
+  }
+
+  /// 别名颜色（青色系 HSL(180, 60%, 35%)）
+  Color _getAliasColor() {
+    final alpha = isDark ? 0.55 : 0.50;
+    return HSLColor.fromAHSL(alpha, 180, 0.60, 0.35).toColor();
   }
 
   /// 错误颜色（红色背景）

@@ -504,6 +504,7 @@
   "unifiedRef_switchTitle": "切换模式",
   "unifiedRef_switchContent": "切换模式会清除当前已添加的参考图，确定要继续吗？",
 
+  "character_buttonLabel": "角色",
   "character_title": "多角色 (V4 专属)",
   "character_hint": "为每个角色定义独立的提示词和位置（最多6个角色）",
   "character_addCharacter": "添加角色",
@@ -2816,6 +2817,22 @@
   "diyNotAvailableForDefault": "默认预设不支持 DIY 配置",
   "diyNotAvailableHint": "请复制为自定义预设后编辑",
   "customGroupDisabledAfterReset": "自定义词组（已禁用）",
-  "confirmReset": "确认重置"
+  "confirmReset": "确认重置",
+
+  "alias_hintText": "输入提示词，或使用 <词库名称> 引用词库内容",
+  "alias_libraryCategory": "词库",
+  "alias_tagCount": "{count} 个标签",
+  "@alias_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "alias_useCount": "使用 {count} 次",
+  "@alias_useCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "alias_favorited": "已收藏"
 
 }
