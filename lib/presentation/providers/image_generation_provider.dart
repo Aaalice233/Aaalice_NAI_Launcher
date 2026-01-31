@@ -102,6 +102,13 @@ class ImageGenerationState {
   final int? batchWidth;
   final int? batchHeight;
 
+  /// 中央区域显示的图像（独立于历史记录，清除历史时保留）
+  final List<GeneratedImage> displayImages;
+
+  /// 中央区域显示图像的分辨率
+  final int? displayWidth;
+  final int? displayHeight;
+
   const ImageGenerationState({
     this.status = GenerationStatus.idle,
     this.currentImages = const [],
@@ -113,6 +120,9 @@ class ImageGenerationState {
     this.streamPreview,
     this.batchWidth,
     this.batchHeight,
+    this.displayImages = const [],
+    this.displayWidth,
+    this.displayHeight,
   });
 
   ImageGenerationState copyWith({
@@ -127,6 +137,9 @@ class ImageGenerationState {
     bool clearStreamPreview = false,
     int? batchWidth,
     int? batchHeight,
+    List<GeneratedImage>? displayImages,
+    int? displayWidth,
+    int? displayHeight,
   }) {
     return ImageGenerationState(
       status: status ?? this.status,
@@ -140,11 +153,14 @@ class ImageGenerationState {
           clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
       batchWidth: batchWidth ?? this.batchWidth,
       batchHeight: batchHeight ?? this.batchHeight,
+      displayImages: displayImages ?? this.displayImages,
+      displayWidth: displayWidth ?? this.displayWidth,
+      displayHeight: displayHeight ?? this.displayHeight,
     );
   }
 
   bool get isGenerating => status == GenerationStatus.generating;
-  bool get hasImages => currentImages.isNotEmpty;
+  bool get hasImages => displayImages.isNotEmpty;
 
   /// 是否有流式预览图像
   bool get hasStreamPreview =>
@@ -852,6 +868,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: generatedList,
+          displayImages: generatedList,
+          displayWidth: params.width,
+          displayHeight: params.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -876,6 +895,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: [generatedImage],
+          displayImages: [generatedImage],
+          displayWidth: params.width,
+          displayHeight: params.height,
           history: [generatedImage, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -903,6 +925,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         state = state.copyWith(
           status: GenerationStatus.completed,
           currentImages: generatedList,
+          displayImages: generatedList,
+          displayWidth: params.width,
+          displayHeight: params.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -951,6 +976,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             state = state.copyWith(
               status: GenerationStatus.completed,
               currentImages: generatedList,
+              displayImages: generatedList,
+              displayWidth: params.width,
+              displayHeight: params.height,
               history: [...generatedList, ...state.history].take(50).toList(),
               progress: 1.0,
               currentImage: 0,
@@ -1019,9 +1047,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
-  /// 清除历史记录（保留当前图像）
+  /// 清除历史记录（包含当前批次图像）
   void clearHistory() {
     state = state.copyWith(
+      currentImages: [],
       history: [],
     );
   }

@@ -85,19 +85,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       );
     }
 
-    // 有图像：根据数量决定布局
+    // 有图像：根据数量决定布局（使用 displayImages）
     if (state.hasImages) {
-      if (state.currentImages.length == 1) {
+      if (state.displayImages.length == 1) {
         // 单图：居中显示
         return _buildImageView(
           context,
           ref,
-          state.currentImages.first,
+          state.displayImages.first,
           theme,
         );
       } else {
         // 多图：自适应网格
-        return _buildMultiImageGrid(context, ref, state.currentImages, theme);
+        return _buildMultiImageGrid(context, ref, state.displayImages, theme);
       }
     }
 
@@ -452,10 +452,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final params = ref.read(generationParamsNotifierProvider);
     final characterConfig = ref.read(characterPromptNotifierProvider);
 
-    // 将当前批次所有图像转换为 GeneratedImageDetailData
+    // 将中央区域显示的所有图像转换为 GeneratedImageDetailData
     // 需要从每张图片中提取实际的 seed 值
     final allImages = <GeneratedImageDetailData>[];
-    for (final img in state.currentImages) {
+    for (final img in state.displayImages) {
       // 尝试从图片中提取实际的 seed
       int actualSeed = params.seed;
       if (params.seed == -1) {
@@ -498,7 +498,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     }
 
     // 找到当前点击图像的索引
-    final initialIndex = state.currentImages
+    final initialIndex = state.displayImages
         .indexWhere((img) => img.bytes == imageBytes)
         .clamp(0, allImages.length - 1);
 
