@@ -1,12 +1,11 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../data/models/auth/saved_account.dart';
+import '../../../data/models/user/user_subscription.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/account_manager_provider.dart';
+import '../../providers/subscription_provider.dart';
 import '../auth/account_avatar.dart';
 
 /// 账号信息设置项
@@ -39,17 +38,16 @@ class AccountDetailTile extends ConsumerWidget {
     }
   }
 
-  /// 构建已登录状态的内容
+  /// 构建已登录状态的内容 - 极简单行式
   Widget _buildAuthenticatedContent(
     BuildContext context,
     WidgetRef ref,
     String accountId,
   ) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    // 使用 ref.watch 响应账号数据变化
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
     final account = accounts.where((a) => a.id == accountId).firstOrNull;
+    final subscriptionState = ref.watch(subscriptionNotifierProvider);
 
     if (account == null) {
       return _buildUnauthenticatedContent(context);
@@ -58,516 +56,234 @@ class AccountDetailTile extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        // 毛玻璃效果背景
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.8),
-                  theme.colorScheme.surfaceContainerHigh.withOpacity(0.6),
-                ]
-              : [
-                  Colors.white.withOpacity(0.9),
-                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.7),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : theme.colorScheme.outlineVariant.withOpacity(0.3),
-          width: 1,
-        ),
-        // 多层阴影增加深度
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-            spreadRadius: -4,
-          ),
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.05),
-            blurRadius: 40,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onEdit,
-              borderRadius: BorderRadius.circular(20),
-              splashColor: theme.colorScheme.primary.withOpacity(0.1),
-              highlightColor: theme.colorScheme.primary.withOpacity(0.05),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    // 头像和信息行
-                    Row(
-                      children: [
-                        // 头像（带装饰环）
-                        _buildAvatarWithGlow(context, account),
-                        const SizedBox(width: 16),
-                        // 名称和邮箱信息
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 昵称
-                              Text(
-                                account.displayName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.3,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              // 邮箱
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.email_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.5),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      account.email,
-                                      style:
-                                          theme.textTheme.bodyMedium?.copyWith(
-                                        color: theme.colorScheme.onSurface
-                                            .withOpacity(0.6),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        // 编辑按钮
-                        _buildEditButton(context),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // 精致分割线
-                    _buildDivider(context),
-                    const SizedBox(height: 14),
-                    // 账号类型标签
-                    _buildAccountTags(context, account),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建带发光效果的头像
-  Widget _buildAvatarWithGlow(BuildContext context, SavedAccount account) {
-    final theme = Theme.of(context);
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // 外层发光效果
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [
-                theme.colorScheme.primary.withOpacity(0.3),
-                theme.colorScheme.primary.withOpacity(0.0),
-              ],
-              stops: const [0.5, 1.0],
-            ),
-          ),
-        ),
-        // 装饰环
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.colorScheme.primary.withOpacity(0.5),
-                theme.colorScheme.tertiary.withOpacity(0.5),
-              ],
-            ),
-          ),
-        ),
-        // 头像
-        AccountAvatar(
-          account: account,
-          size: 60,
-        ),
-      ],
-    );
-  }
-
-  /// 构建编辑按钮
-  Widget _buildEditButton(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primary.withOpacity(0.15),
-            theme.colorScheme.primary.withOpacity(0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.2),
-          width: 1,
-        ),
+        // 使用主题颜色，无边框
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onEdit,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Icon(
-              Icons.edit_outlined,
-              color: theme.colorScheme.primary,
-              size: 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建精致分割线
-  Widget _buildDivider(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      height: 1,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.transparent,
-            theme.colorScheme.primary.withOpacity(0.15),
-            theme.colorScheme.outlineVariant.withOpacity(0.4),
-            theme.colorScheme.primary.withOpacity(0.15),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
-        ),
-      ),
-    );
-  }
-
-  /// 构建账号标签区域
-  Widget _buildAccountTags(BuildContext context, SavedAccount account) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Row(
-      children: [
-        // 账号类型标签
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.colorScheme.secondaryContainer.withOpacity(0.6),
-                theme.colorScheme.secondaryContainer.withOpacity(0.3),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: theme.colorScheme.secondary.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                account.accountType == AccountType.credentials
-                    ? Icons.lock_outlined
-                    : Icons.key_outlined,
-                size: 14,
-                color: theme.colorScheme.onSecondaryContainer,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                account.accountType == AccountType.credentials
-                    ? context.l10n.auth_credentialsLogin
-                    : context.l10n.auth_tokenLogin,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Spacer(),
-        // 在线状态指示器
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.green.withOpacity(isDark ? 0.25 : 0.15),
-                Colors.green.withOpacity(isDark ? 0.15 : 0.08),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.green.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 脉冲动画小圆点
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.6, end: 1.0),
-                duration: const Duration(milliseconds: 1200),
-                builder: (context, value, child) {
-                  return Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(value),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.4 * value),
-                          blurRadius: 4,
-                          spreadRadius: 1,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                // 头像
+                AccountAvatar(account: account, size: 44),
+                const SizedBox(width: 12),
+                // 用户信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        account.displayName,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    ),
-                  );
-                },
-                onEnd: () {},
-              ),
-              const SizedBox(width: 8),
-              Text(
-                context.l10n.auth_loggedIn,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: isDark ? Colors.green.shade300 : Colors.green.shade700,
-                  fontWeight: FontWeight.w600,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        account.email,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                // 订阅徽章区域
+                _buildCompactBadges(context, subscriptionState),
+                const SizedBox(width: 8),
+                // 编辑箭头
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: theme.colorScheme.onSurface.withOpacity(0.3),
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 
-  /// 构建未登录状态的内容
+  /// 构建紧凑徽章区域
+  Widget _buildCompactBadges(
+    BuildContext context,
+    SubscriptionState subscriptionState,
+  ) {
+    final theme = Theme.of(context);
+
+    return subscriptionState.when(
+      initial: () => const SizedBox.shrink(),
+      loading: () => SizedBox(
+        width: 14,
+        height: 14,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: theme.colorScheme.outline,
+        ),
+      ),
+      loaded: (subscription) {
+        final tierColor = _getTierColor(subscription.tier);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Tier 徽章
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: tierColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                subscription.tierName,
+                style: TextStyle(
+                  color: tierColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Anlas
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.tertiary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.toll_rounded,
+                    size: 12,
+                    color: theme.colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatNumber(subscription.anlasBalance),
+                    style: TextStyle(
+                      color: theme.colorScheme.tertiary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+      error: (_) => Icon(
+        Icons.error_outline,
+        size: 16,
+        color: theme.colorScheme.error,
+      ),
+    );
+  }
+
+  /// 格式化数字 (1000 -> 1K)
+  String _formatNumber(int number) {
+    if (number >= 10000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
+  }
+
+  /// 获取订阅等级对应的颜色
+  Color _getTierColor(int tier) {
+    switch (tier) {
+      case 0:
+        return Colors.grey;
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.purple;
+      case 3:
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  /// 构建未登录状态 - 紧凑版
   Widget _buildUnauthenticatedContent(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.8),
-                  theme.colorScheme.surfaceContainerHigh.withOpacity(0.6),
-                ]
-              : [
-                  Colors.white.withOpacity(0.9),
-                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.7),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : theme.colorScheme.outlineVariant.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-            spreadRadius: -4,
-          ),
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.05),
-            blurRadius: 40,
-            offset: const Offset(0, 16),
-          ),
-        ],
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onLogin,
-              borderRadius: BorderRadius.circular(20),
-              splashColor: theme.colorScheme.primary.withOpacity(0.1),
-              highlightColor: theme.colorScheme.primary.withOpacity(0.05),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                child: Column(
-                  children: [
-                    // 头像占位（带装饰效果）
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // 外层装饰环
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                theme.colorScheme.primary.withOpacity(0.15),
-                                theme.colorScheme.primary.withOpacity(0.0),
-                              ],
-                              stops: const [0.6, 1.0],
-                            ),
-                          ),
-                        ),
-                        // 内层圆环
-                        Container(
-                          width: 76,
-                          height: 76,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                theme.colorScheme.outline.withOpacity(0.2),
-                                theme.colorScheme.outline.withOpacity(0.1),
-                              ],
-                            ),
-                            border: Border.all(
-                              color: theme.colorScheme.outline.withOpacity(0.2),
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.person_outline_rounded,
-                            size: 36,
-                            color: theme.colorScheme.outline.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    // 提示文本
-                    Text(
-                      context.l10n.settings_notLoggedIn,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.3,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    // 登录按钮
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            theme.colorScheme.primary,
-                            theme.colorScheme.primary.withOpacity(0.85),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.primary.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: onLogin,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 28,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.login_rounded,
-                                  size: 18,
-                                  color: theme.colorScheme.onPrimary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  context.l10n.settings_goToLogin,
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: theme.colorScheme.onPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onLogin,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                // 头像占位
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.outline.withOpacity(0.1),
+                  ),
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    size: 24,
+                    color: theme.colorScheme.outline,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                // 提示文本
+                Expanded(
+                  child: Text(
+                    context.l10n.settings_notLoggedIn,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+                // 登录按钮
+                FilledButton.tonal(
+                  onPressed: onLogin,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    context.l10n.settings_goToLogin,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
