@@ -8,7 +8,7 @@ import '../../../data/models/queue/replication_task_status.dart';
 import '../../providers/replication_queue_provider.dart';
 
 /// 任务列表项 - 紧凑美观的现代设计
-class TaskListItem extends ConsumerWidget {
+class TaskListItem extends ConsumerStatefulWidget {
   final ReplicationTask task;
   final int index;
   final bool isSelectionMode;
@@ -27,23 +27,65 @@ class TaskListItem extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TaskListItem> createState() => _TaskListItemState();
+}
+
+class _TaskListItemState extends ConsumerState<TaskListItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _updateAnimation();
+  }
+
+  @override
+  void didUpdateWidget(TaskListItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.task.status != widget.task.status) {
+      _updateAnimation();
+    }
+  }
+
+  void _updateAnimation() {
+    if (widget.task.status == ReplicationTaskStatus.running) {
+      _shimmerController.repeat();
+    } else {
+      _shimmerController.stop();
+      _shimmerController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final isRunning = widget.task.status == ReplicationTaskStatus.running;
 
     return ReorderableDragStartListener(
-      index: index,
-      enabled: !isSelectionMode,
+      index: widget.index,
+      enabled: !widget.isSelectionMode,
       child: MouseRegion(
-        cursor: isSelectionMode
+        cursor: widget.isSelectionMode
             ? SystemMouseCursors.click
             : SystemMouseCursors.grab,
         child: _TaskTooltipWrapper(
-          task: task,
-          enabled: !isSelectionMode,
+          task: widget.task,
+          enabled: !widget.isSelectionMode,
           child: Dismissible(
-            key: Key(task.id),
-            direction: isSelectionMode
+            key: Key(widget.task.id),
+            direction: widget.isSelectionMode
                 ? DismissDirection.none
                 : DismissDirection.endToStart,
             background: Container(
@@ -65,7 +107,7 @@ class TaskListItem extends ConsumerWidget {
             onDismissed: (_) {
               ref
                   .read(replicationQueueNotifierProvider.notifier)
-                  .remove(task.id);
+                  .remove(widget.task.id);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -74,37 +116,50 @@ class TaskListItem extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  onTap: isSelectionMode
+                  onTap: widget.isSelectionMode
                       ? () => ref
                           .read(replicationQueueNotifierProvider.notifier)
-                          .toggleTaskSelection(task.id)
-                      : onTap,
-                  onLongPress: isSelectionMode
+                          .toggleTaskSelection(widget.task.id)
+                      : widget.onTap,
+                  onLongPress: widget.isSelectionMode
                       ? null
                       : () => ref
                           .read(replicationQueueNotifierProvider.notifier)
                           .toggleSelectionMode(),
                   borderRadius: BorderRadius.circular(12),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primaryContainer.withOpacity(0.4)
-                          : theme.colorScheme.surfaceContainerHighest
-                              .withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? theme.colorScheme.primary.withOpacity(0.5)
-                            : theme.colorScheme.outline.withOpacity(0.1),
-                        width: 1,
-                      ),
-                    ),
+                  child: AnimatedBuilder(
+                    animation: _shimmerController,
+                    builder: (context, child) {
+                      return Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: widget.isSelected
+                                ? theme.colorScheme.primary.withOpacity(0.5)
+                                : isRunning
+                                    ? theme.colorScheme.primary.withOpacity(0.3)
+                                    : theme.colorScheme.outline
+                                        .withOpacity(0.1),
+                            width: 1,
+                          ),
+                          gradient:
+                              isRunning ? _buildRunningGradient(theme) : null,
+                          color: isRunning
+                              ? null
+                              : widget.isSelected
+                                  ? theme.colorScheme.primaryContainer
+                                      .withOpacity(0.4)
+                                  : theme.colorScheme.surfaceContainerHighest
+                                      .withOpacity(0.4),
+                        ),
+                        child: child,
+                      );
+                    },
                     child: Row(
                       children: [
                         // 选择框/缩略图
-                        if (isSelectionMode)
+                        if (widget.isSelectionMode)
                           _buildCheckbox(theme, ref)
                         else
                           _buildThumbnail(context),
@@ -122,7 +177,7 @@ class TaskListItem extends ConsumerWidget {
                               const SizedBox(height: 4),
                               // 提示词
                               Text(
-                                task.prompt,
+                                widget.task.prompt,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
@@ -132,7 +187,7 @@ class TaskListItem extends ConsumerWidget {
                                 ),
                               ),
                               // 错误信息
-                              if (task.errorMessage != null) ...[
+                              if (widget.task.errorMessage != null) ...[
                                 const SizedBox(height: 4),
                                 _buildErrorMessage(theme),
                               ],
@@ -140,8 +195,9 @@ class TaskListItem extends ConsumerWidget {
                           ),
                         ),
 
-                        // 操作按钮（仅编辑，移除拖拽手柄）
-                        if (!isSelectionMode) _buildEditButton(theme, l10n),
+                        // 操作按钮
+                        if (!widget.isSelectionMode)
+                          _buildEditButton(theme, l10n),
                       ],
                     ),
                   ),
@@ -154,6 +210,30 @@ class TaskListItem extends ConsumerWidget {
     );
   }
 
+  /// 构建运行中的流动渐变背景
+  LinearGradient _buildRunningGradient(ThemeData theme) {
+    final progress = _shimmerController.value;
+    final primaryColor = theme.colorScheme.primary;
+
+    // 创建流动的条纹效果
+    return LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        primaryColor.withOpacity(0.08),
+        primaryColor.withOpacity(0.15),
+        primaryColor.withOpacity(0.08),
+        theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+      ],
+      stops: [
+        0.0,
+        progress,
+        progress + 0.1 > 1.0 ? 1.0 : progress + 0.1,
+        1.0,
+      ],
+    );
+  }
+
   /// 构建复选框
   Widget _buildCheckbox(ThemeData theme, WidgetRef ref) {
     return SizedBox(
@@ -163,10 +243,10 @@ class TaskListItem extends ConsumerWidget {
         child: Transform.scale(
           scale: 0.95,
           child: Checkbox(
-            value: isSelected,
+            value: widget.isSelected,
             onChanged: (_) => ref
                 .read(replicationQueueNotifierProvider.notifier)
-                .toggleTaskSelection(task.id),
+                .toggleTaskSelection(widget.task.id),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
@@ -180,11 +260,12 @@ class TaskListItem extends ConsumerWidget {
   Widget _buildThumbnail(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (task.thumbnailUrl != null && task.thumbnailUrl!.isNotEmpty) {
+    if (widget.task.thumbnailUrl != null &&
+        widget.task.thumbnailUrl!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
-          imageUrl: task.thumbnailUrl!,
+          imageUrl: widget.task.thumbnailUrl!,
           width: 44,
           height: 44,
           fit: BoxFit.cover,
@@ -236,6 +317,7 @@ class TaskListItem extends ConsumerWidget {
   /// 构建状态行
   Widget _buildStatusRow(ThemeData theme, dynamic l10n) {
     final (icon, color) = _getStatusIconAndColor();
+    final isRunning = widget.task.status == ReplicationTaskStatus.running;
 
     return Row(
       children: [
@@ -245,17 +327,19 @@ class TaskListItem extends ConsumerWidget {
             color: color.withOpacity(0.12),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: Icon(icon, size: 12, color: color),
+          child: isRunning
+              ? _buildRotatingIcon(icon, color)
+              : Icon(icon, size: 12, color: color),
         ),
         const SizedBox(width: 6),
         Text(
-          '#${index + 1}',
+          '#${widget.index + 1}',
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.outline,
             fontWeight: FontWeight.w500,
           ),
         ),
-        if (task.retryCount > 0) ...[
+        if (widget.task.retryCount > 0) ...[
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -264,7 +348,7 @@ class TaskListItem extends ConsumerWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              l10n.queue_retryCount(task.retryCount, 10),
+              l10n.queue_retryCount(widget.task.retryCount, 10),
               style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
@@ -277,9 +361,23 @@ class TaskListItem extends ConsumerWidget {
     );
   }
 
+  /// 构建旋转图标
+  Widget _buildRotatingIcon(IconData icon, Color color) {
+    return AnimatedBuilder(
+      animation: _shimmerController,
+      builder: (context, child) {
+        return Transform.rotate(
+          angle: _shimmerController.value * 2 * 3.14159,
+          child: child,
+        );
+      },
+      child: Icon(icon, size: 12, color: color),
+    );
+  }
+
   /// 获取状态图标和颜色
   (IconData, Color) _getStatusIconAndColor() {
-    switch (task.status) {
+    switch (widget.task.status) {
       case ReplicationTaskStatus.pending:
         return (Icons.schedule_rounded, Colors.grey);
       case ReplicationTaskStatus.running:
@@ -308,7 +406,7 @@ class TaskListItem extends ConsumerWidget {
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-              task.errorMessage!,
+              widget.task.errorMessage!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -333,7 +431,7 @@ class TaskListItem extends ConsumerWidget {
           size: 20,
           color: theme.colorScheme.outline,
         ),
-        onPressed: onEdit,
+        onPressed: widget.onEdit,
         tooltip: l10n.queue_edit,
         padding: EdgeInsets.zero,
         visualDensity: VisualDensity.compact,

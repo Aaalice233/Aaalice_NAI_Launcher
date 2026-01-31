@@ -135,6 +135,9 @@ void main() async {
   await Hive.openBox(StorageKeys.searchIndexBox);
   // 统计数据缓存 Box
   await Hive.openBox(StorageKeys.statisticsCacheBox);
+  // 队列相关 Box（预加载以避免首次打开队列管理页面时的延迟）
+  await Hive.openBox<String>(StorageKeys.replicationQueueBox);
+  await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());

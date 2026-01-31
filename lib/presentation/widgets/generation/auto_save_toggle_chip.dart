@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:math' as math;
 
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/image_save_settings_provider.dart';
@@ -29,7 +28,6 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
   static const _cuteOrangeDark = Color(0xFFFF8C4A);
   static const _cuteOrangeLight = Color(0xFFFFE4D4);
   static const _cuteOrangeBg = Color(0xFFFFF5EE);
-  static const _sparkleColor = Color(0xFFFFD700);
 
   @override
   void initState() {
@@ -142,11 +140,6 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                       letterSpacing: 0.3,
                     ),
                   ),
-                  // 启用时显示可爱的小星星
-                  if (isEnabled) ...[
-                    const SizedBox(width: 4),
-                    _buildSparkle(isDark),
-                  ],
                 ],
               ),
             ),
@@ -204,27 +197,6 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                   ),
                 )
               : null,
-        );
-      },
-    );
-  }
-
-  Widget _buildSparkle(bool isDark) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.elasticOut,
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: value,
-          child: Transform.rotate(
-            angle: (1 - value) * math.pi * 0.5,
-            child: Icon(
-              Icons.auto_awesome,
-              size: 12,
-              color: isDark ? _sparkleColor : _cuteOrangeDark.withOpacity(0.8),
-            ),
-          ),
         );
       },
     );

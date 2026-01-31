@@ -2931,6 +2931,11 @@
   "queue_paused": "Paused",
   "queue_idle": "Idle",
   "queue_ready": "Ready",
+  "queue_clickToStart": "Click to start queue execution",
+  "queue_clickToPause": "Click to pause queue",
+  "queue_clickToResume": "Click to resume execution",
+  "queue_noTasksToStart": "Queue is empty, cannot start",
+  "queue_allTasksCompleted": "All tasks completed",
 
   "queue_executionProgress": "Execution Progress",
   "queue_totalTasks": "Total",

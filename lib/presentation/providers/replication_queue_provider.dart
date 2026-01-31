@@ -88,23 +88,22 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   ReplicationQueueState build() {
     _storage = ref.read(replicationQueueStorageProvider);
     _stateStorage = ref.read(queueStateStorageProvider);
-    // 异步加载持久化数据
-    _loadFromStorage();
-    return const ReplicationQueueState(isLoading: true);
+    // 同步加载持久化数据（Hive Box 已在 main.dart 中预先打开）
+    return _loadFromStorageSync();
   }
 
-  /// 从存储加载队列
-  Future<void> _loadFromStorage() async {
+  /// 同步加载队列数据
+  ReplicationQueueState _loadFromStorageSync() {
     try {
-      final tasks = await _storage.load();
-      final failedTasks = await _stateStorage.loadFailedTasks();
-      state = state.copyWith(
+      final tasks = _storage.load();
+      final failedTasks = _stateStorage.loadFailedTasks();
+      return ReplicationQueueState(
         tasks: tasks,
         failedTasks: failedTasks,
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false);
+      return const ReplicationQueueState(isLoading: false);
     }
   }
 

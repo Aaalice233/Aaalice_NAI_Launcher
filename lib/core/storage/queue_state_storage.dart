@@ -52,11 +52,14 @@ class QueueExecutionStateData {
       failedCount: json['failedCount'] as int? ?? 0,
       skippedCount: json['skippedCount'] as int? ?? 0,
       autoExecuteEnabled: json['autoExecuteEnabled'] as bool? ?? false,
-      taskIntervalSeconds: (json['taskIntervalSeconds'] as num?)?.toDouble() ?? 0.0,
-      failureStrategy: FailureHandlingStrategy.values[json['failureStrategy'] as int? ?? 1],
+      taskIntervalSeconds:
+          (json['taskIntervalSeconds'] as num?)?.toDouble() ?? 0.0,
+      failureStrategy:
+          FailureHandlingStrategy.values[json['failureStrategy'] as int? ?? 1],
       isPaused: json['isPaused'] as bool? ?? false,
       currentTaskId: json['currentTaskId'] as String?,
-      failedTaskIds: (json['failedTaskIds'] as List<dynamic>?)?.cast<String>() ?? [],
+      failedTaskIds:
+          (json['failedTaskIds'] as List<dynamic>?)?.cast<String>() ?? [],
     );
   }
 
@@ -86,27 +89,21 @@ class QueueExecutionStateData {
 }
 
 /// 队列执行状态存储服务
+/// 注意: Box 在 main.dart 中已预先打开，此处直接同步获取
 class QueueStateStorage {
-  Box<String>? _box;
-
-  /// 获取 Box（懒加载）
-  Future<Box<String>> _getBox() async {
-    _box ??= await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
-    return _box!;
-  }
+  /// 获取 Box（同步获取已打开的 Box）
+  Box<String> get _box => Hive.box<String>(StorageKeys.queueExecutionStateBox);
 
   /// 保存执行状态
   Future<void> saveExecutionState(QueueExecutionStateData state) async {
-    final box = await _getBox();
     final jsonString = jsonEncode(state.toJson());
-    await box.put(StorageKeys.queueExecutionStateData, jsonString);
+    await _box.put(StorageKeys.queueExecutionStateData, jsonString);
   }
 
-  /// 加载执行状态
-  Future<QueueExecutionStateData> loadExecutionState() async {
+  /// 加载执行状态（同步加载）
+  QueueExecutionStateData loadExecutionState() {
     try {
-      final box = await _getBox();
-      final jsonString = box.get(StorageKeys.queueExecutionStateData);
+      final jsonString = _box.get(StorageKeys.queueExecutionStateData);
 
       if (jsonString == null || jsonString.isEmpty) {
         return const QueueExecutionStateData();
@@ -121,17 +118,15 @@ class QueueStateStorage {
 
   /// 保存失败任务列表
   Future<void> saveFailedTasks(List<ReplicationTask> tasks) async {
-    final box = await _getBox();
     final taskList = ReplicationTaskList(tasks: tasks);
     final jsonString = jsonEncode(taskList.toJson());
-    await box.put(StorageKeys.queueFailedTasksData, jsonString);
+    await _box.put(StorageKeys.queueFailedTasksData, jsonString);
   }
 
-  /// 加载失败任务列表
-  Future<List<ReplicationTask>> loadFailedTasks() async {
+  /// 加载失败任务列表（同步加载）
+  List<ReplicationTask> loadFailedTasks() {
     try {
-      final box = await _getBox();
-      final jsonString = box.get(StorageKeys.queueFailedTasksData);
+      final jsonString = _box.get(StorageKeys.queueFailedTasksData);
 
       if (jsonString == null || jsonString.isEmpty) {
         return [];
@@ -147,8 +142,7 @@ class QueueStateStorage {
 
   /// 清空所有状态
   Future<void> clear() async {
-    final box = await _getBox();
-    await box.clear();
+    await _box.clear();
   }
 }
 

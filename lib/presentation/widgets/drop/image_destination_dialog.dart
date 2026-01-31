@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../providers/queue_execution_provider.dart';
+import '../../providers/replication_queue_provider.dart';
 import '../../widgets/common/themed_divider.dart';
 
 /// 图片目标类型
@@ -18,12 +21,15 @@ enum ImageDestination {
 
   /// 提取元数据并应用到生成参数
   extractMetadata,
+
+  /// 提取提示词加入队列
+  addToQueue,
 }
 
 /// 图片目标选择对话框
 ///
 /// 当用户拖拽图片到界面时弹出，让用户选择图片的用途
-class ImageDestinationDialog extends StatelessWidget {
+class ImageDestinationDialog extends ConsumerWidget {
   /// 图片数据
   final Uint8List imageBytes;
 
@@ -59,8 +65,16 @@ class ImageDestinationDialog extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+
+    // 判断悬浮球是否可见（队列有任务或正在执行）
+    final queueState = ref.watch(replicationQueueNotifierProvider);
+    final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
+    final shouldShowAddToQueue = !(queueState.isEmpty &&
+        queueState.failedTasks.isEmpty &&
+        queueExecutionState.isIdle &&
+        !queueExecutionState.hasFailedTasks);
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -148,7 +162,21 @@ class ImageDestinationDialog extends StatelessWidget {
                       onTap: () => Navigator.of(context)
                           .pop(ImageDestination.extractMetadata),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    // 加入队列选项（仅在悬浮球可见且是PNG时显示）
+                    if (shouldShowAddToQueue)
+                      Tooltip(
+                        message: '提取正面提示词加入队列',
+                        child: _DestinationButton(
+                          icon: Icons.playlist_add,
+                          label: '加入队列',
+                          subtitle: '提取正面提示词并加入生成队列',
+                          onTap: () => Navigator.of(context)
+                              .pop(ImageDestination.addToQueue),
+                        ),
+                      ),
+                    if (shouldShowAddToQueue) const SizedBox(height: 16),
+                    if (!shouldShowAddToQueue) const SizedBox(height: 4),
                     const ThemedDivider(height: 1),
                     const SizedBox(height: 16),
                   ],

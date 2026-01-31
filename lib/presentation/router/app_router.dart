@@ -23,6 +23,9 @@ import '../widgets/queue/queue_management_page.dart';
 
 part 'app_router.g.dart';
 
+/// 队列管理面板显示状态 Provider
+final queueManagementVisibleProvider = StateProvider<bool>((ref) => false);
+
 /// Navigator Keys for StatefulShellRoute branches
 // ignore: unused_element
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -436,6 +439,9 @@ class DesktopShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isQueueVisible = ref.watch(queueManagementVisibleProvider);
+
     return Scaffold(
       body: Row(
         children: [
@@ -452,9 +458,59 @@ class DesktopShell extends ConsumerWidget {
                     content,
                     // 队列悬浮球 - 传入实际可用区域大小
                     FloatingQueueButton(
-                      onTap: () => _openQueueManagementSheet(context),
+                      onTap: () => ref
+                          .read(queueManagementVisibleProvider.notifier)
+                          .state = !isQueueVisible,
                       containerSize:
                           Size(constraints.maxWidth, constraints.maxHeight),
+                    ),
+                    // 队列管理面板（常驻保活）
+                    if (isQueueVisible)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () => ref
+                              .read(queueManagementVisibleProvider.notifier)
+                              .state = false,
+                          child: Container(color: Colors.black54),
+                        ),
+                      ),
+                    // 队列管理面板内容（带滑动动画，常驻保活）
+                    TweenAnimationBuilder<Offset>(
+                      tween: Tween(
+                        begin: const Offset(0, 1),
+                        end: isQueueVisible ? Offset.zero : const Offset(0, 1),
+                      ),
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, offset, child) {
+                        return IgnorePointer(
+                          ignoring: offset.dy >= 0.5, // 动画过半后禁用交互
+                          child: FractionalTranslation(
+                            translation: offset,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 650),
+                          child: Material(
+                            color: theme.scaffoldBackgroundColor,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: SafeArea(
+                              top: false,
+                              child: SizedBox(
+                                height: constraints.maxHeight * 0.85,
+                                child: const QueueManagementPage(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 );
@@ -480,6 +536,9 @@ class MobileShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isQueueVisible = ref.watch(queueManagementVisibleProvider);
+
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -489,9 +548,56 @@ class MobileShell extends ConsumerWidget {
               content,
               // 队列悬浮球 - 传入实际可用区域大小
               FloatingQueueButton(
-                onTap: () => _openQueueManagementSheet(context),
+                onTap: () => ref
+                    .read(queueManagementVisibleProvider.notifier)
+                    .state = !isQueueVisible,
                 containerSize:
                     Size(constraints.maxWidth, constraints.maxHeight),
+              ),
+              // 队列管理面板（常驻保活）
+              if (isQueueVisible)
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () => ref
+                        .read(queueManagementVisibleProvider.notifier)
+                        .state = false,
+                    child: Container(color: Colors.black54),
+                  ),
+                ),
+              // 队列管理面板内容（带滑动动画，常驻保活）
+              TweenAnimationBuilder<Offset>(
+                tween: Tween(
+                  begin: const Offset(0, 1),
+                  end: isQueueVisible ? Offset.zero : const Offset(0, 1),
+                ),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                builder: (context, offset, child) {
+                  return IgnorePointer(
+                    ignoring: offset.dy >= 0.5, // 动画过半后禁用交互
+                    child: FractionalTranslation(
+                      translation: offset,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Material(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: SafeArea(
+                      top: false,
+                      child: SizedBox(
+                        height: constraints.maxHeight * 0.85,
+                        child: const QueueManagementPage(),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           );
@@ -548,23 +654,4 @@ class MobileShell extends ConsumerWidget {
     }
     navigationShell.goBranch(branchIndex);
   }
-}
-
-/// 打开队列管理面板
-void _openQueueManagementSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (_, __) => const ClipRRect(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        child: QueueManagementPage(),
-      ),
-    ),
-  );
 }

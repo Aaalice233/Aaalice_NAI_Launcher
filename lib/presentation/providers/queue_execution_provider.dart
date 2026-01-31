@@ -12,7 +12,6 @@ import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'image_generation_provider.dart';
 import 'notification_settings_provider.dart';
-import 'pending_prompt_provider.dart';
 import 'replication_queue_provider.dart';
 import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
@@ -180,23 +179,21 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       },
     );
 
-    // 异步加载持久化状态
-    _loadFromStorage();
-
-    return const QueueExecutionState();
+    // 同步加载持久化状态（Hive Box 已在 main.dart 中预先打开）
+    return _loadFromStorageSync();
   }
 
-  /// 从存储加载状态
-  Future<void> _loadFromStorage() async {
+  /// 同步加载状态
+  QueueExecutionState _loadFromStorageSync() {
     try {
-      final data = await _stateStorage.loadExecutionState();
-      state = state.copyWith(
+      final data = _stateStorage.loadExecutionState();
+      return QueueExecutionState(
         autoExecuteEnabled: data.autoExecuteEnabled,
         taskIntervalSeconds: data.taskIntervalSeconds,
         failureStrategy: data.failureStrategy,
       );
     } catch (e) {
-      // 忽略加载错误
+      return const QueueExecutionState();
     }
   }
 
@@ -349,15 +346,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     final finalNegativePrompt = ucContent ?? '';
 
     // 4. 直接更新生成参数（确保生成时使用正确的提示词）
+    // 注意：不再更新 pendingPromptNotifier，保持UI提示词不变
+    // 这样用户可以在队列运行时继续编写新的提示词
     ref.read(generationParamsNotifierProvider.notifier)
       ..updatePrompt(finalPrompt)
       ..updateNegativePrompt(finalNegativePrompt);
-
-    // 5. 同时设置 pendingPrompt 用于 UI 同步（更新文本框显示）
-    ref.read(pendingPromptNotifierProvider.notifier).set(
-          prompt: finalPrompt,
-          negativePrompt: finalNegativePrompt,
-        );
   }
 
   /// 触发自动生成（自动执行模式下使用）

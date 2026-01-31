@@ -12,28 +12,22 @@ part 'replication_queue_storage.g.dart';
 /// 复刻队列存储服务
 ///
 /// 使用独立的 Hive Box 存储队列数据，以 JSON 字符串形式保存
+/// 注意: Box 在 main.dart 中已预先打开，此处直接同步获取
 class ReplicationQueueStorage {
-  Box<String>? _box;
-
-  /// 获取队列 Box（懒加载）
-  Future<Box<String>> _getBox() async {
-    _box ??= await Hive.openBox<String>(StorageKeys.replicationQueueBox);
-    return _box!;
-  }
+  /// 获取队列 Box（同步获取已打开的 Box）
+  Box<String> get _box => Hive.box<String>(StorageKeys.replicationQueueBox);
 
   /// 保存队列到本地存储
   Future<void> save(List<ReplicationTask> tasks) async {
-    final box = await _getBox();
     final taskList = ReplicationTaskList(tasks: tasks);
     final jsonString = jsonEncode(taskList.toJson());
-    await box.put(StorageKeys.replicationQueueData, jsonString);
+    await _box.put(StorageKeys.replicationQueueData, jsonString);
   }
 
-  /// 从本地存储加载队列
-  Future<List<ReplicationTask>> load() async {
+  /// 从本地存储加载队列（同步加载）
+  List<ReplicationTask> load() {
     try {
-      final box = await _getBox();
-      final jsonString = box.get(StorageKeys.replicationQueueData);
+      final jsonString = _box.get(StorageKeys.replicationQueueData);
 
       if (jsonString == null || jsonString.isEmpty) {
         return [];
@@ -50,8 +44,7 @@ class ReplicationQueueStorage {
 
   /// 清空存储
   Future<void> clear() async {
-    final box = await _getBox();
-    await box.delete(StorageKeys.replicationQueueData);
+    await _box.delete(StorageKeys.replicationQueueData);
   }
 }
 

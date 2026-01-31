@@ -2605,6 +2605,11 @@
   "queue_paused": "已暂停",
   "queue_idle": "空闲",
   "queue_ready": "就绪",
+  "queue_clickToStart": "点击开始执行队列",
+  "queue_clickToPause": "点击暂停队列",
+  "queue_clickToResume": "点击继续执行",
+  "queue_noTasksToStart": "队列为空，无法开始",
+  "queue_allTasksCompleted": "所有任务已完成",
 
   "queue_executionProgress": "执行进度",
   "queue_totalTasks": "总数",

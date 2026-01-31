@@ -11,8 +11,10 @@ import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/replication_queue_provider.dart';
 import '../common/app_toast.dart';
 import 'image_destination_dialog.dart';
 
@@ -214,6 +216,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       case ImageDestination.extractMetadata:
         await _handleExtractMetadata(bytes, notifier);
+        break;
+
+      case ImageDestination.addToQueue:
+        await _handleAddToQueue(bytes);
         break;
     }
   }
@@ -424,6 +430,41 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         AppLogger.d('Error extracting metadata: $e', 'DropHandler');
       }
       _showError('提取元数据失败: $e');
+    }
+  }
+
+  /// 处理加入队列（提取正面提示词）
+  Future<void> _handleAddToQueue(Uint8List bytes) async {
+    try {
+      // 解析 NAI 隐写元数据
+      final metadata = await NaiMetadataParser.extractFromBytes(bytes);
+
+      if (metadata == null || metadata.prompt.isEmpty) {
+        if (mounted) {
+          AppToast.warning(context, '未找到有效的提示词');
+        }
+        return;
+      }
+
+      // 创建队列任务（只使用正面提示词）
+      final task = ReplicationTask.create(
+        prompt: metadata.prompt,
+      );
+
+      // 添加到队列
+      ref.read(replicationQueueNotifierProvider.notifier).add(task);
+
+      if (mounted) {
+        final displayPrompt = metadata.prompt.length > 50
+            ? '${metadata.prompt.substring(0, 50)}...'
+            : metadata.prompt;
+        AppToast.success(context, '已加入队列: $displayPrompt');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        AppLogger.d('Error adding to queue: $e', 'DropHandler');
+      }
+      _showError('提取提示词失败: $e');
     }
   }
 

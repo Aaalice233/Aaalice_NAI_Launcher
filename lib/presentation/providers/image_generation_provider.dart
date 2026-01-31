@@ -26,6 +26,7 @@ import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
 import 'prompt_config_provider.dart';
+import 'queue_execution_provider.dart';
 import 'subscription_provider.dart';
 
 part 'image_generation_provider.g.dart';
@@ -170,10 +171,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 获取抽卡模式设置
     final randomMode = ref.read(randomPromptModeProvider);
 
-    // 如果开启抽卡模式，先随机提示词再生成
+    // 检查队列执行状态 - 队列运行时不应用抽卡模式
+    final queueExecutionState = ref.read(queueExecutionNotifierProvider);
+    final isQueueExecuting =
+        queueExecutionState.isRunning || queueExecutionState.isReady;
+
+    // 如果开启抽卡模式且不在队列执行中，先随机提示词再生成
     // 这样生成的图像和显示的提示词能对应上
+    // 队列执行时跳过抽卡模式，使用队列任务的原始提示词
     ImageParams effectiveParams = params;
-    if (randomMode) {
+    if (randomMode && !isQueueExecuting) {
       final randomPrompt = await generateAndApplyRandomPrompt();
       if (randomPrompt.isNotEmpty) {
         AppLogger.d(
@@ -269,9 +276,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     for (int batch = 0; batch < batchCount; batch++) {
       if (_isCancelled) break;
 
-      // 如果开启抽卡模式且不是第一批，先随机新提示词再生成
+      // 如果开启抽卡模式且不是第一批且不在队列执行中，先随机新提示词再生成
       // 第一批已在方法开头随机过了
-      if (randomMode && batch > 0) {
+      // 队列执行时跳过抽卡模式
+      if (randomMode && batch > 0 && !isQueueExecuting) {
         final randomPrompt = await generateAndApplyRandomPrompt();
         if (randomPrompt.isNotEmpty) {
           AppLogger.d(
