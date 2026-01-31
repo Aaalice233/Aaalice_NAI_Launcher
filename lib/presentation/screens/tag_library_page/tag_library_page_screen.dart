@@ -195,17 +195,38 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
               // 搜索框
               Expanded(
-                child: SizedBox(
-                  height: 38,
-                  child: ThemedInput(
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
+                    style: theme.textTheme.bodyMedium,
                     decoration: InputDecoration(
                       hintText: context.l10n.tagLibrary_searchHint,
-                      prefixIcon: const Icon(Icons.search, size: 20),
+                      hintStyle: TextStyle(
+                        color:
+                            theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                        fontSize: 13,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        size: 18,
+                        color:
+                            theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      ),
                       suffixIcon: state.searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
+                              icon: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withOpacity(0.6),
+                              ),
                               onPressed: () {
                                 _searchController.clear();
                                 ref
@@ -216,17 +237,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                               },
                             )
                           : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Color.alphaBlend(
-                        Colors.black.withOpacity(0.15),
-                        theme.colorScheme.surfaceContainerHighest,
-                      ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      isDense: true,
                     ),
                     onChanged: (value) {
                       ref

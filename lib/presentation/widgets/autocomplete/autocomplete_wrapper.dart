@@ -406,15 +406,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return widget.child;
     }
 
-    // 使用 Focus widget 拦截键盘事件
-    // 这样即使子组件（TextField）有自己的 FocusNode，我们也能捕获键盘事件
+    // 注意：不使用 Focus widget 包裹 child
+    // 因为：
+    // 1. _focusNode 的监听已在 initState 中通过 addListener 和 onKeyEvent 完成
+    // 2. 如果用 Focus 包裹，当调用者把同一个 focusNode 同时传给
+    //    AutocompleteWrapper 和内部 TextField 时，会形成循环引用并报错
     return CompositedTransformTarget(
       link: _layerLink,
-      child: Focus(
-        focusNode: _focusNode,
-        onKeyEvent: _handleKeyEvent,
-        child: widget.child,
-      ),
+      child: widget.child,
     );
   }
 }

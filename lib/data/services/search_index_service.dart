@@ -51,7 +51,8 @@ class SearchIndexService {
 
   /// 从 Hive 加载索引
   Future<void> _loadIndex() async {
-    await _ensureInit();
+    // 注意：此方法仅从 init() 调用，此时 _box 已打开，无需再次调用 _ensureInit()
+    if (_box == null || !_box!.isOpen) return;
     try {
       final indexJson = _box?.get(_indexKey) as String?;
       final documentsJson = _box?.get(_documentsKey) as String?;
