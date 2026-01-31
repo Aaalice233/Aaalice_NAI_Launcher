@@ -6,7 +6,7 @@ class TextSpaceConverter {
   /// 保护字符集预设：仅逗号
   static const Set<String> commaOnly = {',', '，'};
 
-  /// 保护字符集预设：逗号 + 括号 + 竖线（用于 NAI 格式化）
+  /// 保护字符集预设：逗号 + 括号 + 竖线 + 尖括号（用于 NAI 格式化）
   static const Set<String> naiFormat = {
     ',',
     '，', // 中文逗号
@@ -17,6 +17,8 @@ class TextSpaceConverter {
     '(',
     ')',
     '|',
+    '<', // 别名语法
+    '>', // 别名语法
   };
 
   /// 将空格转换为下划线
@@ -27,6 +29,7 @@ class TextSpaceConverter {
   /// 规则：
   /// - 如果空格的前一个非空格字符在 protectChars 中，保留空格
   /// - 如果空格的后一个非空格字符在 protectChars 中，保留空格
+  /// - 如果空格在尖括号 <> 内部，保留空格
   /// - 其他情况，将空格转换为下划线
   static String convert(String text, {Set<String> protectChars = commaOnly}) {
     if (text.isEmpty) return text;
@@ -57,6 +60,19 @@ class TextSpaceConverter {
       }
     }
 
+    // 预计算：每个位置是否在尖括号内部
+    final inAngleBracket = List<bool>.filled(length, false);
+    var angleBracketDepth = 0;
+    for (var i = 0; i < length; i++) {
+      if (chars[i] == '<') {
+        angleBracketDepth++;
+      }
+      inAngleBracket[i] = angleBracketDepth > 0;
+      if (chars[i] == '>') {
+        angleBracketDepth = (angleBracketDepth - 1).clamp(0, 100);
+      }
+    }
+
     // 构建结果
     final result = StringBuffer();
     for (var i = 0; i < length; i++) {
@@ -73,6 +89,12 @@ class TextSpaceConverter {
 
       final prevChar = prevIdx >= 0 ? chars[prevIdx] : null;
       final nextChar = nextIdx >= 0 ? chars[nextIdx] : null;
+
+      // 如果在尖括号内部，保留空格
+      if (inAngleBracket[i]) {
+        result.write(' ');
+        continue;
+      }
 
       // 如果前后非空格字符在保护集中，保留空格
       final shouldPreserve =

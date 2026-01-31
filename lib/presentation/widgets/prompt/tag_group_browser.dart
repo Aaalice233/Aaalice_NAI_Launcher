@@ -8,6 +8,7 @@ import '../../../data/models/tag/tag_suggestion.dart';
 import '../../providers/danbooru_suggestion_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../autocomplete/autocomplete.dart';
+import '../common/themed_input.dart';
 
 /// 标签分组浏览器
 ///
@@ -187,59 +188,61 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
           ),
         ),
       ),
-      child: AutocompleteTextField(
+      child: AutocompleteWrapper.localTag(
         controller: _searchController,
         focusNode: _searchFocusNode,
-        enableAutocomplete: true,
-        useInsetShadow: false,
+        ref: ref,
         config: const AutocompleteConfig(
           maxSuggestions: 10,
           showTranslation: true,
           autoInsertComma: false,
         ),
-        decoration: InputDecoration(
-          hintText: context.l10n.tagGroupBrowser_searchHint,
-          hintStyle: TextStyle(
-            fontSize: 14,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(danbooruSuggestionNotifierProvider.notifier)
-                        .clear();
-                    setState(() {});
-                  },
-                )
-              : null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest,
-        ),
-        style: const TextStyle(fontSize: 14),
-        onSubmitted: (_) {
-          setState(() {});
-        },
         onChanged: (_) {
           setState(() {});
         },
+        child: ThemedInput(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: context.l10n.tagGroupBrowser_searchHint,
+            hintStyle: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref
+                          .read(danbooruSuggestionNotifierProvider.notifier)
+                          .clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerHighest,
+          ),
+          style: const TextStyle(fontSize: 14),
+          onSubmitted: (_) {
+            setState(() {});
+          },
+        ),
       ),
     );
   }

@@ -26,7 +26,8 @@ import '../../widgets/online_gallery/post_detail_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/common/themed_input.dart';
-import '../../widgets/autocomplete/danbooru_autocomplete_wrapper.dart';
+import '../../widgets/autocomplete/autocomplete_wrapper.dart';
+import '../../widgets/autocomplete/strategies/danbooru_strategy.dart';
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -476,13 +477,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildSearchField(ThemeData theme) {
-    return DanbooruAutocompleteWrapper(
+    return AutocompleteWrapper(
       controller: _searchController,
       focusNode: _searchFocusNode,
-      replaceAll: false,
-      separator: ',',
-      appendSeparator: false,
-      onTextUpdated: (value) {
+      strategy: DanbooruStrategy.create(
+        ref,
+        replaceAll: false,
+        separator: ',',
+        appendSeparator: false,
+      ),
+      onSuggestionSelected: (value) {
         // 选择补全建议后立即触发搜索
         _searchDebounceTimer?.cancel();
         ref.read(onlineGalleryNotifierProvider.notifier).search(value);

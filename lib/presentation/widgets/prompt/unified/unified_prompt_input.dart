@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../autocomplete/autocomplete_wrapper.dart';
+import '../../autocomplete/autocomplete_strategy.dart';
+import '../../autocomplete/strategies/local_tag_strategy.dart';
+import '../../autocomplete/strategies/alias_strategy.dart';
+import '../../common/app_toast.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
-import '../prompt_formatter_wrapper.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -89,6 +95,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
+  /// 自动补全策略（在 initState 中创建，避免每次 build 重新创建）
+  CompositeStrategy? _autocompleteStrategy;
+
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
     if (widget.config.enableSyntaxHighlight) {
@@ -127,6 +136,12 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     // 监听外部控制器变化
     widget.controller?.addListener(_syncFromExternalController);
+
+    // 监听焦点变化（用于失焦格式化）
+    _effectiveFocusNode.addListener(_onFocusChanged);
+
+    // 初始化自动补全策略（延迟到第一次 build 后，因为需要 ref）
+    // 策略将在 _ensureAutocompleteStrategy 中惰性创建
   }
 
   @override
@@ -159,11 +174,76 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   @override
   void dispose() {
+    _effectiveFocusNode.removeListener(_onFocusChanged);
     widget.controller?.removeListener(_syncFromExternalController);
     _internalController?.dispose();
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
+    _autocompleteStrategy?.dispose();
     super.dispose();
+  }
+
+  /// 焦点变化回调
+  void _onFocusChanged() {
+    if (!_effectiveFocusNode.hasFocus) {
+      _formatOnBlur();
+    }
+  }
+
+  /// 失焦时格式化提示词
+  void _formatOnBlur() {
+    if (!widget.config.enableAutoFormat &&
+        !widget.config.enableSdSyntaxAutoConvert) {
+      return;
+    }
+
+    var text = _effectiveController.text;
+    if (text.isEmpty) return;
+
+    var changed = false;
+    final messages = <String>[];
+
+    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
+    if (widget.config.enableSdSyntaxAutoConvert) {
+      final converted = SdToNaiConverter.convert(text);
+      if (converted != text) {
+        text = converted;
+        changed = true;
+        messages.add('SD→NAI');
+      }
+    }
+
+    // 自动格式化
+    if (widget.config.enableAutoFormat) {
+      final formatted = NaiPromptFormatter.format(text);
+      if (formatted != text) {
+        text = formatted;
+        changed = true;
+        if (!messages.contains('SD→NAI')) {
+          messages.add(context.l10n.prompt_formatted);
+        }
+      }
+    }
+
+    if (changed) {
+      _effectiveController.text = text;
+      _handleTextChanged(text);
+      if (mounted && messages.isNotEmpty) {
+        AppToast.info(context, messages.join(' + '));
+      }
+    }
+  }
+
+  /// 确保自动补全策略已创建
+  CompositeStrategy _ensureAutocompleteStrategy() {
+    _autocompleteStrategy ??= CompositeStrategy(
+      strategies: [
+        LocalTagStrategy.create(ref, widget.config.autocompleteConfig),
+        AliasStrategy.create(ref),
+      ],
+      strategySelector: defaultStrategySelector,
+    );
+    return _autocompleteStrategy!;
   }
 
   /// 同步外部控制器变化到内部状态
@@ -230,13 +310,12 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         );
 
     // 构建基础 ThemedInput
-    // 注意：当启用自动补全时，不要将 focusNode 传给 ThemedInput，
-    // 因为 AutocompleteWrapper 会用 Focus 包装整个组件，
-    // 如果两者都使用同一个 focusNode，会导致 "Tried to make a child into a parent of itself" 错误
-    // 当禁用自动补全时，focusNode 需要传给 ThemedInput
+    // 注意：focusNode 必须始终传给 ThemedInput，
+    // 否则 TextField 会创建自己的内部 focusNode，
+    // 导致 _onFocusChanged 监听不到失焦事件
     final baseInput = ThemedInput(
       controller: _effectiveController,
-      focusNode: widget.config.enableAutocomplete ? null : _effectiveFocusNode,
+      focusNode: _effectiveFocusNode,
       decoration: effectiveDecoration,
       maxLines: widget.expands ? null : widget.maxLines,
       minLines: widget.expands ? null : (widget.minLines ?? 1),
@@ -250,16 +329,12 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       clearNeedsConfirm: widget.config.clearNeedsConfirm,
     );
 
-    // 判断是否需要格式化功能
-    final needsFormatting = widget.config.enableAutoFormat ||
-        widget.config.enableSdSyntaxAutoConvert;
-
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
     if (widget.config.enableAutocomplete) {
-      Widget result = AutocompleteWrapper(
+      return AutocompleteWrapper(
         controller: _effectiveController,
         focusNode: _effectiveFocusNode,
-        config: widget.config.autocompleteConfig,
+        strategy: _ensureAutocompleteStrategy(),
         enabled: !widget.config.readOnly,
         onChanged: _handleTextChanged,
         contentPadding: effectiveDecoration.contentPadding,
@@ -267,34 +342,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         expands: widget.expands,
         child: baseInput,
       );
-
-      // 如果需要格式化，外层再包装 PromptFormatterWrapper
-      if (needsFormatting) {
-        result = PromptFormatterWrapper(
-          controller: _effectiveController,
-          focusNode: _effectiveFocusNode,
-          enableAutoFormat: widget.config.enableAutoFormat,
-          enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
-          onChanged: _handleTextChanged,
-          child: result,
-        );
-      }
-
-      return result;
     }
 
-    // 不启用自动补全，但需要格式化
-    if (needsFormatting) {
-      return PromptFormatterWrapper(
-        controller: _effectiveController,
-        focusNode: _effectiveFocusNode,
-        enableAutoFormat: widget.config.enableAutoFormat,
-        enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
-        onChanged: _handleTextChanged,
-        child: baseInput,
-      );
-    }
-
+    // 不启用自动补全，直接返回基础输入框
     return baseInput;
   }
 }

@@ -7,6 +7,9 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_controller.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
+import '../autocomplete/autocomplete_strategy.dart';
+import '../autocomplete/strategies/local_tag_strategy.dart';
+import '../autocomplete/strategies/alias_strategy.dart';
 import '../common/inset_shadow_container.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -29,6 +32,9 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   late FocusNode _promptFocusNode;
   bool _showParameters = false;
 
+  /// 自动补全策略（在 initState 中创建，避免每次 build 重新创建）
+  CompositeStrategy? _autocompleteStrategy;
+
   @override
   void initState() {
     super.initState();
@@ -40,7 +46,28 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
+    _autocompleteStrategy?.dispose();
     super.dispose();
+  }
+
+  /// 确保自动补全策略已创建
+  CompositeStrategy _ensureAutocompleteStrategy() {
+    _autocompleteStrategy ??= CompositeStrategy(
+      strategies: [
+        LocalTagStrategy.create(
+          ref,
+          const AutocompleteConfig(
+            maxSuggestions: 15,
+            showTranslation: true,
+            showCategory: true,
+            autoInsertComma: true,
+          ),
+        ),
+        AliasStrategy.create(ref),
+      ],
+      strategySelector: defaultStrategySelector,
+    );
+    return _autocompleteStrategy!;
   }
 
   @override
@@ -183,12 +210,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,
-              config: const AutocompleteConfig(
-                maxSuggestions: 15,
-                showTranslation: true,
-                showCategory: true,
-                autoInsertComma: true,
-              ),
+              strategy: _ensureAutocompleteStrategy(),
               maxLines: 6,
               expands: false,
               contentPadding: const EdgeInsets.all(12),

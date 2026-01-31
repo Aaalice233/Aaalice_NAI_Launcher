@@ -1,3 +1,5 @@
+import 'text_space_converter.dart';
+
 /// NAI 提示词格式化工具
 /// 简化版：只做中文逗号转英文和空格转下划线
 class NaiPromptFormatter {
@@ -9,7 +11,7 @@ class NaiPromptFormatter {
 
   /// 格式化整个提示词
   /// - 将中文逗号转换为英文逗号
-  /// - 将标签中的空格转换为下划线（保留逗号后的空格）
+  /// - 将标签中的空格转换为下划线（保留逗号后的空格和尖括号内的空格）
   static String format(String prompt) {
     if (prompt.isEmpty) return prompt;
 
@@ -21,13 +23,17 @@ class NaiPromptFormatter {
     // 2. 将中文逗号转换为英文逗号
     result = result.replaceAll('，', ',');
 
-    // 3. 按逗号分割，对每个标签内部的空格转下划线，然后用 ", " 重新连接
+    // 3. 按逗号分割，对每个标签单独处理
     final tags = result.split(',');
     final formattedTags = tags.map((tag) {
-      // 去掉标签前后的空格，然后将内部空格转下划线
+      // 先 trim 去除首尾空格
       final trimmed = tag.trim();
       if (trimmed.isEmpty) return '';
-      return trimmed.replaceAll(' ', '_');
+      // 对内部空格使用 TextSpaceConverter（保护尖括号内容）
+      return TextSpaceConverter.convert(
+        trimmed,
+        protectChars: TextSpaceConverter.naiFormat,
+      );
     }).where((tag) => tag.isNotEmpty);
 
     return formattedTags.join(', ');

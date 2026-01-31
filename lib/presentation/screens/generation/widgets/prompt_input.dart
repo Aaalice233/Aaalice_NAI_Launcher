@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/models/prompt/prompt_preset_mode.dart';
+import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -18,7 +18,8 @@ import '../../../providers/queue_execution_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/prompt/comfyui_import_dialog.dart';
+import '../../../widgets/prompt/unified/unified_prompt_input.dart';
+import '../../../widgets/prompt/unified/unified_prompt_config.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/quality_tags_selector.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
@@ -53,9 +54,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   // 正面/负面切换
   bool _isNegativeMode = false;
-
-  // 多角色导入循环防护
-  bool _isProcessingImport = false;
 
   @override
   void initState() {
@@ -513,6 +511,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             characters: characterConfig.characters,
             globalAiChoice: characterConfig.globalAiChoice,
             l10n: context.l10n,
+            ref: ref,
           ),
         ),
         const SizedBox(width: 8),
@@ -531,6 +530,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ucPresetContent: ucPresetContent,
             isCustom: ucState.isCustom,
             l10n: context.l10n,
+            ref: ref,
           ),
         ),
       ],
@@ -544,92 +544,48 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         .updateNegativePrompt('');
   }
 
-  /// 处理提示词变化（包含多角色解析）
-  void _onPromptChanged(String value) async {
-    // 循环防护
-    if (_isProcessingImport) return;
-
-    // 检测 ComfyUI 多角色语法（优先检测）
-    if (ComfyuiPromptParser.isComfyuiMultiCharacter(value)) {
-      final parseResult = ComfyuiPromptParser.tryParse(value);
-      if (parseResult != null && parseResult.hasCharacters) {
-        setState(() => _isProcessingImport = true);
-
-        try {
-          // 弹出确认弹窗
-          final importResult = await ComfyuiImportDialog.show(
-            context: context,
-            parseResult: parseResult,
-          );
-
-          if (importResult != null && mounted) {
-            // 转换为 NAI 角色列表
-            final characters = ComfyuiPromptParser.toNaiCharacters(
-              importResult.parseResult,
-              usePosition: importResult.usePosition,
-            );
-
-            // 清空现有角色并替换
-            ref.read(characterPromptNotifierProvider.notifier).clearAll();
-            ref
-                .read(characterPromptNotifierProvider.notifier)
-                .replaceAll(characters);
-
-            // 更新全局提示词
-            _promptController.text = importResult.parseResult.globalPrompt;
-            ref
-                .read(generationParamsNotifierProvider.notifier)
-                .updatePrompt(importResult.parseResult.globalPrompt);
-
-            // 显示成功提示
-            AppToast.success(
-              context,
-              '已导入 ${characters.length} 个角色',
-            );
-
-            // 确保 UI 刷新后再解除防护
-            await Future.delayed(Duration.zero);
-          }
-        } finally {
-          if (mounted) {
-            setState(() => _isProcessingImport = false);
-          }
-        }
-        return;
-      }
-    }
-
-    // 常规单提示词更新
-    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
-  }
-
   Widget _buildTextPromptInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.watch(sdSyntaxAutoConvertSettingsProvider);
-    return AutocompleteTextField(
+    return UnifiedPromptInput(
       controller: _promptController,
       focusNode: _promptFocusNode,
-      enableAutocomplete: enableAutocomplete,
-      enableAutoFormat: enableAutoFormat,
-      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
-      config: const AutocompleteConfig(
-        maxSuggestions: 20,
-        showTranslation: true,
-        showCategory: true,
-        showCount: true,
-        autoInsertComma: true,
-      ),
-      decoration: InputDecoration(
+      config: UnifiedPromptConfig(
+        enableSyntaxHighlight: true,
+        enableAutocomplete: enableAutocomplete,
+        enableAutoFormat: enableAutoFormat,
+        enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+        enableComfyuiImport: true,
+        autocompleteConfig: const AutocompleteConfig(
+          maxSuggestions: 20,
+          showTranslation: true,
+          showCategory: true,
+          showCount: true,
+          autoInsertComma: true,
+        ),
         hintText: enableAutocomplete
             ? context.l10n.prompt_describeImageWithHint
             : context.l10n.prompt_describeImage,
-        contentPadding: const EdgeInsets.all(12),
+      ),
+      decoration: const InputDecoration(
+        contentPadding: EdgeInsets.all(12),
       ),
       maxLines: null,
       expands: true,
-      onChanged: _onPromptChanged,
+      onComfyuiImport: (globalPrompt, characters) {
+        // 清空现有角色并替换
+        ref.read(characterPromptNotifierProvider.notifier).clearAll();
+        ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
+        // 更新全局提示词
+        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(globalPrompt);
+        // 显示成功提示
+        AppToast.success(context, '已导入 ${characters.length} 个角色');
+      },
+      onChanged: (value) {
+        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
+      },
     );
   }
 
@@ -638,21 +594,25 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.watch(sdSyntaxAutoConvertSettingsProvider);
-    return AutocompleteTextField(
+    return UnifiedPromptInput(
       controller: _negativeController,
       focusNode: _negativeFocusNode,
-      enableAutocomplete: enableAutocomplete,
-      enableAutoFormat: enableAutoFormat,
-      enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
-      config: const AutocompleteConfig(
-        maxSuggestions: 15,
-        showTranslation: true,
-        showCategory: false,
-        autoInsertComma: true,
-      ),
-      decoration: InputDecoration(
+      config: UnifiedPromptConfig(
+        enableSyntaxHighlight: true,
+        enableAutocomplete: enableAutocomplete,
+        enableAutoFormat: enableAutoFormat,
+        enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+        enableComfyuiImport: false,
+        autocompleteConfig: const AutocompleteConfig(
+          maxSuggestions: 15,
+          showTranslation: true,
+          showCategory: false,
+          autoInsertComma: true,
+        ),
         hintText: context.l10n.prompt_unwantedContent,
-        contentPadding: const EdgeInsets.all(12),
+      ),
+      decoration: const InputDecoration(
+        contentPadding: EdgeInsets.all(12),
       ),
       maxLines: null,
       expands: true,
@@ -665,16 +625,21 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildCompactLayout(ThemeData theme) {
-    return AutocompleteTextField(
+    return UnifiedPromptInput(
       controller: _promptController,
       focusNode: _promptFocusNode,
-      config: const AutocompleteConfig(
-        maxSuggestions: 15,
-        showTranslation: true,
-        autoInsertComma: true,
+      config: UnifiedPromptConfig(
+        enableSyntaxHighlight: true,
+        enableAutocomplete: true,
+        enableComfyuiImport: true,
+        autocompleteConfig: const AutocompleteConfig(
+          maxSuggestions: 15,
+          showTranslation: true,
+          autoInsertComma: true,
+        ),
+        hintText: context.l10n.prompt_inputPrompt,
       ),
       decoration: InputDecoration(
-        hintText: context.l10n.prompt_inputPrompt,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         suffixIcon: Row(
@@ -698,6 +663,12 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       maxLines: 2,
       minLines: 1,
+      onComfyuiImport: (globalPrompt, characters) {
+        ref.read(characterPromptNotifierProvider.notifier).clearAll();
+        ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
+        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(globalPrompt);
+        AppToast.success(context, '已导入 ${characters.length} 个角色');
+      },
       onChanged: (value) {
         ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
       },
@@ -716,6 +687,7 @@ class _PositivePromptTooltip extends StatelessWidget {
   final List<CharacterPrompt> characters;
   final bool globalAiChoice;
   final dynamic l10n;
+  final WidgetRef ref;
 
   const _PositivePromptTooltip({
     required this.theme,
@@ -727,6 +699,7 @@ class _PositivePromptTooltip extends StatelessWidget {
     required this.characters,
     required this.globalAiChoice,
     required this.l10n,
+    required this.ref,
   });
 
   @override
@@ -993,13 +966,20 @@ class _PositivePromptTooltip extends StatelessWidget {
   String _buildEffectivePrompt() {
     final parts = <String>[];
 
+    // 别名解析器
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+
     // 前缀
     for (final p in prefixes) {
-      if (p.content.trim().isNotEmpty) parts.add(p.content.trim());
+      if (p.content.trim().isNotEmpty) {
+        parts.add(aliasResolver.resolveAliases(p.content.trim()));
+      }
     }
 
-    // 用户输入
-    if (userPrompt.trim().isNotEmpty) parts.add(userPrompt.trim());
+    // 用户输入（解析别名）
+    if (userPrompt.trim().isNotEmpty) {
+      parts.add(aliasResolver.resolveAliases(userPrompt.trim()));
+    }
 
     // 质量词
     if (qualityContent != null && qualityContent!.isNotEmpty) {
@@ -1015,7 +995,9 @@ class _PositivePromptTooltip extends StatelessWidget {
 
     // 后缀
     for (final s in suffixes) {
-      if (s.content.trim().isNotEmpty) parts.add(s.content.trim());
+      if (s.content.trim().isNotEmpty) {
+        parts.add(aliasResolver.resolveAliases(s.content.trim()));
+      }
     }
 
     return parts.join(', ');
@@ -1134,6 +1116,7 @@ class _NegativePromptTooltip extends StatelessWidget {
   final String ucPresetContent;
   final bool isCustom;
   final dynamic l10n;
+  final WidgetRef ref;
 
   const _NegativePromptTooltip({
     required this.theme,
@@ -1142,6 +1125,7 @@ class _NegativePromptTooltip extends StatelessWidget {
     required this.ucPresetContent,
     required this.isCustom,
     required this.l10n,
+    required this.ref,
   });
 
   @override
@@ -1371,14 +1355,17 @@ class _NegativePromptTooltip extends StatelessWidget {
   String _buildEffectiveNegative() {
     final parts = <String>[];
 
+    // 别名解析器
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+
     // UC预设
     if (ucPresetContent.isNotEmpty) {
       parts.add(ucPresetContent);
     }
 
-    // 用户输入
+    // 用户输入（解析别名）
     if (userNegativePrompt.trim().isNotEmpty) {
-      parts.add(userNegativePrompt.trim());
+      parts.add(aliasResolver.resolveAliases(userNegativePrompt.trim()));
     }
 
     return parts.join(', ');

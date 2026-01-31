@@ -11,6 +11,7 @@ import '../widgets/common/themed_divider.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/autocomplete/autocomplete_controller.dart';
 import '../widgets/autocomplete/autocomplete_wrapper.dart';
+import '../widgets/autocomplete/strategies/local_tag_strategy.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// Bulk Metadata Edit Dialog Widget
@@ -410,11 +411,14 @@ class _BulkMetadataEditDialogState
             child: AutocompleteWrapper(
               controller: controller,
               focusNode: focusNode,
-              config: const AutocompleteConfig(
-                maxSuggestions: 10,
-                showTranslation: true,
-                showCategory: true,
-                autoInsertComma: false,
+              strategy: LocalTagStrategy.create(
+                ref,
+                const AutocompleteConfig(
+                  maxSuggestions: 10,
+                  showTranslation: true,
+                  showCategory: true,
+                  autoInsertComma: false,
+                ),
               ),
               child: ThemedInput(
                 controller: controller,

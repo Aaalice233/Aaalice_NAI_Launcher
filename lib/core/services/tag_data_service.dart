@@ -114,14 +114,14 @@ class TagDataService {
         return;
       }
 
-      // 4. 缓存加载成功，设置标签列表用于懒加载索引（不立即构建索引）
+      // 4. 缓存加载成功，构建搜索索引（确保首次搜索立即可用）
       if (_tags.isNotEmpty) {
-        _searchIndex.setTags(_tags);
+        await _searchIndex.buildIndex(_tags, useIsolate: true);
       }
 
       _isInitialized = true;
       AppLogger.i(
-        'TagDataService initialized: ${_tags.length} tags loaded (index lazy)',
+        'TagDataService initialized: ${_tags.length} tags loaded (index ready)',
         'TagData',
       );
     } catch (e, stack) {

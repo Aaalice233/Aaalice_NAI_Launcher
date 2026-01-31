@@ -129,6 +129,23 @@ void main() {
       'wrist_cuffs, small_breast',
       '混合：已有下划线+需转换',
     ),
+
+    // 尖括号别名（内部空格应保留）
+    TestCase(
+      '1girl, <沟通兔>, flat chest',
+      '1girl, <沟通兔>, flat_chest',
+      '别名：尖括号内容保留',
+    ),
+    TestCase(
+      '1girl, <test alias>, blue eyes',
+      '1girl, <test alias>, blue_eyes',
+      '别名：尖括号内空格保留',
+    ),
+    TestCase(
+      '1girl， <沟通兔>， flat_chest',
+      '1girl, <沟通兔>, flat_chest',
+      '别名：中文逗号+尖括号',
+    ),
   ];
 
   print('========================================');

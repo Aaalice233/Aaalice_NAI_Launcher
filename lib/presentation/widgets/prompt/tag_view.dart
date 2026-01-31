@@ -10,6 +10,7 @@ import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../providers/image_generation_provider.dart';
 import '../autocomplete/autocomplete.dart';
+import '../common/themed_input.dart';
 import 'components/batch_selection/selection_overlay.dart';
 import 'components/tag_chip/tag_chip.dart';
 import 'components/tag_chip/tag_chip_animations.dart';
@@ -752,7 +753,8 @@ class _TagViewState extends ConsumerState<TagView>
         final isTarget = _dragTargetIndex == index && candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
+          duration:
+              reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
           padding: EdgeInsets.only(left: isTarget ? 28 : 0),
           child: Stack(
             children: [
@@ -796,7 +798,8 @@ class _TagViewState extends ConsumerState<TagView>
                         onToggleEnabled: () => _handleToggleEnabled(tag.id),
                         onWeightChanged: (weight) =>
                             _handleWeightChanged(tag.id, weight),
-                        onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                        onTextChanged: (text) =>
+                            _handleTextChanged(tag.id, text),
                         showControls: !widget.compact,
                         compact: widget.compact,
                         isEditing: isEditing,
@@ -816,7 +819,8 @@ class _TagViewState extends ConsumerState<TagView>
                           onToggleEnabled: () => _handleToggleEnabled(tag.id),
                           onWeightChanged: (weight) =>
                               _handleWeightChanged(tag.id, weight),
-                          onTextChanged: (text) => _handleTextChanged(tag.id, text),
+                          onTextChanged: (text) =>
+                              _handleTextChanged(tag.id, text),
                           showControls: !widget.compact,
                           compact: widget.compact,
                           isEditing: isEditing,
@@ -949,31 +953,34 @@ class _TagViewState extends ConsumerState<TagView>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Flexible(
-                child: AutocompleteTextField(
+                child: AutocompleteWrapper.localTag(
                   controller: _addTagController,
                   focusNode: _addTagFocusNode,
-                  enableAutocomplete: enableAutocomplete,
-                  useInsetShadow: false,
+                  ref: ref,
+                  enabled: enableAutocomplete,
                   config: const AutocompleteConfig(
                     maxSuggestions: 10,
                     showTranslation: true,
                     autoInsertComma: false,
                   ),
-                  decoration: InputDecoration(
-                    hintText: context.l10n.tag_inputHint,
-                    hintStyle: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                  child: ThemedInput(
+                    controller: _addTagController,
+                    decoration: InputDecoration(
+                      hintText: context.l10n.tag_inputHint,
+                      hintStyle: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface.withOpacity(0.4),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
+                    style: const TextStyle(fontSize: 13),
+                    onSubmitted: (_) => _confirmAddTag(),
                   ),
-                  style: const TextStyle(fontSize: 13),
-                  onSubmitted: (_) => _confirmAddTag(),
                 ),
               ),
               _buildMiniIconButton(
@@ -1033,7 +1040,8 @@ class _TagViewState extends ConsumerState<TagView>
                 height: widget.compact ? 28.0 : 32.0,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withOpacity(0.3),
                     borderRadius: BorderRadius.circular(
                       widget.compact
                           ? TagBorderRadius.small
@@ -1192,7 +1200,8 @@ class _TagCountBadgeState extends State<_TagCountBadge> {
             ),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: widget.theme.colorScheme.primary.withOpacity(_isHovering ? 0.5 : 0.3),
+              color: widget.theme.colorScheme.primary
+                  .withOpacity(_isHovering ? 0.5 : 0.3),
               width: 1,
             ),
           ),
@@ -1264,15 +1273,18 @@ class _BreakdownMenu extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                   child: Container(
-                    constraints: const BoxConstraints(minWidth: 180, maxWidth: 220),
+                    constraints:
+                        const BoxConstraints(minWidth: 180, maxWidth: 220),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          theme.colorScheme.surfaceContainerHighest.withOpacity(0.9),
-                          theme.colorScheme.surfaceContainerHigh.withOpacity(0.85),
+                          theme.colorScheme.surfaceContainerHighest
+                              .withOpacity(0.9),
+                          theme.colorScheme.surfaceContainerHigh
+                              .withOpacity(0.85),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -1310,7 +1322,9 @@ class _BreakdownMenu extends StatelessWidget {
                         ...sortedCategories.map((entry) {
                           final categoryName = getCategoryName(entry.key);
                           final count = entry.value;
-                          final percentage = (count / breakdown.values.reduce((a, b) => a + b) * 100);
+                          final percentage = (count /
+                              breakdown.values.reduce((a, b) => a + b) *
+                              100);
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1323,7 +1337,8 @@ class _BreakdownMenu extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
-                                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                      color: theme.colorScheme.onSurface
+                                          .withOpacity(0.8),
                                     ),
                                   ),
                                 ),
@@ -1334,7 +1349,9 @@ class _BreakdownMenu extends StatelessWidget {
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                     color: theme.colorScheme.primary,
-                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1343,7 +1360,8 @@ class _BreakdownMenu extends StatelessWidget {
                                   width: 40,
                                   height: 4,
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.surfaceContainerHighest,
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: FractionallySizedBox(
@@ -1354,7 +1372,8 @@ class _BreakdownMenu extends StatelessWidget {
                                         gradient: LinearGradient(
                                           colors: [
                                             theme.colorScheme.primary,
-                                            theme.colorScheme.primary.withOpacity(0.7),
+                                            theme.colorScheme.primary
+                                                .withOpacity(0.7),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(2),

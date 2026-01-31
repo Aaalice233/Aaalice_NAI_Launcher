@@ -3,29 +3,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/services/tag_data_service.dart';
 import '../../../core/utils/alias_parser.dart';
-import '../../../data/models/tag/local_tag.dart';
-import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../providers/locale_provider.dart';
-import 'alias_autocomplete_provider.dart';
 import 'autocomplete_controller.dart';
-import 'generic_autocomplete_overlay.dart';
-import 'generic_suggestion_tile.dart';
+import 'autocomplete_strategy.dart';
 import 'autocomplete_utils.dart';
+import 'generic_autocomplete_overlay.dart';
+import 'strategies/alias_strategy.dart';
+import 'strategies/local_tag_strategy.dart';
 
 /// 自动补全包装器
+///
 /// 为任意输入组件提供自动补全功能
+/// 通过策略模式支持不同的数据源
 ///
 /// 使用示例：
 /// ```dart
+/// // 本地标签补全
 /// AutocompleteWrapper(
 ///   controller: _controller,
-///   config: AutocompleteConfig(),
-///   child: ThemedInput(
-///     controller: _controller,
-///     hintText: '输入标签',
+///   strategy: LocalTagStrategy.create(ref, config),
+///   child: ThemedInput(controller: _controller),
+/// )
+///
+/// // 本地标签 + 别名补全
+/// AutocompleteWrapper(
+///   controller: _controller,
+///   strategy: CompositeStrategy(
+///     strategies: [
+///       LocalTagStrategy.create(ref, config),
+///       AliasStrategy.create(ref),
+///     ],
+///     strategySelector: defaultStrategySelector,
 ///   ),
+///   child: ThemedInput(controller: _controller),
 /// )
 /// ```
 class AutocompleteWrapper extends ConsumerStatefulWidget {
@@ -38,8 +50,8 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
   /// 焦点节点（可选，如果不提供则自动管理）
   final FocusNode? focusNode;
 
-  /// 自动补全配置
-  final AutocompleteConfig config;
+  /// 补全策略
+  final AutocompleteStrategy strategy;
 
   /// 是否启用自动补全
   final bool enabled;
@@ -66,8 +78,8 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     required this.controller,
+    required this.strategy,
     this.focusNode,
-    this.config = const AutocompleteConfig(),
     this.enabled = true,
     this.onChanged,
     this.onSuggestionSelected,
@@ -77,16 +89,108 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.expands = false,
   });
 
+  /// 便捷构造：使用本地标签策略
+  factory AutocompleteWrapper.localTag({
+    Key? key,
+    required Widget child,
+    required TextEditingController controller,
+    required WidgetRef ref,
+    AutocompleteConfig config = const AutocompleteConfig(),
+    FocusNode? focusNode,
+    bool enabled = true,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSuggestionSelected,
+    TextStyle? textStyle,
+    EdgeInsetsGeometry? contentPadding,
+    int? maxLines,
+    bool expands = false,
+  }) {
+    return AutocompleteWrapper(
+      key: key,
+      controller: controller,
+      strategy: LocalTagStrategy.create(ref, config),
+      focusNode: focusNode,
+      enabled: enabled,
+      onChanged: onChanged,
+      onSuggestionSelected: onSuggestionSelected,
+      textStyle: textStyle,
+      contentPadding: contentPadding,
+      maxLines: maxLines,
+      expands: expands,
+      child: child,
+    );
+  }
+
+  /// 便捷构造：使用本地标签 + 别名策略
+  factory AutocompleteWrapper.withAlias({
+    Key? key,
+    required Widget child,
+    required TextEditingController controller,
+    required WidgetRef ref,
+    AutocompleteConfig config = const AutocompleteConfig(),
+    FocusNode? focusNode,
+    bool enabled = true,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSuggestionSelected,
+    TextStyle? textStyle,
+    EdgeInsetsGeometry? contentPadding,
+    int? maxLines,
+    bool expands = false,
+  }) {
+    return AutocompleteWrapper(
+      key: key,
+      controller: controller,
+      strategy: CompositeStrategy(
+        strategies: [
+          LocalTagStrategy.create(ref, config),
+          AliasStrategy.create(ref),
+        ],
+        strategySelector: defaultStrategySelector,
+      ),
+      focusNode: focusNode,
+      enabled: enabled,
+      onChanged: onChanged,
+      onSuggestionSelected: onSuggestionSelected,
+      textStyle: textStyle,
+      contentPadding: contentPadding,
+      maxLines: maxLines,
+      expands: expands,
+      child: child,
+    );
+  }
+
   @override
   ConsumerState<AutocompleteWrapper> createState() =>
       _AutocompleteWrapperState();
 }
 
+/// 默认策略选择器
+///
+/// 优先检测别名模式（<xxx>），否则使用本地标签策略
+AutocompleteStrategy? defaultStrategySelector(
+  List<AutocompleteStrategy> strategies,
+  String text,
+  int cursorPosition,
+) {
+  // 优先检测别名模式
+  final (isTypingAlias, _, _) =
+      AliasParser.detectPartialAlias(text, cursorPosition);
+  if (isTypingAlias) {
+    // 返回 AliasStrategy
+    for (final strategy in strategies) {
+      if (strategy is AliasStrategy) {
+        return strategy;
+      }
+    }
+  }
+
+  // 默认使用第一个策略（通常是 LocalTagStrategy）
+  return strategies.isNotEmpty ? strategies.first : null;
+}
+
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   late FocusNode _focusNode;
   bool _ownsFocusNode = false;
-  AutocompleteController? _autocompleteController;
-  bool _controllerInitialized = false;
 
   bool _showSuggestions = false;
   int _selectedIndex = -1;
@@ -94,18 +198,18 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   final LayerLink _layerLink = LayerLink();
   final ScrollController _scrollController = ScrollController();
 
-  /// 是否处于别名补全模式
-  bool _isAliasMode = false;
-
-  /// 别名开始位置（用于替换）
-  int _aliasStartPosition = -1;
-
-  /// 别名补全状态监听订阅
-  ProviderSubscription<AliasAutocompleteState>? _aliasSubscription;
-
   @override
   void initState() {
     super.initState();
+    _initFocusNode();
+    widget.controller.addListener(_onTextChanged);
+    widget.strategy.addListener(_onStrategyChanged);
+    AppLogger.d(
+      '[AC:Wrapper] initState: strategy=${widget.strategy.runtimeType}, hashCode=${widget.strategy.hashCode}',
+    );
+  }
+
+  void _initFocusNode() {
     if (widget.focusNode != null) {
       _focusNode = widget.focusNode!;
     } else {
@@ -113,27 +217,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _ownsFocusNode = true;
     }
     _focusNode.addListener(_onFocusChanged);
-    // 键盘事件通过 build() 中的 Focus widget 处理
-    widget.controller.addListener(_onTextChanged);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_controllerInitialized) {
-      _initAutocompleteController();
-      _controllerInitialized = true;
-
-      // 监听别名补全状态变化
-      _aliasSubscription = ref.listenManual(
-        aliasAutocompleteNotifierProvider,
-        (previous, next) {
-          if (_isAliasMode) {
-            _onAliasSuggestionsChanged();
-          }
-        },
-      );
-    }
   }
 
   @override
@@ -148,36 +231,23 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       if (_ownsFocusNode) {
         _focusNode.dispose();
       }
-      if (widget.focusNode != null) {
-        _focusNode = widget.focusNode!;
-        _ownsFocusNode = false;
-      } else {
-        _focusNode = FocusNode();
-        _ownsFocusNode = true;
-      }
-      _focusNode.addListener(_onFocusChanged);
+      _initFocusNode();
     }
-  }
-
-  void _initAutocompleteController() {
-    final tagDataService = ref.read(tagDataServiceProvider);
-    _autocompleteController = AutocompleteController(
-      tagDataService: tagDataService,
-      debounceDelay: widget.config.debounceDelay,
-      maxSuggestions: widget.config.maxSuggestions,
-      minQueryLength: widget.config.minQueryLength,
-    );
-    _autocompleteController!.addListener(_onSuggestionsChanged);
+    if (oldWidget.strategy != widget.strategy) {
+      AppLogger.d(
+        '[AC:Wrapper] didUpdateWidget: strategy CHANGED! old=${oldWidget.strategy.hashCode}, new=${widget.strategy.hashCode}',
+      );
+      oldWidget.strategy.removeListener(_onStrategyChanged);
+      widget.strategy.addListener(_onStrategyChanged);
+    }
   }
 
   @override
   void dispose() {
     _removeOverlay();
-    _aliasSubscription?.close();
     _focusNode.removeListener(_onFocusChanged);
     widget.controller.removeListener(_onTextChanged);
-    _autocompleteController?.removeListener(_onSuggestionsChanged);
-    _autocompleteController?.dispose();
+    widget.strategy.removeListener(_onStrategyChanged);
     _scrollController.dispose();
     if (_ownsFocusNode) {
       _focusNode.dispose();
@@ -197,82 +267,42 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
 
-    // 检测是否正在输入别名（输入 < 后触发词库补全）
-    final (isTypingAlias, partialAlias, aliasStartPos) =
-        AliasParser.detectPartialAlias(text, cursorPosition);
-
-    debugPrint(
-      'AutocompleteWrapper: isTypingAlias=$isTypingAlias, partialAlias="$partialAlias", pos=$aliasStartPos',
+    AppLogger.d(
+      '[AC:Wrapper] _onTextChanged: text="${text.length > 50 ? '${text.substring(0, 50)}...' : text}", cursor=$cursorPosition, strategy=${widget.strategy.runtimeType}',
     );
 
-    if (isTypingAlias) {
-      // 进入别名补全模式
-      _isAliasMode = true;
-      _aliasStartPosition = aliasStartPos;
-
-      // 搜索词库条目
-      // 当刚输入 < 时立即执行搜索（跳过防抖）
-      final immediate = partialAlias.isEmpty;
-      ref
-          .read(aliasAutocompleteNotifierProvider.notifier)
-          .search(partialAlias, immediate: immediate);
-
-      widget.onChanged?.call(text);
-      return;
-    }
-
-    // 退出别名补全模式
-    if (_isAliasMode) {
-      _isAliasMode = false;
-      _aliasStartPosition = -1;
-      ref.read(aliasAutocompleteNotifierProvider.notifier).clear();
-    }
-
-    // === 原有的标签补全逻辑 ===
     // 检查是否正在进行 IME 组合输入
     final composing = widget.controller.value.composing;
     if (composing.isValid && !composing.isCollapsed) {
+      AppLogger.d('[AC:Wrapper] IME composing, skip search');
       widget.onChanged?.call(text);
       return;
     }
 
-    // 获取当前正在输入的标签
-    final currentTag = AutocompleteUtils.getCurrentTag(text, cursorPosition);
-
-    if (currentTag.isNotEmpty) {
-      _autocompleteController?.search(currentTag);
-    } else {
-      _autocompleteController?.clear();
-    }
+    // 委托给策略处理搜索
+    widget.strategy.search(text, cursorPosition);
 
     widget.onChanged?.call(text);
   }
 
-  void _onAliasSuggestionsChanged() {
-    final aliasState = ref.read(aliasAutocompleteNotifierProvider);
-    if (aliasState.hasSuggestions) {
+  void _onStrategyChanged() {
+    AppLogger.d(
+      '[AC:Wrapper] _onStrategyChanged: hasSuggestions=${widget.strategy.hasSuggestions}, isLoading=${widget.strategy.isLoading}, count=${widget.strategy.suggestions.length}',
+    );
+    if (widget.strategy.hasSuggestions) {
       _showSuggestionsOverlay();
       // 确保 selectedIndex 在有效范围内
-      final suggestionsLength = aliasState.suggestions.length;
+      final suggestionsLength = widget.strategy.suggestions.length;
       if (_selectedIndex >= suggestionsLength) {
         _selectedIndex = suggestionsLength > 0 ? 0 : -1;
       } else if (_selectedIndex < 0 && suggestionsLength > 0) {
         _selectedIndex = 0;
       }
-    } else if (!aliasState.isLoading) {
+    } else if (!widget.strategy.isLoading) {
       _hideSuggestions();
     }
     setState(() {});
     _overlayEntry?.markNeedsBuild();
-  }
-
-  void _onSuggestionsChanged() {
-    if (_autocompleteController?.hasSuggestions ?? false) {
-      _showSuggestionsOverlay();
-    } else if (!(_autocompleteController?.isLoading ?? false)) {
-      _hideSuggestions();
-    }
-    setState(() {});
   }
 
   void _showSuggestionsOverlay() {
@@ -299,14 +329,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     });
 
     _removeOverlay();
-    _autocompleteController?.clear();
-
-    // 清理别名补全状态
-    if (_isAliasMode) {
-      _isAliasMode = false;
-      _aliasStartPosition = -1;
-      ref.read(aliasAutocompleteNotifierProvider.notifier).clear();
-    }
+    widget.strategy.clear();
   }
 
   void _removeOverlay() {
@@ -347,14 +370,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
               )
             : Offset(0, size.height + 4);
 
-        // 获取当前建议列表长度
-        final int suggestionsLength;
-        if (_isAliasMode) {
-          suggestionsLength =
-              ref.read(aliasAutocompleteNotifierProvider).suggestions.length;
-        } else {
-          suggestionsLength = _autocompleteController?.suggestions.length ?? 0;
-        }
+        // 获取当前建议列表
+        final suggestions = widget.strategy.suggestions;
+        final suggestionsLength = suggestions.length;
+
+        // 获取配置
+        final config = _getConfig();
 
         return Positioned(
           width: size.width.clamp(280.0, 400.0),
@@ -382,32 +403,21 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
                   _scrollToSelected();
                 }
               },
-              child: _isAliasMode
-                  ? _buildAliasOverlay(locale.languageCode)
-                  : GenericAutocompleteOverlay(
-                      suggestions: (_autocompleteController?.suggestions ?? [])
-                          .map(
-                            (tag) => SuggestionData(
-                              tag: tag.tag,
-                              category: tag.category,
-                              count: tag.count,
-                              translation: tag.translation,
-                            ),
-                          )
-                          .toList(),
-                      selectedIndex: _selectedIndex,
-                      onSelect: (index) {
-                        final suggestions =
-                            _autocompleteController?.suggestions ?? [];
-                        if (index >= 0 && index < suggestions.length) {
-                          _selectTagSuggestion(suggestions[index]);
-                        }
-                      },
-                      config: widget.config,
-                      isLoading: _autocompleteController?.isLoading ?? false,
-                      scrollController: _scrollController,
-                      languageCode: locale.languageCode,
-                    ),
+              child: GenericAutocompleteOverlay(
+                suggestions: suggestions
+                    .map((item) => widget.strategy.toSuggestionData(item))
+                    .toList(),
+                selectedIndex: _selectedIndex,
+                onSelect: (index) {
+                  if (index >= 0 && index < suggestions.length) {
+                    _selectSuggestion(suggestions[index]);
+                  }
+                },
+                config: config,
+                isLoading: widget.strategy.isLoading,
+                scrollController: _scrollController,
+                languageCode: locale.languageCode,
+              ),
             ),
           ),
         );
@@ -415,40 +425,22 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     );
   }
 
-  /// 构建别名建议浮层
-  Widget _buildAliasOverlay(String languageCode) {
-    // 使用 ref.read 而非 ref.watch，因为 OverlayEntry 的 builder
-    // 不在正常的 widget 构建生命周期内，watch 无法正确触发重建
-    // overlay 的重建通过 markNeedsBuild() 手动触发
-    final aliasState = ref.read(aliasAutocompleteNotifierProvider);
-
-    return GenericAutocompleteOverlay(
-      suggestions: aliasState.suggestions
-          .map(
-            (entry) => SuggestionData(
-              tag: entry.name,
-              category: SuggestionData.categoryLibrary,
-              count: entry.useCount,
-              translation: entry.contentPreview,
-              thumbnailPath: entry.thumbnail,
-            ),
-          )
-          .toList(),
-      selectedIndex: _selectedIndex,
-      onSelect: (index) {
-        final suggestions = aliasState.suggestions;
-        if (index >= 0 && index < suggestions.length) {
-          _selectAliasSuggestion(suggestions[index]);
-        }
-      },
-      config: widget.config,
-      isLoading: aliasState.isLoading,
-      scrollController: _scrollController,
-      languageCode: languageCode,
-    );
+  /// 获取配置（从策略中提取或使用默认配置）
+  AutocompleteConfig _getConfig() {
+    final strategy = widget.strategy;
+    if (strategy is LocalTagStrategy) {
+      return strategy.config;
+    }
+    if (strategy is CompositeStrategy) {
+      final localTagStrategy = strategy.getStrategy<LocalTagStrategy>();
+      if (localTagStrategy != null) {
+        return localTagStrategy.config;
+      }
+    }
+    return const AutocompleteConfig();
   }
 
-  void _selectTagSuggestion(LocalTag suggestion) {
+  void _selectSuggestion(dynamic suggestion) {
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
 
@@ -456,39 +448,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return;
     }
 
-    final (newText, newCursorPosition) = AutocompleteUtils.applySuggestion(
-      text: text,
-      cursorPosition: cursorPosition,
-      suggestion: suggestion,
-      config: widget.config,
+    final (newText, newCursorPosition) = widget.strategy.applySuggestion(
+      suggestion,
+      text,
+      cursorPosition,
     );
-
-    widget.controller.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newCursorPosition),
-    );
-
-    _hideSuggestions();
-
-    // 通知外部选择了补全建议
-    widget.onSuggestionSelected?.call(newText);
-  }
-
-  /// 选择别名建议
-  void _selectAliasSuggestion(TagLibraryEntry entry) {
-    final text = widget.controller.text;
-    final cursorPosition = widget.controller.selection.baseOffset;
-
-    if (_aliasStartPosition < 0 || cursorPosition > text.length) {
-      _hideSuggestions();
-      return;
-    }
-
-    // 替换 < 到当前光标位置的内容为 <词库名称>
-    final aliasText = '<${entry.name}>';
-    final newText =
-        text.replaceRange(_aliasStartPosition, cursorPosition, aliasText);
-    final newCursorPosition = _aliasStartPosition + aliasText.length;
 
     widget.controller.value = TextEditingValue(
       text: newText,
@@ -507,14 +471,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return KeyEventResult.ignored;
     }
 
-    // 根据模式获取建议列表
-    final int suggestionsLength;
-    if (_isAliasMode) {
-      suggestionsLength =
-          ref.read(aliasAutocompleteNotifierProvider).suggestions.length;
-    } else {
-      suggestionsLength = _autocompleteController?.suggestions.length ?? 0;
-    }
+    final suggestions = widget.strategy.suggestions;
+    final suggestionsLength = suggestions.length;
 
     // 没有建议时，不阻止任何键
     if (suggestionsLength == 0) {
@@ -543,15 +501,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         if (event is KeyDownEvent &&
             _selectedIndex >= 0 &&
             _selectedIndex < suggestionsLength) {
-          // 根据模式选择不同的建议
-          if (_isAliasMode) {
-            final aliasSuggestions =
-                ref.read(aliasAutocompleteNotifierProvider).suggestions;
-            _selectAliasSuggestion(aliasSuggestions[_selectedIndex]);
-          } else {
-            final suggestions = _autocompleteController?.suggestions ?? [];
-            _selectTagSuggestion(suggestions[_selectedIndex]);
-          }
+          _selectSuggestion(suggestions[_selectedIndex]);
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -596,16 +546,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
 
     // 使用 Focus widget 拦截键盘事件
-    // 注意：这里创建一个独立的 parentFocusNode 用于拦截键盘事件
-    // 它与 _focusNode 不同，_focusNode 可能是外部传入的（用于监听焦点变化）
-    // parentFocusNode 仅用于在焦点树中拦截键盘事件
     return CompositedTransformTarget(
       link: _layerLink,
       child: Focus(
-        // 不能将 _focusNode 传给 Focus，否则会与 ThemedInput 的 focusNode 冲突
-        // 使用 skipTraversal 避免影响 Tab 键遍历顺序
         skipTraversal: true,
-        // canRequestFocus 设为 false，避免抢夺子组件的焦点
         canRequestFocus: false,
         onKeyEvent: (node, event) => _handleKeyEvent(node, event),
         child: widget.child,

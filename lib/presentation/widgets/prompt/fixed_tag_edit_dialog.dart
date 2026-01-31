@@ -9,6 +9,7 @@ import '../common/prefix_suffix_switch.dart';
 import '../common/themed_input.dart';
 import '../common/themed_slider.dart';
 import '../prompt/nai_syntax_controller.dart';
+import '../prompt/prompt_formatter_wrapper.dart';
 
 /// 固定词编辑对话框
 class FixedTagEditDialog extends ConsumerStatefulWidget {
@@ -125,23 +126,30 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                 const SizedBox(height: 6),
                 SizedBox(
                   height: 120,
-                  child: AutocompleteTextField(
+                  child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
-                    enableAutocomplete: true,
                     enableAutoFormat: true,
-                    config: const AutocompleteConfig(
-                      maxSuggestions: 15,
-                      showTranslation: true,
-                      showCategory: true,
-                      autoInsertComma: true,
+                    child: AutocompleteWrapper.withAlias(
+                      controller: _contentController,
+                      focusNode: _contentFocusNode,
+                      ref: ref,
+                      config: const AutocompleteConfig(
+                        maxSuggestions: 15,
+                        showTranslation: true,
+                        showCategory: true,
+                        autoInsertComma: true,
+                      ),
+                      child: ThemedInput(
+                        controller: _contentController,
+                        decoration: InputDecoration(
+                          hintText: context.l10n.fixedTags_contentHint,
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                        maxLines: null,
+                        expands: true,
+                      ),
                     ),
-                    decoration: InputDecoration(
-                      hintText: context.l10n.fixedTags_contentHint,
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    maxLines: null,
-                    expands: true,
                   ),
                 ),
                 const SizedBox(height: 4),

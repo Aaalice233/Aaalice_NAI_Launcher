@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/local_gallery_repository.dart';
+import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
@@ -535,6 +536,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final params = ref.read(generationParamsNotifierProvider);
       final characterConfig = ref.read(characterPromptNotifierProvider);
 
+      // 解析别名
+      final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+      final resolvedPrompt = aliasResolver.resolveAliases(params.prompt);
+      final resolvedNegative =
+          aliasResolver.resolveAliases(params.negativePrompt);
+
       // 尝试从图片元数据中提取实际的 seed
       int actualSeed = params.seed;
       if (actualSeed == -1) {
@@ -570,8 +577,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       }
 
       final commentJson = <String, dynamic>{
-        'prompt': params.prompt,
-        'uc': params.negativePrompt,
+        'prompt': resolvedPrompt,
+        'uc': resolvedNegative,
         'seed': actualSeed,
         'steps': params.steps,
         'width': params.width,
@@ -589,7 +596,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       if (charCaptions.isNotEmpty) {
         commentJson['v4_prompt'] = {
           'caption': {
-            'base_caption': params.prompt,
+            'base_caption': resolvedPrompt,
             'char_captions': charCaptions,
           },
           'use_coords': !characterConfig.globalAiChoice,
@@ -597,7 +604,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         };
         commentJson['v4_negative_prompt'] = {
           'caption': {
-            'base_caption': params.negativePrompt,
+            'base_caption': resolvedNegative,
             'char_captions': charNegCaptions,
           },
           'use_coords': false,
@@ -606,7 +613,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       }
 
       final metadata = {
-        'Description': params.prompt,
+        'Description': resolvedPrompt,
         'Software': 'NovelAI',
         'Source': _getModelSourceName(params.model),
         'Comment': jsonEncode(commentJson),

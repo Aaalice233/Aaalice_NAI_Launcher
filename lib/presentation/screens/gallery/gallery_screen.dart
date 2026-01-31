@@ -8,6 +8,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
 import '../../providers/gallery_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
+import '../../widgets/common/themed_input.dart';
 import '../../widgets/gallery/gallery_statistics_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
@@ -147,8 +148,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: AutocompleteTextField(
+      child: AutocompleteWrapper.localTag(
         controller: _searchController,
+        ref: ref,
         config: const AutocompleteConfig(
           maxSuggestions: 15,
           showTranslation: true,
@@ -157,27 +159,30 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           autoInsertComma: false, // 搜索不需要自动逗号
           minQueryLength: 2,
         ),
-        decoration: InputDecoration(
-          hintText: context.l10n.gallery_searchHint,
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(galleryNotifierProvider.notifier)
-                        .setSearchQuery(null);
-                  },
-                )
-              : null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        ),
         onChanged: (value) {
           ref.read(galleryNotifierProvider.notifier).setSearchQuery(
                 value.isEmpty ? null : value,
               );
         },
+        child: ThemedInput(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: context.l10n.gallery_searchHint,
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref
+                          .read(galleryNotifierProvider.notifier)
+                          .setSearchQuery(null);
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
       ),
     );
   }

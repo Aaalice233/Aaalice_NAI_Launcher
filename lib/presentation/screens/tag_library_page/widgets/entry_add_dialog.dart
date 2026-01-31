@@ -12,6 +12,7 @@ import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/safe_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
+import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
 
 /// 添加/编辑词库条目对话框
 class EntryAddDialog extends ConsumerStatefulWidget {
@@ -137,23 +138,30 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 150,
-                  child: AutocompleteTextField(
+                  child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
-                    enableAutocomplete: true,
                     enableAutoFormat: true,
-                    config: const AutocompleteConfig(
-                      maxSuggestions: 15,
-                      showTranslation: true,
-                      showCategory: true,
-                      autoInsertComma: true,
+                    child: AutocompleteWrapper.withAlias(
+                      controller: _contentController,
+                      focusNode: _contentFocusNode,
+                      ref: ref,
+                      config: const AutocompleteConfig(
+                        maxSuggestions: 15,
+                        showTranslation: true,
+                        showCategory: true,
+                        autoInsertComma: true,
+                      ),
+                      child: ThemedInput(
+                        controller: _contentController,
+                        decoration: InputDecoration(
+                          hintText: context.l10n.tagLibrary_contentHint,
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                        maxLines: null,
+                        expands: true,
+                      ),
                     ),
-                    decoration: InputDecoration(
-                      hintText: context.l10n.tagLibrary_contentHint,
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    maxLines: null,
-                    expands: true,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -355,11 +363,14 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         AutocompleteWrapper(
           controller: _tagsController,
           focusNode: _tagsFocusNode,
-          config: const AutocompleteConfig(
-            maxSuggestions: 10,
-            showTranslation: true,
-            showCategory: true,
-            autoInsertComma: true,
+          strategy: LocalTagStrategy.create(
+            ref,
+            const AutocompleteConfig(
+              maxSuggestions: 10,
+              showTranslation: true,
+              showCategory: true,
+              autoInsertComma: true,
+            ),
           ),
           child: ThemedInput(
             controller: _tagsController,

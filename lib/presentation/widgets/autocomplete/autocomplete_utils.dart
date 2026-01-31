@@ -93,6 +93,7 @@ class AutocompleteUtils {
     final tagStart = lastSeparatorIndex + 1;
 
     // 找到标签结束位置
+    // 从光标位置向后查找下一个分隔符
     var tagEnd = cursorPosition;
     for (var i = cursorPosition; i < text.length; i++) {
       final char = text[i];
@@ -113,9 +114,8 @@ class AutocompleteUtils {
         }
       }
     }
-    if (tagEnd == cursorPosition) {
-      tagEnd = text.length;
-    }
+    // 注意：如果光标后面没有分隔符，tagEnd 保持为 cursorPosition
+    // 这样只会替换光标前面正在输入的标签，不会影响后面的内容
 
     return (tagStart, tagEnd);
   }
@@ -282,8 +282,8 @@ class AutocompleteUtils {
       scrollOffset = cursorOffset.dy - visibleHeight + lineHeight;
     }
 
-    final visibleCursorY = (cursorOffset.dy - scrollOffset)
-        .clamp(0.0, visibleHeight - lineHeight);
+    final visibleCursorY =
+        (cursorOffset.dy - scrollOffset).clamp(0.0, visibleHeight - lineHeight);
 
     return Offset(
       leftPadding + cursorOffset.dx,

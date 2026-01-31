@@ -14,6 +14,7 @@ import '../grouped_grid_view.dart' show ImageDateGroup;
 import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../autocomplete/autocomplete_controller.dart';
+import '../autocomplete/strategies/local_tag_strategy.dart';
 
 /// Local gallery toolbar with search, filter and actions
 /// 本地画廊工具栏（搜索、过滤、操作按钮）
@@ -363,12 +364,15 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     return AutocompleteWrapper(
       controller: _searchController,
       focusNode: _searchFocusNode,
-      config: const AutocompleteConfig(
-        minQueryLength: 2,
-        maxSuggestions: 8,
-        showTranslation: true,
-        showCategory: true,
-        showCount: true,
+      strategy: LocalTagStrategy.create(
+        ref,
+        const AutocompleteConfig(
+          minQueryLength: 2,
+          maxSuggestions: 8,
+          showTranslation: true,
+          showCategory: true,
+          showCount: true,
+        ),
       ),
       onSuggestionSelected: (value) {
         // 选择补全建议后立即触发搜索

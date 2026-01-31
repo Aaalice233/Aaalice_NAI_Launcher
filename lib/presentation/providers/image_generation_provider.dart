@@ -22,6 +22,7 @@ import '../../data/models/vibe/vibe_reference_v4.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/statistics_cache_service.dart';
 import 'character_prompt_provider.dart';
+import '../../data/services/alias_resolver_service.dart';
 import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
@@ -228,6 +229,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // UcPresetType.heavy -> 0, light -> 1, humanFocus -> 2, none -> 3
     final ucPresetType = ref.read(ucPresetSettingsProvider);
     final ucPresetValue = ucPresetType.index; // enum index 正好对应 API 值
+
+    // 解析别名（将 <词库名> 展开为实际内容）
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+    final promptWithAliases =
+        aliasResolver.resolveAliases(effectiveParams.prompt);
+    if (promptWithAliases != effectiveParams.prompt) {
+      AppLogger.d(
+        'Resolved aliases in prompt',
+        'AliasResolver',
+      );
+      effectiveParams = effectiveParams.copyWith(prompt: promptWithAliases);
+    }
 
     // 应用固定词到提示词
     final fixedTagsState = ref.read(fixedTagsNotifierProvider);
