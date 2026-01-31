@@ -11,6 +11,10 @@ class NaiSyntaxController extends TextEditingController {
   // 静态正则表达式，编译一次复用多次
   static final RegExp _weightPattern = RegExp(r'(-?\d+\.?\d*)::([^:]+)::');
 
+  /// NAI 动态随机语法 ||A|B|C|| 或 ||n$$A|B|C||
+  static final RegExp _dynamicRandomPattern =
+      RegExp(r'\|\|([^|]+(?:\|[^|]+)*)\|\|');
+
   // 缓存：避免每次光标移动都重新解析
   String? _cachedText;
   bool? _cachedIsDark;
@@ -135,6 +139,10 @@ class NaiSyntaxController extends TextEditingController {
         ),
       );
     }
+
+    // 匹配 NAI 动态随机语法 ||A|B|C|| 的边界符和分隔符
+    // 只着色 || 和 | ，内部内容由其他规则处理（如别名 <xxx>）
+    _parseDynamicRandomSyntax(text, matches);
 
     // 按起始位置排序
     matches.sort((a, b) => a.start.compareTo(b.start));
@@ -287,6 +295,61 @@ class NaiSyntaxController extends TextEditingController {
       );
     }
   }
+
+  /// 解析 NAI 动态随机语法 ||A|B|C||
+  /// 只着色边界符 || 和分隔符 |，内部内容由其他规则处理
+  void _parseDynamicRandomSyntax(String text, List<_SyntaxMatch> matches) {
+    for (final match in _dynamicRandomPattern.allMatches(text)) {
+      final content = match.group(1)!;
+      final startPos = match.start;
+
+      // 着色开始的 ||
+      matches.add(
+        _SyntaxMatch(
+          start: startPos,
+          end: startPos + 2,
+          text: '||',
+          type: _SyntaxType.dynamicRandom,
+        ),
+      );
+
+      // 解析内部内容，找出分隔符 |
+      // 注意：需要跳过别名 <xxx> 内部的 |
+      final contentStart = startPos + 2;
+      var angleBracketDepth = 0;
+
+      for (var i = 0; i < content.length; i++) {
+        final char = content[i];
+
+        if (char == '<') {
+          angleBracketDepth++;
+        } else if (char == '>') {
+          angleBracketDepth = (angleBracketDepth - 1).clamp(0, 100);
+        } else if (char == '|' && angleBracketDepth == 0) {
+          // 找到分隔符 |
+          final separatorPos = contentStart + i;
+          matches.add(
+            _SyntaxMatch(
+              start: separatorPos,
+              end: separatorPos + 1,
+              text: '|',
+              type: _SyntaxType.dynamicRandom,
+            ),
+          );
+        }
+      }
+
+      // 着色结束的 ||
+      matches.add(
+        _SyntaxMatch(
+          start: match.end - 2,
+          end: match.end,
+          text: '||',
+          type: _SyntaxType.dynamicRandom,
+        ),
+      );
+    }
+  }
 }
 
 /// 语法类型
@@ -297,6 +360,7 @@ enum _SyntaxType {
   weightTrailing, // 权重结尾 (::)
   error, // 语法错误（不匹配的括号）
   alias, // <xxx> 别名引用
+  dynamicRandom, // ||A|B|| 动态随机语法
 }
 
 /// 语法匹配结果
@@ -429,6 +493,9 @@ class NaiSyntaxColors {
       case _SyntaxType.alias:
         // 别名：青色背景
         return _getAliasColor();
+      case _SyntaxType.dynamicRandom:
+        // 动态随机：紫色/洋红色背景
+        return _getDynamicRandomColor();
     }
   }
 
@@ -443,5 +510,11 @@ class NaiSyntaxColors {
     final alpha = isDark ? 0.50 : 0.45;
     // 红色系：HSL(0, 70%, 40%)
     return HSLColor.fromAHSL(alpha, 0, 0.70, 0.40).toColor();
+  }
+
+  /// 动态随机语法颜色（紫色/洋红色 HSL(280, 60%, 35%)）
+  Color _getDynamicRandomColor() {
+    final alpha = isDark ? 0.55 : 0.50;
+    return HSLColor.fromAHSL(alpha, 280, 0.60, 0.35).toColor();
   }
 }
