@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../../utils/chart_colors.dart';
 
 /// Heatmap chart widget for displaying activity distribution
@@ -25,6 +26,9 @@ class HeatmapChart extends StatefulWidget {
   /// Animation duration
   final Duration animationDuration;
 
+  /// Today's position (weekIndex, dayIndex) for highlighting
+  final (int, int)? todayPosition;
+
   const HeatmapChart({
     super.key,
     required this.data,
@@ -34,6 +38,7 @@ class HeatmapChart extends StatefulWidget {
     this.showDayLabels = true,
     this.onCellTap,
     this.animationDuration = const Duration(milliseconds: 800),
+    this.todayPosition,
   });
 
   @override
@@ -71,7 +76,17 @@ class _HeatmapChartState extends State<HeatmapChart>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final dayLabels = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
+    final l10n = AppLocalizations.of(context)!;
+    // Use abbreviated weekday names from l10n
+    final dayLabels = [
+      l10n.statistics_monday,
+      l10n.statistics_tuesday,
+      l10n.statistics_wednesday,
+      l10n.statistics_thursday,
+      l10n.statistics_friday,
+      l10n.statistics_saturday,
+      l10n.statistics_sunday,
+    ];
 
     return AnimatedBuilder(
       animation: _animation,
@@ -79,40 +94,32 @@ class _HeatmapChartState extends State<HeatmapChart>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Day labels row
-            if (widget.showDayLabels)
-              Padding(
-                padding: EdgeInsets.only(
-                  left: widget.showMonthLabels ? 30 : 0,
-                  bottom: 6,
-                ),
-                child: Row(
-                  children: List.generate(7, (dayIndex) {
-                    return SizedBox(
-                      width: widget.cellSize + widget.cellSpacing,
-                      child: Text(
-                        dayLabels[dayIndex],
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.8),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            // Heatmap grid
+            // Heatmap grid with day labels on left
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Month labels (vertical)
-                if (widget.showMonthLabels)
+                // Day labels (vertical, on left side)
+                if (widget.showDayLabels)
                   SizedBox(
-                    width: 30,
+                    width: 36,
                     child: Column(
-                      children: _buildMonthLabels(theme),
+                      children: List.generate(7, (dayIndex) {
+                        return SizedBox(
+                          height: widget.cellSize + widget.cellSpacing,
+                          child: Center(
+                            child: Text(
+                              dayLabels[dayIndex],
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurfaceVariant
+                                    .withOpacity(0.8),
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 // Grid
@@ -131,6 +138,9 @@ class _HeatmapChartState extends State<HeatmapChart>
                             final animatedValue = value * _animation.value;
                             final isHovered = _hoveredWeek == weekIndex &&
                                 _hoveredDay == dayIndex;
+                            final isToday = widget.todayPosition != null &&
+                                widget.todayPosition!.$1 == weekIndex &&
+                                widget.todayPosition!.$2 == dayIndex;
 
                             return MouseRegion(
                               onEnter: (_) => setState(() {
@@ -154,8 +164,10 @@ class _HeatmapChartState extends State<HeatmapChart>
                                     : null,
                                 child: Tooltip(
                                   message: value > 0
-                                      ? '${(value * 100).toInt()} activities'
-                                      : 'No activity',
+                                      ? l10n.statistics_heatmapActivities(
+                                          (value * 100).toInt(),
+                                        )
+                                      : l10n.statistics_heatmapNoActivity,
                                   decoration: BoxDecoration(
                                     color: colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(8),
@@ -182,22 +194,27 @@ class _HeatmapChartState extends State<HeatmapChart>
                                           : colorScheme.surfaceContainerHighest
                                               .withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(
-                                        isHovered ? 4 : 3,
+                                        isHovered || isToday ? 4 : 3,
                                       ),
-                                      border: isHovered
-                                          ? Border.all(
-                                              color: colorScheme.primary
-                                                  .withOpacity(0.6),
-                                              width: 1.5,
-                                            )
-                                          : null,
+                                      border: Border.all(
+                                        color: isToday
+                                            ? colorScheme.primary
+                                            : isHovered
+                                                ? colorScheme.primary
+                                                    .withOpacity(0.6)
+                                                : colorScheme.outlineVariant
+                                                    .withOpacity(0.3),
+                                        width: isToday
+                                            ? 2
+                                            : (isHovered ? 1.5 : 0.5),
+                                      ),
                                       boxShadow: isHovered && value > 0
                                           ? [
                                               BoxShadow(
                                                 color:
                                                     ChartColors.getHeatmapColor(
-                                                            value,)
-                                                        .withOpacity(0.4),
+                                                  value,
+                                                ).withOpacity(0.4),
                                                 blurRadius: 6,
                                                 spreadRadius: 1,
                                               ),
@@ -223,38 +240,23 @@ class _HeatmapChartState extends State<HeatmapChart>
             ),
             // Legend
             const SizedBox(height: 16),
-            _buildLegend(theme, colorScheme),
+            _buildLegend(theme, colorScheme, l10n),
           ],
         );
       },
     );
   }
 
-  List<Widget> _buildMonthLabels(ThemeData theme) {
-    // Simplified month labels
-    return [
-      SizedBox(
-        height: (widget.cellSize + widget.cellSpacing) * 7,
-        child: Center(
-          child: Text(
-            'Week',
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
-            ),
-          ),
-        ),
-      ),
-    ];
-  }
-
-  Widget _buildLegend(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildLegend(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AppLocalizations l10n,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
-          'Less',
+          l10n.statistics_heatmapLess,
           style: theme.textTheme.bodySmall?.copyWith(
             fontSize: 11,
             fontWeight: FontWeight.w500,
@@ -288,7 +290,7 @@ class _HeatmapChartState extends State<HeatmapChart>
         }),
         const SizedBox(width: 6),
         Text(
-          'More',
+          l10n.statistics_heatmapMore,
           style: theme.textTheme.bodySmall?.copyWith(
             fontSize: 11,
             fontWeight: FontWeight.w500,
@@ -302,12 +304,18 @@ class _HeatmapChartState extends State<HeatmapChart>
 
 /// Generate heatmap data from date-count map
 /// 从日期-计数映射生成热力图数据
-List<List<double>> generateHeatmapData(
+/// Returns a record containing the data and today's position
+({
+  List<List<double>> data,
+  (int, int)? todayPosition,
+}) generateHeatmapData(
   Map<DateTime, int> dateCounts, {
   int weeks = 52,
   DateTime? endDate,
 }) {
-  endDate ??= DateTime.now();
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  endDate ??= now;
   final startDate = endDate.subtract(Duration(days: weeks * 7));
 
   // Find max count for normalization
@@ -317,6 +325,7 @@ List<List<double>> generateHeatmapData(
 
   final data = <List<double>>[];
   var currentDate = startDate;
+  (int, int)? todayPosition;
 
   for (int week = 0; week < weeks; week++) {
     final weekData = <double>[];
@@ -325,10 +334,18 @@ List<List<double>> generateHeatmapData(
           DateTime(currentDate.year, currentDate.month, currentDate.day);
       final count = dateCounts[dateKey] ?? 0;
       weekData.add(count / maxCount);
+
+      // Check if this is today
+      if (dateKey.year == today.year &&
+          dateKey.month == today.month &&
+          dateKey.day == today.day) {
+        todayPosition = (week, day);
+      }
+
       currentDate = currentDate.add(const Duration(days: 1));
     }
     data.add(weekData);
   }
 
-  return data;
+  return (data: data, todayPosition: todayPosition);
 }

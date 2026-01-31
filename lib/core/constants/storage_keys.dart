@@ -159,4 +159,17 @@ class StorageKeys {
   static const String notificationSoundEnabled = 'notification_sound_enabled';
   static const String notificationCustomSoundPath =
       'notification_custom_sound_path';
+
+  // Data Source Cache Settings (数据源缓存设置)
+  static const String hfTranslationRefreshInterval =
+      'hf_translation_refresh_interval';
+  static const String hfTranslationLastUpdate = 'hf_translation_last_update';
+  static const String danbooruTagsHotThreshold = 'danbooru_tags_hot_threshold';
+  static const String danbooruTagsHotPreset = 'danbooru_tags_hot_preset';
+  static const String danbooruTagsLastUpdate = 'danbooru_tags_last_update';
+  static const String danbooruTagsRefreshInterval =
+      'danbooru_tags_refresh_interval';
+  static const String firstLaunchVersion = 'first_launch_version';
+  static const String enableSmartTagRecommendation =
+      'enable_smart_tag_recommendation';
 }

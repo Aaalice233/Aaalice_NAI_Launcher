@@ -25,14 +25,42 @@ import '../../widgets/common/themed_divider.dart';
 import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
-import 'widgets/tag_library_settings.dart';
+import 'widgets/data_source_cache_settings.dart';
 
 /// 设置页面
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _scrollController = ScrollController();
+  bool _isScrolled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final scrolled = _scrollController.offset > 0;
+    if (scrolled != _isScrolled) {
+      setState(() => _isScrolled = scrolled);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentTheme = ref.watch(themeNotifierProvider);
     final currentFont = ref.watch(fontNotifierProvider);
@@ -42,13 +70,18 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n.settings_title),
+        // 滚动后变暗色
+        backgroundColor:
+            _isScrolled ? theme.colorScheme.surfaceContainerHighest : null,
+        surfaceTintColor: Colors.transparent,
       ),
       body: ListView(
+        controller: _scrollController,
         children: [
           // 账户信息
           _buildSectionHeader(theme, context.l10n.settings_account),
           AccountDetailTile(
-            onEdit: () => _showProfileSheet(context, ref),
+            onEdit: () => _showProfileSheet(context),
             onLogin: () => _navigateToLogin(context),
           ),
           const ThemedDivider(),
@@ -65,7 +98,7 @@ class SettingsScreen extends ConsumerWidget {
                   ? context.l10n.settings_defaultPreset
                   : currentTheme.displayName,
             ),
-            onTap: () => _showThemeDialog(context, ref, currentTheme),
+            onTap: () => _showThemeDialog(context, currentTheme),
           ),
 
           // 字体选择
@@ -73,7 +106,7 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.text_fields),
             title: Text(context.l10n.settings_font),
             subtitle: Text(currentFont.displayName),
-            onTap: () => _showFontDialog(context, ref, currentFont),
+            onTap: () => _showFontDialog(context, currentFont),
           ),
 
           // 语言选择
@@ -85,7 +118,7 @@ class SettingsScreen extends ConsumerWidget {
                   ? context.l10n.settings_languageChinese
                   : context.l10n.settings_languageEnglish,
             ),
-            onTap: () => _showLanguageDialog(context, ref, currentLocale),
+            onTap: () => _showLanguageDialog(context, currentLocale),
           ),
           const ThemedDivider(),
 
@@ -121,7 +154,7 @@ class SettingsScreen extends ConsumerWidget {
                 const Icon(Icons.chevron_right),
               ],
             ),
-            onTap: () => _selectSaveDirectory(context, ref),
+            onTap: () => _selectSaveDirectory(context),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.save_outlined),
@@ -141,9 +174,9 @@ class SettingsScreen extends ConsumerWidget {
           const _NetworkSettingsSection(),
           const ThemedDivider(),
 
-          // 词库设置
-          _buildSectionHeader(theme, '标签词库'),
-          const TagLibrarySettings(),
+          // 网络数据缓存
+          _buildSectionHeader(theme, '数据源缓存管理'),
+          const DataSourceCacheSettings(),
           const ThemedDivider(),
 
           // 队列设置
@@ -199,7 +232,6 @@ class SettingsScreen extends ConsumerWidget {
 
   void _showThemeDialog(
     BuildContext context,
-    WidgetRef ref,
     AppStyle currentTheme,
   ) {
     // 将 retroWave 置顶，其余保持原顺序
@@ -250,7 +282,6 @@ class SettingsScreen extends ConsumerWidget {
 
   void _showFontDialog(
     BuildContext context,
-    WidgetRef ref,
     FontConfig currentFont,
   ) {
     showDialog(
@@ -420,7 +451,6 @@ class SettingsScreen extends ConsumerWidget {
 
   void _showLanguageDialog(
     BuildContext context,
-    WidgetRef ref,
     Locale currentLocale,
   ) {
     showDialog(
@@ -466,7 +496,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _selectSaveDirectory(BuildContext context, WidgetRef ref) async {
+  Future<void> _selectSaveDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
         dialogTitle: context.l10n.settings_selectFolder,
@@ -489,7 +519,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   /// 显示账号资料编辑底部面板
-  void _showProfileSheet(BuildContext context, WidgetRef ref) {
+  void _showProfileSheet(BuildContext context) {
     final authState = ref.read(authNotifierProvider);
     final accountId = authState.accountId;
 

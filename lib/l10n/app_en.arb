@@ -3159,6 +3159,17 @@
       "count": {}
     }
   },
-  "alias_favorited": "Favorited"
+  "alias_favorited": "Favorited",
+
+  "statistics_heatmapLess": "Less",
+  "statistics_heatmapMore": "More",
+  "statistics_heatmapWeekLabel": "Week",
+  "statistics_heatmapActivities": "{count} activities",
+  "@statistics_heatmapActivities": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_heatmapNoActivity": "No activity"
 
 }

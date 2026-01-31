@@ -79,12 +79,16 @@ class _ActivityPageState extends ConsumerState<ActivityPage>
       dateCounts[date] = (dateCounts[date] ?? 0) + 1;
     }
 
+    final heatmapResult = generateHeatmapData(dateCounts, weeks: 26);
+
     return ChartCard(
       title: l10n.statistics_chartActivityHeatmap,
       titleIcon: Icons.grid_on_outlined,
       child: HeatmapChart(
-        data: generateHeatmapData(dateCounts, weeks: 26),
-        cellSize: 14,
+        data: heatmapResult.data,
+        cellSize: 18,
+        cellSpacing: 4,
+        todayPosition: heatmapResult.todayPosition,
         onCellTap: (week, day, value) {},
       ),
     );
