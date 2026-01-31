@@ -1,205 +1,46 @@
-import 'text_space_converter.dart';
-
-/// 括号位置信息
-class _BracketPos {
-  final String char;
-  final int position;
-
-  _BracketPos(this.char, this.position);
-}
-
 /// NAI 提示词格式化工具
-/// 将提示词转换为 NAI 标准格式（使用下划线，补齐括号等）
+/// 简化版：只做中文逗号转英文和空格转下划线
 class NaiPromptFormatter {
   /// 格式化单个标签为 NAI 格式
   /// 将空格转换为下划线
   static String formatTag(String tag) {
-    return tag.trim().replaceAll(' ', '_');
+    return _normalizeWhitespace(tag).trim().replaceAll(' ', '_');
   }
 
   /// 格式化整个提示词
-  /// - 将标签中的空格转换为下划线
-  /// - 补齐未闭合的括号
-  /// - 补齐未完成的权重冒号
+  /// - 将中文逗号转换为英文逗号
+  /// - 将标签中的空格转换为下划线（保留逗号后的空格）
   static String format(String prompt) {
     if (prompt.isEmpty) return prompt;
 
     var result = prompt;
 
-    // 1. 处理每个逗号分隔的标签
-    result = _formatTags(result);
+    // 1. 统一空白字符：全角空格、连续空格 → 单个半角空格
+    result = _normalizeWhitespace(result);
 
-    // 2. 补齐未闭合的括号
-    result = _balanceBrackets(result);
-
-    // 3. 补齐未完成的权重冒号
-    result = _balanceWeightColons(result);
-
-    // 4. 清理格式
-    result = _cleanupFormat(result);
-
-    return result;
-  }
-
-  /// 格式化标签（将空格转为下划线，但保护特殊语法）
-  static String _formatTags(String prompt) {
-    return TextSpaceConverter.convert(
-      prompt,
-      protectChars: TextSpaceConverter.naiFormat,
-    );
-  }
-
-  /// 补齐未闭合的括号
-  /// 智能补齐：在逗号前闭合所有未闭合的括号，只处理真正未闭合的括号
-  static String _balanceBrackets(String prompt) {
-    // 第一遍：标记所有已配对的括号位置
-    final pairedPositions = <int>{};
-    final stack = <_BracketPos>[];
-
-    for (var i = 0; i < prompt.length; i++) {
-      final char = prompt[i];
-
-      if (char == '{' || char == '[' || char == '(') {
-        stack.add(_BracketPos(char, i));
-      } else if (char == '}' || char == ']' || char == ')') {
-        final expectedOpen = _getMatchingOpen(char);
-
-        // 从栈顶找匹配的开括号
-        for (var j = stack.length - 1; j >= 0; j--) {
-          if (stack[j].char == expectedOpen) {
-            // 标记这对括号为已配对
-            pairedPositions.add(stack[j].position);
-            pairedPositions.add(i);
-            stack.removeAt(j);
-            break;
-          }
-        }
-      }
-    }
-
-    // 第二遍：遍历字符串，遇到逗号时闭合未配对的开括号
-    final result = StringBuffer();
-    final unclosedStack = <String>[]; // 未闭合的开括号
-    final prependOpens = <String>[]; // 需要在开头添加的开括号
-
-    for (var i = 0; i < prompt.length; i++) {
-      final char = prompt[i];
-
-      if (char == '{' || char == '[' || char == '(') {
-        if (!pairedPositions.contains(i)) {
-          // 这是一个未配对的开括号
-          unclosedStack.add(char);
-        }
-        result.write(char);
-      } else if (char == '}' || char == ']' || char == ')') {
-        if (!pairedPositions.contains(i)) {
-          // 这是一个多余的闭括号，在开头添加对应的开括号
-          prependOpens.add(_getMatchingOpen(char));
-        }
-        result.write(char);
-      } else if (char == ',') {
-        // 遇到逗号，先闭合所有未配对的开括号（从内到外）
-        for (var j = unclosedStack.length - 1; j >= 0; j--) {
-          result.write(_getMatchingClose(unclosedStack[j]));
-        }
-        unclosedStack.clear();
-        result.write(char);
-      } else {
-        result.write(char);
-      }
-    }
-
-    // 在末尾闭合剩余的未配对开括号
-    for (var j = unclosedStack.length - 1; j >= 0; j--) {
-      result.write(_getMatchingClose(unclosedStack[j]));
-    }
-
-    // 在开头添加多余闭括号对应的开括号
-    var finalResult = result.toString();
-    for (final open in prependOpens.reversed) {
-      finalResult = open + finalResult;
-    }
-
-    return finalResult;
-  }
-
-  /// 获取匹配的开括号
-  static String _getMatchingOpen(String close) {
-    switch (close) {
-      case '}':
-        return '{';
-      case ']':
-        return '[';
-      case ')':
-        return '(';
-      default:
-        return '';
-    }
-  }
-
-  /// 获取匹配的闭括号
-  static String _getMatchingClose(String open) {
-    switch (open) {
-      case '{':
-        return '}';
-      case '[':
-        return ']';
-      case '(':
-        return ')';
-      default:
-        return '';
-    }
-  }
-
-  /// 补齐未完成的权重冒号
-  static String _balanceWeightColons(String prompt) {
-    var result = prompt;
-
-    // 统计 :: 的数量，NAI V4 语法中 :: 必须成对出现 (weight::content::)
-    // 如果是奇数则在末尾添加 ::
-    final doubleColonCount = '::'.allMatches(result).length;
-    if (doubleColonCount % 2 != 0) {
-      result += '::';
-    }
-
-    // 检查 NAI 随机化语法 ||...||
-    final pipeCount = '||'.allMatches(result).length;
-    if (pipeCount % 2 != 0) {
-      result += '||';
-    }
-
-    return result;
-  }
-
-  /// 清理格式
-  static String _cleanupFormat(String prompt) {
-    var result = prompt;
-
-    // 将中文逗号转换为英文逗号
+    // 2. 将中文逗号转换为英文逗号
     result = result.replaceAll('，', ',');
 
-    // 移除连续的下划线
-    result = result.replaceAll(RegExp(r'_+'), '_');
+    // 3. 按逗号分割，对每个标签内部的空格转下划线，然后用 ", " 重新连接
+    final tags = result.split(',');
+    final formattedTags = tags.map((tag) {
+      // 去掉标签前后的空格，然后将内部空格转下划线
+      final trimmed = tag.trim();
+      if (trimmed.isEmpty) return '';
+      return trimmed.replaceAll(' ', '_');
+    }).where((tag) => tag.isNotEmpty);
 
-    // 移除标签开头和结尾的下划线
-    result = result.replaceAllMapped(
-      RegExp(r'(^|,\s*)_+'),
-      (m) => m.group(1) ?? '',
-    );
-    result = result.replaceAllMapped(
-      RegExp(r'_+(\s*,|$)'),
-      (m) => m.group(1) ?? '',
-    );
+    return formattedTags.join(', ');
+  }
 
-    // 统一逗号格式
-    result = result.replaceAll(RegExp(r'\s*,\s*'), ', ');
-
-    // 移除首尾空白
-    result = result.trim();
-
-    // 移除末尾的逗号
-    result = result.replaceAll(RegExp(r',\s*$'), '');
-
+  /// 统一空白字符
+  /// - 全角空格 → 半角空格
+  /// - 连续空白 → 单个空格
+  static String _normalizeWhitespace(String text) {
+    // 全角空格转半角
+    var result = text.replaceAll('　', ' ');
+    // 连续空白压缩为单个空格
+    result = result.replaceAll(RegExp(r'\s+'), ' ');
     return result;
   }
 }

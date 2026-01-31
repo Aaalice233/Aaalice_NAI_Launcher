@@ -386,7 +386,7 @@
   "prompt_smartAutocomplete": "Smart Autocomplete",
   "prompt_smartAutocompleteSubtitle": "Show tag suggestions while typing",
   "prompt_autoFormat": "Auto Format",
-  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-close brackets, etc.",
+  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-add underscores",
   "prompt_highlightEmphasis": "Highlight Emphasis",
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",

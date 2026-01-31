@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/tag_data_service.dart';
-import '../../../core/utils/app_logger.dart';
 import '../../../data/models/tag/local_tag.dart';
 import '../../providers/locale_provider.dart';
 import 'autocomplete_controller.dart';
@@ -102,10 +101,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     _focusNode.addListener(_onFocusChanged);
     // 直接在 focusNode 上注册键盘事件，而不是使用 Focus widget
-    AppLogger.d(
-      'AutocompleteWrapper: Setting onKeyEvent handler',
-      'Autocomplete',
-    );
     _focusNode.onKeyEvent = _handleKeyEvent;
     widget.controller.addListener(_onTextChanged);
   }
@@ -180,16 +175,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     // 检查是否正在进行 IME 组合输入，如果是则跳过处理
     // 这对于中文、日文、韩文等输入法的兼容性至关重要
     final composing = widget.controller.value.composing;
-    AppLogger.d(
-      'AutocompleteWrapper._onTextChanged: text="${widget.controller.text}", '
-          'composing.isValid=${composing.isValid}, composing.isCollapsed=${composing.isCollapsed}',
-      'Autocomplete',
-    );
     if (composing.isValid && !composing.isCollapsed) {
-      AppLogger.d(
-        'AutocompleteWrapper: skipping due to composing',
-        'Autocomplete',
-      );
       return;
     }
 
@@ -322,10 +308,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final cursorPosition = widget.controller.selection.baseOffset;
 
     if (cursorPosition < 0 || cursorPosition > text.length) {
-      AppLogger.w(
-        'Invalid cursor position: $cursorPosition, text length: ${text.length}',
-        'AutocompleteWrapper',
-      );
       return;
     }
 
@@ -350,26 +332,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // 补全菜单未显示时，不阻止任何键
     if (!_showSuggestions) {
-      if (event is KeyDownEvent &&
-          event.logicalKey == LogicalKeyboardKey.enter) {
-        AppLogger.d(
-          'Autocomplete: Enter pressed but suggestions not shown',
-          'Autocomplete',
-        );
-      }
       return KeyEventResult.ignored;
     }
 
     final suggestions = _autocompleteController?.suggestions ?? [];
     // 没有建议时，不阻止任何键
     if (suggestions.isEmpty) {
-      if (event is KeyDownEvent &&
-          event.logicalKey == LogicalKeyboardKey.enter) {
-        AppLogger.d(
-          'Autocomplete: Enter pressed but suggestions empty',
-          'Autocomplete',
-        );
-      }
       return KeyEventResult.ignored;
     }
 
@@ -392,25 +360,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.tab) {
-        AppLogger.d(
-          'Autocomplete: Enter/Tab pressed, selectedIndex=$_selectedIndex, '
-              'suggestionsLength=${suggestions.length}',
-          'Autocomplete',
-        );
         if (event is KeyDownEvent &&
             _selectedIndex >= 0 &&
             _selectedIndex < suggestions.length) {
-          AppLogger.d(
-            'Autocomplete: Selecting suggestion',
-            'Autocomplete',
-          );
           _selectSuggestion(suggestions[_selectedIndex]);
           return KeyEventResult.handled;
         }
-        AppLogger.d(
-          'Autocomplete: Enter ignored (no valid selection)',
-          'Autocomplete',
-        );
         return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
         if (event is KeyDownEvent) {
@@ -456,6 +411,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     return CompositedTransformTarget(
       link: _layerLink,
       child: Focus(
+        focusNode: _focusNode,
         onKeyEvent: _handleKeyEvent,
         child: widget.child,
       ),

@@ -299,7 +299,7 @@
   "prompt_smartAutocomplete": "智能补全",
   "prompt_smartAutocompleteSubtitle": "输入时显示标签建议",
   "prompt_autoFormat": "自动格式化",
-  "prompt_autoFormatSubtitle": "中文逗号转英文、补齐括号等",
+  "prompt_autoFormatSubtitle": "中文逗号转英文、空格自动转下划线",
   "prompt_highlightEmphasis": "高亮强调",
   "prompt_highlightEmphasisSubtitle": "括号和权重语法高亮显示",
   "prompt_sdSyntaxAutoConvert": "SD语法自动转换",

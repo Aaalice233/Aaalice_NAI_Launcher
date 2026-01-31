@@ -4,11 +4,12 @@ class TextSpaceConverter {
   TextSpaceConverter._();
 
   /// 保护字符集预设：仅逗号
-  static const Set<String> commaOnly = {','};
+  static const Set<String> commaOnly = {',', '，'};
 
   /// 保护字符集预设：逗号 + 括号 + 竖线（用于 NAI 格式化）
   static const Set<String> naiFormat = {
     ',',
+    '，', // 中文逗号
     '{',
     '}',
     '[',
@@ -74,8 +75,9 @@ class TextSpaceConverter {
       final nextChar = nextIdx >= 0 ? chars[nextIdx] : null;
 
       // 如果前后非空格字符在保护集中，保留空格
-      final shouldPreserve = (prevChar != null && protectChars.contains(prevChar)) ||
-          (nextChar != null && protectChars.contains(nextChar));
+      final shouldPreserve =
+          (prevChar != null && protectChars.contains(prevChar)) ||
+              (nextChar != null && protectChars.contains(nextChar));
 
       result.write(shouldPreserve ? ' ' : '_');
     }

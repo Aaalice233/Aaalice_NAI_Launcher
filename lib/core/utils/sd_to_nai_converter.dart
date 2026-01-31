@@ -89,15 +89,18 @@ class SdToNaiConverter {
   /// - `(long hair)` → `1.1::long_hair::`
   /// - `[ugly]` → `0.91::ugly::`
   /// - `\(text\)` → `(text)` (转义符保留)
+  ///
+  /// 注意：只负责 SD 语法转换，不做通用空格转换
+  /// 通用空格转下划线由 NaiPromptFormatter 统一负责
   static String convert(String text) {
-    // 如果有SD语法且没有NAI语法，执行完整的SD→NAI转换（内部包含空格转换）
+    // 只有当有SD语法且没有NAI语法时，才执行转换
     if (hasSDWeightSyntax(text) && !hasNAISyntax(text)) {
       final parsed = _parsePromptAttention(text);
       return _buildNaiV4(parsed);
     }
 
-    // 其他情况（无SD语法、已有NAI语法、或混合语法），只转换空格为下划线
-    return _convertSpacesToUnderscores(text);
+    // 其他情况直接返回原文，不做任何处理
+    return text;
   }
 
   /// 解析SD权重语法
@@ -231,6 +234,9 @@ class SdToNaiConverter {
   /// 将文本中的空格转换为下划线
   /// 保护特殊位置的空格（逗号旁边等）
   static String _convertSpacesToUnderscores(String text) {
-    return TextSpaceConverter.convert(text);
+    return TextSpaceConverter.convert(
+      text,
+      protectChars: TextSpaceConverter.naiFormat,
+    );
   }
 }

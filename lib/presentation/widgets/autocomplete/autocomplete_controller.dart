@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/services/tag_data_service.dart';
-import '../../../core/utils/app_logger.dart';
 import '../../../data/models/tag/local_tag.dart';
 
 /// 自动补全控制器
@@ -55,10 +54,6 @@ class AutocompleteController extends ChangeNotifier {
   /// [query] 搜索词
   /// [immediate] 是否立即搜索（跳过防抖）
   void search(String query, {bool immediate = false}) {
-    AppLogger.d(
-      'AutocompleteController.search: query="$query"',
-      'Autocomplete',
-    );
     _debounceTimer?.cancel();
 
     final trimmedQuery = query.trim();
@@ -93,23 +88,9 @@ class AutocompleteController extends ChangeNotifier {
 
   /// 执行搜索
   void _performSearch(String query) {
-    AppLogger.d(
-      'AutocompleteController._performSearch: query="$query", serviceInit=${_tagDataService.isInitialized}',
-      'Autocomplete',
-    );
     try {
       _suggestions = _tagDataService.search(query, limit: maxSuggestions);
-      AppLogger.d(
-        'AutocompleteController._performSearch: results=${_suggestions.length}',
-        'Autocomplete',
-      );
     } catch (e) {
-      AppLogger.e(
-        'AutocompleteController._performSearch error',
-        e,
-        null,
-        'Autocomplete',
-      );
       _suggestions = [];
     } finally {
       _isLoading = false;
