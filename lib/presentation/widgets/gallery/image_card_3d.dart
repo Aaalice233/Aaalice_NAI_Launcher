@@ -44,7 +44,7 @@ class ImageCard3D extends StatefulWidget {
 }
 
 class _ImageCard3DState extends State<ImageCard3D>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   /// 是否悬停
   bool _isHovered = false;
 
@@ -53,6 +53,9 @@ class _ImageCard3DState extends State<ImageCard3D>
 
   /// 光泽动画
   late Animation<double> _glossAnimation;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -123,6 +126,7 @@ class _ImageCard3DState extends State<ImageCard3D>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
@@ -291,17 +295,15 @@ class _ImageCard3DState extends State<ImageCard3D>
           );
         },
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) return child;
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: frame != null
-                ? child
-                : Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
+          if (wasSynchronouslyLoaded || frame != null) {
+            return child;
+          }
+          // Show placeholder while loading
+          return Container(
+            color: Colors.grey[200],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           );
         },
       ),

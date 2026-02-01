@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
@@ -401,7 +404,68 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     return _contentController.text.trim().isNotEmpty;
   }
 
-  void _save() {
+  /// 确保缩略图存储在应用目录内
+  /// 如果缩略图在外部路径，则复制到应用目录并返回新路径
+  Future<String?> _ensureThumbnailInAppDir(String? thumbnailPath) async {
+    if (thumbnailPath == null || thumbnailPath.isEmpty) {
+      return null;
+    }
+
+    // 检查文件是否已存在于应用目录内
+    final appDir = await getApplicationDocumentsDirectory();
+    final thumbnailsDir = Directory(
+      path.join(appDir.path, 'tag_library_thumbnails'),
+    );
+
+    // 如果路径已经在应用目录内，直接返回
+    if (thumbnailPath.startsWith(thumbnailsDir.path)) {
+      return thumbnailPath;
+    }
+
+    // 确保缩略图目录存在
+    if (!await thumbnailsDir.exists()) {
+      await thumbnailsDir.create(recursive: true);
+    }
+
+    // 复制文件到应用目录
+    final sourceFile = File(thumbnailPath);
+    if (!await sourceFile.exists()) {
+      // 原文件不存在，返回 null（图片可能被删除了）
+      return null;
+    }
+
+    final ext = path.extension(thumbnailPath);
+    final newFileName = '${const Uuid().v4()}$ext';
+    final newPath = path.join(thumbnailsDir.path, newFileName);
+
+    await sourceFile.copy(newPath);
+    return newPath;
+  }
+
+  /// 删除应用目录内的旧缩略图文件
+  Future<void> _deleteOldThumbnail(String? oldThumbnailPath) async {
+    if (oldThumbnailPath == null || oldThumbnailPath.isEmpty) {
+      return;
+    }
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final thumbnailsDir = path.join(appDir.path, 'tag_library_thumbnails');
+
+      // 只删除应用目录内的文件，避免误删外部文件
+      if (oldThumbnailPath.startsWith(thumbnailsDir)) {
+        final file = File(oldThumbnailPath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      // 忽略删除失败，不影响保存流程
+      debugPrint('删除旧缩略图失败: $e');
+    }
+  }
+
+  Future<void> _save() async {
     final name = _nameController.text.trim();
     final content = _contentController.text.trim();
     final tagsText = _tagsController.text.trim();
@@ -415,6 +479,21 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
     if (content.isEmpty) return;
 
+    // 获取旧的缩略图路径（用于后续清理）
+    final String? oldThumbnailPath =
+        _isEditing ? widget.entry?.thumbnail : null;
+
+    // 处理缩略图：确保存储在应用目录内
+    final String? savedThumbnailPath =
+        await _ensureThumbnailInAppDir(_thumbnailPath);
+
+    // 如果缩略图发生了变化，删除旧的
+    if (oldThumbnailPath != null &&
+        oldThumbnailPath != savedThumbnailPath &&
+        oldThumbnailPath != _thumbnailPath) {
+      await _deleteOldThumbnail(oldThumbnailPath);
+    }
+
     final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
 
     if (_isEditing) {
@@ -422,7 +501,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       final updatedEntry = widget.entry!.copyWith(
         name: name,
         content: content,
-        thumbnail: _thumbnailPath,
+        thumbnail: savedThumbnailPath,
         tags: tags,
         categoryId: _selectedCategoryId,
         updatedAt: DateTime.now(),
@@ -433,7 +512,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       notifier.addEntry(
         name: name,
         content: content,
-        thumbnail: _thumbnailPath,
+        thumbnail: savedThumbnailPath,
         tags: tags,
         categoryId: _selectedCategoryId,
       );

@@ -309,14 +309,38 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 构建文本输入框
   Widget _buildTextField() {
-    final effectiveDecoration = widget.decoration ??
-        InputDecoration(
-          hintText: widget.config.hintText,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
-        );
+    // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
+    final effectiveDecoration = InputDecoration(
+      hintText: widget.config.hintText,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 10,
+      ),
+    ).copyWith(
+      hintText: widget.config.hintText,
+      contentPadding: widget.decoration?.contentPadding,
+      filled: widget.decoration?.filled,
+      fillColor: widget.decoration?.fillColor,
+      border: widget.decoration?.border,
+      enabledBorder: widget.decoration?.enabledBorder,
+      focusedBorder: widget.decoration?.focusedBorder,
+      errorBorder: widget.decoration?.errorBorder,
+      focusedErrorBorder: widget.decoration?.focusedErrorBorder,
+      prefixIcon: widget.decoration?.prefixIcon,
+      suffixIcon: widget.decoration?.suffixIcon,
+      prefix: widget.decoration?.prefix,
+      suffix: widget.decoration?.suffix,
+      labelText: widget.decoration?.labelText,
+      labelStyle: widget.decoration?.labelStyle,
+      floatingLabelStyle: widget.decoration?.floatingLabelStyle,
+      helperText: widget.decoration?.helperText,
+      helperStyle: widget.decoration?.helperStyle,
+      errorText: widget.decoration?.errorText,
+      errorStyle: widget.decoration?.errorStyle,
+      counterText: widget.decoration?.counterText,
+      counterStyle: widget.decoration?.counterStyle,
+      isDense: widget.decoration?.isDense,
+    );
 
     // 构建基础 ThemedInput
     // 注意：focusNode 必须始终传给 ThemedInput，

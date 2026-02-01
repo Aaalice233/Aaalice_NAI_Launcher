@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -316,58 +318,78 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   Widget _buildGalleryGrid(BuildContext context, GalleryState state) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 根据宽度计算列数
-        final crossAxisCount = constraints.maxWidth > 1200
-            ? 6
-            : constraints.maxWidth > 800
-                ? 4
-                : constraints.maxWidth > 600
-                    ? 3
-                    : 2;
+        // 优先使用用户设置的列数，否则根据宽度自动计算
+        final crossAxisCount = state.gridColumnCount ?? 
+            (constraints.maxWidth > 1200
+                ? 6
+                : constraints.maxWidth > 800
+                    ? 4
+                    : constraints.maxWidth > 600
+                        ? 3
+                        : 2);
 
-        return GridView.builder(
-          padding: const EdgeInsets.all(12),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: state.records.length,
-          itemBuilder: (context, index) {
-            final record = state.records[index];
-            final isSelected = state.selectedIds.contains(record.id);
-
-            return _GalleryTile(
-              record: record,
-              isSelected: isSelected,
-              isSelectionMode: state.isSelectionMode,
-              onTap: () {
-                if (state.isSelectionMode) {
-                  ref
-                      .read(galleryNotifierProvider.notifier)
-                      .toggleSelection(record.id);
-                } else {
-                  _showFullscreen(context, record);
+        // 监听滚轮事件（Ctrl+滚轮缩放）
+        return Listener(
+          onPointerSignal: (pointerSignal) {
+            if (pointerSignal is PointerScrollEvent) {
+              // 检查是否按下了Ctrl键
+              final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+              if (isCtrlPressed) {
+                final delta = pointerSignal.scrollDelta.dy;
+                if (delta > 0) {
+                  // 向下滚动：增加列数（缩小卡片）
+                  ref.read(galleryNotifierProvider.notifier).increaseGridColumns();
+                } else if (delta < 0) {
+                  // 向上滚动：减少列数（放大卡片）
+                  ref.read(galleryNotifierProvider.notifier).decreaseGridColumns();
                 }
-              },
-              onLongPress: () {
-                if (!state.isSelectionMode) {
-                  ref
-                      .read(galleryNotifierProvider.notifier)
-                      .enterSelectionMode();
-                  ref
-                      .read(galleryNotifierProvider.notifier)
-                      .toggleSelection(record.id);
-                }
-              },
-              onFavoriteToggle: () {
-                ref
-                    .read(galleryNotifierProvider.notifier)
-                    .toggleFavorite(record.id);
-              },
-            );
+              }
+            }
           },
+          child: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: state.records.length,
+            itemBuilder: (context, index) {
+              final record = state.records[index];
+              final isSelected = state.selectedIds.contains(record.id);
+
+              return _GalleryTile(
+                record: record,
+                isSelected: isSelected,
+                isSelectionMode: state.isSelectionMode,
+                onTap: () {
+                  if (state.isSelectionMode) {
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .toggleSelection(record.id);
+                  } else {
+                    _showFullscreen(context, record);
+                  }
+                },
+                onLongPress: () {
+                  if (!state.isSelectionMode) {
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .enterSelectionMode();
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .toggleSelection(record.id);
+                  }
+                },
+                onFavoriteToggle: () {
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .toggleFavorite(record.id);
+                },
+              );
+            },
+          ),
         );
       },
     );

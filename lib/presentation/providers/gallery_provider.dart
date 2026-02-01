@@ -18,6 +18,10 @@ class GalleryState {
   final String? error;
   final Set<String> selectedIds;
   final bool isSelectionMode;
+  
+  /// 网格列数（用于控制卡片大小）
+  /// 范围：2-10，默认根据屏幕宽度自动计算
+  final int? gridColumnCount;
 
   const GalleryState({
     this.records = const [],
@@ -26,6 +30,7 @@ class GalleryState {
     this.error,
     this.selectedIds = const {},
     this.isSelectionMode = false,
+    this.gridColumnCount,
   });
 
   GalleryState copyWith({
@@ -35,6 +40,8 @@ class GalleryState {
     String? error,
     Set<String>? selectedIds,
     bool? isSelectionMode,
+    int? gridColumnCount,
+    bool clearGridColumnCount = false,
   }) {
     return GalleryState(
       records: records ?? this.records,
@@ -43,6 +50,9 @@ class GalleryState {
       error: error,
       selectedIds: selectedIds ?? this.selectedIds,
       isSelectionMode: isSelectionMode ?? this.isSelectionMode,
+      gridColumnCount: clearGridColumnCount 
+          ? null 
+          : (gridColumnCount ?? this.gridColumnCount),
     );
   }
 
@@ -245,6 +255,33 @@ class GalleryNotifier extends _$GalleryNotifier {
     return _repository.getStats();
   }
 
+  /// 设置网格列数（用于Ctrl+滚轮缩放）
+  /// [columns] 列数范围 2-10，null表示自动计算
+  void setGridColumnCount(int? columns) {
+    if (columns != null) {
+      // 限制范围 2-10
+      columns = columns.clamp(2, 10);
+    }
+    state = state.copyWith(gridColumnCount: columns);
+  }
+
+  /// 增加网格列数（缩小卡片）
+  void increaseGridColumns() {
+    final current = state.gridColumnCount ?? 4;
+    setGridColumnCount(current + 1);
+  }
+
+  /// 减少网格列数（放大卡片）
+  void decreaseGridColumns() {
+    final current = state.gridColumnCount ?? 4;
+    setGridColumnCount(current - 1);
+  }
+
+  /// 重置网格列数为自动计算
+  void resetGridColumnCount() {
+    state = state.copyWith(clearGridColumnCount: true);
+  }
+
   /// 清空所有记录
   Future<void> clearAll() async {
     try {
@@ -293,4 +330,11 @@ bool isGallerySelectionMode(Ref ref) {
 GalleryStatistics galleryStatistics(Ref ref) {
   final notifier = ref.read(galleryNotifierProvider.notifier);
   return notifier.getStats();
+}
+
+/// 便捷 Provider：获取网格列数
+@riverpod
+int galleryGridColumnCount(Ref ref) {
+  final state = ref.watch(galleryNotifierProvider);
+  return state.gridColumnCount ?? 4; // 默认4列
 }

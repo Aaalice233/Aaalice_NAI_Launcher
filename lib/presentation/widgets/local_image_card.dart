@@ -48,7 +48,8 @@ class LocalImageCard extends StatefulWidget {
   State<LocalImageCard> createState() => _LocalImageCardState();
 }
 
-class _LocalImageCardState extends State<LocalImageCard> {
+class _LocalImageCardState extends State<LocalImageCard>
+    with AutomaticKeepAliveClientMixin {
   Timer? _longPressTimer;
 
   // Pinch gesture state
@@ -58,6 +59,9 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
   /// 是否已预缓存详情图片
   bool _isPrecached = false;
+
+  @override
+  bool get wantKeepAlive => true; // 保持状态，避免翻页回来后重新加载
 
   @override
   void dispose() {
@@ -397,6 +401,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 需要调用
+    
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
     // Calculate height dynamically based on aspect ratio, with max height constraint
@@ -526,27 +532,16 @@ class _LocalImageCardState extends State<LocalImageCard> {
                               duration: const Duration(milliseconds: 200),
                               child: frame != null
                                   ? child
-                                  : Container(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
+                                  : _ImagePlaceholder(
+                                      width: widget.itemWidth,
+                                      aspectRatio: widget.aspectRatio,
                                     ),
                             );
                           },
                           errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              child: Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  size: 48,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                              ),
+                            return _ImageError(
+                              width: widget.itemWidth,
+                              aspectRatio: widget.aspectRatio,
                             );
                           },
                         ),
@@ -603,6 +598,73 @@ class _LocalImageCardState extends State<LocalImageCard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 图片加载占位符（带 shimmer 效果）
+class _ImagePlaceholder extends StatelessWidget {
+  final double width;
+  final double aspectRatio;
+
+  const _ImagePlaceholder({
+    required this.width,
+    required this.aspectRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: width / aspectRatio,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 图片加载错误显示
+class _ImageError extends StatelessWidget {
+  final double width;
+  final double aspectRatio;
+
+  const _ImageError({
+    required this.width,
+    required this.aspectRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: width / aspectRatio,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.broken_image,
+            size: 32,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '加载失败',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
       ),
     );
   }

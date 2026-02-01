@@ -288,7 +288,7 @@
   "prompt_inputPrompt": "输入提示词...",
   "prompt_inputNegativePrompt": "输入负向提示词...",
   "prompt_describeImage": "描述你想要生成的图像...",
-  "prompt_describeImageWithHint": "输入标签描述图像，使用 <词库名称> 引用词库内容",
+  "prompt_describeImageWithHint": "输入提示词描述画面，输入 < 引用词库，支持自动补全标签",
   "prompt_unwantedContent": "不想出现在图像中的内容...",
   "prompt_addTagsHint": "添加标签来描述你想要的画面",
   "prompt_addUnwantedHint": "添加不想出现的元素",

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
@@ -48,6 +46,9 @@ class ResponsiveLayout {
 /// - 仅渲染可见项±1屏缓冲区
 /// - 预计算布局信息
 /// - 使用RepaintBoundary隔离重绘
+///
+/// 注意：使用 PageStorageKey 时，每页应该有独立的 key（包含页码），
+/// 这样每页的滚动位置会被独立保存和恢复。
 class VirtualGalleryGrid extends StatefulWidget {
   final List<LocalImageRecord> images;
   final int columns;
@@ -63,7 +64,6 @@ class VirtualGalleryGrid extends StatefulWidget {
   )? onSecondaryTapDown;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
   final Set<int>? selectedIndices;
-  final ScrollController? scrollController;
 
   const VirtualGalleryGrid({
     super.key,
@@ -77,7 +77,6 @@ class VirtualGalleryGrid extends StatefulWidget {
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
     this.selectedIndices,
-    this.scrollController,
   });
 
   @override
@@ -85,90 +84,6 @@ class VirtualGalleryGrid extends StatefulWidget {
 }
 
 class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
-  late ScrollController _scrollController;
-  bool _ownsScrollController = false;
-
-  /// 可视区域的起始和结束索引
-  int _firstVisibleIndex = 0;
-  int _lastVisibleIndex = 0;
-
-  /// 缓冲区屏幕数
-  static const double _bufferScreens = 3.0; // 增加缓冲区，避免白块
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.scrollController != null) {
-      _scrollController = widget.scrollController!;
-    } else {
-      _scrollController = ScrollController();
-      _ownsScrollController = true;
-    }
-    _scrollController.addListener(_updateVisibleRange);
-  }
-
-  @override
-  void didUpdateWidget(VirtualGalleryGrid oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.scrollController != oldWidget.scrollController) {
-      if (_ownsScrollController) {
-        _scrollController.removeListener(_updateVisibleRange);
-        _scrollController.dispose();
-      }
-      if (widget.scrollController != null) {
-        _scrollController = widget.scrollController!;
-        _ownsScrollController = false;
-      } else {
-        _scrollController = ScrollController();
-        _ownsScrollController = true;
-      }
-      _scrollController.addListener(_updateVisibleRange);
-    }
-  }
-
-  void _updateVisibleRange() {
-    if (!_scrollController.hasClients) return;
-
-    final position = _scrollController.position;
-    final viewportHeight = position.viewportDimension;
-    final scrollOffset = position.pixels;
-
-    // 计算可视区域（包含缓冲区）
-    final bufferHeight = viewportHeight * _bufferScreens;
-    final visibleStart = math.max(0, scrollOffset - bufferHeight);
-    final visibleEnd = scrollOffset + viewportHeight + bufferHeight;
-
-    // 使用固定的卡片高度计算
-    const itemHeight = ResponsiveLayout.fixedCardHeight;
-    final rowHeight = itemHeight + widget.spacing;
-
-    // 使用 widget.columns 而不是重新计算，避免 viewportDimension 返回高度的 bug
-    final columns = widget.columns.clamp(2, 8);
-
-    final firstRow = (visibleStart / rowHeight).floor();
-    final lastRow = (visibleEnd / rowHeight).ceil();
-
-    final newFirstIndex = firstRow * columns;
-    final newLastIndex =
-        math.min(lastRow * columns + columns - 1, widget.images.length - 1);
-
-    if (newFirstIndex != _firstVisibleIndex ||
-        newLastIndex != _lastVisibleIndex) {
-      setState(() {
-        _firstVisibleIndex = newFirstIndex;
-        _lastVisibleIndex = newLastIndex;
-      });
-    }
-  }
-
-  double _calculateItemWidth() {
-    return ResponsiveLayout.fixedCardWidth;
-  }
-
-  double _calculateItemHeight() {
-    return ResponsiveLayout.fixedCardHeight;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.images.isEmpty) {
@@ -207,19 +122,9 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
         );
         final horizontalPadding = (screenWidth - gridWidth) / 2;
 
-        // 初始化可视范围
-        if (_lastVisibleIndex == 0 && widget.images.isNotEmpty) {
-          final viewportHeight = constraints.maxHeight;
-          final rowHeight = itemHeight + widget.spacing;
-          final visibleRows = (viewportHeight / rowHeight).ceil() + 2;
-          _lastVisibleIndex = math.min(
-            visibleRows * columns - 1,
-            widget.images.length - 1,
-          );
-        }
-
         return GridView.builder(
-          controller: _scrollController,
+          // 使用 PrimaryScrollController，让 PageStorage 自动管理滚动位置
+          primary: true,
           padding: EdgeInsets.symmetric(
             horizontal:
                 horizontalPadding.clamp(widget.padding.left, double.infinity),
@@ -232,13 +137,19 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
             childAspectRatio: itemWidth / itemHeight,
           ),
           itemCount: widget.images.length,
-          itemBuilder: (context, index) {
-            // 虚拟化：仅渲染可见+缓冲区的item
-            if (index < _firstVisibleIndex || index > _lastVisibleIndex) {
-              // 占位符（保持布局不变，但不渲染实际内容）
-              return const _PlaceholderCard();
+          // 使用 findChildIndexCallback 帮助 GridView 在重建时找到对应的子项
+          findChildIndexCallback: (key) {
+            if (key is ValueKey<String>) {
+              final path = key.value;
+              for (int i = 0; i < widget.images.length; i++) {
+                if (widget.images[i].path == path) {
+                  return i;
+                }
+              }
             }
-
+            return null;
+          },
+          itemBuilder: (context, index) {
             final record = widget.images[index];
             final isSelected = widget.selectedIndices?.contains(index) ?? false;
 
@@ -273,27 +184,11 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
     );
   }
 
-  @override
-  void dispose() {
-    if (_ownsScrollController) {
-      _scrollController.removeListener(_updateVisibleRange);
-      _scrollController.dispose();
-    }
-    super.dispose();
+  double _calculateItemWidth() {
+    return ResponsiveLayout.fixedCardWidth;
   }
-}
 
-/// 占位卡片（虚拟化时使用）
-class _PlaceholderCard extends StatelessWidget {
-  const _PlaceholderCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(12),
-      ),
-    );
+  double _calculateItemHeight() {
+    return ResponsiveLayout.fixedCardHeight;
   }
 }

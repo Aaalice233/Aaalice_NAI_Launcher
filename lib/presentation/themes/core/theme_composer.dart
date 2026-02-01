@@ -208,6 +208,11 @@ class ThemeComposer {
             width: 1.5,
           ),
         ),
+        // 显式设置 hintStyle，确保在所有主题下都有足够的对比度
+        hintStyle: TextStyle(
+          color: colorScheme.outline,
+          fontSize: 16,
+        ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),

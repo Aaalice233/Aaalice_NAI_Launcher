@@ -298,9 +298,11 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
     }
 
     return VirtualGalleryGrid(
-      // 使用动态 key，当选择模式变化时强制重建，确保 onTap 回调使用最新状态
+      // CRITICAL FIX: 使用包含页码和选择模式的 key，确保：
+      // 1. 不同页面有独立的滚动位置（修复翻页后滚动位置共享问题）
+      // 2. 选择模式变化时强制重建，确保 onTap 回调使用最新状态
       key: PageStorageKey<String>(
-        'local_gallery_3d_grid_${selectionState.isActive}',
+        'local_gallery_3d_grid_${state.currentPage}_${selectionState.isActive}',
       ),
       images: state.currentImages,
       columns: widget.columns,

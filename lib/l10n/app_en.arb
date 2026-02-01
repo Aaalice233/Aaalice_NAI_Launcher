@@ -370,7 +370,7 @@
   "prompt_inputPrompt": "Enter prompt...",
   "prompt_inputNegativePrompt": "Enter negative prompt...",
   "prompt_describeImage": "Describe the image you want to generate...",
-  "prompt_describeImageWithHint": "Enter tags to describe image, use <library name> to reference library content",
+  "prompt_describeImageWithHint": "Enter prompt to describe image, type < to reference library, supports tag autocomplete",
   "prompt_unwantedContent": "Content you don't want in the image...",
   "prompt_addTagsHint": "Add tags to describe your desired image",
   "prompt_addUnwantedHint": "Add unwanted elements",

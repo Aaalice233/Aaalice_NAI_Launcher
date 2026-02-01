@@ -148,6 +148,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         isIndexing: false,
       );
       await loadPage(0);
+      
+      // 注意：搜索功能现在使用数据库FTS5，不需要预加载所有图片到内存索引
+      // 这避免了上万张图片时的内存和性能问题
     } catch (e) {
       state = state.copyWith(error: e.toString(), isIndexing: false);
     }
@@ -199,11 +202,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           'LocalGalleryNotifier',
         );
 
-        // 同步更新 filteredFiles 和 allFiles，移除不存在的文件
-        final updatedFilteredFiles =
-            state.filteredFiles.where((f) => f.existsSync()).toList();
-        final updatedAllFiles =
-            state.allFiles.where((f) => f.existsSync()).toList();
+        // 异步检查文件存在性，避免阻塞UI
+        final updatedFilteredFiles = await _filterExistingFiles(state.filteredFiles);
+        final updatedAllFiles = await _filterExistingFiles(state.allFiles);
 
         AppLogger.i(
           'loadPage: Updated filteredFiles: ${state.filteredFiles.length} -> ${updatedFilteredFiles.length}, '
@@ -317,6 +318,36 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     await _applyFilters();
   }
 
+  /// 异步过滤存在的文件（避免同步existsSync阻塞UI）
+  Future<List<File>> _filterExistingFiles(List<File> files) async {
+    if (files.isEmpty) return [];
+    
+    // 分批检查，每批20个
+    const batchSize = 20;
+    final results = <File>[];
+    
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+      
+      // 并发检查当前批次
+      final batchResults = await Future.wait(
+        batch.map((f) async => (file: f, exists: await f.exists())),
+      );
+      
+      results.addAll(
+        batchResults.where((r) => r.exists).map((r) => r.file),
+      );
+      
+      // 每5批让出时间片
+      if ((i ~/ batchSize) % 5 == 0 && i > 0) {
+        await Future.delayed(Duration.zero);
+      }
+    }
+    
+    return results;
+  }
+
   /// 应用过滤条件
   Future<void> _applyFilters() async {
     final query = state.searchQuery.toLowerCase().trim();
@@ -406,60 +437,57 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
 
     // 有收藏过滤或搜索关键词：需要加载记录
-    // 如果有搜索关键词：优先使用搜索索引
+    // 如果有搜索关键词：优先使用数据库FTS5全文搜索
     if (query.isNotEmpty) {
       try {
-        // 如果搜索索引不为空，使用索引进行快速搜索
-        if (!_searchIndex.isEmpty) {
-          final searchedRecords =
-              await _searchIndex.search(query, limit: 10000);
+        // 使用数据库FTS5全文搜索（支持上万张图片，无需预加载到内存）
+        final searchedRecords = await _repository.searchImages(query, limit: 10000);
 
-          // 将搜索结果转换为 File 对象集合
-          final searchedPaths = searchedRecords.map((r) => r.path).toSet();
+        // 将搜索结果转换为 File 对象集合
+        final searchedPaths = searchedRecords.map((r) => r.path).toSet();
 
-          // 过滤出同时满足搜索结果和日期过滤的文件
-          var filtered = dateFiltered
-              .where((file) => searchedPaths.contains(file.path))
-              .toList();
+        // 过滤出同时满足搜索结果和日期过滤的文件
+        var filtered = dateFiltered
+            .where((file) => searchedPaths.contains(file.path))
+            .toList();
 
-          // 如果需要收藏过滤，再应用收藏过滤
-          if (showFavoritesOnly) {
-            filtered = _applyFavoriteFilter(filtered);
-          }
-
-          // 如果需要标签过滤，再应用标签过滤
-          if (selectedTags.isNotEmpty) {
-            filtered = _applyTagFilter(filtered);
-          }
-
-          // 如果需要元数据过滤，再应用元数据过滤
-          if (_hasMetadataFilters) {
-            filtered = await _applyMetadataFilter(filtered);
-          }
-
-          state = state.copyWith(
-            filteredFiles: filtered,
-            currentPage: 0,
-            isPageLoading: false,
-          );
-
-          if (state.isGroupedView) {
-            await _loadGroupedImages();
-          } else {
-            await loadPage(0);
-          }
-          return;
+        // 如果需要收藏过滤，再应用收藏过滤
+        if (showFavoritesOnly) {
+          filtered = _applyFavoriteFilter(filtered);
         }
+
+        // 如果需要标签过滤，再应用标签过滤
+        if (selectedTags.isNotEmpty) {
+          filtered = _applyTagFilter(filtered);
+        }
+
+        // 如果需要元数据过滤，再应用元数据过滤
+        if (_hasMetadataFilters) {
+          filtered = await _applyMetadataFilter(filtered);
+        }
+
+        state = state.copyWith(
+          filteredFiles: filtered,
+          currentPage: 0,
+          isPageLoading: false,
+        );
+
+        if (state.isGroupedView) {
+          await _loadGroupedImages();
+        } else {
+          await loadPage(0);
+        }
+        return;
       } catch (e) {
         AppLogger.w(
-          'Search index query failed, falling back to manual search: $e',
+          'Database search failed, falling back to manual search: $e',
           'LocalGalleryNotifier',
         );
         // 继续使用原有的手动搜索逻辑
       }
     }
 
-    // 回退到手动搜索（搜索索引为空或查询失败时）
+    // 回退到手动搜索（数据库搜索失败时）
     // 先按文件名过滤，减少需要加载的记录数
     final fileNameMatched = <File>[];
     final needPromptCheck = <File>[];

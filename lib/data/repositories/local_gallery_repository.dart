@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 
@@ -379,6 +380,11 @@ class LocalGalleryRepository {
   }
 
   /// 加载文件记录（批量解析元数据，带缓存）
+  ///
+  /// 优化策略：
+  /// 1. 优先从数据库/缓存读取（极速，无需文件IO）
+  /// 2. 分批串行处理，每批5个文件并发，避免CPU满载
+  /// 3. 每批处理完让出时间片，保持UI流畅
   Future<List<LocalImageRecord>> loadRecords(List<File> files) async {
     final stopwatch = Stopwatch()..start();
     int cacheHits = 0;
@@ -390,103 +396,31 @@ class LocalGalleryRepository {
       'LocalGalleryRepo',
     );
 
-    final records = await Future.wait(
-      files.map((file) async {
-        final filePath = file.path;
+    final records = <LocalImageRecord?>[];
 
-        // 跳过不存在的文件，返回 null（必须在缓存检查之前）
-        if (!file.existsSync()) {
-          deletedFiles++;
-          AppLogger.w(
-            'loadRecords: File not exists, cleaning cache: $filePath',
-            'LocalGalleryRepo',
-          );
-          // 清理缓存中的无效记录
-          if (_initialized) {
-            final imageId = await _db.getImageIdByPath(filePath);
-            if (imageId != null) {
-              await _cacheService.invalidate(imageId);
-              await _db.markAsDeleted(filePath);
-            }
-          }
-          await _legacyCacheService.delete(filePath);
-          return null;
-        }
+    // 分批处理，每批5个并发，避免同时创建过多Future导致CPU满载
+    const batchSize = 5;
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
 
-        final fileModified = file.lastModifiedSync();
+      // 并行处理当前批次
+      final batchResults = await Future.wait(
+        batch.map(
+          (file) => _processFileWithCache(
+            file,
+            onCacheHit: () => cacheHits++,
+            onCacheMiss: () => cacheMisses++,
+            onDeleted: () => deletedFiles++,
+          ),
+        ),
+      );
 
-        // 尝试从SQLite获取
-        if (_initialized) {
-          final imageId = await _db.getImageIdByPath(filePath);
-          if (imageId != null) {
-            final cached = await _cacheService.get(imageId);
-            if (cached != null) {
-              cacheHits++;
-              return cached;
-            }
-          }
-        }
+      records.addAll(batchResults);
 
-        // 尝试从旧版缓存获取
-        final cached = _legacyCacheService.get(filePath);
-        if (cached != null) {
-          final cachedTs = cached['ts'] as DateTime;
-          if (cachedTs.millisecondsSinceEpoch ==
-              fileModified.millisecondsSinceEpoch) {
-            cacheHits++;
-            final meta = cached['meta'] as NaiImageMetadata;
-            return LocalImageRecord(
-              path: filePath,
-              size: file.lengthSync(),
-              modifiedAt: fileModified,
-              metadata: meta,
-              metadataStatus:
-                  meta.hasData ? MetadataStatus.success : MetadataStatus.none,
-              isFavorite: isFavorite(filePath),
-              tags: getTags(filePath),
-            );
-          }
-        }
-
-        // 缓存未命中，解析文件
-        cacheMisses++;
-        try {
-          final bytes = await file.readAsBytes();
-          final meta =
-              await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
-
-          // 写入缓存
-          if (meta != null) {
-            await _legacyCacheService.put(filePath, meta, fileModified);
-          }
-
-          return LocalImageRecord(
-            path: filePath,
-            size: bytes.length,
-            modifiedAt: fileModified,
-            metadata: meta,
-            metadataStatus: meta != null && meta.hasData
-                ? MetadataStatus.success
-                : MetadataStatus.none,
-            isFavorite: isFavorite(filePath),
-            tags: getTags(filePath),
-          );
-        } catch (e) {
-          AppLogger.w(
-            'Failed to parse metadata for $filePath: $e',
-            'LocalGalleryRepo',
-          );
-          return LocalImageRecord(
-            path: filePath,
-            size: 0,
-            modifiedAt: fileModified,
-            metadataStatus: MetadataStatus.failed,
-            isFavorite: isFavorite(filePath),
-            tags: getTags(filePath),
-          );
-        }
-      }),
-    );
+      // 让出时间片，保持UI流畅
+      await Future.delayed(Duration.zero);
+    }
 
     // 过滤掉 null 值（不存在的文件）
     final validRecords = records.whereType<LocalImageRecord>().toList();
@@ -510,6 +444,112 @@ class LocalGalleryRepository {
       'LocalGalleryRepo',
     );
     return validRecords;
+  }
+
+  /// 处理单个文件（带缓存逻辑）
+  Future<LocalImageRecord?> _processFileWithCache(
+    File file, {
+    required VoidCallback onCacheHit,
+    required VoidCallback onCacheMiss,
+    required VoidCallback onDeleted,
+  }) async {
+    final filePath = file.path;
+
+    try {
+      // 使用异步检查文件是否存在
+      if (!await file.exists()) {
+        onDeleted();
+        _cleanupDeletedFile(filePath);
+        return null;
+      }
+
+      // 异步获取文件信息
+      final fileModified = await file.lastModified();
+
+      // 尝试从SQLite获取（优先）
+      if (_initialized) {
+        final imageId = await _db.getImageIdByPath(filePath);
+        if (imageId != null) {
+          final cached = await _cacheService.get(imageId);
+          if (cached != null) {
+            onCacheHit();
+            return cached;
+          }
+        }
+      }
+
+      // 尝试从旧版缓存获取
+      final cached = _legacyCacheService.get(filePath);
+      if (cached != null) {
+        final cachedTs = cached['ts'] as DateTime;
+        if (cachedTs.millisecondsSinceEpoch ==
+            fileModified.millisecondsSinceEpoch) {
+          onCacheHit();
+          final meta = cached['meta'] as NaiImageMetadata;
+          final fileSize = await file.length();
+          return LocalImageRecord(
+            path: filePath,
+            size: fileSize,
+            modifiedAt: fileModified,
+            metadata: meta,
+            metadataStatus:
+                meta.hasData ? MetadataStatus.success : MetadataStatus.none,
+            isFavorite: isFavorite(filePath),
+            tags: getTags(filePath),
+          );
+        }
+      }
+
+      // 缓存未命中，解析文件
+      onCacheMiss();
+      final bytes = await file.readAsBytes();
+      final meta = await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
+
+      // 写入缓存（后台执行）
+      if (meta != null) {
+        unawaited(_legacyCacheService.put(filePath, meta, fileModified));
+      }
+
+      return LocalImageRecord(
+        path: filePath,
+        size: bytes.length,
+        modifiedAt: fileModified,
+        metadata: meta,
+        metadataStatus: meta != null && meta.hasData
+            ? MetadataStatus.success
+            : MetadataStatus.none,
+        isFavorite: isFavorite(filePath),
+        tags: getTags(filePath),
+      );
+    } catch (e) {
+      AppLogger.w('Failed to process file $filePath: $e', 'LocalGalleryRepo');
+      return LocalImageRecord(
+        path: filePath,
+        size: 0,
+        modifiedAt: DateTime.now(),
+        metadataStatus: MetadataStatus.failed,
+        isFavorite: isFavorite(filePath),
+        tags: getTags(filePath),
+      );
+    }
+  }
+
+  /// 后台清理已删除文件的缓存
+  void _cleanupDeletedFile(String filePath) {
+    Future.microtask(() async {
+      try {
+        if (_initialized) {
+          final imageId = await _db.getImageIdByPath(filePath);
+          if (imageId != null) {
+            await _cacheService.invalidate(imageId);
+            await _db.markAsDeleted(filePath);
+          }
+        }
+        await _legacyCacheService.delete(filePath);
+      } catch (e) {
+        // 静默处理清理错误
+      }
+    });
   }
 
   /// 从单个文件解析元数据
