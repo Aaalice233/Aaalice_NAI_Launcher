@@ -605,9 +605,16 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   // ==================== 导入导出 ====================
 
   /// 批量导入条目
+  ///
+  /// [entries] 要导入的条目列表
+  /// [categoryIdMapping] 分类ID映射（旧ID -> 新ID）
+  /// [keepIds] 是否保留原始ID（用于替换场景）
+  /// [nameSuffix] 名称后缀（用于重命名场景）
   Future<int> importEntries(
     List<TagLibraryEntry> entries, {
     Map<String, String>? categoryIdMapping,
+    bool keepIds = false,
+    String? nameSuffix,
   }) async {
     final newEntries = <TagLibraryEntry>[];
     var startSortOrder = state.entries.length;
@@ -618,13 +625,34 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         mappedCategoryId = categoryIdMapping[entry.categoryId];
       }
 
-      newEntries.add(
-        entry.copyWith(
-          categoryId: mappedCategoryId ?? entry.categoryId,
-          sortOrder: startSortOrder++,
-          updatedAt: DateTime.now(),
-        ),
-      );
+      final newName = nameSuffix != null && nameSuffix.isNotEmpty
+          ? '${entry.name}$nameSuffix'
+          : entry.name;
+
+      if (keepIds) {
+        // 保留原始ID（替换场景）
+        newEntries.add(
+          entry.copyWith(
+            name: newName,
+            categoryId: mappedCategoryId ?? entry.categoryId,
+            sortOrder: startSortOrder++,
+            updatedAt: DateTime.now(),
+          ),
+        );
+      } else {
+        // 创建新ID（正常导入场景）
+        newEntries.add(
+          TagLibraryEntry.create(
+            name: newName,
+            content: entry.content,
+            thumbnail: entry.thumbnail,
+            tags: entry.tags,
+            categoryId: mappedCategoryId ?? entry.categoryId,
+            sortOrder: startSortOrder++,
+            isFavorite: entry.isFavorite,
+          ),
+        );
+      }
     }
 
     state = state.copyWith(entries: [...state.entries, ...newEntries]);
@@ -634,23 +662,49 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   }
 
   /// 批量导入分类
+  ///
+  /// [categories] 要导入的分类列表
+  /// [keepIds] 是否保留原始ID（用于替换场景）
+  /// [nameSuffix] 名称后缀（用于重命名场景）
   Future<Map<String, String>> importCategories(
-    List<TagLibraryCategory> categories,
-  ) async {
+    List<TagLibraryCategory> categories, {
+    bool keepIds = false,
+    String? nameSuffix,
+  }) async {
     // 返回旧ID到新ID的映射
     final idMapping = <String, String>{};
     final newCategories = <TagLibraryCategory>[];
     var startSortOrder = state.categories.length;
 
     for (final category in categories) {
-      final newCategory = TagLibraryCategory.create(
-        name: category.name,
-        parentId:
-            category.parentId != null ? idMapping[category.parentId] : null,
-        sortOrder: startSortOrder++,
-      );
-      idMapping[category.id] = newCategory.id;
-      newCategories.add(newCategory);
+      final newName = nameSuffix != null && nameSuffix.isNotEmpty
+          ? '${category.name}$nameSuffix'
+          : category.name;
+
+      if (keepIds) {
+        // 保留原始ID（替换场景）
+        final parentId = category.parentId != null
+            ? idMapping[category.parentId]
+            : null;
+        newCategories.add(
+          category.copyWith(
+            name: newName,
+            parentId: parentId,
+            sortOrder: startSortOrder++,
+          ),
+        );
+        idMapping[category.id] = category.id;
+      } else {
+        // 创建新ID（正常导入场景）
+        final newCategory = TagLibraryCategory.create(
+          name: newName,
+          parentId:
+              category.parentId != null ? idMapping[category.parentId] : null,
+          sortOrder: startSortOrder++,
+        );
+        idMapping[category.id] = newCategory.id;
+        newCategories.add(newCategory);
+      }
     }
 
     state = state.copyWith(categories: [...state.categories, ...newCategories]);

@@ -41,7 +41,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -102,6 +102,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                           _selectedFile = null;
                           _preview = null;
                           _conflicts = [];
+                          _conflictResolutions.clear();
                         });
                       },
                       child: const Text('重新选择'),
@@ -268,7 +269,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '发现 ${_conflicts.length} 个冲突项，已自动设置为跳过',
+                      '发现 ${_conflicts.length} 个冲突项，请点击下方冲突项选择处理方式',
                       style: TextStyle(color: theme.colorScheme.tertiary),
                     ),
                   ),
@@ -315,12 +316,26 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             ),
             const SizedBox(height: 8),
             ...preview.categories.map((category) {
-              final isConflict =
-                  _conflicts.any((c) => c.importId == category.id);
-              return CheckboxListTile(
-                title: Text(category.displayName),
-                subtitle: isConflict ? const Text('冲突 - 将跳过') : null,
-                value: _selectedCategoryIds.contains(category.id),
+              final conflict = _conflicts.firstWhere(
+                (c) => c.importId == category.id,
+                orElse: () => const ImportConflict(
+                  type: ConflictType.category,
+                  importName: '',
+                  importId: '',
+                  existingId: '',
+                ),
+              );
+              final isConflict = conflict.importId.isNotEmpty;
+              final resolution = _conflictResolutions[category.id] ??
+                  ConflictResolution.skip;
+
+              return _buildConflictItem(
+                theme: theme,
+                title: category.displayName,
+                subtitle: isConflict ? _getConflictSubtitle(resolution) : null,
+                isSelected: _selectedCategoryIds.contains(category.id),
+                isConflict: isConflict,
+                resolution: resolution,
                 onChanged: (value) {
                   setState(() {
                     if (value == true) {
@@ -330,8 +345,13 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                     }
                   });
                 },
-                dense: true,
-                contentPadding: EdgeInsets.zero,
+                onResolutionChanged: isConflict
+                    ? (newResolution) {
+                        setState(() {
+                          _conflictResolutions[category.id] = newResolution;
+                        });
+                      }
+                    : null,
               );
             }),
             const SizedBox(height: 16),
@@ -345,15 +365,28 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             ),
             const SizedBox(height: 8),
             ...preview.entries.map((entry) {
-              final isConflict = _conflicts.any((c) => c.importId == entry.id);
-              return CheckboxListTile(
-                title: Text(entry.displayName),
-                subtitle: Text(
-                  isConflict ? '冲突 - 将跳过' : entry.contentPreview,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              final conflict = _conflicts.firstWhere(
+                (c) => c.importId == entry.id,
+                orElse: () => const ImportConflict(
+                  type: ConflictType.entry,
+                  importName: '',
+                  importId: '',
+                  existingId: '',
                 ),
-                value: _selectedEntryIds.contains(entry.id),
+              );
+              final isConflict = conflict.importId.isNotEmpty;
+              final resolution = _conflictResolutions[entry.id] ??
+                  ConflictResolution.skip;
+
+              return _buildConflictItem(
+                theme: theme,
+                title: entry.displayName,
+                subtitle: isConflict
+                    ? _getConflictSubtitle(resolution)
+                    : entry.contentPreview,
+                isSelected: _selectedEntryIds.contains(entry.id),
+                isConflict: isConflict,
+                resolution: resolution,
                 onChanged: (value) {
                   setState(() {
                     if (value == true) {
@@ -363,14 +396,235 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                     }
                   });
                 },
-                dense: true,
-                contentPadding: EdgeInsets.zero,
+                onResolutionChanged: isConflict
+                    ? (newResolution) {
+                        setState(() {
+                          _conflictResolutions[entry.id] = newResolution;
+                        });
+                      }
+                    : null,
               );
             }),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildConflictItem({
+    required ThemeData theme,
+    required String title,
+    required String? subtitle,
+    required bool isSelected,
+    required bool isConflict,
+    required ConflictResolution resolution,
+    required ValueChanged<bool?> onChanged,
+    required ValueChanged<ConflictResolution>? onResolutionChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: isConflict
+            ? theme.colorScheme.tertiaryContainer.withOpacity(0.2)
+            : null,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Checkbox(
+            value: isSelected,
+            onChanged: onChanged,
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isConflict
+                          ? theme.colorScheme.tertiary
+                          : theme.colorScheme.outline,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          if (isConflict && onResolutionChanged != null)
+            _buildResolutionSwitch(theme, resolution, onResolutionChanged)
+          else
+            const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResolutionSwitch(
+    ThemeData theme,
+    ConflictResolution currentResolution,
+    ValueChanged<ConflictResolution> onChanged,
+  ) {
+    return PopupMenuButton<ConflictResolution>(
+      tooltip: '选择冲突处理方式',
+      initialValue: currentResolution,
+      onSelected: onChanged,
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: ConflictResolution.skip,
+          child: Row(
+            children: [
+              Icon(
+                Icons.skip_next,
+                size: 18,
+                color: currentResolution == ConflictResolution.skip
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '跳过',
+                style: TextStyle(
+                  color: currentResolution == ConflictResolution.skip
+                      ? theme.colorScheme.primary
+                      : null,
+                  fontWeight: currentResolution == ConflictResolution.skip
+                      ? FontWeight.w600
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: ConflictResolution.rename,
+          child: Row(
+            children: [
+              Icon(
+                Icons.edit,
+                size: 18,
+                color: currentResolution == ConflictResolution.rename
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '重命名',
+                style: TextStyle(
+                  color: currentResolution == ConflictResolution.rename
+                      ? theme.colorScheme.primary
+                      : null,
+                  fontWeight: currentResolution == ConflictResolution.rename
+                      ? FontWeight.w600
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: ConflictResolution.overwrite,
+          child: Row(
+            children: [
+              Icon(
+                Icons.sync,
+                size: 18,
+                color: currentResolution == ConflictResolution.overwrite
+                    ? theme.colorScheme.primary
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '替换',
+                style: TextStyle(
+                  color: currentResolution == ConflictResolution.overwrite
+                      ? theme.colorScheme.primary
+                      : null,
+                  fontWeight: currentResolution == ConflictResolution.overwrite
+                      ? FontWeight.w600
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.tertiaryContainer.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getResolutionIcon(currentResolution),
+              size: 14,
+              color: theme.colorScheme.tertiary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _getResolutionLabel(currentResolution),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.tertiary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: theme.colorScheme.tertiary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getConflictSubtitle(ConflictResolution resolution) {
+    switch (resolution) {
+      case ConflictResolution.skip:
+        return '冲突 - 将跳过';
+      case ConflictResolution.rename:
+        return '冲突 - 将重命名导入';
+      case ConflictResolution.overwrite:
+        return '冲突 - 将替换现有';
+    }
+  }
+
+  String _getResolutionLabel(ConflictResolution resolution) {
+    switch (resolution) {
+      case ConflictResolution.skip:
+        return '跳过';
+      case ConflictResolution.rename:
+        return '重命名';
+      case ConflictResolution.overwrite:
+        return '替换';
+    }
+  }
+
+  IconData _getResolutionIcon(ConflictResolution resolution) {
+    switch (resolution) {
+      case ConflictResolution.skip:
+        return Icons.skip_next;
+      case ConflictResolution.rename:
+        return Icons.edit;
+      case ConflictResolution.overwrite:
+        return Icons.sync;
+    }
   }
 
   Future<void> _selectFile() async {
@@ -454,34 +708,101 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       // 导入到 provider
       final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
 
-      // 筛选要导入的分类（排除冲突跳过的）
+      // 首先处理需要替换（覆盖）的分类 - 先删除现有分类
+      for (final conflict in _conflicts.where(
+        (c) =>
+            c.isCategoryConflict &&
+            _selectedCategoryIds.contains(c.importId) &&
+            _conflictResolutions[c.importId] == ConflictResolution.overwrite,
+      )) {
+        await notifier.deleteCategory(conflict.existingId);
+      }
+
+      // 处理需要替换（覆盖）的条目 - 先删除现有条目
+      for (final conflict in _conflicts.where(
+        (c) =>
+            c.isEntryConflict &&
+            _selectedEntryIds.contains(c.importId) &&
+            _conflictResolutions[c.importId] == ConflictResolution.overwrite,
+      )) {
+        await notifier.deleteEntry(conflict.existingId);
+      }
+
+      // 筛选要导入的分类（根据冲突解决策略处理）
       final categoriesToImport = _preview!.categories.where((c) {
         if (!_selectedCategoryIds.contains(c.id)) return false;
         final resolution = _conflictResolutions[c.id];
         return resolution != ConflictResolution.skip;
       }).toList();
 
-      // 导入分类并获取 ID 映射
-      final categoryIdMapping =
-          await notifier.importCategories(categoriesToImport);
+      // 确定是否有分类需要保留ID（替换场景）
+      final categoriesNeedKeepIds = categoriesToImport.any((c) {
+        final resolution = _conflictResolutions[c.id];
+        return resolution == ConflictResolution.overwrite;
+      });
 
-      // 筛选要导入的条目（排除冲突跳过的）
+      // 确定分类是否需要添加后缀（重命名场景）
+      final categoryNameSuffix = categoriesToImport.any((c) {
+        final resolution = _conflictResolutions[c.id];
+        return resolution == ConflictResolution.rename;
+      }) ? ' (导入)' : null;
+
+      // 导入分类并获取 ID 映射
+      final categoryIdMapping = await notifier.importCategories(
+        categoriesToImport,
+        keepIds: categoriesNeedKeepIds,
+        nameSuffix: categoryNameSuffix,
+      );
+
+      // 筛选要导入的条目（根据冲突解决策略处理）
       final entriesToImport = _preview!.entries.where((e) {
         if (!_selectedEntryIds.contains(e.id)) return false;
         final resolution = _conflictResolutions[e.id];
         return resolution != ConflictResolution.skip;
       }).toList();
 
+      // 确定是否有条目需要保留ID（替换场景）
+      final entriesNeedKeepIds = entriesToImport.any((e) {
+        final resolution = _conflictResolutions[e.id];
+        return resolution == ConflictResolution.overwrite;
+      });
+
+      // 确定条目是否需要添加后缀（重命名场景）
+      final entryNameSuffix = entriesToImport.any((e) {
+        final resolution = _conflictResolutions[e.id];
+        return resolution == ConflictResolution.rename;
+      }) ? ' (导入)' : null;
+
       // 导入条目
       await notifier.importEntries(
         entriesToImport,
         categoryIdMapping: categoryIdMapping,
+        keepIds: entriesNeedKeepIds,
+        nameSuffix: entryNameSuffix,
       );
 
       if (mounted) {
         Navigator.of(context).pop();
-        AppToast.info(context,
-            '导入成功: ${result.importedEntries} 条目, ${result.skippedConflicts} 跳过',);
+        final messages = <String>[];
+        if (result.importedEntries > 0) {
+          messages.add('${result.importedEntries} 条目');
+        }
+        if (result.importedCategories > 0) {
+          messages.add('${result.importedCategories} 分类');
+        }
+        if (result.renamedCount > 0) {
+          messages.add('${result.renamedCount} 重命名');
+        }
+        if (result.overwrittenCount > 0) {
+          messages.add('${result.overwrittenCount} 替换');
+        }
+        if (result.skippedConflicts > 0) {
+          messages.add('${result.skippedConflicts} 跳过');
+        }
+        AppToast.info(
+          context,
+          messages.isEmpty ? '导入完成' : '导入成功: ${messages.join(', ')}',
+        );
       }
     } catch (e) {
       if (mounted) {
