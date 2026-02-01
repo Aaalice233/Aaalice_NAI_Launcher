@@ -551,13 +551,14 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildTextPromptInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
+    final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.watch(sdSyntaxAutoConvertSettingsProvider);
     return UnifiedPromptInput(
       controller: _promptController,
       focusNode: _promptFocusNode,
       config: UnifiedPromptConfig(
-        enableSyntaxHighlight: true,
+        enableSyntaxHighlight: enableHighlight,
         enableAutocomplete: enableAutocomplete,
         enableAutoFormat: enableAutoFormat,
         enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
@@ -581,9 +582,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       onComfyuiImport: (globalPrompt, characters) {
         // 清空现有角色并替换
         ref.read(characterPromptNotifierProvider.notifier).clearAll();
-        ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
+        ref
+            .read(characterPromptNotifierProvider.notifier)
+            .replaceAll(characters);
         // 更新全局提示词
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(globalPrompt);
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updatePrompt(globalPrompt);
         // 显示成功提示
         AppToast.success(context, '已导入 ${characters.length} 个角色');
       },
@@ -596,13 +601,14 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildTextNegativeInput(ThemeData theme) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
+    final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.watch(sdSyntaxAutoConvertSettingsProvider);
     return UnifiedPromptInput(
       controller: _negativeController,
       focusNode: _negativeFocusNode,
       config: UnifiedPromptConfig(
-        enableSyntaxHighlight: true,
+        enableSyntaxHighlight: enableHighlight,
         enableAutocomplete: enableAutocomplete,
         enableAutoFormat: enableAutoFormat,
         enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
@@ -629,12 +635,14 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildCompactLayout(ThemeData theme) {
+    final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
+    final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     return UnifiedPromptInput(
       controller: _promptController,
       focusNode: _promptFocusNode,
       config: UnifiedPromptConfig(
-        enableSyntaxHighlight: true,
-        enableAutocomplete: true,
+        enableSyntaxHighlight: enableHighlight,
+        enableAutocomplete: enableAutocomplete,
         enableComfyuiImport: true,
         autocompleteConfig: const AutocompleteConfig(
           maxSuggestions: 15,
@@ -669,8 +677,12 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       minLines: 1,
       onComfyuiImport: (globalPrompt, characters) {
         ref.read(characterPromptNotifierProvider.notifier).clearAll();
-        ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt(globalPrompt);
+        ref
+            .read(characterPromptNotifierProvider.notifier)
+            .replaceAll(characters);
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updatePrompt(globalPrompt);
         AppToast.success(context, '已导入 ${characters.length} 个角色');
       },
       onChanged: (value) {
@@ -1662,9 +1674,7 @@ class _CopyIconButtonState extends State<_CopyIconButton> {
           child: Icon(
             Icons.copy_rounded,
             size: 14,
-            color: _isHovering
-                ? widget.color
-                : widget.color.withOpacity(0.6),
+            color: _isHovering ? widget.color : widget.color.withOpacity(0.6),
           ),
         ),
       ),

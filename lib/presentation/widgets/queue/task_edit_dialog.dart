@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_controller.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
@@ -206,7 +207,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
           child: PromptFormatterWrapper(
             controller: _promptController,
             focusNode: _promptFocusNode,
-            enableAutoFormat: true,
+            enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,

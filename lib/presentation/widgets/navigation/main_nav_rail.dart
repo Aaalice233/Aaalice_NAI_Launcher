@@ -880,6 +880,8 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
   void _showAddAccountDialog(BuildContext context) {
     // 重置 AuthMode 为默认模式（credentials）
     widget.ref.read(authModeNotifierProvider.notifier).reset();
+    // 清除之前的登录错误状态
+    widget.ref.read(authNotifierProvider.notifier).clearError();
 
     showDialog(
       context: context,
@@ -887,7 +889,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 450),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

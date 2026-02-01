@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import '../common/prefix_suffix_switch.dart';
@@ -129,7 +130,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                   child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
-                    enableAutoFormat: true,
+                    enableAutoFormat:
+                        ref.watch(autoFormatPromptSettingsProvider),
                     child: AutocompleteWrapper.withAlias(
                       controller: _contentController,
                       focusNode: _contentFocusNode,

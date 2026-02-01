@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/safe_dropdown.dart';
@@ -141,7 +142,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                   child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
-                    enableAutoFormat: true,
+                    enableAutoFormat:
+                        ref.watch(autoFormatPromptSettingsProvider),
                     child: AutocompleteWrapper.withAlias(
                       controller: _contentController,
                       focusNode: _contentFocusNode,
