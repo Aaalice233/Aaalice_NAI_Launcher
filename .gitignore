@@ -158,3 +158,4 @@ mask_upload_*.md
 CLAUDE.md
 test_hive/
 .shared/
+.gemini/

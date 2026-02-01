@@ -113,6 +113,17 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     // Token 过期处理
     if (err.response?.statusCode == 401) {
+      // 如果是登录请求失败，不要尝试刷新 token 或登出
+      // 登录失败是预期的（密码错误等），不应影响当前的全局认证状态
+      if (err.requestOptions.path.contains(ApiConstants.loginEndpoint)) {
+        AppLogger.w(
+          '[AuthInterceptor] Ignoring 401 from login endpoint',
+          'DIO',
+        );
+        handler.next(err);
+        return;
+      }
+
       AppLogger.w(
         '[AuthInterceptor] onError: 401 received, path: ${err.requestOptions.path}',
         'DIO',

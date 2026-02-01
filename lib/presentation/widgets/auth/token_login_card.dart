@@ -31,6 +31,13 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
   bool _obscureToken = true;
 
   @override
+  void initState() {
+    super.initState();
+    // 清除可能残留的全局错误状态
+    ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
+  }
+
+  @override
   void dispose() {
     _tokenController.dispose();
     _nicknameController.dispose();

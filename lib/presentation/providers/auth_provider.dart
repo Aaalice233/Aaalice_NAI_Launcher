@@ -155,7 +155,7 @@ class AddAccountResult {
 }
 
 /// 认证状态 Notifier
-@riverpod
+@Riverpod(keepAlive: true)
 class AuthNotifier extends _$AuthNotifier {
   @override
   AuthState build() {
@@ -543,9 +543,20 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.e('Credentials login failed: $e');
       final (errorCode, httpStatusCode) = AuthState.parseError(e);
 
-      // 如果之前已登录（添加账号场景），恢复之前的状态并附加错误信息
-      // 这样不会影响当前已登录用户的状态
-      if (wasAuthenticated) {
+      // 如果之前已登录（添加账号场景），或者在登录过程中变为已登录（如自动登录成功）
+      // 则保留登录状态，只附加错误信息
+      if (state.isAuthenticated) {
+        // 当前已登录（可能是并发的自动登录成功了），保留当前状态只添加错误信息
+        state = state.copyWith(
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+        AppLogger.w(
+          'Login failed but kept current authenticated state (concurrent login detected)',
+          'AUTH',
+        );
+      } else if (wasAuthenticated) {
+        // 之前是登录状态，恢复之前的状态并附加错误信息
         state = previousState.copyWith(
           errorCode: errorCode,
           httpStatusCode: httpStatusCode,
@@ -694,8 +705,15 @@ class AuthNotifier extends _$AuthNotifier {
         'AUTH',
       );
       await Future.delayed(Duration(milliseconds: delayMs));
+      
+      // 如果当前是已登录状态，清除错误但不改变状态
+      // 如果当前是错误/未登录状态，重置为未登录
+      final nextStatus = state.isAuthenticated 
+          ? AuthStatus.authenticated 
+          : AuthStatus.unauthenticated;
+          
       state = state.copyWith(
-        status: AuthStatus.unauthenticated,
+        status: nextStatus,
         clearError: true,
       );
       AppLogger.w(

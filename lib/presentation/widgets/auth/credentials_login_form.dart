@@ -37,6 +37,8 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   @override
   void initState() {
     super.initState();
+    // 清除可能残留的全局错误状态
+    ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
     emailController = TextEditingController();
     passwordController = TextEditingController();
   }

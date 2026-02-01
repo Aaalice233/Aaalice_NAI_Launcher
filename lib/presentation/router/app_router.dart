@@ -66,17 +66,22 @@ class AppRoutes {
 
 /// 应用路由 Provider
 ///
-/// 使用 ref.watch + ValueNotifier 桥接认证状态到 GoRouter 的 refreshListenable
-/// 注意：不要使用 ref.listen 在 provider 中，因为这会触发 AssertionError
-/// ref.listen 只能在 ConsumerWidget 的 build 方法中使用
-@riverpod
+/// 使用 ref.listen 监听认证状态变化并通知 GoRouter
+/// 避免使用 ref.watch 导致 GoRouter 实例频繁重建
+@Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
-  // 使用 ref.watch 监听认证状态变化
-  // 当状态变化时，provider 会重建，ValueNotifier 也会更新
-  final authState = ref.watch(authNotifierProvider);
+  // 创建 ValueNotifier 作为 refreshListenable
+  // 初始值无关紧要，只要变化就会触发重定向
+  final authStateNotifier = ValueNotifier<int>(0);
 
-  // 创建 ValueNotifier 桥接到 GoRouter 的 refreshListenable
-  final authStateNotifier = ValueNotifier<AuthStatus>(authState.status);
+  // 监听认证状态变化 (status 或 isAuthenticated)
+  ref.listen(
+    authNotifierProvider.select((value) => value.status),
+    (previous, next) {
+      // 触发 GoRouter 刷新
+      authStateNotifier.value++;
+    },
+  );
 
   // 当 provider 被销毁时清理
   ref.onDispose(() {
