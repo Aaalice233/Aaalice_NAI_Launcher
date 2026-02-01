@@ -177,13 +177,10 @@ AutocompleteStrategy? defaultStrategySelector(
   String text,
   int cursorPosition,
 ) {
-  print('[StrategySelector] text="$text", cursor=$cursorPosition');
-  
   // 1. 优先检测别名模式
   final (isTypingAlias, _, _) =
       AliasParser.detectPartialAlias(text, cursorPosition);
   if (isTypingAlias) {
-    print('[StrategySelector] 选择: AliasStrategy');
     for (final strategy in strategies) {
       if (strategy is AliasStrategy) {
         return strategy;
@@ -193,7 +190,6 @@ AutocompleteStrategy? defaultStrategySelector(
 
   // 2. 检测共现标签推荐条件（光标前有 "tag," 且后面没有新输入）
   if (_shouldTriggerCooccurrence(text, cursorPosition)) {
-    print('[StrategySelector] 选择: CooccurrenceStrategy');
     for (final strategy in strategies) {
       if (strategy is CooccurrenceStrategy) {
         return strategy;
@@ -202,7 +198,6 @@ AutocompleteStrategy? defaultStrategySelector(
   }
 
   // 3. 默认使用本地标签策略
-  print('[StrategySelector] 选择: LocalTagStrategy');
   for (final strategy in strategies) {
     if (strategy is LocalTagStrategy) {
       return strategy;
@@ -216,17 +211,14 @@ AutocompleteStrategy? defaultStrategySelector(
 /// 条件：光标前有 "tag," 模式且后面没有新输入
 bool _shouldTriggerCooccurrence(String text, int cursorPosition) {
   if (cursorPosition <= 0) {
-    print('[Cooccurrence] ❌ cursorPosition <= 0');
     return false;
   }
   if (cursorPosition > text.length) {
-    print('[Cooccurrence] ❌ cursorPosition ($cursorPosition) > text.length (${text.length})');
     return false;
   }
 
   // 获取光标前的文本
   final beforeCursor = text.substring(0, cursorPosition);
-  print('[Cooccurrence] 检查: text="$text", cursor=$cursorPosition, before="$beforeCursor"');
 
   // 从光标前查找最后一个逗号
   var lastCommaIndex = -1;
@@ -238,20 +230,15 @@ bool _shouldTriggerCooccurrence(String text, int cursorPosition) {
     }
   }
 
-  print('[Cooccurrence] 逗号位置: $lastCommaIndex');
-
   // 重点：必须有逗号才触发共现推荐！没有逗号说明用户在输入第一个标签
   if (lastCommaIndex < 0) {
-    print('[Cooccurrence] ❌ 没有逗号');
     return false;
   }
 
   // 关键检查：逗号后到光标前的内容必须为空（只有空白字符）
   // 如果这段内容非空，说明用户正在输入新标签，不应该触发共现推荐
   final afterComma = beforeCursor.substring(lastCommaIndex + 1);
-  print('[Cooccurrence] 逗号后内容: "$afterComma"');
   if (afterComma.trim().isNotEmpty) {
-    print('[Cooccurrence] ❌ 逗号后有内容，用户正在输入');
     return false;
   }
 
@@ -267,7 +254,6 @@ bool _shouldTriggerCooccurrence(String text, int cursorPosition) {
   }
 
   final tagPart = beforeCursor.substring(prevSeparatorIndex + 1, lastCommaIndex);
-  print('[Cooccurrence] 逗号间内容: "$tagPart"');
 
   // 清理标签文本
   var tag = tagPart.trim();
@@ -282,12 +268,8 @@ bool _shouldTriggerCooccurrence(String text, int cursorPosition) {
   tag = tag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
   tag = tag.trim();
 
-  print('[Cooccurrence] 清理后标签: "$tag" (长度: ${tag.length})');
-
   // 标签至少2个字符才触发
-  final shouldTrigger = tag.length >= 2;
-  print('[Cooccurrence] ${shouldTrigger ? "✅ 应该触发" : "❌ 标签太短"}');
-  return shouldTrigger;
+  return tag.length >= 2;
 }
 
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
@@ -359,14 +341,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _onFocusChanged() {
-    print('[AutocompleteWrapper] focus changed, hasFocus=${_focusNode.hasFocus}');
     if (!_focusNode.hasFocus) {
       // 延迟隐藏，给点击事件处理留出时间
       // 如果点击的是 Overlay 中的建议项，点击事件会在失去焦点后处理
       Future.delayed(const Duration(milliseconds: 150), () {
-        print('[AutocompleteWrapper] focus check after delay, hasFocus=${_focusNode.hasFocus}');
         if (mounted && !_focusNode.hasFocus) {
-          print('[AutocompleteWrapper] hiding due to focus lost');
           _hideSuggestions();
         }
       });
@@ -379,43 +358,32 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
 
-    print('[AutocompleteWrapper] text="$text", cursor=$cursorPosition');
-
     // 检查是否正在进行 IME 组合输入
     final composing = widget.controller.value.composing;
     if (composing.isValid && !composing.isCollapsed) {
-      print('[AutocompleteWrapper] IME composing, skip');
       widget.onChanged?.call(text);
       return;
     }
 
     // 委托给策略处理搜索
-    print('[AutocompleteWrapper] 调用 strategy.search');
     widget.strategy.search(text, cursorPosition);
 
     widget.onChanged?.call(text);
   }
 
   void _onStrategyChanged() {
-    print('[AutocompleteWrapper] strategy changed, hasSuggestions=${widget.strategy.hasSuggestions}, count=${widget.strategy.suggestions.length}, _showSuggestions=$_showSuggestions, timer=${_hideTimer?.isActive}');
-    
     // 取消之前的隐藏计时器
     if (_hideTimer?.isActive == true) {
-      print('[AutocompleteWrapper] canceling active timer');
       _hideTimer?.cancel();
     }
     
     if (widget.strategy.hasSuggestions) {
       // 有建议时确保取消隐藏计时器
       if (_hideTimer?.isActive == true) {
-        print('[AutocompleteWrapper] hasSuggestions=true, canceling timer');
         _hideTimer?.cancel();
       }
       if (!_showSuggestions) {
-        print('[AutocompleteWrapper] 显示补全菜单');
         _showSuggestionsOverlay();
-      } else {
-        print('[AutocompleteWrapper] 菜单已显示，更新内容');
       }
       // 确保 selectedIndex 在有效范围内
       final suggestionsLength = widget.strategy.suggestions.length;
@@ -427,14 +395,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     } else if (!widget.strategy.isLoading && _showSuggestions) {
       // 延迟隐藏，给策略切换留出时间
       // 如果150ms内又有新建议，取消隐藏
-      print('[AutocompleteWrapper] 计划隐藏菜单 (hasSuggestions=false)');
       _hideTimer = Timer(const Duration(milliseconds: 300), () {
-        print('[AutocompleteWrapper] 计时器执行，检查状态: hasSuggestions=${widget.strategy.hasSuggestions}, _showSuggestions=$_showSuggestions');
         if (mounted && !widget.strategy.hasSuggestions && _showSuggestions) {
-          print('[AutocompleteWrapper] 执行隐藏菜单');
           _hideSuggestions();
-        } else {
-          print('[AutocompleteWrapper] 取消隐藏 (条件不满足)');
         }
       });
     }
@@ -443,7 +406,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _showSuggestionsOverlay() {
-    print('[AutocompleteWrapper] _showSuggestionsOverlay, _showSuggestions=$_showSuggestions');
     if (_showSuggestions) {
       _overlayEntry?.markNeedsBuild();
       return;
@@ -456,19 +418,15 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
     _overlayEntry = _createOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
-    print('[AutocompleteWrapper] Overlay inserted');
   }
 
   void _hideSuggestions() {
-    print('[AutocompleteWrapper] _hideSuggestions, _showSuggestions=$_showSuggestions, _isSelecting=$_isSelecting');
     if (!_showSuggestions) {
-      print('[AutocompleteWrapper]   already hidden, skip');
       return;
     }
-    
+
     // 如果选择建议期间，不要隐藏（避免清空刚加载的共现策略）
     if (_isSelecting) {
-      print('[AutocompleteWrapper]   selecting in progress, skip');
       return;
     }
 
@@ -478,9 +436,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     });
 
     _removeOverlay();
-    print('[AutocompleteWrapper]   calling strategy.clear()');
     widget.strategy.clear();
-    print('[AutocompleteWrapper]   hidden complete');
   }
 
   void _removeOverlay() {
@@ -594,7 +550,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void _selectSuggestion(dynamic suggestion) {
     // 防止重复处理
     if (_isSelecting) {
-      print('[AutocompleteWrapper] _selectSuggestion: already selecting, skip');
       return;
     }
     _isSelecting = true;
@@ -618,7 +573,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       selection: TextSelection.collapsed(offset: newCursorPosition),
     );
 
-    print('[AutocompleteWrapper] hiding after suggestion selected');
     _hideSuggestions();
 
     // 通知外部选择了补全建议
@@ -628,14 +582,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     // 延长到 300ms，确保共现菜单显示后不会立即被选择
     Future.delayed(const Duration(milliseconds: 300), () {
       _isSelecting = false;
-      print('[AutocompleteWrapper] _isSelecting reset to false');
     });
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // 正在选择建议时，忽略键盘事件（防止重复触发）
     if (_isSelecting) {
-      print('[AutocompleteWrapper] ignoring key event during selection');
       return KeyEventResult.handled;
     }
     
@@ -680,7 +632,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         return KeyEventResult.ignored;
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
         if (event is KeyDownEvent) {
-          print('[AutocompleteWrapper] hiding due to escape key');
           _hideSuggestions();
         }
         return KeyEventResult.handled;

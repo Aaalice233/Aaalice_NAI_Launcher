@@ -120,7 +120,6 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
 
   @override
   void clear() {
-    print('[CompositeStrategy] clear() called');
     for (final strategy in _strategies) {
       strategy.clear();
     }

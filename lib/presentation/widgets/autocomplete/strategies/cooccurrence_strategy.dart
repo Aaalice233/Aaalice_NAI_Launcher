@@ -46,22 +46,16 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
   @override
   void search(String text, int cursorPosition, {bool immediate = false}) {
-    print('[CooccurrenceStrategy] search called: text="$text", cursor=$cursorPosition');
-    
     // 检查是否满足触发条件
     final previousTag = _extractPreviousTag(text, cursorPosition);
-    print('[CooccurrenceStrategy] 提取标签: $previousTag');
 
     if (previousTag == null) {
-      print('[CooccurrenceStrategy] ❌ 没有提取到标签，清空');
       clear();
       return;
     }
 
     // 检查共现数据是否可用
-    print('[CooccurrenceStrategy] 数据可用: ${_recommendationService.isDataAvailable}');
     if (!_recommendationService.isDataAvailable) {
-      print('[CooccurrenceStrategy] ❌ 数据不可用，清空');
       clear();
       return;
     }
@@ -70,24 +64,29 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     notifyListeners();
 
     // 获取推荐标签
-    print('[CooccurrenceStrategy] 获取推荐: tag=$previousTag');
     final recommendations = _recommendationService.getRecommendationsForTag(
       previousTag,
-      limit: _config.maxSuggestions,
+      limit: _config.maxSuggestions * 2, // 获取更多以便过滤
     );
-    print('[CooccurrenceStrategy] 推荐数量: ${recommendations.length}');
-    for (var i = 0; i < recommendations.length.clamp(0, 3); i++) {
-      print('[CooccurrenceStrategy]   - ${recommendations[i].tag}');
-    }
+    
+    // 提取文本中已有的标签（用于去重）
+    final existingTags = _extractExistingTags(text, cursorPosition);
 
-    _suggestions = recommendations;
+    // 过滤掉已存在的标签
+    final filteredRecommendations = recommendations.where((rec) {
+      final normalizedRec = rec.tag.toLowerCase().trim();
+      final exists = existingTags.contains(normalizedRec);
+      return !exists;
+    }).take(_config.maxSuggestions).toList();
+
+    _suggestions = filteredRecommendations;
     _isLoading = false;
     notifyListeners();
   }
 
+
   @override
   void clear() {
-    print('[CooccurrenceStrategy] clear() called, suggestions=${_suggestions.length}');
     _suggestions = [];
     _isLoading = false;
     notifyListeners();
@@ -136,22 +135,17 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   /// 提取光标前的标签（如果满足 "tag," 模式）
   /// 返回标签名，如果不满足条件返回 null
   String? _extractPreviousTag(String text, int cursorPosition) {
-    print('[_extractPreviousTag] cursor=$cursorPosition, text="$text"');
-    
     if (cursorPosition <= 0) {
-      print('[_extractPreviousTag] ❌ cursor <= 0');
       return null;
     }
 
     // 确保光标位置有效
     if (cursorPosition > text.length) {
-      print('[_extractPreviousTag] ❌ cursor > text.length');
       return null;
     }
 
     // 获取光标前的文本
     final beforeCursor = text.substring(0, cursorPosition);
-    print('[_extractPreviousTag] beforeCursor="$beforeCursor"');
 
     // 从光标前查找最后一个逗号
     var lastCommaIndex = -1;
@@ -163,20 +157,15 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
       }
     }
 
-    print('[_extractPreviousTag] 逗号位置: $lastCommaIndex');
-
     // 重点：必须有逗号才触发共现推荐！没有逗号说明用户在输入第一个标签
     if (lastCommaIndex < 0) {
-      print('[_extractPreviousTag] ❌ 没有逗号');
       return null;
     }
 
     // 关键检查：逗号后到光标前的内容必须为空（只有空白字符）
     // 如果这段内容非空，说明用户正在输入新标签，不应该触发共现推荐
     final afterComma = beforeCursor.substring(lastCommaIndex + 1);
-    print('[_extractPreviousTag] 逗号后内容: "$afterComma"');
     if (afterComma.trim().isNotEmpty) {
-      print('[_extractPreviousTag] ❌ 逗号后有内容');
       return null;
     }
 
@@ -192,7 +181,6 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     }
 
     final tagPart = beforeCursor.substring(prevSeparatorIndex + 1, lastCommaIndex);
-    print('[_extractPreviousTag] 逗号间内容: "$tagPart"');
 
     // 清理标签文本
     var tag = tagPart.trim();
@@ -207,15 +195,43 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     tag = tag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
     tag = tag.trim();
 
-    print('[_extractPreviousTag] 清理后标签: "$tag"');
-
     // 标签不能太短
     if (tag.length < 2) {
-      print('[_extractPreviousTag] ❌ 标签太短');
       return null;
     }
 
-    print('[_extractPreviousTag] ✅ 返回: "$tag"');
     return tag;
+  }
+
+  /// 提取文本中所有已有的标签（用于去重）
+  /// 返回小写规范化后的标签集合
+  Set<String> _extractExistingTags(String text, int cursorPosition) {
+    final tags = <String>{};
+    
+    // 简化处理：按逗号分割，提取所有标签
+    final parts = text.split(RegExp(r'[,，]'));
+    
+    for (var part in parts) {
+      var tag = part.trim();
+      
+      // 跳过当前正在输入的位置（光标后的内容）
+      // 这里简化处理，只提取光标前的标签
+      
+      // 移除权重语法前缀
+      final weightMatch = RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(tag);
+      if (weightMatch != null) {
+        tag = tag.substring(weightMatch.end);
+      }
+      
+      // 移除括号前缀
+      tag = tag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
+      tag = tag.trim();
+      
+      if (tag.length >= 2) {
+        tags.add(tag.toLowerCase());
+      }
+    }
+    
+    return tags;
   }
 }
