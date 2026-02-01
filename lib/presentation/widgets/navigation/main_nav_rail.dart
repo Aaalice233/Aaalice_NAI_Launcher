@@ -880,8 +880,8 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
   void _showAddAccountDialog(BuildContext context) {
     // 重置 AuthMode 为默认模式（credentials）
     widget.ref.read(authModeNotifierProvider.notifier).reset();
-    // 清除之前的登录错误状态
-    widget.ref.read(authNotifierProvider.notifier).clearError();
+    // 立即清除之前的登录错误状态（无延迟）
+    widget.ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
 
     showDialog(
       context: context,

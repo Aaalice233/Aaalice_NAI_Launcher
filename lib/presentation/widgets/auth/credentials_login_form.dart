@@ -166,14 +166,14 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     children: [
                       Icon(
                         Icons.error_outline,
-                        color: Theme.of(context).colorScheme.error,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _getErrorMessage(authState.errorCode),
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
+                            color: Theme.of(context).colorScheme.onErrorContainer,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -197,7 +197,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                         style: TextStyle(
                           color: Theme.of(context)
                               .colorScheme
-                              .error
+                              .onErrorContainer
                               .withOpacity(0.8),
                           fontSize: 12,
                         ),
