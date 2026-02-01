@@ -50,8 +50,7 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
       }
     }
     // 如果有未分类的条目，默认展开未分类
-    final hasUncategorized =
-        widget.entries.any((e) => e.categoryId == null);
+    final hasUncategorized = widget.entries.any((e) => e.categoryId == null);
     if (hasUncategorized) {
       _expandedCategories.add('__uncategorized__');
     }
@@ -236,7 +235,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         widget.entries.where((e) => e.categoryId == null).toList();
 
     return ListView.builder(
-      itemCount: rootCategories.length + (uncategorizedEntries.isNotEmpty ? 1 : 0),
+      itemCount:
+          rootCategories.length + (uncategorizedEntries.isNotEmpty ? 1 : 0),
       itemBuilder: (context, index) {
         // 先显示有分类的
         if (index < rootCategories.length) {
@@ -256,9 +256,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
     List<TagLibraryEntry> entries,
   ) {
     final isExpanded = _expandedCategories.contains('__uncategorized__');
-    final selectedCount = entries
-        .where((e) => _selectedEntryIds.contains(e.id))
-        .length;
+    final selectedCount =
+        entries.where((e) => _selectedEntryIds.contains(e.id)).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,8 +348,7 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
             ],
           ),
         ),
-        if (isExpanded)
-          ...entries.map((entry) => _buildEntryTile(entry, 1)),
+        if (isExpanded) ...entries.map((entry) => _buildEntryTile(entry, 1)),
       ],
     );
   }
@@ -373,9 +371,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
     final childSelectedCount = childCategories
         .where((c) => _selectedCategoryIds.contains(c.id))
         .length;
-    final entrySelectedCount = categoryEntries
-        .where((e) => _selectedEntryIds.contains(e.id))
-        .length;
+    final entrySelectedCount =
+        categoryEntries.where((e) => _selectedEntryIds.contains(e.id)).length;
     final totalChildren = childCategories.length + categoryEntries.length;
     final totalSelected = childSelectedCount + entrySelectedCount;
 
@@ -507,7 +504,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         // 子项
         if (isExpanded) ...[
           // 子分类
-          ...childCategories.map((child) => _buildCategoryTile(child, depth + 1)),
+          ...childCategories
+              .map((child) => _buildCategoryTile(child, depth + 1)),
 
           // 条目
           ...categoryEntries.map((entry) => _buildEntryTile(entry, depth + 1)),
@@ -600,9 +598,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
 
   Future<void> _export() async {
     // 过滤选中的条目和分类
-    final selectedEntries = widget.entries
-        .where((e) => _selectedEntryIds.contains(e.id))
-        .toList();
+    final selectedEntries =
+        widget.entries.where((e) => _selectedEntryIds.contains(e.id)).toList();
     final selectedCategories = widget.categories
         .where((c) => _selectedCategoryIds.contains(c.id))
         .toList();
@@ -648,28 +645,6 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         AppToast.info(context, '导出失败: $e');
       }
     }
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: theme.colorScheme.outline)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
   }
 }
 
