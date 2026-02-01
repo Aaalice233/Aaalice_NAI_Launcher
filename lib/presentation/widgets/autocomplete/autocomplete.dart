@@ -11,3 +11,4 @@ export 'autocomplete_wrapper.dart';
 export 'strategies/local_tag_strategy.dart';
 export 'strategies/danbooru_strategy.dart';
 export 'strategies/alias_strategy.dart';
+export 'strategies/cooccurrence_strategy.dart';

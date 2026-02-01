@@ -27,9 +27,17 @@ class CooccurrenceData {
   /// 返回按共现次数排序的相关标签列表
   List<RelatedTag> getRelatedTags(String tag, {int limit = 20}) {
     final normalizedTag = tag.toLowerCase().trim();
+    print('[CooccurrenceData] getRelatedTags: "$normalizedTag"');
+    print('[CooccurrenceData]   _isLoaded: $_isLoaded, map size: ${_cooccurrenceMap.length}');
+    
     final related = _cooccurrenceMap[normalizedTag];
+    print('[CooccurrenceData]   found in map: ${related != null}');
 
     if (related == null || related.isEmpty) {
+      if (_cooccurrenceMap.isNotEmpty) {
+        final sampleKeys = _cooccurrenceMap.keys.take(3).join(', ');
+        print('[CooccurrenceData]   sample keys: $sampleKeys...');
+      }
       return [];
     }
 
@@ -85,6 +93,9 @@ class CooccurrenceData {
   void markLoaded() {
     _isLoaded = true;
   }
+
+  /// 获取 map 大小（调试用）
+  int get mapSize => _cooccurrenceMap.length;
 
   /// 清除数据
   void clear() {
@@ -161,13 +172,19 @@ class CooccurrenceService {
 
   /// 初始化服务（从缓存加载）
   Future<bool> initialize() async {
+    print('[CooccurrenceService] initialize');
     try {
       final cacheFile = await _getCacheFile();
+      print('[CooccurrenceService]   cache file: ${cacheFile.path}');
+      print('[CooccurrenceService]   exists: ${await cacheFile.exists()}');
       if (await cacheFile.exists()) {
+        final size = await cacheFile.length();
+        print('[CooccurrenceService]   file size: $size bytes');
         await _loadFromFile(cacheFile);
         return true;
       }
     } catch (e) {
+      print('[CooccurrenceService]   error: $e');
       AppLogger.w('Failed to load cooccurrence cache: $e', 'Cooccurrence');
     }
     return false;
@@ -219,28 +236,58 @@ class CooccurrenceService {
 
   /// 从文件加载
   Future<void> _loadFromFile(File file) async {
+    print('[CooccurrenceService] _loadFromFile: ${file.path}');
     final content = await file.readAsString();
     final lines = content.split('\n');
+    print('[CooccurrenceService]   总行数: ${lines.length}');
+
+    // 检查首行
+    if (lines.isNotEmpty) {
+      print('[CooccurrenceService]   首行: "${lines.first}"');
+    }
 
     // 跳过标题行
     final startIndex = lines.isNotEmpty && lines[0].contains(',') ? 1 : 0;
 
+    var addedCount = 0;
     for (var i = startIndex; i < lines.length; i++) {
-      final line = lines[i].trim();
+      var line = lines[i].trim();
       if (line.isEmpty) continue;
 
+      // 移除可能的引号包裹
+      if (line.startsWith('"') && line.endsWith('"')) {
+        line = line.substring(1, line.length - 1);
+      }
+
       final parts = line.split(',');
+      
+      // 打印前几个解析失败的行用于调试
+      if (parts.length < 3 && i < startIndex + 5) {
+        print('[CooccurrenceService]   格式错误行 $i: "$line", parts=${parts.length}');
+      }
+      
       if (parts.length >= 3) {
         final tag1 = parts[0].trim();
         final tag2 = parts[1].trim();
-        final count = int.tryParse(parts[2].trim()) ?? 0;
+        final countStr = parts[2].trim();
+        // 支持小数格式如 "3816210.0"
+        final count = double.tryParse(countStr)?.toInt() ?? 0;
 
         if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
           _data.addCooccurrence(tag1, tag2, count);
+          addedCount++;
+          if (addedCount <= 3) {
+            print('[CooccurrenceService]   添加[$addedCount]: $tag1 <-> $tag2 ($count)');
+          }
+        } else if (i < startIndex + 5) {
+          print('[CooccurrenceService]   数据无效行 $i: "$line" (tag1=$tag1, tag2=$tag2, count=$count)');
         }
       }
     }
 
+    print('[CooccurrenceService]   总共添加: $addedCount 对');
+    print('[CooccurrenceService]   map size: ${_data.mapSize}');
+    
     _data.markLoaded();
     AppLogger.d('Loaded cooccurrence data from cache', 'Cooccurrence');
   }

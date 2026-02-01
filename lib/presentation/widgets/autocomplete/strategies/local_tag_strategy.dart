@@ -102,6 +102,7 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
 
   @override
   void clear() {
+    print('[LocalTagStrategy] clear() called, suggestions=${_suggestions.length}');
     _debounceTimer?.cancel();
     _currentQuery = '';
     _suggestions = [];

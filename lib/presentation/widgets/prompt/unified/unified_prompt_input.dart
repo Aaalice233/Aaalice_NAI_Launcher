@@ -9,6 +9,7 @@ import '../../autocomplete/autocomplete_wrapper.dart';
 import '../../autocomplete/autocomplete_strategy.dart';
 import '../../autocomplete/strategies/local_tag_strategy.dart';
 import '../../autocomplete/strategies/alias_strategy.dart';
+import '../../autocomplete/strategies/cooccurrence_strategy.dart';
 import '../../common/app_toast.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
@@ -249,6 +250,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       strategies: [
         LocalTagStrategy.create(ref, widget.config.autocompleteConfig),
         AliasStrategy.create(ref),
+        CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
       ],
       strategySelector: defaultStrategySelector,
     );

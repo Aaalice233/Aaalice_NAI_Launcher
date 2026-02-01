@@ -14,6 +14,12 @@ class SuggestionData {
   /// 词库条目分类标识
   static const int categoryLibrary = 99;
 
+  /// 共现标签分类标识
+  static const int categoryCooccurrence = 98;
+
+  /// 是否为共现标签
+  final bool isCooccurrence;
+
   const SuggestionData({
     required this.tag,
     required this.category,
@@ -21,6 +27,7 @@ class SuggestionData {
     this.translation,
     this.alias,
     this.thumbnailPath,
+    this.isCooccurrence = false,
   });
 
   /// 是否为词库条目
@@ -29,6 +36,7 @@ class SuggestionData {
   /// 获取分类名称
   /// 应用内分类值映射: 0=通用, 1=角色, 3=版权, 4=艺术家, 5=元数据
   String get categoryName {
+    if (isCooccurrence) return '推荐';
     switch (category) {
       case 1:
         return '角色';
@@ -189,6 +197,10 @@ class GenericSuggestionTile extends StatelessWidget {
 
   Color _getCategoryColor(int category) {
     // 应用内分类值映射: 0=通用, 1=角色, 3=版权, 4=艺术家, 5=元数据
+    // 共现标签使用特殊的推荐颜色
+    if (data.isCooccurrence) {
+      return const Color(0xFFFFD700); // 金色表示推荐
+    }
     switch (category) {
       case 1: // character (角色)
         return const Color(0xFF8AFF8A); // 绿色
