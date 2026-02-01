@@ -248,8 +248,9 @@ class AuthNotifier extends _$AuthNotifier {
     }
 
     // 2. 尝试使用保存的账号自动登录
-    final accounts = ref.read(accountManagerNotifierProvider).accounts;
-    // 注意：accounts 已按 lastUsedAt 排序，第一个就是最近登录的账号
+    final accountManager = ref.read(accountManagerNotifierProvider.notifier);
+    final accounts = accountManager.sortedAccounts;
+    // 注意：sortedAccounts 已按 lastUsedAt 排序，第一个就是最近登录的账号
 
     if (accounts.isNotEmpty) {
       // 使用最近登录的账号（accounts 已按 lastUsedAt 降序排序）
@@ -260,7 +261,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       // 获取账号的 Token 和类型
       final accountToken =
-          await accountManagerNotifier.getAccountToken(lastUsedAccount.id);
+          await accountManager.getAccountToken(lastUsedAccount.id);
       final accountType = lastUsedAccount.accountType;
 
       if (accountToken != null && accountToken.isNotEmpty) {
@@ -301,7 +302,7 @@ class AuthNotifier extends _$AuthNotifier {
           );
 
           // 更新最后使用时间
-          accountManagerNotifier.updateLastUsed(lastUsedAccount.id);
+          accountManager.updateLastUsed(lastUsedAccount.id);
 
           AppLogger.auth(
             'Auto-login successful with account: ${lastUsedAccount.displayName}',
@@ -433,21 +434,27 @@ class AuthNotifier extends _$AuthNotifier {
   }) async {
     AppLogger.auth('Switching account: $displayName (type: $accountType)');
 
-    if (accountType == AccountType.credentials) {
-      // Credentials 账号：直接使用 accessToken 登录（不检查 pst- 格式）
-      return _loginWithAccessToken(
-        token,
-        accountId: accountId,
-        displayName: displayName,
-      );
-    } else {
-      // Token 账号：使用原有的 pst- 格式验证
-      return loginWithToken(
-        token,
-        accountId: accountId,
-        displayName: displayName,
-      );
+    final accountManager = ref.read(accountManagerNotifierProvider.notifier);
+
+    final success = await (accountType == AccountType.credentials
+        ? _loginWithAccessToken(
+            token,
+            accountId: accountId,
+            displayName: displayName,
+          )
+        : loginWithToken(
+            token,
+            accountId: accountId,
+            displayName: displayName,
+          ));
+
+    // 登录成功后更新最后使用时间，确保下次启动时该账号排在最前
+    if (success) {
+      await accountManager.updateLastUsed(accountId);
+      AppLogger.auth('Updated lastUsed for account: $displayName');
     }
+
+    return success;
   }
 
   /// 内部方法：使用 accessToken 直接登录（credentials 类型）
