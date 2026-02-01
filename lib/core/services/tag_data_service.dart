@@ -399,23 +399,26 @@ class TagDataService {
     // 从画师标签搜索
     final artistResults = _searchArtists(query, limit: limit ~/ 2);
 
-    // 合并结果（去重，画师标签优先，因为用户开启画师同步说明更关心画师分类的准确性）
+    // 合并结果（去重，按热度排序）
     final seenTags = <String>{};
     final merged = <LocalTag>[];
 
-    // 先添加画师结果（优先）
+    // 先添加主标签结果
+    for (final tag in mainResults) {
+      if (seenTags.add(tag.tag)) {
+        merged.add(tag);
+      }
+    }
+
+    // 再添加画师标签结果（去重）
     for (final tag in artistResults) {
       if (seenTags.add(tag.tag)) {
         merged.add(tag);
       }
     }
 
-    // 再添加主标签结果（画师标签已存在的会跳过）
-    for (final tag in mainResults) {
-      if (seenTags.add(tag.tag)) {
-        merged.add(tag);
-      }
-    }
+    // 按热度排序（count 降序）
+    merged.sort((a, b) => b.count.compareTo(a.count));
 
     return merged.take(limit).toList();
   }
