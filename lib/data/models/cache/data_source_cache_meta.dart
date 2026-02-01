@@ -108,12 +108,14 @@ class TagsCacheMeta {
   final int totalTags;
   final int hotThreshold;
   final TagHotPreset hotPreset;
+  final AutoRefreshInterval refreshInterval;
 
   const TagsCacheMeta({
     required this.lastUpdate,
     required this.totalTags,
     required this.hotThreshold,
     required this.hotPreset,
+    this.refreshInterval = AutoRefreshInterval.days30,
   });
 
   factory TagsCacheMeta.fromJson(Map<String, dynamic> json) {
@@ -122,6 +124,7 @@ class TagsCacheMeta {
       totalTags: json['totalTags'] as int? ?? 0,
       hotThreshold: json['hotThreshold'] as int? ?? 1000,
       hotPreset: TagHotPreset.fromThreshold(json['hotThreshold'] as int? ?? 1000),
+      refreshInterval: AutoRefreshInterval.fromDays(json['refreshIntervalDays'] as int? ?? 30),
     );
   }
 
@@ -129,6 +132,7 @@ class TagsCacheMeta {
         'lastUpdate': lastUpdate.toIso8601String(),
         'totalTags': totalTags,
         'hotThreshold': hotThreshold,
+        'refreshIntervalDays': refreshInterval.days,
       };
 
   TagsCacheMeta copyWith({
@@ -136,12 +140,59 @@ class TagsCacheMeta {
     int? totalTags,
     int? hotThreshold,
     TagHotPreset? hotPreset,
+    AutoRefreshInterval? refreshInterval,
   }) {
     return TagsCacheMeta(
       lastUpdate: lastUpdate ?? this.lastUpdate,
       totalTags: totalTags ?? this.totalTags,
       hotThreshold: hotThreshold ?? this.hotThreshold,
       hotPreset: hotPreset ?? this.hotPreset,
+      refreshInterval: refreshInterval ?? this.refreshInterval,
+    );
+  }
+}
+
+/// 画师标签缓存元数据
+class ArtistsCacheMeta {
+  final DateTime lastUpdate;
+  final int totalArtists;
+  final bool syncFailed;
+  final int minPostCount;
+
+  const ArtistsCacheMeta({
+    required this.lastUpdate,
+    required this.totalArtists,
+    this.syncFailed = false,
+    this.minPostCount = 50,
+  });
+
+  factory ArtistsCacheMeta.fromJson(Map<String, dynamic> json) {
+    return ArtistsCacheMeta(
+      lastUpdate: DateTime.parse(json['lastUpdate'] as String),
+      totalArtists: json['totalArtists'] as int? ?? 0,
+      syncFailed: json['syncFailed'] as bool? ?? false,
+      minPostCount: json['minPostCount'] as int? ?? 50,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'lastUpdate': lastUpdate.toIso8601String(),
+        'totalArtists': totalArtists,
+        'syncFailed': syncFailed,
+        'minPostCount': minPostCount,
+      };
+
+  ArtistsCacheMeta copyWith({
+    DateTime? lastUpdate,
+    int? totalArtists,
+    bool? syncFailed,
+    int? minPostCount,
+  }) {
+    return ArtistsCacheMeta(
+      lastUpdate: lastUpdate ?? this.lastUpdate,
+      totalArtists: totalArtists ?? this.totalArtists,
+      syncFailed: syncFailed ?? this.syncFailed,
+      minPostCount: minPostCount ?? this.minPostCount,
     );
   }
 }

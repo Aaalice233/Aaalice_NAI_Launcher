@@ -104,7 +104,7 @@ class FirstLaunchDetector {
 
       _tagsService.onSyncProgress = (progress, message) {
         toastController?.updateProgress(
-          0.5 + progress * 0.45, // 50% - 95%
+          0.5 + progress * 0.3, // 50% - 80%
           message: message ?? '正在同步标签数据...',
         );
       };
@@ -112,7 +112,11 @@ class FirstLaunchDetector {
       // 使用默认阈值同步
       await _tagsService.syncHotTags(minPostCount: 1000);
 
-      // 3. 标记已启动
+      // 3. 画师数据同步已移至登录成功后触发
+      // 避免在首次启动时立即同步，确保用户有网络连接且已登录
+      // 详见 auth_provider.dart 中的登录成功处理逻辑
+
+      // 4. 标记已启动
       await markLaunched();
 
       // 完成

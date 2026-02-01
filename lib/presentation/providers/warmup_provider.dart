@@ -253,6 +253,10 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       ),
     );
+
+    // 注意：画师数据同步已从启动时移除，改为登录成功后触发
+    // 这样可以确保用户有网络连接且已登录后再进行同步
+    // 同步逻辑现在位于 auth_provider.dart 的登录成功回调中
   }
 
   /// 开始预加载

@@ -1227,6 +1227,7 @@
   "warmup_fonts": "Preloading fonts...",
   "warmup_imageCache": "Warming up image cache...",
   "warmup_statistics": "Loading statistics...",
+  "warmup_artistsSync": "Syncing artists data...",
   "warmup_retryFailed": "Retry Failed Tasks",
   "warmup_errorDetail": "Error",
 

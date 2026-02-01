@@ -113,9 +113,28 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
 
   @override
   SuggestionData toSuggestionData(LocalTag item) {
+    // 将 Danbooru 原始分类值转换为应用内分类值
+    // Danbooru: 0=general, 1=artist, 3=copyright, 4=character, 5=meta
+    // 应用内: 0=general, 1=character, 3=copyright, 4=artist, 5=meta
+    int appCategory;
+    switch (item.category) {
+      case 1: // Danbooru artist -> 应用内 4
+        appCategory = 4;
+      case 4: // Danbooru character -> 应用内 1
+        appCategory = 1;
+      default: // 其他保持不变 (0, 3, 5)
+        appCategory = item.category;
+    }
+
+    // DEBUG: 记录分类转换
+    AppLogger.d(
+      '[LocalTagStrategy] ${item.tag}: raw=${item.category} -> app=$appCategory',
+      'Autocomplete',
+    );
+
     return SuggestionData(
       tag: item.tag,
-      category: item.category,
+      category: appCategory,
       count: item.count,
       translation: item.translation,
     );

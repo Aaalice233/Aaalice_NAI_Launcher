@@ -49,6 +49,9 @@ class TagDataService {
   /// 所有标签
   List<LocalTag> _tags = [];
 
+  /// 画师标签（独立存储）
+  List<LocalTag> _artistTags = [];
+
   /// 翻译映射（英文 -> 中文）
   final Map<String, String> _translationMap = {};
 
@@ -119,9 +122,12 @@ class TagDataService {
         await _searchIndex.buildIndex(_tags, useIsolate: true);
       }
 
+      // 5. 加载画师数据（独立存储）
+      await _loadArtistTags();
+
       _isInitialized = true;
       AppLogger.i(
-        'TagDataService initialized: ${_tags.length} tags loaded (index ready)',
+        'TagDataService initialized: ${_tags.length} tags, ${_artistTags.length} artists loaded (index ready)',
         'TagData',
       );
     } catch (e, stack) {
@@ -378,9 +384,55 @@ class TagDataService {
   /// 搜索标签
   /// [query] 搜索词（支持英文和中文）
   /// [limit] 最大返回数量
-  List<LocalTag> search(String query, {int limit = 20}) {
+  /// [includeArtists] 是否包含画师标签
+  List<LocalTag> search(String query, {int limit = 20, bool includeArtists = true}) {
     if (query.isEmpty) return [];
-    return _searchIndex.search(query, limit: limit);
+
+    // 从主标签搜索
+    final mainResults = _searchIndex.search(query, limit: limit);
+
+    // 如果不需要画师数据，直接返回
+    if (!includeArtists || _artistTags.isEmpty) {
+      return mainResults;
+    }
+
+    // 从画师标签搜索
+    final artistResults = _searchArtists(query, limit: limit ~/ 2);
+
+    // 合并结果（去重，画师标签优先，因为用户开启画师同步说明更关心画师分类的准确性）
+    final seenTags = <String>{};
+    final merged = <LocalTag>[];
+
+    // 先添加画师结果（优先）
+    for (final tag in artistResults) {
+      if (seenTags.add(tag.tag)) {
+        merged.add(tag);
+      }
+    }
+
+    // 再添加主标签结果（画师标签已存在的会跳过）
+    for (final tag in mainResults) {
+      if (seenTags.add(tag.tag)) {
+        merged.add(tag);
+      }
+    }
+
+    return merged.take(limit).toList();
+  }
+
+  /// 搜索画师标签
+  List<LocalTag> _searchArtists(String query, {int limit = 10}) {
+    final lowerQuery = query.toLowerCase();
+    final results = <LocalTag>[];
+
+    for (final artist in _artistTags) {
+      if (artist.tag.contains(lowerQuery)) {
+        results.add(artist);
+        if (results.length >= limit) break;
+      }
+    }
+
+    return results;
   }
 
   /// 获取标签翻译
@@ -393,10 +445,41 @@ class TagDataService {
     return _reverseTranslationMap[chinese] ?? [];
   }
 
+  /// 加载画师标签数据
+  Future<void> _loadArtistTags() async {
+    try {
+      final cacheDir = await _getCacheDirectory();
+      final artistsFile = File('${cacheDir.path}/danbooru_artists.csv');
+
+      if (!await artistsFile.exists()) {
+        AppLogger.d('No artists cache found', 'TagData');
+        return;
+      }
+
+      final content = await artistsFile.readAsString();
+      final loadedTags = await _parseCsvContentAsync(content);
+
+      // 强制修复画师标签分类为1（艺术家）
+      // 因为旧版本的缓存可能保存了错误的分类
+      _artistTags = loadedTags.map((tag) {
+        if (tag.category != 1) {
+          return tag.copyWith(category: 1);
+        }
+        return tag;
+      }).toList();
+
+      AppLogger.d('Loaded ${_artistTags.length} artist tags', 'TagData');
+    } catch (e) {
+      AppLogger.w('Failed to load artist tags: $e', 'TagData');
+      _artistTags = [];
+    }
+  }
+
   /// 强制刷新数据
   Future<void> refresh() async {
     _isInitialized = false;
     _tags.clear();
+    _artistTags.clear();
     _searchIndex.clear();
     await initialize();
   }

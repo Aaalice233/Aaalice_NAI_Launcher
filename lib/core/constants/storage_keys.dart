@@ -169,7 +169,16 @@ class StorageKeys {
   static const String danbooruTagsLastUpdate = 'danbooru_tags_last_update';
   static const String danbooruTagsRefreshInterval =
       'danbooru_tags_refresh_interval';
+  static const String danbooruTagsRefreshIntervalDays =
+      'danbooru_tags_refresh_interval_days';
   static const String firstLaunchVersion = 'first_launch_version';
   static const String enableSmartTagRecommendation =
       'enable_smart_tag_recommendation';
+
+  // Danbooru 画师同步设置
+  static const String danbooruSyncArtists = 'danbooru_sync_artists';
+  static const String danbooruArtistsLastUpdate = 'danbooru_artists_last_update';
+  static const String danbooruArtistsSyncFailed = 'danbooru_artists_sync_failed';
+  static const String danbooruArtistsTotal = 'danbooru_artists_total';
+  static const String danbooruArtistsMinPostCount = 'danbooru_artists_min_post_count';
 }

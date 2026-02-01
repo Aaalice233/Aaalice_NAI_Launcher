@@ -27,14 +27,15 @@ class SuggestionData {
   bool get isLibraryEntry => category == categoryLibrary;
 
   /// 获取分类名称
+  /// 应用内分类值映射: 0=通用, 1=角色, 3=版权, 4=艺术家, 5=元数据
   String get categoryName {
     switch (category) {
       case 1:
-        return '艺术家';
+        return '角色';
       case 3:
         return '版权';
       case 4:
-        return '角色';
+        return '艺术家';
       case 5:
         return '元数据';
       case categoryLibrary:
@@ -187,17 +188,18 @@ class GenericSuggestionTile extends StatelessWidget {
   }
 
   Color _getCategoryColor(int category) {
+    // 应用内分类值映射: 0=通用, 1=角色, 3=版权, 4=艺术家, 5=元数据
     switch (category) {
-      case 1: // artist
-        return const Color(0xFFFF8A8A);
-      case 3: // copyright
-        return const Color(0xFFCC8AFF);
-      case 4: // character
-        return const Color(0xFF8AFF8A);
-      case 5: // meta
-        return const Color(0xFFFFB38A);
-      default: // general
-        return const Color(0xFF8AC8FF);
+      case 1: // character (角色)
+        return const Color(0xFF8AFF8A); // 绿色
+      case 3: // copyright (版权)
+        return const Color(0xFFCC8AFF); // 紫色
+      case 4: // artist (艺术家)
+        return const Color(0xFFFF8A8A); // 红色
+      case 5: // meta (元数据)
+        return const Color(0xFFFFB38A); // 橙色
+      default: // general (通用)
+        return const Color(0xFF8AC8FF); // 蓝色
     }
   }
 }

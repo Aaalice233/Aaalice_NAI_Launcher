@@ -127,6 +127,16 @@ class DanbooruTagsCacheState {
   final TagHotPreset hotPreset;
   final int customThreshold;
   final String? error;
+  final AutoRefreshInterval refreshInterval;
+
+  // 画师同步相关状态
+  final bool syncArtists;
+  final bool isSyncingArtists;
+  final double artistsProgress;
+  final int artistsTotal;  // 已拉取数量
+  final int artistsEstimatedTotal;  // 预估总数（用于显示进度）
+  final DateTime? artistsLastUpdate;
+  final bool artistsSyncFailed;
 
   const DanbooruTagsCacheState({
     this.isRefreshing = false,
@@ -137,6 +147,15 @@ class DanbooruTagsCacheState {
     this.hotPreset = TagHotPreset.common1k,
     this.customThreshold = 1000,
     this.error,
+    this.refreshInterval = AutoRefreshInterval.days30,
+    // 画师同步默认开启
+    this.syncArtists = true,
+    this.isSyncingArtists = false,
+    this.artistsProgress = 0.0,
+    this.artistsTotal = 0,
+    this.artistsEstimatedTotal = 0,
+    this.artistsLastUpdate,
+    this.artistsSyncFailed = false,
   });
 
   DanbooruTagsCacheState copyWith({
@@ -148,6 +167,14 @@ class DanbooruTagsCacheState {
     TagHotPreset? hotPreset,
     int? customThreshold,
     String? error,
+    AutoRefreshInterval? refreshInterval,
+    bool? syncArtists,
+    bool? isSyncingArtists,
+    double? artistsProgress,
+    int? artistsTotal,
+    int? artistsEstimatedTotal,
+    DateTime? artistsLastUpdate,
+    bool? artistsSyncFailed,
   }) {
     return DanbooruTagsCacheState(
       isRefreshing: isRefreshing ?? this.isRefreshing,
@@ -157,13 +184,21 @@ class DanbooruTagsCacheState {
       totalTags: totalTags ?? this.totalTags,
       hotPreset: hotPreset ?? this.hotPreset,
       customThreshold: customThreshold ?? this.customThreshold,
-      error: error,
+      error: error ?? this.error,
+      refreshInterval: refreshInterval ?? this.refreshInterval,
+      syncArtists: syncArtists ?? this.syncArtists,
+      isSyncingArtists: isSyncingArtists ?? this.isSyncingArtists,
+      artistsProgress: artistsProgress ?? this.artistsProgress,
+      artistsTotal: artistsTotal ?? this.artistsTotal,
+      artistsEstimatedTotal: artistsEstimatedTotal ?? this.artistsEstimatedTotal,
+      artistsLastUpdate: artistsLastUpdate ?? this.artistsLastUpdate,
+      artistsSyncFailed: artistsSyncFailed ?? this.artistsSyncFailed,
     );
   }
 }
 
 /// Danbooru 标签缓存 Notifier
-@riverpod
+@Riverpod(keepAlive: true)
 class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
   @override
   DanbooruTagsCacheState build() {
@@ -176,16 +211,23 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     await service.initialize();
 
     final preset = await service.getHotPreset();
+    final syncArtists = await service.getSyncArtistsSetting();
+    final refreshInterval = await service.getRefreshInterval();
 
     state = state.copyWith(
       lastUpdate: service.lastUpdate,
       totalTags: service.tagCount,
       hotPreset: preset,
       customThreshold: service.currentThreshold,
+      refreshInterval: refreshInterval,
+      syncArtists: syncArtists,
+      artistsTotal: service.cachedArtistsCount,
+      artistsLastUpdate: service.artistsLastUpdate,
+      artistsSyncFailed: service.artistsSyncFailed,
     );
   }
 
-  /// 手动刷新
+  /// 手动刷新标签数据
   Future<void> refresh() async {
     if (state.isRefreshing) return;
 
@@ -243,6 +285,85 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     state = state.copyWith(
       lastUpdate: null,
       totalTags: 0,
+    );
+  }
+
+  /// 设置自动刷新间隔
+  Future<void> setRefreshInterval(AutoRefreshInterval interval) async {
+    final service = ref.read(danbooruTagsSyncServiceProvider);
+    await service.setRefreshInterval(interval);
+    state = state.copyWith(refreshInterval: interval);
+  }
+
+  /// 设置画师同步开关
+  Future<void> setSyncArtists(bool value) async {
+    final service = ref.read(danbooruTagsSyncServiceProvider);
+    await service.setSyncArtistsSetting(value);
+    state = state.copyWith(syncArtists: value);
+
+    // 如果开启同步且需要同步，立即执行
+    if (value) {
+      final shouldSync = await service.shouldSyncArtists();
+      if (shouldSync) {
+        await syncArtists();
+      }
+    }
+  }
+
+  /// 同步画师数据
+  ///
+  /// 根据条件自动判断是否同步，或强制刷新
+  Future<void> syncArtists({bool force = false}) async {
+    if (state.isSyncingArtists) return;
+
+    state = state.copyWith(
+      isSyncingArtists: true,
+      artistsProgress: 0.0,
+      artistsSyncFailed: false,
+    );
+
+    final service = ref.read(danbooruTagsSyncServiceProvider);
+    service.onArtistsSyncProgress = (progress, fetched, estimatedTotal) {
+      state = state.copyWith(
+        artistsProgress: progress,
+        artistsTotal: fetched,
+        artistsEstimatedTotal: estimatedTotal,
+      );
+    };
+
+    try {
+      final result = await service.syncArtists(force: force, minPostCount: 50);
+      state = state.copyWith(
+        isSyncingArtists: false,
+        artistsProgress: 1.0,
+        artistsTotal: result.length,
+        artistsLastUpdate: DateTime.now(),
+        artistsSyncFailed: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isSyncingArtists: false,
+        artistsSyncFailed: true,
+      );
+    } finally {
+      service.onArtistsSyncProgress = null;
+    }
+  }
+
+  /// 取消画师同步
+  void cancelArtistsSync() {
+    final service = ref.read(danbooruTagsSyncServiceProvider);
+    service.cancelArtistsSync();
+  }
+
+  /// 清除画师缓存
+  Future<void> clearArtistsCache() async {
+    final service = ref.read(danbooruTagsSyncServiceProvider);
+    await service.clearArtistsCache();
+    state = state.copyWith(
+      artistsTotal: 0,
+      artistsLastUpdate: null,
+      artistsSyncFailed: false,
     );
   }
 }
