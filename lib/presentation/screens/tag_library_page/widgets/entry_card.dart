@@ -23,6 +23,16 @@ class EntryCard extends StatefulWidget {
   /// 是否启用拖拽到分类功能
   final bool enableDrag;
 
+  // ===== 批量选择相关属性 =====
+  /// 是否处于选择模式
+  final bool isSelectionMode;
+
+  /// 是否被选中
+  final bool isSelected;
+
+  /// 切换选择状态回调
+  final VoidCallback? onToggleSelection;
+
   const EntryCard({
     super.key,
     required this.entry,
@@ -32,6 +42,9 @@ class EntryCard extends StatefulWidget {
     this.onEdit,
     this.categoryName,
     this.enableDrag = false,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onToggleSelection,
   });
 
   @override
@@ -81,11 +94,23 @@ class _EntryCardState extends State<EntryCard> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
+    // 选择模式下的边框颜色
+    final borderColor = widget.isSelected
+        ? theme.colorScheme.primary
+        : (_isHovering
+            ? theme.colorScheme.primary.withOpacity(0.4)
+            : theme.colorScheme.outlineVariant.withOpacity(0.15));
+
+    // 选择模式下的背景色
+    final backgroundColor = widget.isSelected
+        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+        : theme.colorScheme.surfaceContainerHigh;
+
     Widget cardContent = CompositedTransformTarget(
       link: _layerLink,
       child: MouseRegion(
         onEnter: (_) {
-          if (!_isDragging) {
+          if (!_isDragging && !widget.isSelectionMode) {
             setState(() => _isHovering = true);
             // 延迟显示预览，避免快速划过时闪烁
             Future.delayed(const Duration(milliseconds: 500), () {
@@ -100,22 +125,30 @@ class _EntryCardState extends State<EntryCard> {
           _hidePreviewOverlay();
         },
         child: GestureDetector(
-          onTap: widget.onTap,
+          // 选择模式下点击切换选择，否则打开详情
+          onTap: widget.isSelectionMode
+              ? widget.onToggleSelection
+              : widget.onTap,
+          // 长按进入选择模式并选中
+          onLongPress: widget.isSelectionMode
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  widget.onToggleSelection?.call();
+                },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             margin: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh,
+              color: backgroundColor,
               borderRadius: BorderRadius.circular(12),
-              // 精致边框 - 增强卡片边界感
+              // 精致边框 - 选择模式下使用主色
               border: Border.all(
-                color: _isHovering
-                    ? theme.colorScheme.primary.withOpacity(0.4)
-                    : theme.colorScheme.outlineVariant.withOpacity(0.15),
-                width: 1,
+                color: borderColor,
+                width: widget.isSelected ? 2 : 1,
               ),
               // 深度层叠风格：多层阴影
-              boxShadow: _isHovering
+              boxShadow: _isHovering && !widget.isSelectionMode
                   ? [
                       // 主阴影 - 带主题色
                       BoxShadow(
@@ -151,20 +184,50 @@ class _EntryCardState extends State<EntryCard> {
                       ),
                     ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                // 预览图区域
-                Expanded(
-                  flex: 3,
-                  child: _buildThumbnail(theme, entry),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 预览图区域
+                    Expanded(
+                      flex: 3,
+                      child: _buildThumbnail(theme, entry),
+                    ),
+
+                    // 信息区域
+                    Expanded(
+                      flex: 2,
+                      child: _buildInfo(theme, entry),
+                    ),
+                  ],
                 ),
 
-                // 信息区域
-                Expanded(
-                  flex: 2,
-                  child: _buildInfo(theme, entry),
-                ),
+                // 选择模式覆盖层
+                if (widget.isSelectionMode)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: widget.isSelected
+                            ? theme.colorScheme.primary.withOpacity(0.08)
+                            : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          // 左上角复选框
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: _SelectionCheckbox(
+                              isSelected: widget.isSelected,
+                              onTap: widget.onToggleSelection,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -540,6 +603,57 @@ class _EntryCardState extends State<EntryCard> {
   void _copyToClipboard(String content) {
     Clipboard.setData(ClipboardData(text: content));
     AppToast.success(context, context.l10n.common_copied);
+  }
+}
+
+/// 选择复选框
+class _SelectionCheckbox extends StatelessWidget {
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _SelectionCheckbox({
+    required this.isSelected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.5),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                size: 16,
+                color: theme.colorScheme.onPrimary,
+              )
+            : null,
+      ),
+    );
   }
 }
 

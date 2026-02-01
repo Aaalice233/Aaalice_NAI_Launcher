@@ -21,6 +21,16 @@ class EntryListItem extends StatefulWidget {
   /// 是否启用拖拽到分类功能
   final bool enableDrag;
 
+  // ===== 批量选择相关属性 =====
+  /// 是否处于选择模式
+  final bool isSelectionMode;
+
+  /// 是否被选中
+  final bool isSelected;
+
+  /// 切换选择状态回调
+  final VoidCallback? onToggleSelection;
+
   const EntryListItem({
     super.key,
     required this.entry,
@@ -30,6 +40,9 @@ class EntryListItem extends StatefulWidget {
     this.onEdit,
     this.categoryName,
     this.enableDrag = false,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onToggleSelection,
   });
 
   @override
@@ -45,32 +58,59 @@ class _EntryListItemState extends State<EntryListItem> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
+    // 选择模式下的背景色
+    final backgroundColor = widget.isSelected
+        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+        : (_isHovering && !widget.isSelectionMode
+            ? theme.colorScheme.surfaceContainerHighest
+            : theme.colorScheme.surfaceContainerHigh);
+
+    // 选择模式下的边框
+    final borderColor = widget.isSelected
+        ? theme.colorScheme.primary
+        : Colors.transparent;
+
     Widget itemContent = MouseRegion(
       onEnter: (_) {
-        if (!_isDragging) {
+        if (!_isDragging && !widget.isSelectionMode) {
           setState(() => _isHovering = true);
         }
       },
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap,
+        // 选择模式下点击切换选择，否则打开详情
+        onTap: widget.isSelectionMode
+            ? widget.onToggleSelection
+            : widget.onTap,
+        // 长按进入选择模式并选中
+        onLongPress: widget.isSelectionMode
+            ? null
+            : () {
+                HapticFeedback.mediumImpact();
+                widget.onToggleSelection?.call();
+              },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           padding: const EdgeInsets.all(12),
-          // 悬停时微微上移
-          transform: Matrix4.identity()
-            ..translate(0.0, _isHovering ? -2.0 : 0.0),
+          // 悬停时微微上移（非选择模式）
+          transform: widget.isSelectionMode
+              ? null
+              : (Matrix4.identity()
+                ..translate(0.0, _isHovering ? -2.0 : 0.0)),
           decoration: BoxDecoration(
-            // 色差背景 - 悬停时稍亮
-            color: _isHovering
-                ? theme.colorScheme.surfaceContainerHighest
-                : theme.colorScheme.surfaceContainerHigh,
+            // 背景色 - 选中时使用主色容器
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(12),
-            // 无边框 + 多层阴影
-            boxShadow: _isHovering
+            // 选中时显示边框
+            border: Border.all(
+              color: borderColor,
+              width: widget.isSelected ? 2 : 0,
+            ),
+            // 阴影（非选择模式）
+            boxShadow: _isHovering && !widget.isSelectionMode
                 ? [
                     // 主阴影 - 带主题色
                     BoxShadow(
@@ -107,6 +147,15 @@ class _EntryListItemState extends State<EntryListItem> {
           ),
           child: Row(
             children: [
+              // 选择模式下的复选框
+              if (widget.isSelectionMode) ...[
+                _SelectionCheckbox(
+                  isSelected: widget.isSelected,
+                  onTap: widget.onToggleSelection,
+                ),
+                const SizedBox(width: 12),
+              ],
+
               // 预览图
               _buildThumbnail(theme, entry),
               const SizedBox(width: 16),
@@ -116,8 +165,8 @@ class _EntryListItemState extends State<EntryListItem> {
                 child: _buildInfo(theme, entry),
               ),
 
-              // 操作按钮
-              if (_isHovering) ...[
+              // 操作按钮（非选择模式悬停时显示）
+              if (!widget.isSelectionMode && _isHovering) ...[
                 const SizedBox(width: 12),
                 _buildActions(theme),
               ],
@@ -526,6 +575,57 @@ class _TagChip extends StatelessWidget {
           fontSize: 10,
           color: theme.colorScheme.onSecondaryContainer,
         ),
+      ),
+    );
+  }
+}
+
+/// 选择复选框
+class _SelectionCheckbox extends StatelessWidget {
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _SelectionCheckbox({
+    required this.isSelected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.5),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                size: 16,
+                color: theme.colorScheme.onPrimary,
+              )
+            : null,
       ),
     );
   }
