@@ -32,31 +32,28 @@ class AuthErrorService {
     AuthErrorCode errorCode,
     int? httpStatusCode,
   ) {
-    // 401 错误，提供更明确的提示
-    if (errorCode == AuthErrorCode.authFailed && httpStatusCode == 401) {
-      AppLogger.d(
-        'Auth failed with 401 status - token expired',
-        'AuthErrorService',
-      );
-      return l10n.auth_error_authFailed_tokenExpired;
-    }
-
     switch (errorCode) {
       case AuthErrorCode.networkTimeout:
         AppLogger.d('Network timeout error', 'AuthErrorService');
-        return l10n.auth_error_networkTimeout;
+        return l10n.api_error_timeout;
       case AuthErrorCode.networkError:
         AppLogger.d('Network error', 'AuthErrorService');
-        return l10n.auth_error_networkError;
+        return l10n.api_error_network;
       case AuthErrorCode.authFailed:
         AppLogger.d('Authentication failed', 'AuthErrorService');
+        if (httpStatusCode == 401) {
+          return l10n.api_error_401;
+        }
         return l10n.auth_error_authFailed;
       case AuthErrorCode.tokenInvalid:
         AppLogger.d('Invalid token', 'AuthErrorService');
         return l10n.auth_tokenInvalid;
       case AuthErrorCode.serverError:
         AppLogger.d('Server error', 'AuthErrorService');
-        return l10n.auth_error_serverError;
+        if (httpStatusCode == 503) {
+          return l10n.api_error_503;
+        }
+        return l10n.api_error_500;
       case AuthErrorCode.unknown:
         AppLogger.d('Unknown error', 'AuthErrorService');
         return l10n.auth_error_unknown;

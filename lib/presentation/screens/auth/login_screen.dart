@@ -141,12 +141,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
 
         // 构建错误消息，包含恢复建议
-        String errorMessage;
-        if (recoveryHint != null) {
-          errorMessage = '$errorText\n\n💡 $recoveryHint';
-        } else {
-          errorMessage = context.l10n.auth_error_loginFailed(errorText);
-        }
+        // 如果错误文本和恢复建议相同，则只显示一个，避免重复
+        final errorMessage = (recoveryHint != null && recoveryHint != errorText)
+            ? '$errorText\n\n💡 $recoveryHint'
+            : errorText;
 
         // 使用 Navigator.of 来获取 Overlay
         final overlayState = Navigator.of(context, rootNavigator: true).overlay;
@@ -163,9 +161,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         // 清除错误状态（延迟，让 Toast 有时间显示）
         ref.read(authNotifierProvider.notifier).clearError(delayMs: 500);
-      } else if (next.hasError && previous?.errorCode == next.errorCode) {
-        AppLogger.d('[LoginScreen] Error already shown, clearing...', 'LOGIN');
-        ref.read(authNotifierProvider.notifier).clearError();
       }
     });
 

@@ -7,7 +7,6 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/nai_auth_api_service.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../common/app_toast.dart';
 import '../common/floating_label_input.dart';
 
 /// Token 登录卡片组件
@@ -298,50 +297,10 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
         widget.onLoginSuccess?.call();
       }
     } else {
-      // 登录失败，显示错误提示
-      if (mounted) {
-        final authState = ref.read(authNotifierProvider);
-        String errorMessage;
-
-        if (authState.hasError) {
-          // 根据错误码显示相应提示
-          switch (authState.errorCode) {
-            case AuthErrorCode.tokenInvalid:
-              errorMessage = context.l10n.auth_tokenInvalid;
-              final recoveryHint = context.l10n.api_error_401_hint;
-              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
-              break;
-            case AuthErrorCode.authFailed:
-              errorMessage = context.l10n.auth_error_authFailed;
-              final recoveryHint = context.l10n.api_error_401_hint;
-              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
-              break;
-            case AuthErrorCode.networkTimeout:
-              errorMessage = context.l10n.auth_error_networkTimeout;
-              final recoveryHint = context.l10n.api_error_timeout_hint;
-              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
-              break;
-            case AuthErrorCode.networkError:
-              errorMessage = context.l10n.auth_error_networkError;
-              final recoveryHint = context.l10n.api_error_network_hint;
-              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
-              break;
-            case AuthErrorCode.serverError:
-              errorMessage = context.l10n.auth_error_serverError;
-              final recoveryHint = authState.httpStatusCode == 503
-                  ? context.l10n.api_error_503_hint
-                  : context.l10n.api_error_500_hint;
-              errorMessage = '$errorMessage\n\n💡 $recoveryHint';
-              break;
-            default:
-              errorMessage = context.l10n.auth_error_unknown;
-          }
-        } else {
-          errorMessage = context.l10n.auth_error_unknown;
-        }
-
-        AppToast.error(context, errorMessage);
-      }
+      // 登录失败
+      // 注意：这里不需要手动显示 Toast，因为 LoginScreen 监听了 AuthState 变化
+      // 当 AuthState 变为 error 时，LoginScreen 会自动显示 Toast
+      // 保留这里的 else 分支是为了逻辑清晰，如果有其他本地状态需要处理可以在这里添加
     }
   }
 

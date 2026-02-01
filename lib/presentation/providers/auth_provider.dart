@@ -337,6 +337,10 @@ class AuthNotifier extends _$AuthNotifier {
     String? accountId,
     String? displayName,
   }) async {
+    // 保存当前状态，如果登录失败且之前已登录，可以恢复
+    final previousState = state;
+    final wasAuthenticated = previousState.isAuthenticated;
+
     state = state.copyWith(status: AuthStatus.loading);
 
     try {
@@ -381,11 +385,35 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.e('Token login failed: $e');
       final (errorCode, httpStatusCode) = AuthState.parseError(e);
 
-      state = AuthState(
-        status: AuthStatus.error,
-        errorCode: errorCode,
-        httpStatusCode: httpStatusCode,
-      );
+      // 如果之前已登录（添加账号场景），或者在登录过程中变为已登录（如自动登录成功）
+      // 则保留登录状态，只附加错误信息
+      if (state.isAuthenticated) {
+        // 当前已登录（可能是并发的自动登录成功了），保留当前状态只添加错误信息
+        state = state.copyWith(
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+        AppLogger.w(
+          'Token login failed but kept current authenticated state',
+          'AUTH',
+        );
+      } else if (wasAuthenticated) {
+        // 之前是登录状态，恢复之前的状态并附加错误信息
+        state = previousState.copyWith(
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+        AppLogger.w(
+          'Token login failed but restored previous authenticated state',
+          'AUTH',
+        );
+      } else {
+        state = AuthState(
+          status: AuthStatus.error,
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+      }
 
       return false;
     }
@@ -432,6 +460,10 @@ class AuthNotifier extends _$AuthNotifier {
     String? accountId,
     String? displayName,
   }) async {
+    // 保存当前状态
+    final previousState = state;
+    final wasAuthenticated = previousState.isAuthenticated;
+
     state = state.copyWith(status: AuthStatus.loading);
 
     try {
@@ -463,11 +495,25 @@ class AuthNotifier extends _$AuthNotifier {
     } catch (e) {
       AppLogger.e('Credentials account login failed: $e');
       final (errorCode, httpStatusCode) = AuthState.parseError(e);
-      state = AuthState(
-        status: AuthStatus.error,
-        errorCode: errorCode,
-        httpStatusCode: httpStatusCode,
-      );
+
+      // 错误处理：保留登录状态
+      if (state.isAuthenticated) {
+        state = state.copyWith(
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+      } else if (wasAuthenticated) {
+        state = previousState.copyWith(
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+      } else {
+        state = AuthState(
+          status: AuthStatus.error,
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+      }
       return false;
     }
   }
