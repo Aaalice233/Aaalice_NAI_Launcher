@@ -128,6 +128,32 @@ class AuthState {
   }
 }
 
+/// 添加账号结果
+class AddAccountResult {
+  final bool success;
+  final AuthErrorCode? errorCode;
+  final int? httpStatusCode;
+
+  const AddAccountResult({
+    required this.success,
+    this.errorCode,
+    this.httpStatusCode,
+  });
+
+  factory AddAccountResult.ok() => const AddAccountResult(success: true);
+
+  factory AddAccountResult.failed(
+    AuthErrorCode errorCode,
+    int? httpStatusCode,
+  ) {
+    return AddAccountResult(
+      success: false,
+      errorCode: errorCode,
+      httpStatusCode: httpStatusCode,
+    );
+  }
+}
+
 /// 认证状态 Notifier
 @riverpod
 class AuthNotifier extends _$AuthNotifier {
@@ -452,6 +478,10 @@ class AuthNotifier extends _$AuthNotifier {
     String password, {
     String? displayName,
   }) async {
+    // 保存当前状态，如果登录失败且之前已登录，可以恢复
+    final previousState = state;
+    final wasAuthenticated = previousState.isAuthenticated;
+
     state = state.copyWith(status: AuthStatus.loading);
 
     try {
@@ -512,12 +542,93 @@ class AuthNotifier extends _$AuthNotifier {
     } catch (e) {
       AppLogger.e('Credentials login failed: $e');
       final (errorCode, httpStatusCode) = AuthState.parseError(e);
-      state = AuthState(
-        status: AuthStatus.error,
-        errorCode: errorCode,
-        httpStatusCode: httpStatusCode,
-      );
+
+      // 如果之前已登录（添加账号场景），恢复之前的状态并附加错误信息
+      // 这样不会影响当前已登录用户的状态
+      if (wasAuthenticated) {
+        state = previousState.copyWith(
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+        AppLogger.w(
+          'Login failed but restored previous authenticated state',
+          'AUTH',
+        );
+      } else {
+        state = AuthState(
+          status: AuthStatus.error,
+          errorCode: errorCode,
+          httpStatusCode: httpStatusCode,
+        );
+      }
       return false;
+    }
+  }
+
+  /// 尝试添加账号（不影响当前登录状态）
+  ///
+  /// 用于已登录状态下添加新账号，失败时不会改变全局认证状态
+  Future<AddAccountResult> tryAddAccount(
+    String email,
+    String password, {
+    String? displayName,
+  }) async {
+    try {
+      final apiService = ref.read(naiAuthApiServiceProvider);
+      final cryptoService = ref.read(naiCryptoServiceProvider);
+      final storage = ref.read(secureStorageServiceProvider);
+      final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
+
+      // 1. 生成 Access Key（Argon2哈希）
+      AppLogger.auth('tryAddAccount: Generating access key for: $email');
+      final accessKey = await cryptoService.deriveAccessKey(email, password);
+
+      // 2. 使用 Access Key 登录
+      AppLogger.auth('tryAddAccount: Logging in with access key...');
+      final loginResponse = await apiService.loginWithKey(accessKey);
+      final accessToken = loginResponse['accessToken'] as String;
+
+      // 3. 获取订阅信息
+      final subscriptionInfo = await apiService.validateToken(accessToken);
+
+      // 4. 获取显示名称
+      final effectiveDisplayName = displayName ?? email.split('@').first;
+
+      // 5. 保存账号到 AccountManager
+      final account = await accountNotifier.addAccount(
+        identifier: email,
+        token: accessToken,
+        nickname: effectiveDisplayName,
+        setAsDefault: true,
+        accountType: AccountType.credentials,
+      );
+      final accountId = account.id;
+
+      // 6. 保存 accessKey 用于后续 token 刷新
+      await storage.saveAccountAccessKey(accountId, accessKey);
+
+      // 7. 保存 Token 到安全存储
+      await storage.saveAuth(
+        accessToken: accessToken,
+        expiry: DateTime.now().add(const Duration(days: 30)),
+        email: email,
+      );
+
+      // 8. 更新全局状态（切换到新账号）
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        accountId: accountId,
+        displayName: effectiveDisplayName,
+        subscriptionInfo: subscriptionInfo,
+      );
+
+      AppLogger.auth('tryAddAccount: Success for: $email');
+      return AddAccountResult.ok();
+    } catch (e) {
+      AppLogger.e('tryAddAccount: Failed: $e');
+      final (errorCode, httpStatusCode) = AuthState.parseError(e);
+      // 不改变全局状态，只返回错误信息
+      return AddAccountResult.failed(errorCode, httpStatusCode);
     }
   }
 

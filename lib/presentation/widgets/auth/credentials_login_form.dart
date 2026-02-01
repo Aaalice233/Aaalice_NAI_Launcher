@@ -29,6 +29,11 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   late final TextEditingController passwordController;
   final formKey = GlobalKey<FormState>();
 
+  // 本地错误状态（用于添加账号场景，避免影响全局 authState）
+  AuthErrorCode? _localErrorCode;
+  int? _localHttpStatusCode;
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +52,13 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   Widget build(BuildContext context) {
     final obscurePassword = ref.watch(obscurePasswordProvider);
     final authState = ref.watch(authNotifierProvider);
+
+    // 统一错误状态：优先使用本地错误（添加账号场景），否则使用全局状态
+    final hasError = _localErrorCode != null || authState.hasError;
+    final errorCode = _localErrorCode ?? authState.errorCode;
+    final httpStatusCode = _localHttpStatusCode ?? authState.httpStatusCode;
+    // 统一加载状态
+    final isLoading = _isLoading || authState.isLoading;
 
     return Form(
       key: formKey,
@@ -123,7 +135,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           SizedBox(
             height: 56,
             child: ElevatedButton(
-              onPressed: authState.isLoading ? null : _handleLogin,
+              onPressed: isLoading ? null : _handleLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -131,7 +143,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: authState.isLoading
+              child: isLoading
                   ? const SizedBox(
                       width: 24,
                       height: 24,
@@ -151,7 +163,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           ),
 
           // 错误提示
-          if (authState.hasError) ...[
+          if (hasError) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -171,9 +183,10 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _getErrorMessage(authState.errorCode),
+                          _getErrorMessage(errorCode),
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onErrorContainer,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -182,8 +195,8 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                   ),
                   // 显示恢复建议
                   if (_getErrorRecoveryHint(
-                        authState.errorCode,
-                        authState.httpStatusCode,
+                        errorCode,
+                        httpStatusCode,
                       ) !=
                       null) ...[
                     const SizedBox(height: 8),
@@ -191,8 +204,8 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
                         _getErrorRecoveryHint(
-                          authState.errorCode,
-                          authState.httpStatusCode,
+                          errorCode,
+                          httpStatusCode,
                         )!,
                         style: TextStyle(
                           color: Theme.of(context)
@@ -205,10 +218,10 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     ),
                   ],
                   // 网络错误显示重试按钮
-                  if (_isNetworkError(authState.errorCode)) ...[
+                  if (_isNetworkError(errorCode)) ...[
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
-                      onPressed: authState.isLoading ? null : _handleLogin,
+                      onPressed: isLoading ? null : _handleLogin,
                       icon: const Icon(Icons.refresh, size: 18),
                       label: Text(context.l10n.common_retry),
                       style: ElevatedButton.styleFrom(
@@ -288,17 +301,54 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   Future<void> _handleLogin() async {
     if (!formKey.currentState!.validate()) return;
 
-    // 保存 notifier 引用，避免 widget disposed 后使用 ref
+    // 清除之前的本地错误状态
+    setState(() {
+      _localErrorCode = null;
+      _localHttpStatusCode = null;
+      _isLoading = true;
+    });
+
     final authNotifier = ref.read(authNotifierProvider.notifier);
+    final currentAuthState = ref.read(authNotifierProvider);
 
-    final success = await authNotifier.loginWithCredentials(
-      emailController.text,
-      passwordController.text,
-    );
+    // 如果当前已登录（添加账号场景），使用不影响全局状态的登录方法
+    if (currentAuthState.isAuthenticated) {
+      final result = await authNotifier.tryAddAccount(
+        emailController.text,
+        passwordController.text,
+      );
 
-    // 检查 widget 是否仍然 mounted
-    if (mounted && success && widget.onLoginSuccess != null) {
-      widget.onLoginSuccess!();
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.success) {
+        widget.onLoginSuccess?.call();
+      } else {
+        // 登录失败，设置本地错误状态
+        setState(() {
+          _localErrorCode = result.errorCode;
+          _localHttpStatusCode = result.httpStatusCode;
+        });
+      }
+    } else {
+      // 未登录状态，使用正常的登录流程
+      final success = await authNotifier.loginWithCredentials(
+        emailController.text,
+        passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (success) {
+        widget.onLoginSuccess?.call();
+      }
     }
   }
 }
