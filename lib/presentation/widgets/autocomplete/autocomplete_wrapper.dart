@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/alias_parser.dart';
-import '../../../core/utils/app_logger.dart';
 import '../../providers/locale_provider.dart';
 import 'autocomplete_controller.dart';
 import 'autocomplete_strategy.dart';
@@ -204,9 +203,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _initFocusNode();
     widget.controller.addListener(_onTextChanged);
     widget.strategy.addListener(_onStrategyChanged);
-    AppLogger.d(
-      '[AC:Wrapper] initState: strategy=${widget.strategy.runtimeType}, hashCode=${widget.strategy.hashCode}',
-    );
   }
 
   void _initFocusNode() {
@@ -234,9 +230,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _initFocusNode();
     }
     if (oldWidget.strategy != widget.strategy) {
-      AppLogger.d(
-        '[AC:Wrapper] didUpdateWidget: strategy CHANGED! old=${oldWidget.strategy.hashCode}, new=${widget.strategy.hashCode}',
-      );
       oldWidget.strategy.removeListener(_onStrategyChanged);
       widget.strategy.addListener(_onStrategyChanged);
     }
@@ -267,14 +260,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
 
-    AppLogger.d(
-      '[AC:Wrapper] _onTextChanged: text="${text.length > 50 ? '${text.substring(0, 50)}...' : text}", cursor=$cursorPosition, strategy=${widget.strategy.runtimeType}',
-    );
-
     // 检查是否正在进行 IME 组合输入
     final composing = widget.controller.value.composing;
     if (composing.isValid && !composing.isCollapsed) {
-      AppLogger.d('[AC:Wrapper] IME composing, skip search');
       widget.onChanged?.call(text);
       return;
     }
@@ -286,9 +274,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _onStrategyChanged() {
-    AppLogger.d(
-      '[AC:Wrapper] _onStrategyChanged: hasSuggestions=${widget.strategy.hasSuggestions}, isLoading=${widget.strategy.isLoading}, count=${widget.strategy.suggestions.length}',
-    );
     if (widget.strategy.hasSuggestions) {
       _showSuggestionsOverlay();
       // 确保 selectedIndex 在有效范围内

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/utils/app_logger.dart';
 import 'generic_suggestion_tile.dart';
 
 /// 自动补全策略接口
@@ -92,7 +91,6 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
   }
 
   void _onStrategyChanged() {
-    AppLogger.d('[AC:Composite] _onStrategyChanged from child strategy, forwarding notification');
     notifyListeners();
   }
 
@@ -101,11 +99,8 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
     // 使用选择器选择活跃策略
     final selectedStrategy = _strategySelector(_strategies, text, cursorPosition);
 
-    AppLogger.d('[AC:Composite] search: cursor=$cursorPosition, selectedStrategy=${selectedStrategy?.runtimeType}, prevStrategy=${_activeStrategy?.runtimeType}');
-
     // 如果策略发生变化，清空之前策略的建议
     if (_activeStrategy != selectedStrategy) {
-      AppLogger.d('[AC:Composite] strategy changed, clearing previous');
       _activeStrategy?.clear();
       _activeStrategy = selectedStrategy;
     }

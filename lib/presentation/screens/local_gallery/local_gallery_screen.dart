@@ -314,6 +314,49 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
   }
 
+  /// 处理重建索引
+  Future<void> _handleRebuildIndex() async {
+    final notifier = ref.read(localGalleryNotifierProvider.notifier);
+    final state = ref.read(localGalleryNotifierProvider);
+    
+    // 如果已经在更新中，则取消
+    if (state.isRebuildingIndex) {
+      await notifier.performFullScan(); // 这会触发取消
+      if (mounted) {
+        AppToast.info(context, '已取消索引更新');
+      }
+      return;
+    }
+    
+    // 开始更新
+    final result = await notifier.performFullScan();
+    
+    if (!mounted) return;
+    
+    if (result == null) {
+      // 可能是取消或失败
+      final currentState = ref.read(localGalleryNotifierProvider);
+      if (!currentState.isRebuildingIndex) {
+        // 确实已经停止了，可能是取消
+        AppToast.info(context, '索引更新已停止');
+      }
+      return;
+    }
+    
+    if (result.filesAdded == 0 && result.filesUpdated == 0 && result.filesDeleted == 0) {
+      // 没有变化
+      AppToast.info(context, '索引已是最新，无需更新');
+    } else {
+      // 有更新
+      final parts = <String>[];
+      if (result.filesAdded > 0) parts.add('新增 ${result.filesAdded} 张');
+      if (result.filesUpdated > 0) parts.add('更新 ${result.filesUpdated} 张');
+      if (result.filesDeleted > 0) parts.add('删除 ${result.filesDeleted} 张');
+      
+      AppToast.success(context, '索引更新完成：${parts.join('，')}');
+    }
+  }
+
   /// 构建工具栏或选择栏
   Widget _buildToolbarOrSelectionBar(
     LocalGalleryState state,
@@ -324,6 +367,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       use3DCardView: _use3DCardView,
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
+      onRebuildIndex: () => _handleRebuildIndex(),
       onEnterSelectionMode: () =>
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
       canUndo: bulkOpState.canUndo,
@@ -356,7 +400,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       );
     }
 
-    if (state.isIndexing) {
+    // 只有在真正加载中且没有文件时才显示加载视图
+    // 后台索引时不应阻止用户浏览已加载的文件
+    if (state.isLoading && state.allFiles.isEmpty) {
       return const GalleryLoadingView();
     }
 

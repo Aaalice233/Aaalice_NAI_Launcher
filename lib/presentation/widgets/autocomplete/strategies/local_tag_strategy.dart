@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/tag_data_service.dart';
-import '../../../../core/utils/app_logger.dart';
 import '../../../../data/models/tag/local_tag.dart';
 import '../autocomplete_controller.dart';
 import '../autocomplete_strategy.dart';
@@ -94,7 +93,6 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
       _suggestions =
           _tagDataService.search(query, limit: _config.maxSuggestions);
     } catch (e) {
-      AppLogger.e('[AC:LocalTag] search error: $e');
       _suggestions = [];
     } finally {
       _isLoading = false;

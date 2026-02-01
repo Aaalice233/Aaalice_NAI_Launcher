@@ -518,6 +518,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       );
     }
 
-    Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

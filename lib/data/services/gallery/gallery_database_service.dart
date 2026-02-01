@@ -219,6 +219,12 @@ class GalleryDatabaseService {
     });
   }
 
+  /// 根据ID查询单张图片
+  Future<Map<String, dynamic>?> getImageById(int imageId) async {
+    final results = await queryImagesByIds([imageId]);
+    return results.isNotEmpty ? results.first : null;
+  }
+
   /// 根据ID列表查询图片
   Future<List<Map<String, dynamic>>> queryImagesByIds(List<int> imageIds) async {
     if (imageIds.isEmpty) return [];
