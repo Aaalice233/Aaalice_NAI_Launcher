@@ -116,8 +116,12 @@ class LocalStorageService {
 
   /// 获取默认 Scale
   double getDefaultScale() {
-    return getSetting<double>(StorageKeys.defaultScale, defaultValue: 5.0) ??
-        5.0;
+    final value = getSetting(StorageKeys.defaultScale);
+    if (value == null) return 5.0;
+    // 处理可能存储为 int 的情况
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    return 5.0;
   }
 
   /// 保存默认 Scale
