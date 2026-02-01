@@ -315,9 +315,11 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
 
     // 如果当前已登录（添加账号场景），使用不影响全局状态的登录方法
     if (currentAuthState.isAuthenticated) {
+      final email = emailController.text.trim().toLowerCase();
+      final password = passwordController.text.trim();
       final result = await authNotifier.tryAddAccount(
-        emailController.text,
-        passwordController.text,
+        email,
+        password,
       );
 
       if (!mounted) return;
@@ -337,9 +339,11 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
       }
     } else {
       // 未登录状态，使用正常的登录流程
+      final email = emailController.text.trim().toLowerCase();
+      final password = passwordController.text.trim();
       final success = await authNotifier.loginWithCredentials(
-        emailController.text,
-        passwordController.text,
+        email,
+        password,
       );
 
       if (!mounted) return;

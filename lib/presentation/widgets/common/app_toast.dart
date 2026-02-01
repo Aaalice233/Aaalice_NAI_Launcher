@@ -385,11 +385,11 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
                 ],
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(icon, color: Colors.white, size: 20),
                   const SizedBox(width: 12),
-                  Flexible(
+                  Expanded(
                     child: Text(
                       widget.message,
                       style: const TextStyle(

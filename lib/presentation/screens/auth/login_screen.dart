@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // 构建错误消息，包含恢复建议
         // 如果错误文本和恢复建议相同，则只显示一个，避免重复
         final errorMessage = (recoveryHint != null && recoveryHint != errorText)
-            ? '$errorText\n\n💡 $recoveryHint'
+            ? '$errorText\n💡 $recoveryHint'
             : errorText;
 
         // 使用 Navigator.of 来获取 Overlay
