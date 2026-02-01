@@ -40,6 +40,7 @@ class LocalStorageService {
 
   /// 获取风格类型索引
   int getThemeIndex() {
+    // 默认值 0 对应 AppStyle.grungeCollage (拼贴朋克风格)
     return getSetting<int>(StorageKeys.themeType, defaultValue: 0) ?? 0;
   }
 

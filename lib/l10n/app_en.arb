@@ -165,7 +165,7 @@
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
   "settings_selectStyle": "Select Style",
-  "settings_defaultPreset": "Default Preset",
+  "settings_defaultPreset": "Default",
   "settings_selectFont": "Select Font",
   "settings_selectLanguage": "Select Language",
   "settings_loadFailed": "Load failed: {error}",

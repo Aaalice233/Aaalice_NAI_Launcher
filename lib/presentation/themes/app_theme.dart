@@ -25,8 +25,8 @@ import 'theme_extension.dart';
 /// 风格类型枚举 - 16 套主题
 enum AppStyle {
   // 8 套新设计主题
+  grungeCollage, // 拼贴朋克 (默认)
   boldRetro, // 复古现代主义
-  grungeCollage, // 拼贴朋克
   fluidSaturated, // 流体饱和
   materialYou, // Material You
   flatDesign, // 扁平设计

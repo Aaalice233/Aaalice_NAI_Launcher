@@ -160,7 +160,7 @@
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
   "settings_selectStyle": "选择风格",
-  "settings_defaultPreset": "默认预设",
+  "settings_defaultPreset": "默认",
   "settings_selectFont": "选择字体",
   "settings_selectLanguage": "选择语言",
   "settings_loadFailed": "加载失败: {error}",

@@ -234,11 +234,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     BuildContext context,
     AppStyle currentTheme,
   ) {
-    // 将 retroWave 置顶，其余保持原顺序
-    final sortedStyles = [
-      AppStyle.retroWave, // 默认预设置顶
-      ...AppStyle.values.where((s) => s != AppStyle.retroWave),
-    ];
+    // grungeCollage 已是 enum 第一个，无需手动排序
+    const sortedStyles = AppStyle.values;
 
     showDialog(
       context: context,
@@ -251,8 +248,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: ListView(
               shrinkWrap: true,
               children: sortedStyles.map((style) {
-                // retroWave 使用多语言的"默认预设"
-                final displayName = style == AppStyle.retroWave
+                // grungeCollage 使用多语言的"默认"
+                final displayName = style == AppStyle.grungeCollage
                     ? context.l10n.settings_defaultPreset
                     : style.displayName;
                 return RadioListTile<AppStyle>(

@@ -108,9 +108,9 @@ class ThemeComposer {
       textTheme: textTheme,
 
       // Icon theme - ensures icons have good visibility by default
-      // Uses onPrimary for high contrast against most backgrounds
+      // Uses onSurface for proper contrast on surface backgrounds
       iconTheme: IconThemeData(
-        color: colorScheme.onPrimary,
+        color: colorScheme.onSurface,
         size: 24,
       ),
 
