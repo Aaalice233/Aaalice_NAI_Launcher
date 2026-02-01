@@ -126,12 +126,6 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
         appCategory = item.category;
     }
 
-    // DEBUG: 记录分类转换
-    AppLogger.d(
-      '[LocalTagStrategy] ${item.tag}: raw=${item.category} -> app=$appCategory',
-      'Autocomplete',
-    );
-
     return SuggestionData(
       tag: item.tag,
       category: appCategory,
