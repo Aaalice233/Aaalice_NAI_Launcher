@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../router/app_router.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
@@ -567,7 +568,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
-    context.go('/generate');
+    context.go(AppRoutes.generation);
 
     AppToast.success(context, '提示词已发送到生成页面');
   }
