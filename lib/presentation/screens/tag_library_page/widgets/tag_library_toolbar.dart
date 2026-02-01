@@ -25,6 +25,12 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   /// 批量复制内容回调
   final VoidCallback? onBulkCopy;
 
+  /// 导入回调
+  final VoidCallback? onImport;
+
+  /// 导出回调
+  final VoidCallback? onExport;
+
   const TagLibraryToolbar({
     super.key,
     this.onEnterSelectionMode,
@@ -32,6 +38,8 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
     this.onBulkMoveCategory,
     this.onBulkToggleFavorite,
     this.onBulkCopy,
+    this.onImport,
+    this.onExport,
   });
 
   @override
@@ -172,7 +180,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
               _CompactIconButton(
                 icon: Icons.file_download_outlined,
                 label: '导入',
-                onPressed: () => _showImportDialog(),
+                onPressed: widget.onImport,
               ),
               const SizedBox(width: 6),
 
@@ -181,7 +189,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                 icon: Icons.file_upload_outlined,
                 label: '导出',
                 onPressed:
-                    state.entries.isEmpty ? null : () => _showExportDialog(),
+                    state.entries.isEmpty ? null : widget.onExport,
               ),
             ],
           ),
@@ -275,13 +283,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     // 实际实现由父组件处理
   }
 
-  void _showImportDialog() {
-    // 通过 provider 通知显示导入对话框
-  }
-
-  void _showExportDialog() {
-    // 通过 provider 通知显示导出对话框
-  }
 }
 
 /// 视图模式切换按钮

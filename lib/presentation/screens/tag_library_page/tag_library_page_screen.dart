@@ -14,6 +14,8 @@ import 'widgets/entry_list_item.dart';
 import 'widgets/entry_add_dialog.dart';
 import 'widgets/tag_library_toolbar.dart';
 import 'widgets/bulk_move_category_dialog.dart';
+import 'widgets/export_dialog.dart';
+import 'widgets/import_dialog.dart';
 
 /// 词库页面
 class TagLibraryPageScreen extends ConsumerStatefulWidget {
@@ -53,6 +55,8 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                     onBulkMoveCategory: _handleBulkMoveCategory,
                     onBulkToggleFavorite: _handleBulkToggleFavorite,
                     onBulkCopy: _handleBulkCopy,
+                    onImport: _handleImport,
+                    onExport: _handleExport,
                   ),
 
                   // 内容列表
@@ -502,6 +506,26 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     if (mounted) {
       AppToast.success(context, '已复制 ${selectedEntries.length} 个词条的内容');
     }
+  }
+
+  /// 导入词库
+  void _handleImport() {
+    showDialog(
+      context: context,
+      builder: (context) => const ImportDialog(),
+    );
+  }
+
+  /// 导出词库
+  void _handleExport() {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    showDialog(
+      context: context,
+      builder: (context) => ExportDialog(
+        entries: state.entries,
+        categories: state.categories,
+      ),
+    );
   }
 
   // ==================== 对话框方法 ====================

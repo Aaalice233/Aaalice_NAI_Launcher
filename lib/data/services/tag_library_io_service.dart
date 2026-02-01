@@ -34,11 +34,12 @@ class TagLibraryIOService {
       includeThumbnails: includeThumbnails,
     );
     final manifestJson = jsonEncode(manifest.toJson());
+    final manifestBytes = utf8.encode(manifestJson);
     archive.addFile(
       ArchiveFile(
         'manifest.json',
-        manifestJson.length,
-        utf8.encode(manifestJson),
+        manifestBytes.length,
+        manifestBytes,
       ),
     );
     currentStep++;
@@ -48,11 +49,12 @@ class TagLibraryIOService {
     onProgress?.call(currentStep / totalSteps, '导出分类...');
     final categoriesJson =
         jsonEncode(categories.map((c) => c.toJson()).toList());
+    final categoriesBytes = utf8.encode(categoriesJson);
     archive.addFile(
       ArchiveFile(
         'categories.json',
-        categoriesJson.length,
-        utf8.encode(categoriesJson),
+        categoriesBytes.length,
+        categoriesBytes,
       ),
     );
     currentStep++;
@@ -68,11 +70,12 @@ class TagLibraryIOService {
 
       // 导出条目 JSON
       final entryJson = jsonEncode(entry.toJson());
+      final entryBytes = utf8.encode(entryJson);
       archive.addFile(
         ArchiveFile(
           'entries/${entry.id}.json',
-          entryJson.length,
-          utf8.encode(entryJson),
+          entryBytes.length,
+          entryBytes,
         ),
       );
 
@@ -113,35 +116,61 @@ class TagLibraryIOService {
 
   /// 解析导入文件
   Future<ImportPreview> parseImportFile(File zipFile) async {
-    final bytes = await zipFile.readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
+    late Archive archive;
+    try {
+      final bytes = await zipFile.readAsBytes();
+      
+      // 检查文件是否为空
+      if (bytes.isEmpty) {
+        throw Exception('词库文件为空');
+      }
+      
+      archive = ZipDecoder().decodeBytes(bytes);
+    } catch (e) {
+      throw Exception('无法解压词库文件：${e.toString()}');
+    }
 
     // 读取 manifest
     final manifestFile = archive.findFile('manifest.json');
     if (manifestFile == null) {
       throw Exception('无效的词库文件：缺少 manifest.json');
     }
-    final manifestJson = utf8.decode(manifestFile.content as List<int>);
-    final manifestData = jsonDecode(manifestJson) as Map<String, dynamic>;
+    
+    late Map<String, dynamic> manifestData;
+    try {
+      final manifestJson = utf8.decode(manifestFile.content as List<int>);
+      manifestData = jsonDecode(manifestJson) as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('manifest.json 解析失败：${e.toString()}');
+    }
 
     // 读取分类
     final categoriesFile = archive.findFile('categories.json');
     List<TagLibraryCategory> categories = [];
     if (categoriesFile != null) {
-      final categoriesJson = utf8.decode(categoriesFile.content as List<int>);
-      final categoriesData = jsonDecode(categoriesJson) as List<dynamic>;
-      categories = categoriesData
-          .map((c) => TagLibraryCategory.fromJson(Map<String, dynamic>.from(c)))
-          .toList();
+      try {
+        final categoriesJson = utf8.decode(categoriesFile.content as List<int>);
+        final categoriesData = jsonDecode(categoriesJson) as List<dynamic>;
+        categories = categoriesData
+            .map((c) => TagLibraryCategory.fromJson(Map<String, dynamic>.from(c)))
+            .toList();
+      } catch (e) {
+        throw Exception('categories.json 解析失败：${e.toString()}');
+      }
     }
 
     // 读取条目
     final entries = <TagLibraryEntry>[];
     for (final file in archive.files) {
       if (file.name.startsWith('entries/') && file.name.endsWith('.json')) {
-        final entryJson = utf8.decode(file.content as List<int>);
-        final entryData = jsonDecode(entryJson) as Map<String, dynamic>;
-        entries.add(TagLibraryEntry.fromJson(entryData));
+        try {
+          final entryJson = utf8.decode(file.content as List<int>);
+          final entryData = jsonDecode(entryJson) as Map<String, dynamic>;
+          entries.add(TagLibraryEntry.fromJson(entryData));
+        } catch (e) {
+          // 记录解析失败的条目，但继续处理其他条目
+          continue;
+        }
       }
     }
 
