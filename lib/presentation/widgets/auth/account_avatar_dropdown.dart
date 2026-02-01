@@ -98,6 +98,7 @@ class AccountAvatarDropdown extends ConsumerWidget {
                       isLast: i == accounts.length - 1 || i == 4,
                       isSelected: currentAccount?.id == accounts[i].id &&
                           authState.isAuthenticated,
+                      isDefault: i == 0, // 第一个为最近使用的账号
                       onTap: () => _onAccountTap(context, ref, accounts[i]),
                     ),
                   if (accounts.length > 5)
@@ -164,6 +165,7 @@ class _AccountListTile extends StatelessWidget {
   final bool isFirst;
   final bool isLast;
   final bool isSelected;
+  final bool isDefault;
   final VoidCallback? onTap;
 
   const _AccountListTile({
@@ -171,6 +173,7 @@ class _AccountListTile extends StatelessWidget {
     required this.isFirst,
     required this.isLast,
     this.isSelected = false,
+    this.isDefault = false,
     this.onTap,
   });
 
@@ -234,7 +237,7 @@ class _AccountListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (account.isDefault) ...[
+                      if (isDefault) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(

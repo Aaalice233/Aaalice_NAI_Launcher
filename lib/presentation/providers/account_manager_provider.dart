@@ -20,12 +20,6 @@ class AccountManagerState {
     this.error,
   });
 
-  /// 默认账号
-  SavedAccount? get defaultAccount {
-    return accounts.where((a) => a.isDefault).firstOrNull ??
-        accounts.firstOrNull;
-  }
-
   AccountManagerState copyWith({
     List<SavedAccount>? accounts,
     bool? isLoading,
@@ -244,18 +238,29 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
     await _saveAccountToken(accountId, newToken);
   }
 
-  /// 按最后使用时间排序的账号列表
+  /// 按最后使用时间排序的账号列表（最近使用的在前）
   List<SavedAccount> get sortedAccounts {
     final accounts = List<SavedAccount>.from(state.accounts);
     accounts.sort((a, b) {
-      // 默认账号优先
-      if (a.isDefault && !b.isDefault) return -1;
-      if (!a.isDefault && b.isDefault) return 1;
-      // 然后按最后使用时间排序
+      // 按最后使用时间排序，最新的在前
       final aTime = a.lastUsedAt ?? a.createdAt;
       final bTime = b.lastUsedAt ?? b.createdAt;
       return bTime.compareTo(aTime);
     });
     return accounts;
+  }
+
+  /// 默认账号（最近使用的账号）
+  SavedAccount? get defaultAccount {
+    if (state.accounts.isEmpty) return null;
+
+    // 按最后使用时间排序，返回最近使用的账号
+    final sorted = List<SavedAccount>.from(state.accounts);
+    sorted.sort((a, b) {
+      final aTime = a.lastUsedAt ?? a.createdAt;
+      final bTime = b.lastUsedAt ?? b.createdAt;
+      return bTime.compareTo(aTime); // 降序，最新的在前
+    });
+    return sorted.first;
   }
 }

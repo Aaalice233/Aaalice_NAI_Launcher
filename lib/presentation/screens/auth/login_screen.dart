@@ -448,11 +448,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     bool isWideScreen,
     List<SavedAccount> accounts,
   ) {
-    // 获取默认账号或第一个账号
-    final defaultAccount = accounts.firstWhere(
-      (a) => a.isDefault,
-      orElse: () => accounts.first,
-    );
+    // 获取最近使用的账号（按 lastUsedAt 排序）
+    final sortedAccounts = List<SavedAccount>.from(accounts)
+      ..sort((a, b) {
+        final aTime = a.lastUsedAt ?? a.createdAt;
+        final bTime = b.lastUsedAt ?? b.createdAt;
+        return bTime.compareTo(aTime); // 降序，最新的在前
+      });
+    final defaultAccount = sortedAccounts.first;
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
@@ -768,39 +771,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
         contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        content: SizedBox(
-          width: 350,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 账号列表
-              ...accounts.map(
-                (account) => _buildAccountListItem(
-                  dialogContext,
-                  ref,
-                  account,
-                  isSelected: account.id == currentAccount.id,
-                ),
-              ),
-              const ThemedDivider(),
-              // 添加新账号
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(
-                    Icons.add,
-                    color: Theme.of(context).colorScheme.primary,
+        content: Builder(
+          builder: (context) {
+            // 计算最近使用的账号
+            final sortedAccounts = List<SavedAccount>.from(accounts)
+              ..sort((a, b) {
+                final aTime = a.lastUsedAt ?? a.createdAt;
+                final bTime = b.lastUsedAt ?? b.createdAt;
+                return bTime.compareTo(aTime);
+              });
+            final defaultAccount = sortedAccounts.first;
+
+            return SizedBox(
+              width: 350,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 账号列表
+                  ...accounts.map(
+                    (account) => _buildAccountListItem(
+                      dialogContext,
+                      ref,
+                      account,
+                      isSelected: account.id == currentAccount.id,
+                      isDefault: account.id == defaultAccount.id,
+                    ),
                   ),
-                ),
-                title: Text(context.l10n.auth_addAccount),
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _showAddAccountDialog(context);
-                },
+                  const ThemedDivider(),
+                  // 添加新账号
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      child: Icon(
+                        Icons.add,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    title: Text(context.l10n.auth_addAccount),
+                    onTap: () {
+                      Navigator.pop(dialogContext);
+                      _showAddAccountDialog(context);
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -812,6 +829,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     WidgetRef ref,
     SavedAccount account, {
     bool isSelected = false,
+    bool isDefault = false,
   }) {
     final theme = Theme.of(context);
 
@@ -832,7 +850,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (account.isDefault)
+          if (isDefault)
             Container(
               margin: const EdgeInsets.only(left: 8),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

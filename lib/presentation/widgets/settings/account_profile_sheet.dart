@@ -228,7 +228,8 @@ class _AccountProfileBottomSheetState
     // 使用 ref.watch 实现响应式更新
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
     final currentAccountId = ref.watch(authNotifierProvider).accountId;
-    final isDefaultAccount = currentAccount.isDefault;
+    final defaultAccount = ref.read(accountManagerNotifierProvider.notifier).defaultAccount;
+    final isDefaultAccount = defaultAccount?.id == currentAccount.id;
     final hasMultipleAccounts = accounts.length > 1;
 
     return Container(
@@ -543,6 +544,8 @@ class _AccountProfileBottomSheetState
             context,
             account,
             account.id == currentAccountId,
+            ref.read(accountManagerNotifierProvider.notifier).defaultAccount?.id ==
+                account.id,
           ),
         ),
       ],
@@ -554,6 +557,7 @@ class _AccountProfileBottomSheetState
     BuildContext context,
     SavedAccount account,
     bool isCurrent,
+    bool isDefault,
   ) {
     final theme = Theme.of(context);
 
@@ -623,7 +627,7 @@ class _AccountProfileBottomSheetState
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (account.isDefault) ...[
+                        if (isDefault) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(

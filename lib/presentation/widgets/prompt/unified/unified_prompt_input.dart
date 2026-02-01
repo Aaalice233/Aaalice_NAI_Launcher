@@ -164,10 +164,19 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (widget.config.enableSyntaxHighlight !=
         oldWidget.config.enableSyntaxHighlight) {
       if (widget.config.enableSyntaxHighlight && _syntaxController == null) {
+        // 使用旧的配置获取当前文本，避免在 _syntaxController 为 null 时访问 _effectiveController
+        final currentText = oldWidget.config.enableSyntaxHighlight
+            ? widget.controller?.text ?? _internalController?.text ?? ''
+            : widget.controller?.text ?? _internalController?.text ?? '';
         _syntaxController = NaiSyntaxController(
-          text: _effectiveController.text,
+          text: currentText,
           highlightEnabled: true,
         );
+      } else if (!widget.config.enableSyntaxHighlight &&
+          _syntaxController != null) {
+        // 禁用语法高亮时，释放资源
+        _syntaxController?.dispose();
+        _syntaxController = null;
       }
     }
   }
