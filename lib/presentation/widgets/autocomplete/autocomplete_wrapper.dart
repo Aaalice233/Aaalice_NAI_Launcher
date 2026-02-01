@@ -250,7 +250,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
-      _hideSuggestions();
+      // 延迟隐藏，给点击事件处理留出时间
+      // 如果点击的是 Overlay 中的建议项，点击事件会在失去焦点后处理
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && !_focusNode.hasFocus) {
+          _hideSuggestions();
+        }
+      });
     }
   }
 
