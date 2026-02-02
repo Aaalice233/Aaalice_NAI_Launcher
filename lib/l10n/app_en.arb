@@ -2922,6 +2922,9 @@
 
   "tagLibrary_categoryNameExists": "Category name already exists",
   "tagLibrary_addToLibrary": "Add to Library",
+  "tagLibrary_saveToLibrary": "Save to Library",
+  "tagLibrary_entrySaved": "Saved to library",
+  "tagLibrary_entryUpdated": "Entry updated",
   "tagLibrary_uncategorized": "Uncategorized",
   "tagLibrary_contentPreview": "Content Preview",
   "tagLibrary_confirmAdd": "Confirm",

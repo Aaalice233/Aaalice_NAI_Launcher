@@ -2596,6 +2596,9 @@
 
   "tagLibrary_categoryNameExists": "该分类名称已存在",
   "tagLibrary_addToLibrary": "收藏到词库",
+  "tagLibrary_saveToLibrary": "保存到词库",
+  "tagLibrary_entrySaved": "收藏成功",
+  "tagLibrary_entryUpdated": "条目已更新",
   "tagLibrary_uncategorized": "未分类",
   "tagLibrary_contentPreview": "内容预览",
   "tagLibrary_confirmAdd": "确认收藏",

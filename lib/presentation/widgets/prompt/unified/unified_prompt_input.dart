@@ -5,6 +5,9 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../../presentation/utils/text_selection_utils.dart';
+import '../../../providers/tag_library_page_provider.dart';
+import '../../../screens/tag_library_page/widgets/entry_add_dialog.dart';
 import '../../autocomplete/autocomplete_wrapper.dart';
 import '../../autocomplete/autocomplete_strategy.dart';
 import '../../autocomplete/strategies/local_tag_strategy.dart';
@@ -292,6 +295,53 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     widget.config.onClearPressed?.call();
   }
 
+  /// 构建自定义上下文菜单，添加"保存到词库"选项
+  Widget _buildContextMenu(
+    BuildContext context,
+    EditableTextState editableTextState,
+  ) {
+    final selectedText = TextSelectionUtils.getSelectedText(_effectiveController);
+    final hasSelection = selectedText.isNotEmpty;
+
+    // 获取默认的上下文菜单项
+    final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
+
+    // 如果有选中文本，添加"保存到词库"选项
+    if (hasSelection) {
+      buttonItems.insert(
+        0,
+        ContextMenuButtonItem(
+          onPressed: () {
+            editableTextState.hideToolbar();
+            _showSaveToLibraryDialog(context, selectedText);
+          },
+          label: context.l10n.tagLibrary_saveToLibrary,
+        ),
+      );
+    }
+
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      buttonItems: buttonItems,
+      anchors: editableTextState.contextMenuAnchors,
+    );
+  }
+
+  /// 显示保存到词库对话框
+  Future<void> _showSaveToLibraryDialog(BuildContext context, String selectedText) async {
+    final categories = ref.read(tagLibraryPageCategoriesProvider);
+    
+    await showDialog<void>(
+      context: context,
+      builder: (context) => EntryAddDialog(
+        categories: categories,
+        entry: null,
+        initialContent: selectedText,
+      ),
+    );
+    
+    // 注意：EntryAddDialog 会自己处理保存逻辑并显示 toast
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget result = _buildTextField();
@@ -362,6 +412,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       showClearButton: widget.config.showClearButton,
       onClearPressed: widget.config.showClearButton ? _handleClear : null,
       clearNeedsConfirm: widget.config.clearNeedsConfirm,
+      contextMenuBuilder: _buildContextMenu,
     );
 
     // 如果启用自动补全，使用 AutocompleteWrapper 包装

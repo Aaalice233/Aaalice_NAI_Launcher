@@ -281,12 +281,18 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   OverlayEntry? _overlayEntry;
   final LayerLink _layerLink = LayerLink();
   final ScrollController _scrollController = ScrollController();
-  
+
   // 用于防抖隐藏菜单的计时器
   Timer? _hideTimer;
-  
+
   // 防止键盘事件重复处理（选择建议后短暂忽略键盘事件）
   bool _isSelecting = false;
+
+  // 用于防抖文本变化触发的搜索
+  Timer? _searchDebounceTimer;
+
+  // 防抖延迟时间
+  static const Duration _searchDebounceDelay = Duration(milliseconds: 50);
 
   @override
   void initState() {
@@ -329,6 +335,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _searchDebounceTimer?.cancel();
     _removeOverlay();
     _focusNode.removeListener(_onFocusChanged);
     widget.controller.removeListener(_onTextChanged);
@@ -365,8 +372,15 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return;
     }
 
-    // 委托给策略处理搜索
-    widget.strategy.search(text, cursorPosition);
+    // 取消之前的防抖计时器
+    _searchDebounceTimer?.cancel();
+
+    // 使用防抖延迟搜索，避免快速连续变化（如长按滑动选择文本）时频繁触发
+    _searchDebounceTimer = Timer(_searchDebounceDelay, () {
+      if (!mounted) return;
+      // 委托给策略处理搜索
+      widget.strategy.search(text, cursorPosition);
+    });
 
     widget.onChanged?.call(text);
   }

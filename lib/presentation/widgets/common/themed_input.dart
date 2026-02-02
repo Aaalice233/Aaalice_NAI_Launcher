@@ -109,6 +109,10 @@ class ThemedInput extends StatefulWidget {
   /// 清空前是否需要确认对话框
   final bool clearNeedsConfirm;
 
+  /// 自定义上下文菜单构建器
+  final Widget Function(BuildContext context, EditableTextState editableTextState)?
+      contextMenuBuilder;
+
   const ThemedInput({
     super.key,
     this.controller,
@@ -147,6 +151,7 @@ class ThemedInput extends StatefulWidget {
     this.showClearButton = false,
     this.onClearPressed,
     this.clearNeedsConfirm = false,
+    this.contextMenuBuilder,
   });
 
   /// 创建多行输入框
@@ -185,6 +190,7 @@ class ThemedInput extends StatefulWidget {
     this.showClearButton = false,
     this.onClearPressed,
     this.clearNeedsConfirm = false,
+    this.contextMenuBuilder,
   });
 
   @override
@@ -342,6 +348,7 @@ class _ThemedInputState extends State<ThemedInput> {
       textAlignVertical: widget.textAlignVertical,
       cursorColor: widget.cursorColor,
       decoration: inputDecoration,
+      contextMenuBuilder: widget.contextMenuBuilder,
     );
 
     Widget content = textField;

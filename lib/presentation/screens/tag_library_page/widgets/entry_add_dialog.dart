@@ -13,6 +13,7 @@ import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/safe_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
@@ -26,11 +27,15 @@ class EntryAddDialog extends ConsumerStatefulWidget {
   /// 要编辑的条目，如果为 null 则为新建模式
   final TagLibraryEntry? entry;
 
+  /// 初始提示词内容（用于从外部传入预选文本）
+  final String? initialContent;
+
   const EntryAddDialog({
     super.key,
     required this.categories,
     this.initialCategoryId,
     this.entry,
+    this.initialContent,
   });
 
   @override
@@ -54,8 +59,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   void initState() {
     super.initState();
     final entry = widget.entry;
+    // 优先使用 initialContent，然后是 entry?.content，最后为空
+    final initialContent = widget.initialContent ?? entry?.content ?? '';
     _nameController = TextEditingController(text: entry?.name ?? '');
-    _contentController = NaiSyntaxController(text: entry?.content ?? '');
+    _contentController = NaiSyntaxController(text: initialContent);
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
     _thumbnailPath = entry?.thumbnail;
@@ -530,6 +537,13 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
     if (mounted) {
       Navigator.of(context).pop();
+      // 显示保存成功提示
+      AppToast.success(
+        context,
+        _isEditing
+            ? context.l10n.tagLibrary_entryUpdated
+            : context.l10n.tagLibrary_entrySaved,
+      );
     }
   }
 }
