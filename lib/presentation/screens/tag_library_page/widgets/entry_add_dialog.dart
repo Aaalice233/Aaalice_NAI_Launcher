@@ -59,10 +59,20 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
     _thumbnailPath = entry?.thumbnail;
+
+    // 监听内容变化，更新保存按钮状态
+    _contentController.addListener(_onContentChanged);
+  }
+
+  void _onContentChanged() {
+    setState(() {
+      // 触发重建以更新保存按钮状态
+    });
   }
 
   @override
   void dispose() {
+    _contentController.removeListener(_onContentChanged);
     _nameController.dispose();
     _contentController.dispose();
     _tagsController.dispose();
