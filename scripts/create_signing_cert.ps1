@@ -1,5 +1,11 @@
-# Windows 自签名证书生成脚本
-# 使用方法: 以管理员身份运行 PowerShell，执行此脚本
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    NAI Launcher Windows Code Signing Certificate Generator
+.DESCRIPTION
+    Creates a self-signed code signing certificate for NAI Launcher Windows builds.
+    Run this script as Administrator.
+#>
 
 param(
     [string]$CertName = "NAI Launcher Code Signing",
@@ -7,24 +13,40 @@ param(
     [string]$Password = "NaiLauncher2024"
 )
 
+# Error handling: Stop on error
+$ErrorActionPreference = "Stop"
+
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  NAI Launcher Windows 签名证书生成器" -ForegroundColor Cyan
+Write-Host "  NAI Launcher Code Signing Certificate Generator" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 检查是否以管理员身份运行
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    Write-Host "[错误] 请以管理员身份运行此脚本！" -ForegroundColor Red
-    Write-Host "右键点击 PowerShell -> 以管理员身份运行" -ForegroundColor Yellow
-    pause
+# Check if running as Administrator
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "[ERROR] Please run this script as Administrator!" -ForegroundColor Red
+    Write-Host "Right-click PowerShell -> Run as Administrator" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Press any key to exit..."
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 
-Write-Host "[1/4] 创建自签名代码签名证书..." -ForegroundColor Green
+# Delete old certificate files if exist
+if (Test-Path $OutputPath) {
+    Write-Host "[INFO] Removing old certificate file..." -ForegroundColor Yellow
+    Remove-Item $OutputPath -Force
+}
 
+$thumbprintFile = "$PSScriptRoot\cert_thumbprint.txt"
+if (Test-Path $thumbprintFile) {
+    Remove-Item $thumbprintFile -Force
+}
+
+Write-Host "[Step 1/4] Creating self-signed code signing certificate..." -ForegroundColor Green
+
+$cert = $null
 try {
-    # 创建自签名证书
     $cert = New-SelfSignedCertificate `
         -Type CodeSigningCert `
         -Subject "CN=$CertName" `
@@ -36,65 +58,77 @@ try {
         -KeySpec Signature `
         -KeyLength 2048
 
-    Write-Host "   证书指纹: $($cert.Thumbprint)" -ForegroundColor Gray
-    Write-Host "   有效期至: $($cert.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Gray
+    Write-Host "   Certificate Thumbprint: $($cert.Thumbprint)" -ForegroundColor Gray
+    Write-Host "   Valid Until: $($cert.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Gray
+    Write-Host "   Certificate created successfully!" -ForegroundColor Green
 } catch {
-    Write-Host "[错误] 创建证书失败: $_" -ForegroundColor Red
-    pause
+    Write-Host "[ERROR] Failed to create certificate: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Press any key to exit..."
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 
 Write-Host ""
-Write-Host "[2/4] 导出证书为 PFX 文件..." -ForegroundColor Green
+Write-Host "[Step 2/4] Exporting certificate to PFX file..." -ForegroundColor Green
 
 try {
     $securePassword = ConvertTo-SecureString -String $Password -Force -AsPlainText
     Export-PfxCertificate -Cert $cert -FilePath $OutputPath -Password $securePassword | Out-Null
-    Write-Host "   已导出到: $OutputPath" -ForegroundColor Gray
+    Write-Host "   Exported to: $OutputPath" -ForegroundColor Gray
+    Write-Host "   PFX file created successfully!" -ForegroundColor Green
 } catch {
-    Write-Host "[错误] 导出证书失败: $_" -ForegroundColor Red
-    pause
+    Write-Host "[ERROR] Failed to export certificate: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Press any key to exit..."
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 
 Write-Host ""
-Write-Host "[3/4] 将证书添加到受信任的根证书颁发机构..." -ForegroundColor Green
+Write-Host "[Step 3/4] Adding certificate to Trusted Root Certificate Authorities..." -ForegroundColor Green
 
 try {
-    # 导出公钥证书
+    # Export public key certificate
     $cerPath = [System.IO.Path]::ChangeExtension($OutputPath, ".cer")
     Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
     
-    # 导入到受信任的根证书存储区
+    # Import to Trusted Root store
     Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\LocalMachine\Root" | Out-Null
     Remove-Item $cerPath -Force
     
-    Write-Host "   已添加到受信任的根证书颁发机构" -ForegroundColor Gray
+    Write-Host "   Added to Trusted Root Certificate Authorities" -ForegroundColor Gray
+    Write-Host "   Certificate trusted successfully!" -ForegroundColor Green
 } catch {
-    Write-Host "[警告] 添加到受信任根证书失败（可能需要手动添加）: $_" -ForegroundColor Yellow
+    Write-Host "   [WARNING] Failed to add to Trusted Root (may need manual install): $_" -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "[4/4] 完成!" -ForegroundColor Green
+Write-Host "[Step 4/4] Saving certificate thumbprint..." -ForegroundColor Green
+
+try {
+    $cert.Thumbprint | Out-File -FilePath $thumbprintFile -Encoding UTF8 -NoNewline
+    Write-Host "   Thumbprint saved to: $thumbprintFile" -ForegroundColor Gray
+} catch {
+    Write-Host "   [WARNING] Failed to save thumbprint: $_" -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  证书创建成功！" -ForegroundColor Green
+Write-Host "  Certificate Created Successfully!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "证书文件: $OutputPath" -ForegroundColor White
-Write-Host "证书密码: $Password" -ForegroundColor White
-Write-Host "证书指纹: $($cert.Thumbprint)" -ForegroundColor White
+Write-Host "Certificate File: $OutputPath" -ForegroundColor White
+Write-Host "Certificate Password: $Password" -ForegroundColor White
+Write-Host "Certificate Thumbprint: $($cert.Thumbprint)" -ForegroundColor White
 Write-Host ""
-Write-Host "[重要提示]" -ForegroundColor Yellow
-Write-Host "1. 请妥善保管 PFX 文件和密码" -ForegroundColor Yellow
-Write-Host "2. 已将证书文件路径添加到 .gitignore" -ForegroundColor Yellow
-Write-Host "3. 自签名证书仅适用于测试和内部分发" -ForegroundColor Yellow
-Write-Host "4. 首次安装时，用户仍可能看到 SmartScreen 警告，但可以选择继续安装" -ForegroundColor Yellow
+Write-Host "[IMPORTANT NOTES]" -ForegroundColor Yellow
+Write-Host "1. Keep the PFX file and password secure" -ForegroundColor Yellow
+Write-Host "2. Certificate file path added to .gitignore" -ForegroundColor Yellow
+Write-Host "3. Self-signed certificates are for testing/internal use only" -ForegroundColor Yellow
+Write-Host "4. First-time users may still see SmartScreen warning but can proceed" -ForegroundColor Yellow
 Write-Host ""
-
-# 保存证书指纹到文件供构建脚本使用
-$thumbprintFile = "$PSScriptRoot\cert_thumbprint.txt"
-$cert.Thumbprint | Out-File -FilePath $thumbprintFile -Encoding UTF8 -NoNewline
-Write-Host "证书指纹已保存到: $thumbprintFile" -ForegroundColor Gray
-
-pause
+Write-Host "You can now run build_release.bat to sign your executable!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Press any key to exit..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
