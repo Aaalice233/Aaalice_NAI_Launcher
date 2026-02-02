@@ -302,17 +302,18 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
           isSelectionMode: selectionState.isActive,
           isSelected: isSelected,
           onToggleSelection: () {
+            final selectionNotifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
             // Shift+点击范围选择
             final isShiftPressed =
                 HardwareKeyboard.instance.isShiftPressed;
             if (isShiftPressed) {
-              ref
-                  .read(tagLibrarySelectionNotifierProvider.notifier)
-                  .selectRange(entry.id, allIds);
+              selectionNotifier.selectRange(entry.id, allIds);
+            } else if (!selectionState.isActive) {
+              // 长按进入选择模式并选中当前项
+              selectionNotifier.enterAndSelect(entry.id);
             } else {
-              ref
-                  .read(tagLibrarySelectionNotifierProvider.notifier)
-                  .toggle(entry.id);
+              // 已在选择模式，切换选中状态
+              selectionNotifier.toggle(entry.id);
             }
           },
           onTap: () => _showEntryDetail(entry),
@@ -354,17 +355,18 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
             isSelectionMode: selectionState.isActive,
             isSelected: isSelected,
             onToggleSelection: () {
+              final selectionNotifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
               // Shift+点击范围选择
               final isShiftPressed =
                   HardwareKeyboard.instance.isShiftPressed;
               if (isShiftPressed) {
-                ref
-                    .read(tagLibrarySelectionNotifierProvider.notifier)
-                    .selectRange(entry.id, allIds);
+                selectionNotifier.selectRange(entry.id, allIds);
+              } else if (!selectionState.isActive) {
+                // 长按进入选择模式并选中当前项
+                selectionNotifier.enterAndSelect(entry.id);
               } else {
-                ref
-                    .read(tagLibrarySelectionNotifierProvider.notifier)
-                    .toggle(entry.id);
+                // 已在选择模式，切换选中状态
+                selectionNotifier.toggle(entry.id);
               }
             },
             onTap: () => _showEntryDetail(entry),
