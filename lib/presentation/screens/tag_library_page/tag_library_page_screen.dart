@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../providers/pending_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/tag_library_selection_provider.dart';
+import '../../router/app_router.dart';
+
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
 import 'widgets/entry_list_item.dart';
 import 'widgets/entry_add_dialog.dart';
+import 'widgets/send_to_home_dialog.dart';
 import 'widgets/tag_library_toolbar.dart';
 import 'widgets/bulk_move_category_dialog.dart';
 import 'widgets/export_dialog.dart';
@@ -658,8 +663,49 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     );
   }
 
-  void _showEntryDetail(dynamic entry) {
-    _showEditDialog(entry);
+  void _showEntryDetail(TagLibraryEntry entry) async {
+    // 显示发送选项对话框
+    final targetType = await SendToHomeDialog.show(
+      context,
+      entry: entry,
+    );
+
+    // 用户取消
+    if (targetType == null || !mounted) return;
+
+    // 设置待填充提示词
+    ref.read(pendingPromptNotifierProvider.notifier).set(
+      prompt: entry.content,
+      targetType: targetType,
+      clearOnConsume: true,
+    );
+
+    // 记录使用
+    await ref
+        .read(tagLibraryPageNotifierProvider.notifier)
+        .recordUsage(entry.id);
+
+    if (!mounted) return;
+
+    // 显示提示
+    String message;
+    switch (targetType) {
+      case SendTargetType.mainPrompt:
+        message = context.l10n.sendToHome_successMainPrompt;
+        break;
+      case SendTargetType.replaceCharacter:
+        message = context.l10n.sendToHome_successReplaceCharacter;
+        break;
+      case SendTargetType.appendCharacter:
+        message = context.l10n.sendToHome_successAppendCharacter;
+        break;
+    }
+    AppToast.success(context, message);
+
+    // 导航到主页
+    if (mounted) {
+      context.go(AppRoutes.home);
+    }
   }
 
   void _showEditDialog(dynamic entry) {

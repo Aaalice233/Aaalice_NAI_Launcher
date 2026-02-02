@@ -74,28 +74,44 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     });
   }
 
-  /// 消费待填充提示词（从画廊发送）
+  /// 消费待填充提示词（从画廊或词库发送）
   void _consumePendingPrompt() {
     final pendingState = ref.read(pendingPromptNotifierProvider);
-    if (pendingState.prompt != null || pendingState.negativePrompt != null) {
-      // 消费待填充提示词
-      final consumed =
-          ref.read(pendingPromptNotifierProvider.notifier).consume();
+    if (pendingState.prompt == null && pendingState.negativePrompt == null) {
+      return;
+    }
 
-      // 填充正向提示词
-      if (consumed.prompt != null && consumed.prompt!.isNotEmpty) {
-        // 自动进行语法转换（SD→NAI + 格式化）
-        var prompt = consumed.prompt!;
-        prompt = SdToNaiConverter.convert(prompt);
-        prompt = NaiPromptFormatter.format(prompt);
+    // 消费待填充提示词
+    final consumed = ref.read(pendingPromptNotifierProvider.notifier).consume();
 
-        _promptController.text = prompt;
-        ref
-            .read(generationParamsNotifierProvider.notifier)
-            .updatePrompt(prompt);
+    // 根据目标类型分别处理
+    final targetType = consumed.targetType;
+
+    if (consumed.prompt != null && consumed.prompt!.isNotEmpty) {
+      // 自动进行语法转换（SD→NAI + 格式化）
+      var prompt = consumed.prompt!;
+      prompt = SdToNaiConverter.convert(prompt);
+      prompt = NaiPromptFormatter.format(prompt);
+
+      switch (targetType) {
+        case SendTargetType.replaceCharacter:
+          // 替换角色提示词：清空现有角色，添加新角色
+          _applyToCharacterPrompt(prompt, clearExisting: true);
+          break;
+        case SendTargetType.appendCharacter:
+          // 追加角色提示词：保留现有角色，添加新角色
+          _applyToCharacterPrompt(prompt, clearExisting: false);
+          break;
+        case SendTargetType.mainPrompt:
+        default:
+          // 发送到主提示词（默认行为）
+          _applyToMainPrompt(prompt);
+          break;
       }
+    }
 
-      // 填充负向提示词
+    // 填充负向提示词（仅发送到主提示词时）
+    if (targetType == null || targetType == SendTargetType.mainPrompt) {
       if (consumed.negativePrompt != null &&
           consumed.negativePrompt!.isNotEmpty) {
         // 自动进行语法转换（SD→NAI + 格式化）
@@ -108,9 +124,40 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             .read(generationParamsNotifierProvider.notifier)
             .updateNegativePrompt(negativePrompt);
       }
+    }
 
-      // 触发 UI 更新
-      if (mounted) setState(() {});
+    // 触发 UI 更新
+    if (mounted) setState(() {});
+  }
+
+  /// 应用到主提示词
+  void _applyToMainPrompt(String prompt) {
+    _promptController.text = prompt;
+    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(prompt);
+  }
+
+  /// 应用到角色提示词
+  void _applyToCharacterPrompt(String prompt, {required bool clearExisting}) {
+    final characterNotifier =
+        ref.read(characterPromptNotifierProvider.notifier);
+
+    // 如果需要清空现有角色
+    if (clearExisting) {
+      characterNotifier.clearAllCharacters();
+    }
+
+    // 添加新角色
+    characterNotifier.addCharacter(
+      CharacterGender.other,
+      prompt: prompt,
+    );
+
+    // 显示提示
+    if (mounted) {
+      final message = clearExisting
+          ? '已替换角色提示词'
+          : '已追加角色提示词 (${ref.read(characterPromptNotifierProvider).characters.length}个角色)';
+      AppToast.success(context, message);
     }
   }
 

@@ -5,6 +5,20 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'pending_prompt_provider.freezed.dart';
 part 'pending_prompt_provider.g.dart';
 
+/// 发送目标类型
+///
+/// 用于指定词库条目发送到主页的目标位置
+enum SendTargetType {
+  /// 发送到主提示词
+  mainPrompt,
+
+  /// 替换角色提示词（清空后添加）
+  replaceCharacter,
+
+  /// 追加角色提示词（保留现有）
+  appendCharacter,
+}
+
 /// 待填充提示词状态
 ///
 /// 用于跨页面传递提示词（如从画廊发送到主界面）
@@ -19,6 +33,9 @@ class PendingPromptState with _$PendingPromptState {
 
     /// 消费后是否自动清空（默认 true）
     @Default(true) bool clearOnConsume,
+
+    /// 发送目标类型（词库条目使用）
+    SendTargetType? targetType,
   }) = _PendingPromptState;
 }
 
@@ -41,15 +58,18 @@ class PendingPromptNotifier extends _$PendingPromptNotifier {
   /// [prompt] 正向提示词
   /// [negativePrompt] 负向提示词
   /// [clearOnConsume] 消费后是否自动清空（默认 true）
+  /// [targetType] 发送目标类型（可选）
   void set({
     String? prompt,
     String? negativePrompt,
     bool clearOnConsume = true,
+    SendTargetType? targetType,
   }) {
     state = PendingPromptState(
       prompt: prompt,
       negativePrompt: negativePrompt,
       clearOnConsume: clearOnConsume,
+      targetType: targetType,
     );
   }
 

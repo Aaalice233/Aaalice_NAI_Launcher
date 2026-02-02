@@ -1,29 +1,56 @@
-# Flutter/Dart
+# ===========================================================================
+# FLUTTER/DART 构建产物
+# ===========================================================================
+
+# Dart 工具目录
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
 .pub/
+
+# 构建输出
 build/
 *.dart.js
 *.info.json
 *.js.deps
 *.js.map
 
-# Generated files
+# 生成的插件注册文件
+lib/generated_plugin_registrant.dart
+
+
+# ===========================================================================
+# 代码生成输出
+# ===========================================================================
+
+# Freezed 和 json_serializable 生成的文件
 *.g.dart
 *.freezed.dart
 *.mocks.dart
-lib/generated_plugin_registrant.dart
 
-# IDE
+
+# ===========================================================================
+# IDE 和编辑器文件
+# ===========================================================================
+
+# IntelliJ IDEA
 .idea/
 *.iml
+
+# Visual Studio Code
 .vscode/
+
+# Vim 交换文件
 *.swp
 *.swo
 *~
+
+
+# ===========================================================================
+# 操作系统产物
+# ===========================================================================
 
 # macOS
 .DS_Store
@@ -36,6 +63,14 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# Linux（占位符）
+# 无需特定条目
+
+
+# ===========================================================================
+# 移动平台构建文件
+# ===========================================================================
+
 # Android
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
@@ -47,12 +82,6 @@ Desktop.ini
 **/android/key.properties
 *.jks
 *.keystore
-
-# Code Signing Certificates
-*.pfx
-*.p12
-*.cer
-cert_thumbprint.txt
 
 # iOS
 **/ios/**/*.mode1v3
@@ -82,67 +111,108 @@ cert_thumbprint.txt
 # Linux
 **/linux/flutter/ephemeral
 
-# Windows
+# Windows（Flutter 特定）
 **/windows/flutter/ephemeral
 
-# Exceptions
+
+# ===========================================================================
+# 忽略模式例外
+# ===========================================================================
+
+# 允许默认的 Xcode 项目文件
 !**/ios/**/default.mode1v3
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 
-# Environment files
-.env
-.env.*
-*.env
-nul
-
-# Logs
-*.log
-
-# AI Assistant & Testing
-.serena/
-.playwright-mcp/
-.spec-workflow/
-.qoder/
-.kiro
-.sisyphus/
-.opencode/
-AGENTS.md
-.claude/
-.auto-claude-security.json
-.claude_settings.json
-
-# Local folders
-logs/
-nai_web_copy/
-
-# Auto Claude data directory
-.auto-claude/
-
-# Auto Claude generated files
-.auto-claude-security.json
-.auto-claude-status
-.claude_settings.json
-.worktrees/
-.security-key
-logs/security/
-.sisyphus/
-.opencode/
-test/
-test_results/
-
-# Exception: Dashboard source files (not generated results)
+# 允许仪表板源文件（非生成结果）
 !test_results/dashboard/
 !test_results/dashboard/*.html
 !test_results/dashboard/*.css
 !test_results/dashboard/*.js
 
+
+# ===========================================================================
+# 环境和配置
+# ===========================================================================
+
+# 环境文件
+.env
+.env.*
+*.env
+nul
+
+# 代码签名证书
+*.pfx
+*.p12
+*.cer
+cert_thumbprint.txt
+
+
+# ===========================================================================
+# 日志和临时文件
+# ===========================================================================
+
+# 日志文件
+*.log
+
+# 临时目录
+logs/
+logs/security/
+
+
+# ===========================================================================
+# AI 助手和测试产物
+# ===========================================================================
+
+# AI 编程助手
+.serena/
+.playwright-mcp/
+.spec-workflow/
+.qoder/
+.kiro
+.claude/
+.gemini/
+
+# Auto-Claude 文件
+.auto-claude/
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json
+.worktrees/
+.security-key
+
+# 测试产物
+.sisyphus/
+.opencode/
+test/
+test_results/
+test_hive/
+
+# 项目管理文件
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+
+
+# ===========================================================================
+# 本地开发产物
+# ===========================================================================
+
+# 本地文件夹
+nai_web_copy/
 NAI COPY/
+.shared/
+
+# 构建和分析报告
 analyze_report.txt
 install-log.txt
 
-# Working documentation files (should be in .auto-claude/specs/, not root)
+
+# ===========================================================================
+# 工作文档（应该在 .auto-claude/specs/ 目录下）
+# ===========================================================================
+
 BUILD_*.md
 HOW_TO_*.md
 PERFORMANCE_*.md
@@ -155,8 +225,3 @@ ROOT_CAUSE_*.md
 SUBTASK_*.md
 VERIFICATION_*.md
 mask_upload_*.md
-CLAUDE.md
-test_hive/
-.shared/
-.gemini/
-GEMINI.md

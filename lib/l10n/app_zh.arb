@@ -2861,6 +2861,17 @@
       "count": {}
     }
   },
-  "statistics_heatmapNoActivity": "无活动"
+  "statistics_heatmapNoActivity": "无活动",
+
+  "sendToHome_dialogTitle": "发送到主页",
+  "sendToHome_mainPrompt": "发送到主提示词",
+  "sendToHome_mainPromptSubtitle": "填充到主页的正向提示词输入框",
+  "sendToHome_replaceCharacter": "替换角色提示词",
+  "sendToHome_replaceCharacterSubtitle": "清空现有角色，添加为新角色",
+  "sendToHome_appendCharacter": "追加角色提示词",
+  "sendToHome_appendCharacterSubtitle": "保留现有角色，追加新角色",
+  "sendToHome_successMainPrompt": "已发送到主提示词",
+  "sendToHome_successReplaceCharacter": "已替换角色提示词",
+  "sendToHome_successAppendCharacter": "已追加角色提示词"
 
 }

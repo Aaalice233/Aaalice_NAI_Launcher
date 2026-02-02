@@ -3187,6 +3187,17 @@
       "count": {}
     }
   },
-  "statistics_heatmapNoActivity": "No activity"
+  "statistics_heatmapNoActivity": "No activity",
+
+  "sendToHome_dialogTitle": "Send to Home",
+  "sendToHome_mainPrompt": "Send to Main Prompt",
+  "sendToHome_mainPromptSubtitle": "Fill into the main prompt input field",
+  "sendToHome_replaceCharacter": "Replace Character Prompt",
+  "sendToHome_replaceCharacterSubtitle": "Clear existing characters and add as new",
+  "sendToHome_appendCharacter": "Append Character Prompt",
+  "sendToHome_appendCharacterSubtitle": "Keep existing characters and append new",
+  "sendToHome_successMainPrompt": "Sent to main prompt",
+  "sendToHome_successReplaceCharacter": "Character prompt replaced",
+  "sendToHome_successAppendCharacter": "Character prompt appended"
 
 }
