@@ -16,6 +16,9 @@ import 'tag_search_index.dart';
 
 part 'tag_data_service.g.dart';
 
+/// 标签数据服务初始化完成后的回调
+typedef TagDataInitCallback = void Function();
+
 /// 下载进度回调
 typedef DownloadProgressCallback = void Function(
   String fileName,
@@ -64,6 +67,9 @@ class TagDataService {
   /// 是否正在加载
   bool _isLoading = false;
 
+  /// 初始化完成信号量（用于处理并发调用）
+  Completer<void>? _initCompleter;
+
   /// 下载进度回调
   DownloadProgressCallback? onDownloadProgress;
 
@@ -86,9 +92,20 @@ class TagDataService {
   /// 2. 尝试从本地缓存加载
   /// 3. 如果缓存不存在，先用内置数据，后台下载
   /// 4. 构建搜索索引
+  ///
+  /// 支持并发调用：如果初始化正在进行中，会返回现有的 Future 等待完成
   Future<void> initialize() async {
-    if (_isInitialized || _isLoading) return;
+    // 如果已完成，直接返回
+    if (_isInitialized) return;
+
+    // 如果正在加载，返回现有的 Future 等待完成
+    if (_isLoading && _initCompleter != null) {
+      return _initCompleter!.future;
+    }
+
+    // 开始新的初始化流程
     _isLoading = true;
+    _initCompleter = Completer<void>();
 
     try {
       AppLogger.i('Initializing TagDataService...', 'TagData');
@@ -114,6 +131,7 @@ class TagDataService {
 
         // 后台下载完整数据（不阻塞）
         _downloadInBackground();
+        _initCompleter!.complete();
         return;
       }
 
@@ -130,13 +148,21 @@ class TagDataService {
         'TagDataService initialized: ${_tags.length} tags, ${_artistTags.length} artists loaded (index ready)',
         'TagData',
       );
+      _initCompleter!.complete();
     } catch (e, stack) {
       AppLogger.e('Failed to initialize TagDataService', e, stack, 'TagData');
       // 尝试使用内置数据作为回退
-      await _loadBuiltinTags();
-      _isInitialized = true;
+      try {
+        await _loadBuiltinTags();
+        _isInitialized = true;
+        _initCompleter!.complete();
+      } catch (fallbackError) {
+        _initCompleter!.completeError(fallbackError);
+        rethrow;
+      }
     } finally {
       _isLoading = false;
+      _initCompleter = null;
     }
   }
 

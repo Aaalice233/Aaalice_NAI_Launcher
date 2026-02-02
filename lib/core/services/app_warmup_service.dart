@@ -76,9 +76,8 @@ class AppWarmupService {
   /// 任务超时时间
   static const _taskTimeout = Duration(seconds: 5);
 
-  /// 网络任务超时时间
-  // ignore: unused_field
-  static const _networkTimeout = Duration(seconds: 2);
+  /// 网络任务超时时间（用于网络相关任务）
+  static const networkTimeout = Duration(seconds: 3);
 
   final List<WarmupTask> _tasks = [];
 

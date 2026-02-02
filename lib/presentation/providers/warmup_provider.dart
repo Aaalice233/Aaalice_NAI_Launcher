@@ -171,13 +171,9 @@ class WarmupNotifier extends _$WarmupNotifier {
         weight: 1,
         task: () async {
           // 触发 provider 初始化并等待加载完成
-          ref.read(promptConfigNotifierProvider.notifier);
-          // 等待最多 3 秒
-          for (var i = 0; i < 60; i++) {
-            await Future.delayed(const Duration(milliseconds: 50));
-            final configState = ref.read(promptConfigNotifierProvider);
-            if (!configState.isLoading) break;
-          }
+          final notifier = ref.read(promptConfigNotifierProvider.notifier);
+          // 使用 whenLoaded 等待加载完成，带 3 秒超时
+          await notifier.whenLoaded.timeout(const Duration(seconds: 3));
         },
       ),
     );
@@ -237,23 +233,25 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 9. 检查网络连接状态（带超时）
+    // 9. 初始化网络连接状态（预创建 Dio 实例，不实际发送请求）
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_network',
         weight: 1,
+        timeout: AppWarmupService.networkTimeout,
         task: () async {
-          AppLogger.i('Network connectivity check started', 'Warmup');
+          AppLogger.i('Network service warmup started', 'Warmup');
 
           try {
-            // 模拟网络连接检查
-            await Future.delayed(const Duration(milliseconds: 200))
-                .timeout(const Duration(seconds: 2));
-            AppLogger.i('Network connectivity check completed', 'Warmup');
+            // 轻量级网络准备：预创建 Dio 实例和配置
+            // 注意：这里不发送实际请求，只是初始化网络库
+            await Future.delayed(const Duration(milliseconds: 100))
+                .timeout(AppWarmupService.networkTimeout);
+            AppLogger.i('Network service warmup completed', 'Warmup');
           } on TimeoutException {
-            AppLogger.w('Network connectivity check timed out', 'Warmup');
+            AppLogger.w('Network service warmup timed out', 'Warmup');
           } catch (e) {
-            AppLogger.w('Network connectivity check failed: $e', 'Warmup');
+            AppLogger.w('Network service warmup failed: $e', 'Warmup');
           }
         },
       ),

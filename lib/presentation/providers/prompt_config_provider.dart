@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:hive/hive.dart';
@@ -61,12 +62,20 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
   static const String _selectedKey = 'selected_preset_id';
 
   Box? _box;
+  Completer<void>? _loadCompleter;
 
   @override
   PromptConfigState build() {
-    _loadPresets();
+    // 只在首次构建时创建 Completer 并加载
+    _loadCompleter ??= Completer<void>();
+    if (state.isLoading && !_loadCompleter!.isCompleted) {
+      _loadPresets();
+    }
     return const PromptConfigState(isLoading: true);
   }
+
+  /// 获取加载完成的 Future
+  Future<void> get whenLoaded => _loadCompleter?.future ?? Future.value();
 
   /// 加载预设
   Future<void> _loadPresets() async {
@@ -93,12 +102,14 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
         selectedPresetId: selectedId ?? presets.firstOrNull?.id,
         isLoading: false,
       );
+      _loadCompleter?.complete();
     } catch (e) {
       state = PromptConfigState(
         presets: [],
         isLoading: false,
         error: e.toString(),
       );
+      _loadCompleter?.completeError(e);
     }
   }
 

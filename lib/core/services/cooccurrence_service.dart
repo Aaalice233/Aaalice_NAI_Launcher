@@ -466,7 +466,20 @@ class CooccurrenceService {
     final result = <String, Map<String, int>>{};
     var offset = 0;
 
+    // 文件头大小：魔数(4) + 版本(4) + 条目数(4) + 保留(4) = 16字节
+    const headerSize = 16;
+    const maxStringLength = 1024; // 最大字符串长度限制
+    const maxRelatedCount = 100000; // 最大相关标签数量限制
+
+    // 检查是否有足够的字节读取文件头
+    if (bytes.length < headerSize) {
+      throw FormatException('Binary cache file too small: ${bytes.length} bytes');
+    }
+
     int readInt32() {
+      if (offset + 4 > bytes.length) {
+        throw FormatException('Unexpected end of file at offset $offset');
+      }
       final value = (bytes[offset] << 24) |
           (bytes[offset + 1] << 16) |
           (bytes[offset + 2] << 8) |
@@ -476,6 +489,9 @@ class CooccurrenceService {
     }
 
     int readInt64() {
+      if (offset + 8 > bytes.length) {
+        throw FormatException('Unexpected end of file at offset $offset');
+      }
       final value = (bytes[offset] << 56) |
           (bytes[offset + 1] << 48) |
           (bytes[offset + 2] << 40) |
@@ -490,6 +506,15 @@ class CooccurrenceService {
 
     String readString() {
       final length = readInt32();
+      
+      // 验证字符串长度
+      if (length < 0 || length > maxStringLength) {
+        throw FormatException('Invalid string length: $length at offset ${offset - 4}');
+      }
+      if (offset + length > bytes.length) {
+        throw FormatException('String extends beyond file: $length bytes at offset $offset');
+      }
+      
       final str = utf8.decode(bytes.sublist(offset, offset + length));
       offset += length;
       return str;
@@ -498,36 +523,53 @@ class CooccurrenceService {
     // 验证魔数
     final magic = readInt32();
     if (magic != _binaryCacheMagic) {
-      throw FormatException('Invalid binary cache magic: $magic');
+      throw FormatException('Invalid binary cache magic: 0x${magic.toRadixString(16)}');
     }
 
     // 验证版本
     final version = readInt32();
     if (version != _binaryCacheVersion) {
-      throw FormatException('Binary cache version mismatch: $version');
+      throw FormatException('Binary cache version mismatch: $version (expected $_binaryCacheVersion)');
     }
 
-    // 跳过条目数量和保留字段
-    readInt32(); // entry count
-    readInt32(); // reserved
+    // 读取条目数量
+    final entryCount = readInt32();
+    if (entryCount < 0 || entryCount > 10000000) { // 合理的上限
+      throw FormatException('Invalid entry count: $entryCount');
+    }
+    
+    readInt32(); // 跳过保留字段
 
     // 读取数据
-    final entryCount = (bytes.length - offset) ~/ 8; // Rough estimate
     for (var i = 0; i < entryCount && offset < bytes.length; i++) {
       try {
         final tag1 = readString();
         final relatedCount = readInt32();
+        
+        // 验证相关标签数量
+        if (relatedCount < 0 || relatedCount > maxRelatedCount) {
+          throw FormatException('Invalid related count: $relatedCount for tag "$tag1"');
+        }
+        
         final related = <String, int>{};
 
         for (var j = 0; j < relatedCount; j++) {
           final tag2 = readString();
           final count = readInt64();
+          
+          // 验证计数
+          if (count < 0) {
+            throw FormatException('Invalid count: $count for pair ("$tag1", "$tag2")');
+          }
+          
           related[tag2] = count;
         }
 
         result[tag1] = related;
+      } on FormatException {
+        rethrow; // 重新抛出格式错误
       } catch (e) {
-        // End of data
+        // 其他错误（如 UTF-8 解码失败），记录并跳过
         break;
       }
     }
