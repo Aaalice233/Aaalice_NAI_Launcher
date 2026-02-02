@@ -31,6 +31,9 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   /// 导出回调
   final VoidCallback? onExport;
 
+  /// 添加条目回调
+  final VoidCallback? onAddEntry;
+
   const TagLibraryToolbar({
     super.key,
     this.onEnterSelectionMode,
@@ -40,6 +43,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
     this.onBulkCopy,
     this.onImport,
     this.onExport,
+    this.onAddEntry,
   });
 
   @override
@@ -139,10 +143,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
             children: [
               // 添加条目按钮
               FilledButton.icon(
-                onPressed: () {
-                  // 触发添加条目对话框
-                  _showAddEntryDialog();
-                },
+                onPressed: widget.onAddEntry,
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(context.l10n.tagLibrary_addEntry),
               ),
@@ -276,11 +277,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
         ],
       ),
     );
-  }
-
-  void _showAddEntryDialog() {
-    // 通过 provider 通知显示添加对话框
-    // 实际实现由父组件处理
   }
 
 }

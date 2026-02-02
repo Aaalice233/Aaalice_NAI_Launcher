@@ -57,6 +57,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                     onBulkCopy: _handleBulkCopy,
                     onImport: _handleImport,
                     onExport: _handleExport,
+                    onAddEntry: _showAddEntryDialog,
                   ),
 
                   // 内容列表
