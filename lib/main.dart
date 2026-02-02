@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:window_manager/window_manager.dart';
@@ -93,7 +94,7 @@ class AppTrayListener extends TrayListener {
   }
 }
 
-/// 窗口监听器，处理窗口关闭事件
+/// 窗口监听器，处理窗口关闭和显示事件
 class AppWindowListener extends WindowListener {
   @override
   Future<void> onWindowClose() async {
@@ -107,6 +108,33 @@ class AppWindowListener extends WindowListener {
       AppLogger.e('Failed to hide window to tray: $e', 'WindowListener');
     }
   }
+
+  @override
+  Future<void> onWindowFocus() async {
+    // 窗口获得焦点时的处理
+    AppLogger.d('Window focused', 'WindowListener');
+  }
+}
+
+/// 处理来自 Windows 原生层的唤醒消息
+/// 当新实例启动时，已存在的实例会收到此消息
+void setupWindowsWakeUpChannel() {
+  if (!Platform.isWindows) return;
+  
+  const channel = MethodChannel('com.nailauncher/window_control');
+  channel.setMethodCallHandler((call) async {
+    if (call.method == 'wakeUp') {
+      try {
+        // 确保窗口显示并置于前台
+        await windowManager.show();
+        await windowManager.focus();
+        await windowManager.restore();
+        AppLogger.i('Window woken up by new instance', 'Main');
+      } catch (e) {
+        AppLogger.e('Failed to wake up window: $e', 'Main');
+      }
+    }
+  });
 }
 
 void main() async {
@@ -162,6 +190,11 @@ void main() async {
   // 桌面端窗口配置
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
+    
+    // 设置 Windows 唤醒消息处理（单实例唤醒）
+    if (Platform.isWindows) {
+      setupWindowsWakeUpChannel();
+    }
 
     // 从 Hive 读取保存的窗口状态
     final box = Hive.box(StorageKeys.settingsBox);
