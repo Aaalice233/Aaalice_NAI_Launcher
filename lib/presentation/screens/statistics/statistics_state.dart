@@ -174,57 +174,74 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   /// so users see data immediately when opening the statistics page.
   Future<void> preloadForWarmup() async {
     try {
-      final cacheService = ref.read(statisticsCacheServiceProvider);
-      final repository = LocalGalleryRepository.instance;
-
-      // Step 1: Quickly get current image count
-      final files = await repository.getAllImageFiles();
-      final currentImageCount = files.length;
-
-      // Step 2: Try loading from persistent cache
-      final cachedStats = cacheService.getCache();
-      if (cachedStats != null && cacheService.isCacheValid(currentImageCount)) {
-        // Cache hit, use directly
-        _statsCache[_defaultCacheKey] = cachedStats;
-        AppLogger.i(
-          'Statistics loaded from persistent cache: $currentImageCount images',
-          'Warmup',
-        );
-        return;
-      }
-
-      // Step 3: Cache miss or expired, perform full computation
-      AppLogger.i(
-        'Statistics cache miss, computing for $currentImageCount images',
-        'Warmup',
-      );
-
-      // Load records into memory cache
-      await _ensureRecordsLoaded();
-
-      final records = _cachedRecords ?? [];
-      if (records.isEmpty) {
-        AppLogger.i('Statistics preload: no records found', 'Warmup');
-        return;
-      }
-
-      // Compute statistics
-      final service = ref.read(statisticsServiceProvider);
-      final statistics = await service.computeAllStatistics(records);
-
-      // Cache result in memory
-      _statsCache[_defaultCacheKey] = statistics;
-
-      // Step 4: Save to persistent cache
-      await cacheService.saveCache(statistics, records.length);
-
-      AppLogger.i(
-        'Statistics preloaded and cached: ${records.length} records',
-        'Warmup',
-      );
+      // 使用较短的总体超时，避免阻塞预热流程
+      await _preloadWithTimeout().timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      AppLogger.w('Statistics preload timeout, will load on demand', 'Warmup');
     } catch (e) {
       AppLogger.w('Statistics preload failed: $e', 'Warmup');
       // Don't throw, allow warmup to continue
     }
+  }
+
+  /// 带超时的预加载实现
+  Future<void> _preloadWithTimeout() async {
+    final cacheService = ref.read(statisticsCacheServiceProvider);
+    final repository = LocalGalleryRepository.instance;
+
+    // Step 1: Quickly get current image count (带超时)
+    final files = await repository.getAllImageFiles();
+    final currentImageCount = files.length;
+
+    // Step 2: Try loading from persistent cache
+    final cachedStats = cacheService.getCache();
+    if (cachedStats != null && cacheService.isCacheValid(currentImageCount)) {
+      // Cache hit, use directly
+      _statsCache[_defaultCacheKey] = cachedStats;
+      AppLogger.i(
+        'Statistics loaded from persistent cache: $currentImageCount images',
+        'Warmup',
+      );
+      return;
+    }
+
+    // Step 3: Cache miss - 如果图片数量过多，跳过预热计算
+    // 避免在启动时进行大量计算，让用户进入统计页面时再计算
+    if (currentImageCount > 1000) {
+      AppLogger.i(
+        'Too many images ($currentImageCount) for warmup statistics, deferring to on-demand',
+        'Warmup',
+      );
+      return;
+    }
+
+    AppLogger.i(
+      'Statistics cache miss, computing for $currentImageCount images',
+      'Warmup',
+    );
+
+    // Load records into memory cache
+    await _ensureRecordsLoaded();
+
+    final records = _cachedRecords ?? [];
+    if (records.isEmpty) {
+      AppLogger.i('Statistics preload: no records found', 'Warmup');
+      return;
+    }
+
+    // Compute statistics (限制计算时间)
+    final service = ref.read(statisticsServiceProvider);
+    final statistics = await service.computeAllStatistics(records);
+
+    // Cache result in memory
+    _statsCache[_defaultCacheKey] = statistics;
+
+    // Save to persistent cache
+    await cacheService.saveCache(statistics, records.length);
+
+    AppLogger.i(
+      'Statistics preloaded and cached: ${records.length} records',
+      'Warmup',
+    );
   }
 }

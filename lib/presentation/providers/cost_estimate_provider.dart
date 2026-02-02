@@ -18,8 +18,12 @@ part 'cost_estimate_provider.g.dart';
 @riverpod
 int estimatedCost(Ref ref) {
   final params = ref.watch(generationParamsNotifierProvider);
-  final isOpus = ref.watch(isOpusSubscriptionProvider);
   final imagesPerRequest = ref.watch(imagesPerRequestProvider);
+  
+  // 使用 select 来减少不必要的重建 - 只关注 isOpus 的变化
+  final isOpus = ref.watch(
+    subscriptionNotifierProvider.select((s) => s.isOpus),
+  );
 
   // nSamples = 批次数量（应用内循环次数，每次独立请求）
   // imagesPerRequest = 批次大小（单次请求的图片数）

@@ -217,6 +217,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_imageCache;
       case 'warmup_statistics':
         return l10n.warmup_statistics;
+      case 'warmup_subscription':
+        return l10n.warmup_subscription;
+      case 'warmup_dataSourceCache':
+        return l10n.warmup_dataSourceCache;
+      case 'warmup_galleryFileCount':
+        return l10n.warmup_galleryFileCount;
+      case 'warmup_cooccurrenceData':
+        return l10n.warmup_cooccurrenceData;
       default:
         return taskKey;
     }

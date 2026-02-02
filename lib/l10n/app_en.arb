@@ -1228,6 +1228,10 @@
   "warmup_imageCache": "Warming up image cache...",
   "warmup_statistics": "Loading statistics...",
   "warmup_artistsSync": "Syncing artists data...",
+  "warmup_subscription": "Loading subscription info...",
+  "warmup_dataSourceCache": "Initializing data source cache...",
+  "warmup_galleryFileCount": "Scanning gallery files...",
+  "warmup_cooccurrenceData": "Loading tag cooccurrence data...",
   "warmup_retryFailed": "Retry Failed Tasks",
   "warmup_errorDetail": "Error",
 

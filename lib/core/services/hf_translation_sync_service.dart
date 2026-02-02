@@ -79,6 +79,11 @@ class HFTranslationSyncService {
 
   /// 检查是否需要刷新
   Future<bool> shouldRefresh() async {
+    // 确保已初始化（加载 _lastUpdate）
+    if (_lastUpdate == null) {
+      await initialize();
+    }
+    
     final prefs = await SharedPreferences.getInstance();
     final intervalDays = prefs.getInt(StorageKeys.hfTranslationRefreshInterval);
     final interval = AutoRefreshInterval.fromDays(intervalDays ?? 30);

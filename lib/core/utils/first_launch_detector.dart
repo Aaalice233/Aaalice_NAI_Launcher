@@ -159,24 +159,29 @@ class FirstLaunchDetector {
   /// 检查数据是否需要刷新并执行后台刷新
   ///
   /// 这个方法用于非首次启动时检查是否需要自动刷新
-  Future<void> checkAndRefreshIfNeeded() async {
-    try {
-      // 检查翻译数据是否需要刷新
-      final needsTranslationRefresh = await _translationService.shouldRefresh();
+  /// 注意：此方法真正异步执行，不会阻塞主线程
+  void checkAndRefreshIfNeeded() {
+    // 使用 unawaited 的 Future 来确保真正异步执行
+    // 避免在应用启动时阻塞 UI 线程
+    Future(() async {
+      try {
+        // 检查翻译数据是否需要刷新
+        final needsTranslationRefresh = await _translationService.shouldRefresh();
 
-      if (needsTranslationRefresh) {
-        AppLogger.i('Translation data needs refresh', 'FirstLaunch');
+        if (needsTranslationRefresh) {
+          AppLogger.i('Translation data needs refresh', 'FirstLaunch');
 
-        // 后台静默刷新，不显示 Toast
-        _translationService.onSyncProgress = null;
-        await _translationService.syncTranslations();
+          // 后台静默刷新，不显示 Toast
+          _translationService.onSyncProgress = null;
+          await _translationService.syncTranslations();
+        }
+
+        // 注意：Danbooru 标签数据不需要自动刷新
+        // 用户可以手动触发刷新
+      } catch (e) {
+        AppLogger.w('Background refresh failed: $e', 'FirstLaunch');
       }
-
-      // 注意：Danbooru 标签数据不需要自动刷新
-      // 用户可以手动触发刷新
-    } catch (e) {
-      AppLogger.w('Background refresh failed: $e', 'FirstLaunch');
-    }
+    });
   }
 }
 
@@ -251,7 +256,8 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
       }
     } else {
       // 非首次启动，检查是否需要后台刷新
-      await detector.checkAndRefreshIfNeeded();
+      // 注意：这里不 await，让它真正后台执行，不阻塞应用启动
+      detector.checkAndRefreshIfNeeded();
     }
   }
 }

@@ -894,6 +894,10 @@
   "warmup_imageCache": "预热图像缓存...",
   "warmup_statistics": "加载统计数据...",
   "warmup_artistsSync": "同步画师数据...",
+  "warmup_subscription": "加载订阅信息...",
+  "warmup_dataSourceCache": "初始化数据源缓存...",
+  "warmup_galleryFileCount": "扫描图库文件...",
+  "warmup_cooccurrenceData": "加载标签共现数据...",
   "warmup_retryFailed": "重试失败任务",
   "warmup_errorDetail": "错误",
 

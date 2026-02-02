@@ -14,6 +14,7 @@ part 'subscription_provider.g.dart';
 @riverpod
 class SubscriptionNotifier extends _$SubscriptionNotifier {
   AuthState? _previousAuthState;
+  bool _hasInitiallyLoaded = false;
 
   @override
   SubscriptionState build() {
@@ -29,9 +30,11 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
           _previousAuthState!.isAuthenticated) {
         // Logged out - clear subscription info
         state = const SubscriptionState.initial();
+        _hasInitiallyLoaded = false;
       }
-    } else if (authState.isAuthenticated) {
+    } else if (authState.isAuthenticated && !_hasInitiallyLoaded) {
       // First build and already authenticated - fetch subscription
+      // 使用 _hasInitiallyLoaded 标记避免重复加载（预热阶段可能已加载）
       Future.microtask(() => fetchSubscription());
     }
 
@@ -45,6 +48,12 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   Future<void> fetchSubscription() async {
     // 避免重复加载
     if (state.isLoading) return;
+    
+    // 如果已经加载过且不是错误状态，跳过（使用缓存）
+    if (_hasInitiallyLoaded && !state.isError) {
+      AppLogger.i('Subscription already loaded, skipping', 'Subscription');
+      return;
+    }
 
     state = const SubscriptionState.loading();
 
@@ -53,6 +62,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       final data = await apiService.getUserSubscription();
       final subscription = UserSubscription.fromJson(data);
       state = SubscriptionState.loaded(subscription);
+      _hasInitiallyLoaded = true;
 
       AppLogger.i(
         'Subscription loaded: ${subscription.tierName}, '
@@ -62,7 +72,14 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     } catch (e) {
       AppLogger.e('Failed to fetch subscription: $e', 'Subscription');
       state = SubscriptionState.error(e.toString());
+      // 即使失败也标记为已尝试加载，避免无限重试
+      _hasInitiallyLoaded = true;
     }
+  }
+
+  /// 重置加载状态（用于强制刷新）
+  void resetLoadState() {
+    _hasInitiallyLoaded = false;
   }
 
   /// 刷新余额（生成后调用）

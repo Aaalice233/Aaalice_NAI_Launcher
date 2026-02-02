@@ -7,14 +7,19 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/services/app_warmup_service.dart';
+import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/tag_data_service.dart';
 import '../../core/services/warmup_metrics_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/tag_translation_service.dart';
 import '../screens/statistics/statistics_state.dart';
+import 'auth_provider.dart';
+import 'data_source_cache_provider.dart';
 import 'font_provider.dart';
 import 'prompt_config_provider.dart';
+import 'subscription_provider.dart';
 
 part 'warmup_provider.g.dart';
 
@@ -249,6 +254,98 @@ class WarmupNotifier extends _$WarmupNotifier {
             AppLogger.w('Network connectivity check timed out', 'Warmup');
           } catch (e) {
             AppLogger.w('Network connectivity check failed: $e', 'Warmup');
+          }
+        },
+      ),
+    );
+
+    // 10. 预加载订阅信息（避免主页卡顿）
+    // 这是关键优化：在预热阶段预加载用户订阅信息和Anlas余额
+    // 避免进入主页后花费点数计算卡住
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_subscription',
+        weight: 2,
+        timeout: const Duration(seconds: 5),
+        task: () async {
+          try {
+            final authState = ref.read(authNotifierProvider);
+            if (authState.isAuthenticated) {
+              AppLogger.i('Preloading subscription info...', 'Warmup');
+              await ref
+                  .read(subscriptionNotifierProvider.notifier)
+                  .fetchSubscription()
+                  .timeout(const Duration(seconds: 4));
+              AppLogger.i('Subscription preloaded successfully', 'Warmup');
+            } else {
+              AppLogger.i('User not authenticated, skip subscription preload', 'Warmup');
+            }
+          } catch (e) {
+            AppLogger.w('Subscription preload failed: $e', 'Warmup');
+            // 失败不阻塞预热，主页会再次尝试加载
+          }
+        },
+      ),
+    );
+
+    // 11. 预初始化数据源缓存服务（Hive Box 预打开）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_dataSourceCache',
+        weight: 1,
+        timeout: const Duration(seconds: 3),
+        task: () async {
+          try {
+            AppLogger.i('Preloading data source cache services...', 'Warmup');
+            // 触发 provider 初始化，这会预打开 Hive Box
+            ref.read(hFTranslationCacheNotifierProvider);
+            ref.read(danbooruTagsCacheNotifierProvider);
+            AppLogger.i('Data source cache services preloaded', 'Warmup');
+          } catch (e) {
+            AppLogger.w('Data source cache preload failed: $e', 'Warmup');
+          }
+        },
+      ),
+    );
+
+    // 12. 本地图库文件计数（轻量级，避免主页首次加载时的文件系统阻塞）
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_galleryFileCount',
+        weight: 1,
+        timeout: const Duration(seconds: 3),
+        task: () async {
+          try {
+            AppLogger.i('Counting gallery files...', 'Warmup');
+            final repo = LocalGalleryRepository.instance;
+            // 只获取文件数量，不加载元数据
+            final files = await repo.getAllImageFiles();
+            AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
+          } catch (e) {
+            AppLogger.w('Gallery file count failed: $e', 'Warmup');
+          }
+        },
+      ),
+    );
+
+    // 13. 预加载共现标签数据（关键优化：避免进入主页后阻塞UI）
+    // 该服务加载103MB的CSV文件（323万行），在主线程解析约需6秒
+    // 必须在预热阶段完成，否则会导致主页卡顿、账号点数刷新延迟
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_cooccurrenceData',
+        weight: 5, // 给予较高权重，反映其耗时
+        timeout: const Duration(seconds: 30), // 30秒超时，因为文件很大
+        task: () async {
+          try {
+            AppLogger.i('Preloading cooccurrence data...', 'Warmup');
+            final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
+            // 预加载共现数据（如果缓存存在）
+            await cooccurrenceService.initialize();
+            AppLogger.i('Cooccurrence data preloaded', 'Warmup');
+          } catch (e) {
+            AppLogger.w('Cooccurrence preload failed: $e', 'Warmup');
+            // 失败不阻塞预热，页面会按需重试
           }
         },
       ),
