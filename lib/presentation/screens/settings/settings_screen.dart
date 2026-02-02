@@ -194,7 +194,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(context.l10n.appTitle),
-            subtitle: Text(context.l10n.settings_version('Beta .2')),
+            subtitle: Text(context.l10n.settings_version('Beta2.1')),
           ),
           ListTile(
             leading: const Icon(Icons.code),
