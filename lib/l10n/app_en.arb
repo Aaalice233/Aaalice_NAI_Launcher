@@ -3199,6 +3199,61 @@
   "sendToHome_appendCharacterSubtitle": "Keep existing characters and append new",
   "sendToHome_successMainPrompt": "Sent to main prompt",
   "sendToHome_successReplaceCharacter": "Character prompt replaced",
-  "sendToHome_successAppendCharacter": "Character prompt appended"
+  "sendToHome_successAppendCharacter": "Character prompt appended",
+
+  "metadataImport_title": "Select Parameters to Import",
+  "metadataImport_promptsSection": "Prompts",
+  "metadataImport_generationSection": "Generation Parameters",
+  "metadataImport_advancedSection": "Advanced Options",
+  "metadataImport_selectAll": "Select All",
+  "metadataImport_deselectAll": "Deselect All",
+  "metadataImport_promptsOnly": "Prompts Only",
+  "metadataImport_generationOnly": "Generation Only",
+  "metadataImport_prompt": "Positive Prompt",
+  "metadataImport_negativePrompt": "Negative Prompt",
+  "metadataImport_characterPrompts": "Character Prompts",
+  "metadataImport_seed": "Seed",
+  "metadataImport_steps": "Steps",
+  "metadataImport_scale": "CFG Scale",
+  "metadataImport_size": "Size",
+  "metadataImport_sampler": "Sampler",
+  "metadataImport_model": "Model",
+  "metadataImport_smea": "SMEA",
+  "metadataImport_smeaDyn": "SMEA Dyn",
+  "metadataImport_noiseSchedule": "Noise Schedule",
+  "metadataImport_cfgRescale": "CFG Rescale",
+  "metadataImport_qualityToggle": "Quality Toggle",
+  "metadataImport_ucPreset": "UC Preset",
+  "metadataImport_noData": "(no data)",
+  "metadataImport_selectedCount": "{count} selected",
+  "@metadataImport_selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_noDataFound": "No NovelAI metadata found",
+  "metadataImport_noParamsSelected": "No parameters selected",
+  "metadataImport_appliedCount": "Applied {count} parameters",
+  "@metadataImport_appliedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_appliedTitle": "Metadata Applied",
+  "metadataImport_appliedDescription": "The following parameters have been applied:",
+  "metadataImport_charactersCount": "characters",
+  "metadataImport_extractFailed": "Failed to extract metadata: {error}",
+  "@metadataImport_extractFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "metadataImport_appliedToMain": "Applied {count} parameters to main screen",
+  "@metadataImport_appliedToMain": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_quickSelectHint": "Click buttons above to quickly select parameter types"
 
 }

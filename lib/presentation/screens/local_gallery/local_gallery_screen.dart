@@ -14,6 +14,7 @@ import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
 import '../../../core/utils/zip_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -803,25 +804,37 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   // ============================================================
 
   /// 复用图片的元数据参数到主界面
-  void _reuseMetadata(LocalImageRecord record) {
+  Future<void> _reuseMetadata(LocalImageRecord record) async {
     final metadata = record.metadata;
     if (metadata == null || !metadata.hasData) return;
 
+    // 显示参数选择对话框
+    final options = await showDialog<MetadataImportOptions>(
+      context: context,
+      builder: (context) => _buildImportOptionsDialog(metadata),
+    );
+
+    if (options == null || !mounted) return; // 用户取消
+
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
 
-    // 首先清空多角色提示词（套用元数据时总是清空）
-    final characterNotifier =
-        ref.read(characterPromptNotifierProvider.notifier);
-    characterNotifier.clearAllCharacters();
+    // 只有在勾选导入多角色提示词时才清空
+    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+      final characterNotifier =
+          ref.read(characterPromptNotifierProvider.notifier);
+      characterNotifier.clearAllCharacters();
+    }
 
-    if (metadata.prompt.isNotEmpty) {
+    // 根据选项应用参数
+    if (options.importPrompt && metadata.prompt.isNotEmpty) {
       // 自动进行语法转换（SD→NAI + 格式化）
       var prompt = metadata.prompt;
       prompt = SdToNaiConverter.convert(prompt);
       prompt = NaiPromptFormatter.format(prompt);
       paramsNotifier.updatePrompt(prompt);
     }
-    if (metadata.negativePrompt.isNotEmpty) {
+
+    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
       // 自动进行语法转换（SD→NAI + 格式化）
       var negativePrompt = metadata.negativePrompt;
       negativePrompt = SdToNaiConverter.convert(negativePrompt);
@@ -830,9 +843,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     // 应用多角色提示词（如果有）
-    if (metadata.characterPrompts.isNotEmpty) {
+    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+      final characterNotifier =
+          ref.read(characterPromptNotifierProvider.notifier);
       final characters = <char.CharacterPrompt>[];
-      for (int i = 0; i < metadata.characterPrompts.length; i++) {
+      for (var i = 0; i < metadata.characterPrompts.length; i++) {
         // 自动进行语法转换（SD→NAI + 格式化）
         var prompt = metadata.characterPrompts[i];
         prompt = SdToNaiConverter.convert(prompt);
@@ -861,35 +876,155 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       characterNotifier.replaceAll(characters);
     }
 
-    if (metadata.model != null) {
+    if (options.importModel && metadata.model != null) {
       paramsNotifier.updateModel(metadata.model!);
     }
-    if (metadata.sampler != null) {
+    if (options.importSampler && metadata.sampler != null) {
       paramsNotifier.updateSampler(metadata.sampler!);
     }
-    if (metadata.steps != null) {
+    if (options.importSteps && metadata.steps != null) {
       paramsNotifier.updateSteps(metadata.steps!);
     }
-    if (metadata.scale != null) {
+    if (options.importScale && metadata.scale != null) {
       paramsNotifier.updateScale(metadata.scale!);
     }
-    if (metadata.width != null && metadata.height != null) {
+    if (options.importSize &&
+        metadata.width != null &&
+        metadata.height != null) {
       paramsNotifier.updateSize(metadata.width!, metadata.height!);
     }
-    if (metadata.smea != null) {
+    if (options.importSmea && metadata.smea != null) {
       paramsNotifier.updateSmea(metadata.smea!);
     }
-    if (metadata.smeaDyn != null) {
+    if (options.importSmeaDyn && metadata.smeaDyn != null) {
       paramsNotifier.updateSmeaDyn(metadata.smeaDyn!);
     }
-    if (metadata.noiseSchedule != null) {
+    if (options.importNoiseSchedule && metadata.noiseSchedule != null) {
       paramsNotifier.updateNoiseSchedule(metadata.noiseSchedule!);
     }
-    if (metadata.cfgRescale != null) {
+    if (options.importCfgRescale && metadata.cfgRescale != null) {
       paramsNotifier.updateCfgRescale(metadata.cfgRescale!);
     }
+    if (options.importQualityToggle && metadata.qualityToggle != null) {
+      paramsNotifier.updateQualityToggle(metadata.qualityToggle!);
+    }
+    if (options.importUcPreset && metadata.ucPreset != null) {
+      paramsNotifier.updateUcPreset(metadata.ucPreset!);
+    }
 
-    AppToast.info(context, '参数已复用到主界面');
+    // 计算应用的参数数量
+    var appliedCount = 0;
+    if (options.importPrompt && metadata.prompt.isNotEmpty) appliedCount++;
+    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
+      appliedCount++;
+    }
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
+      appliedCount++;
+    }
+    if (options.importSeed && metadata.seed != null) appliedCount++;
+    if (options.importSteps && metadata.steps != null) appliedCount++;
+    if (options.importScale && metadata.scale != null) appliedCount++;
+    if (options.importSize &&
+        metadata.width != null &&
+        metadata.height != null) {
+      appliedCount++;
+    }
+    if (options.importSampler && metadata.sampler != null) appliedCount++;
+    if (options.importModel && metadata.model != null) appliedCount++;
+    if (options.importSmea && metadata.smea != null) appliedCount++;
+    if (options.importSmeaDyn && metadata.smeaDyn != null) appliedCount++;
+    if (options.importNoiseSchedule && metadata.noiseSchedule != null) {
+      appliedCount++;
+    }
+    if (options.importCfgRescale && metadata.cfgRescale != null) {
+      appliedCount++;
+    }
+    if (options.importQualityToggle && metadata.qualityToggle != null) {
+      appliedCount++;
+    }
+    if (options.importUcPreset && metadata.ucPreset != null) appliedCount++;
+
+    if (mounted) {
+      if (appliedCount > 0) {
+        AppToast.info(
+          context,
+          context.l10n.metadataImport_appliedToMain(appliedCount),
+        );
+      } else {
+        AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
+      }
+    }
+  }
+
+  /// 构建导入选项对话框（简化版，用于画廊）
+  Widget _buildImportOptionsDialog(dynamic metadata) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text(l10n.metadataImport_title),
+      content: SizedBox(
+        width: 400,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 快速预设按钮
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: Text(l10n.metadataImport_selectAll),
+                    avatar: const Icon(Icons.select_all, size: 18),
+                    onPressed: () => Navigator.of(context).pop(
+                      MetadataImportOptions.all(),
+                    ),
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    side: BorderSide.none,
+                  ),
+                  ActionChip(
+                    label: Text(l10n.metadataImport_promptsOnly),
+                    avatar: const Icon(Icons.text_fields, size: 18),
+                    onPressed: () => Navigator.of(context).pop(
+                      MetadataImportOptions.promptsOnly(),
+                    ),
+                  ),
+                  ActionChip(
+                    label: Text(l10n.metadataImport_generationOnly),
+                    avatar: const Icon(Icons.tune, size: 18),
+                    onPressed: () => Navigator.of(context).pop(
+                      MetadataImportOptions.generationOnly(),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l10n.metadataImport_quickSelectHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.common_cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(
+            MetadataImportOptions.all(),
+          ),
+          child: Text(l10n.common_confirm),
+        ),
+      ],
+    );
   }
 
   /// 从提示词推断角色性别

@@ -11,11 +11,13 @@ import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../common/app_toast.dart';
+import '../metadata/metadata_import_dialog.dart';
 import 'image_destination_dialog.dart';
 
 /// 全局拖拽处理器
@@ -313,124 +315,173 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       if (metadata == null || !metadata.hasData) {
         if (mounted) {
-          AppToast.warning(context, '未找到 NovelAI 元数据');
+          AppToast.warning(context, context.l10n.metadataImport_noDataFound);
         }
         return;
       }
 
-      // 应用元数据到生成参数
-      int appliedCount = 0;
+      // 显示参数选择对话框
+      final options = await MetadataImportDialog.show(
+        context,
+        metadata: metadata,
+      );
+      if (options == null || !mounted) return; // 用户取消
 
-      // 首先清空多角色提示词（套用元数据时总是清空）
-      final characterNotifier =
-          ref.read(characterPromptNotifierProvider.notifier);
-      characterNotifier.clearAllCharacters();
-
-      // 应用 Prompt
-      if (metadata.prompt.isNotEmpty) {
-        notifier.updatePrompt(metadata.prompt);
-        appliedCount++;
-      }
-
-      // 应用负向提示词
-      if (metadata.negativePrompt.isNotEmpty) {
-        notifier.updateNegativePrompt(metadata.negativePrompt);
-        appliedCount++;
-      }
-
-      // 应用多角色提示词（如果有）
-      if (metadata.characterPrompts.isNotEmpty) {
-        final characters = <char.CharacterPrompt>[];
-        for (int i = 0; i < metadata.characterPrompts.length; i++) {
-          final prompt = metadata.characterPrompts[i];
-          final negPrompt = i < metadata.characterNegativePrompts.length
-              ? metadata.characterNegativePrompts[i]
-              : '';
-
-          // 尝试从提示词推断性别
-          final gender = _inferGenderFromPrompt(prompt);
-
-          characters.add(
-            char.CharacterPrompt.create(
-              name: 'Character ${i + 1}',
-              gender: gender,
-              prompt: prompt,
-              negativePrompt: negPrompt,
-            ),
-          );
-        }
-        characterNotifier.replaceAll(characters);
-        appliedCount++;
-      }
-
-      // 应用 Seed
-      if (metadata.seed != null) {
-        notifier.updateSeed(metadata.seed!);
-        appliedCount++;
-      }
-
-      // 应用 Steps
-      if (metadata.steps != null) {
-        notifier.updateSteps(metadata.steps!);
-        appliedCount++;
-      }
-
-      // 应用 Scale
-      if (metadata.scale != null) {
-        notifier.updateScale(metadata.scale!);
-        appliedCount++;
-      }
-
-      // 应用尺寸
-      if (metadata.width != null && metadata.height != null) {
-        notifier.updateSize(metadata.width!, metadata.height!);
-        appliedCount++;
-      }
-
-      // 应用采样器
-      if (metadata.sampler != null) {
-        notifier.updateSampler(metadata.sampler!);
-        appliedCount++;
-      }
-
-      // 应用 SMEA 设置
-      if (metadata.smea != null) {
-        notifier.updateSmea(metadata.smea!);
-        appliedCount++;
-      }
-      if (metadata.smeaDyn != null) {
-        notifier.updateSmeaDyn(metadata.smeaDyn!);
-        appliedCount++;
-      }
-
-      // 应用 Noise Schedule
-      if (metadata.noiseSchedule != null) {
-        notifier.updateNoiseSchedule(metadata.noiseSchedule!);
-        appliedCount++;
-      }
-
-      // 应用 CFG Rescale
-      if (metadata.cfgRescale != null) {
-        notifier.updateCfgRescale(metadata.cfgRescale!);
-        appliedCount++;
-      }
+      // 应用选中的参数
+      final appliedCount = await _applyMetadataWithOptions(
+        metadata,
+        options,
+        notifier,
+      );
 
       if (mounted) {
         if (appliedCount > 0) {
-          AppToast.success(context, '已应用 $appliedCount 项参数');
+          AppToast.success(
+            context,
+            context.l10n.metadataImport_appliedCount(appliedCount),
+          );
 
           // 显示详细信息
-          _showMetadataAppliedDialog(metadata);
+          _showMetadataAppliedDialog(metadata, options);
         } else {
-          AppToast.warning(context, '未能应用任何参数');
+          AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
         }
       }
     } catch (e) {
       if (kDebugMode) {
         AppLogger.d('Error extracting metadata: $e', 'DropHandler');
       }
-      _showError('提取元数据失败: $e');
+      _showError(context.l10n.metadataImport_extractFailed(e.toString()));
     }
+  }
+
+  /// 根据选项应用元数据
+  Future<int> _applyMetadataWithOptions(
+    dynamic metadata,
+    MetadataImportOptions options,
+    GenerationParamsNotifier notifier,
+  ) async {
+    var appliedCount = 0;
+
+    // 只有在勾选导入多角色提示词时才清空
+    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+      final characterNotifier =
+          ref.read(characterPromptNotifierProvider.notifier);
+      characterNotifier.clearAllCharacters();
+    }
+
+    // 应用 Prompt
+    if (options.importPrompt && metadata.prompt.isNotEmpty) {
+      notifier.updatePrompt(metadata.prompt);
+      appliedCount++;
+    }
+
+    // 应用负向提示词
+    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
+      notifier.updateNegativePrompt(metadata.negativePrompt);
+      appliedCount++;
+    }
+
+    // 应用多角色提示词
+    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+      final characterNotifier =
+          ref.read(characterPromptNotifierProvider.notifier);
+      final characters = <char.CharacterPrompt>[];
+      for (var i = 0; i < metadata.characterPrompts.length; i++) {
+        final prompt = metadata.characterPrompts[i];
+        final negPrompt = i < metadata.characterNegativePrompts.length
+            ? metadata.characterNegativePrompts[i]
+            : '';
+
+        // 尝试从提示词推断性别
+        final gender = _inferGenderFromPrompt(prompt);
+
+        characters.add(
+          char.CharacterPrompt.create(
+            name: 'Character ${i + 1}',
+            gender: gender,
+            prompt: prompt,
+            negativePrompt: negPrompt,
+          ),
+        );
+      }
+      characterNotifier.replaceAll(characters);
+      appliedCount++;
+    }
+
+    // 应用 Seed
+    if (options.importSeed && metadata.seed != null) {
+      notifier.updateSeed(metadata.seed!);
+      appliedCount++;
+    }
+
+    // 应用 Steps
+    if (options.importSteps && metadata.steps != null) {
+      notifier.updateSteps(metadata.steps!);
+      appliedCount++;
+    }
+
+    // 应用 Scale
+    if (options.importScale && metadata.scale != null) {
+      notifier.updateScale(metadata.scale!);
+      appliedCount++;
+    }
+
+    // 应用尺寸
+    if (options.importSize &&
+        metadata.width != null &&
+        metadata.height != null) {
+      notifier.updateSize(metadata.width!, metadata.height!);
+      appliedCount++;
+    }
+
+    // 应用采样器
+    if (options.importSampler && metadata.sampler != null) {
+      notifier.updateSampler(metadata.sampler!);
+      appliedCount++;
+    }
+
+    // 应用模型
+    if (options.importModel && metadata.model != null) {
+      notifier.updateModel(metadata.model!);
+      appliedCount++;
+    }
+
+    // 应用 SMEA
+    if (options.importSmea && metadata.smea != null) {
+      notifier.updateSmea(metadata.smea!);
+      appliedCount++;
+    }
+    if (options.importSmeaDyn && metadata.smeaDyn != null) {
+      notifier.updateSmeaDyn(metadata.smeaDyn!);
+      appliedCount++;
+    }
+
+    // 应用 Noise Schedule
+    if (options.importNoiseSchedule && metadata.noiseSchedule != null) {
+      notifier.updateNoiseSchedule(metadata.noiseSchedule!);
+      appliedCount++;
+    }
+
+    // 应用 CFG Rescale
+    if (options.importCfgRescale && metadata.cfgRescale != null) {
+      notifier.updateCfgRescale(metadata.cfgRescale!);
+      appliedCount++;
+    }
+
+    // 应用 Quality Toggle
+    if (options.importQualityToggle && metadata.qualityToggle != null) {
+      notifier.updateQualityToggle(metadata.qualityToggle!);
+      appliedCount++;
+    }
+
+    // 应用 UC Preset
+    if (options.importUcPreset && metadata.ucPreset != null) {
+      notifier.updateUcPreset(metadata.ucPreset!);
+      appliedCount++;
+    }
+
+    return appliedCount;
   }
 
   /// 处理加入队列（提取正面提示词）
@@ -484,15 +535,20 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   /// 显示元数据应用成功对话框
-  void _showMetadataAppliedDialog(dynamic metadata) {
+  void _showMetadataAppliedDialog(
+    dynamic metadata,
+    MetadataImportOptions options,
+  ) {
+    final l10n = context.l10n;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('元数据已应用'),
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text(l10n.metadataImport_appliedTitle),
           ],
         ),
         content: SingleChildScrollView(
@@ -500,36 +556,87 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('以下参数已应用到当前设置：'),
+              Text(l10n.metadataImport_appliedDescription),
               const SizedBox(height: 12),
-              if (metadata.prompt.isNotEmpty)
-                _buildAppliedItem('Prompt', metadata.prompt, maxLines: 3),
-              if (metadata.negativePrompt.isNotEmpty)
+              if (options.importPrompt && metadata.prompt.isNotEmpty)
                 _buildAppliedItem(
-                  '负向提示词',
+                  l10n.metadataImport_prompt,
+                  metadata.prompt,
+                  maxLines: 3,
+                ),
+              if (options.importNegativePrompt &&
+                  metadata.negativePrompt.isNotEmpty)
+                _buildAppliedItem(
+                  l10n.metadataImport_negativePrompt,
                   metadata.negativePrompt,
                   maxLines: 2,
                 ),
-              if (metadata.seed != null)
-                _buildAppliedItem('Seed', metadata.seed.toString()),
-              if (metadata.steps != null)
-                _buildAppliedItem('Steps', metadata.steps.toString()),
-              if (metadata.scale != null)
-                _buildAppliedItem('CFG Scale', metadata.scale.toString()),
-              if (metadata.width != null && metadata.height != null)
+              if (options.importCharacterPrompts &&
+                  metadata.characterPrompts.isNotEmpty)
                 _buildAppliedItem(
-                  '尺寸',
+                  l10n.metadataImport_characterPrompts,
+                  '${metadata.characterPrompts.length} ${l10n.metadataImport_charactersCount}',
+                ),
+              if (options.importSeed && metadata.seed != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_seed,
+                  metadata.seed.toString(),
+                ),
+              if (options.importSteps && metadata.steps != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_steps,
+                  metadata.steps.toString(),
+                ),
+              if (options.importScale && metadata.scale != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_scale,
+                  metadata.scale.toString(),
+                ),
+              if (options.importSize &&
+                  metadata.width != null &&
+                  metadata.height != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_size,
                   '${metadata.width} x ${metadata.height}',
                 ),
-              if (metadata.sampler != null)
-                _buildAppliedItem('采样器', metadata.displaySampler),
+              if (options.importSampler && metadata.sampler != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_sampler,
+                  metadata.displaySampler,
+                ),
+              if (options.importModel && metadata.model != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_model,
+                  metadata.model.toString(),
+                ),
+              if (options.importSmea && metadata.smea != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_smea,
+                  metadata.smea.toString(),
+                ),
+              if (options.importSmeaDyn && metadata.smeaDyn != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_smeaDyn,
+                  metadata.smeaDyn.toString(),
+                ),
+              if (options.importNoiseSchedule &&
+                  metadata.noiseSchedule != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_noiseSchedule,
+                  metadata.noiseSchedule.toString(),
+                ),
+              if (options.importCfgRescale && metadata.cfgRescale != null)
+                _buildAppliedItem(
+                  l10n.metadataImport_cfgRescale,
+                  metadata.cfgRescale.toString(),
+                ),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('确定'),
+            child: Text(l10n.common_confirm),
           ),
         ],
       ),

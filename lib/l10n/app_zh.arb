@@ -2873,6 +2873,61 @@
   "sendToHome_appendCharacterSubtitle": "保留现有角色，追加新角色",
   "sendToHome_successMainPrompt": "已发送到主提示词",
   "sendToHome_successReplaceCharacter": "已替换角色提示词",
-  "sendToHome_successAppendCharacter": "已追加角色提示词"
+  "sendToHome_successAppendCharacter": "已追加角色提示词",
+
+  "metadataImport_title": "选择要套用的参数",
+  "metadataImport_promptsSection": "提示词",
+  "metadataImport_generationSection": "生成参数",
+  "metadataImport_advancedSection": "高级选项",
+  "metadataImport_selectAll": "全选",
+  "metadataImport_deselectAll": "全不选",
+  "metadataImport_promptsOnly": "仅提示词",
+  "metadataImport_generationOnly": "仅生成参数",
+  "metadataImport_prompt": "正向提示词",
+  "metadataImport_negativePrompt": "负向提示词",
+  "metadataImport_characterPrompts": "多角色提示词",
+  "metadataImport_seed": "种子 (Seed)",
+  "metadataImport_steps": "步数 (Steps)",
+  "metadataImport_scale": "CFG Scale",
+  "metadataImport_size": "尺寸 (Size)",
+  "metadataImport_sampler": "采样器 (Sampler)",
+  "metadataImport_model": "模型 (Model)",
+  "metadataImport_smea": "SMEA",
+  "metadataImport_smeaDyn": "SMEA Dyn",
+  "metadataImport_noiseSchedule": "噪声计划",
+  "metadataImport_cfgRescale": "CFG Rescale",
+  "metadataImport_qualityToggle": "质量标签",
+  "metadataImport_ucPreset": "UC 预设",
+  "metadataImport_noData": "（无数据）",
+  "metadataImport_selectedCount": "已选择 {count} 项",
+  "@metadataImport_selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_noDataFound": "未找到 NovelAI 元数据",
+  "metadataImport_noParamsSelected": "未选择任何要应用的参数",
+  "metadataImport_appliedCount": "已应用 {count} 项参数",
+  "@metadataImport_appliedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_appliedTitle": "元数据已应用",
+  "metadataImport_appliedDescription": "以下参数已应用到当前设置：",
+  "metadataImport_charactersCount": "个角色",
+  "metadataImport_extractFailed": "提取元数据失败: {error}",
+  "@metadataImport_extractFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "metadataImport_appliedToMain": "已应用 {count} 项参数到主界面",
+  "@metadataImport_appliedToMain": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_quickSelectHint": "点击上方按钮快速选择参数类型"
 
 }
