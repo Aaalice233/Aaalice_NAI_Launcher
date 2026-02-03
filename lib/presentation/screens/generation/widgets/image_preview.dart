@@ -13,10 +13,12 @@ import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
+import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../tag_library_page/widgets/entry_add_dialog.dart';
 import 'upscale_dialog.dart';
 
 /// 图像预览组件
@@ -179,6 +181,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               enableSelection: false,
               onTap: () => _showFullscreenImage(imageBytes),
               onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
+              onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
             );
           },
         );
@@ -238,6 +241,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               enableSelection: false,
               onTap: () => _showFullscreenImage(imageBytes),
               onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
+              onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
             );
           },
         );
@@ -441,9 +445,52 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
             enableSelection: false,
             onTap: () => _showFullscreenImage(image.bytes),
             onUpscale: () => UpscaleDialog.show(context, image: image.bytes),
+            onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
           ),
         ),
       ),
+    );
+  }
+
+  /// 显示保存到词库对话框
+  Future<void> _showSaveToLibraryDialog(
+    BuildContext context,
+    Uint8List bytes,
+  ) async {
+    final params = ref.read(generationParamsNotifierProvider);
+    final characterConfig = ref.read(characterPromptNotifierProvider);
+
+    // 使用竖线格式合并正面提示词和角色提示词
+    final positivePrompt = params.prompt;
+    final enabledCharacters = characterConfig.characters
+        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .toList();
+
+    final String combinedPrompt;
+    if (enabledCharacters.isEmpty) {
+      combinedPrompt = positivePrompt;
+    } else {
+      // 使用竖线格式：主提示词 | 角色1 | 角色2
+      final buffer = StringBuffer(positivePrompt);
+      for (final char in enabledCharacters) {
+        buffer.write('\n| ${char.prompt}');
+      }
+      combinedPrompt = buffer.toString();
+    }
+
+    // 解析别名引用，保存实际内容到词库
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+    final resolvedPrompt = aliasResolver.resolveAliases(combinedPrompt);
+
+    final tagLibraryState = ref.read(tagLibraryPageNotifierProvider);
+
+    if (!context.mounted) return;
+
+    await EntryAddDialog.show(
+      context,
+      categories: tagLibraryState.categories,
+      initialContent: resolvedPrompt,
+      initialImageBytes: bytes,
     );
   }
 

@@ -396,6 +396,7 @@
   "image_save": "Save",
   "image_copy": "Copy",
   "image_upscale": "Upscale",
+  "image_saveToLibrary": "Save to Library",
   "image_imageSaved": "Image saved to: {path}",
   "@image_imageSaved": {
     "placeholders": {

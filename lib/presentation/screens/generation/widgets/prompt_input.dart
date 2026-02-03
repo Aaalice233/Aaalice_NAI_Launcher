@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
@@ -94,6 +95,10 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       prompt = NaiPromptFormatter.format(prompt);
 
       switch (targetType) {
+        case SendTargetType.smartDecompose:
+          // 智能分解：解析竖线格式，分别发送到主提示词和角色
+          _applySmartDecompose(prompt);
+          break;
         case SendTargetType.replaceCharacter:
           // 替换角色提示词：清空现有角色，添加新角色
           _applyToCharacterPrompt(prompt, clearExisting: true);
@@ -146,17 +151,88 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       characterNotifier.clearAllCharacters();
     }
 
-    // 添加新角色
-    characterNotifier.addCharacter(
-      CharacterGender.other,
-      prompt: prompt,
-    );
+    // 检测是否为竖线格式
+    if (PipeParser.isPipeFormat(prompt)) {
+      // 解析竖线格式，分别添加每个角色
+      final result = PipeParser.parse(prompt);
+      // 添加主提示词中的内容作为第一个角色（如果存在）
+      if (result.globalPrompt.isNotEmpty) {
+        characterNotifier.addCharacter(
+          _inferGender(result.globalPrompt),
+          prompt: result.globalPrompt,
+        );
+      }
+      // 添加解析出的角色
+      for (final char in result.characters) {
+        if (char.prompt.isNotEmpty) {
+          characterNotifier.addCharacter(
+            char.inferredGender ?? CharacterGender.other,
+            prompt: char.prompt,
+          );
+        }
+      }
+    } else {
+      // 非竖线格式，直接添加为单个角色
+      characterNotifier.addCharacter(
+        _inferGender(prompt),
+        prompt: prompt,
+      );
+    }
 
     // 显示提示
     if (mounted) {
       final message = clearExisting
           ? '已替换角色提示词'
           : '已追加角色提示词 (${ref.read(characterPromptNotifierProvider).characters.length}个角色)';
+      AppToast.success(context, message);
+    }
+  }
+
+  /// 推断提示词的性别
+  CharacterGender _inferGender(String prompt) {
+    final lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.contains('1boy') ||
+        lowerPrompt.contains('2boys') ||
+        lowerPrompt.contains('male')) {
+      return CharacterGender.male;
+    } else if (lowerPrompt.contains('1girl') ||
+        lowerPrompt.contains('2girls') ||
+        lowerPrompt.contains('female')) {
+      return CharacterGender.female;
+    }
+    return CharacterGender.other;
+  }
+
+  /// 智能分解竖线格式并应用到对应位置
+  void _applySmartDecompose(String prompt) {
+    final characterNotifier =
+        ref.read(characterPromptNotifierProvider.notifier);
+
+    // 解析竖线格式
+    final result = PipeParser.parse(prompt);
+
+    // 应用到主提示词
+    if (result.globalPrompt.isNotEmpty) {
+      _applyToMainPrompt(result.globalPrompt);
+    }
+
+    // 清空现有角色并添加解析出的角色
+    characterNotifier.clearAllCharacters();
+    for (final char in result.characters) {
+      if (char.prompt.isNotEmpty) {
+        characterNotifier.addCharacter(
+          char.inferredGender ?? CharacterGender.other,
+          prompt: char.prompt,
+        );
+      }
+    }
+
+    // 显示提示
+    if (mounted) {
+      final charCount = result.characters.length;
+      final message = charCount > 0
+          ? '已分解：主提示词 + $charCount个角色'
+          : '已应用到主提示词';
       AppToast.success(context, message);
     }
   }
@@ -237,6 +313,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   void _clearPrompt() {
     _promptController.clear();
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
+    // 同时清空角色提示词
+    ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
   }
 
   @override

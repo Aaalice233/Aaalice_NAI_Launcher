@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -30,13 +31,36 @@ class EntryAddDialog extends ConsumerStatefulWidget {
   /// 初始提示词内容（用于从外部传入预选文本）
   final String? initialContent;
 
+  /// 初始图像字节数据（用于从图像卡片传入预览图）
+  final Uint8List? initialImageBytes;
+
   const EntryAddDialog({
     super.key,
     required this.categories,
     this.initialCategoryId,
     this.entry,
     this.initialContent,
+    this.initialImageBytes,
   });
+
+  /// 显示对话框的静态方法
+  static Future<void> show(
+    BuildContext context, {
+    required List<TagLibraryCategory> categories,
+    String? initialCategoryId,
+    String? initialContent,
+    Uint8List? initialImageBytes,
+  }) {
+    return showDialog(
+      context: context,
+      builder: (context) => EntryAddDialog(
+        categories: categories,
+        initialCategoryId: initialCategoryId,
+        initialContent: initialContent,
+        initialImageBytes: initialImageBytes,
+      ),
+    );
+  }
 
   @override
   ConsumerState<EntryAddDialog> createState() => _EntryAddDialogState();
@@ -69,6 +93,28 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
     // 监听内容变化，更新保存按钮状态
     _contentController.addListener(_onContentChanged);
+
+    // 如果有初始图像字节数据，保存到临时文件
+    if (widget.initialImageBytes != null && widget.entry == null) {
+      _saveImageBytesToTemp(widget.initialImageBytes!);
+    }
+  }
+
+  /// 将图像字节数据保存到临时文件
+  Future<void> _saveImageBytesToTemp(Uint8List bytes) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'temp_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+      if (mounted) {
+        setState(() {
+          _thumbnailPath = file.path;
+        });
+      }
+    } catch (e) {
+      debugPrint('保存临时图像失败: $e');
+    }
   }
 
   void _onContentChanged() {

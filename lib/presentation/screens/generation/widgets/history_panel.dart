@@ -9,7 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/zip_utils.dart';
+import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/layout_state_provider.dart';
+import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/local_gallery_repository.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -20,6 +22,7 @@ import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../tag_library_page/widgets/entry_add_dialog.dart';
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
@@ -291,6 +294,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               enableHoverScale: true,
               onOpenInExplorer: () =>
                   _saveAndOpenInExplorer(context, historyImage.bytes),
+              onSaveToLibrary: (bytes, _) =>
+                  _showSaveToLibraryDialog(context, bytes),
             ),
           ),
         );
@@ -345,6 +350,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         enableContextMenu: true,
         enableHoverScale: true,
         onOpenInExplorer: () => _saveAndOpenInExplorer(context, imageBytes),
+        onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
       );
     }
 
@@ -666,6 +672,39 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
+  }
+
+  /// 显示保存到词库对话框
+  Future<void> _showSaveToLibraryDialog(
+    BuildContext context,
+    Uint8List bytes,
+  ) async {
+    // 历史记录中的图像需要尝试从元数据解析提示词
+    String prompt = '';
+
+    try {
+      final extractedMeta = await NaiMetadataParser.extractFromBytes(bytes);
+      if (extractedMeta != null && extractedMeta.prompt.isNotEmpty) {
+        prompt = extractedMeta.prompt;
+      }
+    } catch (e) {
+      debugPrint('解析图像元数据失败: $e');
+    }
+
+    // 解析别名引用，保存实际内容到词库
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+    final resolvedPrompt = aliasResolver.resolveAliases(prompt);
+
+    final tagLibraryState = ref.read(tagLibraryPageNotifierProvider);
+
+    if (!context.mounted) return;
+
+    await EntryAddDialog.show(
+      context,
+      categories: tagLibraryState.categories,
+      initialContent: resolvedPrompt,
+      initialImageBytes: bytes,
+    );
   }
 
   void _showClearDialog(BuildContext context, WidgetRef ref) async {

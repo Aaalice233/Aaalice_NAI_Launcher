@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/pending_prompt_provider.dart';
@@ -16,7 +17,7 @@ import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
 import 'widgets/entry_list_item.dart';
 import 'widgets/entry_add_dialog.dart';
-import 'widgets/send_to_home_dialog.dart';
+import 'widgets/send_to_home_dialog_v2.dart';
 import 'widgets/tag_library_toolbar.dart';
 import 'widgets/bulk_move_category_dialog.dart';
 import 'widgets/export_dialog.dart';
@@ -316,9 +317,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
               selectionNotifier.toggle(entry.id);
             }
           },
-          onTap: () => _showEntryDetail(entry),
+          onTap: () => _showEditDialog(entry),
           onDelete: () => _showDeleteEntryConfirmation(entry.id),
           onEdit: () => _showEditDialog(entry),
+          onSend: () => _showEntryDetail(entry),
           onToggleFavorite: () {
             ref
                 .read(tagLibraryPageNotifierProvider.notifier)
@@ -666,19 +668,39 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   }
 
   void _showEntryDetail(TagLibraryEntry entry) async {
-    // 显示发送选项对话框
-    final targetType = await SendToHomeDialog.show(
+    // 显示发送选项对话框 V2
+    final sendOptions = await SendToHomeDialogV2.show(
       context,
       entry: entry,
     );
 
     // 用户取消
-    if (targetType == null || !mounted) return;
+    if (sendOptions == null || !mounted) return;
+
+    // 处理发送内容
+    var content = entry.content;
+
+    // 检查是否为竖线格式
+    final isPipeFormat = PipeParser.isPipeFormat(entry.content);
+
+    if (sendOptions.sendAsAlias) {
+      // 作为别名发送：包装为 <条目名>
+      content = '<${entry.name}>';
+    } else if (isPipeFormat &&
+        (sendOptions.targetType == SendTargetType.replaceCharacter ||
+            sendOptions.targetType == SendTargetType.appendCharacter)) {
+      // 选择替换/追加角色且内容为竖线格式时，只发送角色部分（去掉主提示词）
+      final result = PipeParser.parse(entry.content);
+      // 只保留角色部分，用竖线连接
+      if (result.characters.isNotEmpty) {
+        content = result.characters.map((c) => c.prompt).join('\n| ');
+      }
+    }
 
     // 设置待填充提示词
     ref.read(pendingPromptNotifierProvider.notifier).set(
-      prompt: entry.content,
-      targetType: targetType,
+      prompt: content,
+      targetType: sendOptions.targetType,
       clearOnConsume: true,
     );
 
@@ -691,9 +713,12 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
     // 显示提示
     String message;
-    switch (targetType) {
+    switch (sendOptions.targetType) {
       case SendTargetType.mainPrompt:
         message = context.l10n.sendToHome_successMainPrompt;
+        break;
+      case SendTargetType.smartDecompose:
+        message = '已智能分解并发送';
         break;
       case SendTargetType.replaceCharacter:
         message = context.l10n.sendToHome_successReplaceCharacter;

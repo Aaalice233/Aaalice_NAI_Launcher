@@ -48,6 +48,9 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   /// 在文件夹中打开的回调（需要先保存图片）
   final VoidCallback? onOpenInExplorer;
 
+  /// 保存到词库的回调（传入图像字节和合并后的提示词）
+  final void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary;
+
   // ========== 生成中状态相关参数 ==========
 
   /// 是否处于生成中状态
@@ -86,6 +89,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.enableSelection = true,
     this.onUpscale,
     this.onOpenInExplorer,
+    this.onSaveToLibrary,
     // 生成中状态参数
     this.isGenerating = false,
     this.progress,
@@ -626,7 +630,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   Widget _buildHoverActionBar(BuildContext context) {
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.7),
           borderRadius: BorderRadius.circular(8),
@@ -645,7 +649,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
               onTap: () => _saveImage(context),
               isPrimary: true,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             // 复制按钮
             _HoverActionButton(
               icon: Icons.copy_rounded,
@@ -654,11 +658,20 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             ),
             // 放大按钮（可选）
             if (widget.onUpscale != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               _HoverActionButton(
                 icon: Icons.zoom_out_map_rounded,
                 tooltip: context.l10n.image_upscale,
                 onTap: widget.onUpscale,
+              ),
+            ],
+            // 保存到词库按钮（可选）
+            if (widget.onSaveToLibrary != null) ...[
+              const SizedBox(width: 6),
+              _HoverActionButton(
+                icon: Icons.bookmark_add_rounded,
+                tooltip: context.l10n.image_saveToLibrary,
+                onTap: () => _saveToLibrary(context),
               ),
             ],
           ],
@@ -759,6 +772,13 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         AppToast.error(context, '复制失败: $e');
       }
     }
+  }
+
+  Future<void> _saveToLibrary(BuildContext context) async {
+    if (widget.onSaveToLibrary == null || widget.imageBytes == null) return;
+
+    // 调用保存到词库的回调
+    widget.onSaveToLibrary!(widget.imageBytes!, '');
   }
 
   /// 显示右键菜单
@@ -927,7 +947,7 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
           onTap: widget.onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: widget.isPrimary
                   ? (_isHovered ? primaryColor : primaryColor.withOpacity(0.9))

@@ -309,6 +309,7 @@
   "image_save": "保存",
   "image_copy": "复制",
   "image_upscale": "放大",
+  "image_saveToLibrary": "保存到词库",
   "image_imageSaved": "图片已保存到: {path}",
   "image_saveFailed": "保存失败: {error}",
   "image_copiedToClipboard": "已复制到剪贴板",

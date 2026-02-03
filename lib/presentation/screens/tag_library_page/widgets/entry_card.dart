@@ -16,6 +16,7 @@ class EntryCard extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onEdit;
+  final VoidCallback? onSend;
 
   /// 所属分类名称
   final String? categoryName;
@@ -40,6 +41,7 @@ class EntryCard extends StatefulWidget {
     required this.onDelete,
     required this.onToggleFavorite,
     this.onEdit,
+    this.onSend,
     this.categoryName,
     this.enableDrag = false,
     this.isSelectionMode = false,
@@ -384,6 +386,15 @@ class _EntryCardState extends State<EntryCard> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // 发送按钮
+                      if (widget.onSend != null)
+                        _ActionButton(
+                          icon: Icons.send_outlined,
+                          tooltip: context.l10n.sendToHome_dialogTitle,
+                          onTap: widget.onSend!,
+                        ),
+                      if (widget.onSend != null) const SizedBox(width: 8),
+                      // 编辑按钮
                       if (widget.onEdit != null)
                         _ActionButton(
                           icon: Icons.edit_outlined,
@@ -391,6 +402,7 @@ class _EntryCardState extends State<EntryCard> {
                           onTap: widget.onEdit!,
                         ),
                       if (widget.onEdit != null) const SizedBox(width: 8),
+                      // 复制按钮
                       _ActionButton(
                         icon: Icons.content_copy,
                         tooltip: context.l10n.common_copy,

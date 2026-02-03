@@ -17,6 +17,9 @@ enum SendTargetType {
 
   /// 追加角色提示词（保留现有）
   appendCharacter,
+
+  /// 智能分解（竖线格式：主提示词+角色）
+  smartDecompose,
 }
 
 /// 待填充提示词状态
