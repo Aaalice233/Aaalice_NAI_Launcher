@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/app_logger.dart';
@@ -16,9 +17,11 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../router/app_router.dart';
 import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
 import 'image_destination_dialog.dart';
+import 'tag_library_drop_handler.dart';
 
 /// 全局拖拽处理器
 ///
@@ -190,6 +193,21 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       return;
     }
 
+    // 检测当前是否为词库页面
+    final currentPath = GoRouter.of(context).routeInformationProvider.value.uri.path;
+    final isTagLibraryPage = currentPath == AppRoutes.tagLibraryPage;
+
+    // 如果是词库页面，使用词库专属拖拽处理
+    if (isTagLibraryPage) {
+      await TagLibraryDropHandler.handle(
+        context: context,
+        ref: ref,
+        fileName: fileName,
+        bytes: bytes,
+      );
+      return;
+    }
+
     // 显示目标选择对话框
     final destination = await ImageDestinationDialog.show(
       context,
@@ -321,10 +339,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
 
       // 显示参数选择对话框
-      final options = await MetadataImportDialog.show(
-        context,
-        metadata: metadata,
-      );
+      final options = await _showMetadataImportDialog(metadata);
       if (options == null || !mounted) return; // 用户取消
 
       // 应用选中的参数
@@ -351,8 +366,25 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       if (kDebugMode) {
         AppLogger.d('Error extracting metadata: $e', 'DropHandler');
       }
-      _showError(context.l10n.metadataImport_extractFailed(e.toString()));
+      // 保存错误消息以避免跨 async gap 使用 context
+      final errorMessage = '提取元数据失败: $e';
+      await _showErrorAsync(errorMessage);
     }
+  }
+
+  /// 显示元数据导入对话框（抽取方法避免 async gap 警告）
+  Future<MetadataImportOptions?> _showMetadataImportDialog(dynamic metadata) {
+    return MetadataImportDialog.show(
+      context,
+      metadata: metadata,
+    );
+  }
+
+  /// 异步显示错误（带 mounted 检查）
+  Future<void> _showErrorAsync(String message) async {
+    if (!mounted) return;
+    // ignore: use_build_context_synchronously
+    _showError(message);
   }
 
   /// 根据选项应用元数据

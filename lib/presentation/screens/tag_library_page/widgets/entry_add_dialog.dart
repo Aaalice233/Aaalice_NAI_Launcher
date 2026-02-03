@@ -34,6 +34,9 @@ class EntryAddDialog extends ConsumerStatefulWidget {
   /// 初始图像字节数据（用于从图像卡片传入预览图）
   final Uint8List? initialImageBytes;
 
+  /// 初始条目名称（用于从拖拽图片创建时预填文件名）
+  final String? initialName;
+
   const EntryAddDialog({
     super.key,
     required this.categories,
@@ -41,6 +44,7 @@ class EntryAddDialog extends ConsumerStatefulWidget {
     this.entry,
     this.initialContent,
     this.initialImageBytes,
+    this.initialName,
   });
 
   /// 显示对话框的静态方法
@@ -50,6 +54,7 @@ class EntryAddDialog extends ConsumerStatefulWidget {
     String? initialCategoryId,
     String? initialContent,
     Uint8List? initialImageBytes,
+    String? initialName,
   }) {
     return showDialog(
       context: context,
@@ -58,6 +63,7 @@ class EntryAddDialog extends ConsumerStatefulWidget {
         initialCategoryId: initialCategoryId,
         initialContent: initialContent,
         initialImageBytes: initialImageBytes,
+        initialName: initialName,
       ),
     );
   }
@@ -85,7 +91,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     final entry = widget.entry;
     // 优先使用 initialContent，然后是 entry?.content，最后为空
     final initialContent = widget.initialContent ?? entry?.content ?? '';
-    _nameController = TextEditingController(text: entry?.name ?? '');
+    // 优先使用 entry?.name，然后是 initialName，最后为空
+    final initialName = entry?.name ?? widget.initialName ?? '';
+    _nameController = TextEditingController(text: initialName);
     _contentController = NaiSyntaxController(text: initialContent);
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;

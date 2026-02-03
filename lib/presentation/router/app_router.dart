@@ -17,6 +17,7 @@ import '../screens/slideshow_screen.dart';
 import '../screens/image_comparison_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
+import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
@@ -417,20 +418,25 @@ class _MainShellState extends ConsumerState<MainShell> {
       }).toList(),
     );
 
+    // 使用 GlobalDropHandler 包装内容，支持拖拽图片到任意页面
+    final dropEnabledContent = GlobalDropHandler(
+      child: contentStack,
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // 桌面端：使用侧边导航
         if (constraints.maxWidth >= 800) {
           return DesktopShell(
             navigationShell: widget.navigationShell,
-            content: contentStack,
+            content: dropEnabledContent,
           );
         }
 
         // 移动端：使用底部导航
         return MobileShell(
           navigationShell: widget.navigationShell,
-          content: contentStack,
+          content: dropEnabledContent,
         );
       },
     );
