@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/tag_data_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/download_message_keys.dart';
 import '../../core/utils/localization_extension.dart';
 import '../widgets/common/app_toast.dart';
@@ -146,20 +147,28 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
   Future<bool> downloadCooccurrenceData({bool force = false}) async {
     final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
 
-    if (cooccurrenceService.isDownloading) return false;
+    AppLogger.i('downloadCooccurrenceData called: isDownloading=${cooccurrenceService.isDownloading}, isLoaded=${cooccurrenceService.isLoaded}, force=$force', 'DownloadProgress');
+
+    if (cooccurrenceService.isDownloading) {
+      AppLogger.w('Cooccurrence is already downloading, skip', 'DownloadProgress');
+      return false;
+    }
 
     // 检查是否需要下载/刷新
     if (!force) {
       // 1. 如果已经加载且不需要刷新，跳过
       if (cooccurrenceService.isLoaded) {
         final needsRefresh = await cooccurrenceService.shouldRefresh();
+        AppLogger.i('Cooccurrence isLoaded=true, needsRefresh=$needsRefresh', 'DownloadProgress');
         if (!needsRefresh) {
           return true; // 数据新鲜，无需刷新
         }
       }
 
       // 2. 尝试从缓存加载
+      AppLogger.i('Trying to load cooccurrence from cache...', 'DownloadProgress');
       final cacheLoaded = await cooccurrenceService.initialize();
+      AppLogger.i('Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress');
       if (cacheLoaded) {
         // 缓存加载成功，检查是否需要刷新
         final needsRefresh = await cooccurrenceService.shouldRefresh();
@@ -171,6 +180,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     }
 
     // 需要下载
+    AppLogger.i('Starting cooccurrence download...', 'DownloadProgress');
     _lastReportedProgressMilestone = -1;
     _lastReportedMessage = null;
 

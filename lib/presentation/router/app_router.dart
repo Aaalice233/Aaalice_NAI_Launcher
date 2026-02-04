@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
 import '../providers/download_progress_provider.dart';
@@ -383,7 +384,11 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     // 下载共现标签数据（100MB）
     if (mounted) {
-      downloadNotifier.downloadCooccurrenceData();
+      try {
+        await downloadNotifier.downloadCooccurrenceData();
+      } catch (e) {
+        AppLogger.e('Failed to download cooccurrence data', e, null, 'AppRouter');
+      }
     }
   }
 

@@ -188,7 +188,9 @@ class SmartTagRecommendationService {
   }
 
   /// 检查共现数据是否可用
-  bool get isDataAvailable => _cooccurrenceService.isLoaded;
+  /// 不仅检查加载状态，还要验证数据是否真的有内容
+  bool get isDataAvailable =>
+      _cooccurrenceService.isLoaded && _cooccurrenceService.hasData;
 }
 
 /// 候选标签分数（内部使用）

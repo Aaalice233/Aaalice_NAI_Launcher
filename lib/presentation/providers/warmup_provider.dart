@@ -181,6 +181,7 @@ class WarmupNotifier extends _$WarmupNotifier {
           WarmupTask(
             name: 'warmup_initTagSystem',
             weight: 1,
+            timeout: const Duration(seconds: 15),
             task: () async {
               final translationService = ref.read(tagTranslationServiceProvider);
               final tagDataService = ref.read(tagDataServiceProvider);
@@ -192,9 +193,10 @@ class WarmupNotifier extends _$WarmupNotifier {
           WarmupTask(
             name: 'warmup_loadingPromptConfig',
             weight: 1,
+            timeout: const Duration(seconds: 10),
             task: () async {
               final notifier = ref.read(promptConfigNotifierProvider.notifier);
-              await notifier.whenLoaded.timeout(const Duration(seconds: 3));
+              await notifier.whenLoaded.timeout(const Duration(seconds: 8));
             },
           ),
         ],
@@ -331,7 +333,7 @@ class WarmupNotifier extends _$WarmupNotifier {
           WarmupTask(
             name: 'warmup_cooccurrenceInit',
             weight: 3,
-            timeout: const Duration(seconds: 30),
+            timeout: const Duration(seconds: 180),
             task: () async {
               try {
                 AppLogger.i('Initializing cooccurrence data...', 'Warmup');

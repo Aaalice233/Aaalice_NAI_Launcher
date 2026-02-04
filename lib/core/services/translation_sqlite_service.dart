@@ -71,12 +71,33 @@ class TranslationSqliteService {
         await dbDir.create(recursive: true);
       }
 
+      // 检查数据库文件是否被锁定，如果被锁定则删除重新创建
+      final dbFile = File(dbPath);
+      if (await dbFile.exists()) {
+        try {
+          // 尝试以独占模式打开文件，如果失败说明文件被锁定
+          final testAccess = await dbFile.open(mode: FileMode.write);
+          await testAccess.close();
+        } catch (e) {
+          AppLogger.w('Database file is locked, attempting to delete and recreate: $e', 'TranslationSqlite');
+          try {
+            await dbFile.delete();
+            AppLogger.i('Locked database file deleted successfully', 'TranslationSqlite');
+          } catch (deleteError) {
+            AppLogger.e('Failed to delete locked database file', deleteError, null, 'TranslationSqlite');
+          }
+        }
+      }
+
       _db = await openDatabase(
         dbPath,
         version: _databaseVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
+
+      // 设置 SQLite 忙等待超时（5秒）
+      await _db!.execute('PRAGMA busy_timeout = 5000');
 
       _isInitialized = true;
       AppLogger.i('Translation SQLite service initialized', 'TranslationSqlite');

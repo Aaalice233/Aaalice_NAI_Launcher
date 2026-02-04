@@ -608,6 +608,9 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
   /// 数据是否已加载
   bool get isLoaded => _data.isLoaded;
 
+  /// 是否有实际数据（map 不为空）
+  bool get hasData => _data.mapSize > 0;
+
   /// 是否正在下载
   bool get isDownloading => _isDownloading;
 
@@ -785,6 +788,12 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
 
       // 解析下载的文件
       await _loadFromFile(cacheFile);
+
+      // 如果启用了 SQLite，将数据导入数据库
+      if (_sqliteService != null) {
+        onDownloadProgress?.call(1.0, '导入数据库...');
+        await _importToSqlite();
+      }
 
       // 生成二进制缓存（带进度回调，保持100%）
       onDownloadProgress?.call(1.0, '生成二进制缓存...');
@@ -1180,6 +1189,47 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
     }
   }
 
+  /// 将内存数据导入 SQLite
+  Future<void> _importToSqlite() async {
+    if (_sqliteService == null) return;
+
+    try {
+      AppLogger.i('Importing data to SQLite...', 'Cooccurrence');
+
+      // 构建 CSV 格式的数据
+      final lines = <String>[];
+      lines.add('tag1,tag2,count'); // 标题行
+
+      for (final tag1 in _data._cooccurrenceMap.keys) {
+        final related = _data._cooccurrenceMap[tag1]!;
+        for (final entry in related.entries) {
+          lines.add('$tag1,${entry.key},${entry.value}');
+        }
+      }
+
+      AppLogger.i('Built ${lines.length} CSV lines, importing to SQLite...', 'Cooccurrence');
+
+      // 导入到 SQLite，带进度回调
+      var lastProgress = 0.0;
+      await _sqliteService!.importFromCsv(
+        lines,
+        onProgress: (processed, total) {
+          final progress = processed / total;
+          // 每 10% 更新一次进度
+          if (progress - lastProgress >= 0.1) {
+            lastProgress = progress;
+            onDownloadProgress?.call(1.0, '导入数据库 ${(progress * 100).toInt()}%');
+            AppLogger.d('SQLite import: ${(progress * 100).toInt()}%', 'Cooccurrence');
+          }
+        },
+      );
+
+      AppLogger.i('Data imported to SQLite successfully', 'Cooccurrence');
+    } catch (e) {
+      AppLogger.w('Failed to import data to SQLite: $e', 'Cooccurrence');
+    }
+  }
+
   /// 清除缓存（包括 CSV、二进制缓存和 SQLite）
   @override
   Future<void> clearCache() async {
@@ -1336,7 +1386,7 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
   // ========== LazyDataSourceService 接口实现 ==========
 
   /// 懒加载初始化（预热阶段调用）
-  /// 
+  ///
   /// 这是 LazyDataSourceService 接口的实现
   Future<void> initializeLazy() async {
     if (_data.isLoaded) return;
@@ -1348,9 +1398,23 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
       final sqliteService = CooccurrenceSqliteService();
       await sqliteService.initialize();
 
-      // 设置为懒加载模式
-      await setLoadMode(CooccurrenceLoadMode.lazy, sqliteService: sqliteService);
+      // 检查数据库是否有数据
+      final hasData = await sqliteService.hasData();
+      if (!hasData) {
+        AppLogger.i('Cooccurrence database is empty, will download after entering main screen', 'Cooccurrence');
+        // 数据库为空，保存 SQLite 服务引用但不预加载热数据
+        _sqliteService = sqliteService;
+        _loadMode = CooccurrenceLoadMode.lazy;
+        onProgress?.call(1.0, '需要下载共现数据');
+        // 重要：不标记为已加载，这样后台刷新机制会触发下载
+        // 同时重置上次更新时间，确保 shouldRefresh 返回 true
+        _lastUpdate = null;
+        AppLogger.i('Cooccurrence lastUpdate reset to null, shouldRefresh will return true', 'Cooccurrence');
+        return;
+      }
 
+      // 数据库有数据，直接使用
+      await setLoadMode(CooccurrenceLoadMode.lazy, sqliteService: sqliteService);
       onProgress?.call(1.0, '共现数据初始化完成');
       AppLogger.i('Cooccurrence lazy initialization completed', 'Cooccurrence');
     } catch (e, stack) {
