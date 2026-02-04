@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/smart_tag_recommendation_service.dart';
 import '../../../../core/services/tag_data_service.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../autocomplete_controller.dart';
 import '../autocomplete_strategy.dart';
 import '../generic_suggestion_tile.dart';
@@ -54,6 +55,8 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
       return;
     }
 
+    AppLogger.d('CooccurrenceStrategy: extracted previous tag: "$previousTag"', 'CooccurrenceStrategy');
+
     // 检查共现数据是否可用
     if (!_recommendationService.isDataAvailable) {
       clear();
@@ -81,7 +84,9 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
       }).take(_config.maxSuggestions).toList();
 
       _suggestions = filteredRecommendations;
+      AppLogger.d('CooccurrenceStrategy: showing ${filteredRecommendations.length} suggestions for "$previousTag": ${filteredRecommendations.map((r) => '"${r.tag}"').join(', ')}', 'CooccurrenceStrategy');
     } catch (e) {
+      AppLogger.w('CooccurrenceStrategy: error getting recommendations for "$previousTag": $e', 'CooccurrenceStrategy');
       _suggestions = [];
     } finally {
       _isLoading = false;
@@ -140,6 +145,8 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   /// 提取光标前的标签（如果满足 "tag," 模式）
   /// 返回标签名，如果不满足条件返回 null
   String? _extractPreviousTag(String text, int cursorPosition) {
+    AppLogger.d('_extractPreviousTag: text="$text", cursorPosition=$cursorPosition, text.length=${text.length}', 'CooccurrenceStrategy');
+
     if (cursorPosition <= 0) {
       return null;
     }
@@ -151,6 +158,7 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
     // 获取光标前的文本
     final beforeCursor = text.substring(0, cursorPosition);
+    AppLogger.d('_extractPreviousTag: beforeCursor="$beforeCursor"', 'CooccurrenceStrategy');
 
     // 从光标前查找最后一个逗号
     var lastCommaIndex = -1;
@@ -161,6 +169,7 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
         break;
       }
     }
+    AppLogger.d('_extractPreviousTag: lastCommaIndex=$lastCommaIndex', 'CooccurrenceStrategy');
 
     // 重点：必须有逗号才触发共现推荐！没有逗号说明用户在输入第一个标签
     if (lastCommaIndex < 0) {
@@ -170,7 +179,9 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     // 关键检查：逗号后到光标前的内容必须为空（只有空白字符）
     // 如果这段内容非空，说明用户正在输入新标签，不应该触发共现推荐
     final afterComma = beforeCursor.substring(lastCommaIndex + 1);
+    AppLogger.d('_extractPreviousTag: afterComma="$afterComma", trim="${afterComma.trim()}"', 'CooccurrenceStrategy');
     if (afterComma.trim().isNotEmpty) {
+      AppLogger.d('_extractPreviousTag: afterComma is not empty, returning null', 'CooccurrenceStrategy');
       return null;
     }
 
@@ -184,8 +195,10 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
         break;
       }
     }
+    AppLogger.d('_extractPreviousTag: prevSeparatorIndex=$prevSeparatorIndex', 'CooccurrenceStrategy');
 
     final tagPart = beforeCursor.substring(prevSeparatorIndex + 1, lastCommaIndex);
+    AppLogger.d('_extractPreviousTag: tagPart="$tagPart"', 'CooccurrenceStrategy');
 
     // 清理标签文本
     var tag = tagPart.trim();
@@ -202,9 +215,11 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
     // 标签不能太短
     if (tag.length < 2) {
+      AppLogger.d('_extractPreviousTag: tag too short "$tag", returning null', 'CooccurrenceStrategy');
       return null;
     }
 
+    AppLogger.d('_extractPreviousTag: returning "$tag"', 'CooccurrenceStrategy');
     return tag;
   }
 

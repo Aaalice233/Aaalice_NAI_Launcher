@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -522,6 +523,30 @@ typedef CooccurrenceLoadCallback = void Function(
 );
 
 /// 加载模式
+/// 虚拟 CSV 列表 - 按需生成 CSV 行，避免一次性加载所有数据到内存
+/// 用于流式导入共现数据到 SQLite
+class _VirtualCsvList extends ListBase<String> {
+  final int _length;
+  final String Function(int) _generator;
+
+  _VirtualCsvList(this._length, this._generator);
+
+  @override
+  int get length => _length;
+
+  @override
+  set length(int newLength) => throw UnsupportedError('Virtual list is read-only');
+
+  @override
+  String operator [](int index) {
+    if (index == 0) return 'tag1,tag2,count'; // 标题行
+    return _generator(index - 1);
+  }
+
+  @override
+  void operator []=(int index, String value) => throw UnsupportedError('Virtual list is read-only');
+}
+
 enum CooccurrenceLoadMode {
   /// 完整加载（加载所有数据到内存）
   full,
@@ -1189,25 +1214,38 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
     }
   }
 
-  /// 将内存数据导入 SQLite
+  /// 将内存数据导入 SQLite（流式处理，避免内存溢出）
   Future<void> _importToSqlite() async {
     if (_sqliteService == null) return;
 
     try {
       AppLogger.i('Importing data to SQLite...', 'Cooccurrence');
 
-      // 构建 CSV 格式的数据
-      final lines = <String>[];
-      lines.add('tag1,tag2,count'); // 标题行
-
+      // 流式生成 CSV 行，避免一次性创建大列表
+      // 统计总行数用于进度显示
+      var totalLines = 0;
       for (final tag1 in _data._cooccurrenceMap.keys) {
-        final related = _data._cooccurrenceMap[tag1]!;
-        for (final entry in related.entries) {
-          lines.add('$tag1,${entry.key},${entry.value}');
-        }
+        totalLines += _data._cooccurrenceMap[tag1]!.length;
       }
 
-      AppLogger.i('Built ${lines.length} CSV lines, importing to SQLite...', 'Cooccurrence');
+      AppLogger.i('Importing $totalLines cooccurrence records to SQLite...', 'Cooccurrence');
+
+      // 使用生成器流式生成 CSV 行
+      String generateCsvLine(int index) {
+        var currentIndex = 0;
+        for (final tag1 in _data._cooccurrenceMap.keys) {
+          final related = _data._cooccurrenceMap[tag1]!;
+          if (index < currentIndex + related.length) {
+            final entry = related.entries.elementAt(index - currentIndex);
+            return '$tag1,${entry.key},${entry.value}';
+          }
+          currentIndex += related.length;
+        }
+        return '';
+      }
+
+      // 创建虚拟列表用于兼容现有 API
+      final lines = _VirtualCsvList(totalLines, generateCsvLine);
 
       // 导入到 SQLite，带进度回调
       var lastProgress = 0.0;

@@ -159,11 +159,16 @@ class CooccurrenceSqliteService {
 
     final stopwatch = Stopwatch()..start();
     var processed = 0;
-    // 减小批次大小，避免单次事务过大
-    const batchSize = 2000;
+    // 每批次 5000 行，平衡性能和事务大小
+    const batchSize = 5000;
 
-    await _database.transaction((txn) async {
-      final batch = txn.batch();
+    // 禁用 WAL 模式以提高批量写入性能
+    await _database.execute('PRAGMA journal_mode = MEMORY');
+    await _database.execute('PRAGMA synchronous = OFF');
+
+    try {
+      // 使用多个小事务代替单个大事务
+      var batch = _database.batch();
 
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
@@ -201,26 +206,37 @@ class CooccurrenceSqliteService {
 
         processed++;
 
-        // 定期提交批次
+        // 每 batchSize 行提交一次，然后创建新 batch
         if (processed % batchSize == 0) {
           await batch.commit(noResult: true);
+          batch = _database.batch(); // 创建新 batch
           onProgress?.call(processed, lines.length);
+          // 每 5% 记录一次日志
+          if (processed % (lines.length ~/ 20) == 0) {
+            AppLogger.d('SQLite import: ${(processed / lines.length * 100).toStringAsFixed(1)}%', 'CooccurrenceSqlite');
+          }
         }
       }
 
       // 提交剩余批次
-      await batch.commit(noResult: true);
-    });
+      if ((batch as dynamic).length > 0) {
+        await batch.commit(noResult: true);
+      }
 
-    stopwatch.stop();
-    AppLogger.i(
-      'Imported $processed cooccurrence records in ${stopwatch.elapsedMilliseconds}ms',
-      'CooccurrenceSqlite',
-    );
+      stopwatch.stop();
+      AppLogger.i(
+        'Imported $processed cooccurrence records in ${stopwatch.elapsedMilliseconds}ms',
+        'CooccurrenceSqlite',
+      );
 
-    // 更新统计信息
-    await _updateMetadata('lastImport', DateTime.now().toIso8601String());
-    await _updateMetadata('recordCount', processed.toString());
+      // 更新统计信息
+      await _updateMetadata('lastImport', DateTime.now().toIso8601String());
+      await _updateMetadata('recordCount', processed.toString());
+    } finally {
+      // 恢复默认设置
+      await _database.execute('PRAGMA synchronous = NORMAL');
+      await _database.execute('PRAGMA journal_mode = WAL');
+    }
   }
 
   /// 获取相关标签（使用数据库查询）

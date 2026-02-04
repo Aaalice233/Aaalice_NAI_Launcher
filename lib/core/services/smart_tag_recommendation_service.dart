@@ -103,10 +103,12 @@ class SmartTagRecommendationService {
     final candidateScores = <String, _CandidateScore>{};
 
     for (final inputTag in normalizedInputTags) {
+      AppLogger.d('Getting recommendations for tag: "$inputTag"', 'SmartRec');
       final relatedTags = await _cooccurrenceService.getRelatedTags(
         inputTag,
         limit: 50, // 获取更多候选以便后续筛选
       );
+      AppLogger.d('Found ${relatedTags.length} related tags for "$inputTag": ${relatedTags.take(5).map((t) => '"${t.tag}"').join(', ')}', 'SmartRec');
 
       // 获取输入标签的使用次数
       final inputTagData = _tagDataService.search(inputTag).firstOrNull;
