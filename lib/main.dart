@@ -1,11 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:video_player_media_kit/video_player_media_kit.dart';
-import 'dart:io';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -151,6 +153,13 @@ void main() async {
 
   // 初始化日志系统
   await AppLogger.init();
+
+  // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    AppLogger.i('SQLite FFI initialized for desktop', 'Main');
+  }
 
   // 初始化 Hive
   await Hive.initFlutter();

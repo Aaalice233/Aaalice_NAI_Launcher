@@ -172,6 +172,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
     // 需要下载
     _lastReportedProgressMilestone = -1;
+    _lastReportedMessage = null;
 
     // 添加下载任务
     _addTask(
@@ -202,7 +203,10 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     }
   }
 
-  /// 更新任务进度（带10%去重）
+  /// 上次报告的消息（用于检测消息变化）
+  String? _lastReportedMessage;
+
+  /// 更新任务进度（带10%去重，但消息变化时立即更新）
   void _updateTaskProgressWithDeduplication(
     String id,
     double progress, {
@@ -214,6 +218,9 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     final percent = (progress * 100).toInt();
     final milestone = (percent ~/ 10) * 10; // 0, 10, 20, ..., 100
 
+    // 检测消息是否变化
+    final messageChanged = message != null && message != _lastReportedMessage;
+
     // 更新内部状态（每次进度都更新）
     state = state.copyWith(
       tasks: {
@@ -222,9 +229,12 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       },
     );
 
-    // 去重：只在跨越10%边界时更新Toast
-    if (milestone > _lastReportedProgressMilestone) {
+    // 去重：只在跨越10%边界或消息变化时更新Toast
+    if (milestone > _lastReportedProgressMilestone || messageChanged) {
       _lastReportedProgressMilestone = milestone;
+      if (message != null) {
+        _lastReportedMessage = message;
+      }
 
       // 将消息 key 转换为本地化字符串
       final localizedMessage = _context != null && message != null

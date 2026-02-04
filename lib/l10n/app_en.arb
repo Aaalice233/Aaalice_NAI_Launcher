@@ -1243,6 +1243,11 @@
   "warmup_group_networkServices_complete": "Network services ready",
   "warmup_group_cacheServices": "Initializing cache services...",
   "warmup_group_cacheServices_complete": "Cache services ready",
+  "warmup_cooccurrenceInit": "Initializing cooccurrence data...",
+  "warmup_translationInit": "Initializing translation data...",
+  "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
+  "warmup_group_dataSourceInitialization": "Initializing data source services...",
+  "warmup_group_dataSourceInitialization_complete": "Data source services ready",
 
   "performanceReport_title": "Startup Performance",
   "performanceReport_export": "Export Report",

@@ -185,4 +185,7 @@ class StorageKeys {
   // 共现数据刷新间隔
   static const String cooccurrenceRefreshInterval = 'cooccurrence_refresh_interval';
   static const String cooccurrenceLastUpdate = 'cooccurrence_last_update';
+
+  // 数据源后台刷新相关
+  static const String pendingDataSourceRefresh = 'pending_data_source_refresh';
 }

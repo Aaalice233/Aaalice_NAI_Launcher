@@ -4,7 +4,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../presentation/widgets/common/app_toast.dart';
 import '../constants/storage_keys.dart';
 import '../services/danbooru_tags_sync_service.dart';
 import '../services/hf_translation_sync_service.dart';
@@ -65,91 +64,69 @@ class FirstLaunchDetector {
   }
 
   /// 执行首次启动后的初始化同步
+  /// 
+  /// 注意：新的实现不再执行同步，而是标记需要刷新
+  /// 实际的数据下载将在进入主界面后通过后台刷新处理
   ///
-  /// [context] 用于显示 Toast 通知
+  /// [context] 用于显示 Toast 通知（已废弃，保留参数用于兼容性）
   /// 返回同步是否成功
+  @Deprecated('使用 checkAndMarkPendingRefresh 替代')
   Future<bool> performInitialSync(BuildContext context) async {
-    if (_isInitialSyncing) {
-      AppLogger.w('Initial sync already in progress', 'FirstLaunch');
-      return false;
-    }
+    return await checkAndMarkPendingRefresh();
+  }
 
+  /// 检查并标记需要后台刷新
+  /// 
+  /// 新的非阻塞实现：不再执行同步，而是标记需要刷新
+  /// 实际的数据下载将在进入主界面后通过后台刷新处理
+  Future<bool> checkAndMarkPendingRefresh() async {
+    if (_isInitialSyncing) return false;
     _isInitialSyncing = true;
-    ToastController? toastController;
 
     try {
-      // 显示进度 Toast
-      if (context.mounted) {
-        toastController = AppToast.showProgress(
-          context,
-          '正在初始化数据...',
-          progress: 0.0,
-          subtitle: '首次启动，请稍候',
+      // 检查各数据源是否需要刷新
+      final needsTranslationRefresh = await _translationService.shouldRefresh();
+      final needsTagsRefresh = await _tagsService.shouldRefreshAsync();
+
+      // 设置标记，让主界面知道需要显示后台刷新提示
+      final prefs = await SharedPreferences.getInstance();
+      
+      if (needsTranslationRefresh || needsTagsRefresh) {
+        await prefs.setBool(StorageKeys.pendingDataSourceRefresh, true);
+        AppLogger.i(
+          'Marked pending refresh: translation=$needsTranslationRefresh, tags=$needsTagsRefresh',
+          'FirstLaunch',
         );
       }
 
-      // 1. 同步翻译数据
-      toastController?.updateProgress(0.1, message: '正在同步翻译数据...');
-
-      _translationService.onSyncProgress = (progress, message) {
-        toastController?.updateProgress(
-          0.1 + progress * 0.4, // 10% - 50%
-          message: message ?? '正在同步翻译数据...',
-        );
-      };
-
-      await _translationService.syncTranslations();
-
-      // 2. 同步标签数据
-      toastController?.updateProgress(0.5, message: '正在同步标签数据...');
-
-      _tagsService.onSyncProgress = (progress, message) {
-        toastController?.updateProgress(
-          0.5 + progress * 0.3, // 50% - 80%
-          message: message ?? '正在同步标签数据...',
-        );
-      };
-
-      // 使用默认阈值同步
-      await _tagsService.syncHotTags(minPostCount: 1000);
-
-      // 3. 画师数据同步已移至登录成功后触发
-      // 避免在首次启动时立即同步，确保用户有网络连接且已登录
-      // 详见 auth_provider.dart 中的登录成功处理逻辑
-
-      // 4. 标记已启动
+      // 标记已完成首次启动
       await markLaunched();
-
-      // 完成
-      toastController?.complete(message: '数据初始化完成');
-      AppLogger.i('Initial sync completed successfully', 'FirstLaunch');
-
+      
       return true;
     } catch (e, stack) {
-      AppLogger.e('Initial sync failed', e, stack, 'FirstLaunch');
-      toastController?.fail(message: '数据初始化失败');
+      AppLogger.e('Failed to check and mark pending refresh', e, stack, 'FirstLaunch');
       return false;
     } finally {
       _isInitialSyncing = false;
-      _translationService.onSyncProgress = null;
-      _tagsService.onSyncProgress = null;
     }
   }
 
   /// 检查并执行首次启动同步（自动检测）
+  /// 
+  /// 注意：新的实现使用非阻塞检测，数据同步在后台执行
   ///
-  /// [context] 用于显示 Toast 通知
+  /// [context] 用于显示 Toast 通知（已废弃，保留参数用于兼容性）
   /// 返回是否执行了同步
+  @Deprecated('使用 checkAndMarkPendingRefresh 替代')
   Future<bool> checkAndPerformInitialSync(BuildContext context) async {
     final isFirst = await isFirstLaunch();
 
     if (isFirst) {
       AppLogger.i(
-        'First launch detected, starting initial sync',
+        'First launch detected, marking pending refresh',
         'FirstLaunch',
       );
-      // ignore: use_build_context_synchronously
-      await performInitialSync(context);
+      await checkAndMarkPendingRefresh();
       return true;
     }
 
@@ -158,36 +135,13 @@ class FirstLaunchDetector {
   }
 
   /// 检查数据是否需要刷新并执行后台刷新
-  ///
-  /// 这个方法用于非首次启动时检查是否需要自动刷新
-  /// 注意：此方法真正异步执行，不会阻塞主线程
+  /// 
+  /// 注意：此方法已废弃，使用 BackgroundRefreshNotifier 替代
+  @Deprecated('使用 BackgroundRefreshNotifier 替代')
   void checkAndRefreshIfNeeded() {
-    // 使用 unawaited 的 Future 来确保真正异步执行
-    // 避免在应用启动时阻塞 UI 线程
-    Future(() async {
-      try {
-        // 1. 检查翻译数据是否需要刷新
-        final needsTranslationRefresh = await _translationService.shouldRefresh();
-        if (needsTranslationRefresh) {
-          AppLogger.i('Translation data needs refresh', 'FirstLaunch');
-          _translationService.onSyncProgress = null;
-          await _translationService.syncTranslations();
-        }
-
-        // 2. 检查 Danbooru 标签数据是否需要刷新
-        final needsTagsRefresh = await _tagsService.shouldRefreshAsync();
-        if (needsTagsRefresh) {
-          AppLogger.i('Danbooru tags need refresh', 'FirstLaunch');
-          _tagsService.onSyncProgress = null;
-          await _tagsService.syncHotTags(minPostCount: _tagsService.currentThreshold);
-        }
-
-        // 注意：共现数据不在此处下载，而是在用户进入主页后处理
-        // 因为共现数据文件较大（103MB），避免阻塞启动流程
-      } catch (e) {
-        AppLogger.w('Background refresh failed: $e', 'FirstLaunch');
-      }
-    });
+    // 新的后台刷新逻辑已移至 BackgroundRefreshNotifier
+    // 保留此方法用于向后兼容
+    AppLogger.d('checkAndRefreshIfNeeded is deprecated, use BackgroundRefreshNotifier', 'FirstLaunch');
   }
 }
 
@@ -241,6 +195,8 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
   }
 
   /// 检查并执行首次启动同步
+  /// 
+  /// 新的非阻塞实现：只标记需要刷新，不执行实际同步
   Future<void> checkAndSync(BuildContext context) async {
     final detector = ref.read(firstLaunchDetectorProvider);
 
@@ -251,8 +207,8 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
       state = state.copyWith(isSyncing: true);
 
       try {
-        // ignore: use_build_context_synchronously
-        await detector.performInitialSync(context);
+        // 新的非阻塞检测，只标记需要刷新
+        await detector.checkAndMarkPendingRefresh();
         state = state.copyWith(
           isSyncing: false,
           hasSyncCompleted: true,
@@ -264,9 +220,9 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
         );
       }
     } else {
-      // 非首次启动，检查是否需要后台刷新
-      // 注意：这里不 await，让它真正后台执行，不阻塞应用启动
-      detector.checkAndRefreshIfNeeded();
+      // 非首次启动，不需要额外处理
+      // 后台刷新由 BackgroundRefreshNotifier 处理
+      AppLogger.d('Not first launch, skipping', 'FirstLaunch');
     }
   }
 }

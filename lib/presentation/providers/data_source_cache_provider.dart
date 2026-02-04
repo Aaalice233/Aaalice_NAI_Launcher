@@ -1,7 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/danbooru_tags_sync_service.dart';
 import '../../core/services/hf_translation_sync_service.dart';
+import '../../core/services/translation_lazy_service.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 
 part 'data_source_cache_provider.g.dart';
@@ -108,8 +110,18 @@ class HFTranslationCacheNotifier extends _$HFTranslationCacheNotifier {
 
   /// 清除缓存
   Future<void> clearCache() async {
+    // 清除旧服务的缓存
     final service = ref.read(hfTranslationSyncServiceProvider);
     await service.clearCache();
+
+    // 同时清除新懒加载服务的缓存（SQLite 数据库）
+    try {
+      final lazyService = ref.read(translationLazyServiceProvider);
+      await lazyService.clearCache();
+    } catch (e) {
+      // 如果懒加载服务未初始化，忽略错误
+    }
+
     state = state.copyWith(
       lastUpdate: null,
       totalTags: 0,
@@ -280,8 +292,18 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
 
   /// 清除缓存
   Future<void> clearCache() async {
+    // 清除旧服务的缓存
     final service = ref.read(danbooruTagsSyncServiceProvider);
     await service.clearCache();
+
+    // 同时清除新懒加载服务的缓存（SQLite 数据库）
+    try {
+      final lazyService = ref.read(danbooruTagsLazyServiceProvider);
+      await lazyService.clearCache();
+    } catch (e) {
+      // 如果懒加载服务未初始化，忽略错误
+    }
+
     state = state.copyWith(
       lastUpdate: null,
       totalTags: 0,

@@ -15,6 +15,7 @@ import '../utils/app_logger.dart';
 import '../utils/download_message_keys.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 import 'cooccurrence_sqlite_service.dart';
+import 'lazy_data_source_service.dart';
 
 part 'cooccurrence_service.g.dart';
 
@@ -531,7 +532,22 @@ enum CooccurrenceLoadMode {
 }
 
 /// 共现标签服务
-class CooccurrenceService {
+/// 实现 LazyDataSourceService 接口，提供统一的懒加载架构
+class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
+  @override
+  String get serviceName => 'cooccurrence';
+
+  @override
+  Set<String> get hotKeys => _data.hotTags;
+
+  @override
+  bool get isInitialized => _data.isLoaded;
+
+  @override
+  bool get isRefreshing => _isDownloading;
+
+  @override
+  DataSourceProgressCallback? onProgress;
   /// HuggingFace 数据集 URL
   static const String _baseUrl =
       'https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv/resolve/main';
@@ -649,6 +665,7 @@ class CooccurrenceService {
 
   /// 初始化服务（优先从二进制缓存加载）
   /// [timeout] 加载超时时间，默认30秒，超时后返回false但不影响主流程
+  @override
   Future<bool> initialize({Duration timeout = const Duration(seconds: 30)}) async {
     print('[CooccurrenceService] initialize');
     try {
@@ -744,38 +761,35 @@ class CooccurrenceService {
         ),
       );
 
-      // 设置加载进度回调，将解析阶段进度映射到下载回调 (100% -> 下载完成, 解析阶段显示不确定进度)
+      // 设置加载进度回调，将解析阶段进度映射到下载回调
+      // 下载完成后进入解析阶段，保持100%进度，只更新消息
       onLoadProgress = (stage, progress, stageProgress, message) {
-        // 解析阶段：将 0-1 映射到 1.0-1.0（保持100%，但更新消息）
-        double? displayProgress;
         String? displayMessage;
 
         switch (stage) {
           case CooccurrenceLoadStage.reading:
-            displayProgress = 1.0;
-            displayMessage = DownloadMessageKeys.readingFile;
+            displayMessage = '读取文件...';
           case CooccurrenceLoadStage.parsing:
-            displayProgress = 1.0;
-            displayMessage = DownloadMessageKeys.parsingData;
+            displayMessage = '解析数据...';
           case CooccurrenceLoadStage.merging:
-            displayProgress = 1.0;
-            displayMessage = DownloadMessageKeys.mergingData;
+            displayMessage = '合并数据...';
           case CooccurrenceLoadStage.complete:
-            displayProgress = 1.0;
-            displayMessage = DownloadMessageKeys.loadComplete;
+            displayMessage = '解析完成';
           case CooccurrenceLoadStage.error:
-            displayProgress = null;
             displayMessage = message;
         }
 
-        onDownloadProgress?.call(displayProgress ?? 1.0, displayMessage);
+        // 解析阶段保持100%进度，不显示超过100%
+        onDownloadProgress?.call(1.0, displayMessage);
       };
 
       // 解析下载的文件
       await _loadFromFile(cacheFile);
 
-      // 生成二进制缓存（同步等待，确保缓存已生成）
+      // 生成二进制缓存（带进度回调，保持100%）
+      onDownloadProgress?.call(1.0, '生成二进制缓存...');
       await _generateBinaryCache();
+      onDownloadProgress?.call(1.0, '缓存生成完成');
 
       // 保存元数据
       await _saveMeta();
@@ -1166,25 +1180,34 @@ class CooccurrenceService {
     }
   }
 
-  /// 清除缓存（包括 CSV 和二进制缓存）
+  /// 清除缓存（包括 CSV、二进制缓存和 SQLite）
+  @override
   Future<void> clearCache() async {
     try {
-      // 删除 CSV 缓存
+      // 1. 先清除 SQLite 数据，然后关闭数据库（如果正在使用）
+      if (_sqliteService != null) {
+        await _sqliteService!.clearAll();
+        await _sqliteService!.close();
+        _sqliteService = null;
+      }
+
+      // 2. 删除 CSV 缓存
       final cacheFile = await _getCacheFile();
       if (await cacheFile.exists()) {
         await cacheFile.delete();
       }
 
-      // 删除二进制缓存
+      // 3. 删除二进制缓存
       final binaryCacheFile = await _getBinaryCacheFile();
       if (await binaryCacheFile.exists()) {
         await binaryCacheFile.delete();
       }
 
+      // 4. 清除内存数据
       _data.clear();
       _lastUpdate = null;
 
-      // 删除元数据文件
+      // 5. 删除元数据文件
       try {
         final cacheDir = await _getCacheDir();
         final metaFile = File('${cacheDir.path}/$_metaFileName');
@@ -1194,6 +1217,10 @@ class CooccurrenceService {
       } catch (e) {
         AppLogger.w('Failed to delete meta file: $e', 'Cooccurrence');
       }
+
+      // 6. 清除 SharedPreferences 中的元数据
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(StorageKeys.cooccurrenceLastUpdate);
 
       AppLogger.i('Cooccurrence cache cleared', 'Cooccurrence');
     } catch (e) {
@@ -1260,14 +1287,6 @@ class CooccurrenceService {
     return cacheDir;
   }
 
-  /// 检查是否需要刷新
-  Future<bool> shouldRefresh() async {
-    if (_lastUpdate == null) {
-      await _loadMeta();
-    }
-    return _refreshInterval.shouldRefresh(_lastUpdate);
-  }
-
   /// 获取刷新间隔
   Future<AutoRefreshInterval> getRefreshInterval() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1312,6 +1331,88 @@ class CooccurrenceService {
     }
 
     AppLogger.i('Cooccurrence load mode set to: $mode', 'Cooccurrence');
+  }
+
+  // ========== LazyDataSourceService 接口实现 ==========
+
+  /// 懒加载初始化（预热阶段调用）
+  /// 
+  /// 这是 LazyDataSourceService 接口的实现
+  Future<void> initializeLazy() async {
+    if (_data.isLoaded) return;
+
+    try {
+      onProgress?.call(0.0, '初始化共现数据...');
+
+      // 初始化 SQLite 服务
+      final sqliteService = CooccurrenceSqliteService();
+      await sqliteService.initialize();
+
+      // 设置为懒加载模式
+      await setLoadMode(CooccurrenceLoadMode.lazy, sqliteService: sqliteService);
+
+      onProgress?.call(1.0, '共现数据初始化完成');
+      AppLogger.i('Cooccurrence lazy initialization completed', 'Cooccurrence');
+    } catch (e, stack) {
+      AppLogger.e('Cooccurrence lazy initialization failed', e, stack, 'Cooccurrence');
+      // 即使失败也标记为已加载，避免阻塞启动
+      _data.markLoaded();
+      onProgress?.call(1.0, '初始化失败，使用空数据');
+    }
+  }
+
+  @override
+  Future<List<RelatedTag>?> get(String key) async {
+    return await getRelatedTags(key, limit: 20);
+  }
+
+  @override
+  Future<List<List<RelatedTag>>> getMultiple(List<String> keys) async {
+    final results = <List<RelatedTag>>[];
+    for (final key in keys) {
+      final tags = await getRelatedTags(key, limit: 20);
+      results.add(tags);
+    }
+    return results;
+  }
+
+  @override
+  Future<bool> shouldRefresh() async {
+    if (_lastUpdate == null) {
+      await _loadMeta();
+    }
+    return _refreshInterval.shouldRefresh(_lastUpdate);
+  }
+
+  @override
+  Future<void> refresh() async {
+    if (_isDownloading) return;
+
+    _isDownloading = true;
+    onProgress?.call(0.0, '开始下载共现数据...');
+
+    try {
+      // 将 download 的进度映射到 0-2.0 范围，然后归一化为 0-1.0
+      onDownloadProgress = (progress, message) {
+        // progress 范围是 0-2.0（下载0-1，解析1-2），归一化为 0-1
+        final normalizedProgress = (progress / 2.0).clamp(0.0, 1.0);
+        onProgress?.call(normalizedProgress, message ?? '下载中...');
+      };
+
+      final success = await download();
+      if (success) {
+        onProgress?.call(1.0, '共现数据刷新完成');
+      } else {
+        onProgress?.call(1.0, '共现数据刷新失败');
+      }
+    } catch (e) {
+      AppLogger.e('Failed to refresh cooccurrence data', e, null, 'Cooccurrence');
+      onProgress?.call(1.0, '刷新失败: $e');
+      rethrow;
+    } finally {
+      _isDownloading = false;
+      onDownloadProgress = null;
+    }
   }
 }
 

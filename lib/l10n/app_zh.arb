@@ -909,6 +909,11 @@
   "warmup_group_networkServices_complete": "网络服务就绪",
   "warmup_group_cacheServices": "初始化缓存服务...",
   "warmup_group_cacheServices_complete": "缓存服务就绪",
+  "warmup_cooccurrenceInit": "初始化共现数据...",
+  "warmup_translationInit": "初始化翻译数据...",
+  "warmup_danbooruTagsInit": "初始化 Danbooru 标签...",
+  "warmup_group_dataSourceInitialization": "初始化数据源服务...",
+  "warmup_group_dataSourceInitialization_complete": "数据源服务就绪",
 
   "performanceReport_title": "启动性能",
   "performanceReport_export": "导出报告",

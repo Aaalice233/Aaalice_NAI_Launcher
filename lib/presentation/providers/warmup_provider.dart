@@ -8,7 +8,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
+import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/tag_data_service.dart';
+import '../../core/services/translation_lazy_service.dart';
 import '../../core/services/warmup_metrics_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/local_gallery_repository.dart';
@@ -28,11 +30,14 @@ class WarmupState {
   final WarmupProgress progress;
   final bool isComplete;
   final String? error;
+  /// 子任务详细消息（如"下载中... 50%"）
+  final String? subTaskMessage;
 
   const WarmupState({
     required this.progress,
     this.isComplete = false,
     this.error,
+    this.subTaskMessage,
   });
 
   factory WarmupState.initial() => WarmupState(
@@ -48,11 +53,13 @@ class WarmupState {
     WarmupProgress? progress,
     bool? isComplete,
     String? error,
+    String? subTaskMessage,
   }) {
     return WarmupState(
       progress: progress ?? this.progress,
       isComplete: isComplete ?? this.isComplete,
       error: error ?? this.error,
+      subTaskMessage: subTaskMessage ?? this.subTaskMessage,
     );
   }
 }
@@ -313,29 +320,95 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // ==== 串行任务：共现数据（最耗时，需要独立执行）====
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_cooccurrenceData',
-        weight: 5, // 给予较高权重，反映其耗时
-        timeout: const Duration(seconds: 30), // 30秒超时，因为文件很大
-        task: () async {
-          try {
-            AppLogger.i('Preloading cooccurrence data...', 'Warmup');
-            final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
-            // 设置进度回调
-            cooccurrenceService.onLoadProgress = (stage, progress, stageProgress, message) {
-              AppLogger.d(
-                'Cooccurrence loading: ${stage.name} - ${(progress * 100).toStringAsFixed(1)}% - $message',
-                'Warmup',
-              );
-            };
-            await cooccurrenceService.initialize();
-            AppLogger.i('Cooccurrence data preloaded', 'Warmup');
-          } catch (e) {
-            AppLogger.w('Cooccurrence preload failed: $e', 'Warmup');
-          }
-        },
+    // ==== 第5组：数据源懒加载初始化（并行执行）====
+    // 三个数据源并行初始化，每个只加载热数据到内存
+    _warmupService.registerGroup(
+      WarmupTaskGroup(
+        name: 'dataSourceInitialization',
+        parallel: true,
+        tasks: [
+          // 共现数据懒加载初始化
+          WarmupTask(
+            name: 'warmup_cooccurrenceInit',
+            weight: 3,
+            timeout: const Duration(seconds: 30),
+            task: () async {
+              try {
+                AppLogger.i('Initializing cooccurrence data...', 'Warmup');
+                final service = ref.read(cooccurrenceServiceProvider);
+                service.onProgress = (progress, message) {
+                  final msg = message ?? '${(progress * 100).toInt()}%';
+                  // 更新子任务消息到状态
+                  state = state.copyWith(subTaskMessage: '共现: $msg');
+                  AppLogger.d(
+                    'Cooccurrence init: ${(progress * 100).toStringAsFixed(1)}% - $message',
+                    'Warmup',
+                  );
+                };
+                await service.initializeLazy();
+                state = state.copyWith(subTaskMessage: null);
+                AppLogger.i('Cooccurrence data initialized', 'Warmup');
+              } catch (e) {
+                state = state.copyWith(subTaskMessage: null);
+                AppLogger.w('Cooccurrence initialization failed: $e', 'Warmup');
+              }
+            },
+          ),
+          // 翻译数据懒加载初始化（首次使用时会下载数据）
+          WarmupTask(
+            name: 'warmup_translationInit',
+            weight: 3,
+            timeout: const Duration(seconds: 60),
+            task: () async {
+              try {
+                AppLogger.i('Initializing translation data...', 'Warmup');
+                final service = ref.read(translationLazyServiceProvider);
+                service.onProgress = (progress, message) {
+                  final msg = message ?? '${(progress * 100).toInt()}%';
+                  // 更新子任务消息到状态
+                  state = state.copyWith(subTaskMessage: '翻译: $msg');
+                  AppLogger.d(
+                    'Translation init: ${(progress * 100).toStringAsFixed(1)}% - $message',
+                    'Warmup',
+                  );
+                };
+                await service.initialize();
+                state = state.copyWith(subTaskMessage: null);
+                AppLogger.i('Translation data initialized', 'Warmup');
+              } catch (e) {
+                state = state.copyWith(subTaskMessage: null);
+                AppLogger.w('Translation initialization failed: $e', 'Warmup');
+              }
+            },
+          ),
+          // Danbooru 标签懒加载初始化（首次使用时会下载数据）
+          WarmupTask(
+            name: 'warmup_danbooruTagsInit',
+            weight: 3,
+            timeout: const Duration(seconds: 120),
+            task: () async {
+              try {
+                AppLogger.i('Initializing Danbooru tags...', 'Warmup');
+                final service = ref.read(danbooruTagsLazyServiceProvider);
+                service.onProgress = (progress, message) {
+                  final msg = message ?? '${(progress * 100).toInt()}%';
+                  // 更新子任务消息到状态
+                  state = state.copyWith(subTaskMessage: '标签: $msg');
+                  AppLogger.d(
+                    'Danbooru tags init: ${(progress * 100).toStringAsFixed(1)}% - $message',
+                    'Warmup',
+                  );
+                };
+                await service.initialize();
+                state = state.copyWith(subTaskMessage: null);
+                AppLogger.i('Danbooru tags initialized', 'Warmup');
+              } catch (e) {
+                state = state.copyWith(subTaskMessage: null);
+                AppLogger.w('Danbooru tags initialization failed: $e', 'Warmup');
+              }
+            },
+          ),
+        ],
       ),
     );
 

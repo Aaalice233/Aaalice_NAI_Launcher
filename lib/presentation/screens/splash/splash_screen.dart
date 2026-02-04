@@ -85,7 +85,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 const Spacer(flex: 2),
 
                 // 进度区域
-                _buildProgressSection(theme, primaryColor, progress),
+                _buildProgressSection(theme, primaryColor, progress, warmupState.subTaskMessage),
 
                 const SizedBox(height: 48),
               ],
@@ -225,6 +225,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_galleryFileCount;
       case 'warmup_cooccurrenceData':
         return l10n.warmup_cooccurrenceData;
+      case 'warmup_cooccurrenceInit':
+        return l10n.warmup_cooccurrenceInit;
+      case 'warmup_translationInit':
+        return l10n.warmup_translationInit;
+      case 'warmup_danbooruTagsInit':
+        return l10n.warmup_danbooruTagsInit;
+      case 'warmup_group_dataSourceInitialization':
+        return l10n.warmup_group_dataSourceInitialization;
+      case 'warmup_group_dataSourceInitialization_complete':
+        return l10n.warmup_group_dataSourceInitialization_complete;
       case 'warmup_group_basicUI':
         return l10n.warmup_group_basicUI;
       case 'warmup_group_basicUI_complete':
@@ -250,6 +260,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     ThemeData theme,
     Color primaryColor,
     WarmupProgress progress,
+    String? subTaskMessage,
   ) {
     final translatedTask = _translateTaskKey(context, progress.currentTask);
     final percentage = (progress.progress * 100).toInt();
@@ -318,6 +329,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               ],
             ),
           ),
+
+          // 子任务进度（如"下载中... 50%"）
+          if (subTaskMessage != null && !progress.isComplete) ...[
+            const SizedBox(height: 8),
+            Text(
+              subTaskMessage,
+              style: TextStyle(
+                fontSize: 11,
+                color: theme.colorScheme.onSurface.withOpacity(0.4),
+              ),
+            ),
+          ],
         ],
       ),
     );

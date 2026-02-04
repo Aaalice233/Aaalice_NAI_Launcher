@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -117,9 +119,162 @@ class _DataSourceCacheSettingsState
             duration: const Duration(milliseconds: 200),
             child: _buildTabContent(_selectedIndex),
           ),
+
+          // 分隔线
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(
+              color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+              height: 24,
+            ),
+          ),
+
+          // 清除所有缓存按钮
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _ClearAllCacheButton(
+              onClearAll: () => _showClearAllDialog(context),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// 显示清除所有缓存确认对话框
+  Future<void> _showClearAllDialog(BuildContext context) async {
+    final theme = Theme.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: theme.colorScheme.error,
+          size: 32,
+        ),
+        title: const Text('清除所有缓存'),
+        content: const Text(
+          '确定要清除所有数据源缓存吗？\n\n'
+          '这将删除：\n'
+          '• 翻译数据\n'
+          '• 标签补全数据\n'
+          '• 共现标签数据\n\n'
+          '清除后需要重新从网络下载。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('确认清除'),
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      // 等待确认对话框完全关闭
+      await Future.delayed(Duration.zero);
+      if (context.mounted) {
+        await _clearAllCaches(context);
+      }
+    }
+  }
+
+  /// 清除所有缓存
+  Future<void> _clearAllCaches(BuildContext context) async {
+    // 保存根 context，用于显示 Toast
+    final rootContext = context;
+
+    // 使用自定义对话框控制器
+    BuildContext? dialogContextOrNull;
+
+    if (!context.mounted) return;
+
+    // 显示进度指示器
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        dialogContextOrNull = dialogCtx;
+        return const PopScope(
+          canPop: false,
+          child: Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('正在清除缓存...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    // 等待一帧确保对话框已显示
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    try {
+      // 清除翻译缓存
+      await ref
+          .read(hFTranslationCacheNotifierProvider.notifier)
+          .clearCache();
+
+      // 清除 Danbooru 标签缓存
+      await ref
+          .read(danbooruTagsCacheNotifierProvider.notifier)
+          .clearCache();
+
+      // 清除共现标签缓存
+      final service = ref.read(cooccurrenceServiceProvider);
+      await service.clearCache();
+
+      // 刷新状态
+      ref.invalidate(hFTranslationCacheNotifierProvider);
+      ref.invalidate(danbooruTagsCacheNotifierProvider);
+
+      // 关闭进度对话框
+      final dialogCtx = dialogContextOrNull;
+      if (dialogCtx != null && dialogCtx.mounted) {
+        Navigator.of(dialogCtx).pop();
+      }
+
+      // 延迟一帧确保对话框已关闭
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 显示成功提示
+      if (rootContext.mounted) {
+        AppToast.success(rootContext, '所有缓存已清除');
+      }
+    } catch (e) {
+      // 关闭进度对话框
+      final dialogCtx = dialogContextOrNull;
+      if (dialogCtx != null && dialogCtx.mounted) {
+        Navigator.of(dialogCtx).pop();
+      }
+
+      // 延迟一帧确保对话框已关闭
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 显示错误提示
+      if (rootContext.mounted) {
+        AppToast.error(rootContext, '清除缓存失败: $e');
+      }
+    }
   }
 
   Widget _buildSegmentTab({
@@ -540,12 +695,48 @@ class _CooccurrenceDataSectionState
 
     setState(() => _isRefreshing = true);
 
+    // 显示进度对话框
+    final messageNotifier = ValueNotifier<String>('下载中...');
+    BuildContext? dialogContext;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            contentPadding: const EdgeInsets.all(24),
+            content: ValueListenableBuilder<String>(
+              valueListenable: messageNotifier,
+              builder: (context, message, child) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+
     try {
       final service = ref.read(cooccurrenceServiceProvider);
 
       // 设置进度回调以更新UI
       service.onDownloadProgress = (progress, message) {
-        // 进度更新通过service状态变化触发重建
+        final msg = message ?? '下载中...';
+        // 更新消息
+        messageNotifier.value = msg;
       };
 
       final success = await service.download();
@@ -563,6 +754,12 @@ class _CooccurrenceDataSectionState
         AppToast.error(context, '下载失败: $e');
       }
     } finally {
+      // 关闭进度对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+      messageNotifier.dispose();
+
       if (mounted) {
         setState(() => _isRefreshing = false);
       }
@@ -997,6 +1194,35 @@ class _ActionButton extends StatelessWidget {
             )
           : Icon(icon, size: 18),
       label: Text(label),
+    );
+  }
+}
+
+/// 清除所有缓存按钮
+class _ClearAllCacheButton extends StatelessWidget {
+  final VoidCallback onClearAll;
+
+  const _ClearAllCacheButton({required this.onClearAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return OutlinedButton.icon(
+      onPressed: onClearAll,
+      icon: Icon(
+        Icons.delete_sweep_outlined,
+        color: theme.colorScheme.error,
+      ),
+      label: Text(
+        '清除所有缓存',
+        style: TextStyle(color: theme.colorScheme.error),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: theme.colorScheme.error,
+        side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
+        minimumSize: const Size(double.infinity, 44),
+      ),
     );
   }
 }
