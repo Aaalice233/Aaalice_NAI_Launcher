@@ -63,7 +63,7 @@ class AliasStrategy extends AutocompleteStrategy<TagLibraryEntry> {
   }
 
   @override
-  void search(String text, int cursorPosition, {bool immediate = false}) {
+  Future<void> search(String text, int cursorPosition, {bool immediate = false}) async {
     final (isTypingAlias, partialAlias, aliasStartPos) =
         AliasParser.detectPartialAlias(text, cursorPosition);
 

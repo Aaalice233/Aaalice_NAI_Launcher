@@ -52,7 +52,7 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
   bool get isLoading => _isLoading;
 
   @override
-  void search(String text, int cursorPosition, {bool immediate = false}) {
+  Future<void> search(String text, int cursorPosition, {bool immediate = false}) async {
     _debounceTimer?.cancel();
 
     // 获取当前正在输入的标签

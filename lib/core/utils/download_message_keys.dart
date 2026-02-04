@@ -10,6 +10,9 @@ class DownloadMessageKeys {
   static const String downloadingTags = 'download_tags_data';
   static const String downloadingCooccurrence = 'download_cooccurrence_data';
   static const String parsingData = 'download_parsing_data';
+  static const String readingFile = 'download_reading_file';
+  static const String mergingData = 'download_merging_data';
+  static const String loadComplete = 'download_load_complete';
 
   /// 将消息 key 转换为本地化字符串
   ///
@@ -21,6 +24,9 @@ class DownloadMessageKeys {
       downloadingTags => context.l10n.download_tags_data,
       downloadingCooccurrence => context.l10n.download_cooccurrence_data,
       parsingData => context.l10n.download_parsing_data,
+      readingFile => context.l10n.download_readingFile,
+      mergingData => context.l10n.download_mergingData,
+      loadComplete => context.l10n.download_loadComplete,
       _ => message, // 未知 key 原样返回
     };
   }

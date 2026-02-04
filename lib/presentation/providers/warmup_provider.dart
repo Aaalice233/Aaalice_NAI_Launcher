@@ -82,116 +82,221 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   /// 注册所有预加载任务
   void _registerTasks() {
-    // 1. 配置图片缓存（优先执行）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_imageCache',
-        weight: 1,
-        task: () async {
-          // 配置 Flutter 图片缓存大小
-          PaintingBinding.instance.imageCache.maximumSize = 500;
-          PaintingBinding.instance.imageCache.maximumSizeBytes =
-              100 * 1024 * 1024; // 100MB
-
-          // 初始化 Danbooru 缓存管理器（触发单例）
-          // ignore: unused_local_variable
-          final cacheManager = DanbooruImageCacheManager.instance;
-
-          AppLogger.i(
-            'Image cache configured: max=500, maxBytes=100MB',
-            'Warmup',
-          );
-        },
-      ),
-    );
-
-    // 2. 预加载用户选择的字体
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_fonts',
-        weight: 1,
-        task: () async {
-          final fontConfig = ref.read(fontNotifierProvider);
-
-          if (fontConfig.source == FontSource.google &&
-              fontConfig.fontFamily.isNotEmpty) {
-            try {
-              await GoogleFonts.pendingFonts([
-                GoogleFonts.getFont(fontConfig.fontFamily),
-              ]);
+    // ==== 第1组：基础UI服务（并行执行）====
+    // 这些任务相互独立，可以并行执行
+    _warmupService.registerGroup(
+      WarmupTaskGroup(
+        name: 'basicUI',
+        parallel: true,
+        tasks: [
+          // 配置图片缓存
+          WarmupTask(
+            name: 'warmup_imageCache',
+            weight: 1,
+            task: () async {
+              PaintingBinding.instance.imageCache.maximumSize = 500;
+              PaintingBinding.instance.imageCache.maximumSizeBytes =
+                  100 * 1024 * 1024; // 100MB
+              // 触发缓存管理器初始化
+              // ignore: unused_local_variable
+              final cacheManager = DanbooruImageCacheManager.instance;
               AppLogger.i(
-                'Preloaded Google Font: ${fontConfig.fontFamily}',
+                'Image cache configured: max=500, maxBytes=100MB',
                 'Warmup',
               );
-            } catch (e) {
-              AppLogger.w('Font preload failed: $e', 'Warmup');
-            }
-          } else {
-            AppLogger.i('Using system font, skip preload', 'Warmup');
-          }
-        },
+            },
+          ),
+          // 预加载字体
+          WarmupTask(
+            name: 'warmup_fonts',
+            weight: 1,
+            task: () async {
+              final fontConfig = ref.read(fontNotifierProvider);
+              if (fontConfig.source == FontSource.google &&
+                  fontConfig.fontFamily.isNotEmpty) {
+                try {
+                  await GoogleFonts.pendingFonts([
+                    GoogleFonts.getFont(fontConfig.fontFamily),
+                  ]);
+                  AppLogger.i(
+                    'Preloaded Google Font: ${fontConfig.fontFamily}',
+                    'Warmup',
+                  );
+                } catch (e) {
+                  AppLogger.w('Font preload failed: $e', 'Warmup');
+                }
+              } else {
+                AppLogger.i('Using system font, skip preload', 'Warmup');
+              }
+            },
+          ),
+          // 预热图片编辑器
+          WarmupTask(
+            name: 'warmup_imageEditor',
+            weight: 1,
+            task: () async {
+              try {
+                final recorder = ui.PictureRecorder();
+                final canvas = ui.Canvas(recorder);
+                final paint = ui.Paint()..color = const ui.Color(0xFF000000);
+                canvas.drawCircle(ui.Offset.zero, 10, paint);
+                final picture = recorder.endRecording();
+                final image = await picture.toImage(50, 50);
+                image.dispose();
+                picture.dispose();
+                AppLogger.i('Image editor canvas warmed up', 'Warmup');
+              } catch (e) {
+                AppLogger.w('Image editor warmup failed: $e', 'Warmup');
+              }
+            },
+          ),
+        ],
       ),
     );
 
-    // 3. 加载标签翻译服务（优化后：缓存优先 + Isolate 解析，< 1秒）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_loadingTranslation',
-        weight: 2,
-        timeout: const Duration(seconds: 5),
-        task: () async {
-          final translationService = ref.read(tagTranslationServiceProvider);
-          await translationService.load();
-        },
+    // ==== 第2组：数据服务（并行执行）====
+    _warmupService.registerGroup(
+      WarmupTaskGroup(
+        name: 'dataServices',
+        parallel: true,
+        tasks: [
+          // 加载标签翻译服务
+          WarmupTask(
+            name: 'warmup_loadingTranslation',
+            weight: 2,
+            timeout: const Duration(seconds: 5),
+            task: () async {
+              final translationService = ref.read(tagTranslationServiceProvider);
+              await translationService.load();
+            },
+          ),
+          // 初始化标签数据服务
+          WarmupTask(
+            name: 'warmup_initTagSystem',
+            weight: 1,
+            task: () async {
+              final translationService = ref.read(tagTranslationServiceProvider);
+              final tagDataService = ref.read(tagDataServiceProvider);
+              translationService.setTagDataService(tagDataService);
+              await tagDataService.initialize();
+            },
+          ),
+          // 加载随机提示词配置
+          WarmupTask(
+            name: 'warmup_loadingPromptConfig',
+            weight: 1,
+            task: () async {
+              final notifier = ref.read(promptConfigNotifierProvider.notifier);
+              await notifier.whenLoaded.timeout(const Duration(seconds: 3));
+            },
+          ),
+        ],
       ),
     );
 
-    // 4. 初始化标签数据服务（非阻塞式，网络下载在后台进行）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_initTagSystem',
-        weight: 1,
-        task: () async {
-          final translationService = ref.read(tagTranslationServiceProvider);
-          final tagDataService = ref.read(tagDataServiceProvider);
-
-          // 关联服务
-          translationService.setTagDataService(tagDataService);
-
-          // 初始化（非阻塞式：先用内置数据，网络下载在后台）
-          await tagDataService.initialize();
-        },
+    // ==== 第3组：网络服务（并行执行）====
+    _warmupService.registerGroup(
+      WarmupTaskGroup(
+        name: 'networkServices',
+        parallel: true,
+        tasks: [
+          // 初始化网络连接状态
+          WarmupTask(
+            name: 'warmup_network',
+            weight: 1,
+            timeout: AppWarmupService.networkTimeout,
+            task: () async {
+              AppLogger.i('Network service warmup started', 'Warmup');
+              try {
+                await Future.delayed(const Duration(milliseconds: 100))
+                    .timeout(AppWarmupService.networkTimeout);
+                AppLogger.i('Network service warmup completed', 'Warmup');
+              } on TimeoutException {
+                AppLogger.w('Network service warmup timed out', 'Warmup');
+              } catch (e) {
+                AppLogger.w('Network service warmup failed: $e', 'Warmup');
+              }
+            },
+          ),
+          // 初始化 Danbooru 认证状态
+          WarmupTask(
+            name: 'warmup_danbooruAuth',
+            weight: 1,
+            task: () async {
+              ref.read(danbooruAuthProvider);
+              AppLogger.i('Danbooru auth provider initialized', 'Warmup');
+            },
+          ),
+          // 预加载订阅信息
+          WarmupTask(
+            name: 'warmup_subscription',
+            weight: 2,
+            timeout: const Duration(seconds: 5),
+            task: () async {
+              try {
+                final authState = ref.read(authNotifierProvider);
+                if (authState.isAuthenticated) {
+                  AppLogger.i('Preloading subscription info...', 'Warmup');
+                  await ref
+                      .read(subscriptionNotifierProvider.notifier)
+                      .fetchSubscription()
+                      .timeout(const Duration(seconds: 4));
+                  AppLogger.i('Subscription preloaded successfully', 'Warmup');
+                } else {
+                  AppLogger.i('User not authenticated, skip subscription preload', 'Warmup');
+                }
+              } catch (e) {
+                AppLogger.w('Subscription preload failed: $e', 'Warmup');
+              }
+            },
+          ),
+        ],
       ),
     );
 
-    // 5. 加载随机提示词配置
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_loadingPromptConfig',
-        weight: 1,
-        task: () async {
-          // 触发 provider 初始化并等待加载完成
-          final notifier = ref.read(promptConfigNotifierProvider.notifier);
-          // 使用 whenLoaded 等待加载完成，带 3 秒超时
-          await notifier.whenLoaded.timeout(const Duration(seconds: 3));
-        },
+    // ==== 第4组：缓存服务（并行执行）====
+    _warmupService.registerGroup(
+      WarmupTaskGroup(
+        name: 'cacheServices',
+        parallel: true,
+        tasks: [
+          // 预初始化数据源缓存服务
+          WarmupTask(
+            name: 'warmup_dataSourceCache',
+            weight: 1,
+            timeout: const Duration(seconds: 3),
+            task: () async {
+              try {
+                AppLogger.i('Preloading data source cache services...', 'Warmup');
+                ref.read(hFTranslationCacheNotifierProvider);
+                ref.read(danbooruTagsCacheNotifierProvider);
+                AppLogger.i('Data source cache services preloaded', 'Warmup');
+              } catch (e) {
+                AppLogger.w('Data source cache preload failed: $e', 'Warmup');
+              }
+            },
+          ),
+          // 本地图库文件计数
+          WarmupTask(
+            name: 'warmup_galleryFileCount',
+            weight: 1,
+            timeout: const Duration(seconds: 3),
+            task: () async {
+              try {
+                AppLogger.i('Counting gallery files...', 'Warmup');
+                final repo = LocalGalleryRepository.instance;
+                final files = await repo.getAllImageFiles();
+                AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
+              } catch (e) {
+                AppLogger.w('Gallery file count failed: $e', 'Warmup');
+              }
+            },
+          ),
+        ],
       ),
     );
 
-    // 6. 初始化 Danbooru 认证状态（加载保存的凭据）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_danbooruAuth',
-        weight: 1,
-        task: () async {
-          // 触发 provider 初始化，会自动调用 build() 中的 _loadSavedCredentials()
-          ref.read(danbooruAuthProvider);
-          AppLogger.i('Danbooru auth provider initialized', 'Warmup');
-        },
-      ),
-    );
-
-    // 7. 预加载统计数据（最耗时任务，使用10秒超时）
+    // ==== 串行任务：统计数据（最耗时，需要独立执行）====
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_statistics',
@@ -208,127 +313,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 8. 预热图片编辑器 Canvas
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_imageEditor',
-        weight: 1,
-        task: () async {
-          try {
-            // 轻量级预热：测试 Canvas 渲染能力
-            final recorder = ui.PictureRecorder();
-            final canvas = ui.Canvas(recorder);
-            final paint = ui.Paint()..color = const ui.Color(0xFF000000);
-            canvas.drawCircle(ui.Offset.zero, 10, paint);
-            final picture = recorder.endRecording();
-            final image = await picture.toImage(50, 50);
-            image.dispose();
-            picture.dispose();
-
-            AppLogger.i('Image editor canvas warmed up', 'Warmup');
-          } catch (e) {
-            AppLogger.w('Image editor warmup failed: $e', 'Warmup');
-          }
-        },
-      ),
-    );
-
-    // 9. 初始化网络连接状态（预创建 Dio 实例，不实际发送请求）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_network',
-        weight: 1,
-        timeout: AppWarmupService.networkTimeout,
-        task: () async {
-          AppLogger.i('Network service warmup started', 'Warmup');
-
-          try {
-            // 轻量级网络准备：预创建 Dio 实例和配置
-            // 注意：这里不发送实际请求，只是初始化网络库
-            await Future.delayed(const Duration(milliseconds: 100))
-                .timeout(AppWarmupService.networkTimeout);
-            AppLogger.i('Network service warmup completed', 'Warmup');
-          } on TimeoutException {
-            AppLogger.w('Network service warmup timed out', 'Warmup');
-          } catch (e) {
-            AppLogger.w('Network service warmup failed: $e', 'Warmup');
-          }
-        },
-      ),
-    );
-
-    // 10. 预加载订阅信息（避免主页卡顿）
-    // 这是关键优化：在预热阶段预加载用户订阅信息和Anlas余额
-    // 避免进入主页后花费点数计算卡住
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_subscription',
-        weight: 2,
-        timeout: const Duration(seconds: 5),
-        task: () async {
-          try {
-            final authState = ref.read(authNotifierProvider);
-            if (authState.isAuthenticated) {
-              AppLogger.i('Preloading subscription info...', 'Warmup');
-              await ref
-                  .read(subscriptionNotifierProvider.notifier)
-                  .fetchSubscription()
-                  .timeout(const Duration(seconds: 4));
-              AppLogger.i('Subscription preloaded successfully', 'Warmup');
-            } else {
-              AppLogger.i('User not authenticated, skip subscription preload', 'Warmup');
-            }
-          } catch (e) {
-            AppLogger.w('Subscription preload failed: $e', 'Warmup');
-            // 失败不阻塞预热，主页会再次尝试加载
-          }
-        },
-      ),
-    );
-
-    // 11. 预初始化数据源缓存服务（Hive Box 预打开）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_dataSourceCache',
-        weight: 1,
-        timeout: const Duration(seconds: 3),
-        task: () async {
-          try {
-            AppLogger.i('Preloading data source cache services...', 'Warmup');
-            // 触发 provider 初始化，这会预打开 Hive Box
-            ref.read(hFTranslationCacheNotifierProvider);
-            ref.read(danbooruTagsCacheNotifierProvider);
-            AppLogger.i('Data source cache services preloaded', 'Warmup');
-          } catch (e) {
-            AppLogger.w('Data source cache preload failed: $e', 'Warmup');
-          }
-        },
-      ),
-    );
-
-    // 12. 本地图库文件计数（轻量级，避免主页首次加载时的文件系统阻塞）
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_galleryFileCount',
-        weight: 1,
-        timeout: const Duration(seconds: 3),
-        task: () async {
-          try {
-            AppLogger.i('Counting gallery files...', 'Warmup');
-            final repo = LocalGalleryRepository.instance;
-            // 只获取文件数量，不加载元数据
-            final files = await repo.getAllImageFiles();
-            AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
-          } catch (e) {
-            AppLogger.w('Gallery file count failed: $e', 'Warmup');
-          }
-        },
-      ),
-    );
-
-    // 13. 预加载共现标签数据（关键优化：避免进入主页后阻塞UI）
-    // 该服务加载103MB的CSV文件（323万行），在主线程解析约需6秒
-    // 必须在预热阶段完成，否则会导致主页卡顿、账号点数刷新延迟
+    // ==== 串行任务：共现数据（最耗时，需要独立执行）====
     _warmupService.registerTask(
       WarmupTask(
         name: 'warmup_cooccurrenceData',
@@ -338,12 +323,17 @@ class WarmupNotifier extends _$WarmupNotifier {
           try {
             AppLogger.i('Preloading cooccurrence data...', 'Warmup');
             final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
-            // 预加载共现数据（如果缓存存在）
+            // 设置进度回调
+            cooccurrenceService.onLoadProgress = (stage, progress, stageProgress, message) {
+              AppLogger.d(
+                'Cooccurrence loading: ${stage.name} - ${(progress * 100).toStringAsFixed(1)}% - $message',
+                'Warmup',
+              );
+            };
             await cooccurrenceService.initialize();
             AppLogger.i('Cooccurrence data preloaded', 'Warmup');
           } catch (e) {
             AppLogger.w('Cooccurrence preload failed: $e', 'Warmup');
-            // 失败不阻塞预热，页面会按需重试
           }
         },
       ),

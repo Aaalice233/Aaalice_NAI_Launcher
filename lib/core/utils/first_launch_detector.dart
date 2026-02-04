@@ -21,10 +21,11 @@ class FirstLaunchDetector {
   /// 是否正在执行初始同步
   bool _isInitialSyncing = false;
 
-  FirstLaunchDetector(
-    this._translationService,
-    this._tagsService,
-  );
+  FirstLaunchDetector({
+    required HFTranslationSyncService translationService,
+    required DanbooruTagsSyncService tagsService,
+  })  : _translationService = translationService,
+        _tagsService = tagsService;
 
   /// 是否正在执行初始同步
   bool get isInitialSyncing => _isInitialSyncing;
@@ -165,19 +166,24 @@ class FirstLaunchDetector {
     // 避免在应用启动时阻塞 UI 线程
     Future(() async {
       try {
-        // 检查翻译数据是否需要刷新
+        // 1. 检查翻译数据是否需要刷新
         final needsTranslationRefresh = await _translationService.shouldRefresh();
-
         if (needsTranslationRefresh) {
           AppLogger.i('Translation data needs refresh', 'FirstLaunch');
-
-          // 后台静默刷新，不显示 Toast
           _translationService.onSyncProgress = null;
           await _translationService.syncTranslations();
         }
 
-        // 注意：Danbooru 标签数据不需要自动刷新
-        // 用户可以手动触发刷新
+        // 2. 检查 Danbooru 标签数据是否需要刷新
+        final needsTagsRefresh = await _tagsService.shouldRefreshAsync();
+        if (needsTagsRefresh) {
+          AppLogger.i('Danbooru tags need refresh', 'FirstLaunch');
+          _tagsService.onSyncProgress = null;
+          await _tagsService.syncHotTags(minPostCount: _tagsService.currentThreshold);
+        }
+
+        // 注意：共现数据不在此处下载，而是在用户进入主页后处理
+        // 因为共现数据文件较大（103MB），避免阻塞启动流程
       } catch (e) {
         AppLogger.w('Background refresh failed: $e', 'FirstLaunch');
       }
@@ -191,7 +197,10 @@ FirstLaunchDetector firstLaunchDetector(Ref ref) {
   final translationService = ref.read(hfTranslationSyncServiceProvider);
   final tagsService = ref.read(danbooruTagsSyncServiceProvider);
 
-  return FirstLaunchDetector(translationService, tagsService);
+  return FirstLaunchDetector(
+    translationService: translationService,
+    tagsService: tagsService,
+  );
 }
 
 /// 首次启动状态

@@ -509,6 +509,31 @@ class _CooccurrenceDataSection extends ConsumerStatefulWidget {
 class _CooccurrenceDataSectionState
     extends ConsumerState<_CooccurrenceDataSection> {
   bool _isRefreshing = false;
+  AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
+  DateTime? _lastUpdate;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final service = ref.read(cooccurrenceServiceProvider);
+    final interval = await service.getRefreshInterval();
+    setState(() {
+      _refreshInterval = interval;
+      _lastUpdate = service.lastUpdate;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _setRefreshInterval(AutoRefreshInterval interval) async {
+    final service = ref.read(cooccurrenceServiceProvider);
+    await service.setRefreshInterval(interval);
+    setState(() => _refreshInterval = interval);
+  }
 
   Future<void> _download() async {
     if (_isRefreshing) return;
@@ -517,10 +542,17 @@ class _CooccurrenceDataSectionState
 
     try {
       final service = ref.read(cooccurrenceServiceProvider);
+
+      // 设置进度回调以更新UI
+      service.onDownloadProgress = (progress, message) {
+        // 进度更新通过service状态变化触发重建
+      };
+
       final success = await service.download();
 
       if (mounted) {
         if (success) {
+          setState(() => _lastUpdate = service.lastUpdate);
           AppToast.success(context, '共现标签数据已下载');
         } else {
           AppToast.error(context, '下载失败');
@@ -540,7 +572,16 @@ class _CooccurrenceDataSectionState
   @override
   Widget build(BuildContext context) {
     final service = ref.watch(cooccurrenceServiceProvider);
-    final isLoaded = service.isLoaded;
+    final isLoaded = service.isLoaded || _lastUpdate != null;
+
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,6 +591,14 @@ class _CooccurrenceDataSectionState
           isLoaded: isLoaded,
           loadedText: '已下载',
           notLoadedText: '未下载',
+          lastUpdate: _lastUpdate,
+        ),
+        const SizedBox(height: 12),
+
+        // 自动刷新间隔设置
+        _RefreshIntervalSelector(
+          value: _refreshInterval,
+          onChanged: _setRefreshInterval,
         ),
         const SizedBox(height: 12),
 
@@ -563,6 +612,22 @@ class _CooccurrenceDataSectionState
                 isLoading: _isRefreshing,
                 onPressed: _isRefreshing ? null : _download,
               ),
+            ),
+            const SizedBox(width: 8),
+            _ActionButton(
+              icon: Icons.delete_outline,
+              label: '清除',
+              isDestructive: true,
+              onPressed: _isRefreshing
+                  ? null
+                  : () async {
+                      final service = ref.read(cooccurrenceServiceProvider);
+                      await service.clearCache();
+                      setState(() => _lastUpdate = null);
+                      if (context.mounted) {
+                        AppToast.info(context, '共现标签缓存已清除');
+                      }
+                    },
             ),
           ],
         ),

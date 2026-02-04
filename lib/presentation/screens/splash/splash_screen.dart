@@ -225,6 +225,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_galleryFileCount;
       case 'warmup_cooccurrenceData':
         return l10n.warmup_cooccurrenceData;
+      case 'warmup_group_basicUI':
+        return l10n.warmup_group_basicUI;
+      case 'warmup_group_basicUI_complete':
+        return l10n.warmup_group_basicUI_complete;
+      case 'warmup_group_dataServices':
+        return l10n.warmup_group_dataServices;
+      case 'warmup_group_dataServices_complete':
+        return l10n.warmup_group_dataServices_complete;
+      case 'warmup_group_networkServices':
+        return l10n.warmup_group_networkServices;
+      case 'warmup_group_networkServices_complete':
+        return l10n.warmup_group_networkServices_complete;
+      case 'warmup_group_cacheServices':
+        return l10n.warmup_group_cacheServices;
+      case 'warmup_group_cacheServices_complete':
+        return l10n.warmup_group_cacheServices_complete;
       default:
         return taskKey;
     }

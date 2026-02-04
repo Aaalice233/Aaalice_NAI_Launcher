@@ -518,6 +518,8 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
     if (!mounted) return;
     setState(() {
       _type = ToastType.error;
+      _progress = null;
+      _subtitle = null;
       if (message != null) _message = message;
       _autoClose = true;
     });
@@ -577,20 +579,7 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_type == ToastType.progress)
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: _progress != null
-                              ? CircularProgressIndicator(
-                                  value: _progress,
-                                  strokeWidth: 2,
-                                  color: color,
-                                )
-                              : CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: color,
-                                ),
-                        )
+                        Icon(Icons.downloading_rounded, color: color, size: 20)
                       else
                         Icon(icon, color: Colors.white, size: 20),
                       const SizedBox(width: 12),
@@ -649,16 +638,6 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                         backgroundColor: color.withOpacity(0.2),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                         minHeight: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        '${(_progress! * 100).toInt()}%',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
                       ),
                     ),
                   ],

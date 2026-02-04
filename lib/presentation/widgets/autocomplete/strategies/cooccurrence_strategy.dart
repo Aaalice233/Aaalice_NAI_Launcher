@@ -45,7 +45,7 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   bool get isLoading => _isLoading;
 
   @override
-  void search(String text, int cursorPosition, {bool immediate = false}) {
+  Future<void> search(String text, int cursorPosition, {bool immediate = false}) async {
     // 检查是否满足触发条件
     final previousTag = _extractPreviousTag(text, cursorPosition);
 
@@ -63,25 +63,30 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     _isLoading = true;
     notifyListeners();
 
-    // 获取推荐标签
-    final recommendations = _recommendationService.getRecommendationsForTag(
-      previousTag,
-      limit: _config.maxSuggestions * 2, // 获取更多以便过滤
-    );
-    
-    // 提取文本中已有的标签（用于去重）
-    final existingTags = _extractExistingTags(text, cursorPosition);
+    try {
+      // 获取推荐标签
+      final recommendations = await _recommendationService.getRecommendationsForTag(
+        previousTag,
+        limit: _config.maxSuggestions * 2, // 获取更多以便过滤
+      );
 
-    // 过滤掉已存在的标签
-    final filteredRecommendations = recommendations.where((rec) {
-      final normalizedRec = rec.tag.toLowerCase().trim();
-      final exists = existingTags.contains(normalizedRec);
-      return !exists;
-    }).take(_config.maxSuggestions).toList();
+      // 提取文本中已有的标签（用于去重）
+      final existingTags = _extractExistingTags(text, cursorPosition);
 
-    _suggestions = filteredRecommendations;
-    _isLoading = false;
-    notifyListeners();
+      // 过滤掉已存在的标签
+      final filteredRecommendations = recommendations.where((rec) {
+        final normalizedRec = rec.tag.toLowerCase().trim();
+        final exists = existingTags.contains(normalizedRec);
+        return !exists;
+      }).take(_config.maxSuggestions).toList();
+
+      _suggestions = filteredRecommendations;
+    } catch (e) {
+      _suggestions = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
 

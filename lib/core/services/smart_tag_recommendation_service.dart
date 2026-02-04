@@ -82,11 +82,11 @@ class SmartTagRecommendationService {
   ///
   /// 使用 Jaccard 相似度算法计算推荐分数：
   /// Jaccard(A, B) = |A ∩ B| / |A ∪ B| = cooccurrence / (countA + countB - cooccurrence)
-  List<RecommendedTag> getRecommendations({
+  Future<List<RecommendedTag>> getRecommendations({
     required List<String> inputTags,
     int limit = 10,
     Set<String>? excludeTags,
-  }) {
+  }) async {
     if (!_isEnabled) return [];
     if (!_cooccurrenceService.isLoaded) return [];
     if (inputTags.isEmpty) return [];
@@ -103,7 +103,7 @@ class SmartTagRecommendationService {
     final candidateScores = <String, _CandidateScore>{};
 
     for (final inputTag in normalizedInputTags) {
-      final relatedTags = _cooccurrenceService.getRelatedTags(
+      final relatedTags = await _cooccurrenceService.getRelatedTags(
         inputTag,
         limit: 50, // 获取更多候选以便后续筛选
       );
@@ -177,10 +177,10 @@ class SmartTagRecommendationService {
   }
 
   /// 获取单个标签的相关推荐
-  List<RecommendedTag> getRecommendationsForTag(
+  Future<List<RecommendedTag>> getRecommendationsForTag(
     String tag, {
     int limit = 10,
-  }) {
+  }) async {
     return getRecommendations(
       inputTags: [tag],
       limit: limit,

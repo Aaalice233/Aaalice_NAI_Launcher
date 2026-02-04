@@ -177,8 +177,17 @@ class DanbooruTagsSyncService {
     _refreshInterval = interval;
   }
 
-  /// 检查是否需要刷新
+  /// 检查是否需要刷新（同步版本，用于兼容旧代码）
   bool get shouldRefresh => _refreshInterval.shouldRefresh(_lastUpdate);
+
+  /// 检查是否需要刷新（异步版本，用于首次启动检测）
+  Future<bool> shouldRefreshAsync() async {
+    if (_lastUpdate == null) {
+      await initialize();
+    }
+    final interval = await getRefreshInterval();
+    return interval.shouldRefresh(_lastUpdate);
+  }
 
   /// 同步热门标签
   Future<List<LocalTag>> syncHotTags({

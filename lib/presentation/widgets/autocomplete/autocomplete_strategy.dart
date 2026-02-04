@@ -14,7 +14,7 @@ abstract class AutocompleteStrategy<T> extends ChangeNotifier {
   /// [text] 完整的输入文本
   /// [cursorPosition] 光标位置
   /// [immediate] 是否立即执行（跳过防抖）
-  void search(String text, int cursorPosition, {bool immediate = false});
+  Future<void> search(String text, int cursorPosition, {bool immediate = false});
 
   /// 获取当前建议列表
   List<T> get suggestions;
@@ -95,7 +95,7 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
   }
 
   @override
-  void search(String text, int cursorPosition, {bool immediate = false}) {
+  Future<void> search(String text, int cursorPosition, {bool immediate = false}) async {
     // 使用选择器选择活跃策略
     final selectedStrategy = _strategySelector(_strategies, text, cursorPosition);
 
@@ -106,7 +106,9 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
     }
 
     // 执行搜索
-    _activeStrategy?.search(text, cursorPosition, immediate: immediate);
+    if (_activeStrategy != null) {
+      await _activeStrategy!.search(text, cursorPosition, immediate: immediate);
+    }
   }
 
   @override
