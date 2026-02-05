@@ -14,6 +14,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'core/constants/storage_keys.dart';
 import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
+import 'core/shortcuts/shortcut_storage.dart';
 import 'core/utils/app_logger.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
@@ -179,6 +180,11 @@ void main() async {
   // 队列相关 Box（预加载以避免首次打开队列管理页面时的延迟）
   await Hive.openBox<String>(StorageKeys.replicationQueueBox);
   await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
+
+  // 初始化快捷键存储
+  final shortcutStorage = ShortcutStorage();
+  await shortcutStorage.init();
+  AppLogger.d('Shortcut storage initialized', 'Main');
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());

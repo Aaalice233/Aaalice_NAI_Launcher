@@ -9,11 +9,14 @@ import '../image_detail_data.dart';
 class DetailImagePage extends StatefulWidget {
   final ImageDetailData data;
   final String? heroTag;
+  /// 外部传入的 TransformationController，用于快捷键控制缩放
+  final TransformationController? transformationController;
 
   const DetailImagePage({
     super.key,
     required this.data,
     this.heroTag,
+    this.transformationController,
   });
 
   @override
@@ -22,8 +25,9 @@ class DetailImagePage extends StatefulWidget {
 
 class _DetailImagePageState extends State<DetailImagePage>
     with SingleTickerProviderStateMixin {
-  final TransformationController _transformController =
-      TransformationController();
+  TransformationController get _transformController =>
+      widget.transformationController ?? _internalTransformController;
+  late TransformationController _internalTransformController;
   late AnimationController _animationController;
   Animation<Matrix4>? _animation;
   TapDownDetails? _doubleTapDetails;
@@ -38,6 +42,7 @@ class _DetailImagePageState extends State<DetailImagePage>
   @override
   void initState() {
     super.initState();
+    _internalTransformController = TransformationController();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -52,7 +57,7 @@ class _DetailImagePageState extends State<DetailImagePage>
   @override
   void dispose() {
     _animationController.dispose();
-    _transformController.dispose();
+    _internalTransformController.dispose();
     super.dispose();
   }
 

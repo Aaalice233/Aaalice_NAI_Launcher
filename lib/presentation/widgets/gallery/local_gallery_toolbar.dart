@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../bulk_action_bar.dart';
+import '../common/compact_icon_button.dart';
 import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
 
@@ -265,23 +267,29 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                   // Filter button group
                   _buildDateRangeButton(theme, state),
                   const SizedBox(width: 6),
-                  _CompactIconButton(
+                  CompactIconButton(
                     icon: Icons.calendar_today,
                     label: '日期',
+                    tooltip: '跳转到日期',
+                    shortcutId: ShortcutIds.jumpToDate,
                     onPressed: () => _pickDateAndJump(context),
                   ),
                   const SizedBox(width: 6),
-                  _CompactIconButton(
+                  CompactIconButton(
                     icon: Icons.tune,
                     label: '筛选',
+                    tooltip: '打开筛选面板',
+                    shortcutId: ShortcutIds.openFilterPanel,
                     onPressed: () => showGalleryFilterPanel(context),
                   ),
                   // Note: View mode toggle removed - only 3D card view is supported now
                   if (state.hasFilters) ...[
                     const SizedBox(width: 6),
-                    _CompactIconButton(
+                    CompactIconButton(
                       icon: Icons.filter_alt_off,
                       label: '清除',
+                      tooltip: '清除筛选',
+                      shortcutId: ShortcutIds.clearFilter,
                       onPressed: () {
                         _searchController.clear();
                         ref
@@ -302,25 +310,26 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                   ),
                   // Category panel toggle
                   if (widget.onToggleCategoryPanel != null) ...[
-                    _CompactIconButton(
+                    CompactIconButton(
                       icon: widget.showCategoryPanel
                           ? Icons.view_sidebar
                           : Icons.view_sidebar_outlined,
                       label: '分类',
                       tooltip: widget.showCategoryPanel ? '隐藏分类面板' : '显示分类面板',
+                      shortcutId: ShortcutIds.toggleCategoryPanel,
                       onPressed: widget.onToggleCategoryPanel,
                     ),
                     const SizedBox(width: 6),
                   ],
                   // Undo/Redo
                   if (widget.canUndo || widget.canRedo) ...[
-                    _CompactIconButton(
+                    CompactIconButton(
                       icon: Icons.undo,
                       tooltip: '撤销',
                       onPressed: widget.canUndo ? widget.onUndo : null,
                     ),
                     const SizedBox(width: 4),
-                    _CompactIconButton(
+                    CompactIconButton(
                       icon: Icons.redo,
                       tooltip: '重做',
                       onPressed: widget.canRedo ? widget.onRedo : null,
@@ -328,16 +337,20 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                     const SizedBox(width: 6),
                   ],
                   // Multi-select
-                  _CompactIconButton(
+                  CompactIconButton(
                     icon: Icons.checklist,
                     label: '多选',
+                    tooltip: '进入选择模式',
+                    shortcutId: ShortcutIds.enterSelectionMode,
                     onPressed: widget.onEnterSelectionMode,
                   ),
                   const SizedBox(width: 6),
                   // Open folder
-                  _CompactIconButton(
+                  CompactIconButton(
                     icon: Icons.folder_open,
                     label: '文件夹',
+                    tooltip: '打开文件夹',
+                    shortcutId: ShortcutIds.openFolder,
                     onPressed: widget.onOpenFolder,
                   ),
                   const SizedBox(width: 6),
@@ -603,204 +616,6 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   }
 }
 
-/// Compact icon button for toolbar - Premium modern style
-/// 工具栏紧凑图标按钮 - 精致现代风格
-class _CompactIconButton extends StatefulWidget {
-  final IconData icon;
-  final String? label;
-  final String? tooltip;
-  final VoidCallback? onPressed;
-  final bool isDanger;
-
-  const _CompactIconButton({
-    required this.icon,
-    this.label,
-    this.tooltip,
-    this.onPressed,
-    this.isDanger = false,
-  });
-
-  @override
-  State<_CompactIconButton> createState() => _CompactIconButtonState();
-}
-
-class _CompactIconButtonState extends State<_CompactIconButton>
-    with SingleTickerProviderStateMixin {
-  bool _isHovered = false;
-  bool _isPressed = false;
-  late AnimationController _scaleController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _scaleController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isEnabled = widget.onPressed != null;
-    final hasLabel = widget.label != null && widget.label!.isNotEmpty;
-
-    Color iconColor;
-    Color labelColor;
-    Color bgColor;
-    Color borderColor;
-    List<BoxShadow>? shadows;
-
-    if (widget.isDanger) {
-      iconColor = isEnabled
-          ? theme.colorScheme.error
-          : theme.colorScheme.error.withOpacity(0.4);
-      labelColor = iconColor;
-      bgColor = _isPressed
-          ? theme.colorScheme.error.withOpacity(isDark ? 0.28 : 0.18)
-          : (_isHovered
-              ? theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.12)
-              : theme.colorScheme.error.withOpacity(isDark ? 0.08 : 0.04));
-      borderColor = _isHovered
-          ? theme.colorScheme.error.withOpacity(isDark ? 0.6 : 0.4)
-          : theme.colorScheme.error.withOpacity(isDark ? 0.3 : 0.2);
-      if (_isHovered && isEnabled) {
-        shadows = [
-          BoxShadow(
-            color: theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.12),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ];
-      }
-    } else {
-      // 普通状态
-      iconColor = isEnabled
-          ? (_isHovered
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurfaceVariant
-                  .withOpacity(isDark ? 0.85 : 0.75))
-          : theme.colorScheme.onSurfaceVariant.withOpacity(0.35);
-      labelColor = isEnabled
-          ? (_isHovered
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurface.withOpacity(isDark ? 0.85 : 0.75))
-          : theme.colorScheme.onSurface.withOpacity(0.35);
-      bgColor = _isPressed
-          ? theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.14)
-          : (_isHovered
-              ? theme.colorScheme.primary.withOpacity(isDark ? 0.14 : 0.08)
-              : (isDark
-                  ? Colors.white.withOpacity(0.04)
-                  : Colors.white.withOpacity(0.6)));
-      borderColor = _isHovered
-          ? theme.colorScheme.primary.withOpacity(isDark ? 0.5 : 0.35)
-          : theme.colorScheme.outline.withOpacity(isDark ? 0.2 : 0.15);
-      if (_isHovered && isEnabled) {
-        shadows = [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(isDark ? 0.15 : 0.08),
-            blurRadius: 6,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ];
-      }
-    }
-
-    return MouseRegion(
-      onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
-      onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
-      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: Tooltip(
-        message: widget.tooltip ?? widget.label ?? '',
-        waitDuration: const Duration(milliseconds: 500),
-        child: GestureDetector(
-          onTapDown: isEnabled
-              ? (_) {
-                  setState(() => _isPressed = true);
-                  _scaleController.forward();
-                }
-              : null,
-          onTapUp: isEnabled
-              ? (_) {
-                  setState(() => _isPressed = false);
-                  _scaleController.reverse();
-                }
-              : null,
-          onTapCancel: isEnabled
-              ? () {
-                  setState(() => _isPressed = false);
-                  _scaleController.reverse();
-                }
-              : null,
-          onTap: widget.onPressed,
-          child: AnimatedBuilder(
-            animation: _scaleAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _scaleAnimation.value,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: hasLabel ? 12 : 9,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: borderColor,
-                      width: _isHovered ? 1.4 : 1.0,
-                    ),
-                    boxShadow: shadows,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        widget.icon,
-                        size: 17,
-                        color: iconColor,
-                      ),
-                      if (hasLabel) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          widget.label!,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: labelColor,
-                            fontSize: 12.5,
-                            fontWeight:
-                                _isHovered ? FontWeight.w600 : FontWeight.w500,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 刷新按钮（带加载状态）
 class _RefreshButton extends StatelessWidget {
   final bool isRefreshing;
@@ -854,10 +669,11 @@ class _RefreshButton extends StatelessWidget {
       );
     }
 
-    return _CompactIconButton(
+    return CompactIconButton(
       icon: Icons.refresh,
       label: '刷新',
       tooltip: '刷新画廊\n\n自动检测新增/修改的图片并更新索引',
+      shortcutId: ShortcutIds.refreshGallery,
       onPressed: onRefresh,
     );
   }
@@ -915,7 +731,7 @@ class _RebuildIndexButton extends StatelessWidget {
 
     // 未重建状态
     if (!isRebuilding) {
-      return _CompactIconButton(
+      return CompactIconButton(
         icon: Icons.storage_outlined,
         label: '重建索引',
         tooltip: _tooltipText,

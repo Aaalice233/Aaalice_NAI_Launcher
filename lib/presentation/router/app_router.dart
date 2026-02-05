@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/shortcuts/default_shortcuts.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
@@ -22,6 +23,8 @@ import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
+import '../widgets/shortcuts/shortcut_aware_widget.dart';
+import '../widgets/shortcuts/shortcut_help_dialog.dart';
 
 part 'app_router.g.dart';
 
@@ -428,20 +431,63 @@ class _MainShellState extends ConsumerState<MainShell> {
       child: contentStack,
     );
 
+    // 定义全局快捷键动作映射（使用 ShortcutIds 常量）
+    final globalShortcuts = <String, VoidCallback>{
+      // 页面导航
+      ShortcutIds.navigateToGeneration: () {
+        widget.navigationShell.goBranch(0);
+      },
+      ShortcutIds.navigateToLocalGallery: () {
+        widget.navigationShell.goBranch(2);
+      },
+      ShortcutIds.navigateToOnlineGallery: () {
+        widget.navigationShell.goBranch(3);
+      },
+      ShortcutIds.navigateToSettings: () {
+        widget.navigationShell.goBranch(4);
+      },
+      ShortcutIds.navigateToRandomConfig: () {
+        widget.navigationShell.goBranch(5);
+      },
+      ShortcutIds.navigateToStatistics: () {
+        widget.navigationShell.goBranch(6);
+      },
+      ShortcutIds.navigateToTagLibrary: () {
+        widget.navigationShell.goBranch(7);
+      },
+      // 显示快捷键帮助
+      ShortcutIds.showShortcutHelp: () {
+        ShortcutHelpDialog.show(context);
+      },
+      // 显示/隐藏队列
+      ShortcutIds.toggleQueue: () {
+        final isVisible = ref.read(queueManagementVisibleProvider);
+        ref.read(queueManagementVisibleProvider.notifier).state = !isVisible;
+      },
+    };
+
+    // 使用 ShortcutAwareWidget 包装全局快捷键
+    final shortcutEnabledContent = ShortcutAwareWidget(
+      contextType: ShortcutContext.global,
+      shortcuts: globalShortcuts,
+      autofocus: true,
+      child: dropEnabledContent,
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // 桌面端：使用侧边导航
         if (constraints.maxWidth >= 800) {
           return DesktopShell(
             navigationShell: widget.navigationShell,
-            content: dropEnabledContent,
+            content: shortcutEnabledContent,
           );
         }
 
         // 移动端：使用底部导航
         return MobileShell(
           navigationShell: widget.navigationShell,
-          content: dropEnabledContent,
+          content: shortcutEnabledContent,
         );
       },
     );

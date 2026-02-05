@@ -10,6 +10,8 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
+import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
@@ -26,7 +28,7 @@ import '../../providers/gallery_category_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../widgets/common/pagination_bar.dart';
-import '../../widgets/grouped_grid_view.dart';
+import '../../widgets/grouped_grid_view.dart' show GroupedGridViewState, ImageDateGroup;
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
@@ -38,6 +40,7 @@ import '../../widgets/common/themed_input_dialog.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
+import '../../widgets/gallery_filter_panel.dart';
 import 'dart:async';
 
 /// 本地画廊屏幕
@@ -65,7 +68,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   /// 是否显示分类面板
   /// Whether to show category panel
-  final bool _showCategoryPanel = true;
+  bool _showCategoryPanel = true;
 
   @override
   void initState() {
@@ -100,13 +103,75 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final columns = (contentWidth / 200).floor().clamp(2, 8);
     final itemWidth = contentWidth / columns;
 
-    return KeyboardListener(
-      focusNode: _shortcutsFocusNode,
-      autofocus: true,
-      onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
-      child: Scaffold(
-        body: Row(
-          children: [
+    // 定义快捷键动作映射
+    final shortcuts = <String, VoidCallback>{
+      // 上一页
+      ShortcutIds.previousPage: () {
+        if (state.currentPage > 0) {
+          ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage - 1);
+        }
+      },
+      // 下一页
+      ShortcutIds.nextPage: () {
+        if (state.currentPage < state.totalPages - 1) {
+          ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage + 1);
+        }
+      },
+      // 刷新
+      ShortcutIds.refreshGallery: () {
+        ref.read(localGalleryNotifierProvider.notifier).refresh();
+      },
+      // 搜索聚焦
+      ShortcutIds.focusSearch: () {
+        // 通过 FocusScope 请求搜索框焦点
+        // 搜索框在 LocalGalleryToolbar 中，需要通过全局 key 或其他方式访问
+        // 这里使用 FocusManager 来请求焦点到搜索框
+        final focusNode = FocusManager.instance.primaryFocus;
+        if (focusNode != null) {
+          focusNode.unfocus();
+        }
+        // 延迟一下确保能正确聚焦到搜索框
+        Future.delayed(const Duration(milliseconds: 50), () {
+          FocusManager.instance.primaryFocus?.requestFocus();
+        });
+      },
+      // 进入选择模式
+      ShortcutIds.enterSelectionMode: () {
+        ref.read(localGallerySelectionNotifierProvider.notifier).enter();
+      },
+      // 打开筛选面板
+      ShortcutIds.openFilterPanel: () {
+        showGalleryFilterPanel(context);
+      },
+      // 清除筛选
+      ShortcutIds.clearFilter: () {
+        ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+      },
+      // 切换分类面板
+      ShortcutIds.toggleCategoryPanel: () {
+        // 通过回调触发分类面板切换
+        _toggleCategoryPanel();
+      },
+      // 跳转到日期
+      ShortcutIds.jumpToDate: () {
+        _jumpToDate();
+      },
+      // 打开文件夹
+      ShortcutIds.openFolder: () {
+        _openGalleryFolder();
+      },
+    };
+
+    return PageShortcuts(
+      contextType: ShortcutContext.gallery,
+      shortcuts: shortcuts,
+      child: KeyboardListener(
+        focusNode: _shortcutsFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
+        child: Scaffold(
+          body: Row(
+            children: [
             // 左侧分类面板
             if (_showCategoryPanel && screenWidth > 800)
               Container(
@@ -312,6 +377,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -1066,6 +1132,89 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     } catch (e) {
       if (mounted) {
         AppToast.info(context, '发送失败: $e');
+      }
+    }
+  }
+
+  /// 切换分类面板显示状态
+  void _toggleCategoryPanel() {
+    setState(() {
+      _showCategoryPanel = !_showCategoryPanel;
+    });
+  }
+
+  /// 跳转到日期
+  Future<void> _jumpToDate() async {
+    final now = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      builder: (pickerContext, child) {
+        return Theme(
+          data: Theme.of(pickerContext).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      // 确保分组视图已激活
+      final currentState = ref.read(localGalleryNotifierProvider);
+      final notifier = ref.read(localGalleryNotifierProvider.notifier);
+      if (!currentState.isGroupedView) {
+        await notifier.setGroupedView(true);
+      }
+
+      // 等待分组数据加载
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) return;
+
+      // 计算所选日期属于哪个分组
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
+      final selectedDate = DateTime(picked.year, picked.month, picked.day);
+
+      // ignore: undefined_enum_constant
+      dynamic targetGroup;
+
+      // ignore: undefined_enum_constant
+      if (selectedDate == today) {
+        targetGroup = ImageDateGroup.today;
+        // ignore: undefined_enum_constant
+      } else if (selectedDate == yesterday) {
+        targetGroup = ImageDateGroup.yesterday;
+        // ignore: undefined_enum_constant
+      } else if (selectedDate.isAfter(thisWeekStart) &&
+          selectedDate.isBefore(today)) {
+        targetGroup = ImageDateGroup.thisWeek;
+        // ignore: undefined_enum_constant
+      } else {
+        targetGroup = ImageDateGroup.earlier;
+      }
+
+      // 使用 key 跳转到对应分组
+      if (_groupedGridViewKey.currentState != null) {
+        (_groupedGridViewKey.currentState as dynamic)
+            .scrollToGroup(targetGroup);
+      }
+
+      // 显示提示
+      if (context.mounted) {
+        AppToast.info(
+          context,
+          '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}',
+        );
       }
     }
   }

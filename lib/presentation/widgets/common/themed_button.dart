@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../themes/theme_extension.dart';
+import '../shortcuts/shortcut_tooltip.dart';
 
 enum ThemedButtonStyle {
   filled,
@@ -15,6 +16,7 @@ class ThemedButton extends StatelessWidget {
   final ThemedButtonStyle style;
   final bool isLoading;
   final String? tooltip;
+  final String? shortcutId;
 
   const ThemedButton({
     super.key,
@@ -24,6 +26,7 @@ class ThemedButton extends StatelessWidget {
     this.style = ThemedButtonStyle.filled,
     this.isLoading = false,
     this.tooltip,
+    this.shortcutId,
   });
 
   @override
@@ -90,6 +93,14 @@ class ThemedButton extends StatelessWidget {
           child: content,
         );
         break;
+    }
+
+    if (shortcutId != null) {
+      return ShortcutTooltip(
+        message: tooltip ?? '',
+        shortcutId: shortcutId,
+        child: buttonWidget,
+      );
     }
 
     if (tooltip != null) {

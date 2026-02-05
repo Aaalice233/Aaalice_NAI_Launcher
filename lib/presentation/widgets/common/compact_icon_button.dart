@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shortcuts/shortcut_tooltip.dart';
 
 /// Compact icon button with optional label for toolbars
 /// 工具栏紧凑图标按钮（可带标签）
@@ -27,6 +28,10 @@ class CompactIconButton extends StatefulWidget {
   /// 是否使用危险颜色方案
   final bool isDanger;
 
+  /// Shortcut ID for displaying keyboard shortcut in tooltip
+  /// 快捷键ID（用于在提示中显示键盘快捷键）
+  final String? shortcutId;
+
   const CompactIconButton({
     super.key,
     required this.icon,
@@ -35,6 +40,7 @@ class CompactIconButton extends StatefulWidget {
     this.onPressed,
     this.isActive = false,
     this.isDanger = false,
+    this.shortcutId,
   });
 
   @override
@@ -79,45 +85,57 @@ class _CompactIconButtonState extends State<CompactIconButton> {
           theme.colorScheme.outlineVariant.withOpacity(isDark ? 0.3 : 0.4);
     }
 
-    return MouseRegion(
+    final buttonContent = MouseRegion(
       onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
       onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
       cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: Tooltip(
-        message: widget.tooltip ?? widget.label ?? '',
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: EdgeInsets.symmetric(
-              horizontal: hasLabel ? 10 : 6,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: borderColor, width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(widget.icon, size: 18, color: iconColor),
-                if (hasLabel) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.label!,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: iconColor,
-                      fontWeight:
-                          _isHovered ? FontWeight.w600 : FontWeight.w500,
-                    ),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: EdgeInsets.symmetric(
+            horizontal: hasLabel ? 10 : 6,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, size: 18, color: iconColor),
+              if (hasLabel) ...[
+                const SizedBox(width: 6),
+                Text(
+                  widget.label!,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: iconColor,
+                    fontWeight:
+                        _isHovered ? FontWeight.w600 : FontWeight.w500,
                   ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
+    );
+
+    // 如果提供了shortcutId，使用ShortcutTooltip包装
+    if (widget.shortcutId != null) {
+      return ShortcutTooltip(
+        message: widget.tooltip ?? widget.label ?? '',
+        shortcutId: widget.shortcutId,
+        child: buttonContent,
+      );
+    }
+
+    // 否则使用普通Tooltip
+    return Tooltip(
+      message: widget.tooltip ?? widget.label ?? '',
+      child: buttonContent,
     );
   }
 }

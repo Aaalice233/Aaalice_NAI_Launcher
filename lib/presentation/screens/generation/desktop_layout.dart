@@ -1,28 +1,43 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/services/alias_resolver_service.dart';
+import '../../providers/character_prompt_provider.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../../providers/local_gallery_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../router/app_router.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/image_detail/image_detail_data.dart';
+import '../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../widgets/generation/auto_save_toggle_chip.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/parameter_panel.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/history_panel.dart';
+import 'widgets/upscale_dialog.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 /// 桌面端三栏布局
@@ -449,35 +464,95 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       },
     );
 
-    // Enter 键处理函数
-    KeyEventResult handleEnterKey(FocusNode node, KeyEvent event) {
-      if (event is KeyDownEvent &&
-          event.logicalKey == LogicalKeyboardKey.enter) {
-        // Shift+Enter 不处理（留给输入框换行）
-        if (HardwareKeyboard.instance.isShiftPressed) {
-          return KeyEventResult.ignored;
-        }
-
-        if (params.prompt.isEmpty) {
-          AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
-          return KeyEventResult.handled;
-        }
-        if (isGenerating) return KeyEventResult.handled;
-
-        // 悬浮球存在时加入队列，否则生图
-        if (shouldShowFloatingButton) {
-          _handleAddToQueue(context, ref, params);
-        } else {
+    // 定义快捷键动作映射（使用 ShortcutIds 常量）
+    final shortcuts = <String, VoidCallback>{
+      // 生成图像
+      ShortcutIds.generateImage: () {
+        if (!isGenerating && params.prompt.isNotEmpty) {
           _handleGenerate(context, ref, params, randomMode);
         }
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    }
+      },
+      // 取消生成
+      ShortcutIds.cancelGeneration: () {
+        if (isGenerating) {
+          ref.read(imageGenerationNotifierProvider.notifier).cancel();
+        }
+      },
+      // 加入队列
+      ShortcutIds.addToQueue: () {
+        if (params.prompt.isNotEmpty) {
+          _handleAddToQueue(context, ref, params);
+        }
+      },
+      // 随机提示词
+      ShortcutIds.randomPrompt: () {
+        // 通过切换随机模式来触发随机提示词
+        ref.read(randomPromptModeProvider.notifier).toggle();
+      },
+      // 清空提示词
+      ShortcutIds.clearPrompt: () {
+        ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
+        ref.read(generationParamsNotifierProvider.notifier).updateNegativePrompt('');
+        ref.read(characterPromptNotifierProvider.notifier).clearAll();
+      },
+      // 切换正/负面模式（通过触发最大化来切换）
+      ShortcutIds.togglePromptMode: () {
+        ref.read(promptMaximizeNotifierProvider.notifier).toggle();
+      },
+      // 打开词库
+      ShortcutIds.openTagLibrary: () {
+        context.go(AppRoutes.tagLibraryPage);
+      },
+      // 保存图像（保存最后生成的图像）
+      ShortcutIds.saveImage: () {
+        final generationState = ref.read(imageGenerationNotifierProvider);
+        if (generationState.displayImages.isNotEmpty) {
+          // 触发保存逻辑 - 使用第一个显示的图像
+          _showSaveDialog(context, ref, generationState.displayImages.first);
+        }
+      },
+      // 放大图像
+      ShortcutIds.upscaleImage: () {
+        final generationState = ref.read(imageGenerationNotifierProvider);
+        if (generationState.displayImages.isNotEmpty) {
+          UpscaleDialog.show(context, image: generationState.displayImages.first.bytes);
+        }
+      },
+      // 复制图像（复制到剪贴板）
+      ShortcutIds.copyImage: () {
+        final generationState = ref.read(imageGenerationNotifierProvider);
+        if (generationState.displayImages.isNotEmpty) {
+          _copyImageToClipboard(context, ref, generationState.displayImages.first.bytes);
+        }
+      },
+      // 全屏预览
+      ShortcutIds.fullscreenPreview: () {
+        final generationState = ref.read(imageGenerationNotifierProvider);
+        if (generationState.displayImages.isNotEmpty) {
+          _showFullscreenPreview(context, ref, generationState.displayImages);
+        }
+      },
+      // 打开参数面板
+      ShortcutIds.openParamsPanel: () {
+        ref.read(layoutStateNotifierProvider.notifier).toggleLeftPanel();
+      },
+      // 打开历史面板
+      ShortcutIds.openHistoryPanel: () {
+        ref.read(layoutStateNotifierProvider.notifier).toggleRightPanel();
+      },
+      // 复用参数（从历史记录中复用最后一次生成的参数）
+      ShortcutIds.reuseParams: () {
+        final generationState = ref.read(imageGenerationNotifierProvider);
+        if (generationState.history.isNotEmpty) {
+          _reuseParamsFromImage(context, ref, generationState.history.first);
+        }
+      },
+    };
 
-    return Focus(
+    return ShortcutAwareWidget(
+      contextType: ShortcutContext.generation,
+      shortcuts: shortcuts,
       autofocus: true,
-      onKeyEvent: handleEnterKey,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isNarrow = constraints.maxWidth < 500;
@@ -660,6 +735,328 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     // 生成（抽卡模式逻辑在 generate 方法内部处理）
     ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+  }
+
+  /// 显示保存对话框
+  void _showSaveDialog(
+    BuildContext context,
+    WidgetRef ref,
+    GeneratedImage image,
+  ) async {
+    try {
+      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      final params = ref.read(generationParamsNotifierProvider);
+      final characterConfig = ref.read(characterPromptNotifierProvider);
+
+      // 解析别名
+      final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+      final resolvedPrompt = aliasResolver.resolveAliases(params.prompt);
+      final resolvedNegative =
+          aliasResolver.resolveAliases(params.negativePrompt);
+
+      // 尝试从图片元数据中提取实际的 seed
+      int actualSeed = params.seed;
+      if (actualSeed == -1) {
+        final extractedMeta =
+            await NaiMetadataParser.extractFromBytes(image.bytes);
+        if (extractedMeta != null &&
+            extractedMeta.seed != null &&
+            extractedMeta.seed! > 0) {
+          actualSeed = extractedMeta.seed!;
+        } else {
+          actualSeed = Random().nextInt(4294967295);
+        }
+      }
+
+      // 构建 V4 多角色提示词结构（解析别名）
+      final charCaptions = <Map<String, dynamic>>[];
+      final charNegCaptions = <Map<String, dynamic>>[];
+
+      for (final char in characterConfig.characters
+          .where((c) => c.enabled && c.prompt.isNotEmpty)) {
+        charCaptions.add({
+          'char_caption': aliasResolver.resolveAliases(char.prompt),
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
+        });
+        charNegCaptions.add({
+          'char_caption': aliasResolver.resolveAliases(char.negativePrompt),
+          'centers': [
+            {'x': 0.5, 'y': 0.5},
+          ],
+        });
+      }
+
+      final commentJson = <String, dynamic>{
+        'prompt': resolvedPrompt,
+        'uc': resolvedNegative,
+        'seed': actualSeed,
+        'steps': params.steps,
+        'width': params.width,
+        'height': params.height,
+        'scale': params.scale,
+        'uncond_scale': 0.0,
+        'cfg_rescale': params.cfgRescale,
+        'n_samples': 1,
+        'noise_schedule': params.noiseSchedule,
+        'sampler': params.sampler,
+        'sm': params.smea,
+        'sm_dyn': params.smeaDyn,
+      };
+
+      if (charCaptions.isNotEmpty) {
+        commentJson['v4_prompt'] = {
+          'caption': {
+            'base_caption': resolvedPrompt,
+            'char_captions': charCaptions,
+          },
+          'use_coords': !characterConfig.globalAiChoice,
+          'use_order': true,
+        };
+        commentJson['v4_negative_prompt'] = {
+          'caption': {
+            'base_caption': resolvedNegative,
+            'char_captions': charNegCaptions,
+          },
+          'use_coords': false,
+          'use_order': false,
+        };
+      }
+
+      final metadata = {
+        'Description': resolvedPrompt,
+        'Software': 'NovelAI',
+        'Source': _getModelSourceName(params.model),
+        'Comment': jsonEncode(commentJson),
+      };
+
+      final embeddedBytes = await NaiMetadataParser.embedMetadata(
+        image.bytes,
+        jsonEncode(metadata),
+      );
+
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${saveDir.path}/$fileName');
+      await file.writeAsBytes(embeddedBytes);
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
+  }
+
+  String _getModelSourceName(String model) {
+    if (model.contains('diffusion-4-5')) {
+      return 'NovelAI Diffusion V4.5';
+    } else if (model.contains('diffusion-4')) {
+      return 'NovelAI Diffusion V4';
+    } else if (model.contains('diffusion-3')) {
+      return 'NovelAI Diffusion V3';
+    }
+    return 'NovelAI Diffusion';
+  }
+
+  /// 复制图像到剪贴板
+  void _copyImageToClipboard(
+    BuildContext context,
+    WidgetRef ref,
+    Uint8List imageBytes,
+  ) async {
+    try {
+      // 使用 Clipboard 复制图像数据
+      await Clipboard.setData(
+        const ClipboardData(
+          text: 'NAI Generated Image',
+        ),
+      );
+      if (context.mounted) {
+        AppToast.success(context, '图像已复制到剪贴板');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '复制图像失败: $e');
+      }
+    }
+  }
+
+  /// 显示全屏预览
+  void _showFullscreenPreview(
+    BuildContext context,
+    WidgetRef ref,
+    List<GeneratedImage> images,
+  ) async {
+    final params = ref.read(generationParamsNotifierProvider);
+    final characterConfig = ref.read(characterPromptNotifierProvider);
+
+    // 将所有图像转换为 GeneratedImageDetailData
+    final allImages = <GeneratedImageDetailData>[];
+    for (final img in images) {
+      // 尝试从图片中提取实际的 seed
+      int actualSeed = params.seed;
+      if (params.seed == -1) {
+        final extractedMeta =
+            await NaiMetadataParser.extractFromBytes(img.bytes);
+        if (extractedMeta != null &&
+            extractedMeta.seed != null &&
+            extractedMeta.seed! > 0) {
+          actualSeed = extractedMeta.seed!;
+        }
+      }
+
+      allImages.add(
+        GeneratedImageDetailData.fromParams(
+          imageBytes: img.bytes,
+          prompt: params.prompt,
+          negativePrompt: params.negativePrompt,
+          seed: actualSeed,
+          steps: params.steps,
+          scale: params.scale,
+          width: params.width,
+          height: params.height,
+          model: params.model,
+          sampler: params.sampler,
+          smea: params.smea,
+          smeaDyn: params.smeaDyn,
+          noiseSchedule: params.noiseSchedule,
+          cfgRescale: params.cfgRescale,
+          characterPrompts: characterConfig.characters
+              .where((c) => c.enabled && c.prompt.isNotEmpty)
+              .map((c) => c.prompt)
+              .toList(),
+          characterNegativePrompts: characterConfig.characters
+              .where((c) => c.enabled)
+              .map((c) => c.negativePrompt)
+              .toList(),
+          id: img.id,
+        ),
+      );
+    }
+
+    if (!context.mounted) return;
+
+    ImageDetailViewer.show(
+      context,
+      images: allImages,
+      initialIndex: 0,
+      showMetadataPanel: true,
+      showThumbnails: allImages.length > 1,
+      callbacks: ImageDetailCallbacks(
+        onSave: (image) => _saveImageFromDetail(context, ref, image),
+      ),
+    );
+  }
+
+  /// 从详情页保存图像
+  Future<void> _saveImageFromDetail(
+    BuildContext context,
+    WidgetRef ref,
+    ImageDetailData image,
+  ) async {
+    try {
+      final imageBytes = await image.getImageBytes();
+      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${saveDir.path}/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
+  }
+
+  /// 从历史图像复用参数
+  void _reuseParamsFromImage(
+    BuildContext context,
+    WidgetRef ref,
+    GeneratedImage image,
+  ) async {
+    try {
+      // 从图像元数据中提取参数
+      final extractedMeta =
+          await NaiMetadataParser.extractFromBytes(image.bytes);
+      if (extractedMeta != null) {
+        // 更新提示词
+        if (extractedMeta.prompt.isNotEmpty) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updatePrompt(extractedMeta.prompt);
+        }
+        // 更新负向提示词
+        if (extractedMeta.negativePrompt.isNotEmpty) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateNegativePrompt(extractedMeta.negativePrompt);
+        }
+        // 更新种子
+        if (extractedMeta.seed != null && extractedMeta.seed! > 0) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateSeed(extractedMeta.seed!);
+        }
+        // 更新步数
+        if (extractedMeta.steps != null && extractedMeta.steps! > 0) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateSteps(extractedMeta.steps!);
+        }
+        // 更新 scale
+        if (extractedMeta.scale != null && extractedMeta.scale! > 0) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateScale(extractedMeta.scale!);
+        }
+        // 更新尺寸
+        if (extractedMeta.width != null &&
+            extractedMeta.height != null &&
+            extractedMeta.width! > 0 &&
+            extractedMeta.height! > 0) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateSize(extractedMeta.width!, extractedMeta.height!);
+        }
+        // 更新采样器
+        if (extractedMeta.sampler != null &&
+            extractedMeta.sampler!.isNotEmpty) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateSampler(extractedMeta.sampler!);
+        }
+
+        if (context.mounted) {
+          AppToast.success(context, '已复用图像参数');
+        }
+      } else {
+        if (context.mounted) {
+          AppToast.warning(context, '无法从图像中提取参数');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '复用参数失败: $e');
+      }
+    }
   }
 }
 

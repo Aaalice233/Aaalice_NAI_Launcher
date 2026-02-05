@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/shortcuts/shortcuts.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
 import '../../metadata/metadata_import_dialog.dart';
 import 'components/detail_image_page.dart';
@@ -145,6 +147,7 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
   late int _currentIndex;
   bool _showControls = true;
   final _focusNode = FocusNode();
+  final Map<int, TransformationController> _transformationControllers = {};
 
   @override
   void initState() {
@@ -229,29 +232,152 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
 
   ImageDetailData get _currentImage => widget.images[_currentIndex];
 
+  /// 获取当前图片的 TransformationController
+  TransformationController get _currentTransformController {
+    if (!_transformationControllers.containsKey(_currentIndex)) {
+      _transformationControllers[_currentIndex] = TransformationController();
+    }
+    return _transformationControllers[_currentIndex]!;
+  }
+
+  /// 放大
+  void _zoomIn() {
+    final controller = _currentTransformController;
+    final currentScale = controller.value.getMaxScaleOnAxis();
+    final newScale = (currentScale * 1.2).clamp(0.5, 4.0);
+    
+    final screenSize = MediaQuery.of(context).size;
+    final centerX = screenSize.width / 2;
+    final centerY = screenSize.height / 2;
+    
+    final matrix = Matrix4.identity()
+      ..translate(centerX - centerX * newScale, centerY - centerY * newScale)
+      ..scale(newScale);
+    
+    controller.value = matrix;
+  }
+
+  /// 缩小
+  void _zoomOut() {
+    final controller = _currentTransformController;
+    final currentScale = controller.value.getMaxScaleOnAxis();
+    final newScale = (currentScale / 1.2).clamp(0.5, 4.0);
+    
+    final screenSize = MediaQuery.of(context).size;
+    final centerX = screenSize.width / 2;
+    final centerY = screenSize.height / 2;
+    
+    final matrix = Matrix4.identity()
+      ..translate(centerX - centerX * newScale, centerY - centerY * newScale)
+      ..scale(newScale);
+    
+    controller.value = matrix;
+  }
+
+  /// 重置缩放
+  void _resetZoom() {
+    _currentTransformController.value = Matrix4.identity();
+  }
+
+  /// 切换全屏
+  void _toggleFullscreen() {
+    // 使用窗口管理器切换全屏
+    // 由于查看器是弹窗形式，关闭查看器即可
+    Navigator.of(context).pop();
+  }
+
+  /// 切换收藏
+  void _toggleFavorite() {
+    if (widget.callbacks?.onFavoriteToggle != null) {
+      widget.callbacks!.onFavoriteToggle!(_currentImage);
+    }
+  }
+
+  /// 复制 Prompt
+  void _copyPrompt() {
+    final metadata = _currentImage.metadata;
+    final prompt = metadata?.prompt;
+    if (prompt != null && prompt.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: prompt));
+      if (context.mounted) {
+        AppToast.success(context, '已复制 Prompt');
+      }
+    } else {
+      if (context.mounted) {
+        AppToast.warning(context, '此图片没有 Prompt');
+      }
+    }
+  }
+
+  /// 复用参数
+  void _reuseGalleryParams() {
+    if (widget.callbacks?.onReuseMetadata != null) {
+      _handleReuseMetadata(context);
+    }
+  }
+
+  /// 删除图片
+  void _deleteImage() {
+    // 查看器本身不直接处理删除，通过回调通知父组件
+    // 这里显示一个提示，实际删除由调用方处理
+    if (context.mounted) {
+      AppToast.info(context, '请使用界面删除按钮');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 800;
 
-    return Focus(
-      focusNode: _focusNode,
-      onKeyEvent: _handleKeyEvent,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: isDesktop && widget.showMetadataPanel
-            ? Row(
-                children: [
-                  Expanded(
-                    child: _buildMainContent(),
-                  ),
-                  DetailMetadataPanel(
-                    currentImage: _currentImage,
-                    initialExpanded: true,
-                  ),
-                ],
-              )
-            : _buildMainContent(),
+    // 定义快捷键映射
+    final shortcuts = <String, VoidCallback>{
+      // 上一张
+      ShortcutIds.previousImage: () => _goToPage(_currentIndex - 1),
+      // 下一张
+      ShortcutIds.nextImage: () => _goToPage(_currentIndex + 1),
+      // 放大
+      ShortcutIds.zoomIn: _zoomIn,
+      // 缩小
+      ShortcutIds.zoomOut: _zoomOut,
+      // 重置缩放
+      ShortcutIds.resetZoom: _resetZoom,
+      // 全屏切换
+      ShortcutIds.toggleFullscreen: _toggleFullscreen,
+      // 关闭查看器
+      ShortcutIds.closeViewer: () => Navigator.of(context).pop(),
+      // 收藏切换
+      ShortcutIds.toggleFavorite: _toggleFavorite,
+      // 复制 Prompt
+      ShortcutIds.copyPrompt: _copyPrompt,
+      // 复用参数
+      ShortcutIds.reuseGalleryParams: _reuseGalleryParams,
+      // 删除图片
+      ShortcutIds.deleteImage: _deleteImage,
+    };
+
+    return PageShortcuts(
+      contextType: ShortcutContext.viewer,
+      shortcuts: shortcuts,
+      child: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: _handleKeyEvent,
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: isDesktop && widget.showMetadataPanel
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: _buildMainContent(),
+                    ),
+                    DetailMetadataPanel(
+                      currentImage: _currentImage,
+                      initialExpanded: true,
+                    ),
+                  ],
+                )
+              : _buildMainContent(),
+        ),
       ),
     );
   }
@@ -274,9 +400,14 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
                   widget.heroTagPrefix != null && index == _currentIndex
                       ? '${widget.heroTagPrefix}_${data.identifier}'
                       : null;
+              // 确保每个页面都有 TransformationController
+              if (!_transformationControllers.containsKey(index)) {
+                _transformationControllers[index] = TransformationController();
+              }
               return DetailImagePage(
                 data: data,
                 heroTag: heroTag,
+                transformationController: _transformationControllers[index],
               );
             },
           ),

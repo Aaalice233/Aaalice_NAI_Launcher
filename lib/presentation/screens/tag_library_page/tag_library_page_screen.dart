@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
@@ -13,6 +14,7 @@ import '../../router/app_router.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
+import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
 import 'widgets/entry_list_item.dart';
@@ -33,15 +35,84 @@ class TagLibraryPageScreen extends ConsumerStatefulWidget {
 }
 
 class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
+  /// 搜索框焦点节点
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(tagLibraryPageNotifierProvider);
 
-    return KeyboardListener(
-      focusNode: FocusNode(),
-      autofocus: true,
-      onKeyEvent: _handleKeyEvent,
+    // 定义快捷键映射
+    final shortcuts = <String, VoidCallback>{
+      // 全选（选择模式下）
+      ShortcutIds.selectAllTags: () {
+        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+        if (selectionState.isActive) {
+          final allIds = state.filteredEntries.map((e) => e.id).toList();
+          ref
+              .read(tagLibrarySelectionNotifierProvider.notifier)
+              .selectAll(allIds);
+        }
+      },
+      // 退出选择模式
+      ShortcutIds.exitSelectionMode: () {
+        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+        if (selectionState.isActive) {
+          ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();
+        }
+      },
+      // 取消全选
+      ShortcutIds.deselectAllTags: () {
+        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+        if (selectionState.isActive) {
+          ref.read(tagLibrarySelectionNotifierProvider.notifier).clearSelection();
+        }
+      },
+      // 新建分类
+      ShortcutIds.newCategory: () {
+        _showAddCategoryDialog();
+      },
+      // 新建标签
+      ShortcutIds.newTag: () {
+        _showAddEntryDialog();
+      },
+      // 搜索标签
+      ShortcutIds.searchTags: () {
+        _searchFocusNode.requestFocus();
+      },
+      // 批量删除
+      ShortcutIds.batchDeleteTags: () {
+        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+        if (selectionState.isActive && selectionState.hasSelection) {
+          _handleBulkDelete();
+        }
+      },
+      // 批量复制
+      ShortcutIds.batchCopyTags: () {
+        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+        if (selectionState.isActive && selectionState.hasSelection) {
+          _handleBulkCopy();
+        }
+      },
+      // 发送到首页
+      ShortcutIds.sendToHome: () {
+        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+        if (selectionState.isActive && selectionState.hasSelection) {
+          _sendSelectedToHome();
+        }
+      },
+    };
+
+    return PageShortcuts(
+      contextType: ShortcutContext.tagLibrary,
+      shortcuts: shortcuts,
       child: Scaffold(
         body: Row(
           children: [
@@ -79,32 +150,50 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     );
   }
 
-  /// 处理键盘事件
-  void _handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
-      final isMetaPressed = HardwareKeyboard.instance.isMetaPressed;
+  /// 发送选中的标签到首页
+  Future<void> _sendSelectedToHome() async {
+    final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
+    final selectedIds = selectionState.selectedIds.toList();
 
-      // Ctrl+A 全选
-      if ((isCtrlPressed || isMetaPressed) &&
-          event.logicalKey == LogicalKeyboardKey.keyA) {
-        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
-        if (selectionState.isActive) {
-          final state = ref.read(tagLibraryPageNotifierProvider);
-          final allIds = state.filteredEntries.map((e) => e.id).toList();
-          ref
-              .read(tagLibrarySelectionNotifierProvider.notifier)
-              .selectAll(allIds);
-        }
-      }
+    if (selectedIds.isEmpty) return;
 
-      // ESC 退出选择模式
-      if (event.logicalKey == LogicalKeyboardKey.escape) {
-        final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
-        if (selectionState.isActive) {
-          ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();
-        }
-      }
+    final pageState = ref.read(tagLibraryPageNotifierProvider);
+    final selectedEntries = pageState.entries
+        .where((e) => selectedIds.contains(e.id))
+        .toList();
+
+    if (selectedEntries.isEmpty) return;
+
+    // 如果只有一个选中项，使用现有的对话框
+    if (selectedEntries.length == 1) {
+      _showEntryDetail(selectedEntries.first);
+      return;
+    }
+
+    // 多个选中项：直接拼接内容发送到主提示词
+    final content = selectedEntries.map((e) => e.content).join(', ');
+
+    // 设置待填充提示词
+    ref.read(pendingPromptNotifierProvider.notifier).set(
+      prompt: content,
+      targetType: SendTargetType.mainPrompt,
+      clearOnConsume: true,
+    );
+
+    // 记录所有选中项的使用
+    for (final entry in selectedEntries) {
+      await ref
+          .read(tagLibraryPageNotifierProvider.notifier)
+          .recordUsage(entry.id);
+    }
+
+    // 退出选择模式
+    ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();
+
+    if (mounted) {
+      AppToast.success(context, '已发送 ${selectedEntries.length} 个词条到主提示词');
+      // 导航到主页
+      context.go(AppRoutes.home);
     }
   }
 

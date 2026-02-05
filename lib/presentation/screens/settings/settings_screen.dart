@@ -26,6 +26,7 @@ import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'widgets/data_source_cache_settings.dart';
+import 'widgets/shortcut_settings_panel.dart';
 
 /// 设置页面
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -119,6 +120,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   : context.l10n.settings_languageEnglish,
             ),
             onTap: () => _showLanguageDialog(context, currentLocale),
+          ),
+
+          // 快捷键设置
+          ListTile(
+            leading: const Icon(Icons.keyboard_outlined),
+            title: const Text('快捷键'),
+            subtitle: const Text('自定义键盘快捷键'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => ShortcutSettingsPanel.show(context),
           ),
           const ThemedDivider(),
 
