@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/smart_tag_recommendation_service.dart';
 import '../../../../core/services/tag_data_service.dart';
 import '../../../../core/utils/app_logger.dart';
+import '../../../providers/image_generation_provider.dart';
 import '../autocomplete_controller.dart';
 import '../autocomplete_strategy.dart';
 import '../generic_suggestion_tile.dart';
@@ -15,6 +16,7 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   final SmartTagRecommendationService _recommendationService;
   final TagDataService _tagDataService;
   final AutocompleteConfig _config;
+  final WidgetRef _ref;
 
   /// 当前建议列表
   List<RecommendedTag> _suggestions = [];
@@ -26,9 +28,11 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     required SmartTagRecommendationService recommendationService,
     required TagDataService tagDataService,
     required AutocompleteConfig config,
+    required WidgetRef ref,
   })  : _recommendationService = recommendationService,
         _tagDataService = tagDataService,
-        _config = config;
+        _config = config,
+        _ref = ref;
 
   /// 工厂方法：创建 CooccurrenceStrategy
   static CooccurrenceStrategy create(WidgetRef ref, AutocompleteConfig config) {
@@ -36,6 +40,7 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
       recommendationService: ref.read(smartTagRecommendationServiceProvider),
       tagDataService: ref.read(tagDataServiceProvider),
       config: config,
+      ref: ref,
     );
   }
 
@@ -47,6 +52,13 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
   @override
   Future<void> search(String text, int cursorPosition, {bool immediate = false}) async {
+    // 检查共现推荐设置是否开启
+    final enabled = _ref.read(cooccurrenceSettingsProvider);
+    if (!enabled) {
+      clear();
+      return;
+    }
+
     // 检查是否满足触发条件
     final previousTag = _extractPreviousTag(text, cursorPosition);
 

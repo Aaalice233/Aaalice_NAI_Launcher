@@ -1888,6 +1888,29 @@ class SdSyntaxAutoConvertSettings extends _$SdSyntaxAutoConvertSettings {
   }
 }
 
+/// 标签共现推荐设置 Notifier
+@Riverpod(keepAlive: true)
+class CooccurrenceSettings extends _$CooccurrenceSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() {
+    return _storage.getEnableCooccurrenceRecommendation();
+  }
+
+  /// 切换标签共现推荐开关
+  void toggle() {
+    state = !state;
+    _storage.setEnableCooccurrenceRecommendation(state);
+  }
+
+  /// 设置标签共现推荐开关
+  void set(bool value) {
+    state = value;
+    _storage.setEnableCooccurrenceRecommendation(value);
+  }
+}
+
 /// 负面提示词预设设置 Notifier
 @Riverpod(keepAlive: true)
 class UcPresetSettings extends _$UcPresetSettings {

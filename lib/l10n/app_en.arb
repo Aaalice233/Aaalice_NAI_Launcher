@@ -391,6 +391,8 @@
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
   "prompt_sdSyntaxAutoConvertSubtitle": "Convert SD weight syntax to NAI format on blur",
+  "prompt_cooccurrenceRecommendation": "Co-occurrence Tag Recommendation",
+  "prompt_cooccurrenceRecommendationSubtitle": "Automatically recommend related tags after entering a tag",
   "prompt_formatted": "Formatted",
 
   "image_save": "Save",

@@ -305,6 +305,8 @@
   "prompt_sdSyntaxAutoConvert": "SD语法自动转换",
   "prompt_sdSyntaxAutoConvertSubtitle": "失焦时将SD权重语法转换为NAI格式",
   "prompt_formatted": "已格式化",
+  "prompt_cooccurrenceRecommendation": "共现标签推荐",
+  "prompt_cooccurrenceRecommendationSubtitle": "输入标签后自动推荐相关标签",
 
   "image_save": "保存",
   "image_copy": "复制",

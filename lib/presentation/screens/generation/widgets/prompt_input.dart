@@ -449,6 +449,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableHighlight = ref.read(highlightEmphasisSettingsProvider);
     final enableSdSyntaxAutoConvert =
         ref.read(sdSyntaxAutoConvertSettingsProvider);
+    final enableCooccurrence = ref.read(cooccurrenceSettingsProvider);
 
     // 使用工具栏提供的按钮位置
     final position = PromptEditorToolbar.getSettingsButtonPosition(context);
@@ -577,6 +578,35 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ],
           ),
         ),
+        PopupMenuItem<String>(
+          value: 'cooccurrence',
+          child: Row(
+            children: [
+              Icon(
+                enableCooccurrence
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
+                size: 20,
+                color: enableCooccurrence ? theme.colorScheme.primary : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.prompt_cooccurrenceRecommendation),
+                    Text(
+                      context.l10n.prompt_cooccurrenceRecommendationSubtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     ).then((value) {
       if (value == 'autocomplete') {
@@ -587,6 +617,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
       } else if (value == 'sd_syntax_convert') {
         ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      } else if (value == 'cooccurrence') {
+        ref.read(cooccurrenceSettingsProvider.notifier).toggle();
       }
     });
   }

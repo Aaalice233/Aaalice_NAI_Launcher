@@ -174,6 +174,8 @@ class StorageKeys {
   static const String firstLaunchVersion = 'first_launch_version';
   static const String enableSmartTagRecommendation =
       'enable_smart_tag_recommendation';
+  static const String enableCooccurrenceRecommendation =
+      'enable_cooccurrence_recommendation';
 
   // Danbooru 画师同步设置
   static const String danbooruSyncArtists = 'danbooru_sync_artists';

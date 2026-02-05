@@ -359,6 +359,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
   }
 
+  // ==================== Cooccurrence Recommendation ====================
+
+  /// 获取是否启用共现推荐 (默认开启)
+  bool getEnableCooccurrenceRecommendation() {
+    return getSetting<bool>(
+          StorageKeys.enableCooccurrenceRecommendation,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存是否启用共现推荐
+  Future<void> setEnableCooccurrenceRecommendation(bool value) async {
+    await setSetting(StorageKeys.enableCooccurrenceRecommendation, value);
+  }
+
   // ==================== Last Generation Params ====================
 
   /// 获取上次的正向提示词
