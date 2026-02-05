@@ -1,6 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../app_toast.dart';
+import '../../metadata/metadata_import_dialog.dart';
 import 'components/detail_image_page.dart';
 import 'components/detail_metadata_panel.dart';
 import 'components/detail_thumbnail_bar.dart';
@@ -13,15 +19,23 @@ class ImageDetailCallbacks {
   final void Function(ImageDetailData image)? onFavoriteToggle;
 
   /// 复用元数据回调
-  final void Function(ImageDetailData image)? onReuseMetadata;
+  /// 接收图像数据和用户选择的导入选项
+  final void Function(
+    ImageDetailData image,
+    MetadataImportOptions options,
+  )? onReuseMetadata;
 
   /// 保存回调
   final Future<void> Function(ImageDetailData image)? onSave;
+
+  /// 复制图像回调
+  final Future<void> Function(ImageDetailData image)? onCopyImage;
 
   const ImageDetailCallbacks({
     this.onFavoriteToggle,
     this.onReuseMetadata,
     this.onSave,
+    this.onCopyImage,
   });
 }
 
@@ -280,10 +294,7 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
             currentImage: _currentImage,
             onClose: () => Navigator.of(context).pop(),
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
-                ? () {
-                    widget.callbacks!.onReuseMetadata!(_currentImage);
-                    Navigator.of(context).pop();
-                  }
+                ? () => _handleReuseMetadata(context)
                 : null,
             onFavoriteToggle: widget.callbacks?.onFavoriteToggle != null
                 ? () => widget.callbacks!.onFavoriteToggle!(_currentImage)
@@ -291,6 +302,7 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
             onSave: widget.callbacks?.onSave != null
                 ? () => widget.callbacks!.onSave!(_currentImage)
                 : null,
+            onCopyImage: () => _copyImageToClipboard(context),
           ),
         ),
 
@@ -405,6 +417,88 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
         ),
       ),
     );
+  }
+
+  /// 复制图像到剪贴板
+  Future<void> _copyImageToClipboard(BuildContext context) async {
+    File? tempFile;
+    try {
+      // 获取图像字节
+      final imageBytes = await _currentImage.getImageBytes();
+
+      // 创建临时文件
+      final tempDir = await getTemporaryDirectory();
+      tempFile = File(
+        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await tempFile.writeAsBytes(imageBytes);
+
+      // 验证文件是否成功创建
+      if (!await tempFile.exists()) {
+        throw Exception('临时文件创建失败');
+      }
+
+      // 使用 PowerShell 复制图像到剪贴板
+      // 使用 [System.Windows.Forms.Clipboard]::SetImage() 正确复制图像数据
+      final result = await Process.run('powershell', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        'Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; \$image = [System.Drawing.Image]::FromFile("${tempFile.path}"); [System.Windows.Forms.Clipboard]::SetImage(\$image); \$image.Dispose();',
+      ]);
+
+      // 检查 PowerShell 命令执行结果
+      if (result.exitCode != 0) {
+        final errorOutput = result.stderr.toString();
+        throw Exception('PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput');
+      }
+
+      // 延迟删除临时文件，确保 PowerShell 完成读取
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (context.mounted) {
+        AppToast.success(context, '已复制到剪贴板');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '复制失败: $e');
+      }
+    } finally {
+      // 清理临时文件
+      if (tempFile != null && await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {
+          // 忽略删除错误
+        }
+      }
+    }
+  }
+
+  /// 处理复用元数据
+  Future<void> _handleReuseMetadata(BuildContext context) async {
+    final metadata = _currentImage.metadata;
+    if (metadata == null || !metadata.hasData) {
+      AppToast.warning(context, '此图片没有元数据');
+      return;
+    }
+
+    // 显示参数选择对话框
+    final options = await MetadataImportDialog.show(
+      context,
+      metadata: metadata,
+    );
+
+    if (options == null || !context.mounted) return; // 用户取消
+
+    // 调用回调并传递选项
+    widget.callbacks?.onReuseMetadata?.call(_currentImage, options);
+
+    // 关闭图像详情页
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override

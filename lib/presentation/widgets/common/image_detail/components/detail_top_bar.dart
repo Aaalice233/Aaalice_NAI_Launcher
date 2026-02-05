@@ -14,6 +14,7 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
+  final VoidCallback? onCopyImage;
 
   const DetailTopBar({
     super.key,
@@ -24,6 +25,7 @@ class DetailTopBar extends StatelessWidget {
     this.onReuseMetadata,
     this.onFavoriteToggle,
     this.onSave,
+    this.onCopyImage,
   });
 
   @override
@@ -95,9 +97,17 @@ class DetailTopBar extends StatelessWidget {
           // 复用参数按钮
           if (metadata != null && onReuseMetadata != null)
             IconButton(
-              icon: const Icon(Icons.replay, color: Colors.white),
+              icon: const Icon(Icons.input, color: Colors.white),
               onPressed: onReuseMetadata,
               tooltip: '复用参数',
+            ),
+
+          // 复制图像按钮
+          if (onCopyImage != null)
+            IconButton(
+              icon: const Icon(Icons.copy, color: Colors.white),
+              onPressed: onCopyImage,
+              tooltip: '复制图像',
             ),
 
           // 收藏按钮（仅本地图库显示）

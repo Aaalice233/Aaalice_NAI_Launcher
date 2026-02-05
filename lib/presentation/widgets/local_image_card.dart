@@ -238,7 +238,7 @@ class _LocalImageCardState extends State<LocalImageCard>
             ? (image) => widget.onFavoriteToggle!(widget.record)
             : null,
         onReuseMetadata: widget.onReuseMetadata != null
-            ? (image) {
+            ? (image, options) {
                 widget.onReuseMetadata!(widget.record);
               }
             : null,
@@ -249,6 +249,7 @@ class _LocalImageCardState extends State<LocalImageCard>
 
   /// 复制图片到剪贴板
   Future<void> _copyImage(BuildContext context) async {
+    File? tempFile;
     try {
       final sourceFile = File(widget.record.path);
 
@@ -260,17 +261,30 @@ class _LocalImageCardState extends State<LocalImageCard>
         return;
       }
 
-      await Clipboard.setData(const ClipboardData(text: ''));
       final tempDir = await getTemporaryDirectory();
-      final file = File(
+      tempFile = File(
         '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
       );
-      await file.writeAsBytes(await sourceFile.readAsBytes());
+      await tempFile.writeAsBytes(await sourceFile.readAsBytes());
 
-      await Process.run('powershell', [
-        '-command',
-        'Set-Clipboard -Path "${file.path}"',
+      // 使用 PowerShell 复制图像到剪贴板
+      // 使用 [System.Windows.Forms.Clipboard]::SetImage() 正确复制图像数据
+      final result = await Process.run('powershell', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        'Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; \$image = [System.Drawing.Image]::FromFile("${tempFile.path}"); [System.Windows.Forms.Clipboard]::SetImage(\$image); \$image.Dispose();',
       ]);
+
+      // 检查 PowerShell 命令执行结果
+      if (result.exitCode != 0) {
+        final errorOutput = result.stderr.toString();
+        throw Exception('PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput');
+      }
+
+      // 延迟删除临时文件，确保 PowerShell 完成读取
+      await Future.delayed(const Duration(milliseconds: 500));
 
       if (context.mounted) {
         AppToast.success(context, '已复制到剪贴板');
@@ -278,6 +292,15 @@ class _LocalImageCardState extends State<LocalImageCard>
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, '复制失败: $e');
+      }
+    } finally {
+      // 清理临时文件
+      if (tempFile != null && await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {
+          // 忽略删除错误
+        }
       }
     }
   }

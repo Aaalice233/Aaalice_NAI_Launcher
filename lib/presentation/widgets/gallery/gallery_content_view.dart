@@ -99,7 +99,7 @@ class _GalleryContentViewState extends ConsumerState<GalleryContentView> {
       showThumbnails: images.length > 1,
       callbacks: ImageDetailCallbacks(
         onReuseMetadata: widget.onReuseMetadata != null
-            ? (data) {
+            ? (data, options) {
                 if (data is LocalImageDetailData) {
                   widget.onReuseMetadata!(data.record);
                 }
