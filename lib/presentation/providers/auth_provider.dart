@@ -204,7 +204,17 @@ class AuthNotifier extends _$AuthNotifier {
       // Token 存在，尝试验证
       try {
         final apiService = ref.read(naiAuthApiServiceProvider);
-        final subscriptionInfo = await apiService.validateToken(token);
+        // 使用较短超时（5秒），在网络不可用时快速失败
+        // 网络就绪后会由 retryAutoLogin 重试
+        final subscriptionInfo = await apiService.validateToken(token).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            throw DioException(
+              type: DioExceptionType.connectionTimeout,
+              requestOptions: RequestOptions(path: '/user/subscription'),
+            );
+          },
+        );
 
         // 尝试找到 Token 对应的账号
         final accounts = ref.read(accountManagerNotifierProvider).accounts;
@@ -272,12 +282,20 @@ class AuthNotifier extends _$AuthNotifier {
           Map<String, dynamic> subscriptionInfo;
 
           // 根据账号类型选择验证方式
+          // 使用较短超时（5秒），在网络不可用时快速失败
+          const validationTimeout = Duration(seconds: 5);
           if (accountType == AccountType.credentials) {
             // Credentials 账号：直接验证 accessToken
             AppLogger.auth(
               'Auto-login: validating access token for credentials account...',
             );
-            subscriptionInfo = await apiService.validateToken(accountToken);
+            subscriptionInfo = await apiService.validateToken(accountToken).timeout(
+              validationTimeout,
+              onTimeout: () => throw DioException(
+                type: DioExceptionType.connectionTimeout,
+                requestOptions: RequestOptions(path: '/user/subscription'),
+              ),
+            );
           } else {
             // Token 账号：先验证格式
             AppLogger.auth(
@@ -286,7 +304,13 @@ class AuthNotifier extends _$AuthNotifier {
             if (!NAIAuthApiService.isValidTokenFormat(accountToken)) {
               throw Exception('Token 格式无效，应以 pst- 开头');
             }
-            subscriptionInfo = await apiService.validateToken(accountToken);
+            subscriptionInfo = await apiService.validateToken(accountToken).timeout(
+              validationTimeout,
+              onTimeout: () => throw DioException(
+                type: DioExceptionType.connectionTimeout,
+                requestOptions: RequestOptions(path: '/user/subscription'),
+              ),
+            );
           }
 
           // 保存到全局存储
@@ -319,11 +343,20 @@ class AuthNotifier extends _$AuthNotifier {
           );
           // 自动登录失败，设置错误状态
           final (errorCode, httpStatusCode) = AuthState.parseError(e);
-          state = AuthState(
-            status: AuthStatus.error,
-            errorCode: errorCode,
-            httpStatusCode: httpStatusCode,
-          );
+
+          // 如果是网络错误，设置为未认证而不是错误，允许后续手动登录或重试
+          if (errorCode == AuthErrorCode.networkTimeout ||
+              errorCode == AuthErrorCode.networkError) {
+            AppLogger.w('Auto-login failed due to network error, showing login page', 'Auth');
+            state = const AuthState(status: AuthStatus.unauthenticated);
+          } else {
+            // 非网络错误（如认证失败），显示错误状态
+            state = AuthState(
+              status: AuthStatus.error,
+              errorCode: errorCode,
+              httpStatusCode: httpStatusCode,
+            );
+          }
           return;
         }
       }
@@ -331,6 +364,28 @@ class AuthNotifier extends _$AuthNotifier {
 
     // 3. 无法自动登录，显示登录页
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  /// 重新尝试自动登录
+  /// 在网络恢复后由外部调用
+  Future<void> retryAutoLogin() async {
+    // 只在未认证状态下才尝试自动登录
+    if (state.status == AuthStatus.unauthenticated) {
+      AppLogger.auth('Retrying auto-login...');
+
+      // 短暂延迟，确保之前的请求已经超时完成
+      // 避免重复请求问题
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 再次检查状态，可能延迟期间状态已改变
+      if (state.status != AuthStatus.unauthenticated) {
+        AppLogger.auth('Auth status changed during delay, skipping retry');
+        return;
+      }
+
+      state = const AuthState(status: AuthStatus.loading);
+      await _checkExistingAuth();
+    }
   }
 
   /// 使用 Token 登录

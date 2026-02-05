@@ -72,8 +72,22 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     } catch (e) {
       AppLogger.e('Failed to fetch subscription: $e', 'Subscription');
       state = SubscriptionState.error(e.toString());
-      // 即使失败也标记为已尝试加载，避免无限重试
-      _hasInitiallyLoaded = true;
+
+      // 检查是否是网络连接错误，如果是则不标记为已加载，允许后续重试
+      final errorStr = e.toString().toLowerCase();
+      final isNetworkError = errorStr.contains('timeout') ||
+          errorStr.contains('connection') ||
+          errorStr.contains('network') ||
+          errorStr.contains('socket') ||
+          errorStr.contains('failed host lookup');
+
+      if (!isNetworkError) {
+        // 非网络错误（如认证失败），标记为已尝试加载
+        _hasInitiallyLoaded = true;
+      } else {
+        // 网络错误，不标记为已加载，允许在网络恢复后重试
+        AppLogger.w('Network error detected, allowing retry', 'Subscription');
+      }
     }
   }
 

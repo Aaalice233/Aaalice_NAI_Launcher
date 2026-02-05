@@ -236,4 +236,70 @@ class ProxyService {
     }
     return 'PROXY $proxyAddress';
   }
+
+  /// 测试 NovelAI 连接
+  ///
+  /// 尝试直接访问 NovelAI 官网，验证网络可用性
+  /// 返回结果包含是否成功和延迟
+  static Future<ProxyTestResult> testNovelAIConnection({String? proxyAddress}) async {
+    final stopwatch = Stopwatch()..start();
+
+    // 创建临时 Dio 实例用于测试
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        followRedirects: true,
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    );
+
+    // 如果提供了代理地址，配置代理
+    if (proxyAddress != null && proxyAddress.isNotEmpty) {
+      dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.findProxy = (uri) => 'PROXY $proxyAddress';
+          client.badCertificateCallback = (cert, host, port) => true;
+          return client;
+        },
+      );
+    }
+
+    try {
+      // 尝试访问 NovelAI 官网
+      final response = await dio.get('https://novelai.net');
+      stopwatch.stop();
+
+      if (response.statusCode == 200 || response.statusCode == 307 || response.statusCode == 302) {
+        AppLogger.i(
+          'NovelAI connection test successful${proxyAddress != null ? ' via proxy: $proxyAddress' : ' (direct)'} (${stopwatch.elapsedMilliseconds}ms)',
+          'PROXY',
+        );
+        return ProxyTestResult.success(stopwatch.elapsedMilliseconds);
+      }
+      return ProxyTestResult.failure('HTTP ${response.statusCode}');
+    } on DioException catch (e) {
+      stopwatch.stop();
+      String errorMsg;
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+          errorMsg = '连接超时';
+          break;
+        case DioExceptionType.connectionError:
+          errorMsg = '无法连接到服务器';
+          break;
+        default:
+          errorMsg = e.message ?? '连接失败';
+      }
+      AppLogger.w('NovelAI connection test failed: $errorMsg', 'PROXY');
+      return ProxyTestResult.failure(errorMsg);
+    } catch (e) {
+      stopwatch.stop();
+      AppLogger.e('NovelAI connection test error: $e', 'PROXY');
+      return ProxyTestResult.failure('测试失败: $e');
+    } finally {
+      dio.close();
+    }
+  }
 }

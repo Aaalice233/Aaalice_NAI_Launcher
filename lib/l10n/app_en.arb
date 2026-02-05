@@ -1216,6 +1216,25 @@
     }
   },
 
+  "warmup_networkCheck": "Checking network connection...",
+  "warmup_networkCheck_noProxy": "Cannot connect to NovelAI, please enable VPN or proxy settings",
+  "warmup_networkCheck_noSystemProxy": "Proxy enabled but no system proxy detected, please enable VPN",
+  "warmup_networkCheck_manualIncomplete": "Manual proxy config incomplete, please check settings",
+  "warmup_networkCheck_testing": "Testing network connection...",
+  "warmup_networkCheck_testingProxy": "Testing network via proxy...",
+  "warmup_networkCheck_failed": "Network connection failed: {error}, please check VPN",
+  "@warmup_networkCheck_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "warmup_networkCheck_success": "Network connection OK ({latency}ms)",
+  "@warmup_networkCheck_success": {
+    "placeholders": {
+      "latency": {}
+    }
+  },
+
   "warmup_preparing": "Preparing...",
   "warmup_complete": "Complete",
   "warmup_danbooruAuth": "Initializing Danbooru authentication...",

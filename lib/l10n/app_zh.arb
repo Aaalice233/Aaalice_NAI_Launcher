@@ -882,6 +882,25 @@
   "download_complete": "{name}下载完成",
   "download_downloadFailed": "{name}下载失败",
 
+  "warmup_networkCheck": "检测网络连接...",
+  "warmup_networkCheck_noProxy": "无法连接到 NovelAI，请开启VPN或启用代理设置",
+  "warmup_networkCheck_noSystemProxy": "已启用代理但未检测到系统代理，请开启VPN",
+  "warmup_networkCheck_manualIncomplete": "手动代理配置不完整，请检查设置",
+  "warmup_networkCheck_testing": "正在检测网络连接...",
+  "warmup_networkCheck_testingProxy": "正在通过代理检测网络...",
+  "warmup_networkCheck_failed": "网络连接失败: {error}，请检查VPN",
+  "@warmup_networkCheck_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "warmup_networkCheck_success": "网络连接正常 ({latency}ms)",
+  "@warmup_networkCheck_success": {
+    "placeholders": {
+      "latency": {}
+    }
+  },
+
   "warmup_preparing": "准备中...",
   "warmup_complete": "完成",
   "warmup_danbooruAuth": "初始化 Danbooru 认证...",

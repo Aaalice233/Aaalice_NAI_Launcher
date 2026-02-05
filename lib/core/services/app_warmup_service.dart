@@ -303,8 +303,14 @@ class AppWarmupService {
     final stopwatch = Stopwatch()..start();
 
     try {
+      // 如果 task.timeout 为 null，则使用默认超时
+      // 如果 task.timeout 为 Duration.zero，则不设置超时（无限等待）
       final taskTimeout = task.timeout ?? _taskTimeout;
-      await task.task().timeout(taskTimeout);
+      if (taskTimeout == Duration.zero) {
+        await task.task();
+      } else {
+        await task.task().timeout(taskTimeout);
+      }
 
       stopwatch.stop();
       return WarmupTaskMetrics.create(
