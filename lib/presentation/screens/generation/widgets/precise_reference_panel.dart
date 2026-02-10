@@ -109,7 +109,7 @@ class _PreciseReferencePanelState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '精准参考',
+                          context.l10n.preciseRef_title,
                           style: theme.textTheme.titleSmall?.copyWith(
                             color: showBackground
                                 ? Colors.white
@@ -188,7 +188,7 @@ class _PreciseReferencePanelState
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '此功能需要 V4+ 模型',
+                                  context.l10n.preciseRef_v4Only,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.error,
                                   ),
@@ -202,7 +202,7 @@ class _PreciseReferencePanelState
 
                       // 说明文字
                       Text(
-                        '添加参考图并设置类型和参数，可同时使用多个参考。',
+                        context.l10n.preciseRef_description,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
@@ -231,7 +231,7 @@ class _PreciseReferencePanelState
                       OutlinedButton.icon(
                         onPressed: isV4Model ? _addReference : null,
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('添加参考图'),
+                        label: Text(context.l10n.preciseRef_addReference),
                       ),
 
                       // 清除全部按钮
@@ -240,7 +240,7 @@ class _PreciseReferencePanelState
                         TextButton.icon(
                           onPressed: _clearAllReferences,
                           icon: const Icon(Icons.clear_all, size: 18),
-                          label: const Text('清空全部'),
+                          label: Text(context.l10n.preciseRef_clearAll),
                           style: TextButton.styleFrom(
                             foregroundColor: theme.colorScheme.error,
                           ),
@@ -263,26 +263,26 @@ class _PreciseReferencePanelState
     return showDialog<PreciseRefType>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('选择参考类型'),
+        title: Text(context.l10n.preciseRef_referenceType),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.person),
-              title: const Text('角色 (Character)'),
-              subtitle: const Text('仅参考角色外观'),
+              title: Text(context.l10n.preciseRef_typeCharacter),
+              subtitle: Text('仅参考角色外观'),
               onTap: () => Navigator.pop(context, PreciseRefType.character),
             ),
             ListTile(
               leading: const Icon(Icons.palette),
-              title: const Text('风格 (Style)'),
-              subtitle: const Text('仅参考艺术风格'),
+              title: Text(context.l10n.preciseRef_typeStyle),
+              subtitle: Text('仅参考艺术风格'),
               onTap: () => Navigator.pop(context, PreciseRefType.style),
             ),
             ListTile(
               leading: const Icon(Icons.auto_awesome),
-              title: const Text('角色与风格 (Character & Style)'),
-              subtitle: const Text('同时参考角色和风格'),
+              title: Text(context.l10n.preciseRef_typeCharacterAndStyle),
+              subtitle: Text('同时参考角色和风格'),
               onTap: () =>
                   Navigator.pop(context, PreciseRefType.characterAndStyle),
             ),
@@ -468,7 +468,7 @@ class _PreciseReferenceCard extends StatelessWidget {
                     color: theme.colorScheme.error,
                   ),
                   onPressed: onRemove,
-                  tooltip: '移除',
+                  tooltip: context.l10n.preciseRef_remove,
                 ),
               ),
             ],
@@ -480,7 +480,7 @@ class _PreciseReferenceCard extends StatelessWidget {
           _buildSliderRow(
             context,
             theme,
-            label: '参考强度',
+            label: context.l10n.preciseRef_strength,
             value: reference.strength,
             onChanged: onStrengthChanged,
           ),
@@ -489,7 +489,7 @@ class _PreciseReferenceCard extends StatelessWidget {
           _buildSliderRow(
             context,
             theme,
-            label: '保真度',
+            label: context.l10n.preciseRef_fidelity,
             value: reference.fidelity,
             onChanged: onFidelityChanged,
           ),
@@ -536,7 +536,7 @@ class _PreciseReferenceCard extends StatelessWidget {
       value: reference.type,
       isDense: true,
       decoration: InputDecoration(
-        labelText: '参考类型',
+        labelText: context.l10n.preciseRef_referenceType,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
         ),

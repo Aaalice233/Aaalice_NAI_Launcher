@@ -29,9 +29,9 @@ extension PreciseRefTypeExtension on PreciseRefType {
   /// Display name for UI (will be localized later)
   String get displayName {
     return switch (this) {
-      PreciseRefType.character => 'Character',
-      PreciseRefType.style => 'Style',
-      PreciseRefType.characterAndStyle => 'Character & Style',
+      PreciseRefType.character => '角色',
+      PreciseRefType.style => '风格',
+      PreciseRefType.characterAndStyle => '角色+风格',
     };
   }
 }

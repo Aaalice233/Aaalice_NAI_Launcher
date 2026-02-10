@@ -996,7 +996,7 @@
   "drop_hint": "拖拽图片到这里",
   "drop_img2img": "图生图",
   "drop_vibeTransfer": "风格迁移",
-  "drop_characterReference": "角色参考",
+  "drop_characterReference": "精准参考",
   "drop_unsupportedFormat": "不支持的文件格式",
   "drop_addedToImg2Img": "已添加到图生图",
   "drop_addedToVibe": "已添加到风格迁移",
@@ -1006,7 +1006,20 @@
       "count": {"type": "int"}
     }
   },
-  "drop_addedToCharacterRef": "已添加到角色参考",
+  "drop_addedToCharacterRef": "已添加到精准参考",
+
+  "preciseRef_title": "精准参考",
+  "preciseRef_description": "添加参考图并设置类型和参数，可同时使用多个参考。",
+  "preciseRef_addReference": "添加参考图",
+  "preciseRef_clearAll": "清空全部",
+  "preciseRef_remove": "移除",
+  "preciseRef_referenceType": "参考类型",
+  "preciseRef_strength": "参考强度",
+  "preciseRef_fidelity": "保真度",
+  "preciseRef_v4Only": "此功能需要 V4+ 模型",
+  "preciseRef_typeCharacter": "角色",
+  "preciseRef_typeStyle": "风格",
+  "preciseRef_typeCharacterAndStyle": "角色+风格",
 
   "characterEditor_title": "多人角色提示词",
   "characterEditor_close": "关闭",

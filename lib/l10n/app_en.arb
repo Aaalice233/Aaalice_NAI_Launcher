@@ -3384,6 +3384,35 @@
   },
   "shortcut_help_title": "Keyboard Shortcuts Help",
   "shortcut_help_search": "Search shortcuts...",
-  "shortcut_help_customize": "Customize Shortcuts"
+  "shortcut_help_customize": "Customize Shortcuts",
+
+  "drop_dialogTitle": "How to use this image?",
+  "drop_hint": "Drop image here",
+  "drop_img2img": "Image to Image",
+  "drop_vibeTransfer": "Vibe Transfer",
+  "drop_characterReference": "Precise Reference",
+  "drop_unsupportedFormat": "Unsupported file format",
+  "drop_addedToImg2Img": "Added to Image to Image",
+  "drop_addedToVibe": "Added to Vibe Transfer",
+  "drop_addedMultipleToVibe": "Added {count} vibe references",
+  "@drop_addedMultipleToVibe": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "drop_addedToCharacterRef": "Added to Precise Reference",
+
+  "preciseRef_title": "Precise Reference",
+  "preciseRef_description": "Add reference images and set type and parameters. Multiple references can be used simultaneously.",
+  "preciseRef_addReference": "Add Reference",
+  "preciseRef_clearAll": "Clear All",
+  "preciseRef_remove": "Remove",
+  "preciseRef_referenceType": "Reference Type",
+  "preciseRef_strength": "Strength",
+  "preciseRef_fidelity": "Fidelity",
+  "preciseRef_v4Only": "This feature requires V4+ models",
+  "preciseRef_typeCharacter": "Character",
+  "preciseRef_typeStyle": "Style",
+  "preciseRef_typeCharacterAndStyle": "Character + Style"
 
 }
