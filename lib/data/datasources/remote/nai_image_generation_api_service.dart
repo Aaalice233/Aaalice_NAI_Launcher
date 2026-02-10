@@ -9,6 +9,7 @@ import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_api_utils.dart';
@@ -410,8 +411,8 @@ class NAIImageGenerationApiService {
         }
       }
 
-      // 角色参考 (Director Reference, V4+ 专属)
-      // 参数与官网保持一致：固定 normalize=true, information=1, strength=1
+      // 角色参考 (Precise Reference, V4+ 专属)
+      // 每个参考独立的 type, strength, fidelity
       if (effectiveCharacterRefs.isNotEmpty) {
         // 固定为 true（与官网保持一致）
         requestParameters['normalize_reference_strength_multiple'] = true;
@@ -419,29 +420,26 @@ class NAIImageGenerationApiService {
         requestParameters['director_reference_images'] = effectiveCharacterRefs
             .map((r) => base64Encode(NAIApiUtils.ensurePngFormat(r.image)))
             .toList();
-        // base_caption: Style Aware 开启时为 "character&style"，关闭时为 "character"
-        final baseCaption = params.characterReferenceStyleAware
-            ? 'character&style'
-            : 'character';
+        // base_caption: 使用每个参考的 type 转换为 API 字符串
         requestParameters['director_reference_descriptions'] =
             effectiveCharacterRefs.map((r) {
           return {
             'caption': {
-              'base_caption': baseCaption,
+              'base_caption': r.type.toApiString(),
               'char_captions': [],
             },
             'legacy_uc': false,
           };
         }).toList();
-        // 固定为 1（与官网保持一致）
+        // 使用每个参考独立的 strength 和 fidelity
         requestParameters['director_reference_information_extracted'] =
-            effectiveCharacterRefs.map((_) => 1).toList();
+            effectiveCharacterRefs.map((r) => 1).toList();
         requestParameters['director_reference_strength_values'] =
-            effectiveCharacterRefs.map((_) => 1).toList();
-        // secondary_strength_values = 1 - fidelity（必须是浮点数）
+            effectiveCharacterRefs.map((r) => r.strength).toList();
+        // secondary_strength_values = 1 - fidelity（每个参考独立）
         requestParameters['director_reference_secondary_strength_values'] =
             effectiveCharacterRefs
-                .map((_) => 1.0 - params.characterReferenceFidelity)
+                .map((r) => 1.0 - r.fidelity)
                 .toList();
       }
 
@@ -473,18 +471,10 @@ class NAIImageGenerationApiService {
           final ref = effectiveCharacterRefs[i];
           final pngBytes = NAIApiUtils.ensurePngFormat(ref.image);
           AppLogger.d(
-            'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes',
+            'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes, type: ${ref.type}, strength: ${ref.strength}, fidelity: ${ref.fidelity}',
             'ImgGen',
           );
         }
-        AppLogger.d(
-          'fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}',
-          'ImgGen',
-        );
-        AppLogger.d(
-          'styleAware: ${params.characterReferenceStyleAware}',
-          'ImgGen',
-        );
 
         AppLogger.d(
           'director_reference_descriptions: ${jsonEncode(requestParameters['director_reference_descriptions'])}',
@@ -865,7 +855,7 @@ class NAIImageGenerationApiService {
         }
       }
 
-      // 角色参考 (Director Reference, V4+ 专属)
+      // 角色参考 (Precise Reference, V4+ 专属)
       if (effectiveCharacterRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG (STREAM) ===', 'ImgGen');
         AppLogger.d(
@@ -879,18 +869,10 @@ class NAIImageGenerationApiService {
           final ref = effectiveCharacterRefs[i];
           final pngBytes = NAIApiUtils.ensurePngFormat(ref.image);
           AppLogger.d(
-            'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes',
+            'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes, type: ${ref.type}, strength: ${ref.strength}, fidelity: ${ref.fidelity}',
             'ImgGen',
           );
         }
-        AppLogger.d(
-          'fidelity: ${params.characterReferenceFidelity} -> secondary: ${1.0 - params.characterReferenceFidelity}',
-          'ImgGen',
-        );
-        AppLogger.d(
-          'styleAware: ${params.characterReferenceStyleAware}',
-          'ImgGen',
-        );
 
         // 固定为 true（与官网保持一致）
         requestParameters['normalize_reference_strength_multiple'] = true;
@@ -898,29 +880,26 @@ class NAIImageGenerationApiService {
         requestParameters['director_reference_images'] = effectiveCharacterRefs
             .map((r) => base64Encode(NAIApiUtils.ensurePngFormat(r.image)))
             .toList();
-        // base_caption: Style Aware 开启时为 "character&style"，关闭时为 "character"
-        final baseCaption = params.characterReferenceStyleAware
-            ? 'character&style'
-            : 'character';
+        // base_caption: 使用每个参考的 type 转换为 API 字符串
         requestParameters['director_reference_descriptions'] =
             effectiveCharacterRefs.map((r) {
           return {
             'caption': {
-              'base_caption': baseCaption,
+              'base_caption': r.type.toApiString(),
               'char_captions': [],
             },
             'legacy_uc': false,
           };
         }).toList();
-        // 固定为 1（与官网保持一致）
+        // 使用每个参考独立的 strength 和 fidelity
         requestParameters['director_reference_information_extracted'] =
-            effectiveCharacterRefs.map((_) => 1).toList();
+            effectiveCharacterRefs.map((r) => 1).toList();
         requestParameters['director_reference_strength_values'] =
-            effectiveCharacterRefs.map((_) => 1).toList();
-        // secondary_strength_values = 1 - fidelity（必须是浮点数）
+            effectiveCharacterRefs.map((r) => r.strength).toList();
+        // secondary_strength_values = 1 - fidelity（每个参考独立）
         requestParameters['director_reference_secondary_strength_values'] =
             effectiveCharacterRefs
-                .map((_) => 1.0 - params.characterReferenceFidelity)
+                .map((r) => 1.0 - r.fidelity)
                 .toList();
         // 注意: stream 参数已在基础参数中设置，无需重复添加
       }
