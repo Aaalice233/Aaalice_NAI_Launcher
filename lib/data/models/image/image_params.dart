@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/enums/precise_ref_type.dart';
 import '../vibe/vibe_reference_v4.dart';
 
 part 'image_params.freezed.dart';
@@ -42,16 +43,22 @@ class VibeReference with _$VibeReference {
   }) = _VibeReference;
 }
 
-/// 角色参考配置 (Director Reference, 仅 V4+ 模型支持)
-/// 注：informationExtracted/strengthValue 固定为 1，secondaryStrength 由全局 fidelity 计算
+/// 角色参考配置 (Precise Reference, 仅 V4+ 模型支持)
+/// 支持 Character/Style/CharacterAndStyle 三种类型
 @freezed
 class CharacterReference with _$CharacterReference {
   const factory CharacterReference({
     /// 参考图像数据
     required Uint8List image,
 
-    /// 角色描述 (可选)
-    @Default('') String description,
+    /// Precise Reference 类型
+    required PreciseRefType type,
+
+    /// 参考强度 (0-1)，越高越强烈模仿视觉线索
+    @Default(1.0) double strength,
+
+    /// 保真度 (0-1)，越高越忠实于原图
+    @Default(1.0) double fidelity,
   }) = _CharacterReference;
 }
 
@@ -205,12 +212,6 @@ class ImageParams with _$ImageParams {
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<CharacterReference> characterReferences,
-
-    /// 角色参考 - Style Aware (传输角色相关风格信息)
-    @Default(true) bool characterReferenceStyleAware,
-
-    /// 角色参考 - Fidelity (0=旧版行为, 1=新版行为)
-    @Default(1.0) double characterReferenceFidelity,
 
     // ========== 多角色参数 (仅 V4 模型) ==========
 
