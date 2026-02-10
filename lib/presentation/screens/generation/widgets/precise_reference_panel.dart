@@ -109,7 +109,7 @@ class _PreciseReferencePanelState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          context.l10n.characterRef_title,
+                          '精准参考',
                           style: theme.textTheme.titleSmall?.copyWith(
                             color: showBackground
                                 ? Colors.white
@@ -188,7 +188,7 @@ class _PreciseReferencePanelState
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  context.l10n.characterRef_v4Only,
+                                  '此功能需要 V4+ 模型',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.error,
                                   ),
@@ -240,7 +240,7 @@ class _PreciseReferencePanelState
                         TextButton.icon(
                           onPressed: _clearAllReferences,
                           icon: const Icon(Icons.clear_all, size: 18),
-                          label: Text(context.l10n.characterRef_clearAll),
+                          label: const Text('清空全部'),
                           style: TextButton.styleFrom(
                             foregroundColor: theme.colorScheme.error,
                           ),
@@ -468,7 +468,7 @@ class _PreciseReferenceCard extends StatelessWidget {
                     color: theme.colorScheme.error,
                   ),
                   onPressed: onRemove,
-                  tooltip: context.l10n.characterRef_remove,
+                  tooltip: '移除',
                 ),
               ),
             ],
