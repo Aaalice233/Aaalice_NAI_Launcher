@@ -264,6 +264,12 @@ extension ImageParamsExtension on ImageParams {
   /// 检查是否启用了角色参考
   bool get hasCharacterReferences => characterReferences.isNotEmpty;
 
+  /// 计算角色参考数量 (消耗 Anlas)
+  int get characterReferenceCount => characterReferences.length;
+
+  /// 计算角色参考成本 (每张 5 Anlas)
+  int get characterReferenceCost => characterReferenceCount * 5;
+
   /// 检查是否为 img2img 模式
   bool get isImg2Img =>
       action == ImageGenerationAction.img2img && sourceImage != null;
