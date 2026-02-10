@@ -21,6 +21,98 @@ import 'lazy_data_source_service.dart';
 part 'cooccurrence_service.g.dart';
 
 // =============================================================================
+// 新方案：Isolate.spawn 参数类和入口函数
+// =============================================================================
+
+/// 用于 Isolate 通信的参数类
+class _LoadFromFileParams {
+  final String filePath;
+  final SendPort sendPort;
+
+  _LoadFromFileParams(this.filePath, this.sendPort);
+}
+
+/// Isolate 入口函数（必须是顶层函数）
+void _loadFromFileIsolateEntry(_LoadFromFileParams params) async {
+  final result = await _loadFromFileInIsolate(params.filePath, params.sendPort);
+  // 发送最终结果
+  params.sendPort.send(result);
+}
+
+/// 在 Isolate 中执行的实际加载逻辑
+Future<Map<String, Map<String, int>>> _loadFromFileInIsolate(
+  String filePath,
+  SendPort sendPort,
+) async {
+  // 读取文件
+  sendPort.send({'type': 'progress', 'stage': 'reading', 'progress': 0.0});
+  final content = await File(filePath).readAsString();
+  sendPort.send({'type': 'progress', 'stage': 'reading', 'progress': 1.0, 'size': content.length});
+
+  // 解析数据（带进度报告）
+  return _parseCooccurrenceDataWithProgressIsolate(content, sendPort);
+}
+
+/// 在 Isolate 中解析共现数据（带进度报告）
+Map<String, Map<String, int>> _parseCooccurrenceDataWithProgressIsolate(
+  String content,
+  SendPort sendPort, {
+  int progressInterval = 100000,
+}) {
+  final result = <String, Map<String, int>>{};
+  final lines = content.split('\n');
+  final totalLines = lines.length;
+
+  // 跳过标题行
+  final startIndex = lines.isNotEmpty && lines[0].contains(',') ? 1 : 0;
+
+  for (var i = startIndex; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (line.isEmpty) continue;
+
+    // 移除可能的引号包裹
+    if (line.startsWith('"') && line.endsWith('"')) {
+      line = line.substring(1, line.length - 1);
+    }
+
+    final parts = line.split(',');
+
+    if (parts.length >= 3) {
+      final tag1 = parts[0].trim().toLowerCase();
+      final tag2 = parts[1].trim().toLowerCase();
+      final countStr = parts[2].trim();
+      final count = double.tryParse(countStr)?.toInt() ?? 0;
+
+      if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
+        result.putIfAbsent(tag1, () => {})[tag2] = count;
+        result.putIfAbsent(tag2, () => {})[tag1] = count;
+      }
+    }
+
+    // 定期报告进度
+    if ((i - startIndex) % progressInterval == 0 && i > startIndex) {
+      final progress = (i - startIndex) / (totalLines - startIndex);
+      sendPort.send({
+        'type': 'progress',
+        'stage': 'parsing',
+        'progress': progress,
+        'count': i - startIndex,
+      });
+    }
+  }
+
+  // 报告解析完成
+  sendPort.send({
+    'type': 'progress',
+    'stage': 'parsing',
+    'progress': 1.0,
+    'count': totalLines - startIndex,
+  });
+
+  return result;
+}
+
+// =============================================================================
 // 顶层 Isolate 辅助函数 - 必须定义在类外部以避免捕获 this
 // =============================================================================
 
@@ -462,6 +554,18 @@ class CooccurrenceData {
     _isLoaded = true;
   }
 
+  /// 批量替换所有共现数据（用于 Isolate 加载后的数据替换）
+  ///
+  /// 注意：此方法使用 addAll 批量添加数据。
+  /// addAll 的时间复杂度是 O(n)，其中 n 是条目数量。
+  /// 对于数十万个标签，这可能需要 50-200ms，
+  /// 但这比逐个 addCooccurrence 要快得多。
+  void replaceAllData(Map<String, Map<String, int>> newData) {
+    _cooccurrenceMap.clear();
+    _cooccurrenceMap.addAll(newData);
+    _isLoaded = true;
+  }
+
   /// 获取 map 大小（调试用）
   int get mapSize => _cooccurrenceMap.length;
 
@@ -891,87 +995,78 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
   /// 从文件加载（完全在Isolate中执行，避免阻塞主线程）
   Future<void> _loadFromFile(File file) async {
     print('[CooccurrenceService] _loadFromFile: ${file.path}');
-    final filePath = file.path;
 
     // 报告读取阶段开始
     onLoadProgress?.call(CooccurrenceLoadStage.reading, 0.0, 0.0, '开始读取文件');
 
-    // 在Isolate中完成：读取文件 + 解析数据 + 构建Map
     final receivePort = ReceivePort();
-    final sendPort = receivePort.sendPort; // 提前获取 sendPort，避免闭包捕获 receivePort
-    final progressStream = receivePort.asBroadcastStream();
-
-    // 监听进度报告
-    final progressSubscription = progressStream.listen((message) {
-      if (message is Map<String, dynamic>) {
-        final stage = message['stage'] as String?;
-        final progress = message['progress'] as double?;
-        final count = message['count'] as int?;
-
-        if (stage == 'parsing') {
-          onLoadProgress?.call(
-            CooccurrenceLoadStage.parsing,
-            0.3 + (progress ?? 0) * 0.4, // 解析占30%-70%
-            progress,
-            count != null ? '已解析 $count 行' : '解析中...',
-          );
-        } else if (stage == 'reading') {
-          onLoadProgress?.call(
-            CooccurrenceLoadStage.reading,
-            (progress ?? 0) * 0.3, // 读取占0%-30%
-            progress,
-            '读取文件...',
-          );
-        }
-      }
-    });
+    Map<String, Map<String, int>>? result;
 
     try {
-      // 通过顶层函数执行 Isolate.run，完全避免在实例方法中创建闭包
-      final result = await _runLoadFromFileIsolate(filePath, sendPort);
-
-      // 报告合并阶段
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.merging,
-        0.7,
-        0.0,
-        '合并数据...',
+      // 创建 Isolate
+      final isolate = await Isolate.spawn(
+        _loadFromFileIsolateEntry,
+        _LoadFromFileParams(file.path, receivePort.sendPort),
       );
 
-      // 将解析结果合并到主数据
-      var mergedCount = 0;
-      final totalEntries = result.length;
-      const batchSize = 10000;
+      // 监听消息
+      await for (final message in receivePort) {
+        if (message is Map<String, dynamic>) {
+          if (message['type'] == 'progress') {
+            // 处理进度消息
+            final stage = message['stage'] as String?;
+            final progress = message['progress'] as double?;
+            final count = message['count'] as int?;
 
-      for (final entry in result.entries) {
-        for (final related in entry.value.entries) {
-          _data.addCooccurrence(entry.key, related.key, related.value);
-        }
-        mergedCount++;
-
-        // 每处理一批报告一次进度
-        if (mergedCount % batchSize == 0) {
-          final progress = mergedCount / totalEntries;
-          onLoadProgress?.call(
-            CooccurrenceLoadStage.merging,
-            0.7 + progress * 0.3,
-            progress,
-            '合并数据: $mergedCount / $totalEntries',
-          );
+            if (stage == 'parsing') {
+              onLoadProgress?.call(
+                CooccurrenceLoadStage.parsing,
+                0.3 + (progress ?? 0) * 0.4,
+                progress,
+                count != null ? '已解析 $count 行' : '解析中...',
+              );
+            } else if (stage == 'reading') {
+              onLoadProgress?.call(
+                CooccurrenceLoadStage.reading,
+                (progress ?? 0) * 0.3,
+                progress,
+                '读取文件...',
+              );
+            }
+          }
+        } else if (message is Map<String, Map<String, int>>) {
+          // 收到最终结果
+          result = message;
+          break;
         }
       }
 
-      print('[CooccurrenceService]   总共添加: ${result.length} 个标签的共现数据');
-      print('[CooccurrenceService]   map size: ${_data.mapSize}');
+      // 终止 Isolate
+      isolate.kill(priority: Isolate.immediate);
 
-      _data.markLoaded();
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.complete,
-        1.0,
-        1.0,
-        '加载完成: ${result.length} 个标签',
-      );
-      AppLogger.d('Loaded cooccurrence data from cache', 'Cooccurrence');
+      if (result != null) {
+        // 报告合并阶段
+        onLoadProgress?.call(
+          CooccurrenceLoadStage.merging,
+          0.7,
+          0.0,
+          '合并数据...',
+        );
+
+        // 替换数据
+        _data.replaceAllData(result);
+
+        print('[CooccurrenceService]   加载完成: ${result.length} 个标签的共现数据');
+        print('[CooccurrenceService]   map size: ${_data.mapSize}');
+
+        onLoadProgress?.call(
+          CooccurrenceLoadStage.complete,
+          1.0,
+          1.0,
+          '加载完成: ${result.length} 个标签',
+        );
+        AppLogger.d('Loaded cooccurrence data from cache', 'Cooccurrence');
+      }
     } catch (e, stack) {
       print('[CooccurrenceService] _loadFromFile error: $e');
       print('[CooccurrenceService] stack: $stack');
@@ -984,7 +1079,6 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
       );
       rethrow;
     } finally {
-      await progressSubscription.cancel();
       receivePort.close();
     }
   }
@@ -1151,30 +1245,8 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
         '合并数据...',
       );
 
-      // 合并数据到主对象
-      var mergedCount = 0;
-      final totalEntries = data.length;
-      const batchSize = 10000;
-
-      for (final entry in data.entries) {
-        for (final related in entry.value.entries) {
-          _data.addCooccurrence(entry.key, related.key, related.value);
-        }
-        mergedCount++;
-
-        // 每处理一批报告一次进度
-        if (mergedCount % batchSize == 0) {
-          final progress = mergedCount / totalEntries;
-          onLoadProgress?.call(
-            CooccurrenceLoadStage.merging,
-            0.7 + progress * 0.3,
-            progress,
-            '合并数据: $mergedCount / $totalEntries',
-          );
-        }
-      }
-
-      _data.markLoaded();
+      // 替换数据（批量操作，比逐个添加快）
+      _data.replaceAllData(data);
       onLoadProgress?.call(
         CooccurrenceLoadStage.complete,
         1.0,
@@ -1451,10 +1523,15 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
         return;
       }
 
-      // 数据库有数据，直接使用
+      // 数据库有数据，设置为懒加载模式
+      // 移除热数据预加载，改为按需加载
       await setLoadMode(CooccurrenceLoadMode.lazy, sqliteService: sqliteService);
+
+      // 标记为已加载（空数据状态，实际数据按需加载）
+      _data.markLoaded();
+
       onProgress?.call(1.0, '共现数据初始化完成');
-      AppLogger.i('Cooccurrence lazy initialization completed', 'Cooccurrence');
+      AppLogger.i('Cooccurrence lazy initialization completed (hot data loading deferred)', 'Cooccurrence');
     } catch (e, stack) {
       AppLogger.e('Cooccurrence lazy initialization failed', e, stack, 'Cooccurrence');
       // 即使失败也标记为已加载，避免阻塞启动
