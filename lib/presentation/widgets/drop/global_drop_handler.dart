@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
@@ -311,8 +312,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       notifier.clearCharacterReferences();
     }
 
-    final characterRef = CharacterReference(image: bytes);
-    notifier.addCharacterReference(characterRef);
+    // 使用默认 Character 类型添加角色参考
+    notifier.addCharacterReference(
+      bytes,
+      type: PreciseRefType.character,
+      strength: 1.0,
+      fidelity: 1.0,
+    );
 
     if (mounted) {
       AppToast.success(

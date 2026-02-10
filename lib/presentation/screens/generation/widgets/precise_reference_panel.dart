@@ -323,17 +323,14 @@ class _PreciseReferencePanelState
           // 转换为 PNG 格式
           final pngBytes = NAIApiUtils.ensurePngFormat(bytes);
 
-          // TODO: 使用新的 addPreciseReference 方法（需要在 provider 中添加）
-          // 临时使用现有的 addCharacterReference 方法
+          // 添加 Precise Reference
           ref
               .read(generationParamsNotifierProvider.notifier)
               .addCharacterReference(
-                CharacterReference(
-                  image: pngBytes,
-                  type: type,
-                  strength: 0.8,
-                  fidelity: 1.0,
-                ),
+                pngBytes,
+                type: type,
+                strength: 0.8,
+                fidelity: 1.0,
               );
         }
       }

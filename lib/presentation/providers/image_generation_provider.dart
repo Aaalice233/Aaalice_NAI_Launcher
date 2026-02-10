@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/enums/precise_ref_type.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
@@ -1492,12 +1493,25 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   // ==================== 角色参考参数 (V4+ 模型) ====================
 
-  /// 添加角色参考图
+  /// 添加角色参考图（Precise Reference）
   /// 注意：角色参考最多1张，且和 Vibe Transfer 互斥
-  void addCharacterReference(CharacterReference ref) {
+  void addCharacterReference(
+    Uint8List image, {
+    required PreciseRefType type,
+    double strength = 1.0,
+    double fidelity = 1.0,
+  }) {
     if (state.characterReferences.isNotEmpty) return; // 最多1张
     state = state.copyWith(
-      characterReferences: [...state.characterReferences, ref],
+      characterReferences: [
+        ...state.characterReferences,
+        CharacterReference(
+          image: image,
+          type: type,
+          strength: strength,
+          fidelity: fidelity,
+        ),
+      ],
       vibeReferences: [], // 清除 Vibe Transfer（互斥）
       vibeReferencesV4: [], // 清除 V4 Vibe Transfer（互斥）
     );
@@ -1511,17 +1525,21 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(characterReferences: newList);
   }
 
-  /// 更新角色参考图配置（仅支持更新描述）
+  /// 更新角色参考图配置
   void updateCharacterReference(
     int index, {
-    String? description,
+    PreciseRefType? type,
+    double? strength,
+    double? fidelity,
   }) {
     if (index < 0 || index >= state.characterReferences.length) return;
     final newList = [...state.characterReferences];
     final current = newList[index];
     newList[index] = CharacterReference(
       image: current.image,
-      description: description ?? current.description,
+      type: type ?? current.type,
+      strength: strength ?? current.strength,
+      fidelity: fidelity ?? current.fidelity,
     );
     state = state.copyWith(characterReferences: newList);
   }
@@ -1529,16 +1547,6 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 清除所有角色参考图
   void clearCharacterReferences() {
     state = state.copyWith(characterReferences: []);
-  }
-
-  /// 更新角色参考 Style Aware 开关
-  void setCharacterReferenceStyleAware(bool value) {
-    state = state.copyWith(characterReferenceStyleAware: value);
-  }
-
-  /// 更新角色参考 Fidelity 值
-  void setCharacterReferenceFidelity(double value) {
-    state = state.copyWith(characterReferenceFidelity: value.clamp(0.0, 1.0));
   }
 
   // ==================== 多角色参数 (V4 模型) ====================
