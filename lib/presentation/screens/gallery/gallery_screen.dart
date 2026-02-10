@@ -8,7 +8,9 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
+import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/gallery_provider.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
 import '../../widgets/common/themed_input.dart';
 import '../../widgets/gallery/gallery_statistics_dialog.dart';
@@ -213,6 +215,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ),
           ),
           const SizedBox(width: 8),
+
           // 排序选择
           PopupMenuButton<GallerySortOrder>(
             onSelected: (order) {
@@ -666,6 +669,35 @@ class _GalleryTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                // Vibe 标识（左下角）
+                if (record.hasVibeMetadata)
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: Tooltip(
+                      message: record.vibeData?.displayName ?? 'Vibe',
+                      child: GestureDetector(
+                        onTap: () => _showVibeInfo(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome,
+                                color: Colors.amber,
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 // 底部信息
                 Positioned(
                   left: 0,
@@ -699,6 +731,14 @@ class _GalleryTile extends StatelessWidget {
                         const SizedBox(height: 2),
                         Row(
                           children: [
+                            if (record.hasVibeMetadata) ...[
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: Colors.amber,
+                                size: 10,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
                             Text(
                               record.resolution,
                               style: TextStyle(
@@ -760,6 +800,84 @@ class _GalleryTile extends StatelessWidget {
       ),
     );
   }
+
+  void _showVibeInfo(BuildContext context) {
+    final vibeData = record.vibeData;
+    if (vibeData == null) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                color: Colors.amber,
+              ),
+              const SizedBox(width: 8),
+              Text(context.l10n.vibe_info),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_name,
+                vibeData.displayName,
+              ),
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_strength,
+                '${(vibeData.strength * 100).toInt()}%',
+              ),
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_infoExtracted,
+                '${(vibeData.infoExtracted * 100).toInt()}%',
+              ),
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_sourceType,
+                vibeData.sourceType.displayLabel,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVibeInfoRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// 全屏查看器
@@ -770,6 +888,8 @@ class _FullscreenViewer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hasVibeData = record.vibeData != null;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -807,14 +927,202 @@ class _FullscreenViewer extends ConsumerWidget {
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: InteractiveViewer(
-        minScale: 0.5,
-        maxScale: 4.0,
-        child: Center(
-          child: _buildFullImage(),
-        ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 主图像
+          InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: _buildFullImage(),
+            ),
+          ),
+          // Vibe 信息面板
+          if (hasVibeData)
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: _buildVibeInfoPanel(context, ref),
+            ),
+        ],
       ),
     );
+  }
+
+  /// 构建 Vibe 信息面板
+  Widget _buildVibeInfoPanel(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final vibe = record.vibeData!;
+    final isRawImage = vibe.sourceType == VibeSourceType.rawImage;
+
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          Row(
+            children: [
+              Icon(
+                Icons.auto_fix_high,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                context.l10n.vibe_title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 缩略图
+          if (vibe.thumbnail != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                vibe.thumbnail!,
+                width: double.infinity,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+            ),
+          const SizedBox(height: 12),
+          // 数据源类型
+          _buildVibeInfoRow(
+            context,
+            label: context.l10n.vibe_sourceType,
+            value: vibe.sourceType.displayLabel,
+          ),
+          const SizedBox(height: 8),
+          // 强度值
+          _buildVibeInfoRow(
+            context,
+            label: context.l10n.vibe_referenceStrength,
+            value: vibe.strength.toStringAsFixed(1),
+          ),
+          // 信息提取值（仅原始图片模式）
+          if (isRawImage) ...[
+            const SizedBox(height: 8),
+            _buildVibeInfoRow(
+              context,
+              label: context.l10n.vibe_infoExtraction,
+              value: vibe.infoExtracted.toStringAsFixed(1),
+            ),
+          ],
+          const SizedBox(height: 12),
+          // 一键复用按钮
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _reuseVibe(context, ref),
+              icon: const Icon(Icons.replay, size: 16),
+              label: Text(context.l10n.vibe_reuseButton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建 Vibe 信息行
+  Widget _buildVibeInfoRow(
+    BuildContext context, {
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 12,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 一键复用 Vibe
+  void _reuseVibe(BuildContext context, WidgetRef ref) {
+    final vibe = record.vibeData;
+    if (vibe == null) {
+      AppToast.warning(context, '没有可用的 Vibe 数据');
+      return;
+    }
+
+    // 检查是否已存在相同的 Vibe（根据 vibeEncoding 判断）
+    final currentParams = ref.read(generationParamsNotifierProvider);
+    final existingVibes = currentParams.vibeReferencesV4;
+
+    final isDuplicate = existingVibes.any((existing) {
+      // 如果 vibeEncoding 相同，则认为是重复的
+      if (existing.vibeEncoding.isNotEmpty &&
+          vibe.vibeEncoding.isNotEmpty &&
+          existing.vibeEncoding == vibe.vibeEncoding) {
+        return true;
+      }
+      // 或者根据 displayName 判断（作为备用）
+      if (existing.displayName == vibe.displayName) {
+        return true;
+      }
+      return false;
+    });
+
+    if (isDuplicate) {
+      AppToast.info(context, '该 Vibe 已在生成参数中');
+      return;
+    }
+
+    // 检查是否已达到最大限制（16个）
+    if (existingVibes.length >= 16) {
+      AppToast.warning(context, 'Vibe 数量已达到上限（16个）');
+      return;
+    }
+
+    // 添加到生成参数
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .addVibeReferencesV4([vibe]);
+
+    // 关闭全屏查看器并导航到生成屏幕
+    Navigator.of(context).pop();
+
+    if (context.mounted) {
+      AppToast.success(context, 'Vibe 已添加到生成参数');
+    }
   }
 
   Widget _buildFullImage() {

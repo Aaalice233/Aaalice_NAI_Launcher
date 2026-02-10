@@ -660,6 +660,13 @@
   "vibe_sourceType_v4vibe": "V4 Vibe",
   "vibe_sourceType_bundle": "Bundle",
   "vibe_sourceType_image": "Image",
+  "vibe_sourceType": "Source",
+  "vibe_reuseButton": "Reuse",
+  "vibe_reuseSuccess": "Vibe added to generation params",
+  "vibe_info": "Vibe Info",
+  "vibe_name": "Name",
+  "vibe_strength": "Strength",
+  "vibe_infoExtracted": "Info Extracted",
 
   "characterRef_title": "Character Reference",
   "characterRef_hint": "Upload character reference images to maintain consistency (V4+ only)",

@@ -323,6 +323,11 @@ class GalleryRepository {
       records = records.where((r) => r.isFavorite).toList();
     }
 
+    // 只显示 Vibe 图片
+    if (filter.vibeOnly) {
+      records = records.where((r) => r.hasVibeMetadata).toList();
+    }
+
     // 模型筛选
     if (filter.modelFilter != null && filter.modelFilter!.isNotEmpty) {
       records =

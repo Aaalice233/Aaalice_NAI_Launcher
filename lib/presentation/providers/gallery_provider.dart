@@ -194,6 +194,13 @@ class GalleryNotifier extends _$GalleryNotifier {
     );
   }
 
+  /// 切换只显示 Vibe 图片
+  void toggleVibeOnly() {
+    updateFilter(
+      state.filter.copyWith(vibeOnly: !state.filter.vibeOnly),
+    );
+  }
+
   /// 设置排序方式
   void setSortOrder(GallerySortOrder order) {
     updateFilter(state.filter.copyWith(sortOrder: order));
@@ -337,4 +344,11 @@ GalleryStatistics galleryStatistics(Ref ref) {
 int galleryGridColumnCount(Ref ref) {
   final state = ref.watch(galleryNotifierProvider);
   return state.gridColumnCount ?? 4; // 默认4列
+}
+
+/// 便捷 Provider：获取 Vibe 图片数量
+@riverpod
+int galleryVibeCount(Ref ref) {
+  final state = ref.watch(galleryNotifierProvider);
+  return state.records.where((r) => r.hasVibeMetadata).length;
 }

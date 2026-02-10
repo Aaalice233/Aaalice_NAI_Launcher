@@ -488,6 +488,13 @@
   "vibe_sourceType_v4vibe": "V4 Vibe",
   "vibe_sourceType_bundle": "组合包",
   "vibe_sourceType_image": "图片",
+  "vibe_sourceType": "数据源",
+  "vibe_reuseButton": "一键复用",
+  "vibe_reuseSuccess": "Vibe 已添加到生成参数",
+  "vibe_info": "Vibe 信息",
+  "vibe_name": "名称",
+  "vibe_strength": "强度",
+  "vibe_infoExtracted": "信息提取",
 
   "characterRef_title": "角色参考",
   "characterRef_hint": "上传角色参考图来保持角色一致性（仅 V4+ 模型支持）",
