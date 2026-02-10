@@ -14,6 +14,7 @@ import '../../../widgets/common/themed_slider.dart';
 import '../../../widgets/common/themed_divider.dart';
 import 'img2img_panel.dart';
 import 'unified_reference_panel.dart';
+import 'precise_reference_panel.dart';
 import 'prompt_input.dart';
 
 import '../../../widgets/common/app_toast.dart';
@@ -387,8 +388,13 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
 
         const SizedBox(height: 8),
 
-        // 统一参考面板 (Vibe Transfer 和角色参考二选一)
+        // 风格迁移面板 (Vibe Transfer)
         const UnifiedReferencePanel(),
+
+        const SizedBox(height: 8),
+
+        // Precise Reference 面板 (角色/风格参考)
+        const PreciseReferencePanel(),
 
         const SizedBox(height: 16),
 

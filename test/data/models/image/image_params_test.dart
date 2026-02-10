@@ -7,7 +7,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 void main() {
   group('ImageParams characterReference getters', () {
     test('characterReferenceCount should return 0 when no references', () {
-      final params = ImageParams();
+      final params = const ImageParams();
 
       expect(params.characterReferences, isEmpty);
       expect(params.characterReferenceCount, equals(0));
@@ -28,7 +28,9 @@ void main() {
       expect(params.characterReferenceCount, equals(1));
     });
 
-    test('characterReferenceCount should return correct count with multiple references', () {
+    test(
+        'characterReferenceCount should return correct count with multiple references',
+        () {
       final imageData = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(
         characterReferences: [
@@ -51,7 +53,7 @@ void main() {
     });
 
     test('characterReferenceCost should return 0 when no references', () {
-      final params = ImageParams();
+      final params = const ImageParams();
 
       expect(params.characterReferenceCost, equals(0));
     });
@@ -70,7 +72,9 @@ void main() {
       expect(params.characterReferenceCost, equals(5));
     });
 
-    test('characterReferenceCost should return correct cost with multiple references', () {
+    test(
+        'characterReferenceCost should return correct cost with multiple references',
+        () {
       final imageData = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(
         characterReferences: [
@@ -107,7 +111,7 @@ void main() {
     });
 
     test('hasCharacterReferences should be false when empty', () {
-      final params = ImageParams();
+      final params = const ImageParams();
 
       expect(params.hasCharacterReferences, isFalse);
     });
@@ -148,7 +152,7 @@ void main() {
 
     test('should handle adding references via copyWith', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
-      final params1 = ImageParams();
+      final params1 = const ImageParams();
 
       expect(params1.characterReferenceCount, equals(0));
 
