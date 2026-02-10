@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../widgets/common/themed_divider.dart';
@@ -15,6 +16,12 @@ enum ImageDestination {
 
   /// Vibe Transfer
   vibeTransfer,
+
+  /// Vibe Transfer - 复用预编码 Vibe
+  vibeTransferReuse,
+
+  /// Vibe Transfer - 作为原始图片（需要编码）
+  vibeTransferRaw,
 
   /// 角色参考
   characterReference,
@@ -39,11 +46,15 @@ class ImageDestinationDialog extends ConsumerWidget {
   /// 是否显示提取元数据选项
   final bool showExtractMetadata;
 
+  /// 检测到的 Vibe 元数据（如果有）
+  final VibeReferenceV4? detectedVibe;
+
   const ImageDestinationDialog({
     super.key,
     required this.imageBytes,
     required this.fileName,
     this.showExtractMetadata = true,
+    this.detectedVibe,
   });
 
   /// 显示对话框
@@ -52,6 +63,7 @@ class ImageDestinationDialog extends ConsumerWidget {
     required Uint8List imageBytes,
     required String fileName,
     bool showExtractMetadata = true,
+    VibeReferenceV4? detectedVibe,
   }) {
     return showDialog<ImageDestination>(
       context: context,
@@ -60,6 +72,7 @@ class ImageDestinationDialog extends ConsumerWidget {
         imageBytes: imageBytes,
         fileName: fileName,
         showExtractMetadata: showExtractMetadata,
+        detectedVibe: detectedVibe,
       ),
     );
   }
@@ -152,6 +165,14 @@ class ImageDestinationDialog extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Vibe 检测提示和选项
+                  if (detectedVibe != null) ...[
+                    _buildVibeDetectedCard(context),
+                    const SizedBox(height: 16),
+                    const ThemedDivider(height: 1),
+                    const SizedBox(height: 16),
+                  ],
+
                   // 提取元数据选项（置顶，用主题色高亮）
                   if (showExtractMetadata) ...[
                     _DestinationButton(
@@ -187,12 +208,14 @@ class ImageDestinationDialog extends ConsumerWidget {
                         Navigator.of(context).pop(ImageDestination.img2img),
                   ),
                   const SizedBox(height: 12),
-                  _DestinationButton(
-                    icon: Icons.auto_awesome,
-                    label: context.l10n.drop_vibeTransfer,
-                    onTap: () => Navigator.of(context)
-                        .pop(ImageDestination.vibeTransfer),
-                  ),
+                  // Vibe Transfer 按钮（如果没有检测到预编码 Vibe）
+                  if (detectedVibe == null)
+                    _DestinationButton(
+                      icon: Icons.auto_awesome,
+                      label: context.l10n.drop_vibeTransfer,
+                      onTap: () => Navigator.of(context)
+                          .pop(ImageDestination.vibeTransfer),
+                    ),
                   const SizedBox(height: 12),
                   _DestinationButton(
                     icon: Icons.person_outline,
@@ -205,6 +228,150 @@ class ImageDestinationDialog extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// 构建 Vibe 检测卡片
+  Widget _buildVibeDetectedCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final vibe = detectedVibe!;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.amber.withOpacity(0.1),
+            Colors.orange.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.amber.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 标题栏
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.1),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 20,
+                  color: Colors.amber.shade700,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '✨ 检测到预编码 Vibe（可节省 2 Anlas）',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: Colors.amber.shade800,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Vibe 预览
+          if (vibe.thumbnail != null)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // 缩略图
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        vibe.thumbnail!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 参数信息
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vibe.displayName,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '强度: ${(vibe.strength * 100).toStringAsFixed(0)}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          '信息提取: ${(vibe.infoExtracted * 100).toStringAsFixed(0)}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // 操作按钮
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 复用 Vibe 按钮（默认推荐）
+                _DestinationButton(
+                  icon: Icons.recycling,
+                  label: '复用 Vibe',
+                  subtitle: '直接使用预编码数据（免费）',
+                  isPrimary: true,
+                  onTap: () => Navigator.of(context)
+                      .pop(ImageDestination.vibeTransferReuse),
+                ),
+                const SizedBox(height: 8),
+                // 作为原始图片按钮
+                _DestinationButton(
+                  icon: Icons.refresh,
+                  label: '作为原始图片',
+                  subtitle: '重新编码（消耗 2 Anlas）',
+                  onTap: () => Navigator.of(context)
+                      .pop(ImageDestination.vibeTransferRaw),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

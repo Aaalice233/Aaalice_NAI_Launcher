@@ -15,6 +15,8 @@ import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/metadata/metadata_import_options.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../data/services/vibe_metadata_service.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -209,6 +211,23 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       return;
     }
 
+    // 检测是否包含 Vibe 元数据（仅 PNG）
+    VibeReferenceV4? detectedVibe;
+    if (fileName.toLowerCase().endsWith('.png')) {
+      try {
+        final vibeService = VibeMetadataService();
+        detectedVibe = await vibeService.extractVibeFromImage(bytes);
+        if (detectedVibe != null) {
+          AppLogger.i(
+            'Detected pre-encoded Vibe in dropped image: ${detectedVibe.displayName}',
+            'DropHandler',
+          );
+        }
+      } catch (e) {
+        AppLogger.d('Failed to detect Vibe metadata: $e', 'DropHandler');
+      }
+    }
+
     // 显示目标选择对话框
     final destination = await ImageDestinationDialog.show(
       context,
@@ -216,6 +235,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       fileName: fileName,
       showExtractMetadata:
           fileName.toLowerCase().endsWith('.png'), // 只有 PNG 才支持提取元数据
+      detectedVibe: detectedVibe,
     );
 
     if (destination == null || !mounted) return;
@@ -229,6 +249,18 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       case ImageDestination.vibeTransfer:
         await _handleVibeTransfer(fileName, bytes, notifier);
+        break;
+
+      case ImageDestination.vibeTransferReuse:
+        // 复用检测到的 Vibe
+        if (detectedVibe != null) {
+          await _handleVibeReuse(detectedVibe, notifier);
+        }
+        break;
+
+      case ImageDestination.vibeTransferRaw:
+        // 作为原始图片使用（需要重新编码）
+        await _handleVibeTransfer(fileName, bytes, notifier, forceRaw: true);
         break;
 
       case ImageDestination.characterReference:
@@ -257,8 +289,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   Future<void> _handleVibeTransfer(
     String fileName,
     Uint8List bytes,
-    GenerationParamsNotifier notifier,
-  ) async {
+    GenerationParamsNotifier notifier, {
+    bool forceRaw = false,
+  }) async {
     try {
       final currentState = ref.read(generationParamsNotifierProvider);
       final currentCount = currentState.vibeReferencesV4.length;
@@ -277,7 +310,17 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
 
       for (final vibe in vibes) {
-        notifier.addVibeReferenceV4(vibe);
+        // 如果强制使用原始图片模式，重置 vibeEncoding
+        if (forceRaw && vibe.vibeEncoding.isNotEmpty) {
+          final rawVibe = vibe.copyWith(
+            vibeEncoding: '',
+            rawImageData: bytes,
+            sourceType: VibeSourceType.rawImage,
+          );
+          notifier.addVibeReferenceV4(rawVibe);
+        } else {
+          notifier.addVibeReferenceV4(vibe);
+        }
       }
 
       if (mounted) {
@@ -295,6 +338,45 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     } catch (e) {
       if (kDebugMode) {
         AppLogger.d('Error parsing vibe file: $e', 'DropHandler');
+      }
+      _showError(e.toString());
+    }
+  }
+
+  /// 处理复用预编码 Vibe
+  Future<void> _handleVibeReuse(
+    VibeReferenceV4 vibe,
+    GenerationParamsNotifier notifier,
+  ) async {
+    try {
+      final currentState = ref.read(generationParamsNotifierProvider);
+      final currentCount = currentState.vibeReferencesV4.length;
+      const maxCount = 16;
+
+      // 检查是否超出上限
+      if (currentCount >= maxCount) {
+        if (mounted) {
+          AppToast.warning(context, '风格参考已达上限 ($maxCount 张)');
+        }
+        return;
+      }
+
+      // 直接使用预编码的 Vibe
+      notifier.addVibeReferenceV4(vibe);
+
+      if (mounted) {
+        String message;
+        if (currentCount > 0) {
+          // 追加模式
+          message = '已追加 1 个风格参考（复用预编码 Vibe）';
+        } else {
+          message = '已添加风格参考（复用预编码 Vibe，节省 2 Anlas）';
+        }
+        AppToast.success(context, message);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        AppLogger.d('Error reusing Vibe: $e', 'DropHandler');
       }
       _showError(e.toString());
     }

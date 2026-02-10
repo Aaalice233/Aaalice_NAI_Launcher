@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/image/image_params.dart';
+import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -19,6 +22,9 @@ import '../../../widgets/common/app_toast.dart';
 /// 支持功能：
 /// - V4 Vibe Transfer（16张、预编码、编码成本显示）
 /// - Normalize 强度标准化开关
+/// - 保存到库 / 从库导入
+/// - 最近使用的 Vibes
+/// - 源类型图标显示
 class UnifiedReferencePanel extends ConsumerStatefulWidget {
   const UnifiedReferencePanel({super.key});
 
@@ -29,6 +35,27 @@ class UnifiedReferencePanel extends ConsumerStatefulWidget {
 
 class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   bool _isExpanded = false;
+  List<VibeLibraryEntry> _recentEntries = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecentEntries();
+  }
+
+  Future<void> _loadRecentEntries() async {
+    final storageService = ref.read(vibeLibraryStorageServiceProvider);
+    try {
+      final entries = await storageService.getRecentEntries(limit: 5);
+      if (mounted) {
+        setState(() {
+          _recentEntries = entries;
+        });
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to load recent vibes', e, stackTrace);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +267,14 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               showBackground: showBackground,
             );
           }),
+          const SizedBox(height: 12),
+
+          // 库操作按钮行
+          _buildLibraryActions(context, theme, vibes),
           const SizedBox(height: 8),
+        ] else ...[
+          // 空状态优化
+          _buildEmptyState(context, theme),
         ],
 
         // 添加按钮
@@ -257,6 +291,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 : null,
           ),
 
+        // 最近使用的 Vibes
+        if (_recentEntries.isNotEmpty && vibes.length < 16) ...[
+          const SizedBox(height: 16),
+          _buildRecentVibes(context, theme),
+        ],
+
         // 清除全部按钮
         if (hasVibes) ...[
           const SizedBox(height: 8),
@@ -270,6 +310,119 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  /// 构建库操作按钮（保存到库、从库导入）
+  Widget _buildLibraryActions(
+    BuildContext context,
+    ThemeData theme,
+    List<VibeReferenceV4> vibes,
+  ) {
+    return Row(
+      children: [
+        // 保存到库按钮
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: vibes.isNotEmpty ? _saveToLibrary : null,
+            icon: const Icon(Icons.save_outlined, size: 16),
+            label: const Text('保存到库'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 从库导入按钮
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _importFromLibrary,
+            icon: const Icon(Icons.folder_open_outlined, size: 16),
+            label: const Text('从库导入'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 构建空状态
+  Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.auto_fix_high_outlined,
+            size: 40,
+            color: theme.colorScheme.outline.withOpacity(0.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '添加参考图来迁移视觉风格',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '支持 PNG、JPG、V4 Vibe 文件',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建最近使用的 Vibes
+  Widget _buildRecentVibes(BuildContext context, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.history,
+              size: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '最近使用',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 72,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recentEntries.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final entry = _recentEntries[index];
+              return _RecentVibeItem(
+                entry: entry,
+                onTap: () => _addRecentVibe(entry),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -439,6 +592,194 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   void _clearAllVibes() {
     ref.read(generationParamsNotifierProvider.notifier).clearVibeReferencesV4();
   }
+
+  /// 保存当前 Vibes 到库
+  Future<void> _saveToLibrary() async {
+    final params = ref.read(generationParamsNotifierProvider);
+    final vibes = params.vibeReferencesV4;
+
+    if (vibes.isEmpty) return;
+
+    // 显示保存对话框
+    final nameController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('保存到 Vibe 库'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('保存 ${vibes.length} 个 Vibe 到库中'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: '名称',
+                hintText: '输入保存名称',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop(true);
+              }
+            },
+            child: Text(context.l10n.common_save),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+      final name = nameController.text.trim();
+
+      try {
+        for (final vibe in vibes) {
+          final entry = VibeLibraryEntry.fromVibeReference(
+            name: vibes.length == 1 ? name : '$name - ${vibe.displayName}',
+            vibeData: vibe,
+          );
+          await storageService.saveEntry(entry);
+        }
+
+        if (mounted) {
+          AppToast.success(context, '已保存到 Vibe 库');
+          _loadRecentEntries(); // 刷新最近列表
+        }
+      } catch (e, stackTrace) {
+        AppLogger.e('Failed to save to library', e, stackTrace);
+        if (mounted) {
+          AppToast.error(context, '保存失败: \$e');
+        }
+      }
+    }
+
+    nameController.dispose();
+  }
+
+  /// 从库导入 Vibes
+  Future<void> _importFromLibrary() async {
+    final storageService = ref.read(vibeLibraryStorageServiceProvider);
+
+    try {
+      final entries = await storageService.getAllEntries();
+
+      if (!mounted) return;
+
+      if (entries.isEmpty) {
+        AppToast.info(context, 'Vibe 库为空');
+        return;
+      }
+
+      final selected = await showDialog<VibeLibraryEntry>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('从库导入 Vibe'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: ListView.builder(
+              itemCount: entries.length,
+              itemBuilder: (context, index) {
+                final entry = entries[index];
+                return ListTile(
+                  leading: entry.hasThumbnail
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.memory(
+                            entry.thumbnail!,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(Icons.image, size: 20),
+                        ),
+                  title: Text(entry.displayName),
+                  subtitle: Text(
+                    entry.isPreEncoded ? '预编码' : '需编码 (2 Anlas)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: entry.isPreEncoded
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                  onTap: () => Navigator.of(context).pop(entry),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
+            ),
+          ],
+        ),
+      );
+
+      if (selected != null && mounted) {
+        final notifier = ref.read(generationParamsNotifierProvider.notifier);
+        final vibe = selected.toVibeReference();
+        notifier.addVibeReferencesV4([vibe]);
+
+        // 更新使用统计
+        await storageService.incrementUsedCount(selected.id);
+
+        if (mounted) {
+          AppToast.success(context, '已导入: \${selected.displayName}');
+        }
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to import from library', e, stackTrace);
+      if (mounted) {
+        AppToast.error(context, '导入失败: \$e');
+      }
+    }
+  }
+
+  /// 添加最近使用的 Vibe
+  Future<void> _addRecentVibe(VibeLibraryEntry entry) async {
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final vibes = ref.read(generationParamsNotifierProvider).vibeReferencesV4;
+
+    if (vibes.length >= 16) {
+      AppToast.warning(context, '已达到最大数量 (16张)');
+      return;
+    }
+
+    final vibe = entry.toVibeReference();
+    notifier.addVibeReferencesV4([vibe]);
+
+    // 更新使用统计
+    final storageService = ref.read(vibeLibraryStorageServiceProvider);
+    await storageService.incrementUsedCount(entry.id);
+
+    if (mounted) {
+      AppToast.success(context, '已添加: \${entry.displayName}');
+    }
+  }
 }
 
 /// Vibe 卡片组件
@@ -499,11 +840,15 @@ class _VibeCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // 右侧：滑条
+          // 右侧：滑条和源类型
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 源类型标签
+                _buildSourceTypeChip(context, theme),
+                const SizedBox(height: 8),
+
                 // Reference Strength 滑条
                 _buildSliderRow(
                   context,
@@ -570,6 +915,54 @@ class _VibeCard extends StatelessWidget {
     );
   }
 
+  /// 构建源类型标签
+  Widget _buildSourceTypeChip(BuildContext context, ThemeData theme) {
+    final isPreEncoded = vibe.sourceType.isPreEncoded;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: isPreEncoded
+            ? Colors.green.withOpacity(0.1)
+            : Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isPreEncoded
+              ? Colors.green.withOpacity(0.3)
+              : Colors.orange.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPreEncoded ? Icons.check_circle_outline : Icons.warning_amber,
+            size: 12,
+            color: isPreEncoded ? Colors.green : Colors.orange,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            vibe.sourceType.displayLabel,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: isPreEncoded ? Colors.green : Colors.orange,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (!isPreEncoded) ...[
+            const SizedBox(width: 4),
+            Text(
+              '(2 Anlas)',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.orange.withOpacity(0.8),
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildSliderRow(
     BuildContext context,
     ThemeData theme, {
@@ -615,6 +1008,109 @@ class _VibeCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 最近 Vibe 条目组件
+class _RecentVibeItem extends StatelessWidget {
+  final VibeLibraryEntry entry;
+  final VoidCallback onTap;
+
+  const _RecentVibeItem({
+    required this.entry,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 72,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          ),
+        ),
+        child: Column(
+          children: [
+            // 缩略图
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(7)),
+                child: entry.hasThumbnail || entry.hasVibeThumbnail
+                    ? Image.memory(
+                        entry.thumbnail ?? entry.vibeThumbnail!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      )
+                    : Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: const Center(
+                          child: Icon(Icons.image, size: 24),
+                        ),
+                      ),
+              ),
+            ),
+            // 名称
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Text(
+                entry.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // 源类型指示器
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              decoration: BoxDecoration(
+                color: entry.isPreEncoded
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(7)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    entry.isPreEncoded
+                        ? Icons.check_circle
+                        : Icons.warning,
+                    size: 8,
+                    color: entry.isPreEncoded
+                        ? Colors.green
+                        : Colors.orange,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    entry.sourceType.displayLabel,
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: entry.isPreEncoded
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
