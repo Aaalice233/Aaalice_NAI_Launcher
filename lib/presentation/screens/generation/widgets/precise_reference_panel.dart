@@ -32,6 +32,7 @@ class PreciseReferencePanel extends ConsumerStatefulWidget {
 class _PreciseReferencePanelState
     extends ConsumerState<PreciseReferencePanel> {
   bool _isExpanded = false;
+  PreciseRefType _selectedType = PreciseRefType.character;
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +210,10 @@ class _PreciseReferencePanelState
                       ),
                       const SizedBox(height: 12),
 
+                      // 参考类型选择（SegmentedButton）
+                      _buildTypeSelector(context, theme),
+                      const SizedBox(height: 12),
+
                       // 参考列表
                       if (hasReferences) ...[
                         ...List.generate(references.length, (index) {
@@ -258,51 +263,48 @@ class _PreciseReferencePanelState
     );
   }
 
-  /// 显示选择参考类型的对话框
-  Future<PreciseRefType?> _showTypeSelectionDialog() async {
-    return showDialog<PreciseRefType>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.preciseRef_referenceType),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(context.l10n.preciseRef_typeCharacter),
-              subtitle: Text('仅参考角色外观'),
-              onTap: () => Navigator.pop(context, PreciseRefType.character),
-            ),
-            ListTile(
-              leading: const Icon(Icons.palette),
-              title: Text(context.l10n.preciseRef_typeStyle),
-              subtitle: Text('仅参考艺术风格'),
-              onTap: () => Navigator.pop(context, PreciseRefType.style),
-            ),
-            ListTile(
-              leading: const Icon(Icons.auto_awesome),
-              title: Text(context.l10n.preciseRef_typeCharacterAndStyle),
-              subtitle: Text('同时参考角色和风格'),
-              onTap: () =>
-                  Navigator.pop(context, PreciseRefType.characterAndStyle),
-            ),
-          ],
+  /// 构建类型选择器（SegmentedButton）
+  Widget _buildTypeSelector(BuildContext context, ThemeData theme) {
+    final params = ref.watch(generationParamsNotifierProvider);
+    final isV4Model = params.isV4Model;
+
+    return SegmentedButton<PreciseRefType>(
+      segments: [
+        ButtonSegment(
+          value: PreciseRefType.character,
+          label: Text(context.l10n.preciseRef_typeCharacter),
+          icon: const Icon(Icons.person, size: 18),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.common_cancel),
-          ),
-        ],
+        ButtonSegment(
+          value: PreciseRefType.style,
+          label: Text(context.l10n.preciseRef_typeStyle),
+          icon: const Icon(Icons.palette, size: 18),
+        ),
+        ButtonSegment(
+          value: PreciseRefType.characterAndStyle,
+          label: Text(context.l10n.preciseRef_typeCharacterAndStyle),
+          icon: const Icon(Icons.auto_awesome, size: 18),
+        ),
+      ],
+      selected: {_selectedType},
+      onSelectionChanged: isV4Model
+          ? (selected) {
+              setState(() {
+                _selectedType = selected.first;
+              });
+            }
+          : null,
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: theme.colorScheme.primaryContainer,
+        selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.5),
+        ),
       ),
     );
   }
 
   Future<void> _addReference() async {
-    // 先选择参考类型
-    final type = await _showTypeSelectionDialog();
-    if (type == null) return;
-
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
@@ -323,12 +325,12 @@ class _PreciseReferencePanelState
           // 转换为 PNG 格式
           final pngBytes = NAIApiUtils.ensurePngFormat(bytes);
 
-          // 添加 Precise Reference
+          // 添加 Precise Reference，使用当前选中的类型
           ref
               .read(generationParamsNotifierProvider.notifier)
               .addPreciseReference(
                 pngBytes,
-                type: type,
+                type: _selectedType,
                 strength: 0.8,
                 fidelity: 1.0,
               );
