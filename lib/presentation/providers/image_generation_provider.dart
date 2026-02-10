@@ -1634,6 +1634,131 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(normalizeVibeStrength: value);
   }
 
+  // ==================== Vibe Library 操作 ====================
+
+  /// 保存所有当前 Vibes 到库
+  ///
+  /// [name] 库条目名称
+  /// 返回创建的库条目 ID，失败返回 null
+  Future<String?> saveCurrentVibesToLibrary(String name) async {
+    if (state.vibeReferencesV4.isEmpty) return null;
+
+    try {
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+
+      // 取第一个 vibe 作为代表（库条目对应单个 vibe）
+      // 如果要保存多个 vibes，为每个 vibe 创建单独的条目
+      final savedIds = <String>[];
+
+      for (final vibe in state.vibeReferencesV4) {
+        final entry = VibeLibraryEntry.fromVibeReference(
+          name: state.vibeReferencesV4.length == 1
+              ? name
+              : '$name (${vibe.displayName})',
+          vibeData: vibe,
+        );
+        await storageService.saveEntry(entry);
+        savedIds.add(entry.id);
+      }
+
+      AppLogger.i(
+        'Saved ${savedIds.length} vibes to library: $name',
+        'VibeLibrary',
+      );
+
+      // 重新加载最近使用的 vibes
+      await loadRecentVibes();
+
+      // 返回第一个条目的 ID
+      return savedIds.isNotEmpty ? savedIds.first : null;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to save vibes to library', e, stackTrace);
+      return null;
+    }
+  }
+
+  /// 从库中添加 Vibe
+  ///
+  /// [entryId] 库条目 ID
+  /// 返回是否成功添加
+  Future<bool> addVibeFromLibrary(String entryId) async {
+    try {
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+      final entry = await storageService.getEntry(entryId);
+
+      if (entry == null) {
+        AppLogger.w('Vibe library entry not found: $entryId', 'VibeLibrary');
+        return false;
+      }
+
+      // 检查是否已达到最大数量限制
+      if (state.vibeReferencesV4.length >= 16) {
+        AppLogger.w('Maximum vibe references reached (16)', 'VibeLibrary');
+        return false;
+      }
+
+      // 转换为 VibeReferenceV4 并添加
+      final vibe = entry.toVibeReference();
+      addVibeReferenceV4(vibe);
+
+      // 记录使用
+      await storageService.incrementUsedCount(entryId);
+      await loadRecentVibes();
+
+      AppLogger.i(
+        'Added vibe from library: ${entry.displayName}',
+        'VibeLibrary',
+      );
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to add vibe from library', e, stackTrace);
+      return false;
+    }
+  }
+
+  /// 使用库中的 Vibe 更新指定位置的 Vibe
+  ///
+  /// [index] 当前 vibes 列表中的索引
+  /// [entryId] 库条目 ID
+  /// 返回是否成功更新
+  Future<bool> updateVibeFromLibrary(int index, String entryId) async {
+    try {
+      if (index < 0 || index >= state.vibeReferencesV4.length) {
+        AppLogger.w('Invalid vibe index: $index', 'VibeLibrary');
+        return false;
+      }
+
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+      final entry = await storageService.getEntry(entryId);
+
+      if (entry == null) {
+        AppLogger.w('Vibe library entry not found: $entryId', 'VibeLibrary');
+        return false;
+      }
+
+      // 转换为 VibeReferenceV4
+      final vibe = entry.toVibeReference();
+
+      // 更新指定位置的 vibe
+      final newList = [...state.vibeReferencesV4];
+      newList[index] = vibe;
+      state = state.copyWith(vibeReferencesV4: newList);
+
+      // 记录使用
+      await storageService.incrementUsedCount(entryId);
+      await loadRecentVibes();
+
+      AppLogger.i(
+        'Updated vibe at index $index from library: ${entry.displayName}',
+        'VibeLibrary',
+      );
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to update vibe from library', e, stackTrace);
+      return false;
+    }
+  }
+
   // ==================== Precise Reference 参数 (V4+ 模型) ====================
 
   /// 添加 Precise Reference
