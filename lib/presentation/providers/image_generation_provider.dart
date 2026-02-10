@@ -20,10 +20,12 @@ import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../data/models/vibe/vibe_library_entry.dart';
 import '../../data/models/vibe/vibe_reference_v4.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/anlas_statistics_service.dart';
 import '../../data/services/statistics_cache_service.dart';
+import '../../data/services/vibe_library_storage_service.dart';
 import 'character_prompt_provider.dart';
 import '../../data/services/alias_resolver_service.dart';
 import 'fixed_tags_provider.dart';
@@ -1188,6 +1190,63 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// Value: 编码后的 vibe 字符串
   final Map<String, String> _vibeEncodingCache = {};
 
+  /// 最近使用的 Vibes (最多 20 个)
+  List<VibeLibraryEntry> _recentVibes = [];
+
+  /// 获取最近使用的 Vibes (最多 5 个用于显示)
+  List<VibeLibraryEntry> get recentVibes => _recentVibes.take(5).toList();
+
+  /// 加载最近使用的 Vibes
+  Future<void> loadRecentVibes() async {
+    try {
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+      final entries = await storageService.getRecentEntries(limit: 20);
+      _recentVibes = entries;
+      // 通知监听器更新
+      state = state.copyWith();
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to load recent vibes', e, stackTrace);
+    }
+  }
+
+  /// 记录 Vibe 使用并更新最近列表
+  Future<void> _recordVibeUsage(VibeReferenceV4 vibe) async {
+    try {
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+
+      // 查找是否已存在相同 vibeEncoding 或相同 displayName 的条目
+      VibeLibraryEntry? existingEntry;
+      try {
+        existingEntry = _recentVibes.firstWhere(
+          (entry) =>
+              entry.vibeDisplayName == vibe.displayName ||
+              (vibe.vibeEncoding.isNotEmpty &&
+                  entry.vibeEncoding == vibe.vibeEncoding),
+        );
+      } catch (_) {
+        existingEntry = null;
+      }
+
+      if (existingEntry != null) {
+        // 更新现有条目的使用时间
+        await storageService.incrementUsedCount(existingEntry.id);
+      } else if (vibe.vibeEncoding.isNotEmpty) {
+        // 只有预编码的 vibe 才创建新条目
+        final newEntry = VibeLibraryEntry.fromVibeReference(
+          name: vibe.displayName,
+          vibeData: vibe,
+        );
+        await storageService.saveEntry(newEntry);
+        await storageService.incrementUsedCount(newEntry.id);
+      }
+
+      // 重新加载最近列表
+      await loadRecentVibes();
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to record vibe usage', e, stackTrace);
+    }
+  }
+
   @override
   ImageParams build() {
     // 从本地存储加载默认参数和上次使用的参数
@@ -1532,6 +1591,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(
       vibeReferencesV4: [...state.vibeReferencesV4, ...toAdd],
     );
+
+    // 记录每个 vibe 的使用
+    for (final vibe in toAdd) {
+      _recordVibeUsage(vibe);
+    }
   }
 
   /// 移除 V4 Vibe 参考

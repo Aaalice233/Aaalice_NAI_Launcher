@@ -3420,6 +3420,24 @@
   "preciseRef_v4Only": "This feature requires V4+ models",
   "preciseRef_typeCharacter": "Character",
   "preciseRef_typeStyle": "Style",
-  "preciseRef_typeCharacterAndStyle": "Character + Style"
+  "preciseRef_typeCharacterAndStyle": "Character + Style",
+
+  "vibeLibrary_title": "Vibe Library",
+  "vibeLibrary_save": "Save to Library",
+  "vibeLibrary_import": "Import Vibe",
+  "vibe_export_title": "Export Vibe",
+  "vibe_export_format": "Export Format",
+  "vibe_selector_title": "Select Vibe",
+  "vibe_selector_recent": "Recent",
+  "vibe_category_add": "Add Category",
+  "vibe_category_rename": "Rename Category",
+  "drop_vibe_detected": "Vibe image detected",
+  "drop_reuse_vibe": "Reuse Vibe",
+  "drop_save_anlas": "Save {cost} Anlas",
+  "@drop_save_anlas": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  }
 
 }

@@ -3073,6 +3073,24 @@
   "shortcut_settings_conflict": "与以下功能冲突: {action}",
   "shortcut_help_title": "快捷键帮助",
   "shortcut_help_search": "搜索快捷键...",
-  "shortcut_help_customize": "自定义快捷键"
+  "shortcut_help_customize": "自定义快捷键",
+
+  "vibeLibrary_title": "Vibe 库",
+  "vibeLibrary_save": "保存到库",
+  "vibeLibrary_import": "导入 Vibe",
+  "vibe_export_title": "导出 Vibe",
+  "vibe_export_format": "导出格式",
+  "vibe_selector_title": "选择 Vibe",
+  "vibe_selector_recent": "最近使用",
+  "vibe_category_add": "添加分类",
+  "vibe_category_rename": "重命名分类",
+  "drop_vibe_detected": "检测到 Vibe 图片",
+  "drop_reuse_vibe": "复用 Vibe",
+  "drop_save_anlas": "节省 {cost} Anlas",
+  "@drop_save_anlas": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  }
 
 }
