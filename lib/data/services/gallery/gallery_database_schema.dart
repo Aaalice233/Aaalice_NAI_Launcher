@@ -52,9 +52,23 @@ class GalleryDatabaseSchema {
       raw_json TEXT,
       has_metadata INTEGER DEFAULT 1,
       full_prompt_text TEXT,
+      vibe_encoding TEXT,
+      vibe_strength REAL,
+      vibe_info_extracted REAL,
+      vibe_source_type TEXT,
+      has_vibe INTEGER DEFAULT 0,
       FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
     )
   ''';
+
+  /// 迁移：添加 Vibe 字段到元数据表（版本 1 -> 2）
+  static const List<String> migrateV1ToV2 = [
+    'ALTER TABLE metadata ADD COLUMN vibe_encoding TEXT',
+    'ALTER TABLE metadata ADD COLUMN vibe_strength REAL',
+    'ALTER TABLE metadata ADD COLUMN vibe_info_extracted REAL',
+    'ALTER TABLE metadata ADD COLUMN vibe_source_type TEXT',
+    'ALTER TABLE metadata ADD COLUMN has_vibe INTEGER DEFAULT 0',
+  ];
 
   /// FTS5全文搜索虚拟表
   static const String createMetadataFtsTable = '''
