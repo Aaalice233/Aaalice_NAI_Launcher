@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -1182,6 +1183,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
+  /// Vibe 编码缓存 - 内存缓存，避免重复 API 调用
+  /// Key: 图片数据的 SHA256 哈希值
+  /// Value: 编码后的 vibe 字符串
+  final Map<String, String> _vibeEncodingCache = {};
+
   @override
   ImageParams build() {
     // 从本地存储加载默认参数和上次使用的参数
@@ -1390,11 +1396,131 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 添加 V4 Vibe 参考
   /// 支持预编码 (.naiv4vibe, PNG 带元数据)
+  /// 对于原始图片，会自动检查编码缓存避免重复 API 调用
   void addVibeReferenceV4(VibeReferenceV4 vibe) {
     if (state.vibeReferencesV4.length >= 16) return; // V4 支持最多 16 张
+
+    var vibeToAdd = vibe;
+
+    // 检查是否是原始图片且需要编码
+    if (vibe.sourceType == VibeSourceType.rawImage &&
+        vibe.vibeEncoding.isEmpty &&
+        vibe.rawImageData != null) {
+      // 计算图片哈希
+      final imageHash = _calculateImageHash(vibe.rawImageData!);
+
+      // 检查缓存
+      if (_vibeEncodingCache.containsKey(imageHash)) {
+        // 缓存命中 - 使用缓存的编码
+        final cachedEncoding = _vibeEncodingCache[imageHash]!;
+        AppLogger.i(
+          'Vibe 编码缓存命中: ${vibe.displayName}',
+          'VibeCache',
+        );
+
+        // 更新 vibe 使用缓存的编码
+        vibeToAdd = vibe.copyWith(vibeEncoding: cachedEncoding);
+
+        // 显示缓存命中通知
+        _showCacheHitNotification(vibe.displayName);
+      }
+    }
+
     state = state.copyWith(
-      vibeReferencesV4: [...state.vibeReferencesV4, vibe],
+      vibeReferencesV4: [...state.vibeReferencesV4, vibeToAdd],
     );
+  }
+
+  /// 计算图片数据的 SHA256 哈希值（用于缓存键）
+  String _calculateImageHash(Uint8List imageData) {
+    final bytes = sha256.convert(imageData).bytes;
+    return base64Encode(bytes);
+  }
+
+  /// 显示缓存命中通知
+  void _showCacheHitNotification(String vibeName) {
+    // 使用 AppLogger 记录，UI 层可以监听并显示 Toast
+    AppLogger.i(
+      'Vibe 编码已从缓存加载: $vibeName',
+      'VibeCache',
+    );
+  }
+
+  /// 编码 Vibe 参考图（带缓存）
+  ///
+  /// [imageData] 原始图片数据
+  /// [model] 模型名称
+  /// [informationExtracted] 信息提取量
+  /// [vibeName] Vibe 名称（用于日志）
+  ///
+  /// 返回编码后的 vibe 字符串，如果出错返回 null
+  Future<String?> encodeVibeWithCache(
+    Uint8List imageData, {
+    required String model,
+    double informationExtracted = 1.0,
+    String? vibeName,
+  }) async {
+    // 计算图片哈希
+    final imageHash = _calculateImageHash(imageData);
+
+    // 检查缓存
+    if (_vibeEncodingCache.containsKey(imageHash)) {
+      AppLogger.i(
+        'Vibe 编码缓存命中: ${vibeName ?? 'unknown'}',
+        'VibeCache',
+      );
+      _showCacheHitNotification(vibeName ?? 'unknown');
+      return _vibeEncodingCache[imageHash];
+    }
+
+    // 缓存未命中，调用 API
+    try {
+      final apiService = ref.read(naiImageEnhancementApiServiceProvider);
+      final encoding = await apiService.encodeVibe(
+        imageData,
+        model: model,
+        informationExtracted: informationExtracted,
+      );
+
+      // 存入缓存
+      _vibeEncodingCache[imageHash] = encoding;
+      AppLogger.i(
+        'Vibe 编码已缓存: ${vibeName ?? 'unknown'}',
+        'VibeCache',
+      );
+
+      return encoding;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Vibe 编码失败: ${vibeName ?? 'unknown'}',
+        e,
+        stack,
+        'VibeCache',
+      );
+      return null;
+    }
+  }
+
+  /// 将编码存入缓存（供外部调用）
+  ///
+  /// [imageData] 原始图片数据
+  /// [encoding] 编码后的 vibe 字符串
+  void storeVibeEncodingInCache(Uint8List imageData, String encoding) {
+    final imageHash = _calculateImageHash(imageData);
+    _vibeEncodingCache[imageHash] = encoding;
+    AppLogger.d(
+      'Vibe 编码已手动存入缓存，当前缓存大小: ${_vibeEncodingCache.length}',
+      'VibeCache',
+    );
+  }
+
+  /// 获取缓存大小
+  int get vibeEncodingCacheSize => _vibeEncodingCache.length;
+
+  /// 清空编码缓存
+  void clearVibeEncodingCache() {
+    _vibeEncodingCache.clear();
+    AppLogger.i('Vibe 编码缓存已清空', 'VibeCache');
   }
 
   /// 批量添加 V4 Vibe 参考
