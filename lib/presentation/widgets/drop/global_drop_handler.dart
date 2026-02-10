@@ -305,15 +305,15 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     GenerationParamsNotifier notifier,
   ) {
     final currentState = ref.read(generationParamsNotifierProvider);
-    final hasExisting = currentState.characterReferences.isNotEmpty;
+    final hasExisting = currentState.preciseReferences.isNotEmpty;
 
     // 角色参考只支持 1 张，如果已有则替换
     if (hasExisting) {
-      notifier.clearCharacterReferences();
+      notifier.clearPreciseReferences();
     }
 
-    // 使用默认 Character 类型添加角色参考
-    notifier.addCharacterReference(
+    // 使用默认 Character 类型添加 Precise Reference
+    notifier.addPreciseReference(
       bytes,
       type: PreciseRefType.character,
       strength: 1.0,

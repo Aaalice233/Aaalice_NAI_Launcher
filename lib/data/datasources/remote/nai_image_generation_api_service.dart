@@ -80,17 +80,19 @@ class NAIImageGenerationApiService {
     void Function(int, int)? onProgress,
   }) async {
     // 互斥校验：Vibe Transfer 和角色参考不能同时存在（防御性编程）
-    final hasVibes =
-        params.vibeReferences.isNotEmpty || params.vibeReferencesV4.isNotEmpty;
-    if (hasVibes && params.characterReferences.isNotEmpty) {
-      throw StateError(
-        'Vibe Transfer 和角色参考不能同时使用，请在UI中切换模式后重试',
+    // Precise Reference 与 Vibe Transfer 不再互斥，可以同时使用
+    // 但为了向后兼容，保留校验逻辑（虽然不再抛出错误）
+    final hasVibes = params.vibeReferencesV4.isNotEmpty;
+    if (hasVibes && params.preciseReferences.isNotEmpty) {
+      AppLogger.d(
+        'Both Vibe Transfer and Precise Reference are enabled',
+        'ImgGen',
       );
     }
 
-    // 角色参考仅V4+模型支持，非V4模型时忽略角色参考数据
-    final effectiveCharacterRefs =
-        params.isV4Model ? params.characterReferences : <CharacterReference>[];
+    // Precise Reference 仅V4+模型支持，非V4模型时忽略数据
+    final effectivePreciseRefs =
+        params.isV4Model ? params.preciseReferences : <PreciseReference>[];
 
     _currentCancelToken = CancelToken();
 
@@ -322,16 +324,6 @@ class NAIImageGenerationApiService {
         requestParameters['mask'] = base64Encode(params.maskImage!);
       }
 
-      // Vibe Transfer (旧版)
-      if (params.vibeReferences.isNotEmpty) {
-        requestParameters['reference_image_multiple'] =
-            params.vibeReferences.map((v) => base64Encode(v.image)).toList();
-        requestParameters['reference_strength_multiple'] =
-            params.vibeReferences.map((v) => v.strength).toList();
-        requestParameters['reference_information_extracted_multiple'] =
-            params.vibeReferences.map((v) => v.informationExtracted).toList();
-      }
-
       // V4 Vibe Transfer
       // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
       if (params.vibeReferencesV4.isNotEmpty) {
@@ -413,16 +405,16 @@ class NAIImageGenerationApiService {
 
       // 角色参考 (Precise Reference, V4+ 专属)
       // 每个参考独立的 type, strength, fidelity
-      if (effectiveCharacterRefs.isNotEmpty) {
+      if (effectivePreciseRefs.isNotEmpty) {
         // 固定为 true（与官网保持一致）
         requestParameters['normalize_reference_strength_multiple'] = true;
         // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
-        requestParameters['director_reference_images'] = effectiveCharacterRefs
+        requestParameters['director_reference_images'] = effectivePreciseRefs
             .map((r) => base64Encode(NAIApiUtils.ensurePngFormat(r.image)))
             .toList();
         // base_caption: 使用每个参考的 type 转换为 API 字符串
         requestParameters['director_reference_descriptions'] =
-            effectiveCharacterRefs.map((r) {
+            effectivePreciseRefs.map((r) {
           return {
             'caption': {
               'base_caption': r.type.toApiString(),
@@ -433,12 +425,12 @@ class NAIImageGenerationApiService {
         }).toList();
         // 使用每个参考独立的 strength 和 fidelity
         requestParameters['director_reference_information_extracted'] =
-            effectiveCharacterRefs.map((r) => 1).toList();
+            effectivePreciseRefs.map((r) => 1).toList();
         requestParameters['director_reference_strength_values'] =
-            effectiveCharacterRefs.map((r) => r.strength).toList();
+            effectivePreciseRefs.map((r) => r.strength).toList();
         // secondary_strength_values = 1 - fidelity（每个参考独立）
         requestParameters['director_reference_secondary_strength_values'] =
-            effectiveCharacterRefs
+            effectivePreciseRefs
                 .map((r) => 1.0 - r.fidelity)
                 .toList();
       }
@@ -458,17 +450,17 @@ class NAIImageGenerationApiService {
       );
 
       // ========== 详细调试日志（对比官网格式）==========
-      if (effectiveCharacterRefs.isNotEmpty) {
+      if (effectivePreciseRefs.isNotEmpty) {
         AppLogger.d('=== NON-STREAM CHARACTER REFERENCE DEBUG ===', 'ImgGen');
         AppLogger.d(
-          'characterReferences count: ${effectiveCharacterRefs.length}',
+          'characterReferences count: ${effectivePreciseRefs.length}',
           'ImgGen',
         );
         AppLogger.d('isV4Model: ${params.isV4Model}', 'ImgGen');
 
         // 调试：验证 base64 编码和 PNG 转换
-        for (int i = 0; i < effectiveCharacterRefs.length; i++) {
-          final ref = effectiveCharacterRefs[i];
+        for (int i = 0; i < effectivePreciseRefs.length; i++) {
+          final ref = effectivePreciseRefs[i];
           final pngBytes = NAIApiUtils.ensurePngFormat(ref.image);
           AppLogger.d(
             'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes, type: ${ref.type}, strength: ${ref.strength}, fidelity: ${ref.fidelity}',
@@ -582,19 +574,19 @@ class NAIImageGenerationApiService {
   ///
   /// 返回 ImageStreamChunk 流，包含渐进式预览和最终图像
   Stream<ImageStreamChunk> generateImageStream(ImageParams params) async* {
-    // 互斥校验：Vibe Transfer 和角色参考不能同时存在（防御性编程）
-    final hasVibes =
-        params.vibeReferences.isNotEmpty || params.vibeReferencesV4.isNotEmpty;
-    if (hasVibes && params.characterReferences.isNotEmpty) {
-      yield ImageStreamChunk.error(
-        'Vibe Transfer 和角色参考不能同时使用，请在UI中切换模式后重试',
+    // Precise Reference 与 Vibe Transfer 不再互斥，可以同时使用
+    // 但为了向后兼容，保留校验逻辑（虽然不再抛出错误）
+    final hasVibes = params.vibeReferencesV4.isNotEmpty;
+    if (hasVibes && params.preciseReferences.isNotEmpty) {
+      AppLogger.d(
+        'Both Vibe Transfer and Precise Reference are enabled (stream)',
+        'ImgGen',
       );
-      return;
     }
 
-    // 角色参考仅V4+模型支持，非V4模型时忽略角色参考数据
-    final effectiveCharacterRefs =
-        params.isV4Model ? params.characterReferences : <CharacterReference>[];
+    // Precise Reference 仅V4+模型支持，非V4模型时忽略数据
+    final effectivePreciseRefs =
+        params.isV4Model ? params.preciseReferences : <PreciseReference>[];
 
     _currentCancelToken = CancelToken();
 
@@ -762,16 +754,6 @@ class NAIImageGenerationApiService {
         requestParameters['mask'] = base64Encode(params.maskImage!);
       }
 
-      // Vibe Transfer (旧版)
-      if (params.vibeReferences.isNotEmpty) {
-        requestParameters['reference_image_multiple'] =
-            params.vibeReferences.map((v) => base64Encode(v.image)).toList();
-        requestParameters['reference_strength_multiple'] =
-            params.vibeReferences.map((v) => v.strength).toList();
-        requestParameters['reference_information_extracted_multiple'] =
-            params.vibeReferences.map((v) => v.informationExtracted).toList();
-      }
-
       // V4 Vibe Transfer
       // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
       if (params.vibeReferencesV4.isNotEmpty) {
@@ -856,17 +838,17 @@ class NAIImageGenerationApiService {
       }
 
       // 角色参考 (Precise Reference, V4+ 专属)
-      if (effectiveCharacterRefs.isNotEmpty) {
+      if (effectivePreciseRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG (STREAM) ===', 'ImgGen');
         AppLogger.d(
-          'characterReferences count: ${effectiveCharacterRefs.length}',
+          'characterReferences count: ${effectivePreciseRefs.length}',
           'ImgGen',
         );
         AppLogger.d('isV4Model: ${params.isV4Model}', 'ImgGen');
 
         // 调试：验证 base64 编码和 PNG 转换
-        for (int i = 0; i < effectiveCharacterRefs.length; i++) {
-          final ref = effectiveCharacterRefs[i];
+        for (int i = 0; i < effectivePreciseRefs.length; i++) {
+          final ref = effectivePreciseRefs[i];
           final pngBytes = NAIApiUtils.ensurePngFormat(ref.image);
           AppLogger.d(
             'CharRef[$i] image: ${ref.image.length} bytes -> PNG: ${pngBytes.length} bytes, type: ${ref.type}, strength: ${ref.strength}, fidelity: ${ref.fidelity}',
@@ -877,12 +859,12 @@ class NAIImageGenerationApiService {
         // 固定为 true（与官网保持一致）
         requestParameters['normalize_reference_strength_multiple'] = true;
         // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
-        requestParameters['director_reference_images'] = effectiveCharacterRefs
+        requestParameters['director_reference_images'] = effectivePreciseRefs
             .map((r) => base64Encode(NAIApiUtils.ensurePngFormat(r.image)))
             .toList();
         // base_caption: 使用每个参考的 type 转换为 API 字符串
         requestParameters['director_reference_descriptions'] =
-            effectiveCharacterRefs.map((r) {
+            effectivePreciseRefs.map((r) {
           return {
             'caption': {
               'base_caption': r.type.toApiString(),
@@ -893,12 +875,12 @@ class NAIImageGenerationApiService {
         }).toList();
         // 使用每个参考独立的 strength 和 fidelity
         requestParameters['director_reference_information_extracted'] =
-            effectiveCharacterRefs.map((r) => 1).toList();
+            effectivePreciseRefs.map((r) => 1).toList();
         requestParameters['director_reference_strength_values'] =
-            effectiveCharacterRefs.map((r) => r.strength).toList();
+            effectivePreciseRefs.map((r) => r.strength).toList();
         // secondary_strength_values = 1 - fidelity（每个参考独立）
         requestParameters['director_reference_secondary_strength_values'] =
-            effectiveCharacterRefs
+            effectivePreciseRefs
                 .map((r) => 1.0 - r.fidelity)
                 .toList();
         // 注意: stream 参数已在基础参数中设置，无需重复添加
@@ -923,10 +905,10 @@ class NAIImageGenerationApiService {
       AppLogger.d('ucPreset: ${params.ucPreset}', 'ImgGen');
       AppLogger.d('negative_prompt: $effectiveNegativePrompt', 'ImgGen');
       // 角色参考调试
-      if (effectiveCharacterRefs.isNotEmpty) {
+      if (effectivePreciseRefs.isNotEmpty) {
         AppLogger.d('=== CHARACTER REFERENCE DEBUG ===', 'ImgGen');
         AppLogger.d(
-          'characterReferences count: ${effectiveCharacterRefs.length}',
+          'characterReferences count: ${effectivePreciseRefs.length}',
           'ImgGen',
         );
         AppLogger.d(

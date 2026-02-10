@@ -5,10 +5,10 @@ import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
-  group('CharacterReference', () {
-    test('should create CharacterReference with default values', () {
+  group('PreciseReference', () {
+    test('should create PreciseReference with default values', () {
       final imageData = Uint8List.fromList([1, 2, 3, 4, 5]);
-      final reference = CharacterReference(
+      final reference = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
       );
@@ -19,9 +19,9 @@ void main() {
       expect(reference.fidelity, equals(1.0));
     });
 
-    test('should create CharacterReference with custom values', () {
+    test('should create PreciseReference with custom values', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
-      final reference = CharacterReference(
+      final reference = PreciseReference(
         image: imageData,
         type: PreciseRefType.style,
         strength: 0.7,
@@ -34,9 +34,9 @@ void main() {
       expect(reference.fidelity, equals(0.8));
     });
 
-    test('should create CharacterReference with characterAndStyle type', () {
+    test('should create PreciseReference with characterAndStyle type', () {
       final imageData = Uint8List.fromList([10, 20, 30]);
-      final reference = CharacterReference(
+      final reference = PreciseReference(
         image: imageData,
         type: PreciseRefType.characterAndStyle,
         strength: 0.5,
@@ -51,21 +51,21 @@ void main() {
     test('should support different strength values', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
 
-      final reference1 = CharacterReference(
+      final reference1 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.0,
       );
       expect(reference1.strength, equals(0.0));
 
-      final reference2 = CharacterReference(
+      final reference2 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 1.0,
       );
       expect(reference2.strength, equals(1.0));
 
-      final reference3 = CharacterReference(
+      final reference3 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.5,
@@ -76,21 +76,21 @@ void main() {
     test('should support different fidelity values', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
 
-      final reference1 = CharacterReference(
+      final reference1 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         fidelity: 0.0,
       );
       expect(reference1.fidelity, equals(0.0));
 
-      final reference2 = CharacterReference(
+      final reference2 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         fidelity: 1.0,
       );
       expect(reference2.fidelity, equals(1.0));
 
-      final reference3 = CharacterReference(
+      final reference3 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         fidelity: 0.75,
@@ -102,14 +102,14 @@ void main() {
       final imageData = Uint8List.fromList([1, 2, 3]);
       final imageData2 = Uint8List.fromList([1, 2, 3]);
 
-      final reference1 = CharacterReference(
+      final reference1 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.7,
         fidelity: 0.8,
       );
 
-      final reference2 = CharacterReference(
+      final reference2 = PreciseReference(
         image: imageData2,
         type: PreciseRefType.character,
         strength: 0.7,
@@ -122,28 +122,28 @@ void main() {
     test('should have inequality when fields differ', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
 
-      final reference1 = CharacterReference(
+      final reference1 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.7,
         fidelity: 0.8,
       );
 
-      final reference2 = CharacterReference(
+      final reference2 = PreciseReference(
         image: imageData,
         type: PreciseRefType.style,
         strength: 0.7,
         fidelity: 0.8,
       );
 
-      final reference3 = CharacterReference(
+      final reference3 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.8,
         fidelity: 0.8,
       );
 
-      final reference4 = CharacterReference(
+      final reference4 = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.7,
@@ -157,7 +157,7 @@ void main() {
 
     test('should support copyWith to modify fields', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
-      final original = CharacterReference(
+      final original = PreciseReference(
         image: imageData,
         type: PreciseRefType.character,
         strength: 0.7,
@@ -179,7 +179,7 @@ void main() {
       final imageData = Uint8List.fromList([1, 2, 3]);
 
       for (final type in PreciseRefType.values) {
-        final reference = CharacterReference(
+        final reference = PreciseReference(
           image: imageData,
           type: type,
         );
@@ -189,7 +189,7 @@ void main() {
 
     test('should handle empty image data', () {
       final emptyImage = Uint8List(0);
-      final reference = CharacterReference(
+      final reference = PreciseReference(
         image: emptyImage,
         type: PreciseRefType.character,
       );
@@ -200,7 +200,7 @@ void main() {
 
     test('should handle large image data', () {
       final largeImage = Uint8List(1024 * 1024); // 1MB of zeros
-      final reference = CharacterReference(
+      final reference = PreciseReference(
         image: largeImage,
         type: PreciseRefType.characterAndStyle,
         strength: 0.5,

@@ -1386,64 +1386,18 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     );
   }
 
-  // ==================== Vibe Transfer 参数 ====================
-
-  /// 添加 Vibe 参考图
-  /// 注意：Vibe Transfer 和角色参考互斥，添加一个会清除另一个
-  void addVibeReference(VibeReference vibe) {
-    if (state.vibeReferences.length >= 4) return; // 最多4张
-    state = state.copyWith(
-      vibeReferences: [...state.vibeReferences, vibe],
-      characterReferences: [], // 互斥：清除角色参考
-    );
-  }
-
-  /// 移除 Vibe 参考图
-  void removeVibeReference(int index) {
-    if (index < 0 || index >= state.vibeReferences.length) return;
-    final newList = [...state.vibeReferences];
-    newList.removeAt(index);
-    state = state.copyWith(vibeReferences: newList);
-  }
-
-  /// 更新 Vibe 参考图配置
-  void updateVibeReference(
-    int index, {
-    double? strength,
-    double? informationExtracted,
-  }) {
-    if (index < 0 || index >= state.vibeReferences.length) return;
-    final newList = [...state.vibeReferences];
-    final current = newList[index];
-    newList[index] = VibeReference(
-      image: current.image,
-      strength: strength ?? current.strength,
-      informationExtracted:
-          informationExtracted ?? current.informationExtracted,
-    );
-    state = state.copyWith(vibeReferences: newList);
-  }
-
-  /// 清除所有 Vibe 参考图
-  void clearVibeReferences() {
-    state = state.copyWith(vibeReferences: []);
-  }
-
   // ==================== V4 Vibe Transfer 参数 ====================
 
   /// 添加 V4 Vibe 参考
-  /// 支持预编码 (.naiv4vibe, PNG 带元数据) 和原始图片
-  /// 注意：Vibe Transfer 和角色参考互斥，添加一个会清除另一个
+  /// 支持预编码 (.naiv4vibe, PNG 带元数据)
   void addVibeReferenceV4(VibeReferenceV4 vibe) {
     if (state.vibeReferencesV4.length >= 16) return; // V4 支持最多 16 张
     state = state.copyWith(
       vibeReferencesV4: [...state.vibeReferencesV4, vibe],
-      characterReferences: [], // 互斥：清除角色参考
     );
   }
 
   /// 批量添加 V4 Vibe 参考
-  /// 注意：Vibe Transfer 和角色参考互斥，添加一个会清除另一个
   void addVibeReferencesV4(List<VibeReferenceV4> vibes) {
     final remaining = 16 - state.vibeReferencesV4.length;
     if (remaining <= 0) return;
@@ -1451,7 +1405,6 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final toAdd = vibes.take(remaining).toList();
     state = state.copyWith(
       vibeReferencesV4: [...state.vibeReferencesV4, ...toAdd],
-      characterReferences: [], // 互斥：清除角色参考
     );
   }
 
@@ -1491,62 +1444,72 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(normalizeVibeStrength: value);
   }
 
-  // ==================== 角色参考参数 (V4+ 模型) ====================
+  // ==================== Precise Reference 参数 (V4+ 模型) ====================
 
-  /// 添加角色参考图（Precise Reference）
-  /// 注意：角色参考最多1张，且和 Vibe Transfer 互斥
-  void addCharacterReference(
+  /// 添加 Precise Reference
+  void addPreciseReference(
     Uint8List image, {
     required PreciseRefType type,
     double strength = 1.0,
     double fidelity = 1.0,
   }) {
-    if (state.characterReferences.isNotEmpty) return; // 最多1张
     state = state.copyWith(
-      characterReferences: [
-        ...state.characterReferences,
-        CharacterReference(
+      preciseReferences: [
+        ...state.preciseReferences,
+        PreciseReference(
           image: image,
           type: type,
           strength: strength,
           fidelity: fidelity,
         ),
       ],
-      vibeReferences: [], // 清除 Vibe Transfer（互斥）
-      vibeReferencesV4: [], // 清除 V4 Vibe Transfer（互斥）
     );
   }
 
-  /// 移除角色参考图
-  void removeCharacterReference(int index) {
-    if (index < 0 || index >= state.characterReferences.length) return;
-    final newList = [...state.characterReferences];
+  /// 移除 Precise Reference
+  void removePreciseReference(int index) {
+    if (index < 0 || index >= state.preciseReferences.length) return;
+    final newList = [...state.preciseReferences];
     newList.removeAt(index);
-    state = state.copyWith(characterReferences: newList);
+    state = state.copyWith(preciseReferences: newList);
   }
 
-  /// 更新角色参考图配置
-  void updateCharacterReference(
+  /// 更新 Precise Reference 配置
+  void updatePreciseReference(
     int index, {
     PreciseRefType? type,
     double? strength,
     double? fidelity,
   }) {
-    if (index < 0 || index >= state.characterReferences.length) return;
-    final newList = [...state.characterReferences];
+    if (index < 0 || index >= state.preciseReferences.length) return;
+    final newList = [...state.preciseReferences];
     final current = newList[index];
-    newList[index] = CharacterReference(
+    newList[index] = PreciseReference(
       image: current.image,
       type: type ?? current.type,
       strength: strength ?? current.strength,
       fidelity: fidelity ?? current.fidelity,
     );
-    state = state.copyWith(characterReferences: newList);
+    state = state.copyWith(preciseReferences: newList);
   }
 
-  /// 清除所有角色参考图
-  void clearCharacterReferences() {
-    state = state.copyWith(characterReferences: []);
+  /// 更新 Precise Reference 类型
+  void updatePreciseReferenceType(int index, PreciseRefType type) {
+    if (index < 0 || index >= state.preciseReferences.length) return;
+    final newList = [...state.preciseReferences];
+    final current = newList[index];
+    newList[index] = PreciseReference(
+      image: current.image,
+      type: type,
+      strength: current.strength,
+      fidelity: current.fidelity,
+    );
+    state = state.copyWith(preciseReferences: newList);
+  }
+
+  /// 清除所有 Precise Reference
+  void clearPreciseReferences() {
+    state = state.copyWith(preciseReferences: []);
   }
 
   // ==================== 多角色参数 (V4 模型) ====================

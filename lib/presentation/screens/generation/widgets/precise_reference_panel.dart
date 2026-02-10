@@ -37,7 +37,7 @@ class _PreciseReferencePanelState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final params = ref.watch(generationParamsNotifierProvider);
-    final references = params.characterReferences;
+    final references = params.preciseReferences;
     final hasReferences = references.isNotEmpty;
     final isV4Model = params.isV4Model;
 
@@ -326,7 +326,7 @@ class _PreciseReferencePanelState
           // 添加 Precise Reference
           ref
               .read(generationParamsNotifierProvider.notifier)
-              .addCharacterReference(
+              .addPreciseReference(
                 pngBytes,
                 type: type,
                 strength: 0.8,
@@ -347,74 +347,38 @@ class _PreciseReferencePanelState
   void _removeReference(int index) {
     ref
         .read(generationParamsNotifierProvider.notifier)
-        .removeCharacterReference(index);
+        .removePreciseReference(index);
   }
 
   void _updateReferenceType(int index, PreciseRefType type) {
-    // TODO: 添加 updateCharacterReferenceType 方法到 provider
-    // 临时方案：先读取当前引用，然后重新添加
-    final params = ref.read(generationParamsNotifierProvider);
-    if (index < 0 || index >= params.characterReferences.length) return;
-
-    final current = params.characterReferences[index];
-    final newList = [...params.characterReferences];
-    newList[index] = CharacterReference(
-      image: current.image,
-      type: type,
-      strength: current.strength,
-      fidelity: current.fidelity,
-    );
-
-    // 使用 copyWith 直接更新状态
-    ref.read(generationParamsNotifierProvider.notifier).state =
-        params.copyWith(characterReferences: newList);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updatePreciseReferenceType(index, type);
   }
 
   void _updateReferenceStrength(int index, double value) {
-    final params = ref.read(generationParamsNotifierProvider);
-    if (index < 0 || index >= params.characterReferences.length) return;
-
-    final current = params.characterReferences[index];
-    final newList = [...params.characterReferences];
-    newList[index] = CharacterReference(
-      image: current.image,
-      type: current.type,
-      strength: value,
-      fidelity: current.fidelity,
-    );
-
-    ref.read(generationParamsNotifierProvider.notifier).state =
-        params.copyWith(characterReferences: newList);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updatePreciseReference(index, strength: value);
   }
 
   void _updateReferenceFidelity(int index, double value) {
-    final params = ref.read(generationParamsNotifierProvider);
-    if (index < 0 || index >= params.characterReferences.length) return;
-
-    final current = params.characterReferences[index];
-    final newList = [...params.characterReferences];
-    newList[index] = CharacterReference(
-      image: current.image,
-      type: current.type,
-      strength: current.strength,
-      fidelity: value,
-    );
-
-    ref.read(generationParamsNotifierProvider.notifier).state =
-        params.copyWith(characterReferences: newList);
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updatePreciseReference(index, fidelity: value);
   }
 
   void _clearAllReferences() {
     ref
         .read(generationParamsNotifierProvider.notifier)
-        .clearCharacterReferences();
+        .clearPreciseReferences();
   }
 }
 
 /// Precise Reference 卡片组件
 class _PreciseReferenceCard extends StatelessWidget {
   final int index;
-  final CharacterReference reference;
+  final PreciseReference reference;
   final VoidCallback onRemove;
   final ValueChanged<PreciseRefType> onTypeChanged;
   final ValueChanged<double> onStrengthChanged;
