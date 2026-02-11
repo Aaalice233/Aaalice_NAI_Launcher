@@ -49,6 +49,9 @@ class NAILauncherApp extends ConsumerWidget {
       ShortcutIds.navigateToSettings: () {
         router.go(AppRoutes.settings);
       },
+      ShortcutIds.navigateToVibeLibrary: () {
+        router.go(AppRoutes.vibeLibrary);
+      },
 
       // 全局应用快捷键
       ShortcutIds.showShortcutHelp: () {

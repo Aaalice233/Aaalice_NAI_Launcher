@@ -171,4 +171,10 @@ class SubscriptionState with _$SubscriptionState {
         error: (_) => true,
         orElse: () => false,
       );
+
+  /// 是否已加载成功
+  bool get isLoaded => maybeMap(
+        loaded: (_) => true,
+        orElse: () => false,
+      );
 }

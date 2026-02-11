@@ -94,9 +94,17 @@ class AuthInterceptor extends Interceptor {
     final token = await storage.getAccessToken();
 
     if (token != null && token.isNotEmpty) {
-      options.headers['Authorization'] = 'Bearer $token';
+      // Trim token and determine correct format
+      final trimmedToken = token.trim();
+      // Persistent Tokens (pst-xxx) should be used without Bearer prefix
+      // JWT tokens should use Bearer prefix
+      final authHeader = trimmedToken.startsWith('pst-')
+          ? trimmedToken
+          : 'Bearer $trimmedToken';
+
+      options.headers['Authorization'] = authHeader;
       AppLogger.d(
-        'Added auth header from storage, token length: ${token.length}',
+        'Added auth header from storage, token length: ${trimmedToken.length}, format: ${trimmedToken.startsWith("pst-") ? "raw" : "Bearer"}',
         'DIO',
       );
     } else {

@@ -35,6 +35,8 @@ class LocalGalleryState with _$LocalGalleryState {
     DateTime? dateEnd,
     /// 收藏过滤
     @Default(false) bool showFavoritesOnly,
+    /// Vibe过滤
+    @Default(false) bool vibeOnly,
     /// 标签过滤
     @Default([]) List<String> selectedTags,
     /// 元数据过滤
@@ -80,6 +82,7 @@ class LocalGalleryState with _$LocalGalleryState {
       dateStart != null ||
       dateEnd != null ||
       showFavoritesOnly ||
+      vibeOnly ||
       selectedTags.isNotEmpty ||
       filterModel != null ||
       filterSampler != null ||
@@ -349,6 +352,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     await _applyFilters();
   }
 
+  Future<void> toggleVibeOnly() async {
+    state = state.copyWith(vibeOnly: !state.vibeOnly);
+    await _applyFilters();
+  }
+
   Future<void> setPageSize(int size) async {
     if (state.pageSize == size) return;
     state = state.copyWith(pageSize: size, currentPage: 0);
@@ -406,6 +414,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       dateStart: null,
       dateEnd: null,
       showFavoritesOnly: false,
+      vibeOnly: false,
       selectedTags: [],
       filterModel: null,
       filterSampler: null,

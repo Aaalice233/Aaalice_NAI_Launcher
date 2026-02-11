@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/proxy_service.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../data/models/settings/proxy_settings.dart';
 import '../../providers/image_save_settings_provider.dart';
@@ -177,6 +178,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   .setAutoSave(value);
             },
           ),
+          // Vibe库保存路径设置
+          const _VibeLibraryPathTile(),
           const ThemedDivider(),
 
           // 网络设置
@@ -1227,5 +1230,85 @@ class _NotificationSettingsSection extends ConsumerWidget {
     if (result != null && result.files.single.path != null) {
       await notifier.setCustomSoundPath(result.files.single.path);
     }
+  }
+}
+
+/// Vibe库保存路径设置项
+class _VibeLibraryPathTile extends StatefulWidget {
+  const _VibeLibraryPathTile();
+
+  @override
+  State<_VibeLibraryPathTile> createState() => _VibeLibraryPathTileState();
+}
+
+class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
+  final _pathHelper = VibeLibraryPathHelper.instance;
+
+  Future<void> _selectVibeLibraryDirectory(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: '选择Vibe库保存文件夹',
+      );
+
+      if (result != null && context.mounted) {
+        await _pathHelper.setPath(result);
+        await _pathHelper.ensurePathExists(result);
+        setState(() {});
+
+        if (context.mounted) {
+          AppToast.success(context, 'Vibe库路径已保存');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '选择文件夹失败: ${e.toString()}');
+      }
+    }
+  }
+
+  Future<void> _resetToDefault(BuildContext context) async {
+    await _pathHelper.resetToDefault();
+    setState(() {});
+
+    if (context.mounted) {
+      AppToast.success(context, '已重置为默认路径');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customPath = _pathHelper.getCustomPath();
+    final hasCustomPath = _pathHelper.hasCustomPath;
+
+    return ListTile(
+      leading: const Icon(Icons.style_outlined),
+      title: const Text('Vibe库保存路径'),
+      subtitle: FutureBuilder<String>(
+        future: _pathHelper.getPath(),
+        builder: (context, snapshot) {
+          final displayPath = hasCustomPath
+              ? (customPath ?? '')
+              : (snapshot.data ?? '默认');
+          return Text(
+            displayPath,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+        },
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasCustomPath)
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              tooltip: '重置为默认',
+              onPressed: () => _resetToDefault(context),
+            ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: () => _selectVibeLibraryDirectory(context),
+    );
   }
 }

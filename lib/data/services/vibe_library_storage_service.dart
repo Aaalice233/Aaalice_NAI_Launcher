@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/vibe/vibe_library_category.dart';
@@ -33,7 +35,8 @@ class VibeLibraryStorageService {
     }
 
     _entriesBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
-    _categoriesBox = await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
+    _categoriesBox =
+        await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
     AppLogger.d('VibeLibraryStorageService initialized', 'VibeLibrary');
   }
 
@@ -89,14 +92,16 @@ class VibeLibraryStorageService {
   }
 
   /// 根据分类 ID 获取条目
-  Future<List<VibeLibraryEntry>> getEntriesByCategory(String? categoryId) async {
+  Future<List<VibeLibraryEntry>> getEntriesByCategory(
+      String? categoryId) async {
     await _ensureInit();
     try {
       return _entriesBox!.values
           .where((entry) => entry.categoryId == categoryId)
           .toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get entries by category: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get entries by category: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -152,7 +157,8 @@ class VibeLibraryStorageService {
     try {
       return _entriesBox!.values.where((entry) => entry.isFavorite).toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get favorite entries: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get favorite entries: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -167,7 +173,8 @@ class VibeLibraryStorageService {
       entries.sort((a, b) => b.lastUsedAt!.compareTo(a.lastUsedAt!));
       return entries.take(limit).toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get recent entries: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get recent entries: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -181,10 +188,12 @@ class VibeLibraryStorageService {
 
       final updatedEntry = entry.recordUsage();
       await _entriesBox!.put(id, updatedEntry);
-      AppLogger.d('Entry usage incremented: ${entry.displayName}', 'VibeLibrary');
+      AppLogger.d(
+          'Entry usage incremented: ${entry.displayName}', 'VibeLibrary');
       return updatedEntry;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to increment used count: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to increment used count: $e', 'VibeLibrary', stackTrace);
       return null;
     }
   }
@@ -198,7 +207,8 @@ class VibeLibraryStorageService {
 
       final updatedEntry = entry.toggleFavorite();
       await _entriesBox!.put(id, updatedEntry);
-      AppLogger.d('Entry favorite toggled: ${entry.displayName}', 'VibeLibrary');
+      AppLogger.d(
+          'Entry favorite toggled: ${entry.displayName}', 'VibeLibrary');
       return updatedEntry;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to toggle favorite: $e', 'VibeLibrary', stackTrace);
@@ -218,10 +228,12 @@ class VibeLibraryStorageService {
 
       final updatedEntry = entry.copyWith(categoryId: categoryId);
       await _entriesBox!.put(id, updatedEntry);
-      AppLogger.d('Entry category updated: ${entry.displayName}', 'VibeLibrary');
+      AppLogger.d(
+          'Entry category updated: ${entry.displayName}', 'VibeLibrary');
       return updatedEntry;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to update entry category: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to update entry category: $e', 'VibeLibrary', stackTrace);
       return null;
     }
   }
@@ -258,10 +270,12 @@ class VibeLibraryStorageService {
 
       final updatedEntry = entry.copyWith(thumbnail: thumbnail);
       await _entriesBox!.put(id, updatedEntry);
-      AppLogger.d('Entry thumbnail updated: ${entry.displayName}', 'VibeLibrary');
+      AppLogger.d(
+          'Entry thumbnail updated: ${entry.displayName}', 'VibeLibrary');
       return updatedEntry;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to update entry thumbnail: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to update entry thumbnail: $e', 'VibeLibrary', stackTrace);
       return null;
     }
   }
@@ -285,7 +299,8 @@ class VibeLibraryStorageService {
           .where((entry) => entry.categoryId == categoryId)
           .length;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get entries count by category: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e('Failed to get entries count by category: $e', 'VibeLibrary',
+          stackTrace);
       return 0;
     }
   }
@@ -296,7 +311,8 @@ class VibeLibraryStorageService {
     try {
       return _entriesBox!.containsKey(id);
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to check entry existence: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to check entry existence: $e', 'VibeLibrary', stackTrace);
       return false;
     }
   }
@@ -345,7 +361,8 @@ class VibeLibraryStorageService {
     try {
       return _categoriesBox!.values.toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get all categories: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get all categories: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -358,7 +375,8 @@ class VibeLibraryStorageService {
           .where((category) => category.parentId == null)
           .toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get root categories: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get root categories: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -371,7 +389,8 @@ class VibeLibraryStorageService {
           .where((category) => category.parentId == parentId)
           .toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get child categories: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get child categories: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -448,7 +467,8 @@ class VibeLibraryStorageService {
       AppLogger.d('Category name updated: $newName', 'VibeLibrary');
       return updatedCategory;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to update category name: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to update category name: $e', 'VibeLibrary', stackTrace);
       return null;
     }
   }
@@ -487,7 +507,8 @@ class VibeLibraryStorageService {
     try {
       return _categoriesBox!.length;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get categories count: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get categories count: $e', 'VibeLibrary', stackTrace);
       return 0;
     }
   }
@@ -498,7 +519,8 @@ class VibeLibraryStorageService {
     try {
       return _categoriesBox!.containsKey(id);
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to check category existence: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to check category existence: $e', 'VibeLibrary', stackTrace);
       return false;
     }
   }
@@ -510,7 +532,8 @@ class VibeLibraryStorageService {
       await _categoriesBox!.clear();
       AppLogger.i('All categories cleared', 'VibeLibrary');
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to clear all categories: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to clear all categories: $e', 'VibeLibrary', stackTrace);
       rethrow;
     }
   }
@@ -540,7 +563,8 @@ class VibeLibraryStorageService {
           .where((entry) => entry.tags.contains(tag))
           .toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get entries by tag: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get entries by tag: $e', 'VibeLibrary', stackTrace);
       return [];
     }
   }
@@ -553,8 +577,71 @@ class VibeLibraryStorageService {
       entries.sort((a, b) => b.usedCount.compareTo(a.usedCount));
       return entries.take(limit).toList();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get entries by usage: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e(
+          'Failed to get entries by usage: $e', 'VibeLibrary', stackTrace);
       return [];
+    }
+  }
+
+  // ==================== Generation State Persistence ====================
+
+  static const String _generationStateKey = 'generation_state';
+
+  /// 保存生成参数中的 Vibe 和精准参考状态
+  Future<void> saveGenerationState({
+    required List<Map<String, dynamic>> vibeReferences,
+    required List<Map<String, dynamic>> preciseReferences,
+    required bool normalizeVibeStrength,
+  }) async {
+    await _ensureInit();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stateData = {
+        'vibeReferences': vibeReferences,
+        'preciseReferences': preciseReferences,
+        'normalizeVibeStrength': normalizeVibeStrength,
+        'savedAt': DateTime.now().toIso8601String(),
+      };
+      await prefs.setString(_generationStateKey, jsonEncode(stateData));
+      AppLogger.d(
+        'Generation state saved: ${vibeReferences.length} vibes, ${preciseReferences.length} precise refs',
+        'VibeLibrary',
+      );
+    } catch (e, stackTrace) {
+      AppLogger.e(
+          'Failed to save generation state: $e', 'VibeLibrary', stackTrace);
+    }
+  }
+
+  /// 加载生成参数状态
+  Future<Map<String, dynamic>?> loadGenerationState() async {
+    await _ensureInit();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_generationStateKey);
+      if (jsonString != null) {
+        final stateData = jsonDecode(jsonString) as Map<String, dynamic>;
+        AppLogger.d('Generation state loaded', 'VibeLibrary');
+        return stateData;
+      }
+      return null;
+    } catch (e, stackTrace) {
+      AppLogger.e(
+          'Failed to load generation state: $e', 'VibeLibrary', stackTrace);
+      return null;
+    }
+  }
+
+  /// 清除保存的生成状态
+  Future<void> clearGenerationState() async {
+    await _ensureInit();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_generationStateKey);
+      AppLogger.d('Generation state cleared', 'VibeLibrary');
+    } catch (e, stackTrace) {
+      AppLogger.e(
+          'Failed to clear generation state: $e', 'VibeLibrary', stackTrace);
     }
   }
 

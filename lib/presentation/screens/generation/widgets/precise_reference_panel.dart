@@ -263,45 +263,71 @@ class _PreciseReferencePanelState
     );
   }
 
-  /// 构建类型选择器（SegmentedButton）
+  /// 构建类型选择器（DropdownButton）
   Widget _buildTypeSelector(BuildContext context, ThemeData theme) {
     final params = ref.watch(generationParamsNotifierProvider);
     final isV4Model = params.isV4Model;
 
-    return SegmentedButton<PreciseRefType>(
-      segments: [
-        ButtonSegment(
-          value: PreciseRefType.character,
-          label: Text(context.l10n.preciseRef_typeCharacter),
-          icon: const Icon(Icons.person, size: 18),
+    return DropdownButtonFormField<PreciseRefType>(
+      value: _selectedType,
+      isDense: true,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: context.l10n.preciseRef_referenceType,
+        prefixIcon: const Icon(Icons.category, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        ButtonSegment(
-          value: PreciseRefType.style,
-          label: Text(context.l10n.preciseRef_typeStyle),
-          icon: const Icon(Icons.palette, size: 18),
-        ),
-        ButtonSegment(
-          value: PreciseRefType.characterAndStyle,
-          label: Text(context.l10n.preciseRef_typeCharacterAndStyle),
-          icon: const Icon(Icons.auto_awesome, size: 18),
-        ),
-      ],
-      selected: {_selectedType},
-      onSelectionChanged: isV4Model
-          ? (selected) {
-              setState(() {
-                _selectedType = selected.first;
-              });
-            }
-          : null,
-      style: SegmentedButton.styleFrom(
-        selectedBackgroundColor: theme.colorScheme.primaryContainer,
-        selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
-        side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.5),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
         ),
       ),
+      items: PreciseRefType.values.map((type) {
+        return DropdownMenuItem<PreciseRefType>(
+          value: type,
+          child: Row(
+            children: [
+              Icon(
+                _getTypeIcon(type),
+                size: 18,
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+              const SizedBox(width: 8),
+              Text(_getTypeDisplayName(context, type)),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: isV4Model
+          ? (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedType = value;
+                });
+              }
+            }
+          : null,
     );
+  }
+
+  /// 获取类型显示名称
+  String _getTypeDisplayName(BuildContext context, PreciseRefType type) {
+    return switch (type) {
+      PreciseRefType.character => context.l10n.preciseRef_typeCharacter,
+      PreciseRefType.style => context.l10n.preciseRef_typeStyle,
+      PreciseRefType.characterAndStyle =>
+        context.l10n.preciseRef_typeCharacterAndStyle,
+    };
+  }
+
+  /// 获取类型图标
+  IconData _getTypeIcon(PreciseRefType type) {
+    return switch (type) {
+      PreciseRefType.character => Icons.person,
+      PreciseRefType.style => Icons.palette,
+      PreciseRefType.characterAndStyle => Icons.auto_awesome,
+    };
   }
 
   Future<void> _addReference() async {
@@ -371,9 +397,16 @@ class _PreciseReferencePanelState
   }
 
   void _clearAllReferences() {
+    final params = ref.read(generationParamsNotifierProvider);
+    final count = params.preciseReferences.length;
+
     ref
         .read(generationParamsNotifierProvider.notifier)
         .clearPreciseReferences();
+
+    if (mounted && count > 0) {
+      AppToast.success(context, '已删除 $count 个精准参考');
+    }
   }
 }
 
@@ -515,7 +548,7 @@ class _PreciseReferenceCard extends StatelessWidget {
         return DropdownMenuItem<PreciseRefType>(
           value: type,
           child: Text(
-            type.displayName,
+            _getTypeDisplayName(context, type),
             style: theme.textTheme.bodySmall,
           ),
         );
@@ -526,6 +559,15 @@ class _PreciseReferenceCard extends StatelessWidget {
         }
       },
     );
+  }
+
+  String _getTypeDisplayName(BuildContext context, PreciseRefType type) {
+    return switch (type) {
+      PreciseRefType.character => context.l10n.preciseRef_typeCharacter,
+      PreciseRefType.style => context.l10n.preciseRef_typeStyle,
+      PreciseRefType.characterAndStyle =>
+        context.l10n.preciseRef_typeCharacterAndStyle,
+    };
   }
 
   Widget _buildSliderRow(

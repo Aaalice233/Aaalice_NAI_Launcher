@@ -629,6 +629,10 @@
   "vibe_title": "Vibe Transfer",
   "vibe_hint": "Add reference images to transfer visual style (max 4)",
   "vibe_description": "Change the image, keep the vision.",
+  "vibe_addFromFileTitle": "Add from File",
+  "vibe_addFromFileSubtitle": "PNG, JPG, Vibe files",
+  "vibe_addFromLibraryTitle": "Import from Library",
+  "vibe_addFromLibrarySubtitle": "Select from Vibe Library",
   "vibe_addReference": "Add Reference",
   "vibe_clearAll": "Clear All",
   "vibe_referenceNumber": "Reference #{index}",
@@ -3408,6 +3412,27 @@
     }
   },
   "drop_addedToCharacterRef": "Added to Precise Reference",
+  "drop_extractMetadata": "Extract Metadata",
+  "drop_extractMetadataSubtitle": "Read Prompt, Seed and other parameters from image",
+  "drop_addToQueue": "Add to Queue",
+  "drop_addToQueueSubtitle": "Extract positive prompt and add to generation queue",
+  "drop_vibeDetected": "Pre-encoded Vibe detected (saves 2 Anlas)",
+  "drop_vibeStrength": "Strength: {value}%",
+  "@drop_vibeStrength": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "drop_vibeInfoExtracted": "Info Extracted: {value}%",
+  "@drop_vibeInfoExtracted": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "drop_reuseVibe": "Reuse Vibe",
+  "drop_reuseVibeSubtitle": "Use pre-encoded data directly (free)",
+  "drop_useAsRawImage": "Use as Raw Image",
+  "drop_useAsRawImageSubtitle": "Re-encode (costs 2 Anlas)",
 
   "preciseRef_title": "Precise Reference",
   "preciseRef_description": "Add reference images and set type and parameters. Multiple references can be used simultaneously.",

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -15,6 +17,10 @@ part 'subscription_provider.g.dart';
 class SubscriptionNotifier extends _$SubscriptionNotifier {
   AuthState? _previousAuthState;
   bool _hasInitiallyLoaded = false;
+  Timer? _refreshTimer;
+
+  /// 自动刷新间隔
+  static const Duration _refreshInterval = Duration(seconds: 5);
 
   @override
   SubscriptionState build() {
@@ -24,24 +30,51 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     // React to authentication state changes
     if (_previousAuthState != null) {
       if (authState.isAuthenticated && !_previousAuthState!.isAuthenticated) {
-        // Login succeeded - fetch subscription info
+        // Login succeeded - fetch subscription info and start auto refresh
         Future.microtask(() => fetchSubscription());
+        _startAutoRefresh();
       } else if (!authState.isAuthenticated &&
           _previousAuthState!.isAuthenticated) {
-        // Logged out - clear subscription info
+        // Logged out - clear subscription info and stop auto refresh
         state = const SubscriptionState.initial();
         _hasInitiallyLoaded = false;
+        _stopAutoRefresh();
       }
     } else if (authState.isAuthenticated && !_hasInitiallyLoaded) {
       // First build and already authenticated - fetch subscription
       // 使用 _hasInitiallyLoaded 标记避免重复加载（预热阶段可能已加载）
       Future.microtask(() => fetchSubscription());
+      _startAutoRefresh();
     }
 
     // Store current auth state for next comparison
     _previousAuthState = authState;
 
+    // Cleanup on dispose
+    ref.onDispose(_stopAutoRefresh);
+
     return const SubscriptionState.initial();
+  }
+
+  /// 启动自动刷新定时器
+  void _startAutoRefresh() {
+    if (_refreshTimer != null) return;
+
+    AppLogger.d('Starting auto refresh timer ($_refreshInterval)', 'Subscription');
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (state.isLoaded) {
+        refreshBalance();
+      }
+    });
+  }
+
+  /// 停止自动刷新定时器
+  void _stopAutoRefresh() {
+    if (_refreshTimer != null) {
+      AppLogger.d('Stopping auto refresh timer', 'Subscription');
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
   }
 
   /// 获取订阅信息

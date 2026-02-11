@@ -107,6 +107,10 @@ class StorageKeys {
   // Local Gallery Keys (本地画廊相关)
   static const String hasSeenLocalGalleryTip = 'has_seen_local_gallery_tip';
 
+  // Vibe Library Keys (Vibe库相关)
+  static const String vibeLibrarySavePath = 'vibe_library_save_path';
+  static const String vibeRecentCollapsed = 'vibe_recent_collapsed';
+
   // Replication Queue Keys (复刻队列相关)
   static const String replicationQueueBox = 'replication_queue';
   static const String replicationQueueData = 'replication_queue_data';

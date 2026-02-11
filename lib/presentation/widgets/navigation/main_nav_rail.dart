@@ -24,18 +24,19 @@ class MainNavRail extends ConsumerWidget {
     final theme = Theme.of(context);
 
     // 使用 navigationShell.currentIndex 获取当前选中索引
-    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig, 6=statistics, 7=tagLibraryPage
+    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig, 6=statistics, 7=tagLibraryPage, 8=vibeLibrary
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=promptConfig, 4=tagLibraryPage, 5=statistics, 6=settings
+    // Nav rail: 0=home, 1=localGallery, 2=vibeLibrary, 3=onlineGallery, 4=promptConfig, 5=tagLibraryPage, 6=statistics, 7=settings
     int selectedIndex = 0;
     if (currentIndex == 2) selectedIndex = 1; // localGallery
-    if (currentIndex == 3) selectedIndex = 2; // onlineGallery
-    if (currentIndex == 5) selectedIndex = 3; // promptConfig
-    if (currentIndex == 7) selectedIndex = 4; // tagLibraryPage
-    if (currentIndex == 6) selectedIndex = 5; // statistics
-    if (currentIndex == 4) selectedIndex = 6; // settings
+    if (currentIndex == 8) selectedIndex = 2; // vibeLibrary
+    if (currentIndex == 3) selectedIndex = 3; // onlineGallery
+    if (currentIndex == 5) selectedIndex = 4; // promptConfig
+    if (currentIndex == 7) selectedIndex = 5; // tagLibraryPage
+    if (currentIndex == 6) selectedIndex = 6; // statistics
+    if (currentIndex == 4) selectedIndex = 7; // settings
 
     return Container(
       width: 60,
@@ -71,11 +72,19 @@ class MainNavRail extends ConsumerWidget {
             onTap: () => navigationShell.goBranch(2), // localGallery branch
           ),
 
+          // Vibe库
+          _NavIcon(
+            icon: Icons.auto_awesome, // Vibe Library
+            label: 'Vibe库',
+            isSelected: selectedIndex == 2,
+            onTap: () => navigationShell.goBranch(8), // vibeLibrary branch
+          ),
+
           // 在线画廊
           _NavIcon(
             icon: Icons.photo_library, // Online Gallery
             label: context.l10n.nav_onlineGallery,
-            isSelected: selectedIndex == 2,
+            isSelected: selectedIndex == 3,
             onTap: () => navigationShell.goBranch(3), // onlineGallery branch
           ),
 
@@ -83,7 +92,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.casino, // Random prompt config
             label: context.l10n.nav_randomConfig,
-            isSelected: selectedIndex == 3,
+            isSelected: selectedIndex == 4,
             onTap: () => navigationShell.goBranch(5), // promptConfig branch
           ),
 
@@ -91,7 +100,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.book,
             label: context.l10n.nav_dictionary,
-            isSelected: selectedIndex == 4,
+            isSelected: selectedIndex == 5,
             onTap: () => navigationShell.goBranch(7), // tagLibraryPage branch
           ),
 
@@ -99,7 +108,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.bar_chart, // Gallery Statistics
             label: context.l10n.statistics_title,
-            isSelected: selectedIndex == 5,
+            isSelected: selectedIndex == 6,
             onTap: () => navigationShell.goBranch(6), // statistics branch
           ),
 
@@ -123,7 +132,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.settings,
             label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 6,
+            isSelected: selectedIndex == 7,
             onTap: () => navigationShell.goBranch(4), // settings branch
           ),
           const SizedBox(height: 16),

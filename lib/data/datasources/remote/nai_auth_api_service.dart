@@ -31,13 +31,22 @@ class NAIAuthApiService {
   /// 返回验证结果，包含订阅信息；如果 Token 无效则抛出异常
   Future<Map<String, dynamic>> validateToken(String token) async {
     try {
-      AppLogger.d('Validating API token', 'NAIAuth');
+      // Trim token to remove any accidental whitespace/newlines
+      final trimmedToken = token.trim();
+      AppLogger.d('Validating API token, length: ${trimmedToken.length}', 'NAIAuth');
+
+      // NovelAI uses raw token without Bearer prefix for Persistent Tokens
+      final authHeader = trimmedToken.startsWith('pst-')
+          ? trimmedToken
+          : 'Bearer $trimmedToken';
+
+      AppLogger.d('Authorization header format: ${authHeader.substring(0, authHeader.length > 20 ? 20 : authHeader.length)}...', 'NAIAuth');
 
       final response = await _dio.get(
         '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
         options: Options(
           headers: {
-            'Authorization': 'Bearer $token',
+            'Authorization': authHeader,
           },
           receiveTimeout: _timeout,
           sendTimeout: _timeout,

@@ -468,6 +468,10 @@
   "vibe_title": "风格迁移",
   "vibe_hint": "添加参考图片来迁移其视觉风格和氛围（最多4张）",
   "vibe_description": "改变图像，保留视觉风格",
+  "vibe_addFromFileTitle": "从文件添加",
+  "vibe_addFromFileSubtitle": "PNG、JPG、Vibe 文件",
+  "vibe_addFromLibraryTitle": "从库导入",
+  "vibe_addFromLibrarySubtitle": "从 Vibe 库中选择",
   "vibe_addReference": "添加参考图",
   "vibe_clearAll": "清除全部",
   "vibe_referenceNumber": "参考图 #{index}",
@@ -1014,6 +1018,27 @@
     }
   },
   "drop_addedToCharacterRef": "已添加到精准参考",
+  "drop_extractMetadata": "提取元数据",
+  "drop_extractMetadataSubtitle": "读取图片中的 Prompt、Seed 等参数",
+  "drop_addToQueue": "加入队列",
+  "drop_addToQueueSubtitle": "提取正面提示词并加入生成队列",
+  "drop_vibeDetected": "检测到预编码 Vibe（可节省 2 Anlas）",
+  "drop_vibeStrength": "强度: {value}%",
+  "@drop_vibeStrength": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "drop_vibeInfoExtracted": "信息提取: {value}%",
+  "@drop_vibeInfoExtracted": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "drop_reuseVibe": "复用 Vibe",
+  "drop_reuseVibeSubtitle": "直接使用预编码数据（免费）",
+  "drop_useAsRawImage": "作为原始图片",
+  "drop_useAsRawImageSubtitle": "重新编码（消耗 2 Anlas）",
 
   "preciseRef_title": "精准参考",
   "preciseRef_description": "添加参考图并设置类型和参数，可同时使用多个参考。",

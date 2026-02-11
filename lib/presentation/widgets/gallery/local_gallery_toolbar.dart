@@ -267,6 +267,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                   // Filter button group
                   _buildDateRangeButton(theme, state),
                   const SizedBox(width: 6),
+                  _buildVibeFilterButton(theme, state),
+                  const SizedBox(width: 6),
                   CompactIconButton(
                     icon: Icons.calendar_today,
                     label: '日期',
@@ -486,6 +488,35 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
         visualDensity: VisualDensity.compact,
         side:
             hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
+      ),
+    );
+  }
+
+  /// Build vibe filter button
+  /// 构建Vibe过滤按钮
+  Widget _buildVibeFilterButton(ThemeData theme, LocalGalleryState state) {
+    final isVibeOnly = state.vibeOnly;
+
+    return OutlinedButton.icon(
+      onPressed: () {
+        ref.read(localGalleryNotifierProvider.notifier).toggleVibeOnly();
+      },
+      icon: Icon(
+        Icons.auto_awesome,
+        size: 16,
+        color: isVibeOnly ? theme.colorScheme.primary : null,
+      ),
+      label: Text(
+        'Vibe',
+        style: TextStyle(
+          fontSize: 12,
+          color: isVibeOnly ? theme.colorScheme.primary : null,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        visualDensity: VisualDensity.compact,
+        side: isVibeOnly ? BorderSide(color: theme.colorScheme.primary) : null,
       ),
     );
   }

@@ -9,6 +9,7 @@ class ShortcutIds {
   static const String navigateToTagLibrary = 'navigate_to_tag_library';
   static const String navigateToStatistics = 'navigate_to_statistics';
   static const String navigateToSettings = 'navigate_to_settings';
+  static const String navigateToVibeLibrary = 'navigate_to_vibe_library';
 
   // 生成页面快捷键
   static const String generateImage = 'generate_image';
@@ -150,6 +151,7 @@ class DefaultShortcuts {
         ShortcutIds.navigateToTagLibrary: 'ctrl+5',
         ShortcutIds.navigateToStatistics: 'ctrl+6',
         ShortcutIds.navigateToSettings: 'ctrl+comma',
+        ShortcutIds.navigateToVibeLibrary: 'ctrl+7',
 
         // 生成页面
         ShortcutIds.generateImage: 'ctrl+enter',
@@ -232,6 +234,7 @@ class DefaultShortcuts {
       case ShortcutIds.navigateToTagLibrary:
       case ShortcutIds.navigateToStatistics:
       case ShortcutIds.navigateToSettings:
+      case ShortcutIds.navigateToVibeLibrary:
       case ShortcutIds.minimizeToTray:
       case ShortcutIds.quitApp:
       case ShortcutIds.showShortcutHelp:

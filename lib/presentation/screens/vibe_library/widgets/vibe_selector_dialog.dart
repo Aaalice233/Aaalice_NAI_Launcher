@@ -384,9 +384,17 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (entry.hasThumbnail || entry.hasVibeThumbnail)
-                _buildThumbnail(
-                  entry.thumbnail ?? entry.vibeThumbnail,
-                  size: 24,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.memory(
+                    entry.thumbnail ?? entry.vibeThumbnail!,
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.broken_image, size: 18);
+                    },
+                  ),
                 )
               else
                 Icon(
@@ -603,10 +611,14 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
       return Icon(Icons.image, size: size);
     }
 
+    // 当使用 BoxFit.cover 时，需要父组件提供约束
+    // 否则使用固定尺寸
+    final useFixedSize = fit != BoxFit.cover;
+
     return Image.memory(
       imageData,
-      width: fit == BoxFit.cover ? double.infinity : size,
-      height: fit == BoxFit.cover ? double.infinity : size,
+      width: useFixedSize ? size : null,
+      height: useFixedSize ? size : null,
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
         return Icon(Icons.broken_image, size: size);

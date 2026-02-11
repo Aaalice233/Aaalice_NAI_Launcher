@@ -26,12 +26,13 @@ extension PreciseRefTypeExtension on PreciseRefType {
     };
   }
 
-  /// Display name for UI (will be localized later)
-  String get displayName {
+  /// Display name key for localization
+  /// Use with context.l10n.preciseRef_typeCharacter, etc.
+  String get displayNameKey {
     return switch (this) {
-      PreciseRefType.character => '角色',
-      PreciseRefType.style => '风格',
-      PreciseRefType.characterAndStyle => '角色+风格',
+      PreciseRefType.character => 'preciseRef_typeCharacter',
+      PreciseRefType.style => 'preciseRef_typeStyle',
+      PreciseRefType.characterAndStyle => 'preciseRef_typeCharacterAndStyle',
     };
   }
 }

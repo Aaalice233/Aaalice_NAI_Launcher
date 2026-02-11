@@ -19,6 +19,7 @@ import '../screens/slideshow_screen.dart';
 import '../screens/image_comparison_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
+import '../screens/vibe_library/vibe_library_screen.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
@@ -48,8 +49,9 @@ final _onlineGalleryKey =
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
 final _statisticsKey = GlobalKey<NavigatorState>(debugLabel: 'statistics');
-final _tagLibraryPageKey =
+  final _tagLibraryPageKey =
     GlobalKey<NavigatorState>(debugLabel: 'tagLibraryPage');
+  final _vibeLibraryKey = GlobalKey<NavigatorState>(debugLabel: 'vibeLibrary');
 
 /// 路由路径常量
 class AppRoutes {
@@ -67,6 +69,7 @@ class AppRoutes {
   static const String comparison = '/comparison';
   static const String statistics = '/statistics';
   static const String tagLibraryPage = '/tag-library';
+  static const String vibeLibrary = '/vibe-library';
 }
 
 /// 应用路由 Provider
@@ -323,6 +326,18 @@ GoRouter appRouter(Ref ref) {
                 path: AppRoutes.tagLibraryPage,
                 name: 'tagLibraryPage',
                 builder: (context, state) => const TagLibraryPageScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 8: Vibe库页 - 保活
+          StatefulShellBranch(
+            navigatorKey: _vibeLibraryKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.vibeLibrary,
+                name: 'vibeLibrary',
+                builder: (context, state) => const VibeLibraryScreen(),
               ),
             ],
           ),

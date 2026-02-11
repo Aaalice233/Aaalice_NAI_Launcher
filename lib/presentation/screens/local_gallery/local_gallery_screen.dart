@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/storage_keys.dart';
@@ -34,7 +35,7 @@ import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
-import '../../widgets/gallery/image_context_menu.dart';
+import '../../widgets/gallery/image_send_destination_dialog.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 
@@ -485,13 +486,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       onReuseMetadata: _reuseMetadata,
       onSendToImg2Img: _sendToImg2Img,
       onContextMenu: (record, position) {
-        ImageContextMenu.show(
-          context,
-          record,
-          position,
-          onRefresh: () =>
-              ref.read(localGalleryNotifierProvider.notifier).refresh(),
-        );
+        _showImageContextMenu(record, position);
       },
     );
   }
@@ -1127,11 +1122,219 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       paramsNotifier.updateAction(ImageGenerationAction.img2img);
 
       if (mounted) {
-        AppToast.info(context, '图片已发送到图生图，请切换到生成页面');
+        AppToast.success(context, '图片已发送到图生图，请切换到生成页面');
       }
     } catch (e) {
       if (mounted) {
-        AppToast.info(context, '发送失败: $e');
+        AppToast.error(context, '发送失败: $e');
+      }
+    }
+  }
+
+  /// 发送图片到 Vibe Transfer
+  /// 提取图片中的 vibe 数据并添加到生成参数
+  Future<void> _sendToVibeTransfer(LocalImageRecord record) async {
+    try {
+      // 检查是否有 vibe 数据
+      final vibeData = record.vibeData;
+      if (vibeData == null) {
+        if (mounted) {
+          AppToast.warning(context, '此图片不包含 Vibe 数据');
+        }
+        return;
+      }
+
+      final paramsNotifier =
+          ref.read(generationParamsNotifierProvider.notifier);
+
+      // 添加 vibe 到生成参数
+      paramsNotifier.addVibeReferenceV4(vibeData);
+
+      if (mounted) {
+        AppToast.success(
+          context,
+          'Vibe "${vibeData.displayName}" 已添加到生成参数',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '添加 Vibe 失败: $e');
+      }
+    }
+  }
+
+  /// 显示发送目标选择对话框
+  Future<void> _showSendDestinationDialog(LocalImageRecord record) async {
+    final destination = await ImageSendDestinationDialog.show(context, record);
+
+    if (destination == null || !mounted) return;
+
+    switch (destination) {
+      case SendDestination.img2img:
+        await _sendToImg2Img(record);
+      case SendDestination.vibeTransfer:
+        await _sendToVibeTransfer(record);
+    }
+  }
+
+  /// 显示图片右键上下文菜单
+  Future<void> _showImageContextMenu(
+    LocalImageRecord record,
+    Offset position,
+  ) async {
+    final metadata = record.metadata;
+
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      items: [
+        // 发送到选项
+        const PopupMenuItem(
+          value: 'send_to',
+          child: Row(
+            children: [
+              Icon(Icons.send, size: 18),
+              SizedBox(width: 8),
+              Text('发送到...'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        if (metadata?.prompt.isNotEmpty == true)
+          const PopupMenuItem(
+            value: 'copy_prompt',
+            child: Row(
+              children: [
+                Icon(Icons.content_copy, size: 18),
+                SizedBox(width: 8),
+                Text('复制 Prompt'),
+              ],
+            ),
+          ),
+        if (metadata?.seed != null)
+          const PopupMenuItem(
+            value: 'copy_seed',
+            child: Row(
+              children: [
+                Icon(Icons.tag, size: 18),
+                SizedBox(width: 8),
+                Text('复制 Seed'),
+              ],
+            ),
+          ),
+        const PopupMenuItem(
+          value: 'open_folder',
+          child: Row(
+            children: [
+              Icon(Icons.folder_open, size: 18),
+              SizedBox(width: 8),
+              Text('在文件夹中显示'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              SizedBox(width: 8),
+              Text('删除', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (value == null || !context.mounted) return;
+
+    switch (value) {
+      case 'send_to':
+        await _showSendDestinationDialog(record);
+      case 'copy_prompt':
+        if (metadata?.fullPrompt.isNotEmpty == true) {
+          await Clipboard.setData(ClipboardData(text: metadata!.fullPrompt));
+          if (context.mounted) {
+            AppToast.success(context, 'Prompt 已复制');
+          }
+        }
+      case 'copy_seed':
+        if (metadata?.seed != null) {
+          await Clipboard.setData(
+            ClipboardData(text: metadata!.seed.toString()),
+          );
+          if (context.mounted) {
+            AppToast.success(context, 'Seed 已复制');
+          }
+        }
+      case 'open_folder':
+        await _openFileInFolder(record.path);
+      case 'delete':
+        await _confirmDeleteImage(record);
+    }
+  }
+
+  /// 在文件夹中打开文件
+  Future<void> _openFileInFolder(String filePath) async {
+    try {
+      if (Platform.isWindows) {
+        await Process.start('explorer', ['/select,', filePath]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', ['-R', filePath]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [path.dirname(filePath)]);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '无法打开文件夹: $e');
+      }
+    }
+  }
+
+  /// 确认删除图片
+  Future<void> _confirmDeleteImage(LocalImageRecord record) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text(
+          '确定要删除图片「${path.basename(record.path)}」吗？\n\n此操作无法撤销。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final file = File(record.path);
+        if (await file.exists()) {
+          await file.delete();
+          await ref.read(localGalleryNotifierProvider.notifier).refresh();
+          if (context.mounted) {
+            AppToast.success(context, '图片已删除');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          AppToast.error(context, '删除失败: $e');
+        }
       }
     }
   }

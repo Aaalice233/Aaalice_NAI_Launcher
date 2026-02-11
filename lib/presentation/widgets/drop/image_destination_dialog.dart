@@ -177,8 +177,8 @@ class ImageDestinationDialog extends ConsumerWidget {
                   if (showExtractMetadata) ...[
                     _DestinationButton(
                       icon: Icons.data_object,
-                      label: '提取元数据并应用',
-                      subtitle: '读取图片中的 Prompt、Seed 等参数',
+                      label: context.l10n.drop_extractMetadata,
+                      subtitle: context.l10n.drop_extractMetadataSubtitle,
                       isPrimary: true,
                       onTap: () => Navigator.of(context)
                           .pop(ImageDestination.extractMetadata),
@@ -187,11 +187,11 @@ class ImageDestinationDialog extends ConsumerWidget {
                     // 加入队列选项（仅在悬浮球可见且是PNG时显示）
                     if (shouldShowAddToQueue)
                       Tooltip(
-                        message: '提取正面提示词加入队列',
+                        message: context.l10n.drop_addToQueueSubtitle,
                         child: _DestinationButton(
                           icon: Icons.playlist_add,
-                          label: '加入队列',
-                          subtitle: '提取正面提示词并加入生成队列',
+                          label: context.l10n.drop_addToQueue,
+                          subtitle: context.l10n.drop_addToQueueSubtitle,
                           onTap: () => Navigator.of(context)
                               .pop(ImageDestination.addToQueue),
                         ),
@@ -275,7 +275,7 @@ class ImageDestinationDialog extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '✨ 检测到预编码 Vibe（可节省 2 Anlas）',
+                    '✨ ${context.l10n.drop_vibeDetected}',
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: Colors.amber.shade800,
                       fontWeight: FontWeight.bold,
@@ -326,13 +326,13 @@ class ImageDestinationDialog extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '强度: ${(vibe.strength * 100).toStringAsFixed(0)}%',
+                          context.l10n.drop_vibeStrength((vibe.strength * 100).toStringAsFixed(0)),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
-                          '信息提取: ${(vibe.infoExtracted * 100).toStringAsFixed(0)}%',
+                          context.l10n.drop_vibeInfoExtracted((vibe.infoExtracted * 100).toStringAsFixed(0)),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -353,8 +353,8 @@ class ImageDestinationDialog extends ConsumerWidget {
                 // 复用 Vibe 按钮（默认推荐）
                 _DestinationButton(
                   icon: Icons.recycling,
-                  label: '复用 Vibe',
-                  subtitle: '直接使用预编码数据（免费）',
+                  label: context.l10n.drop_reuseVibe,
+                  subtitle: context.l10n.drop_reuseVibeSubtitle,
                   isPrimary: true,
                   onTap: () => Navigator.of(context)
                       .pop(ImageDestination.vibeTransferReuse),
@@ -363,8 +363,8 @@ class ImageDestinationDialog extends ConsumerWidget {
                 // 作为原始图片按钮
                 _DestinationButton(
                   icon: Icons.refresh,
-                  label: '作为原始图片',
-                  subtitle: '重新编码（消耗 2 Anlas）',
+                  label: context.l10n.drop_useAsRawImage,
+                  subtitle: context.l10n.drop_useAsRawImageSubtitle,
                   onTap: () => Navigator.of(context)
                       .pop(ImageDestination.vibeTransferRaw),
                 ),

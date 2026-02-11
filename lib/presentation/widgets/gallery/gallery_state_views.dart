@@ -157,9 +157,24 @@ class GalleryNoResultsView extends ConsumerWidget {
   /// 清除过滤按钮回调
   final VoidCallback? onClearFilters;
 
+  /// Custom title text
+  /// 自定义标题文本
+  final String? title;
+
+  /// Custom subtitle text
+  /// 自定义副标题文本
+  final String? subtitle;
+
+  /// Custom icon
+  /// 自定义图标
+  final IconData? icon;
+
   const GalleryNoResultsView({
     super.key,
     this.onClearFilters,
+    this.title,
+    this.subtitle,
+    this.icon,
   });
 
   @override
@@ -172,18 +187,27 @@ class GalleryNoResultsView extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.search_off,
+            icon ?? Icons.search_off,
             size: 48,
             color: theme.colorScheme.onSurfaceVariant
                 .withOpacity(isDark ? 0.6 : 0.5),
           ),
           const SizedBox(height: 12),
           Text(
-            '无匹配结果',
+            title ?? '无匹配结果',
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurface,
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: onClearFilters ??

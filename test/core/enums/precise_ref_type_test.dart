@@ -52,35 +52,35 @@ void main() {
     });
   });
 
-  group('PreciseRefTypeExtension.displayName', () {
-    test('character should return "Character"', () {
+  group('PreciseRefTypeExtension.displayNameKey', () {
+    test('character should return "preciseRef_typeCharacter"', () {
       expect(
-        PreciseRefType.character.displayName,
-        equals('Character'),
+        PreciseRefType.character.displayNameKey,
+        equals('preciseRef_typeCharacter'),
       );
     });
 
-    test('style should return "Style"', () {
+    test('style should return "preciseRef_typeStyle"', () {
       expect(
-        PreciseRefType.style.displayName,
-        equals('Style'),
+        PreciseRefType.style.displayNameKey,
+        equals('preciseRef_typeStyle'),
       );
     });
 
-    test('characterAndStyle should return "Character & Style"', () {
+    test('characterAndStyle should return "preciseRef_typeCharacterAndStyle"', () {
       expect(
-        PreciseRefType.characterAndStyle.displayName,
-        equals('Character & Style'),
+        PreciseRefType.characterAndStyle.displayNameKey,
+        equals('preciseRef_typeCharacterAndStyle'),
       );
     });
 
-    test('all values should have unique display names', () {
-      final displayNames = PreciseRefType.values
-          .map((type) => type.displayName)
+    test('all values should have unique display name keys', () {
+      final displayNameKeys = PreciseRefType.values
+          .map((type) => type.displayNameKey)
           .toList();
-      final uniqueNames = displayNames.toSet();
+      final uniqueKeys = displayNameKeys.toSet();
 
-      expect(uniqueNames.length, equals(displayNames.length));
+      expect(uniqueKeys.length, equals(displayNameKeys.length));
     });
   });
 
