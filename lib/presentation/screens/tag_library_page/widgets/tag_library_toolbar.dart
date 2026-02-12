@@ -179,7 +179,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
               // 导入按钮
               _CompactIconButton(
-                icon: Icons.file_download_outlined,
+                icon: Icons.file_upload_outlined,
                 label: '导入',
                 onPressed: widget.onImport,
               ),
@@ -187,7 +187,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
               // 导出按钮
               _CompactIconButton(
-                icon: Icons.file_upload_outlined,
+                icon: Icons.file_download_outlined,
                 label: '导出',
                 onPressed:
                     state.entries.isEmpty ? null : widget.onExport,

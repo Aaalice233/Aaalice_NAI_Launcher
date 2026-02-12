@@ -197,6 +197,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_preparing;
       case 'warmup_complete':
         return l10n.warmup_complete;
+      case 'warmup_dataMigration':
+        return '迁移 Hive / Vibe / 图片数据...';
       case 'warmup_networkCheck':
         return l10n.warmup_networkCheck;
       case 'warmup_loadingTranslation':

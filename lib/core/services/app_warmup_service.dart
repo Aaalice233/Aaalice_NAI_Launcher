@@ -198,9 +198,6 @@ class AppWarmupService {
   /// 网络任务超时时间（用于网络相关任务）
   static const networkTimeout = Duration(seconds: 3);
 
-  /// 并行组超时时间
-  static const _parallelGroupTimeout = Duration(seconds: 10);
-
   final List<WarmupTask> _tasks = [];
   final List<WarmupTaskGroup> _groups = [];
 
@@ -339,7 +336,11 @@ class AppWarmupService {
 
       try {
         final taskTimeout = task.timeout ?? _taskTimeout;
-        await task.task().timeout(taskTimeout);
+        if (taskTimeout == Duration.zero) {
+          await task.task();
+        } else {
+          await task.task().timeout(taskTimeout);
+        }
 
         stopwatch.stop();
         return WarmupTaskMetrics.create(
@@ -359,19 +360,9 @@ class AppWarmupService {
       }
     }).toList();
 
-    // 使用 Future.wait 并行执行，设置组级超时
-    try {
-      return await Future.wait(futures).timeout(_parallelGroupTimeout);
-    } on TimeoutException {
-      AppLogger.w('Warmup group "${group.name}" timed out', 'AppWarmup');
-      // 返回已完成的任务指标，未完成的标记为超时
-      return group.tasks.map((task) => WarmupTaskMetrics.create(
-        taskName: task.name,
-        durationMs: _parallelGroupTimeout.inMilliseconds,
-        status: WarmupTaskStatus.failed,
-        errorMessage: 'Group timeout',
-      ),).toList();
-    }
+    // 组级不再额外设置统一超时，避免长任务被提前判定失败。
+    // 每个任务由其自身 timeout 控制。
+    return Future.wait(futures);
   }
 
   /// 同步执行所有预加载任务（不返回进度）

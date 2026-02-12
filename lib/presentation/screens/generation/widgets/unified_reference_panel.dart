@@ -1505,29 +1505,8 @@ class _VibeCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 左侧：缩略图 + 删除按钮
-          Column(
-            children: [
-              // 缩略图
-              _buildThumbnail(theme),
-              const SizedBox(height: 8),
-              // 删除按钮
-              SizedBox(
-                height: 28,
-                width: 28,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    Icons.delete_outline,
-                    size: 18,
-                    color: theme.colorScheme.error,
-                  ),
-                  onPressed: onRemove,
-                  tooltip: context.l10n.vibe_remove,
-                ),
-              ),
-            ],
-          ),
+          // 左侧：缩略图（占满剩余高度）
+          _buildThumbnail(theme),
           const SizedBox(width: 12),
 
           // 右侧：滑条和源类型
@@ -1535,8 +1514,30 @@ class _VibeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 编码状态标签
-                _buildEncodingStatusChip(context, theme),
+                // 顶部行：编码状态标签 + 删除按钮
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 编码状态标签
+                    _buildEncodingStatusChip(context, theme),
+                    const Spacer(),
+                    // 删除按钮（右上角）
+                    SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: theme.colorScheme.error,
+                        ),
+                        onPressed: onRemove,
+                        tooltip: context.l10n.vibe_remove,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
 
                 // Reference Strength 滑条
@@ -1566,33 +1567,40 @@ class _VibeCard extends StatelessWidget {
 
   Widget _buildThumbnail(ThemeData theme) {
     final thumbnailBytes = vibe.thumbnail ?? vibe.rawImageData;
-    final thumbnail = ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        width: 64,
-        height: 64,
-        color: theme.colorScheme.surfaceContainerHighest,
-        child: thumbnailBytes != null
-            ? Image.memory(
-                thumbnailBytes,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildPlaceholder(theme);
-                },
-              )
-            : _buildPlaceholder(theme),
-      ),
-    );
 
     // 悬浮预览使用原始图片数据或缩略图
     final previewBytes = vibe.rawImageData ?? vibe.thumbnail;
-    if (previewBytes != null) {
-      return HoverImagePreview(
-        imageBytes: previewBytes,
-        child: thumbnail,
-      );
-    }
-    return thumbnail;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 100,
+        height: 100,
+        child: ColoredBox(
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: thumbnailBytes != null
+              ? (previewBytes != null
+                  ? HoverImagePreview(
+                      imageBytes: previewBytes,
+                      child: Image.memory(
+                        thumbnailBytes,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _buildPlaceholder(theme);
+                        },
+                      ),
+                    )
+                  : Image.memory(
+                      thumbnailBytes,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildPlaceholder(theme);
+                      },
+                    ))
+              : _buildPlaceholder(theme),
+        ),
+      ),
+    );
   }
 
   Widget _buildPlaceholder(ThemeData theme) {

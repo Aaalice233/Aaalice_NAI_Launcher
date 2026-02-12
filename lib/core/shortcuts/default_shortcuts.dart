@@ -79,6 +79,10 @@ class ShortcutIds {
   static const String toggleQueue = 'toggle_queue';
   static const String toggleQueuePause = 'toggle_queue_pause';
   static const String toggleTheme = 'toggle_theme';
+
+  // Vibe库快捷键
+  static const String vibeImport = 'vibe_import';
+  static const String vibeExport = 'vibe_export';
 }
 
 /// 快捷键上下文枚举
@@ -221,6 +225,10 @@ class DefaultShortcuts {
         ShortcutIds.toggleQueue: 'ctrl+j',
         ShortcutIds.toggleQueuePause: 'ctrl+space',
         ShortcutIds.toggleTheme: 'ctrl+shift+t',
+
+        // Vibe库
+        ShortcutIds.vibeImport: 'ctrl+i',
+        ShortcutIds.vibeExport: 'ctrl+e',
       };
 
   /// 获取快捷键的上下文
@@ -308,6 +316,11 @@ class DefaultShortcuts {
       case ShortcutIds.deletePreset:
       case ShortcutIds.closeConfig:
         return ShortcutContext.randomConfig;
+
+      // Vibe库
+      case ShortcutIds.vibeImport:
+      case ShortcutIds.vibeExport:
+        return ShortcutContext.global;
 
       default:
         return ShortcutContext.global;

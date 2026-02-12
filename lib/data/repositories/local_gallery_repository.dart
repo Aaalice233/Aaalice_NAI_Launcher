@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/storage_keys.dart';
@@ -213,7 +214,74 @@ class LocalGalleryRepository {
     }
 
     final appDir = await getApplicationDocumentsDirectory();
-    return Directory('${appDir.path}/nai_launcher/images');
+    final newPath = '${appDir.path}/NAI_Launcher/images';
+
+    // 检查是否需要从旧路径迁移
+    await _migrateImagesIfNeeded(appDir.path, newPath);
+
+    return Directory(newPath);
+  }
+
+  /// 从旧位置迁移图片（如果需要）
+  ///
+  /// 旧位置：{appDir}/nai_launcher/images/
+  /// 新位置：{appDir}/NAI_Launcher/images/
+  Future<void> _migrateImagesIfNeeded(String appDirPath, String newPath) async {
+    try {
+      // 如果新路径已存在且有文件，不需要迁移
+      final newDir = Directory(newPath);
+      if (await newDir.exists()) {
+        final files = await newDir.list().toList();
+        if (files.isNotEmpty) {
+          return; // 新位置已有数据，不迁移
+        }
+      }
+
+      // 检查旧位置是否存在
+      final oldPath = '$appDirPath/nai_launcher/images';
+      final oldDir = Directory(oldPath);
+      if (!await oldDir.exists()) {
+        return; // 没有旧数据需要迁移
+      }
+
+      // 检查旧位置是否有文件
+      final oldFiles = await oldDir.list().toList();
+      if (oldFiles.isEmpty) {
+        return; // 旧位置为空，不需要迁移
+      }
+
+      AppLogger.i('发现旧版本图片数据，开始迁移...', 'LocalGallery');
+      AppLogger.i('从: $oldPath', 'LocalGallery');
+      AppLogger.i('到: $newPath', 'LocalGallery');
+
+      // 确保新目录存在
+      if (!await newDir.exists()) {
+        await newDir.create(recursive: true);
+      }
+
+      // 迁移文件
+      var migratedCount = 0;
+      for (final entity in oldFiles) {
+        try {
+          final fileName = p.basename(entity.path);
+          final newFilePath = '$newPath/$fileName';
+
+          if (entity is File) {
+            await entity.copy(newFilePath);
+            migratedCount++;
+          }
+        } catch (e) {
+          AppLogger.e('迁移失败 ${entity.path}: $e', 'LocalGallery');
+        }
+      }
+
+      if (migratedCount > 0) {
+        AppLogger.i('图片数据迁移完成: $migratedCount 个文件', 'LocalGallery');
+        AppLogger.i('旧数据保留在: $oldPath（可手动删除）', 'LocalGallery');
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e('图片迁移过程出错: $e', 'LocalGallery', stackTrace);
+    }
   }
 
   /// 获取所有图片文件（从文件系统，用于UI展示）

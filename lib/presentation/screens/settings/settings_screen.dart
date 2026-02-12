@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/proxy_service.dart';
+import '../../../core/utils/hive_storage_helper.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../core/constants/storage_keys.dart';
@@ -139,7 +140,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.folder_outlined),
             title: Text(context.l10n.settings_imageSavePath),
             subtitle: Text(
-              saveSettings.getDisplayPath(context.l10n.settings_default),
+              saveSettings.getDisplayPath('默认 (Documents/NAI_Launcher/images/)'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -180,6 +181,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           // Vibe库保存路径设置
           const _VibeLibraryPathTile(),
+          // Hive 数据存储路径设置
+          const _HiveStoragePathTile(),
           const ThemedDivider(),
 
           // 网络设置
@@ -1282,13 +1285,15 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
 
     return ListTile(
       leading: const Icon(Icons.style_outlined),
-      title: const Text('Vibe库保存路径'),
+      title: const Text('Vibe 库保存路径'),
       subtitle: FutureBuilder<String>(
         future: _pathHelper.getPath(),
         builder: (context, snapshot) {
           final displayPath = hasCustomPath
               ? (customPath ?? '')
-              : (snapshot.data ?? '默认');
+              : (snapshot.data != null
+                  ? '${snapshot.data!} (默认)'
+                  : '默认 (Documents/NAI_Launcher/vibes/)');
           return Text(
             displayPath,
             maxLines: 1,
@@ -1309,6 +1314,125 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
         ],
       ),
       onTap: () => _selectVibeLibraryDirectory(context),
+    );
+  }
+}
+
+/// Hive 数据存储路径设置 Tile
+class _HiveStoragePathTile extends StatefulWidget {
+  const _HiveStoragePathTile();
+
+  @override
+  State<_HiveStoragePathTile> createState() => _HiveStoragePathTileState();
+}
+
+class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
+  final _hiveHelper = HiveStorageHelper.instance;
+
+  Future<void> _selectHiveStorageDirectory(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: '选择 Hive 数据存储文件夹',
+      );
+
+      if (result != null && context.mounted) {
+        // 显示警告：更改存储路径需要重启应用
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            title: const Text('需要重启应用'),
+            content: const Text(
+              '更改 Hive 数据存储路径后，需要重启应用才能生效。\n\n'
+              '新路径将在下次启动时生效。是否继续？',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('确认'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed == true) {
+          await _hiveHelper.setCustomPath(result);
+          setState(() {});
+
+          if (context.mounted) {
+            AppToast.success(context, 'Hive 存储路径已保存，重启后生效');
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, '选择文件夹失败: ${e.toString()}');
+      }
+    }
+  }
+
+  Future<void> _resetToDefault(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+        title: const Text('需要重启应用'),
+        content: const Text(
+          '重置 Hive 数据存储路径后，需要重启应用才能生效。\n\n'
+          '默认路径将在下次启动时生效。是否继续？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _hiveHelper.resetToDefault();
+      setState(() {});
+
+      if (context.mounted) {
+        AppToast.success(context, '已重置为默认路径，重启后生效');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCustomPath = _hiveHelper.hasCustomPath;
+
+    return ListTile(
+      leading: const Icon(Icons.storage_outlined),
+      title: const Text('数据存储路径'),
+      subtitle: Text(
+        _hiveHelper.getDisplayPath(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasCustomPath)
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              tooltip: '重置为默认',
+              onPressed: () => _resetToDefault(context),
+            ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: () => _selectHiveStorageDirectory(context),
     );
   }
 }

@@ -13,6 +13,7 @@ import '../../core/network/system_proxy_http_overrides.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
+import '../../core/services/data_migration_service.dart';
 import '../../core/services/tag_data_service.dart';
 import '../../core/services/translation_lazy_service.dart';
 import '../../core/services/warmup_metrics_service.dart';
@@ -97,7 +98,43 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   /// 注册所有预加载任务
   void _registerTasks() {
-    // ==== 第0步：网络环境检测（串行，最先执行）====
+    // ==== 第0步：数据迁移（串行，最先执行）====
+    // 在应用启动早期执行数据迁移，确保所有数据都在正确位置
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_dataMigration',
+        weight: 2,
+        timeout: const Duration(seconds: 60), // 迁移最多等待60秒
+        task: () async {
+          AppLogger.i('开始数据迁移阶段...', 'Warmup');
+          final migrationService = DataMigrationService.instance;
+
+          // 设置进度回调
+          migrationService.onProgress = (stage, progress) {
+            final percentage = (progress * 100).toInt();
+            state = state.copyWith(
+              subTaskMessage: '$stage ($percentage%)',
+            );
+          };
+
+          // 执行迁移
+          final result = await migrationService.migrateAll();
+
+          // 清除进度回调
+          migrationService.onProgress = null;
+          state = state.copyWith(subTaskMessage: null);
+
+          if (result.isSuccess) {
+            AppLogger.i('数据迁移完成: $result', 'Warmup');
+          } else {
+            AppLogger.w('数据迁移部分失败: ${result.error}', 'Warmup');
+            // 迁移失败不阻塞启动，继续执行
+          }
+        },
+      ),
+    );
+
+    // ==== 第1步：网络环境检测（串行）====
     // 注意：此任务使用 Duration.zero 表示无超时，会循环等待直到网络可用
     _warmupService.registerTask(
       WarmupTask(
@@ -186,13 +223,13 @@ class WarmupNotifier extends _$WarmupNotifier {
     _warmupService.registerGroup(
       WarmupTaskGroup(
         name: 'dataServices',
-        parallel: true,
+        parallel: false,
         tasks: [
           // 加载标签翻译服务
           WarmupTask(
             name: 'warmup_loadingTranslation',
             weight: 2,
-            timeout: const Duration(seconds: 5),
+            timeout: const Duration(seconds: 30),
             task: () async {
               final translationService = ref.read(tagTranslationServiceProvider);
               await translationService.load();
@@ -202,7 +239,7 @@ class WarmupNotifier extends _$WarmupNotifier {
           WarmupTask(
             name: 'warmup_initTagSystem',
             weight: 1,
-            timeout: const Duration(seconds: 15),
+            timeout: const Duration(seconds: 30),
             task: () async {
               final translationService = ref.read(tagTranslationServiceProvider);
               final tagDataService = ref.read(tagDataServiceProvider);
@@ -214,10 +251,10 @@ class WarmupNotifier extends _$WarmupNotifier {
           WarmupTask(
             name: 'warmup_loadingPromptConfig',
             weight: 1,
-            timeout: const Duration(seconds: 10),
+            timeout: const Duration(seconds: 20),
             task: () async {
               final notifier = ref.read(promptConfigNotifierProvider.notifier);
-              await notifier.whenLoaded.timeout(const Duration(seconds: 8));
+              await notifier.whenLoaded.timeout(const Duration(seconds: 15));
             },
           ),
         ],

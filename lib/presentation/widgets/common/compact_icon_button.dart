@@ -28,6 +28,10 @@ class CompactIconButton extends StatefulWidget {
   /// 是否使用危险颜色方案
   final bool isDanger;
 
+  /// Whether the button is in loading state
+  /// 按钮是否处于加载状态
+  final bool isLoading;
+
   /// Shortcut ID for displaying keyboard shortcut in tooltip
   /// 快捷键ID（用于在提示中显示键盘快捷键）
   final String? shortcutId;
@@ -40,6 +44,7 @@ class CompactIconButton extends StatefulWidget {
     this.onPressed,
     this.isActive = false,
     this.isDanger = false,
+    this.isLoading = false,
     this.shortcutId,
   });
 
@@ -54,7 +59,7 @@ class _CompactIconButtonState extends State<CompactIconButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final isEnabled = widget.onPressed != null;
+    final isEnabled = widget.onPressed != null && !widget.isLoading;
     final hasLabel = widget.label != null && widget.label!.isNotEmpty;
 
     Color iconColor;
@@ -105,7 +110,17 @@ class _CompactIconButtonState extends State<CompactIconButton> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, size: 18, color: iconColor),
+              if (widget.isLoading)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                  ),
+                )
+              else
+                Icon(widget.icon, size: 18, color: iconColor),
               if (hasLabel) ...[
                 const SizedBox(width: 6),
                 Text(

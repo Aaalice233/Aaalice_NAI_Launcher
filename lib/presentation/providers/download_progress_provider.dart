@@ -154,6 +154,18 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       return false;
     }
 
+    // 启动期默认使用懒加载 + SQLite 模式。
+    // 该模式下若立即触发完整缓存加载，会在进入主页时出现明显卡顿。
+    // 非强制刷新时直接跳过，由用户手动刷新（force=true）或后续后台策略触发。
+    final isLazyMode = cooccurrenceService.loadMode == CooccurrenceLoadMode.lazy;
+    if (!force && isLazyMode) {
+      AppLogger.i(
+        'Skip cooccurrence full bootstrap in lazy mode to avoid UI freeze on startup',
+        'DownloadProgress',
+      );
+      return true;
+    }
+
     // 检查是否需要下载/刷新
     if (!force) {
       // 1. 如果已经加载且不需要刷新，跳过

@@ -15,7 +15,9 @@ import 'core/constants/storage_keys.dart';
 import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
 import 'core/shortcuts/shortcut_storage.dart';
+import 'core/services/data_migration_service.dart';
 import 'core/utils/app_logger.dart';
+import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 
@@ -162,8 +164,16 @@ void main() async {
     AppLogger.i('SQLite FFI initialized for desktop', 'Main');
   }
 
-  // 初始化 Hive
-  await Hive.initFlutter();
+  // 在 Hive 初始化之前执行迁移，避免新路径先创建占位文件导致旧数据被误跳过
+  try {
+    final migrationResult = await DataMigrationService.instance.migrateAll();
+    AppLogger.i('Startup migration result: $migrationResult', 'Main');
+  } catch (e) {
+    AppLogger.w('Startup migration failed (will continue): $e', 'Main');
+  }
+
+  // 初始化 Hive（使用子目录存储，支持迁移旧数据）
+  await HiveStorageHelper.instance.init();
 
   // 预先打开 Hive boxes (确保 LocalStorageService 可用)
   await Hive.openBox(StorageKeys.settingsBox);
