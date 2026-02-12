@@ -13,6 +13,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../data/services/vibe_import_service.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../providers/vibe_library_category_provider.dart';
@@ -51,6 +52,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 是否正在导入
   bool _isImporting = false;
+
+  /// 是否正在打开文件选择器
+  bool _isPickingFile = false;
 
   @override
   void initState() {
@@ -400,15 +404,16 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
               const SizedBox(width: 6),
               // 导入按钮
               CompactIconButton(
-                icon: Icons.file_upload_outlined,
+                icon: Icons.file_download_outlined,
                 label: '导入',
                 tooltip: '导入.naiv4vibe或.naiv4vibebundle文件',
-                onPressed: _isImporting ? null : () => _importVibes(),
+                isLoading: _isPickingFile,
+                onPressed: (_isImporting || _isPickingFile) ? null : () => _importVibes(),
               ),
               const SizedBox(width: 6),
               // 导出按钮
               CompactIconButton(
-                icon: Icons.file_download_outlined,
+                icon: Icons.file_upload_outlined,
                 label: '导出',
                 tooltip: '导出Vibe到文件',
                 onPressed: state.entries.isEmpty ? null : () => _exportVibes(),
@@ -1028,12 +1033,16 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 导入 Vibe 文件
   Future<void> _importVibes() async {
+    setState(() => _isPickingFile = true);
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['naiv4vibe', 'naiv4vibebundle'],
+      allowedExtensions: ['naiv4vibe', 'naiv4vibebundle', 'png'],
       allowMultiple: true,
       dialogTitle: '选择要导入的 Vibe 文件',
     );
+
+    setState(() => _isPickingFile = false);
 
     if (result == null || result.files.isEmpty) return;
 
@@ -1047,54 +1056,111 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             ? currentCategoryId
             : null;
 
-    var successCount = 0;
-    var failCount = 0;
+    // 创建导入服务和仓库
+    final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+    final repository = _VibeLibraryNotifierImportRepository(
+      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
+      onSaveEntry: notifier.saveEntry,
+    );
+    final importService = VibeImportService(repository: repository);
+
+    // 分类文件：图片文件和普通文件
+    final imageFiles = <VibeImageImportItem>[];
+    final regularFiles = <PlatformFile>[];
 
     for (final file in result.files) {
-      if (file.path == null) continue;
-
-      try {
-        final fileObj = File(file.path!);
-        final bytes = await fileObj.readAsBytes();
-        final fileName = file.name;
-
-        // 解析文件
-        final vibes = await VibeFileParser.parseFile(fileName, bytes);
-
-        // 保存到库
-        for (final vibe in vibes) {
-          final entry = VibeLibraryEntry.fromVibeReference(
-            name: vibe.displayName,
-            vibeData: vibe,
-            categoryId: targetCategoryId, // 自动分配到当前分类
+      final ext = file.extension?.toLowerCase() ?? '';
+      if (ext == 'png') {
+        // 读取图片文件字节
+        try {
+          final bytes = await _readPlatformFileBytes(file);
+          imageFiles.add(
+            VibeImageImportItem(
+              source: file.name,
+              bytes: bytes,
+            ),
           );
-
-          await ref.read(vibeLibraryNotifierProvider.notifier).saveEntry(entry);
-          successCount++;
+        } catch (e) {
+          AppLogger.e('读取图片文件失败: ${file.name}', e, null, 'VibeLibrary');
         }
-      } catch (e) {
-        AppLogger.e('导入 Vibe 文件失败', e, null, 'VibeLibrary');
-        failCount++;
+      } else if (ext == 'naiv4vibe' || ext == 'naiv4vibebundle') {
+        regularFiles.add(file);
+      }
+    }
+
+    var totalSuccess = 0;
+    var totalFail = 0;
+    final allErrors = <ImportError>[];
+
+    // 导入图片文件
+    if (imageFiles.isNotEmpty) {
+      try {
+        final result = await importService.importFromImage(
+          images: imageFiles,
+          categoryId: targetCategoryId,
+          onProgress: (current, total, message) {
+            AppLogger.d(message, 'VibeLibrary');
+          },
+        );
+        totalSuccess += result.successCount;
+        totalFail += result.failCount + result.errors.length;
+        allErrors.addAll(result.errors);
+      } catch (e, stackTrace) {
+        AppLogger.e('导入图片 Vibe 失败', e, stackTrace, 'VibeLibrary');
+        totalFail += imageFiles.length;
+      }
+    }
+
+    // 导入普通文件
+    if (regularFiles.isNotEmpty) {
+      try {
+        final result = await importService.importFromFile(
+          files: regularFiles,
+          categoryId: targetCategoryId,
+          onProgress: (current, total, message) {
+            AppLogger.d(message, 'VibeLibrary');
+          },
+        );
+        totalSuccess += result.successCount;
+        totalFail += result.failCount + result.errors.length;
+        allErrors.addAll(result.errors);
+      } catch (e, stackTrace) {
+        AppLogger.e('导入 Vibe 文件失败', e, stackTrace, 'VibeLibrary');
+        totalFail += regularFiles.length;
       }
     }
 
     setState(() => _isImporting = false);
 
     // 重新加载数据以确保UI显示导入的条目
-    if (successCount > 0) {
+    if (totalSuccess > 0) {
       await ref.read(vibeLibraryNotifierProvider.notifier).reload();
     }
 
     if (mounted) {
-      if (failCount == 0) {
-        AppToast.success(context, '成功导入 $successCount 个 Vibe');
+      if (totalFail == 0) {
+        AppToast.success(context, '成功导入 $totalSuccess 个 Vibe');
       } else {
         AppToast.warning(
           context,
-          '导入完成: $successCount 成功, $failCount 失败',
+          '导入完成: $totalSuccess 成功, $totalFail 失败',
         );
       }
     }
+  }
+
+  /// 读取 PlatformFile 的字节
+  Future<Uint8List> _readPlatformFileBytes(PlatformFile file) async {
+    if (file.bytes != null) {
+      return file.bytes!;
+    }
+
+    final path = file.path;
+    if (path == null || path.isEmpty) {
+      throw ArgumentError('File path is empty: ${file.name}');
+    }
+
+    return File(path).readAsBytes();
   }
 
   /// 导出 Vibe
@@ -2251,5 +2317,32 @@ class _ContextMenuRoute extends PopupRoute {
         child: child,
       ),
     );
+  }
+}
+
+/// VibeLibraryNotifier 的导入仓库适配器
+/// 实现 VibeLibraryImportRepository 接口以适配 VibeImportService
+class _VibeLibraryNotifierImportRepository
+    implements VibeLibraryImportRepository {
+  _VibeLibraryNotifierImportRepository({
+    required this.onGetAllEntries,
+    required this.onSaveEntry,
+  });
+
+  final Future<List<VibeLibraryEntry>> Function() onGetAllEntries;
+  final Future<VibeLibraryEntry?> Function(VibeLibraryEntry) onSaveEntry;
+
+  @override
+  Future<List<VibeLibraryEntry>> getAllEntries() async {
+    return onGetAllEntries();
+  }
+
+  @override
+  Future<VibeLibraryEntry> saveEntry(VibeLibraryEntry entry) async {
+    final saved = await onSaveEntry(entry);
+    if (saved == null) {
+      throw StateError('Failed to save entry: ${entry.name}');
+    }
+    return saved;
   }
 }
