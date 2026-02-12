@@ -189,6 +189,9 @@ test/
 test_results/
 test_hive/
 
+# 但保留测试夹具
+!test/fixtures/
+
 # 项目管理文件
 AGENTS.md
 CLAUDE.md
