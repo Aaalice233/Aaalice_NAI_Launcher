@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../constants/storage_keys.dart';
 import 'app_logger.dart';
+import 'file_system_utils.dart';
 
 /// Hive 存储路径管理助手
 ///
@@ -126,11 +127,7 @@ class HiveStorageHelper {
       AppLogger.i('Hive 存储路径: $storagePath', 'HiveStorage');
 
       // 确保目录存在
-      final dir = Directory(storagePath);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-        AppLogger.i('创建 Hive 存储目录: $storagePath', 'HiveStorage');
-      }
+      await FileSystemUtils.ensureDirectory(storagePath, logTag: 'HiveStorage');
 
       // 注意：数据迁移由 DataMigrationService 在预热阶段统一执行
       // 这里只初始化 Hive，不执行迁移
@@ -198,10 +195,7 @@ class HiveStorageHelper {
       AppLogger.i('发现 ${filesToMigrate.length} 个旧 Hive 文件需要迁移', 'HiveStorage');
 
       // 确保新目录存在
-      final newDir = Directory(newPath);
-      if (!await newDir.exists()) {
-        await newDir.create(recursive: true);
-      }
+      await FileSystemUtils.ensureDirectory(newPath, logTag: 'HiveStorage');
 
       // 迁移文件
       var migratedCount = 0;

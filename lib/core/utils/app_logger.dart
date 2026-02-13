@@ -15,11 +15,6 @@ class AppLogger {
     level: Level.debug,
   );
 
-  /// 初始化日志系统（保留接口兼容性）
-  static Future<void> init() async {
-    // 无需初始化
-  }
-
   /// 调试日志
   static void d(String message, [String? tag]) {
     final tagPrefix = tag != null ? '[$tag] ' : '';

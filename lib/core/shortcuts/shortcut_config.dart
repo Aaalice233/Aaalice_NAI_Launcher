@@ -78,11 +78,8 @@ class ShortcutConfig with _$ShortcutConfig {
   String? getEffectiveShortcut(String id) => bindings[id]?.effectiveShortcut;
 
   /// 更新快捷键绑定
-  ShortcutConfig updateBinding(ShortcutBinding binding) {
-    return copyWith(
-      bindings: {...bindings, binding.id: binding},
-    );
-  }
+  ShortcutConfig updateBinding(ShortcutBinding binding) =>
+      copyWith(bindings: {...bindings, binding.id: binding});
 
   /// 重置所有快捷键为默认
   ShortcutConfig resetAllToDefault() {
@@ -197,30 +194,26 @@ class ParsedShortcut {
 
   /// 获取显示文本
   String get displayLabel {
-    final parts = <String>[];
-
-    // 按顺序添加修饰键
-    if (modifiers.contains(ShortcutModifier.control)) parts.add('Ctrl');
-    if (modifiers.contains(ShortcutModifier.alt)) parts.add('Alt');
-    if (modifiers.contains(ShortcutModifier.shift)) parts.add('Shift');
-    if (modifiers.contains(ShortcutModifier.meta)) parts.add('⌘');
-
-    // 添加主键
-    parts.add(key.displayName);
+    final parts = <String>[
+      if (modifiers.contains(ShortcutModifier.control)) 'Ctrl',
+      if (modifiers.contains(ShortcutModifier.alt)) 'Alt',
+      if (modifiers.contains(ShortcutModifier.shift)) 'Shift',
+      if (modifiers.contains(ShortcutModifier.meta)) '⌘',
+      key.displayName,
+    ];
 
     return parts.join('+');
   }
 
   /// 转换为ShortcutActivator字符串格式
   String toActivatorString() {
-    final parts = <String>[];
-
-    if (modifiers.contains(ShortcutModifier.control)) parts.add('control');
-    if (modifiers.contains(ShortcutModifier.alt)) parts.add('alt');
-    if (modifiers.contains(ShortcutModifier.shift)) parts.add('shift');
-    if (modifiers.contains(ShortcutModifier.meta)) parts.add('meta');
-
-    parts.add(key.logicalKey);
+    final parts = <String>[
+      if (modifiers.contains(ShortcutModifier.control)) 'control',
+      if (modifiers.contains(ShortcutModifier.alt)) 'alt',
+      if (modifiers.contains(ShortcutModifier.shift)) 'shift',
+      if (modifiers.contains(ShortcutModifier.meta)) 'meta',
+      key.logicalKey,
+    ];
 
     return parts.join('+');
   }
@@ -390,53 +383,29 @@ class ShortcutParser {
   }
 
   /// 尝试解析别名
-  static ShortcutKey? _tryParseAlias(String value) {
-    switch (value) {
-      case 'left':
-        return ShortcutKey.arrowleft;
-      case 'right':
-        return ShortcutKey.arrowright;
-      case 'up':
-        return ShortcutKey.arrowup;
-      case 'down':
-        return ShortcutKey.arrowdown;
-      case 'esc':
-        return ShortcutKey.escape;
-      case 'del':
-        return ShortcutKey.delete;
-      case 'pgup':
-        return ShortcutKey.pageup;
-      case 'pgdown':
-        return ShortcutKey.pagedown;
-      case 'plus':
-      case '=':
-        return ShortcutKey.equal;
-      case 'minus':
-      case '-':
-        return ShortcutKey.minus;
-      default:
-        return null;
-    }
-  }
+  static ShortcutKey? _tryParseAlias(String value) => switch (value) {
+    'left' => ShortcutKey.arrowleft,
+    'right' => ShortcutKey.arrowright,
+    'up' => ShortcutKey.arrowup,
+    'down' => ShortcutKey.arrowdown,
+    'esc' => ShortcutKey.escape,
+    'del' => ShortcutKey.delete,
+    'pgup' => ShortcutKey.pageup,
+    'pgdown' => ShortcutKey.pagedown,
+    'plus' || '=' => ShortcutKey.equal,
+    'minus' || '-' => ShortcutKey.minus,
+    _ => null,
+  };
 
   /// 将ParsedShortcut转换回字符串
   static String serialize(ParsedShortcut shortcut) {
-    final parts = <String>[];
-
-    if (shortcut.modifiers.contains(ShortcutModifier.control)) {
-      parts.add('ctrl');
-    }
-    if (shortcut.modifiers.contains(ShortcutModifier.alt)) {
-      parts.add('alt');
-    }
-    if (shortcut.modifiers.contains(ShortcutModifier.shift)) {
-      parts.add('shift');
-    }
-    if (shortcut.modifiers.contains(ShortcutModifier.meta)) {
-      parts.add('meta');
-    }
-
-    parts.add(shortcut.key.logicalKey);
+    final parts = <String>[
+      if (shortcut.modifiers.contains(ShortcutModifier.control)) 'ctrl',
+      if (shortcut.modifiers.contains(ShortcutModifier.alt)) 'alt',
+      if (shortcut.modifiers.contains(ShortcutModifier.shift)) 'shift',
+      if (shortcut.modifiers.contains(ShortcutModifier.meta)) 'meta',
+      shortcut.key.logicalKey,
+    ];
 
     return parts.join('+');
   }

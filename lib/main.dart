@@ -154,8 +154,7 @@ void main() async {
     windows: true,
   );
 
-  // 初始化日志系统
-  await AppLogger.init();
+  // 日志系统已自动初始化，无需显式调用
 
   // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
   if (Platform.isWindows || Platform.isLinux) {

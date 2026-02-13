@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../constants/storage_keys.dart';
 import '../storage/local_storage_service.dart';
 import '../utils/app_logger.dart';
+import 'file_system_utils.dart';
 
 /// Vibe库路径管理助手
 ///
@@ -115,9 +116,7 @@ class VibeLibraryPathHelper {
       AppLogger.i('到: $newPath', 'VibeLibrary');
 
       // 确保新目录存在
-      if (!await newDir.exists()) {
-        await newDir.create(recursive: true);
-      }
+      await FileSystemUtils.ensureDirectory(newPath, logTag: 'VibeLibrary');
 
       // 迁移文件
       var migratedCount = 0;
@@ -131,7 +130,7 @@ class VibeLibraryPathHelper {
             migratedCount++;
           } else if (entity is Directory) {
             // 递归复制子目录
-            await _copyDirectory(entity, Directory(newFilePath));
+            await FileSystemUtils.copyDirectory(entity, Directory(newFilePath));
             migratedCount++;
           }
         } catch (e) {
@@ -143,22 +142,6 @@ class VibeLibraryPathHelper {
       AppLogger.i('旧数据保留在: $oldPath（可手动删除）', 'VibeLibrary');
     } catch (e, stackTrace) {
       AppLogger.e('Vibe 库迁移过程出错: $e', 'VibeLibrary', stackTrace);
-    }
-  }
-
-  /// 递归复制目录
-  Future<void> _copyDirectory(Directory source, Directory destination) async {
-    if (!await destination.exists()) {
-      await destination.create(recursive: true);
-    }
-
-    await for (final entity in source.list(recursive: false)) {
-      final newPath = p.join(destination.path, p.basename(entity.path));
-      if (entity is File) {
-        await entity.copy(newPath);
-      } else if (entity is Directory) {
-        await _copyDirectory(entity, Directory(newPath));
-      }
     }
   }
 
@@ -193,17 +176,7 @@ class VibeLibraryPathHelper {
   /// [path] 要检查的路径
   /// 返回是否成功创建或路径已存在
   Future<bool> ensurePathExists(String path) async {
-    try {
-      final dir = Directory(path);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-        AppLogger.i('创建Vibe库目录: $path');
-      }
-      return true;
-    } catch (e) {
-      AppLogger.e('创建Vibe库目录失败: $path', e);
-      return false;
-    }
+    return FileSystemUtils.ensureDirectory(path, logTag: 'VibeLibrary');
   }
 
   /// 获取用于显示的简化路径

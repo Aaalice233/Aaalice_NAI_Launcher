@@ -63,18 +63,6 @@ class FirstLaunchDetector {
     }
   }
 
-  /// 执行首次启动后的初始化同步
-  /// 
-  /// 注意：新的实现不再执行同步，而是标记需要刷新
-  /// 实际的数据下载将在进入主界面后通过后台刷新处理
-  ///
-  /// [context] 用于显示 Toast 通知（已废弃，保留参数用于兼容性）
-  /// 返回同步是否成功
-  @Deprecated('使用 checkAndMarkPendingRefresh 替代')
-  Future<bool> performInitialSync(BuildContext context) async {
-    return await checkAndMarkPendingRefresh();
-  }
-
   /// 检查并标记需要后台刷新
   /// 
   /// 新的非阻塞实现：不再执行同步，而是标记需要刷新
@@ -111,38 +99,6 @@ class FirstLaunchDetector {
     }
   }
 
-  /// 检查并执行首次启动同步（自动检测）
-  /// 
-  /// 注意：新的实现使用非阻塞检测，数据同步在后台执行
-  ///
-  /// [context] 用于显示 Toast 通知（已废弃，保留参数用于兼容性）
-  /// 返回是否执行了同步
-  @Deprecated('使用 checkAndMarkPendingRefresh 替代')
-  Future<bool> checkAndPerformInitialSync(BuildContext context) async {
-    final isFirst = await isFirstLaunch();
-
-    if (isFirst) {
-      AppLogger.i(
-        'First launch detected, marking pending refresh',
-        'FirstLaunch',
-      );
-      await checkAndMarkPendingRefresh();
-      return true;
-    }
-
-    AppLogger.d('Not first launch, skipping initial sync', 'FirstLaunch');
-    return false;
-  }
-
-  /// 检查数据是否需要刷新并执行后台刷新
-  /// 
-  /// 注意：此方法已废弃，使用 BackgroundRefreshNotifier 替代
-  @Deprecated('使用 BackgroundRefreshNotifier 替代')
-  void checkAndRefreshIfNeeded() {
-    // 新的后台刷新逻辑已移至 BackgroundRefreshNotifier
-    // 保留此方法用于向后兼容
-    AppLogger.d('checkAndRefreshIfNeeded is deprecated, use BackgroundRefreshNotifier', 'FirstLaunch');
-  }
 }
 
 /// FirstLaunchDetector Provider
