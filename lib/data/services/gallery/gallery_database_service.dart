@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/services/sqflite_bootstrap_service.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import '../../models/vibe/vibe_reference_v4.dart';
@@ -45,9 +46,8 @@ class GalleryDatabaseService {
   Future<void> init() async {
     if (_initialized && _db != null && _db!.isOpen) return;
 
-    // 初始化FFI（桌面端支持）
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+    // 初始化 FFI（桌面端支持）
+    await SqfliteBootstrapService.instance.ensureInitialized();
 
     final dbPath = await _getDatabasePath();
     _db = await databaseFactoryFfi.openDatabase(

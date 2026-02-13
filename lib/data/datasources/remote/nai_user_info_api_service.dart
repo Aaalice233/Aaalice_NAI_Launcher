@@ -16,12 +16,15 @@ class NAIUserInfoApiService {
   NAIUserInfoApiService(this._dio);
 
   /// 获取用户订阅信息（包含 Anlas 余额）
-  Future<Map<String, dynamic>> getUserSubscription() async {
+  Future<Map<String, dynamic>> getUserSubscription({
+    Duration? receiveTimeout,
+    Duration? sendTimeout,
+  }) async {
     final response = await _dio.get(
       '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
       options: Options(
-        receiveTimeout: _timeout,
-        sendTimeout: _timeout,
+        receiveTimeout: receiveTimeout ?? _timeout,
+        sendTimeout: sendTimeout ?? _timeout,
       ),
     );
 

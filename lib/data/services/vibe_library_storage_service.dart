@@ -43,6 +43,7 @@ class VibeEntryRenameResult {
 class VibeLibraryStorageService {
   static const String _entriesBoxName = 'vibe_library_entries';
   static const String _entriesFallbackBoxName = 'vibe_library_entries_v2';
+  static const String _entriesEmergencyBoxName = 'vibe_library_entries_v3';
   static const String _categoriesBoxName = 'vibe_library_categories';
   static const String _tag = 'VibeLibrary';
 
@@ -53,7 +54,6 @@ class VibeLibraryStorageService {
   Box<VibeLibraryCategory>? _categoriesBox;
   Future<void>? _initFuture;
   final VibeFileStorageService _fileStorage;
-  String _activeEntriesBoxName = _entriesBoxName;
 
   /// 初始化并注册 Hive adapters
   Future<void> init() async {
@@ -65,23 +65,7 @@ class VibeLibraryStorageService {
       Hive.registerAdapter(VibeLibraryCategoryAdapter());
     }
 
-    try {
-      _activeEntriesBoxName = _entriesBoxName;
-      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_activeEntriesBoxName);
-    } catch (e) {
-      if (!_isUnknownTypeIdError(e)) {
-        rethrow;
-      }
-
-      AppLogger.i(
-        '检测到旧版 Vibe 数据格式，正在切换到新缓存箱: $e',
-        _tag,
-      );
-
-      _activeEntriesBoxName = _entriesFallbackBoxName;
-      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_activeEntriesBoxName);
-      AppLogger.i('已切换到新 Vibe 条目缓存箱: $_activeEntriesBoxName', _tag);
-    }
+    _entriesBox = await _openEntriesBoxWithFallback();
 
     _categoriesBox =
         await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
@@ -91,6 +75,34 @@ class VibeLibraryStorageService {
   bool _isUnknownTypeIdError(Object error) {
     return error is HiveError &&
         error.toString().contains('unknown typeId');
+  }
+
+  Future<Box<VibeLibraryEntry>> _openEntriesBoxWithFallback() async {
+    final candidates = <String>[
+      _entriesBoxName,
+      _entriesFallbackBoxName,
+      _entriesEmergencyBoxName,
+    ];
+
+    Object? lastError;
+    for (final boxName in candidates) {
+      try {
+        final box = await Hive.openBox<VibeLibraryEntry>(boxName);
+        if (boxName != _entriesBoxName) {
+          AppLogger.i('已切换到新 Vibe 条目缓存箱: $boxName', _tag);
+        }
+        return box;
+      } catch (e) {
+        lastError = e;
+        if (_isUnknownTypeIdError(e)) {
+          AppLogger.i('检测到旧版 Vibe 数据格式，跳过缓存箱 $boxName: $e', _tag);
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw StateError('无法打开任何 Vibe 条目缓存箱: $lastError');
   }
 
   /// 确保已初始化（线程安全）
@@ -919,7 +931,6 @@ class VibeLibraryStorageService {
     required List<Map<String, dynamic>> preciseReferences,
     required bool normalizeVibeStrength,
   }) async {
-    await _ensureInit();
     try {
       final prefs = await SharedPreferences.getInstance();
       final stateData = {
@@ -944,7 +955,6 @@ class VibeLibraryStorageService {
 
   /// 加载生成参数状态
   Future<Map<String, dynamic>?> loadGenerationState() async {
-    await _ensureInit();
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonString = prefs.getString(_generationStateKey);
@@ -966,7 +976,6 @@ class VibeLibraryStorageService {
 
   /// 清除保存的生成状态
   Future<void> clearGenerationState() async {
-    await _ensureInit();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_generationStateKey);

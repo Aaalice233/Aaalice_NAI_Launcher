@@ -274,14 +274,21 @@ class AuthInterceptor extends Interceptor {
 class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    // 详细记录错误信息
-    AppLogger.e(
-      'DIO Error: ${err.type.name}\n'
-          'Status: ${err.response?.statusCode}\n'
-          'URL: ${err.requestOptions.uri}\n'
-          'Response Data: ${err.response?.data}',
-      'DIO',
-    );
+    final message = 'DIO Error: ${err.type.name}\n'
+        'Status: ${err.response?.statusCode}\n'
+        'URL: ${err.requestOptions.uri}\n'
+        'Response Data: ${err.response?.data}';
+
+    // 非致命网络抖动降级为 warning，避免错误日志噪音
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.connectionError ||
+        err.type == DioExceptionType.cancel) {
+      AppLogger.w(message, 'DIO');
+    } else {
+      AppLogger.e(message, null, null, 'DIO');
+    }
 
     // 统一错误处理
     final error = _mapError(err);

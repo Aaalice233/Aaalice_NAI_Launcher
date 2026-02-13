@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:video_player_media_kit/video_player_media_kit.dart';
 import 'package:window_manager/window_manager.dart';
@@ -16,6 +15,7 @@ import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
 import 'core/shortcuts/shortcut_storage.dart';
 import 'core/services/data_migration_service.dart';
+import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_logger.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
@@ -157,11 +157,7 @@ void main() async {
   // 日志系统已自动初始化，无需显式调用
 
   // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
-  if (Platform.isWindows || Platform.isLinux) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-    AppLogger.i('SQLite FFI initialized for desktop', 'Main');
-  }
+  await SqfliteBootstrapService.instance.ensureInitialized();
 
   // 在 Hive 初始化之前执行迁移，避免新路径先创建占位文件导致旧数据被误跳过
   try {
