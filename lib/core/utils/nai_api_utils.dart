@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 
+import '../network/error_mappers/api_error_mapper.dart';
 import 'app_logger.dart';
 
 /// NAI API 工具类
@@ -122,72 +122,6 @@ class NAIApiUtils {
   /// 格式化 DioException 为错误代码（供 UI 层本地化显示）
   /// 返回格式: "ERROR_CODE|详细信息"
   static String formatDioError(DioException e) {
-    final statusCode = e.response?.statusCode;
-
-    // 尝试从响应中提取错误详情
-    String? serverMessage;
-    try {
-      final data = e.response?.data;
-      if (data is Map) {
-        serverMessage =
-            data['message']?.toString() ?? data['error']?.toString();
-      } else if (data is String && data.isNotEmpty) {
-        serverMessage = data;
-      } else if (data is List<int> || data is Uint8List) {
-        // 处理 bytes 类型的错误响应
-        final bytes =
-            data is Uint8List ? data : Uint8List.fromList(data as List<int>);
-        final text = utf8.decode(bytes, allowMalformed: true);
-        // 尝试解析为 JSON
-        try {
-          final json = jsonDecode(text);
-          if (json is Map) {
-            serverMessage = json['message']?.toString() ??
-                json['error']?.toString() ??
-                text;
-          } else {
-            serverMessage = text;
-          }
-        } catch (jsonError) {
-          AppLogger.w('Failed to parse error response JSON: $jsonError', 'Utils');
-          serverMessage = text;
-        }
-      }
-    } catch (error) {
-      AppLogger.w('Failed to extract error message from response: $error', 'Utils');
-    }
-
-    // 根据 HTTP 状态码返回错误代码
-    switch (statusCode) {
-      case 400:
-        return 'API_ERROR_400|${serverMessage ?? "Bad request"}';
-      case 429:
-        return 'API_ERROR_429|${serverMessage ?? "Too many requests"}';
-      case 401:
-        return 'API_ERROR_401|${serverMessage ?? "Unauthorized"}';
-      case 402:
-        return 'API_ERROR_402|${serverMessage ?? "Payment required"}';
-      case 500:
-        return 'API_ERROR_500|${serverMessage ?? "Server error"}';
-      case 503:
-        return 'API_ERROR_503|${serverMessage ?? "Service unavailable"}';
-      default:
-        break;
-    }
-
-    // 根据异常类型返回错误代码
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return 'API_ERROR_TIMEOUT|${e.message ?? "Timeout"}';
-      case DioExceptionType.connectionError:
-        return 'API_ERROR_NETWORK|${e.message ?? "Connection error"}';
-      default:
-        if (statusCode != null) {
-          return 'API_ERROR_HTTP_$statusCode|${e.message ?? "Unknown error"}';
-        }
-        return 'API_ERROR_UNKNOWN|${e.message ?? "Unknown error"}';
-    }
+    return ApiErrorMapper.formatDioError(e);
   }
 }

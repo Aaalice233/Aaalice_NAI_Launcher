@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -9,14 +8,13 @@ import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
-import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/request_builders/nai_image_request_builder.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_api_utils.dart';
 import '../../../core/utils/zip_utils.dart';
 import '../../models/image/image_params.dart';
 import '../../models/image/image_stream_chunk.dart';
-import '../../models/vibe/vibe_reference_v4.dart';
 import 'nai_image_enhancement_api_service.dart';
 
 part 'nai_image_generation_api_service.g.dart';
@@ -97,170 +95,21 @@ class NAIImageGenerationApiService {
     _currentCancelToken = CancelToken();
 
     try {
-      // Vibe 编码哈希映射表（方法级变量，用于返回缓存哈希）
-      final vibeEncodingMap = <int, String>{};
-
-      // 1. 处理种子
       // 0. 采样器版本映射
       final effectiveSampler =
           _mapSamplerForModel(params.sampler, params.model);
 
-      final seed =
-          params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
-
-      // 2. 处理提示词：如果 qualityToggle 为 true，在客户端添加质量标签
-      // 重要：官网是在客户端添加质量标签，而非后端自动添加
-      final effectivePrompt = params.qualityToggle
-          ? QualityTags.applyQualityTags(params.prompt, params.model)
-          : params.prompt;
-
-      // 3. 构造基础参数 (对齐官网 API 请求格式)
-      // 重要：官网在客户端预先填充负面提示词，而非依赖后端自动填充
-      // 根据 ucPreset 值和模型获取对应的预设内容
-      // 如果正面提示词包含 nsfw，则自动从负面提示词中移除 nsfw
-      final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
-        params.negativePrompt,
-        params.prompt,
-        params.model,
-        params.ucPreset,
+      final requestBuildResult = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _enhancementService.encodeVibe,
+        preciseReferences: effectivePreciseRefs,
+      ).build(
+        sampler: effectiveSampler,
       );
 
-      final requestParameters = <String, dynamic>{
-        'params_version': params.paramsVersion,
-        'width': params.width,
-        'height': params.height,
-        'scale': NAIApiUtils.toJsonNumber(params.scale),
-        'sampler': effectiveSampler, // 使用映射后的采样器
-        'steps': params.steps,
-        'n_samples': params.nSamples,
-        'ucPreset': params.ucPreset,
-        'qualityToggle': params.qualityToggle,
-        'autoSmea': false,
-        'dynamic_thresholding': params.isV3Model && params.decrisp,
-        'controlnet_strength': 1,
-        'legacy': false,
-        'add_original_image': params.addOriginalImage,
-        'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-        'noise_schedule': params.isV4Model
-            ? (params.noiseSchedule == 'native'
-                ? 'karras'
-                : params.noiseSchedule)
-            : params.noiseSchedule,
-        'normalize_reference_strength_multiple': true,
-        'inpaintImg2ImgStrength': 1,
-        'seed': seed,
-        'negative_prompt': effectiveNegativePrompt,
-        'deliberate_euler_ancestral_bug': false,
-        'prefer_brownian': true,
-      };
-
-      // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
-      // 官网格式：启用时发送计算值，不启用时发送 null
-      requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
-          ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
-          : null;
-
-      // V3 模型特有的 SMEA 参数（V4+ 不需要）
-      if (!params.isV4Model) {
-        // SMEA Auto 逻辑：分辨率 > 1024x1024 时自动启用
-        final resolution = params.width * params.height;
-        final autoSmea = resolution > 1024 * 1024;
-
-        // 如果 Auto 开启，根据分辨率自动决定；否则使用用户设置
-        // DDIM 采样器不支持 SMEA
-        final isDdim = params.sampler.contains('ddim');
-        final effectiveSmea =
-            isDdim ? false : (params.smeaAuto ? autoSmea : params.smea);
-        final effectiveSmeaDyn =
-            isDdim ? false : (params.smeaAuto ? false : params.smeaDyn);
-
-        requestParameters['sm'] = effectiveSmea;
-        requestParameters['sm_dyn'] = effectiveSmeaDyn;
-        // V3 模型使用 uc 字段
-        requestParameters['uc'] = effectiveNegativePrompt;
-      }
-
-      // V4+ 模型特殊参数 (必需的 v4_prompt 和 v4_negative_prompt 结构)
-      if (params.isV4Model) {
-        // 确保使用正确的参数版本
-        requestParameters['params_version'] = 3;
-
-        // V4 必需的额外参数 (对齐官网格式)
-        requestParameters['use_coords'] = params.useCoords;
-        requestParameters['legacy_v3_extend'] = false;
-        requestParameters['legacy_uc'] = false;
-
-        // 使用客户端预先填充的负面提示词（包含预设内容）
-        final userNegativePrompt = effectiveNegativePrompt;
-
-        // 构建角色提示词列表 (char_captions 和 characterPrompts)
-        final charCaptions = <Map<String, dynamic>>[];
-        final negativeCharCaptions = <Map<String, dynamic>>[];
-        final characterPrompts = <Map<String, dynamic>>[];
-
-        for (final char in params.characters) {
-          // 计算位置坐标 (A1-E5 网格)
-          // AI Choice 模式时使用 0, 0 表示由 AI 决定位置
-          double x = 0, y = 0;
-          if (char.position != null && char.position!.length >= 2) {
-            final letter = char.position![0].toUpperCase();
-            final digit = char.position![1];
-            // X: A=0.1, B=0.3, C=0.5, D=0.7, E=0.9
-            x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
-            // Y: 1=0.1, 2=0.3, 3=0.5, 4=0.7, 5=0.9
-            y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
-            x = x.clamp(0.1, 0.9);
-            y = y.clamp(0.1, 0.9);
-          } else if (char.positionX != null && char.positionY != null) {
-            x = char.positionX!;
-            y = char.positionY!;
-          }
-
-          charCaptions.add({
-            'centers': [
-              {'x': x, 'y': y},
-            ],
-            'char_caption': char.prompt,
-          });
-
-          negativeCharCaptions.add({
-            'centers': [
-              {'x': x, 'y': y},
-            ],
-            'char_caption': char.negativePrompt,
-          });
-
-          characterPrompts.add({
-            'center': {'x': x, 'y': y},
-            'prompt': char.prompt,
-            'uc': char.negativePrompt,
-            'enabled': true,
-          });
-        }
-
-        // V4 必需的 v4_prompt 结构 (对齐官网格式)
-        requestParameters['v4_prompt'] = {
-          'caption': {
-            'base_caption': effectivePrompt,
-            'char_captions': charCaptions,
-          },
-          'use_coords': params.useCoords,
-          'use_order': true,
-        };
-
-        // V4 必需的 v4_negative_prompt 结构 (对齐官网格式)
-        // base_caption: 客户端预先填充的负面提示词（包含预设内容）
-        requestParameters['v4_negative_prompt'] = {
-          'caption': {
-            'base_caption': userNegativePrompt,
-            'char_captions': negativeCharCaptions,
-          },
-          'legacy_uc': false,
-        };
-
-        // 角色提示词数组
-        requestParameters['characterPrompts'] = characterPrompts;
-      }
+      final vibeEncodingMap = requestBuildResult.vibeEncodingMap;
+      final effectiveNegativePrompt = requestBuildResult.effectiveNegativePrompt;
+      final requestParameters = requestBuildResult.requestParameters;
 
       // 打印请求参数以便调试
       AppLogger.d(
@@ -308,141 +157,8 @@ class NAIImageGenerationApiService {
       // 3. 根据模式添加额外参数
       final String action = params.action.value;
 
-      // img2img 模式
-      if (params.action == ImageGenerationAction.img2img &&
-          params.sourceImage != null) {
-        requestParameters['image'] = base64Encode(params.sourceImage!);
-        requestParameters['strength'] = params.strength;
-        requestParameters['noise'] = params.noise;
-      }
-
-      // inpainting 模式
-      if (params.action == ImageGenerationAction.infill &&
-          params.sourceImage != null &&
-          params.maskImage != null) {
-        requestParameters['image'] = base64Encode(params.sourceImage!);
-        requestParameters['mask'] = base64Encode(params.maskImage!);
-      }
-
-      // V4 Vibe Transfer
-      // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
-      if (params.vibeReferencesV4.isNotEmpty) {
-        // 标准化强度设置
-        requestParameters['normalize_reference_strength_multiple'] =
-            params.normalizeVibeStrength;
-
-        // 收集所有编码数据
-        final allEncodings = <String>[];
-        final allStrengths = <double>[];
-        final allInfoExtracted = <double>[];
-
-        // 遍历所有 vibe 参考，按索引处理
-        for (int i = 0; i < params.vibeReferencesV4.length; i++) {
-          final vibe = params.vibeReferencesV4[i];
-
-          // 已预编码的数据直接使用
-          if (vibe.sourceType.isPreEncoded && vibe.vibeEncoding.isNotEmpty) {
-            allEncodings.add(vibe.vibeEncoding);
-            allStrengths.add(vibe.strength);
-            allInfoExtracted.add(vibe.infoExtracted);
-            vibeEncodingMap[i] = vibe.vibeEncoding;
-            AppLogger.d(
-              'V4 Vibe: Using pre-encoded vibe at index $i',
-              'ImgGen',
-            );
-          }
-          // 原始图片需要服务端编码（消耗 2 Anlas）
-          else if (vibe.sourceType == VibeSourceType.rawImage &&
-              vibe.rawImageData != null) {
-            AppLogger.d(
-              'V4 Vibe: Encoding rawImage at index $i (2 Anlas)...',
-              'ImgGen',
-            );
-            try {
-              final encoding = await _enhancementService.encodeVibe(
-                vibe.rawImageData!,
-                model: params.model,
-                informationExtracted: vibe.infoExtracted,
-              );
-              if (encoding.isNotEmpty) {
-                allEncodings.add(encoding);
-                allStrengths.add(vibe.strength);
-                allInfoExtracted.add(vibe.infoExtracted);
-                // 保存新编码的哈希到映射表（用于缓存）
-                vibeEncodingMap[i] = encoding;
-                AppLogger.d(
-                  'V4 Vibe: Encoded raw image at index $i successfully, hash length: ${encoding.length}',
-                  'ImgGen',
-                );
-              } else {
-                AppLogger.w(
-                  'V4 Vibe: Failed to encode raw image at index $i (empty result)',
-                  'ImgGen',
-                );
-              }
-            } catch (e) {
-              AppLogger.e(
-                'V4 Vibe: Failed to encode raw image at index $i: $e',
-                'ImgGen',
-              );
-            }
-          }
-        }
-
-        // 设置参数
-        if (allEncodings.isNotEmpty) {
-          requestParameters['reference_image_multiple'] = allEncodings;
-          requestParameters['reference_strength_multiple'] = allStrengths;
-          requestParameters['reference_information_extracted_multiple'] =
-              allInfoExtracted;
-
-          AppLogger.d(
-            'V4 Vibe Transfer: ${vibeEncodingMap.length} vibes with encodings',
-            'ImgGen',
-          );
-        }
-      }
-
-      // 角色参考 (Precise Reference, V4+ 专属)
-      // 每个参考独立的 type, strength, fidelity
-      if (effectivePreciseRefs.isNotEmpty) {
-        // 固定为 true（与官网保持一致）
-        requestParameters['normalize_reference_strength_multiple'] = true;
-        // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
-        requestParameters['director_reference_images'] = effectivePreciseRefs
-            .map((r) => base64Encode(NAIApiUtils.ensurePngFormat(r.image)))
-            .toList();
-        // base_caption: 使用每个参考的 type 转换为 API 字符串
-        requestParameters['director_reference_descriptions'] =
-            effectivePreciseRefs.map((r) {
-          return {
-            'caption': {
-              'base_caption': r.type.toApiString(),
-              'char_captions': [],
-            },
-            'legacy_uc': false,
-          };
-        }).toList();
-        // 使用每个参考独立的 strength 和 fidelity
-        requestParameters['director_reference_information_extracted'] =
-            effectivePreciseRefs.map((r) => 1).toList();
-        requestParameters['director_reference_strength_values'] =
-            effectivePreciseRefs.map((r) => r.strength).toList();
-        // secondary_strength_values = 1 - fidelity（每个参考独立）
-        requestParameters['director_reference_secondary_strength_values'] =
-            effectivePreciseRefs
-                .map((r) => 1.0 - r.fidelity)
-                .toList();
-      }
-
       // 4. 构造请求数据（对齐官网格式）
-      final requestData = <String, dynamic>{
-        'input': effectivePrompt,
-        'model': params.model,
-        'action': action,
-        'parameters': requestParameters,
-        'use_new_shared_trial': true,
-      };
+      final requestData = requestBuildResult.requestData;
 
       AppLogger.d(
         'Generating image with action: $action, model: ${params.model}',
@@ -591,251 +307,19 @@ class NAIImageGenerationApiService {
     _currentCancelToken = CancelToken();
 
     try {
-      // 1. 处理种子
-      final seed =
-          params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
-
-      // 2. 处理提示词：如果 qualityToggle 为 true，在客户端添加质量标签
-      // 重要：官网是在客户端添加质量标签，而非后端自动添加
-      final effectivePrompt = params.qualityToggle
-          ? QualityTags.applyQualityTags(params.prompt, params.model)
-          : params.prompt;
-
-      // 3. 构造基础参数 (对齐官网 API 请求格式)
-      // 重要：客户端预先填充负面提示词
-      // 如果正面提示词包含 nsfw，则自动从负面提示词中移除 nsfw
-      final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
-        params.negativePrompt,
-        params.prompt,
-        params.model,
-        params.ucPreset,
+      final requestBuildResult = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _enhancementService.encodeVibe,
+        preciseReferences: effectivePreciseRefs,
+      ).build(
+        sampler: params.sampler,
+        isStream: true,
       );
 
-      final requestParameters = <String, dynamic>{
-        'params_version': params.paramsVersion,
-        'width': params.width,
-        'height': params.height,
-        'scale': NAIApiUtils.toJsonNumber(params.scale),
-        'sampler': params.sampler,
-        'steps': params.steps,
-        'n_samples': params.nSamples,
-        'ucPreset': params.ucPreset,
-        'qualityToggle': params.qualityToggle,
-        'autoSmea': false,
-        'dynamic_thresholding': params.isV3Model && params.decrisp,
-        'controlnet_strength': 1,
-        'legacy': false,
-        'add_original_image': params.addOriginalImage,
-        'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-        'noise_schedule': params.isV4Model
-            ? (params.noiseSchedule == 'native'
-                ? 'karras'
-                : params.noiseSchedule)
-            : params.noiseSchedule,
-        'normalize_reference_strength_multiple': true,
-        'inpaintImg2ImgStrength': 1,
-        'seed': seed,
-        'negative_prompt': effectiveNegativePrompt,
-        'deliberate_euler_ancestral_bug': false,
-        'prefer_brownian': true,
-        // 流式特有参数
-        'stream': 'msgpack',
-      };
-
-      // Variety+ 动态计算: 58 * sqrt(4 * (w/8) * (h/8) / 63232)
-      // 官网格式：启用时发送计算值，不启用时发送 null
-      requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
-          ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
-          : null;
-
-      // V3 模型特有的 SMEA 参数（V4+ 不需要）
-      if (!params.isV4Model) {
-        // SMEA Auto 逻辑：分辨率 > 1024x1024 时自动启用
-        final resolution = params.width * params.height;
-        final autoSmea = resolution > 1024 * 1024;
-
-        // 如果 Auto 开启，根据分辨率自动决定；否则使用用户设置
-        // DDIM 采样器不支持 SMEA
-        final isDdim = params.sampler.contains('ddim');
-        final effectiveSmea =
-            isDdim ? false : (params.smeaAuto ? autoSmea : params.smea);
-        final effectiveSmeaDyn =
-            isDdim ? false : (params.smeaAuto ? false : params.smeaDyn);
-
-        requestParameters['sm'] = effectiveSmea;
-        requestParameters['sm_dyn'] = effectiveSmeaDyn;
-        // V3 模型使用 uc 字段
-        requestParameters['uc'] = effectiveNegativePrompt;
-      }
-
-      // V4+ 模型特殊参数
-      if (params.isV4Model) {
-        requestParameters['params_version'] = 3;
-        requestParameters['use_coords'] = params.useCoords;
-        requestParameters['legacy_v3_extend'] = false;
-        requestParameters['legacy_uc'] = false;
-
-        // 使用客户端预先填充的负面提示词（包含预设内容）
-        final userNegativePrompt = effectiveNegativePrompt;
-        final charCaptions = <Map<String, dynamic>>[];
-        final negativeCharCaptions = <Map<String, dynamic>>[];
-        final characterPrompts = <Map<String, dynamic>>[];
-
-        for (final char in params.characters) {
-          // AI Choice 模式时使用 0, 0 表示由 AI 决定位置
-          double x = 0, y = 0;
-          if (char.position != null && char.position!.length >= 2) {
-            final letter = char.position![0].toUpperCase();
-            final digit = char.position![1];
-            x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
-            y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
-            x = x.clamp(0.1, 0.9);
-            y = y.clamp(0.1, 0.9);
-          } else if (char.positionX != null && char.positionY != null) {
-            x = char.positionX!;
-            y = char.positionY!;
-          }
-
-          charCaptions.add({
-            'centers': [
-              {'x': x, 'y': y},
-            ],
-            'char_caption': char.prompt,
-          });
-
-          negativeCharCaptions.add({
-            'centers': [
-              {'x': x, 'y': y},
-            ],
-            'char_caption': char.negativePrompt,
-          });
-
-          characterPrompts.add({
-            'center': {'x': x, 'y': y},
-            'prompt': char.prompt,
-            'uc': char.negativePrompt,
-            'enabled': true,
-          });
-        }
-
-        requestParameters['v4_prompt'] = {
-          'caption': {
-            'base_caption': effectivePrompt,
-            'char_captions': charCaptions,
-          },
-          'use_coords': params.useCoords,
-          'use_order': true,
-        };
-
-        requestParameters['v4_negative_prompt'] = {
-          'caption': {
-            'base_caption': userNegativePrompt,
-            'char_captions': negativeCharCaptions,
-          },
-          'legacy_uc': false,
-        };
-
-        requestParameters['characterPrompts'] = characterPrompts;
-      }
-
-      // img2img 模式
-      if (params.action == ImageGenerationAction.img2img &&
-          params.sourceImage != null) {
-        requestParameters['image'] = base64Encode(params.sourceImage!);
-        requestParameters['strength'] = params.strength;
-        requestParameters['noise'] = params.noise;
-      }
-
-      // inpainting 模式
-      if (params.action == ImageGenerationAction.infill &&
-          params.sourceImage != null &&
-          params.maskImage != null) {
-        requestParameters['image'] = base64Encode(params.sourceImage!);
-        requestParameters['mask'] = base64Encode(params.maskImage!);
-      }
-
-      // V4 Vibe Transfer
-      // 支持预编码和原始图片（原始图片自动调用 encode_vibe API，每张消耗 2 Anlas）
-      if (params.vibeReferencesV4.isNotEmpty) {
-        // 标准化强度设置
-        requestParameters['normalize_reference_strength_multiple'] =
-            params.normalizeVibeStrength;
-
-        // 分离预编码和原始图片
-        final preEncodedVibes = params.vibeReferencesV4
-            .where(
-              (v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty,
-            )
-            .toList();
-        final rawImageVibes = params.vibeReferencesV4
-            .where(
-              (v) =>
-                  v.sourceType == VibeSourceType.rawImage &&
-                  v.rawImageData != null,
-            )
-            .toList();
-
-        // 收集所有编码数据
-        final allEncodings = <String>[];
-        final allStrengths = <double>[];
-        final allInfoExtracted = <double>[];
-
-        // 添加预编码的 vibe
-        for (final vibe in preEncodedVibes) {
-          allEncodings.add(vibe.vibeEncoding);
-          allStrengths.add(vibe.strength);
-          allInfoExtracted.add(vibe.infoExtracted);
-        }
-
-        // 自动编码原始图片（每张消耗 2 Anlas）
-        if (rawImageVibes.isNotEmpty) {
-          AppLogger.d(
-            'V4 Vibe (Stream): Encoding ${rawImageVibes.length} raw images (2 Anlas each)...',
-            'ImgGen',
-          );
-          for (final vibe in rawImageVibes) {
-            try {
-              final encoding = await _enhancementService.encodeVibe(
-                vibe.rawImageData!,
-                model: params.model,
-                informationExtracted: vibe.infoExtracted,
-              );
-              if (encoding.isNotEmpty) {
-                allEncodings.add(encoding);
-                allStrengths.add(vibe.strength);
-                allInfoExtracted.add(vibe.infoExtracted);
-                AppLogger.d(
-                  'V4 Vibe (Stream): Encoded raw image successfully',
-                  'ImgGen',
-                );
-              } else {
-                AppLogger.w(
-                  'V4 Vibe (Stream): Failed to encode raw image (empty result)',
-                  'ImgGen',
-                );
-              }
-            } catch (e) {
-              AppLogger.e(
-                'V4 Vibe (Stream): Failed to encode raw image: $e',
-                'ImgGen',
-              );
-            }
-          }
-        }
-
-        // 设置参数
-        if (allEncodings.isNotEmpty) {
-          requestParameters['reference_image_multiple'] = allEncodings;
-          requestParameters['reference_strength_multiple'] = allStrengths;
-          requestParameters['reference_information_extracted_multiple'] =
-              allInfoExtracted;
-
-          AppLogger.d(
-            'V4 Vibe Transfer (Stream): ${preEncodedVibes.length} pre-encoded + ${rawImageVibes.length} encoded = ${allEncodings.length} total vibes',
-            'ImgGen',
-          );
-        }
-      }
+      final seed = requestBuildResult.seed;
+      final effectivePrompt = requestBuildResult.effectivePrompt;
+      final effectiveNegativePrompt = requestBuildResult.effectiveNegativePrompt;
+      final requestParameters = requestBuildResult.requestParameters;
 
       // 角色参考 (Precise Reference, V4+ 专属)
       if (effectivePreciseRefs.isNotEmpty) {
@@ -856,44 +340,10 @@ class NAIImageGenerationApiService {
           );
         }
 
-        // 固定为 true（与官网保持一致）
-        requestParameters['normalize_reference_strength_multiple'] = true;
-        // 将图片转换为 PNG 格式（NovelAI Director Reference 要求）
-        requestParameters['director_reference_images'] = effectivePreciseRefs
-            .map((r) => base64Encode(NAIApiUtils.ensurePngFormat(r.image)))
-            .toList();
-        // base_caption: 使用每个参考的 type 转换为 API 字符串
-        requestParameters['director_reference_descriptions'] =
-            effectivePreciseRefs.map((r) {
-          return {
-            'caption': {
-              'base_caption': r.type.toApiString(),
-              'char_captions': [],
-            },
-            'legacy_uc': false,
-          };
-        }).toList();
-        // 使用每个参考独立的 strength 和 fidelity
-        requestParameters['director_reference_information_extracted'] =
-            effectivePreciseRefs.map((r) => 1).toList();
-        requestParameters['director_reference_strength_values'] =
-            effectivePreciseRefs.map((r) => r.strength).toList();
-        // secondary_strength_values = 1 - fidelity（每个参考独立）
-        requestParameters['director_reference_secondary_strength_values'] =
-            effectivePreciseRefs
-                .map((r) => 1.0 - r.fidelity)
-                .toList();
-        // 注意: stream 参数已在基础参数中设置，无需重复添加
       }
 
       // 构造请求数据（对齐官网格式）
-      final requestData = <String, dynamic>{
-        'input': effectivePrompt,
-        'model': params.model,
-        'action': params.action.value,
-        'parameters': requestParameters,
-        'use_new_shared_trial': true,
-      };
+      final requestData = requestBuildResult.requestData;
 
       // ========== 详细调试日志 ==========
       AppLogger.d('========== STREAM REQUEST DEBUG ==========', 'ImgGen');
