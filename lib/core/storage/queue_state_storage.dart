@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
+import 'base_hive_storage.dart';
 
 part 'queue_state_storage.g.dart';
 
@@ -90,20 +90,20 @@ class QueueExecutionStateData {
 
 /// 队列执行状态存储服务
 /// 注意: Box 在 main.dart 中已预先打开，此处直接同步获取
-class QueueStateStorage {
-  /// 获取 Box（同步获取已打开的 Box）
-  Box<String> get _box => Hive.box<String>(StorageKeys.queueExecutionStateBox);
+class QueueStateStorage extends BaseHiveStorage<void> {
+  QueueStateStorage()
+    : super(boxName: StorageKeys.queueExecutionStateBox, useLazyLoading: false);
 
   /// 保存执行状态
   Future<void> saveExecutionState(QueueExecutionStateData state) async {
     final jsonString = jsonEncode(state.toJson());
-    await _box.put(StorageKeys.queueExecutionStateData, jsonString);
+    await box.put(StorageKeys.queueExecutionStateData, jsonString);
   }
 
   /// 加载执行状态（同步加载）
   QueueExecutionStateData loadExecutionState() {
     try {
-      final jsonString = _box.get(StorageKeys.queueExecutionStateData);
+      final jsonString = box.get(StorageKeys.queueExecutionStateData) as String?;
 
       if (jsonString == null || jsonString.isEmpty) {
         return const QueueExecutionStateData();
@@ -120,13 +120,13 @@ class QueueStateStorage {
   Future<void> saveFailedTasks(List<ReplicationTask> tasks) async {
     final taskList = ReplicationTaskList(tasks: tasks);
     final jsonString = jsonEncode(taskList.toJson());
-    await _box.put(StorageKeys.queueFailedTasksData, jsonString);
+    await box.put(StorageKeys.queueFailedTasksData, jsonString);
   }
 
   /// 加载失败任务列表（同步加载）
   List<ReplicationTask> loadFailedTasks() {
     try {
-      final jsonString = _box.get(StorageKeys.queueFailedTasksData);
+      final jsonString = box.get(StorageKeys.queueFailedTasksData) as String?;
 
       if (jsonString == null || jsonString.isEmpty) {
         return [];
@@ -138,11 +138,6 @@ class QueueStateStorage {
     } catch (e) {
       return [];
     }
-  }
-
-  /// 清空所有状态
-  Future<void> clear() async {
-    await _box.clear();
   }
 }
 

@@ -3,13 +3,16 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/models/prompt/tag_favorite.dart';
 import '../constants/storage_keys.dart';
+import 'base_hive_storage.dart';
 
 part 'tag_favorite_storage.g.dart';
 
 /// 标签收藏存储服务 - 使用 Hive 持久化标签收藏数据
-class TagFavoriteStorage {
-  /// 获取已打开的 tag_favorites box
-  Box get _favoritesBox => Hive.box(StorageKeys.tagFavoritesBox);
+class TagFavoriteStorage extends BaseHiveStorage<void> {
+  TagFavoriteStorage() : super(
+    boxName: StorageKeys.tagFavoritesBox,
+    useLazyLoading: false,
+  );
 
   /// 初始化存储 (box 应在 main.dart 中预先打开)
   Future<void> init() async {
@@ -20,7 +23,7 @@ class TagFavoriteStorage {
   /// 如果已存在相同标签（相同文本），则覆盖
   Future<void> addFavorite(TagFavorite favorite) async {
     try {
-      await _favoritesBox.put(favorite.id, favorite.toJson());
+      await box.put(favorite.id, favorite.toJson());
     } catch (e) {
       // 处理存储配额超限等错误
       if (e is HiveError) {
@@ -33,7 +36,7 @@ class TagFavoriteStorage {
   /// 删除收藏
   Future<void> removeFavorite(String favoriteId) async {
     try {
-      await _favoritesBox.delete(favoriteId);
+      await box.delete(favoriteId);
     } catch (e) {
       if (e is HiveError) {
         throw TagFavoriteStorageException('Failed to remove favorite: ${e.message}');
@@ -45,7 +48,7 @@ class TagFavoriteStorage {
   /// 获取所有收藏
   List<TagFavorite> getFavorites() {
     try {
-      final favoritesJson = _favoritesBox.values.toList();
+      final favoritesJson = box.values.toList();
       return favoritesJson.map((json) {
         return TagFavorite.fromJson(Map<String, dynamic>.from(json));
       }).toList();
@@ -78,7 +81,7 @@ class TagFavoriteStorage {
   /// 清空所有收藏
   Future<void> clearFavorites() async {
     try {
-      await _favoritesBox.clear();
+      await box.clear();
     } catch (e) {
       if (e is HiveError) {
         throw TagFavoriteStorageException('Failed to clear favorites: ${e.message}');
@@ -88,14 +91,7 @@ class TagFavoriteStorage {
   }
 
   /// 获取收藏数量
-  int get favoritesCount => _favoritesBox.length;
-
-  // ==================== Lifecycle ====================
-
-  /// 关闭存储
-  Future<void> close() async {
-    await _favoritesBox.close();
-  }
+  int get favoritesCount => box.length;
 }
 
 /// TagFavoriteStorage Provider

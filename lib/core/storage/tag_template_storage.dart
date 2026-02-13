@@ -3,13 +3,16 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/models/prompt/tag_template.dart';
 import '../constants/storage_keys.dart';
+import 'base_hive_storage.dart';
 
 part 'tag_template_storage.g.dart';
 
 /// 标签模板存储服务 - 使用 Hive 持久化标签模板数据
-class TagTemplateStorage {
-  /// 获取已打开的 tag_templates box
-  Box get _templatesBox => Hive.box(StorageKeys.tagTemplatesBox);
+class TagTemplateStorage extends BaseHiveStorage<void> {
+  TagTemplateStorage() : super(
+    boxName: StorageKeys.tagTemplatesBox,
+    useLazyLoading: false,
+  );
 
   /// 初始化存储 (box 应在 main.dart 中预先打开)
   Future<void> init() async {
@@ -20,7 +23,7 @@ class TagTemplateStorage {
   /// 如果模板名称已存在，则覆盖旧模板
   Future<void> saveTemplate(TagTemplate template) async {
     try {
-      await _templatesBox.put(template.id, template.toJson());
+      await box.put(template.id, template.toJson());
     } catch (e) {
       // 处理存储配额超限等错误
       if (e is HiveError) {
@@ -33,7 +36,7 @@ class TagTemplateStorage {
   /// 删除模板
   Future<void> deleteTemplate(String templateId) async {
     try {
-      await _templatesBox.delete(templateId);
+      await box.delete(templateId);
     } catch (e) {
       if (e is HiveError) {
         throw TagTemplateStorageException('Failed to delete template: ${e.message}');
@@ -45,7 +48,7 @@ class TagTemplateStorage {
   /// 根据ID获取模板
   TagTemplate? getTemplate(String templateId) {
     try {
-      final json = _templatesBox.get(templateId);
+      final json = box.get(templateId);
       if (json == null) return null;
       return TagTemplate.fromJson(Map<String, dynamic>.from(json));
     } catch (e) {
@@ -56,7 +59,7 @@ class TagTemplateStorage {
   /// 获取所有模板
   List<TagTemplate> getTemplates() {
     try {
-      final templatesJson = _templatesBox.values.toList();
+      final templatesJson = box.values.toList();
       return templatesJson.map((json) {
         return TagTemplate.fromJson(Map<String, dynamic>.from(json));
       }).toList();
@@ -89,7 +92,7 @@ class TagTemplateStorage {
   /// 清空所有模板
   Future<void> clearTemplates() async {
     try {
-      await _templatesBox.clear();
+      await box.clear();
     } catch (e) {
       if (e is HiveError) {
         throw TagTemplateStorageException('Failed to clear templates: ${e.message}');
@@ -99,14 +102,7 @@ class TagTemplateStorage {
   }
 
   /// 获取模板数量
-  int get templatesCount => _templatesBox.length;
-
-  // ==================== Lifecycle ====================
-
-  /// 关闭存储
-  Future<void> close() async {
-    await _templatesBox.close();
-  }
+  int get templatesCount => box.length;
 }
 
 /// TagTemplateStorage Provider
