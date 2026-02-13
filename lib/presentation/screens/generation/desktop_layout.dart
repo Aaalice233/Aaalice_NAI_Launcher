@@ -16,7 +16,6 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
 import '../../../data/services/alias_resolver_service.dart';
 import '../../providers/character_prompt_provider.dart';
-import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -31,6 +30,7 @@ import '../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../widgets/generation/auto_save_toggle_chip.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
+import '../../widgets/common/anlas_cost_badge.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/parameter_panel.dart';
@@ -1367,25 +1367,6 @@ class _GenerateButtonWithCost extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final cost = ref.watch(estimatedCostProvider);
-    final isFree = ref.watch(isFreeGenerationProvider);
-    final isInsufficient = ref.watch(isBalanceInsufficientProvider);
-
-    // 价格徽章颜色
-    Color badgeColor;
-    Color badgeTextColor;
-    if (isFree) {
-      badgeColor = Colors.green;
-      badgeTextColor = Colors.white;
-    } else if (isInsufficient) {
-      badgeColor = theme.colorScheme.error;
-      badgeTextColor = Colors.white;
-    } else {
-      badgeColor = theme.colorScheme.primaryContainer;
-      badgeTextColor = theme.colorScheme.onPrimaryContainer;
-    }
-
     return SizedBox(
       height: 48,
       child: ThemedButton(
@@ -1406,25 +1387,7 @@ class _GenerateButtonWithCost extends ConsumerWidget {
                           : context.l10n.generation_generating)
                       : context.l10n.generation_generate),
             ),
-            // 价格徽章（仅在非生成状态且非免费时显示）
-            if (!isGenerating && !isFree) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '$cost',
-                  style: TextStyle(
-                    color: badgeTextColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+            AnlasCostBadge(isGenerating: isGenerating),
           ],
         ),
         style:

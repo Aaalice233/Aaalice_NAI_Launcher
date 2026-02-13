@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
@@ -12,6 +11,7 @@ import '../../widgets/common/themed_scaffold.dart';
 import '../../widgets/common/themed_button.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
+import '../../widgets/common/anlas_cost_badge.dart';
 import 'widgets/parameter_panel.dart';
 
 import '../../widgets/common/app_toast.dart';
@@ -242,25 +242,6 @@ class _MobileGenerateButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final cost = ref.watch(estimatedCostProvider);
-    final isFree = ref.watch(isFreeGenerationProvider);
-    final isInsufficient = ref.watch(isBalanceInsufficientProvider);
-
-    // 价格徽章颜色
-    Color badgeColor;
-    Color badgeTextColor;
-    if (isFree) {
-      badgeColor = Colors.green;
-      badgeTextColor = Colors.white;
-    } else if (isInsufficient) {
-      badgeColor = theme.colorScheme.error;
-      badgeTextColor = Colors.white;
-    } else {
-      badgeColor = theme.colorScheme.primaryContainer;
-      badgeTextColor = theme.colorScheme.onPrimaryContainer;
-    }
-
     return ThemedButton(
       onPressed: isGenerating ? onCancel : onGenerate,
       icon: isGenerating
@@ -275,29 +256,14 @@ class _MobileGenerateButton extends ConsumerWidget {
                 ? context.l10n.generation_cancelGeneration
                 : context.l10n.generation_generate,
           ),
-          // 价格徽章（仅在非生成状态且非免费时显示）
-          if (!isGenerating && !isFree) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: badgeColor.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$cost',
-                style: TextStyle(
-                  color: badgeTextColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+          AnlasCostBadge(isGenerating: isGenerating),
         ],
       ),
-      style:
-          isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
+      style: isGenerating
+          ? ThemedButtonStyle.outlined
+          : ThemedButtonStyle.filled,
     );
   }
+
+
 }
