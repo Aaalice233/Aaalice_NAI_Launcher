@@ -42,6 +42,7 @@ class VibeEntryRenameResult {
 /// 使用 Hive 本地存储，支持搜索、筛选和使用统计
 class VibeLibraryStorageService {
   static const String _entriesBoxName = 'vibe_library_entries';
+  static const String _entriesFallbackBoxName = 'vibe_library_entries_v2';
   static const String _categoriesBoxName = 'vibe_library_categories';
   static const String _tag = 'VibeLibrary';
 
@@ -52,6 +53,7 @@ class VibeLibraryStorageService {
   Box<VibeLibraryCategory>? _categoriesBox;
   Future<void>? _initFuture;
   final VibeFileStorageService _fileStorage;
+  String _activeEntriesBoxName = _entriesBoxName;
 
   /// 初始化并注册 Hive adapters
   Future<void> init() async {
@@ -64,27 +66,21 @@ class VibeLibraryStorageService {
     }
 
     try {
-      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
+      _activeEntriesBoxName = _entriesBoxName;
+      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_activeEntriesBoxName);
     } catch (e) {
       if (!_isUnknownTypeIdError(e)) {
         rethrow;
       }
 
       AppLogger.i(
-        '检测到旧版 Vibe 数据格式，正在自动重建本地条目缓存: $e',
-        _tag,
-      );
-      AppLogger.d(
-        'Open entries box failed with legacy typeId, will recreate box',
+        '检测到旧版 Vibe 数据格式，正在切换到新缓存箱: $e',
         _tag,
       );
 
-      if (Hive.isBoxOpen(_entriesBoxName)) {
-        await Hive.box(_entriesBoxName).close();
-      }
-      await Hive.deleteBoxFromDisk(_entriesBoxName);
-      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
-      AppLogger.i('已重建 Vibe 条目缓存', _tag);
+      _activeEntriesBoxName = _entriesFallbackBoxName;
+      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_activeEntriesBoxName);
+      AppLogger.i('已切换到新 Vibe 条目缓存箱: $_activeEntriesBoxName', _tag);
     }
 
     _categoriesBox =
