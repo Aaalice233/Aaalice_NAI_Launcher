@@ -243,42 +243,33 @@ extension TagLibraryEntryListExtension on List<TagLibraryEntry> {
 
   /// 按排序顺序排列
   List<TagLibraryEntry> sortedByOrder() {
-    final sorted = [...this];
-    sorted.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return sorted;
+    return [...this]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   }
 
   /// 按更新时间排序（最新的在前）
   List<TagLibraryEntry> sortedByUpdatedAt() {
-    final sorted = [...this];
-    sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return sorted;
+    return [...this]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
   /// 按使用次数排序（最多的在前）
   List<TagLibraryEntry> sortedByUseCount() {
-    final sorted = [...this];
-    sorted.sort((a, b) => b.useCount.compareTo(a.useCount));
-    return sorted;
+    return [...this]..sort((a, b) => b.useCount.compareTo(a.useCount));
   }
 
   /// 按名称排序
   List<TagLibraryEntry> sortedByName() {
-    final sorted = [...this];
-    sorted.sort(
-      (a, b) =>
-          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-    );
-    return sorted;
+    return [...this]..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
   }
 
   /// 更新排序顺序
   List<TagLibraryEntry> reindex() {
-    return asMap()
-        .entries
+    return indexed
         .map(
-          (e) => e.value.copyWith(
-            sortOrder: e.key,
+          (e) => e.$2.copyWith(
+            sortOrder: e.$1,
             updatedAt: DateTime.now(),
           ),
         )

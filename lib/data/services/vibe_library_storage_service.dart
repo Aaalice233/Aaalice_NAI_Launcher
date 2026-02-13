@@ -9,8 +9,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/vibe/vibe_library_category.dart';
 import '../models/vibe/vibe_library_entry.dart';
+import 'vibe_file_storage_service.dart';
 
 part 'vibe_library_storage_service.g.dart';
+
+enum VibeEntryRenameError {
+  invalidName,
+  entryNotFound,
+  nameConflict,
+  filePathMissing,
+  fileRenameFailed,
+}
+
+class VibeEntryRenameResult {
+  const VibeEntryRenameResult._({this.entry, this.error});
+
+  const VibeEntryRenameResult.success(VibeLibraryEntry entry)
+      : this._(entry: entry);
+
+  const VibeEntryRenameResult.failure(VibeEntryRenameError error)
+      : this._(error: error);
+
+  final VibeLibraryEntry? entry;
+  final VibeEntryRenameError? error;
+
+  bool get isSuccess => entry != null;
+}
 
 /// Vibe 库存储服务
 ///
@@ -19,25 +43,58 @@ part 'vibe_library_storage_service.g.dart';
 class VibeLibraryStorageService {
   static const String _entriesBoxName = 'vibe_library_entries';
   static const String _categoriesBoxName = 'vibe_library_categories';
+  static const String _tag = 'VibeLibrary';
+
+  VibeLibraryStorageService({VibeFileStorageService? fileStorage})
+      : _fileStorage = fileStorage ?? VibeFileStorageService();
 
   Box<VibeLibraryEntry>? _entriesBox;
   Box<VibeLibraryCategory>? _categoriesBox;
   Future<void>? _initFuture;
+  final VibeFileStorageService _fileStorage;
 
   /// 初始化并注册 Hive adapters
   Future<void> init() async {
     // 注册 Hive adapters
-    if (!Hive.isAdapterRegistered(20)) {
+    if (!Hive.isAdapterRegistered(23)) {
       Hive.registerAdapter(VibeLibraryEntryAdapter());
     }
     if (!Hive.isAdapterRegistered(21)) {
       Hive.registerAdapter(VibeLibraryCategoryAdapter());
     }
 
-    _entriesBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
+    try {
+      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
+    } catch (e) {
+      if (!_isUnknownTypeIdError(e)) {
+        rethrow;
+      }
+
+      AppLogger.i(
+        '检测到旧版 Vibe 数据格式，正在自动重建本地条目缓存: $e',
+        _tag,
+      );
+      AppLogger.d(
+        'Open entries box failed with legacy typeId, will recreate box',
+        _tag,
+      );
+
+      if (Hive.isBoxOpen(_entriesBoxName)) {
+        await Hive.box(_entriesBoxName).close();
+      }
+      await Hive.deleteBoxFromDisk(_entriesBoxName);
+      _entriesBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
+      AppLogger.i('已重建 Vibe 条目缓存', _tag);
+    }
+
     _categoriesBox =
         await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
     AppLogger.d('VibeLibraryStorageService initialized', 'VibeLibrary');
+  }
+
+  bool _isUnknownTypeIdError(Object error) {
+    return error is HiveError &&
+        error.toString().contains('unknown typeId');
   }
 
   /// 确保已初始化（线程安全）
@@ -60,11 +117,17 @@ class VibeLibraryStorageService {
   Future<VibeLibraryEntry> saveEntry(VibeLibraryEntry entry) async {
     await _ensureInit();
     try {
-      await _entriesBox!.put(entry.id, entry);
-      AppLogger.d('Entry saved: ${entry.displayName}', 'VibeLibrary');
-      return entry;
+      var entryToSave = entry;
+      final filePath = entryToSave.filePath;
+      if (filePath == null || filePath.isEmpty) {
+        entryToSave = await _saveEntryFile(entryToSave);
+      }
+
+      await _entriesBox!.put(entryToSave.id, entryToSave);
+      AppLogger.d('Entry saved: ${entryToSave.displayName}', _tag);
+      return entryToSave;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to save entry: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e('Failed to save entry', e, stackTrace, _tag);
       rethrow;
     }
   }
@@ -73,9 +136,29 @@ class VibeLibraryStorageService {
   Future<VibeLibraryEntry?> getEntry(String id) async {
     await _ensureInit();
     try {
-      return _entriesBox!.get(id);
+      final entry = _entriesBox!.get(id);
+      if (entry == null) return null;
+
+      final filePath = entry.filePath;
+      if (filePath == null || filePath.isEmpty) return entry;
+
+      final vibeData = await _fileStorage.loadVibeFromFile(filePath);
+      if (vibeData == null) {
+        AppLogger.w('Entry file missing or invalid: $filePath', _tag);
+        return null;
+      }
+
+      var mergedEntry = entry.updateVibeData(vibeData).copyWith(filePath: filePath);
+      if (entry.isBundle) {
+        final previews = await _fileStorage.extractPreviewsFromBundle(filePath);
+        if (previews.isNotEmpty) {
+          mergedEntry = mergedEntry.copyWith(bundledVibePreviews: previews);
+        }
+      }
+
+      return mergedEntry;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get entry: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e('Failed to get entry', e, stackTrace, _tag);
       return null;
     }
   }
@@ -93,7 +176,8 @@ class VibeLibraryStorageService {
 
   /// 根据分类 ID 获取条目
   Future<List<VibeLibraryEntry>> getEntriesByCategory(
-      String? categoryId) async {
+    String? categoryId,
+  ) async {
     await _ensureInit();
     try {
       return _entriesBox!.values
@@ -101,7 +185,10 @@ class VibeLibraryStorageService {
           .toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get entries by category: $e', 'VibeLibrary', stackTrace);
+        'Failed to get entries by category: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -110,11 +197,23 @@ class VibeLibraryStorageService {
   Future<bool> deleteEntry(String id) async {
     await _ensureInit();
     try {
+      final entry = _entriesBox!.get(id);
+      if (entry == null) return false;
+
+      final filePath = entry.filePath;
+      if (filePath != null && filePath.isNotEmpty) {
+        final fileDeleted = await _fileStorage.deleteVibeFile(filePath);
+        if (!fileDeleted) {
+          AppLogger.w('Skip deleting Hive entry because file delete failed: $id', _tag);
+          return false;
+        }
+      }
+
       await _entriesBox!.delete(id);
-      AppLogger.d('Entry deleted: $id', 'VibeLibrary');
+      AppLogger.d('Entry deleted: $id', _tag);
       return true;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to delete entry: $e', 'VibeLibrary', stackTrace);
+      AppLogger.e('Failed to delete entry', e, stackTrace, _tag);
       return false;
     }
   }
@@ -122,13 +221,19 @@ class VibeLibraryStorageService {
   /// 批量删除条目
   Future<int> deleteEntries(List<String> ids) async {
     await _ensureInit();
+    var deletedCount = 0;
     try {
-      await _entriesBox!.deleteAll(ids);
-      AppLogger.d('Entries deleted: ${ids.length}', 'VibeLibrary');
-      return ids.length;
+      for (final id in ids) {
+        final deleted = await deleteEntry(id);
+        if (deleted) {
+          deletedCount++;
+        }
+      }
+      AppLogger.d('Entries deleted: $deletedCount', _tag);
+      return deletedCount;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to delete entries: $e', 'VibeLibrary', stackTrace);
-      return 0;
+      AppLogger.e('Failed to delete entries', e, stackTrace, _tag);
+      return deletedCount;
     }
   }
 
@@ -158,7 +263,10 @@ class VibeLibraryStorageService {
       return _entriesBox!.values.where((entry) => entry.isFavorite).toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get favorite entries: $e', 'VibeLibrary', stackTrace);
+        'Failed to get favorite entries: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -174,7 +282,10 @@ class VibeLibraryStorageService {
       return entries.take(limit).toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get recent entries: $e', 'VibeLibrary', stackTrace);
+        'Failed to get recent entries: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -189,11 +300,16 @@ class VibeLibraryStorageService {
       final updatedEntry = entry.recordUsage();
       await _entriesBox!.put(id, updatedEntry);
       AppLogger.d(
-          'Entry usage incremented: ${entry.displayName}', 'VibeLibrary');
+        'Entry usage incremented: ${entry.displayName}',
+        'VibeLibrary',
+      );
       return updatedEntry;
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to increment used count: $e', 'VibeLibrary', stackTrace);
+        'Failed to increment used count: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return null;
     }
   }
@@ -208,7 +324,9 @@ class VibeLibraryStorageService {
       final updatedEntry = entry.toggleFavorite();
       await _entriesBox!.put(id, updatedEntry);
       AppLogger.d(
-          'Entry favorite toggled: ${entry.displayName}', 'VibeLibrary');
+        'Entry favorite toggled: ${entry.displayName}',
+        'VibeLibrary',
+      );
       return updatedEntry;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to toggle favorite: $e', 'VibeLibrary', stackTrace);
@@ -229,11 +347,16 @@ class VibeLibraryStorageService {
       final updatedEntry = entry.copyWith(categoryId: categoryId);
       await _entriesBox!.put(id, updatedEntry);
       AppLogger.d(
-          'Entry category updated: ${entry.displayName}', 'VibeLibrary');
+        'Entry category updated: ${entry.displayName}',
+        'VibeLibrary',
+      );
       return updatedEntry;
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to update entry category: $e', 'VibeLibrary', stackTrace);
+        'Failed to update entry category: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return null;
     }
   }
@@ -271,11 +394,16 @@ class VibeLibraryStorageService {
       final updatedEntry = entry.copyWith(thumbnail: thumbnail);
       await _entriesBox!.put(id, updatedEntry);
       AppLogger.d(
-          'Entry thumbnail updated: ${entry.displayName}', 'VibeLibrary');
+        'Entry thumbnail updated: ${entry.displayName}',
+        'VibeLibrary',
+      );
       return updatedEntry;
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to update entry thumbnail: $e', 'VibeLibrary', stackTrace);
+        'Failed to update entry thumbnail: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return null;
     }
   }
@@ -299,8 +427,11 @@ class VibeLibraryStorageService {
           .where((entry) => entry.categoryId == categoryId)
           .length;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to get entries count by category: $e', 'VibeLibrary',
-          stackTrace);
+      AppLogger.e(
+        'Failed to get entries count by category: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return 0;
     }
   }
@@ -312,7 +443,10 @@ class VibeLibraryStorageService {
       return _entriesBox!.containsKey(id);
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to check entry existence: $e', 'VibeLibrary', stackTrace);
+        'Failed to check entry existence: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return false;
     }
   }
@@ -325,6 +459,175 @@ class VibeLibraryStorageService {
       AppLogger.i('All entries cleared', 'VibeLibrary');
     } catch (e, stackTrace) {
       AppLogger.e('Failed to clear all entries: $e', 'VibeLibrary', stackTrace);
+      rethrow;
+    }
+  }
+
+  /// 扫描文件夹并同步到 Hive
+  Future<VibeFolderSyncResult> syncWithFileSystem({
+    bool removeMissingEntries = true,
+  }) async {
+    await _ensureInit();
+    try {
+      final existingEntries = _entriesBox!.values.toList(growable: false);
+
+      final result = await _fileStorage.syncFolderToHive(
+        existingEntries: existingEntries,
+        onUpsertEntry: (entry) async {
+          await _entriesBox!.put(entry.id, entry);
+        },
+        onDeleteEntry: removeMissingEntries
+            ? (entry) async {
+                await _entriesBox!.delete(entry.id);
+              }
+            : null,
+      );
+
+      AppLogger.i(
+        'File system sync completed: scanned=${result.scannedCount}, '
+        'upserted=${result.upsertedCount}, deleted=${result.deletedCount}, '
+        'failed=${result.failedCount}',
+        _tag,
+      );
+      return result;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to sync with file system', e, stackTrace, _tag);
+      return VibeFolderSyncResult(
+        scannedCount: 0,
+        upsertedCount: 0,
+        deletedCount: 0,
+        failedCount: 1,
+        errors: [e.toString()],
+      );
+    }
+  }
+
+  /// 重命名条目文件并更新路径
+  Future<VibeLibraryEntry?> updateEntryFile(String id, String newName) async {
+    await _ensureInit();
+    try {
+      final entry = _entriesBox!.get(id);
+      if (entry == null) {
+        return null;
+      }
+
+      final filePath = entry.filePath;
+      if (filePath == null || filePath.isEmpty) {
+        AppLogger.w('Skip renaming entry without filePath: $id', _tag);
+        return null;
+      }
+
+      final renamedPath = await _fileStorage.renameVibeFile(filePath, newName);
+      if (renamedPath == null) {
+        return null;
+      }
+
+      final updatedEntry = entry.copyWith(
+        name: newName.trim(),
+        filePath: renamedPath,
+      );
+      await _entriesBox!.put(id, updatedEntry);
+      AppLogger.d('Entry file renamed: $filePath -> $renamedPath', _tag);
+      return updatedEntry;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to update entry file', e, stackTrace, _tag);
+      return null;
+    }
+  }
+
+  /// 重命名条目名称，并同步重命名文件后更新条目路径
+  Future<VibeEntryRenameResult> renameEntry(String entryId, String newName) async {
+    await _ensureInit();
+    try {
+      final trimmedName = newName.trim();
+      if (trimmedName.isEmpty) {
+        return const VibeEntryRenameResult.failure(VibeEntryRenameError.invalidName);
+      }
+
+      final entry = _entriesBox!.get(entryId);
+      if (entry == null) {
+        return const VibeEntryRenameResult.failure(VibeEntryRenameError.entryNotFound);
+      }
+
+      final hasConflict = _entriesBox!.values.any((candidate) {
+        if (candidate.id == entryId) return false;
+        return candidate.name.trim().toLowerCase() == trimmedName.toLowerCase();
+      });
+      if (hasConflict) {
+        return const VibeEntryRenameResult.failure(VibeEntryRenameError.nameConflict);
+      }
+
+      final filePath = entry.filePath;
+      if (filePath == null || filePath.isEmpty) {
+        return const VibeEntryRenameResult.failure(VibeEntryRenameError.filePathMissing);
+      }
+
+      final renamedPath = await _fileStorage.renameVibeFile(filePath, trimmedName);
+      if (renamedPath == null) {
+        return const VibeEntryRenameResult.failure(VibeEntryRenameError.fileRenameFailed);
+      }
+
+      final updatedEntry = entry.copyWith(name: trimmedName, filePath: renamedPath);
+      await _entriesBox!.put(entryId, updatedEntry);
+      AppLogger.d('Entry renamed: $filePath -> $renamedPath', _tag);
+      return VibeEntryRenameResult.success(updatedEntry);
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to rename entry', e, stackTrace, _tag);
+      return const VibeEntryRenameResult.failure(VibeEntryRenameError.fileRenameFailed);
+    }
+  }
+
+  /// 更新 bundle 预览缓存
+  Future<VibeLibraryEntry?> updateEntryPreviews(
+    String id, {
+    int maxCount = 4,
+  }) async {
+    await _ensureInit();
+    try {
+      final entry = _entriesBox!.get(id);
+      if (entry == null) {
+        return null;
+      }
+
+      final filePath = entry.filePath;
+      if (filePath == null || filePath.isEmpty || !entry.isBundle) {
+        return entry;
+      }
+
+      final previews = await _fileStorage.extractPreviewsFromBundle(
+        filePath,
+        maxCount: maxCount,
+      );
+      final updatedEntry = entry.copyWith(bundledVibePreviews: previews);
+      await _entriesBox!.put(id, updatedEntry);
+      AppLogger.d('Entry previews updated: ${entry.displayName}', _tag);
+      return updatedEntry;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to update entry previews', e, stackTrace, _tag);
+      return null;
+    }
+  }
+
+  Future<VibeLibraryEntry> _saveEntryFile(VibeLibraryEntry entry) async {
+    try {
+      final vibeData = entry.toVibeReference();
+      final savedPath = entry.isBundle
+          ? await _fileStorage.saveBundleToFile(
+              [vibeData],
+              bundleName: entry.name,
+            )
+          : await _fileStorage.saveVibeToFile(
+              vibeData,
+              customName: entry.name,
+            );
+
+      if (savedPath.isEmpty) {
+        throw StateError('Saved vibe file path is empty');
+      }
+
+      return entry.copyWith(filePath: savedPath);
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to save entry file', e, stackTrace, _tag);
       rethrow;
     }
   }
@@ -362,7 +665,10 @@ class VibeLibraryStorageService {
       return _categoriesBox!.values.toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get all categories: $e', 'VibeLibrary', stackTrace);
+        'Failed to get all categories: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -376,7 +682,10 @@ class VibeLibraryStorageService {
           .toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get root categories: $e', 'VibeLibrary', stackTrace);
+        'Failed to get root categories: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -390,7 +699,10 @@ class VibeLibraryStorageService {
           .toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get child categories: $e', 'VibeLibrary', stackTrace);
+        'Failed to get child categories: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -468,7 +780,10 @@ class VibeLibraryStorageService {
       return updatedCategory;
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to update category name: $e', 'VibeLibrary', stackTrace);
+        'Failed to update category name: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return null;
     }
   }
@@ -508,7 +823,10 @@ class VibeLibraryStorageService {
       return _categoriesBox!.length;
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get categories count: $e', 'VibeLibrary', stackTrace);
+        'Failed to get categories count: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return 0;
     }
   }
@@ -520,7 +838,10 @@ class VibeLibraryStorageService {
       return _categoriesBox!.containsKey(id);
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to check category existence: $e', 'VibeLibrary', stackTrace);
+        'Failed to check category existence: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return false;
     }
   }
@@ -533,7 +854,10 @@ class VibeLibraryStorageService {
       AppLogger.i('All categories cleared', 'VibeLibrary');
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to clear all categories: $e', 'VibeLibrary', stackTrace);
+        'Failed to clear all categories: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       rethrow;
     }
   }
@@ -564,7 +888,10 @@ class VibeLibraryStorageService {
           .toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get entries by tag: $e', 'VibeLibrary', stackTrace);
+        'Failed to get entries by tag: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -578,7 +905,10 @@ class VibeLibraryStorageService {
       return entries.take(limit).toList();
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to get entries by usage: $e', 'VibeLibrary', stackTrace);
+        'Failed to get entries by usage: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return [];
     }
   }
@@ -609,7 +939,10 @@ class VibeLibraryStorageService {
       );
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to save generation state: $e', 'VibeLibrary', stackTrace);
+        'Failed to save generation state: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
     }
   }
 
@@ -627,7 +960,10 @@ class VibeLibraryStorageService {
       return null;
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to load generation state: $e', 'VibeLibrary', stackTrace);
+        'Failed to load generation state: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
       return null;
     }
   }
@@ -641,7 +977,10 @@ class VibeLibraryStorageService {
       AppLogger.d('Generation state cleared', 'VibeLibrary');
     } catch (e, stackTrace) {
       AppLogger.e(
-          'Failed to clear generation state: $e', 'VibeLibrary', stackTrace);
+        'Failed to clear generation state: $e',
+        'VibeLibrary',
+        stackTrace,
+      );
     }
   }
 
@@ -664,5 +1003,7 @@ class VibeLibraryStorageService {
 /// Provider
 @Riverpod(keepAlive: true)
 VibeLibraryStorageService vibeLibraryStorageService(Ref ref) {
-  return VibeLibraryStorageService();
+  return VibeLibraryStorageService(
+    fileStorage: VibeFileStorageService(),
+  );
 }

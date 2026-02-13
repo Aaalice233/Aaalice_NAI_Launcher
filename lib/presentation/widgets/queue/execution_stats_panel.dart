@@ -35,25 +35,28 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     super.dispose();
   }
 
+  /// 安全地 watch provider 状态
+  T _watchState<T>(ProviderListenable<T> provider, T defaultValue) {
+    try {
+      return ref.watch(provider);
+    } catch (e) {
+      return defaultValue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    // 安全获取状态
-    QueueExecutionState executionState = const QueueExecutionState();
-    try {
-      executionState = ref.watch(queueExecutionNotifierProvider);
-    } catch (e) {
-      // Provider 未初始化
-    }
-
-    ReplicationQueueState queueState = const ReplicationQueueState();
-    try {
-      queueState = ref.watch(replicationQueueNotifierProvider);
-    } catch (e) {
-      // Provider 未初始化
-    }
+    final executionState = _watchState(
+      queueExecutionNotifierProvider,
+      const QueueExecutionState(),
+    );
+    final queueState = _watchState(
+      replicationQueueNotifierProvider,
+      const ReplicationQueueState(),
+    );
 
     final total = executionState.totalTasksInSession;
     final completed = executionState.completedCount;
@@ -239,17 +242,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     final isClickable = _isStatusClickable(executionState.status, queueState);
     final tooltip = _getStatusTooltip(l10n, executionState.status, queueState);
 
-    // 运行中时启动旋转动画
-    if (executionState.isRunning) {
-      if (!_animController.isAnimating) {
-        _animController.repeat();
-      }
-    } else {
-      if (_animController.isAnimating) {
-        _animController.stop();
-        _animController.reset();
-      }
-    }
+    _updateAnimationState(executionState);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -271,35 +264,15 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
               begin: 1.0,
               end: _isPressed ? 0.97 : (_isHovered && isClickable ? 1.02 : 1.0),
             ),
-            builder: (context, scale, child) {
-              return Transform.scale(
-                scale: scale,
-                child: child,
-              );
-            },
+            builder: (context, scale, child) => Transform.scale(
+              scale: scale,
+              child: child,
+            ),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    color.withOpacity(_isHovered && isClickable ? 0.2 : 0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color:
-                      color.withOpacity(_isHovered && isClickable ? 0.5 : 0.2),
-                  width: 1.5,
-                ),
-                boxShadow: _isHovered && isClickable
-                    ? [
-                        BoxShadow(
-                          color: color.withOpacity(0.15),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
+              decoration: _statusChipDecoration(color, isClickable),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -331,6 +304,40 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
           ),
         ),
       ),
+    );
+  }
+
+  /// 更新动画状态
+  void _updateAnimationState(QueueExecutionState executionState) {
+    final shouldAnimate = executionState.isRunning;
+    final isAnimating = _animController.isAnimating;
+
+    if (shouldAnimate && !isAnimating) {
+      _animController.repeat();
+    } else if (!shouldAnimate && isAnimating) {
+      _animController.stop();
+      _animController.reset();
+    }
+  }
+
+  /// 状态按钮装饰
+  BoxDecoration _statusChipDecoration(Color color, bool isClickable) {
+    return BoxDecoration(
+      color: color.withOpacity(_isHovered && isClickable ? 0.2 : 0.12),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: color.withOpacity(_isHovered && isClickable ? 0.5 : 0.2),
+        width: 1.5,
+      ),
+      boxShadow: _isHovered && isClickable
+          ? [
+              BoxShadow(
+                color: color.withOpacity(0.15),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ]
+          : null,
     );
   }
 

@@ -182,8 +182,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
                 // 选项
                 CheckboxListTile(
-                  title: const Text('包含缩略图'),
-                  subtitle: const Text('导出文件中包含缩略图预览'),
+                  title: Text(context.l10n.vibe_export_include_thumbnails),
+                  subtitle: Text(context.l10n.vibe_export_include_thumbnails_subtitle),
                   value: _includeThumbnails,
                   onChanged: (value) {
                     setState(() => _includeThumbnails = value ?? true);

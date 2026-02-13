@@ -169,18 +169,12 @@ class GalleryStatistics with _$GalleryStatistics {
 
   /// 格式化字节数为可读字符串
   String _formatBytes(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    } else if (bytes < 1024 * 1024) {
-      final kb = (bytes / 1024).toStringAsFixed(2);
-      return '$kb KB';
-    } else if (bytes < 1024 * 1024 * 1024) {
-      final mb = (bytes / (1024 * 1024)).toStringAsFixed(2);
-      return '$mb MB';
-    } else {
-      final gb = (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2);
-      return '$gb GB';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
     }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
   /// 获取收藏图片占比

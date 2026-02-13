@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
@@ -25,6 +28,14 @@ import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
 import 'image_destination_dialog.dart';
 import 'tag_library_drop_handler.dart';
+
+/// 文件读取结果
+class _FileData {
+  final String fileName;
+  final Uint8List bytes;
+
+  const _FileData({required this.fileName, required this.bytes});
+}
 
 /// 全局拖拽处理器
 ///
@@ -135,56 +146,69 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       final reader = item.dataReader;
       if (reader == null) continue;
 
-      // 尝试获取文件
-      if (reader.canProvide(Formats.fileUri)) {
-        reader.getValue(Formats.fileUri, (uri) async {
-          if (uri == null) return;
-
-          try {
-            final file = File(uri.toFilePath());
-            final fileName = file.path.split(Platform.pathSeparator).last;
-            final bytes = await file.readAsBytes();
-
-            await _processDroppedFile(fileName, bytes);
-          } catch (e) {
-            if (kDebugMode) {
-              AppLogger.d('Error reading dropped file: $e', 'DropHandler');
-            }
-            _showError(e.toString());
-          }
-        });
-      }
-      // 尝试获取图片数据
-      else if (reader.canProvide(Formats.png)) {
-        reader.getFile(Formats.png, (file) async {
-          try {
-            final bytes = await file.readAll();
-            final fileName = file.fileName ?? 'dropped_image.png';
-
-            await _processDroppedFile(fileName, bytes);
-          } catch (e) {
-            if (kDebugMode) {
-              AppLogger.d('Error reading dropped image: $e', 'DropHandler');
-            }
-            _showError(e.toString());
-          }
-        });
-      } else if (reader.canProvide(Formats.jpeg)) {
-        reader.getFile(Formats.jpeg, (file) async {
-          try {
-            final bytes = await file.readAll();
-            final fileName = file.fileName ?? 'dropped_image.jpg';
-
-            await _processDroppedFile(fileName, bytes);
-          } catch (e) {
-            if (kDebugMode) {
-              AppLogger.d('Error reading dropped image: $e', 'DropHandler');
-            }
-            _showError(e.toString());
-          }
-        });
+      final fileData = await _readFileData(reader);
+      if (fileData != null) {
+        await _processDroppedFile(fileData.fileName, fileData.bytes);
       }
     }
+  }
+
+  Future<_FileData?> _readFileData(DataReader reader) async {
+    // 尝试获取文件 URI
+    if (reader.canProvide(Formats.fileUri)) {
+      final uri = await _getFileUri(reader);
+      if (uri != null) {
+        try {
+          final file = File(uri.toFilePath());
+          final fileName = file.path.split(Platform.pathSeparator).last;
+          final bytes = await file.readAsBytes();
+          return _FileData(fileName: fileName, bytes: bytes);
+        } catch (e) {
+          if (kDebugMode) {
+            AppLogger.d('Error reading dropped file: $e', 'DropHandler');
+          }
+          _showError(e.toString());
+        }
+      }
+      return null;
+    }
+
+    // 尝试获取图片数据
+    final imageFormat = _getSupportedImageFormat(reader);
+    if (imageFormat != null) {
+      try {
+        final file = await _getImageFile(reader, imageFormat);
+        final bytes = await file.readAll();
+        final extension = imageFormat == Formats.png ? 'png' : 'jpg';
+        final fileName = file.fileName ?? 'dropped_image.$extension';
+        return _FileData(fileName: fileName, bytes: bytes);
+      } catch (e) {
+        if (kDebugMode) {
+          AppLogger.d('Error reading dropped image: $e', 'DropHandler');
+        }
+        _showError(e.toString());
+      }
+    }
+
+    return null;
+  }
+
+  Future<Uri?> _getFileUri(DataReader reader) {
+    final completer = Completer<Uri?>();
+    reader.getValue(Formats.fileUri, (uri) => completer.complete(uri));
+    return completer.future;
+  }
+
+  FileFormat? _getSupportedImageFormat(DataReader reader) {
+    if (reader.canProvide(Formats.png)) return Formats.png;
+    if (reader.canProvide(Formats.jpeg)) return Formats.jpeg;
+    return null;
+  }
+
+  Future<DataReaderFile> _getImageFile(DataReader reader, FileFormat format) {
+    final completer = Completer<DataReaderFile>();
+    reader.getFile(format, (file) => completer.complete(file));
+    return completer.future;
   }
 
   Future<void> _processDroppedFile(String fileName, Uint8List bytes) async {
@@ -211,30 +235,21 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       return;
     }
 
+    // 保存 context 相关数据后再进行异步操作
+    final l10n = context.l10n;
+    final showExtractMetadata = fileName.toLowerCase().endsWith('.png');
+
     // 检测是否包含 Vibe 元数据（仅 PNG）
-    VibeReferenceV4? detectedVibe;
-    if (fileName.toLowerCase().endsWith('.png')) {
-      try {
-        final vibeService = VibeMetadataService();
-        detectedVibe = await vibeService.extractVibeFromImage(bytes);
-        if (detectedVibe != null) {
-          AppLogger.i(
-            'Detected pre-encoded Vibe in dropped image: ${detectedVibe.displayName}',
-            'DropHandler',
-          );
-        }
-      } catch (e) {
-        AppLogger.d('Failed to detect Vibe metadata: $e', 'DropHandler');
-      }
-    }
+    final detectedVibe = await _detectVibeMetadata(fileName, bytes);
+
+    if (!mounted) return;
 
     // 显示目标选择对话框
     final destination = await ImageDestinationDialog.show(
       context,
       imageBytes: bytes,
       fileName: fileName,
-      showExtractMetadata:
-          fileName.toLowerCase().endsWith('.png'), // 只有 PNG 才支持提取元数据
+      showExtractMetadata: showExtractMetadata,
       detectedVibe: detectedVibe,
     );
 
@@ -242,54 +257,83 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
 
+    await _handleDestination(destination, fileName, bytes, detectedVibe, notifier, l10n);
+  }
+
+  Future<VibeReferenceV4?> _detectVibeMetadata(String fileName, Uint8List bytes) async {
+    if (!fileName.toLowerCase().endsWith('.png')) return null;
+
+    try {
+      final vibeService = VibeMetadataService();
+      final vibe = await vibeService.extractVibeFromImage(bytes);
+      if (vibe != null) {
+        AppLogger.i(
+          'Detected pre-encoded Vibe in dropped image: ${vibe.displayName}',
+          'DropHandler',
+        );
+      }
+      return vibe;
+    } catch (e) {
+      AppLogger.d('Failed to detect Vibe metadata: $e', 'DropHandler');
+      return null;
+    }
+  }
+
+  Future<void> _handleDestination(
+    ImageDestination destination,
+    String fileName,
+    Uint8List bytes,
+    VibeReferenceV4? detectedVibe,
+    GenerationParamsNotifier notifier,
+    AppLocalizations l10n,
+  ) async {
     switch (destination) {
       case ImageDestination.img2img:
-        _handleImg2Img(bytes, notifier);
+        _handleImg2Img(bytes, notifier, l10n);
         break;
 
       case ImageDestination.vibeTransfer:
-        await _handleVibeTransfer(fileName, bytes, notifier);
+        await _handleVibeTransfer(fileName, bytes, notifier, l10n);
         break;
 
       case ImageDestination.vibeTransferReuse:
-        // 复用检测到的 Vibe
         if (detectedVibe != null) {
-          await _handleVibeReuse(detectedVibe, notifier);
+          await _handleVibeReuse(detectedVibe, notifier, l10n);
         }
         break;
 
       case ImageDestination.vibeTransferRaw:
-        // 作为原始图片使用（需要重新编码）
-        await _handleVibeTransfer(fileName, bytes, notifier, forceRaw: true);
+        await _handleVibeTransfer(fileName, bytes, notifier, l10n, forceRaw: true);
         break;
 
       case ImageDestination.characterReference:
-        _handleCharacterReference(bytes, notifier);
+        _handleCharacterReference(bytes, notifier, l10n);
         break;
 
       case ImageDestination.extractMetadata:
-        await _handleExtractMetadata(bytes, notifier);
+        await _handleExtractMetadata(bytes, notifier, l10n);
         break;
 
       case ImageDestination.addToQueue:
-        await _handleAddToQueue(bytes);
+        await _handleAddToQueue(bytes, l10n);
         break;
     }
   }
 
-  void _handleImg2Img(Uint8List bytes, GenerationParamsNotifier notifier) {
+  void _handleImg2Img(Uint8List bytes, GenerationParamsNotifier notifier, AppLocalizations l10n) {
     notifier.setSourceImage(bytes);
     notifier.updateAction(ImageGenerationAction.img2img);
 
     if (mounted) {
-      AppToast.success(context, context.l10n.drop_addedToImg2Img);
+      AppToast.success(context, l10n.drop_addedToImg2Img);
     }
   }
 
   Future<void> _handleVibeTransfer(
     String fileName,
     Uint8List bytes,
-    GenerationParamsNotifier notifier, {
+    GenerationParamsNotifier notifier,
+    AppLocalizations l10n, {
     bool forceRaw = false,
   }) async {
     try {
@@ -297,12 +341,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       final currentCount = currentState.vibeReferencesV4.length;
       const maxCount = 16;
 
-      // 解析文件，可能返回多个 vibe（bundle 情况）
       final vibes = await VibeFileParser.parseFile(fileName, bytes);
-      final addCount = vibes.length;
 
-      // 检查是否超出上限
-      if (currentCount + addCount > maxCount) {
+      if (currentCount + vibes.length > maxCount) {
         if (mounted) {
           AppToast.warning(context, '风格参考已达上限 ($maxCount 张)');
         }
@@ -310,29 +351,18 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
 
       for (final vibe in vibes) {
-        // 如果强制使用原始图片模式，重置 vibeEncoding
-        if (forceRaw && vibe.vibeEncoding.isNotEmpty) {
-          final rawVibe = vibe.copyWith(
-            vibeEncoding: '',
-            rawImageData: bytes,
-            sourceType: VibeSourceType.rawImage,
-          );
-          notifier.addVibeReferenceV4(rawVibe);
-        } else {
-          notifier.addVibeReferenceV4(vibe);
-        }
+        final vibeToAdd = forceRaw && vibe.vibeEncoding.isNotEmpty
+            ? vibe.copyWith(
+                vibeEncoding: '',
+                rawImageData: bytes,
+                sourceType: VibeSourceType.rawImage,
+              )
+            : vibe;
+        notifier.addVibeReferenceV4(vibeToAdd);
       }
 
       if (mounted) {
-        String message;
-        if (currentCount > 0) {
-          // 追加模式
-          message = '已追加 $addCount 个风格参考';
-        } else {
-          message = vibes.length == 1
-              ? context.l10n.drop_addedToVibe
-              : context.l10n.drop_addedMultipleToVibe(vibes.length);
-        }
+        final message = _buildVibeMessage(currentCount, vibes.length, l10n);
         AppToast.success(context, message);
       }
     } catch (e) {
@@ -343,58 +373,50 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
-  /// 处理复用预编码 Vibe
+  String _buildVibeMessage(int currentCount, int addedCount, AppLocalizations l10n) {
+    if (currentCount > 0) {
+      return '已追加 $addedCount 个风格参考';
+    }
+    return addedCount == 1 ? l10n.drop_addedToVibe : l10n.drop_addedMultipleToVibe(addedCount);
+  }
+
   Future<void> _handleVibeReuse(
     VibeReferenceV4 vibe,
     GenerationParamsNotifier notifier,
+    AppLocalizations l10n,
   ) async {
-    try {
-      final currentState = ref.read(generationParamsNotifierProvider);
-      final currentCount = currentState.vibeReferencesV4.length;
-      const maxCount = 16;
+    final currentState = ref.read(generationParamsNotifierProvider);
+    const maxCount = 16;
 
-      // 检查是否超出上限
-      if (currentCount >= maxCount) {
-        if (mounted) {
-          AppToast.warning(context, '风格参考已达上限 ($maxCount 张)');
-        }
-        return;
-      }
-
-      // 直接使用预编码的 Vibe
-      notifier.addVibeReferenceV4(vibe);
-
+    if (currentState.vibeReferencesV4.length >= maxCount) {
       if (mounted) {
-        String message;
-        if (currentCount > 0) {
-          // 追加模式
-          message = '已追加 1 个风格参考（复用预编码 Vibe）';
-        } else {
-          message = '已添加风格参考（复用预编码 Vibe，节省 2 Anlas）';
-        }
-        AppToast.success(context, message);
+        AppToast.warning(context, '风格参考已达上限 ($maxCount 张)');
       }
-    } catch (e) {
-      if (kDebugMode) {
-        AppLogger.d('Error reusing Vibe: $e', 'DropHandler');
-      }
-      _showError(e.toString());
+      return;
+    }
+
+    notifier.addVibeReferenceV4(vibe);
+
+    if (mounted) {
+      final message = currentState.vibeReferencesV4.isNotEmpty
+          ? '已追加 1 个风格参考（复用预编码 Vibe）'
+          : '已添加风格参考（复用预编码 Vibe，节省 2 Anlas）';
+      AppToast.success(context, message);
     }
   }
 
   void _handleCharacterReference(
     Uint8List bytes,
     GenerationParamsNotifier notifier,
+    AppLocalizations l10n,
   ) {
     final currentState = ref.read(generationParamsNotifierProvider);
     final hasExisting = currentState.preciseReferences.isNotEmpty;
 
-    // 角色参考只支持 1 张，如果已有则替换
     if (hasExisting) {
       notifier.clearPreciseReferences();
     }
 
-    // 使用默认 Character 类型添加 Precise Reference
     notifier.addPreciseReference(
       bytes,
       type: PreciseRefType.character,
@@ -405,74 +427,46 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     if (mounted) {
       AppToast.success(
         context,
-        hasExisting ? '已替换角色参考' : context.l10n.drop_addedToCharacterRef,
+        hasExisting ? '已替换角色参考' : l10n.drop_addedToCharacterRef,
       );
     }
   }
 
-  /// 处理提取元数据并应用
   Future<void> _handleExtractMetadata(
     Uint8List bytes,
     GenerationParamsNotifier notifier,
+    AppLocalizations l10n,
   ) async {
     try {
-      // 解析 NAI 隐写元数据
       final metadata = await NaiMetadataParser.extractFromBytes(bytes);
 
       if (metadata == null || !metadata.hasData) {
         if (mounted) {
-          AppToast.warning(context, context.l10n.metadataImport_noDataFound);
+          AppToast.warning(context, l10n.metadataImport_noDataFound);
         }
         return;
       }
 
-      // 显示参数选择对话框
-      final options = await _showMetadataImportDialog(metadata);
-      if (options == null || !mounted) return; // 用户取消
+      if (!mounted) return;
+      final options = await MetadataImportDialog.show(context, metadata: metadata);
+      if (options == null || !mounted) return;
 
-      // 应用选中的参数
-      final appliedCount = await _applyMetadataWithOptions(
-        metadata,
-        options,
-        notifier,
-      );
+      final appliedCount = await _applyMetadataWithOptions(metadata, options, notifier);
 
-      if (mounted) {
-        if (appliedCount > 0) {
-          AppToast.success(
-            context,
-            context.l10n.metadataImport_appliedCount(appliedCount),
-          );
+      if (!mounted) return;
 
-          // 显示详细信息
-          _showMetadataAppliedDialog(metadata, options);
-        } else {
-          AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
-        }
+      if (appliedCount > 0) {
+        AppToast.success(context, l10n.metadataImport_appliedCount(appliedCount));
+        _showMetadataAppliedDialog(metadata, options, l10n);
+      } else {
+        AppToast.warning(context, l10n.metadataImport_noParamsSelected);
       }
     } catch (e) {
       if (kDebugMode) {
         AppLogger.d('Error extracting metadata: $e', 'DropHandler');
       }
-      // 保存错误消息以避免跨 async gap 使用 context
-      final errorMessage = '提取元数据失败: $e';
-      await _showErrorAsync(errorMessage);
+      _showError('提取元数据失败: $e');
     }
-  }
-
-  /// 显示元数据导入对话框（抽取方法避免 async gap 警告）
-  Future<MetadataImportOptions?> _showMetadataImportDialog(dynamic metadata) {
-    return MetadataImportDialog.show(
-      context,
-      metadata: metadata,
-    );
-  }
-
-  /// 异步显示错误（带 mounted 检查）
-  Future<void> _showErrorAsync(String message) async {
-    if (!mounted) return;
-    // ignore: use_build_context_synchronously
-    _showError(message);
   }
 
   /// 根据选项应用元数据
@@ -485,129 +479,114 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     // 只有在勾选导入多角色提示词时才清空
     if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
-      final characterNotifier =
-          ref.read(characterPromptNotifierProvider.notifier);
-      characterNotifier.clearAllCharacters();
+      ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
     }
 
-    // 应用 Prompt
-    if (options.importPrompt && metadata.prompt.isNotEmpty) {
-      notifier.updatePrompt(metadata.prompt);
-      appliedCount++;
-    }
-
-    // 应用负向提示词
-    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
-      notifier.updateNegativePrompt(metadata.negativePrompt);
-      appliedCount++;
-    }
+    // 应用基础参数
+    appliedCount += _applyBasicParams(metadata, options, notifier);
 
     // 应用多角色提示词
     if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
-      final characterNotifier =
-          ref.read(characterPromptNotifierProvider.notifier);
-      final characters = <char.CharacterPrompt>[];
-      for (var i = 0; i < metadata.characterPrompts.length; i++) {
-        final prompt = metadata.characterPrompts[i];
-        final negPrompt = i < metadata.characterNegativePrompts.length
-            ? metadata.characterNegativePrompts[i]
-            : '';
-
-        // 尝试从提示词推断性别
-        final gender = _inferGenderFromPrompt(prompt);
-
-        characters.add(
-          char.CharacterPrompt.create(
-            name: 'Character ${i + 1}',
-            gender: gender,
-            prompt: prompt,
-            negativePrompt: negPrompt,
-          ),
-        );
-      }
-      characterNotifier.replaceAll(characters);
+      _applyCharacterPrompts(metadata);
       appliedCount++;
     }
 
-    // 应用 Seed
-    if (options.importSeed && metadata.seed != null) {
-      notifier.updateSeed(metadata.seed!);
-      appliedCount++;
-    }
-
-    // 应用 Steps
-    if (options.importSteps && metadata.steps != null) {
-      notifier.updateSteps(metadata.steps!);
-      appliedCount++;
-    }
-
-    // 应用 Scale
-    if (options.importScale && metadata.scale != null) {
-      notifier.updateScale(metadata.scale!);
-      appliedCount++;
-    }
-
-    // 应用尺寸
-    if (options.importSize &&
-        metadata.width != null &&
-        metadata.height != null) {
-      notifier.updateSize(metadata.width!, metadata.height!);
-      appliedCount++;
-    }
-
-    // 应用采样器
-    if (options.importSampler && metadata.sampler != null) {
-      notifier.updateSampler(metadata.sampler!);
-      appliedCount++;
-    }
-
-    // 应用模型
-    if (options.importModel && metadata.model != null) {
-      notifier.updateModel(metadata.model!);
-      appliedCount++;
-    }
-
-    // 应用 SMEA
-    if (options.importSmea && metadata.smea != null) {
-      notifier.updateSmea(metadata.smea!);
-      appliedCount++;
-    }
-    if (options.importSmeaDyn && metadata.smeaDyn != null) {
-      notifier.updateSmeaDyn(metadata.smeaDyn!);
-      appliedCount++;
-    }
-
-    // 应用 Noise Schedule
-    if (options.importNoiseSchedule && metadata.noiseSchedule != null) {
-      notifier.updateNoiseSchedule(metadata.noiseSchedule!);
-      appliedCount++;
-    }
-
-    // 应用 CFG Rescale
-    if (options.importCfgRescale && metadata.cfgRescale != null) {
-      notifier.updateCfgRescale(metadata.cfgRescale!);
-      appliedCount++;
-    }
-
-    // 应用 Quality Toggle
-    if (options.importQualityToggle && metadata.qualityToggle != null) {
-      notifier.updateQualityToggle(metadata.qualityToggle!);
-      appliedCount++;
-    }
-
-    // 应用 UC Preset
-    if (options.importUcPreset && metadata.ucPreset != null) {
-      notifier.updateUcPreset(metadata.ucPreset!);
-      appliedCount++;
-    }
+    // 应用高级参数
+    appliedCount += _applyAdvancedParams(metadata, options, notifier);
 
     return appliedCount;
   }
 
-  /// 处理加入队列（提取正面提示词）
-  Future<void> _handleAddToQueue(Uint8List bytes) async {
+  int _applyBasicParams(
+    dynamic metadata,
+    MetadataImportOptions options,
+    GenerationParamsNotifier notifier,
+  ) {
+    var count = 0;
+
+    if (options.importPrompt && metadata.prompt.isNotEmpty) {
+      notifier.updatePrompt(metadata.prompt);
+      count++;
+    }
+
+    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
+      notifier.updateNegativePrompt(metadata.negativePrompt);
+      count++;
+    }
+
+    if (options.importSeed && metadata.seed != null) {
+      notifier.updateSeed(metadata.seed!);
+      count++;
+    }
+
+    if (options.importSteps && metadata.steps != null) {
+      notifier.updateSteps(metadata.steps!);
+      count++;
+    }
+
+    if (options.importScale && metadata.scale != null) {
+      notifier.updateScale(metadata.scale!);
+      count++;
+    }
+
+    if (options.importSize && metadata.width != null && metadata.height != null) {
+      notifier.updateSize(metadata.width!, metadata.height!);
+      count++;
+    }
+
+    return count;
+  }
+
+  void _applyCharacterPrompts(dynamic metadata) {
+    final characters = <char.CharacterPrompt>[];
+    for (var i = 0; i < metadata.characterPrompts.length; i++) {
+      final prompt = metadata.characterPrompts[i];
+      final negPrompt = i < metadata.characterNegativePrompts.length
+          ? metadata.characterNegativePrompts[i]
+          : '';
+
+      characters.add(
+        char.CharacterPrompt.create(
+          name: 'Character ${i + 1}',
+          gender: _inferGenderFromPrompt(prompt),
+          prompt: prompt,
+          negativePrompt: negPrompt,
+        ),
+      );
+    }
+    ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
+  }
+
+  int _applyAdvancedParams(
+    dynamic metadata,
+    MetadataImportOptions options,
+    GenerationParamsNotifier notifier,
+  ) {
+    var count = 0;
+
+    final params = [
+      (options.importSampler, metadata.sampler, notifier.updateSampler),
+      (options.importModel, metadata.model, notifier.updateModel),
+      (options.importSmea, metadata.smea, notifier.updateSmea),
+      (options.importSmeaDyn, metadata.smeaDyn, notifier.updateSmeaDyn),
+      (options.importNoiseSchedule, metadata.noiseSchedule, notifier.updateNoiseSchedule),
+      (options.importCfgRescale, metadata.cfgRescale, notifier.updateCfgRescale),
+      (options.importQualityToggle, metadata.qualityToggle, notifier.updateQualityToggle),
+      (options.importUcPreset, metadata.ucPreset, notifier.updateUcPreset),
+    ];
+
+    for (final (shouldImport, value, updateFn) in params) {
+      if (shouldImport && value != null) {
+        updateFn(value);
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  Future<void> _handleAddToQueue(Uint8List bytes, AppLocalizations l10n) async {
     try {
-      // 解析 NAI 隐写元数据
       final metadata = await NaiMetadataParser.extractFromBytes(bytes);
 
       if (metadata == null || metadata.prompt.isEmpty) {
@@ -617,12 +596,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         return;
       }
 
-      // 创建队列任务（只使用正面提示词）
-      final task = ReplicationTask.create(
-        prompt: metadata.prompt,
-      );
-
-      // 添加到队列
+      final task = ReplicationTask.create(prompt: metadata.prompt);
       ref.read(replicationQueueNotifierProvider.notifier).add(task);
 
       if (mounted) {
@@ -654,12 +628,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     return char.CharacterGender.other;
   }
 
-  /// 显示元数据应用成功对话框
   void _showMetadataAppliedDialog(
     dynamic metadata,
     MetadataImportOptions options,
+    AppLocalizations l10n,
   ) {
-    final l10n = context.l10n;
+    final items = _buildMetadataItems(metadata, options, l10n);
 
     showDialog(
       context: context,
@@ -678,78 +652,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             children: [
               Text(l10n.metadataImport_appliedDescription),
               const SizedBox(height: 12),
-              if (options.importPrompt && metadata.prompt.isNotEmpty)
-                _buildAppliedItem(
-                  l10n.metadataImport_prompt,
-                  metadata.prompt,
-                  maxLines: 3,
-                ),
-              if (options.importNegativePrompt &&
-                  metadata.negativePrompt.isNotEmpty)
-                _buildAppliedItem(
-                  l10n.metadataImport_negativePrompt,
-                  metadata.negativePrompt,
-                  maxLines: 2,
-                ),
-              if (options.importCharacterPrompts &&
-                  metadata.characterPrompts.isNotEmpty)
-                _buildAppliedItem(
-                  l10n.metadataImport_characterPrompts,
-                  '${metadata.characterPrompts.length} ${l10n.metadataImport_charactersCount}',
-                ),
-              if (options.importSeed && metadata.seed != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_seed,
-                  metadata.seed.toString(),
-                ),
-              if (options.importSteps && metadata.steps != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_steps,
-                  metadata.steps.toString(),
-                ),
-              if (options.importScale && metadata.scale != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_scale,
-                  metadata.scale.toString(),
-                ),
-              if (options.importSize &&
-                  metadata.width != null &&
-                  metadata.height != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_size,
-                  '${metadata.width} x ${metadata.height}',
-                ),
-              if (options.importSampler && metadata.sampler != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_sampler,
-                  metadata.displaySampler,
-                ),
-              if (options.importModel && metadata.model != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_model,
-                  metadata.model.toString(),
-                ),
-              if (options.importSmea && metadata.smea != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_smea,
-                  metadata.smea.toString(),
-                ),
-              if (options.importSmeaDyn && metadata.smeaDyn != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_smeaDyn,
-                  metadata.smeaDyn.toString(),
-                ),
-              if (options.importNoiseSchedule &&
-                  metadata.noiseSchedule != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_noiseSchedule,
-                  metadata.noiseSchedule.toString(),
-                ),
-              if (options.importCfgRescale && metadata.cfgRescale != null)
-                _buildAppliedItem(
-                  l10n.metadataImport_cfgRescale,
-                  metadata.cfgRescale.toString(),
-                ),
+              ...items,
             ],
           ),
         ),
@@ -761,6 +664,73 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildMetadataItems(
+    dynamic metadata,
+    MetadataImportOptions options,
+    AppLocalizations l10n,
+  ) {
+    final items = <Widget>[];
+
+    final itemConfigs = [
+      (
+        options.importPrompt && metadata.prompt.isNotEmpty,
+        l10n.metadataImport_prompt,
+        metadata.prompt,
+        3,
+      ),
+      (
+        options.importNegativePrompt && metadata.negativePrompt.isNotEmpty,
+        l10n.metadataImport_negativePrompt,
+        metadata.negativePrompt,
+        2,
+      ),
+      (
+        options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty,
+        l10n.metadataImport_characterPrompts,
+        '${metadata.characterPrompts.length} ${l10n.metadataImport_charactersCount}',
+        1,
+      ),
+      (options.importSeed && metadata.seed != null, l10n.metadataImport_seed, metadata.seed?.toString(), 1),
+      (options.importSteps && metadata.steps != null, l10n.metadataImport_steps, metadata.steps?.toString(), 1),
+      (options.importScale && metadata.scale != null, l10n.metadataImport_scale, metadata.scale?.toString(), 1),
+      (
+        options.importSize && metadata.width != null && metadata.height != null,
+        l10n.metadataImport_size,
+        '${metadata.width} x ${metadata.height}',
+        1,
+      ),
+      (
+        options.importSampler && metadata.sampler != null,
+        l10n.metadataImport_sampler,
+        metadata.displaySampler,
+        1,
+      ),
+      (options.importModel && metadata.model != null, l10n.metadataImport_model, metadata.model?.toString(), 1),
+      (options.importSmea && metadata.smea != null, l10n.metadataImport_smea, metadata.smea?.toString(), 1),
+      (options.importSmeaDyn && metadata.smeaDyn != null, l10n.metadataImport_smeaDyn, metadata.smeaDyn?.toString(), 1),
+      (
+        options.importNoiseSchedule && metadata.noiseSchedule != null,
+        l10n.metadataImport_noiseSchedule,
+        metadata.noiseSchedule?.toString(),
+        1,
+      ),
+      (
+        options.importCfgRescale && metadata.cfgRescale != null,
+        l10n.metadataImport_cfgRescale,
+        metadata.cfgRescale?.toString(),
+        1,
+      ),
+    ];
+
+    for (final (shouldShow, label, value, maxLines) in itemConfigs) {
+      if (shouldShow && value != null) {
+        items.add(_buildAppliedItem(label, value, maxLines: maxLines));
+      }
+    }
+
+    return items;
   }
 
   Widget _buildAppliedItem(String label, String value, {int maxLines = 1}) {

@@ -581,32 +581,23 @@ class _SizeSelectorState extends State<_SizeSelector> {
 
   String _getGroupName(BuildContext context, ResolutionGroup group) {
     final l10n = context.l10n;
-    switch (group) {
-      case ResolutionGroup.normal:
-        return l10n.resolution_groupNormal;
-      case ResolutionGroup.large:
-        return l10n.resolution_groupLarge;
-      case ResolutionGroup.wallpaper:
-        return l10n.resolution_groupWallpaper;
-      case ResolutionGroup.small:
-        return l10n.resolution_groupSmall;
-      case ResolutionGroup.custom:
-        return l10n.resolution_groupCustom;
-    }
+    return switch (group) {
+      ResolutionGroup.normal => l10n.resolution_groupNormal,
+      ResolutionGroup.large => l10n.resolution_groupLarge,
+      ResolutionGroup.wallpaper => l10n.resolution_groupWallpaper,
+      ResolutionGroup.small => l10n.resolution_groupSmall,
+      ResolutionGroup.custom => l10n.resolution_groupCustom,
+    };
   }
 
   String _getTypeName(BuildContext context, ResolutionType type) {
     final l10n = context.l10n;
-    switch (type) {
-      case ResolutionType.portrait:
-        return l10n.resolution_typePortrait;
-      case ResolutionType.landscape:
-        return l10n.resolution_typeLandscape;
-      case ResolutionType.square:
-        return l10n.resolution_typeSquare;
-      case ResolutionType.custom:
-        return l10n.resolution_typeCustom;
-    }
+    return switch (type) {
+      ResolutionType.portrait => l10n.resolution_typePortrait,
+      ResolutionType.landscape => l10n.resolution_typeLandscape,
+      ResolutionType.square => l10n.resolution_typeSquare,
+      ResolutionType.custom => l10n.resolution_typeCustom,
+    };
   }
 
   void _onPresetSelected(String? presetId) {

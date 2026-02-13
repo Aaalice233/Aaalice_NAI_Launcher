@@ -9,118 +9,98 @@ import '../../../core/utils/app_logger.dart';
 part 'nai_auth_api_service.g.dart';
 
 /// NovelAI Authentication API 服务
-///
-/// 提供 NovelAI 用户认证功能
-/// - Token 验证
-/// - Access Key 登录
-/// - Token 格式验证
 class NAIAuthApiService {
-  // ==================== 配置 ====================
   static const Duration _timeout = Duration(seconds: 30);
+  static final RegExp _bearerPrefixRegex = RegExp(
+    r'^Bearer\s+',
+    caseSensitive: false,
+  );
+  static final RegExp _allWhitespaceRegex = RegExp(r'\s+');
 
   final Dio _dio;
 
   NAIAuthApiService(this._dio);
 
-  // ==================== 认证 API ====================
-
   /// 验证 API Token 是否有效
-  ///
-  /// [token] Persistent API Token (格式: pst-xxxx)
-  ///
-  /// 返回验证结果，包含订阅信息；如果 Token 无效则抛出异常
   Future<Map<String, dynamic>> validateToken(String token) async {
-    try {
-      // Trim token to remove any accidental whitespace/newlines
-      final trimmedToken = token.trim();
-      AppLogger.d('Validating API token, length: ${trimmedToken.length}', 'NAIAuth');
+    final trimmedToken = token.trim();
+    final unquotedToken = _stripWrappingQuotes(trimmedToken);
+    final normalizedToken = unquotedToken
+        .replaceFirst(_bearerPrefixRegex, '')
+        .replaceAll(_allWhitespaceRegex, '');
 
-      // NovelAI uses raw token without Bearer prefix for Persistent Tokens
-      final authHeader = trimmedToken.startsWith('pst-')
-          ? trimmedToken
-          : 'Bearer $trimmedToken';
-
-      AppLogger.d('Authorization header format: ${authHeader.substring(0, authHeader.length > 20 ? 20 : authHeader.length)}...', 'NAIAuth');
-
-      final response = await _dio.get(
-        '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
-        options: Options(
-          headers: {
-            'Authorization': authHeader,
-          },
-          receiveTimeout: _timeout,
-          sendTimeout: _timeout,
-        ),
-      );
-
-      AppLogger.d('Token validation successful', 'NAIAuth');
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout) {
-        AppLogger.w('Token validation request timeout', 'NAIAuth');
-      } else if (e.type == DioExceptionType.connectionError) {
-        AppLogger.w('Token validation connection error: ${e.message}', 'NAIAuth');
-      } else if (e.response?.statusCode == 401) {
-        AppLogger.w('Token validation failed: Invalid token', 'NAIAuth');
-      } else {
-        AppLogger.e('Token validation error: ${e.message}', e, null, 'NAIAuth');
-      }
-      rethrow;
-    } catch (e, stack) {
-      AppLogger.e('Token validation failed', e, stack, 'NAIAuth');
-      rethrow;
+    if (normalizedToken.isEmpty) {
+      throw ArgumentError('Token 为空，无法验证');
     }
+
+    if (!_isSupportedTokenFormat(normalizedToken)) {
+      throw ArgumentError('Token 格式无效');
+    }
+
+    final authHeader = normalizedToken.startsWith('pst-')
+        ? normalizedToken
+        : 'Bearer $normalizedToken';
+
+    AppLogger.d(
+      'Validating API token, length: ${normalizedToken.length}',
+      'NAIAuth',
+    );
+
+    final response = await _dio.get(
+      '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
+      options: Options(
+        headers: {'Authorization': authHeader},
+        receiveTimeout: _timeout,
+        sendTimeout: _timeout,
+      ),
+    );
+
+    return response.data as Map<String, dynamic>;
   }
 
   /// 使用 Access Key 登录
-  ///
-  /// [accessKey] 通过邮箱+密码 Argon2哈希生成的 Access Key
-  ///
-  /// 返回登录结果，包含 accessToken；如果登录失败则抛出异常
   Future<Map<String, dynamic>> loginWithKey(String accessKey) async {
-    try {
-      AppLogger.d('Attempting login with access key', 'NAIAuth');
+    AppLogger.d('Attempting login with access key', 'NAIAuth');
 
-      final response = await _dio.post(
-        '${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}',
-        data: {'key': accessKey},
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          receiveTimeout: _timeout,
-          sendTimeout: _timeout,
-        ),
-      );
+    final response = await _dio.post(
+      '${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}',
+      data: {'key': accessKey},
+      options: Options(
+        receiveTimeout: _timeout,
+        sendTimeout: _timeout,
+      ),
+    );
 
-      AppLogger.d('Login successful, received access token', 'NAIAuth');
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout) {
-        AppLogger.w('Login request timeout', 'NAIAuth');
-      } else if (e.type == DioExceptionType.connectionError) {
-        AppLogger.w('Login connection error: ${e.message}', 'NAIAuth');
-      } else if (e.response?.statusCode == 401) {
-        AppLogger.w('Login failed: Invalid credentials', 'NAIAuth');
-      } else {
-        AppLogger.e('Login error: ${e.message}', e, null, 'NAIAuth');
-      }
-      rethrow;
-    } catch (e, stack) {
-      AppLogger.e('Login failed', e, stack, 'NAIAuth');
-      rethrow;
-    }
+    return response.data as Map<String, dynamic>;
   }
 
-  /// 检查 Token 格式是否有效
-  ///
-  /// Persistent API Token 格式: pst-xxxx
+  /// 检查 Token 格式是否有效 (pst-xxxx)
   static bool isValidTokenFormat(String token) {
     return token.startsWith('pst-') && token.length > 10;
+  }
+
+  String _stripWrappingQuotes(String value) {
+    if (value.length >= 2) {
+      final first = value[0];
+      final last = value[value.length - 1];
+      if ((first == '"' && last == '"') ||
+          (first == '\'' && last == '\'')) {
+        return value.substring(1, value.length - 1);
+      }
+    }
+    return value;
+  }
+
+  bool _isSupportedTokenFormat(String token) {
+    if (token.startsWith('pst-')) {
+      return token.length > 10;
+    }
+
+    // JWT 基础格式：header.payload.signature
+    final parts = token.split('.');
+    return parts.length == 3 &&
+        parts.every((part) => part.isNotEmpty) &&
+        !token.contains(' ');
   }
 }
 

@@ -1,8 +1,8 @@
 {
   "@@locale": "zh",
 
-  "appTitle": "NAI 启动器",
-  "appSubtitle": "NovelAI 第三方客户端",
+  "app_title": "NAI 启动器",
+  "app_subtitle": "NovelAI 第三方客户端",
 
   "common_cancel": "取消",
   "common_confirm": "确定",
@@ -3116,6 +3116,16 @@
     "placeholders": {
       "cost": {"type": "int"}
     }
-  }
+  },
+
+  "vibe_export_include_thumbnails": "包含缩略图",
+  "vibe_export_include_thumbnails_subtitle": "导出文件中包含缩略图预览",
+  "vibe_import_skip": "跳过",
+  "vibe_import_confirm": "确认",
+  "shortcuts_customize": "自定义快捷键",
+  "gallery_send_to": "发送到",
+  "image_editor_select_tool": "选择工具",
+  "selection_clear_selection": "清除选区",
+  "selection_invert_selection": "反转选区"
 
 }

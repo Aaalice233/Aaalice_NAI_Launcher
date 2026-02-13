@@ -295,13 +295,14 @@ class AppWarmupService {
     yield WarmupProgress.complete(metrics: metrics);
   }
 
-  /// 执行单个任务
-  Future<WarmupTaskMetrics> _runTask(WarmupTask task) async {
+  /// 执行单个任务的核心逻辑
+  Future<WarmupTaskMetrics> _executeTask(
+    WarmupTask task, {
+    String? groupName,
+  }) async {
     final stopwatch = Stopwatch()..start();
 
     try {
-      // 如果 task.timeout 为 null，则使用默认超时
-      // 如果 task.timeout 为 Duration.zero，则不设置超时（无限等待）
       final taskTimeout = task.timeout ?? _taskTimeout;
       if (taskTimeout == Duration.zero) {
         await task.task();
@@ -317,7 +318,8 @@ class AppWarmupService {
       );
     } catch (e) {
       stopwatch.stop();
-      AppLogger.w('Warmup task "${task.name}" failed: $e', 'AppWarmup');
+      final context = groupName != null ? ' in group "$groupName"' : '';
+      AppLogger.w('Warmup task "${task.name}"$context failed: $e', 'AppWarmup');
       return WarmupTaskMetrics.create(
         taskName: task.name,
         durationMs: stopwatch.elapsedMilliseconds,
@@ -327,41 +329,17 @@ class AppWarmupService {
     }
   }
 
+  /// 执行单个任务
+  Future<WarmupTaskMetrics> _runTask(WarmupTask task) => _executeTask(task);
+
   /// 并行执行任务组
   Future<List<WarmupTaskMetrics>> _runTaskGroupParallel(WarmupTaskGroup group) async {
-    AppLogger.i('Running warmup group "${group.name}" in parallel (${group.tasks.length} tasks)', 'AppWarmup');
+    AppLogger.i(
+      'Running warmup group "${group.name}" in parallel (${group.tasks.length} tasks)',
+      'AppWarmup',
+    );
 
-    final futures = group.tasks.map((task) async {
-      final stopwatch = Stopwatch()..start();
-
-      try {
-        final taskTimeout = task.timeout ?? _taskTimeout;
-        if (taskTimeout == Duration.zero) {
-          await task.task();
-        } else {
-          await task.task().timeout(taskTimeout);
-        }
-
-        stopwatch.stop();
-        return WarmupTaskMetrics.create(
-          taskName: task.name,
-          durationMs: stopwatch.elapsedMilliseconds,
-          status: WarmupTaskStatus.success,
-        );
-      } catch (e) {
-        stopwatch.stop();
-        AppLogger.w('Warmup task "${task.name}" in group "${group.name}" failed: $e', 'AppWarmup');
-        return WarmupTaskMetrics.create(
-          taskName: task.name,
-          durationMs: stopwatch.elapsedMilliseconds,
-          status: WarmupTaskStatus.failed,
-          errorMessage: e.toString(),
-        );
-      }
-    }).toList();
-
-    // 组级不再额外设置统一超时，避免长任务被提前判定失败。
-    // 每个任务由其自身 timeout 控制。
+    final futures = group.tasks.map((task) => _executeTask(task, groupName: group.name));
     return Future.wait(futures);
   }
 

@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'config/test_constants.dart';
+
 void main() async {
   final file = File('test_results/bug_test_output.json');
   if (!file.existsSync()) {
@@ -16,18 +18,6 @@ void main() async {
   int passedTests = 0;
   int failedTests = 0;
   int skippedTests = 0;
-
-  // BUG test files we're tracking
-  final bugTestFiles = {
-    'vibe_encoding_test.dart',
-    'sampler_test.dart',
-    'seed_provider_test.dart',
-    'auth_api_test.dart',
-    'sidebar_state_test.dart',
-    'query_parser_test.dart',
-    'prompt_autofill_test.dart',
-    'character_bar_test.dart',
-  };
 
   final bugTestResults = <int, Map<String, dynamic>>{};
 

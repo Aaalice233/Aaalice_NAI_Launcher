@@ -13,7 +13,7 @@ part 'vibe_library_entry.g.dart';
 ///
 /// 用于保存可复用的 Vibe 参考配置，支持分类、标签和使用统计
 /// 使用 Hive 进行本地持久化存储
-@HiveType(typeId: 20)
+@HiveType(typeId: 23)
 @freezed
 class VibeLibraryEntry with _$VibeLibraryEntry {
   const VibeLibraryEntry._();
@@ -66,6 +66,18 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
 
     /// 库条目缩略图数据 (与 vibeThumbnail 分开存储)
     @HiveField(15) Uint8List? thumbnail,
+
+    /// 关联文件路径（.naiv4vibe / .naiv4vibebundle）
+    @HiveField(16) String? filePath,
+
+    /// 所属 bundle 的 ID（若当前条目来自 bundle）
+    @HiveField(17) String? bundleId,
+
+    /// bundle 内部 vibe 名称列表缓存
+    @HiveField(18) List<String>? bundledVibeNames,
+
+    /// bundle 内部 vibe 缩略图缓存（前几个用于 UI 预览）
+    @HiveField(19) List<Uint8List>? bundledVibePreviews,
   }) = _VibeLibraryEntry;
 
   /// 从 VibeReferenceV4 创建库条目
@@ -75,6 +87,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     String? categoryId,
     List<String>? tags,
     Uint8List? thumbnail,
+    String? filePath,
     bool isFavorite = false,
   }) {
     final now = DateTime.now();
@@ -95,6 +108,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       lastUsedAt: null,
       createdAt: now,
       thumbnail: thumbnail,
+      filePath: filePath,
     );
   }
 
@@ -106,6 +120,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     String? categoryId,
     List<String>? tags,
     Uint8List? thumbnail,
+    String? filePath,
     bool isFavorite = false,
     VibeSourceType sourceType = VibeSourceType.rawImage,
   }) {
@@ -122,6 +137,7 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       lastUsedAt: null,
       createdAt: now,
       thumbnail: thumbnail,
+      filePath: filePath,
       sourceTypeIndex: sourceType.index,
     );
   }
@@ -157,6 +173,13 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
   /// 是否有 vibe 缩略图
   bool get hasVibeThumbnail => vibeThumbnail != null && vibeThumbnail!.isNotEmpty;
 
+  /// 是否为 bundle 条目
+  bool get isBundle =>
+      bundledVibeNames != null && bundledVibeNames!.isNotEmpty;
+
+  /// bundle 内部 vibe 数量
+  int get bundledVibeCount => bundledVibeNames?.length ?? 0;
+
   /// 更新条目
   VibeLibraryEntry update({
     String? name,
@@ -170,6 +193,10 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     String? categoryId,
     List<String>? tags,
     Uint8List? thumbnail,
+    String? filePath,
+    String? bundleId,
+    List<String>? bundledVibeNames,
+    List<Uint8List>? bundledVibePreviews,
     bool? isFavorite,
   }) {
     return copyWith(
@@ -184,6 +211,10 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
       categoryId: categoryId ?? this.categoryId,
       tags: tags ?? this.tags,
       thumbnail: thumbnail ?? this.thumbnail,
+      filePath: filePath ?? this.filePath,
+      bundleId: bundleId ?? this.bundleId,
+      bundledVibeNames: bundledVibeNames ?? this.bundledVibeNames,
+      bundledVibePreviews: bundledVibePreviews ?? this.bundledVibePreviews,
       isFavorite: isFavorite ?? this.isFavorite,
     );
   }
@@ -248,38 +279,29 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
 
   /// 按创建时间排序（最新的在前）
   List<VibeLibraryEntry> sortedByCreatedAt() {
-    final sorted = [...this];
-    sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return sorted;
+    return [...this]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   /// 按使用时间排序（最新的在前）
   List<VibeLibraryEntry> sortedByLastUsed() {
-    final sorted = [...this];
-    sorted.sort((a, b) {
-      if (a.lastUsedAt == null && b.lastUsedAt == null) return 0;
-      if (a.lastUsedAt == null) return 1;
-      if (b.lastUsedAt == null) return -1;
-      return b.lastUsedAt!.compareTo(a.lastUsedAt!);
-    });
-    return sorted;
+    return [...this]..sort((a, b) {
+        if (a.lastUsedAt == null) return b.lastUsedAt == null ? 0 : 1;
+        if (b.lastUsedAt == null) return -1;
+        return b.lastUsedAt!.compareTo(a.lastUsedAt!);
+      });
   }
 
   /// 按使用次数排序（最多的在前）
   List<VibeLibraryEntry> sortedByUsedCount() {
-    final sorted = [...this];
-    sorted.sort((a, b) => b.usedCount.compareTo(a.usedCount));
-    return sorted;
+    return [...this]..sort((a, b) => b.usedCount.compareTo(a.usedCount));
   }
 
   /// 按名称排序
   List<VibeLibraryEntry> sortedByName() {
-    final sorted = [...this];
-    sorted.sort(
-      (a, b) =>
-          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-    );
-    return sorted;
+    return [...this]..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
   }
 
   /// 搜索

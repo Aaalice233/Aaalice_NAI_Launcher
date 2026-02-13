@@ -18,44 +18,50 @@ class VibeLibraryState with _$VibeLibraryState {
   const factory VibeLibraryState({
     /// 所有条目
     @Default([]) List<VibeLibraryEntry> entries,
+
     /// 过滤后的条目
     @Default([]) List<VibeLibraryEntry> filteredEntries,
+
     /// 所有分类
     @Default([]) List<VibeLibraryCategory> categories,
+
     /// 当前页显示的条目
     @Default([]) List<VibeLibraryEntry> currentEntries,
     @Default(0) int currentPage,
     @Default(50) int pageSize,
     @Default(false) bool isLoading,
     @Default(false) bool isInitializing,
+
     /// 搜索关键词
     @Default('') String searchQuery,
+
     /// 选中的分类ID
     String? selectedCategoryId,
+
     /// 是否只显示收藏
     @Default(false) bool favoritesOnly,
+
     /// 排序方式
     @Default(VibeLibrarySortOrder.createdAt) VibeLibrarySortOrder sortOrder,
+
     /// 是否降序排列
     @Default(true) bool sortDescending,
+
     /// 错误信息
     String? error,
   }) = _VibeLibraryState;
 
   const VibeLibraryState._();
 
-  int get totalPages => filteredEntries.isEmpty
-      ? 0
-      : (filteredEntries.length / pageSize).ceil();
+  int get totalPages =>
+      filteredEntries.isEmpty ? 0 : (filteredEntries.length / pageSize).ceil();
 
   int get totalCount => entries.length;
   int get filteredCount => filteredEntries.length;
 
   /// 是否有活动过滤器
   bool get hasFilters =>
-      searchQuery.isNotEmpty ||
-      selectedCategoryId != null ||
-      favoritesOnly;
+      searchQuery.isNotEmpty || selectedCategoryId != null || favoritesOnly;
 
   /// 获取当前选中的分类
   VibeLibraryCategory? get selectedCategory {
@@ -107,36 +113,16 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   /// 初始化 Vibe 库
   Future<void> initialize() async {
     if (state.entries.isNotEmpty || state.isInitializing) return;
-
-    state = state.copyWith(isInitializing: true, isLoading: true);
-
-    try {
-      // 加载条目和分类
-      final entries = await _storage.getAllEntries();
-      final categories = await _storage.getAllCategories();
-
-      state = state.copyWith(
-        entries: entries,
-        categories: categories,
-        isLoading: false,
-        isInitializing: false,
-      );
-
-      // 应用默认排序和过滤
-      await _applyFilters();
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to initialize vibe library', e, stackTrace, 'VibeLibrary');
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-        isInitializing: false,
-      );
-    }
+    await _loadData(isInitializing: true);
   }
 
   /// 重新加载数据
   Future<void> reload() async {
-    state = state.copyWith(isLoading: true);
+    await _loadData(isInitializing: false);
+  }
+
+  Future<void> _loadData({required bool isInitializing}) async {
+    state = state.copyWith(isLoading: true, isInitializing: isInitializing);
 
     try {
       final entries = await _storage.getAllEntries();
@@ -146,15 +132,15 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
         entries: entries,
         categories: categories,
         isLoading: false,
+        isInitializing: false,
       );
-
-      // 重新应用过滤
       await _applyFilters();
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to reload vibe library', e, stackTrace, 'VibeLibrary');
+      AppLogger.e('Failed to load vibe library', e, stackTrace, 'VibeLibrary');
       state = state.copyWith(
         error: e.toString(),
         isLoading: false,
+        isInitializing: false,
       );
     }
   }
@@ -177,64 +163,59 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   }
 
   /// 加载下一页
-  Future<void> loadNextPage() async {
-    if (state.currentPage < state.totalPages - 1) {
-      await loadPage(state.currentPage + 1);
-    }
-  }
+  Future<void> loadNextPage() => loadPage(state.currentPage + 1);
 
   /// 加载上一页
-  Future<void> loadPreviousPage() async {
-    if (state.currentPage > 0) {
-      await loadPage(state.currentPage - 1);
-    }
-  }
+  Future<void> loadPreviousPage() => loadPage(state.currentPage - 1);
 
   // ============================================================
   // 搜索与过滤
   // ============================================================
 
   /// 设置搜索关键词
-  Future<void> setSearchQuery(String query) async {
-    final trimmedQuery = query.trim();
-    if (state.searchQuery == trimmedQuery) return;
-
-    state = state.copyWith(searchQuery: trimmedQuery);
-    await _applyFilters();
-  }
+  Future<void> setSearchQuery(String query) =>
+      _updateFilter(searchQuery: query.trim());
 
   /// 清除搜索
-  Future<void> clearSearch() async {
-    if (state.searchQuery.isEmpty) return;
-    state = state.copyWith(searchQuery: '');
-    await _applyFilters();
-  }
+  Future<void> clearSearch() => _updateFilter(searchQuery: '');
 
   /// 设置分类过滤
-  Future<void> setCategoryFilter(String? categoryId) async {
-    if (state.selectedCategoryId == categoryId) return;
-
-    state = state.copyWith(selectedCategoryId: categoryId);
-    await _applyFilters();
-  }
+  Future<void> setCategoryFilter(String? categoryId) =>
+      _updateFilter(selectedCategoryId: categoryId);
 
   /// 清除分类过滤
-  Future<void> clearCategoryFilter() async {
-    if (state.selectedCategoryId == null) return;
-    state = state.copyWith(selectedCategoryId: null);
-    await _applyFilters();
-  }
+  Future<void> clearCategoryFilter() => _updateFilter(selectedCategoryId: null);
 
   /// 设置只显示收藏
-  Future<void> setFavoritesOnly(bool value) async {
-    if (state.favoritesOnly == value) return;
-    state = state.copyWith(favoritesOnly: value);
-    await _applyFilters();
-  }
+  Future<void> setFavoritesOnly(bool value) =>
+      _updateFilter(favoritesOnly: value);
 
   /// 切换收藏过滤
-  Future<void> toggleFavoritesOnly() async {
-    state = state.copyWith(favoritesOnly: !state.favoritesOnly);
+  Future<void> toggleFavoritesOnly() =>
+      _updateFilter(favoritesOnly: !state.favoritesOnly);
+
+  Future<void> _updateFilter({
+    String? searchQuery,
+    String? selectedCategoryId,
+    bool? favoritesOnly,
+  }) async {
+    final newSearchQuery = searchQuery ?? state.searchQuery;
+    final newCategoryId = selectedCategoryId ?? state.selectedCategoryId;
+    final newFavoritesOnly = favoritesOnly ?? state.favoritesOnly;
+
+    if (state.searchQuery == newSearchQuery &&
+        state.selectedCategoryId == newCategoryId &&
+        state.favoritesOnly == newFavoritesOnly) {
+      return;
+    }
+
+    state = state.copyWith(
+      searchQuery: newSearchQuery,
+      selectedCategoryId: selectedCategoryId != null || searchQuery == null
+          ? newCategoryId
+          : state.selectedCategoryId,
+      favoritesOnly: newFavoritesOnly,
+    );
     await _applyFilters();
   }
 
@@ -278,53 +259,32 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
 
   /// 应用过滤和排序
   Future<void> _applyFilters() async {
-    List<VibeLibraryEntry> result = List.from(state.entries);
+    var result = List<VibeLibraryEntry>.from(state.entries);
 
-    // 应用搜索过滤
     if (state.searchQuery.isNotEmpty) {
       result = result.search(state.searchQuery);
     }
-
-    // 应用分类过滤
     if (state.selectedCategoryId != null) {
       result = result.getByCategory(state.selectedCategoryId);
     }
-
-    // 应用收藏过滤
     if (state.favoritesOnly) {
       result = result.favorites;
     }
 
-    // 应用排序
     result = _sortEntries(result);
 
-    state = state.copyWith(
-      filteredEntries: result,
-      currentPage: 0,
-    );
-
-    // 重新加载第一页
+    state = state.copyWith(filteredEntries: result, currentPage: 0);
     await loadPage(0);
   }
 
-  /// 排序条目
   List<VibeLibraryEntry> _sortEntries(List<VibeLibraryEntry> entries) {
-    List<VibeLibraryEntry> sorted;
-    switch (state.sortOrder) {
-      case VibeLibrarySortOrder.createdAt:
-        sorted = entries.sortedByCreatedAt();
-      case VibeLibrarySortOrder.lastUsed:
-        sorted = entries.sortedByLastUsed();
-      case VibeLibrarySortOrder.usedCount:
-        sorted = entries.sortedByUsedCount();
-      case VibeLibrarySortOrder.name:
-        sorted = entries.sortedByName();
-    }
-    // 如果sortDescending为false（升序），则反转列表
-    if (!state.sortDescending) {
-      sorted = sorted.reversed.toList();
-    }
-    return sorted;
+    final sorted = switch (state.sortOrder) {
+      VibeLibrarySortOrder.createdAt => entries.sortedByCreatedAt(),
+      VibeLibrarySortOrder.lastUsed => entries.sortedByLastUsed(),
+      VibeLibrarySortOrder.usedCount => entries.sortedByUsedCount(),
+      VibeLibrarySortOrder.name => entries.sortedByName(),
+    };
+    return state.sortDescending ? sorted : sorted.reversed.toList();
   }
 
   // ============================================================
@@ -335,19 +295,15 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   Future<VibeLibraryEntry?> saveEntry(VibeLibraryEntry entry) async {
     try {
       final saved = await _storage.saveEntry(entry);
-
-      // 更新本地状态
-      final updatedEntries = [...state.entries];
-      final index = updatedEntries.indexWhere((e) => e.id == entry.id);
+      final entries = [...state.entries];
+      final index = entries.indexWhere((e) => e.id == entry.id);
       if (index >= 0) {
-        updatedEntries[index] = saved;
+        entries[index] = saved;
       } else {
-        updatedEntries.add(saved);
+        entries.add(saved);
       }
-
-      state = state.copyWith(entries: updatedEntries);
+      state = state.copyWith(entries: entries);
       await _applyFilters();
-
       AppLogger.d('Entry saved: ${saved.displayName}', 'VibeLibrary');
       return saved;
     } catch (e, stackTrace) {
@@ -383,7 +339,8 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       final count = await _storage.deleteEntries(ids);
 
       // 更新本地状态
-      final updatedEntries = state.entries.where((e) => !ids.contains(e.id)).toList();
+      final updatedEntries =
+          state.entries.where((e) => !ids.contains(e.id)).toList();
       state = state.copyWith(entries: updatedEntries);
       await _applyFilters();
 
@@ -410,7 +367,10 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       state = state.copyWith(entries: updatedEntries);
       await _applyFilters();
 
-      AppLogger.d('Entry favorite toggled: ${updated.displayName}', 'VibeLibrary');
+      AppLogger.d(
+        'Entry favorite toggled: ${updated.displayName}',
+        'VibeLibrary',
+      );
       return updated;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to toggle favorite', e, stackTrace, 'VibeLibrary');
@@ -436,10 +396,18 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       state = state.copyWith(entries: updatedEntries);
       await _applyFilters();
 
-      AppLogger.d('Entry category updated: ${updated.displayName}', 'VibeLibrary');
+      AppLogger.d(
+        'Entry category updated: ${updated.displayName}',
+        'VibeLibrary',
+      );
       return updated;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to update entry category', e, stackTrace, 'VibeLibrary');
+      AppLogger.e(
+        'Failed to update entry category',
+        e,
+        stackTrace,
+        'VibeLibrary',
+      );
       state = state.copyWith(error: e.toString());
       return null;
     }
@@ -470,6 +438,33 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
     }
   }
 
+  /// 重命名条目（同步重命名文件）
+  Future<VibeEntryRenameResult> renameEntry(String id, String newName) async {
+    try {
+      final result = await _storage.renameEntry(id, newName);
+      if (!result.isSuccess) {
+        return result;
+      }
+
+      final updated = result.entry!;
+      final updatedEntries = state.entries.map((e) {
+        return e.id == id ? updated : e;
+      }).toList();
+
+      state = state.copyWith(entries: updatedEntries);
+      await _applyFilters();
+
+      AppLogger.d('Entry renamed: ${updated.displayName}', 'VibeLibrary');
+      return result;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to rename entry', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return const VibeEntryRenameResult.failure(
+        VibeEntryRenameError.fileRenameFailed,
+      );
+    }
+  }
+
   /// 记录条目使用
   Future<VibeLibraryEntry?> recordUsage(String id) async {
     try {
@@ -495,7 +490,9 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   // ============================================================
 
   /// 保存分类（新增或更新）
-  Future<VibeLibraryCategory?> saveCategory(VibeLibraryCategory category) async {
+  Future<VibeLibraryCategory?> saveCategory(
+    VibeLibraryCategory category,
+  ) async {
     try {
       final saved = await _storage.saveCategory(category);
 
@@ -532,7 +529,8 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       if (!success) return false;
 
       // 更新本地状态
-      final updatedCategories = state.categories.where((c) => c.id != id).toList();
+      final updatedCategories =
+          state.categories.where((c) => c.id != id).toList();
       state = state.copyWith(categories: updatedCategories);
 
       // 如果当前选中的是被删除的分类，清除选择
@@ -571,7 +569,12 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       AppLogger.d('Category name updated: $newName', 'VibeLibrary');
       return updated;
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to update category name', e, stackTrace, 'VibeLibrary');
+      AppLogger.e(
+        'Failed to update category name',
+        e,
+        stackTrace,
+        'VibeLibrary',
+      );
       state = state.copyWith(error: e.toString());
       return null;
     }

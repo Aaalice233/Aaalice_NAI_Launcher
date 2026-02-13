@@ -460,167 +460,43 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       items: [
-        PopupMenuItem<String>(
+        _buildSettingsMenuItem(
           value: 'autocomplete',
-          child: Row(
-            children: [
-              Icon(
-                enableAutocomplete
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: enableAutocomplete ? theme.colorScheme.primary : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(context.l10n.prompt_smartAutocomplete),
-                    Text(
-                      context.l10n.prompt_smartAutocompleteSubtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          isEnabled: enableAutocomplete,
+          title: context.l10n.prompt_smartAutocomplete,
+          subtitle: context.l10n.prompt_smartAutocompleteSubtitle,
+          theme: theme,
         ),
-        PopupMenuItem<String>(
+        _buildSettingsMenuItem(
           value: 'auto_format',
-          child: Row(
-            children: [
-              Icon(
-                enableAutoFormat
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: enableAutoFormat ? theme.colorScheme.primary : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(context.l10n.prompt_autoFormat),
-                    Text(
-                      context.l10n.prompt_autoFormatSubtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          isEnabled: enableAutoFormat,
+          title: context.l10n.prompt_autoFormat,
+          subtitle: context.l10n.prompt_autoFormatSubtitle,
+          theme: theme,
         ),
-        PopupMenuItem<String>(
+        _buildSettingsMenuItem(
           value: 'highlight',
-          child: Row(
-            children: [
-              Icon(
-                enableHighlight
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: enableHighlight ? theme.colorScheme.primary : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(context.l10n.prompt_highlightEmphasis),
-                    Text(
-                      context.l10n.prompt_highlightEmphasisSubtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          isEnabled: enableHighlight,
+          title: context.l10n.prompt_highlightEmphasis,
+          subtitle: context.l10n.prompt_highlightEmphasisSubtitle,
+          theme: theme,
         ),
-        PopupMenuItem<String>(
+        _buildSettingsMenuItem(
           value: 'sd_syntax_convert',
-          child: Row(
-            children: [
-              Icon(
-                enableSdSyntaxAutoConvert
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: enableSdSyntaxAutoConvert
-                    ? theme.colorScheme.primary
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(context.l10n.prompt_sdSyntaxAutoConvert),
-                    Text(
-                      context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          isEnabled: enableSdSyntaxAutoConvert,
+          title: context.l10n.prompt_sdSyntaxAutoConvert,
+          subtitle: context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
+          theme: theme,
         ),
-        PopupMenuItem<String>(
+        _buildSettingsMenuItem(
           value: 'cooccurrence',
-          child: Row(
-            children: [
-              Icon(
-                enableCooccurrence
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: 20,
-                color: enableCooccurrence ? theme.colorScheme.primary : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(context.l10n.prompt_cooccurrenceRecommendation),
-                    Text(
-                      context.l10n.prompt_cooccurrenceRecommendationSubtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          isEnabled: enableCooccurrence,
+          title: context.l10n.prompt_cooccurrenceRecommendation,
+          subtitle: context.l10n.prompt_cooccurrenceRecommendationSubtitle,
+          theme: theme,
         ),
       ],
-    ).then((value) {
-      if (value == 'autocomplete') {
-        ref.read(autocompleteSettingsProvider.notifier).toggle();
-      } else if (value == 'auto_format') {
-        ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
-      } else if (value == 'highlight') {
-        ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
-      } else if (value == 'sd_syntax_convert') {
-        ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
-      } else if (value == 'cooccurrence') {
-        ref.read(cooccurrenceSettingsProvider.notifier).toggle();
-      }
-    });
+    ).then(_handleSettingsMenuResult);
   }
 
   Widget _buildPromptTypeSwitch(
@@ -753,6 +629,57 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ref.read(generationParamsNotifierProvider.notifier).updatePrompt(value);
       },
     );
+  }
+
+  PopupMenuItem<String> _buildSettingsMenuItem({
+    required String value,
+    required bool isEnabled,
+    required String title,
+    required String subtitle,
+    required ThemeData theme,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            isEnabled ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 20,
+            color: isEnabled ? theme.colorScheme.primary : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSettingsMenuResult(String? value) {
+    switch (value) {
+      case 'autocomplete':
+        ref.read(autocompleteSettingsProvider.notifier).toggle();
+      case 'auto_format':
+        ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
+      case 'highlight':
+        ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
+      case 'sd_syntax_convert':
+        ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      case 'cooccurrence':
+        ref.read(cooccurrenceSettingsProvider.notifier).toggle();
+    }
   }
 
   Widget _buildTextNegativeInput(ThemeData theme) {

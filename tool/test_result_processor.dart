@@ -1,10 +1,11 @@
 #!/usr/bin/env dart
-
 // 测试结果处理器 CLI 工具
 // 用法: dart run tool/test_result_processor.dart <test_json_file> [options]
 
 import 'dart:convert';
 import 'dart:io';
+
+import 'config/test_constants.dart' as constants;
 
 void main(List<String> args) async {
   // 显示帮助信息
@@ -60,16 +61,19 @@ void main(List<String> args) async {
 void _printUsage() {
   print('测试结果处理器 - 解析 Flutter 测试 JSON 输出并生成结构化结果\n');
   print('用法:');
-  print('  dart run tool/test_result_processor.dart <input_file> [output_file]\n');
+  print(
+      '  dart run tool/test_result_processor.dart <input_file> [output_file]\n',);
   print('参数:');
   print('  input_file   Flutter 测试 JSON 输出文件路径');
-  print('               (通过: flutter test --reporter json > test_results/output.json 生成)');
+  print(
+      '               (通过: flutter test --reporter json > test_results/output.json 生成)',);
   print('  output_file  输出摘要 JSON 文件路径 (默认: test_results/summary.json)\n');
   print('选项:');
   print('  -h, --help   显示此帮助信息\n');
   print('示例:');
   print('  dart run tool/test_result_processor.dart test_results/output.json');
-  print('  dart run tool/test_result_processor.dart test_results/bug_test_output.json test_results/bug_summary.json\n');
+  print(
+      '  dart run tool/test_result_processor.dart test_results/bug_test_output.json test_results/bug_summary.json\n',);
 }
 
 Future<Map<String, dynamic>> _processTestResults(File inputFile) async {
@@ -83,17 +87,8 @@ Future<Map<String, dynamic>> _processTestResults(File inputFile) async {
   final testFiles = <String>{};
   final errors = <Map<String, dynamic>>[];
 
-  // BUG 测试文件列表 (用于分类)
-  final bugTestFiles = {
-    'vibe_encoding_test.dart': 'BUG-001',
-    'sampler_test.dart': 'BUG-002',
-    'seed_provider_test.dart': 'BUG-003',
-    'auth_api_test.dart': 'BUG-004/005',
-    'sidebar_state_test.dart': 'BUG-006',
-    'query_parser_test.dart': 'BUG-007',
-    'prompt_autofill_test.dart': 'BUG-008',
-    'character_bar_test.dart': 'BUG-009',
-  };
+  // 使用共享的 BUG 测试文件列表 (用于分类)
+  const bugTestIdMap = constants.bugIdMap;
 
   final Map<int, Map<String, dynamic>> runningTests = {};
 
@@ -115,18 +110,18 @@ Future<Map<String, dynamic>> _processTestResults(File inputFile) async {
         }
 
         // 确定实际的测试文件 URL
-        final actualUrl = (testUrl.contains('package:flutter_test') && rootUrl.isNotEmpty)
-            ? rootUrl
-            : (testUrl.isNotEmpty ? testUrl : rootUrl);
+        final actualUrl =
+            (testUrl.contains('package:flutter_test') && rootUrl.isNotEmpty)
+                ? rootUrl
+                : (testUrl.isNotEmpty ? testUrl : rootUrl);
 
         // 提取测试文件名
-        final testFile = actualUrl.isNotEmpty
-            ? actualUrl.split('/').last
-            : 'unknown';
+        final testFile =
+            actualUrl.isNotEmpty ? actualUrl.split('/').last : 'unknown';
 
         // 检测是否为 BUG 测试
         String? bugId;
-        for (final entry in bugTestFiles.entries) {
+        for (final entry in bugTestIdMap.entries) {
           if (actualUrl.contains(entry.key)) {
             bugId = entry.value;
             break;
@@ -301,9 +296,8 @@ void _printSummary(Map<String, dynamic> summary) {
             print('    - $testName');
             if (test['error'] != null) {
               final error = test['error'] as String? ?? '';
-              final errorPreview = error.length > 100
-                  ? '${error.substring(0, 100)}...'
-                  : error;
+              final errorPreview =
+                  error.length > 100 ? '${error.substring(0, 100)}...' : error;
               print('      错误: $errorPreview');
             }
           }

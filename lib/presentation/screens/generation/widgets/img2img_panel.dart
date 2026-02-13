@@ -12,9 +12,11 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_picker_card/image_picker_card.dart';
+import '../../../widgets/common/collapsible_image_panel.dart';
 
 /// Img2Img 面板组件
 class Img2ImgPanel extends ConsumerStatefulWidget {
+
   const Img2ImgPanel({super.key});
 
   @override
@@ -29,154 +31,76 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final theme = Theme.of(context);
     final params = ref.watch(generationParamsNotifierProvider);
     final hasSourceImage = params.sourceImage != null;
-    final isImg2ImgMode = params.action == ImageGenerationAction.img2img;
+    final showBackground = hasSourceImage && !_isExpanded;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // 背景图片层（折叠且有图片时显示）
-          if (hasSourceImage && !_isExpanded)
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.memory(
-                    params.sourceImage!,
-                    fit: BoxFit.cover,
-                  ),
-                  // 暗化遮罩
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.black.withOpacity(0.75),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // 内容层
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题栏
-              InkWell(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.image,
-                        size: 20,
-                        color: hasSourceImage && _isExpanded
-                            ? Colors.white
-                            : isImg2ImgMode
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          context.l10n.img2img_title,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: hasSourceImage && _isExpanded
-                                ? Colors.white
-                                : isImg2ImgMode
-                                    ? theme.colorScheme.primary
-                                    : null,
-                          ),
-                        ),
-                      ),
-                      if (hasSourceImage)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isExpanded
-                                ? Colors.white.withOpacity(0.2)
-                                : theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            context.l10n.img2img_enabled,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: _isExpanded
-                                  ? Colors.white
-                                  : theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        size: 20,
-                        color:
-                            hasSourceImage && _isExpanded ? Colors.white : null,
-                      ),
-                    ],
-                  ),
+
+    return CollapsibleImagePanel(
+      title: context.l10n.img2img_title,
+      icon: Icons.image,
+      isExpanded: _isExpanded,
+      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      hasData: hasSourceImage,
+      backgroundImage: hasSourceImage
+          ? Image.memory(
+              params.sourceImage!,
+              fit: BoxFit.cover,
+            )
+          : null,
+      badge: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: showBackground
+              ? Colors.white.withOpacity(0.2)
+              : theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          context.l10n.img2img_enabled,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: showBackground
+                ? Colors.white
+                : theme.colorScheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ThemedDivider(),
+
+            // 源图像选择
+            _buildSourceImageSection(theme, params),
+
+            if (hasSourceImage) ...[
+              const SizedBox(height: 16),
+              // 强度滑块
+              _buildStrengthSlider(theme, params),
+              const SizedBox(height: 12),
+              // 噪声滑块
+              _buildNoiseSlider(theme, params),
+              const SizedBox(height: 12),
+              // 清除按钮
+              OutlinedButton.icon(
+                onPressed: _clearImg2Img,
+                icon: const Icon(Icons.clear, size: 18),
+                label: Text(context.l10n.img2img_clearSettings),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white38),
                 ),
-              ),
-
-              // 展开内容
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 200),
-                crossFadeState: _isExpanded
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                firstChild: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const ThemedDivider(),
-
-                      // 源图像选择
-                      _buildSourceImageSection(theme, params),
-
-                      if (hasSourceImage) ...[
-                        const SizedBox(height: 16),
-                        // 强度滑块
-                        _buildStrengthSlider(theme, params),
-                        const SizedBox(height: 12),
-                        // 噪声滑块
-                        _buildNoiseSlider(theme, params),
-                        const SizedBox(height: 12),
-                        // 清除按钮
-                        OutlinedButton.icon(
-                          onPressed: _clearImg2Img,
-                          icon: const Icon(Icons.clear, size: 18),
-                          label: Text(context.l10n.img2img_clearSettings),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white38),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                secondChild: const SizedBox.shrink(),
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
 
   Widget _buildSourceImageSection(ThemeData theme, ImageParams params) {
     final hasSourceImage = params.sourceImage != null;

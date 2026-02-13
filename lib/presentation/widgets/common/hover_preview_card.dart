@@ -125,6 +125,16 @@ class PreviewCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final skeletonColor = colorScheme.surfaceContainerHighest;
+
+    Widget skeletonLine(double width, double height) => Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: skeletonColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -132,27 +142,10 @@ class PreviewCardSkeleton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题骨架
-          Container(
-            width: 120,
-            height: 16,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
+          skeletonLine(120, 16),
           const SizedBox(height: 8),
-          // 副标题骨架
-          Container(
-            width: 80,
-            height: 12,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
+          skeletonLine(80, 12),
           const SizedBox(height: 12),
-          // 内容骨架
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -162,7 +155,7 @@ class PreviewCardSkeleton extends StatelessWidget {
                 width: 50 + (index % 3) * 20.0,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
+                  color: skeletonColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),

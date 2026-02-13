@@ -11,10 +11,11 @@ import '../../../../core/utils/vibe_encoding_utils.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../core/utils/vibe_image_embedder.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Vibe 导出对话框 V2
-/// 参考 NovelAI 官网设计，支持三种导出选项
+/// 支持导出单个 vibe、批量导出，以及从 bundle 中导出单个 vibe
 class VibeExportDialogV2 extends ConsumerStatefulWidget {
   final List<VibeLibraryEntry> entries;
 
@@ -27,6 +28,14 @@ class VibeExportDialogV2 extends ConsumerStatefulWidget {
   ConsumerState<VibeExportDialogV2> createState() => _VibeExportDialogV2State();
 }
 
+/// 导出验证结果
+class _ValidationResult {
+  final bool isValid;
+  final String? errorMessage;
+
+  const _ValidationResult({required this.isValid, this.errorMessage});
+}
+
 class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
   // 导出选项状态
   bool _exportBundle = true;
@@ -36,6 +45,10 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
   // Bundle 选项
   bool _bundleIncludeThumbnail = true;
   bool _bundleCompress = false;
+
+  // Bundle 导出模式 (仅当单选 bundle 时有效)
+  bool _exportWholeBundle = true; // true=导出整个 bundle, false=导出内部单个 vibe
+  final List<bool> _selectedInternalVibes = []; // 选中的内部 vibe 索引
 
   // Embed 选项
   String? _selectedImagePath;
@@ -53,14 +66,29 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
   // 错误信息
   String? _errorMessage;
 
+  /// 是否为单选 bundle
+  bool get _isSingleBundle {
+    return widget.entries.length == 1 && widget.entries.first.isBundle;
+  }
+
+  /// 获取对话框标题
+  String _getDialogTitle() {
+    if (_isSingleBundle) {
+      final entry = widget.entries.first;
+      return '导出 Bundle: ${entry.displayName}';
+    }
+    return '导出 Vibe (${widget.entries.length} 个选中)';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isSingleBundle = _isSingleBundle;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 750),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -77,7 +105,7 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '导出 Vibe (${widget.entries.length} 个选中)',
+                      _getDialogTitle(),
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -103,8 +131,24 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildExportBundleOption(theme),
-                        const SizedBox(height: 16),
+                        // Bundle 导出选项（如果不是单选 bundle，或选择了导出整个 bundle）
+                        if (!isSingleBundle || _exportWholeBundle) ...[
+                          _buildExportBundleOption(theme),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // 单选 bundle 时的导出模式选择
+                        if (isSingleBundle) ...[
+                          _buildBundleExportModeOption(theme),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // 内部 vibe 选择列表（仅当单选 bundle 且选择导出单个 vibe 时显示）
+                        if (isSingleBundle && !_exportWholeBundle) ...[
+                          _buildInternalVibeSelection(theme),
+                          const SizedBox(height: 16),
+                        ],
+
                         _buildEmbedIntoImageOption(theme),
                         const SizedBox(height: 16),
                         _buildExportEncodingOption(theme),
@@ -155,7 +199,7 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
                     ),
                     const SizedBox(width: 12),
                     FilledButton.icon(
-                      onPressed: _canExport ? _export : null,
+                      onPressed: _validateExportOptions().isValid ? _export : null,
                       icon: const Icon(Icons.file_upload),
                       label: const Text('导出'),
                     ),
@@ -169,9 +213,210 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
     );
   }
 
+  /// 构建 Bundle 导出模式选项（仅单选 bundle 时显示）
+  Widget _buildBundleExportModeOption(ThemeData theme) {
+    final entry = widget.entries.first;
+    final count = entry.bundledVibeCount;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surfaceContainerLowest,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.folder_zip_outlined,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '导出方式',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment<bool>(
+                value: true,
+                label: Text('整个 Bundle'),
+                icon: Icon(Icons.folder_zip),
+              ),
+              ButtonSegment<bool>(
+                value: false,
+                label: Text('内部 Vibe'),
+                icon: Icon(Icons.layers),
+              ),
+            ],
+            selected: {_exportWholeBundle},
+            onSelectionChanged: (value) {
+              setState(() {
+                _exportWholeBundle = value.first;
+                _errorMessage = _validateExportOptions().errorMessage;
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _exportWholeBundle
+                ? '导出为 .naiv4vibebundle 文件，包含所有 $count 个 vibe'
+                : '选择 bundle 内部的 vibe 单独导出为 .naiv4vibe 文件（共 $count 个）',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建内部 vibe 选择列表
+  Widget _buildInternalVibeSelection(ThemeData theme) {
+    final entry = widget.entries.first;
+    final names = entry.bundledVibeNames ?? [];
+    final previews = entry.bundledVibePreviews ?? [];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.3),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.primaryContainer.withOpacity(0.1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.checklist,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '选择要导出的 Vibe',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    final allSelected = _selectedInternalVibes.every((v) => v);
+                    for (var i = 0; i < _selectedInternalVibes.length; i++) {
+                      _selectedInternalVibes[i] = !allSelected;
+                    }
+                    _errorMessage = _validateExportOptions().errorMessage;
+                  });
+                },
+                child: Text(
+                  _selectedInternalVibes.every((v) => v) ? '全不选' : '全选',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: names.length,
+              itemBuilder: (context, index) {
+                final name = names[index];
+                final preview = index < previews.length ? previews[index] : null;
+                final isSelected = _selectedInternalVibes[index];
+
+                return CheckboxListTile(
+                  value: isSelected,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedInternalVibes[index] = value ?? false;
+                      _errorMessage = _validateExportOptions().errorMessage;
+                    });
+                  },
+                  title: Row(
+                    children: [
+                      if (preview != null) ...[
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.memory(
+                            preview,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.image,
+                                size: 20,
+                                color: theme.colorScheme.outline,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  visualDensity: VisualDensity.compact,
+                );
+              },
+            ),
+          ),
+          if (_errorMessage != null &&
+              _errorMessage!.contains('请至少选择一个')) ...[
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   /// 构建导出 Bundle 选项
   Widget _buildExportBundleOption(ThemeData theme) {
     final isDisabled = _embedIntoImage;
+    final isBundle = _isSingleBundle && _exportWholeBundle;
 
     return _OptionCard(
       isSelected: _exportBundle,
@@ -181,12 +426,14 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
           : () {
               setState(() {
                 _exportBundle = !_exportBundle;
-                _validateOptions();
+                _errorMessage = _validateExportOptions().errorMessage;
               });
             },
       icon: Icons.folder_zip_outlined,
-      title: 'Export Bundle',
-      subtitle: '导出为 .naiv4vibe / .naiv4vibebundle 文件',
+      title: isBundle ? 'Export Bundle' : 'Export as Files',
+      subtitle: isBundle
+          ? '导出为 .naiv4vibebundle 文件'
+          : '导出为 .naiv4vibe 或 .naiv4vibebundle 文件',
       child: _exportBundle
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,11 +468,15 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
   /// 构建嵌入图片选项
   Widget _buildEmbedIntoImageOption(ThemeData theme) {
     final isMultiSelect = widget.entries.length > 1;
+    final isBundleInternalExport = _isSingleBundle && !_exportWholeBundle;
+
+    // 嵌入图片在导出单个 vibe 时不可用
+    final isDisabled = isMultiSelect || isBundleInternalExport;
 
     return _OptionCard(
       isSelected: _embedIntoImage,
-      isDisabled: isMultiSelect,
-      onTap: isMultiSelect
+      isDisabled: isDisabled,
+      onTap: isDisabled
           ? null
           : () {
               setState(() {
@@ -233,14 +484,16 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
                 if (_embedIntoImage) {
                   _exportBundle = false;
                 }
-                _validateOptions();
+                _errorMessage = _validateExportOptions().errorMessage;
               });
             },
       icon: Icons.image_outlined,
       title: 'Embed Into Image',
-      subtitle: isMultiSelect
-          ? '嵌入到图片功能仅支持单个 Vibe'
-          : '将 Vibe 数据嵌入到现有 PNG 图片中',
+      subtitle: isBundleInternalExport
+          ? '从 bundle 导出单个 vibe 时不支持嵌入图片'
+          : (isMultiSelect
+              ? '嵌入到图片功能仅支持单个 Vibe'
+              : '将 Vibe 数据嵌入到现有 PNG 图片中'),
       child: _embedIntoImage && !isMultiSelect
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,7 +583,7 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
       onTap: () {
         setState(() {
           _exportEncoding = !_exportEncoding;
-          _validateOptions();
+          _errorMessage = _validateExportOptions().errorMessage;
         });
       },
       icon: Icons.code,
@@ -460,29 +713,42 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
     );
   }
 
-  /// 验证选项
-  void _validateOptions() {
-    _errorMessage = null;
+  /// 验证导出选项
+  /// 返回验证结果，包含是否有效和错误信息
+  _ValidationResult _validateExportOptions() {
+    // 检查是否正在导出
+    if (_isExporting) {
+      return const _ValidationResult(isValid: false, errorMessage: null);
+    }
 
     // 确保至少选择一种导出方式
     if (!_exportBundle && !_embedIntoImage && !_exportEncoding) {
-      _errorMessage = '请至少选择一种导出方式';
-      return;
+      return const _ValidationResult(
+        isValid: false,
+        errorMessage: '请至少选择一种导出方式',
+      );
     }
 
     // 嵌入图片需要选择图片
     if (_embedIntoImage && _selectedImagePath == null) {
-      _errorMessage = '请选择一个 PNG 图片用于嵌入';
-      return;
+      return const _ValidationResult(
+        isValid: false,
+        errorMessage: '请选择一个 PNG 图片用于嵌入',
+      );
     }
-  }
 
-  /// 是否可以导出
-  bool get _canExport {
-    if (_isExporting) return false;
-    if (!_exportBundle && !_embedIntoImage && !_exportEncoding) return false;
-    if (_embedIntoImage && _selectedImagePath == null) return false;
-    return true;
+    // 如果是导出 bundle 内部单个 vibe，需要至少选择一个
+    if (_isSingleBundle && !_exportWholeBundle && _exportBundle) {
+      final hasSelection = _selectedInternalVibes.any((v) => v);
+      if (!hasSelection) {
+        return const _ValidationResult(
+          isValid: false,
+          errorMessage: '请至少选择一个要导出的内部 vibe',
+        );
+      }
+    }
+
+    return const _ValidationResult(isValid: true);
   }
 
   /// 选择图片
@@ -601,6 +867,11 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
 
   /// 导出 Bundle 文件
   Future<String?> _exportBundleFile() async {
+    // 处理单选 bundle 且选择导出内部单个 vibe 的情况
+    if (_isSingleBundle && !_exportWholeBundle) {
+      return _exportSelectedInternalVibes();
+    }
+
     final vibes = widget.entries.map((e) => e.toVibeReference()).toList();
 
     if (vibes.isEmpty) return null;
@@ -619,6 +890,54 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
         bundleName,
       );
     }
+  }
+
+  /// 导出选中的内部 vibe（从 bundle 中提取）
+  Future<String?> _exportSelectedInternalVibes() async {
+    final entry = widget.entries.first;
+    final filePath = entry.filePath;
+
+    if (filePath == null || filePath.isEmpty) {
+      throw Exception('Bundle 文件路径为空');
+    }
+
+    final storageService = VibeFileStorageService();
+    final selectedIndices = <int>[];
+
+    for (var i = 0; i < _selectedInternalVibes.length; i++) {
+      if (_selectedInternalVibes[i]) {
+        selectedIndices.add(i);
+      }
+    }
+
+    if (selectedIndices.isEmpty) return null;
+
+    final exportedPaths = <String>[];
+
+    for (var i = 0; i < selectedIndices.length; i++) {
+      final index = selectedIndices[i];
+      setState(() => _statusMessage =
+          '正在提取 vibe ${i + 1}/${selectedIndices.length}...',);
+
+      final vibe = await storageService.extractVibeFromBundle(filePath, index);
+      if (vibe == null) {
+        AppLogger.w('无法提取索引 $index 的 vibe', 'VibeExportDialogV2');
+        continue;
+      }
+
+      final path = await VibeExportUtils.exportToNaiv4Vibe(
+        vibe,
+        name: vibe.displayName,
+      );
+
+      if (path != null) {
+        exportedPaths.add(path);
+      }
+    }
+
+    if (exportedPaths.isEmpty) return null;
+    if (exportedPaths.length == 1) return exportedPaths.first;
+    return exportedPaths.join(',');
   }
 
   /// 嵌入到图片

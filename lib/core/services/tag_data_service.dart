@@ -427,25 +427,13 @@ class TagDataService {
 
     // 合并结果（去重，按热度排序）
     final seenTags = <String>{};
-    final merged = <LocalTag>[];
+    final merged = <LocalTag>[
+      ...mainResults.where((t) => seenTags.add(t.tag)),
+      ...artistResults.where((t) => seenTags.add(t.tag)),
+    ];
 
-    // 先添加主标签结果
-    for (final tag in mainResults) {
-      if (seenTags.add(tag.tag)) {
-        merged.add(tag);
-      }
-    }
-
-    // 再添加画师标签结果（去重）
-    for (final tag in artistResults) {
-      if (seenTags.add(tag.tag)) {
-        merged.add(tag);
-      }
-    }
-
-    // 按热度排序（count 降序）
+    // 按热度排序（count 降序）并限制数量
     merged.sort((a, b) => b.count.compareTo(a.count));
-
     return merged.take(limit).toList();
   }
 

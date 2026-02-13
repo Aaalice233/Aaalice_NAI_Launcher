@@ -16,47 +16,40 @@ class AutocompleteUtils {
       return '';
     }
 
-    // 找到光标位置前的最后一个逗号或特殊分隔符
     final textBeforeCursor = text.substring(0, cursorPosition);
-
-    // 查找最后一个分隔符（英文逗号、中文逗号、竖线等）
-    var lastSeparatorIndex = -1;
-    for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
-      final char = textBeforeCursor[i];
-      if (char == ',' || char == '，') {
-        lastSeparatorIndex = i;
-        break;
-      }
-      // 检查单竖线分隔符（跳过双竖线 ||）
-      if (char == '|') {
-        // 检查是否是双竖线的一部分
-        final isPartOfDoublePipe = (i > 0 && textBeforeCursor[i - 1] == '|') ||
-            (i < textBeforeCursor.length - 1 && textBeforeCursor[i + 1] == '|');
-        if (!isPartOfDoublePipe) {
-          lastSeparatorIndex = i;
-          break;
-        }
-        // 如果是双竖线，跳过这两个字符
-        if (i > 0 && textBeforeCursor[i - 1] == '|') {
-          i--; // 跳过前一个 |
-        }
-      }
-    }
+    final lastSeparatorIndex = _findLastSeparator(textBeforeCursor);
 
     // 获取当前标签
     var currentTag = textBeforeCursor.substring(lastSeparatorIndex + 1).trim();
 
-    // 移除可能的权重语法前缀（支持 1.5:: 和 .5:: 格式）
-    final weightMatch =
-        RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(currentTag);
+    // 移除权重语法前缀
+    final weightMatch = RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(currentTag);
     if (weightMatch != null) {
       currentTag = currentTag.substring(weightMatch.end);
     }
 
-    // 移除可能的括号前缀
-    currentTag = currentTag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
+    // 移除括号前缀
+    return currentTag.replaceAll(RegExp(r'^[\{\[\(]+'), '').trim();
+  }
 
-    return currentTag.trim();
+  /// 查找最后一个分隔符位置
+  static int _findLastSeparator(String text) {
+    for (var i = text.length - 1; i >= 0; i--) {
+      final char = text[i];
+      if (char == ',' || char == '，') {
+        return i;
+      }
+      if (char == '|' && !_isPartOfDoublePipe(text, i)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /// 检查是否是双竖线的一部分
+  static bool _isPartOfDoublePipe(String text, int index) {
+    return (index > 0 && text[index - 1] == '|') ||
+        (index < text.length - 1 && text[index + 1] == '|');
   }
 
   /// 查找标签的起始和结束位置
@@ -67,57 +60,24 @@ class AutocompleteUtils {
     }
 
     final textBeforeCursor = text.substring(0, cursorPosition);
-
-    // 查找最后一个分隔符
-    var lastSeparatorIndex = -1;
-    for (var i = textBeforeCursor.length - 1; i >= 0; i--) {
-      final char = textBeforeCursor[i];
-      if (char == ',' || char == '，') {
-        lastSeparatorIndex = i;
-        break;
-      }
-      // 检查单竖线分隔符（跳过双竖线 ||）
-      if (char == '|') {
-        final isPartOfDoublePipe = (i > 0 && textBeforeCursor[i - 1] == '|') ||
-            (i < textBeforeCursor.length - 1 && textBeforeCursor[i + 1] == '|');
-        if (!isPartOfDoublePipe) {
-          lastSeparatorIndex = i;
-          break;
-        }
-        if (i > 0 && textBeforeCursor[i - 1] == '|') {
-          i--;
-        }
-      }
-    }
-
-    final tagStart = lastSeparatorIndex + 1;
-
-    // 找到标签结束位置
-    // 从光标位置向后查找下一个分隔符
-    var tagEnd = cursorPosition;
-    for (var i = cursorPosition; i < text.length; i++) {
-      final char = text[i];
-      if (char == ',' || char == '，') {
-        tagEnd = i;
-        break;
-      }
-      // 检查单竖线分隔符（跳过双竖线 ||）
-      if (char == '|') {
-        final isPartOfDoublePipe = (i > 0 && text[i - 1] == '|') ||
-            (i < text.length - 1 && text[i + 1] == '|');
-        if (!isPartOfDoublePipe) {
-          tagEnd = i;
-          break;
-        }
-        if (i < text.length - 1 && text[i + 1] == '|') {
-          i++;
-        }
-      }
-    }
-    // 注意：如果光标后面没有分隔符，tagEnd 保持为 cursorPosition
-    // 这样只会替换光标前面正在输入的标签，不会影响后面的内容
+    final tagStart = _findLastSeparator(textBeforeCursor) + 1;
+    final tagEnd = _findNextSeparator(text, cursorPosition);
 
     return (tagStart, tagEnd);
+  }
+
+  /// 查找下一个分隔符位置（从光标位置开始）
+  static int _findNextSeparator(String text, int start) {
+    for (var i = start; i < text.length; i++) {
+      final char = text[i];
+      if (char == ',' || char == '，') {
+        return i;
+      }
+      if (char == '|' && !_isPartOfDoublePipe(text, i)) {
+        return i;
+      }
+    }
+    return start;
   }
 
   /// 应用建议到文本

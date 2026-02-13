@@ -12,6 +12,12 @@ part 'secure_storage_service.g.dart';
 class SecureStorageService {
   final FlutterSecureStorage _storage;
 
+  static final RegExp _bearerPrefixRegex = RegExp(
+    r'^Bearer\s+',
+    caseSensitive: false,
+  );
+  static final RegExp _allWhitespaceRegex = RegExp(r'\s+');
+
   /// 内存缓存 - 解决 Windows 上 secure storage 写入后立即读取为 null 的问题
   static final Map<String, String> _memoryCache = {};
 
@@ -29,11 +35,16 @@ class SecureStorageService {
 
   /// 保存 Access Token
   Future<void> saveAccessToken(String token) async {
+    final normalizedToken = _normalizeToken(token);
+
     // 先保存到内存缓存
-    _memoryCache[StorageKeys.accessToken] = token;
+    _memoryCache[StorageKeys.accessToken] = normalizedToken;
 
     try {
-      await _storage.write(key: StorageKeys.accessToken, value: token);
+      await _storage.write(
+        key: StorageKeys.accessToken,
+        value: normalizedToken,
+      );
     } catch (e) {
       AppLogger.w('Failed to save token to disk: $e', 'SecureStorage');
       // 内存缓存仍然有效，不影响本次会话
@@ -45,15 +56,17 @@ class SecureStorageService {
     // 优先从内存缓存读取
     final cached = _memoryCache[StorageKeys.accessToken];
     if (cached != null && cached.isNotEmpty) {
-      return cached;
+      return _normalizeToken(cached);
     }
 
     // 从持久化存储读取
     try {
       final token = await _storage.read(key: StorageKeys.accessToken);
       if (token != null && token.isNotEmpty) {
+        final normalizedToken = _normalizeToken(token);
         // 同步到内存缓存
-        _memoryCache[StorageKeys.accessToken] = token;
+        _memoryCache[StorageKeys.accessToken] = normalizedToken;
+        return normalizedToken;
       }
       return token;
     } catch (e) {
@@ -139,15 +152,21 @@ class SecureStorageService {
 
   /// 保存账号 Token
   Future<void> saveAccountToken(String accountId, String token) async {
+    final normalizedToken = _normalizeToken(token);
     await _storage.write(
       key: '${StorageKeys.accountTokenPrefix}$accountId',
-      value: token,
+      value: normalizedToken,
     );
   }
 
   /// 获取账号 Token
   Future<String?> getAccountToken(String accountId) async {
-    return _storage.read(key: '${StorageKeys.accountTokenPrefix}$accountId');
+    final token =
+        await _storage.read(key: '${StorageKeys.accountTokenPrefix}$accountId');
+    if (token == null || token.isEmpty) {
+      return token;
+    }
+    return _normalizeToken(token);
   }
 
   /// 删除账号 Token
@@ -201,6 +220,26 @@ class SecureStorageService {
     await _storage.delete(
       key: '${StorageKeys.accountAccessKeyPrefix}$accountId',
     );
+  }
+
+  String _normalizeToken(String token) {
+    final trimmedToken = token.trim();
+    final unquotedToken = _stripWrappingQuotes(trimmedToken);
+    return unquotedToken
+        .replaceFirst(_bearerPrefixRegex, '')
+        .replaceAll(_allWhitespaceRegex, '');
+  }
+
+  String _stripWrappingQuotes(String value) {
+    if (value.length >= 2) {
+      final first = value[0];
+      final last = value[value.length - 1];
+      if ((first == '"' && last == '"') ||
+          (first == '\'' && last == '\'')) {
+        return value.substring(1, value.length - 1);
+      }
+    }
+    return value;
   }
 }
 

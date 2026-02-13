@@ -7,6 +7,7 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/pro_context_menu.dart';
+import 'bundle_vibe_card.dart';
 
 /// Vibe 库条目卡片组件（支持右键菜单和长按）
 class VibeLibraryEntryCard extends StatefulWidget {
@@ -47,6 +48,9 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
     with AutomaticKeepAliveClientMixin {
   Timer? _longPressTimer;
 
+  /// Bundle 展开状态
+  bool _isBundleExpanded = false;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -58,65 +62,41 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
 
   /// 显示上下文菜单
   void _showContextMenu([Offset? position]) {
-    final menuPosition = position ?? const Offset(100, 100);
-
     final items = <ProMenuItem>[
       if (widget.onSendToGeneration != null)
         ProMenuItem(
           id: 'send_to_generation',
           label: '发送到生成',
           icon: Icons.send,
-          onTap: () {
-            widget.onSendToGeneration?.call(widget.entry);
-          },
+          onTap: () => widget.onSendToGeneration?.call(widget.entry),
         ),
       if (widget.onExport != null)
         ProMenuItem(
           id: 'export',
           label: '导出',
           icon: Icons.download,
-          onTap: () {
-            widget.onExport?.call(widget.entry);
-          },
+          onTap: () => widget.onExport?.call(widget.entry),
         ),
       if (widget.onEdit != null)
         ProMenuItem(
           id: 'edit',
           label: '编辑',
           icon: Icons.edit,
-          onTap: () {
-            widget.onEdit?.call(widget.entry);
-          },
+          onTap: () => widget.onEdit?.call(widget.entry),
         ),
-      if (widget.onSendToGeneration != null ||
-          widget.onExport != null ||
-          widget.onEdit != null)
+      if (widget.onSendToGeneration != null || widget.onExport != null || widget.onEdit != null)
         const ProMenuItem.divider(),
       ProMenuItem(
         id: 'copy_strength',
         label: '复制 Strength',
         icon: Icons.tune,
-        onTap: () {
-          Clipboard.setData(
-            ClipboardData(text: widget.entry.strength.toStringAsFixed(2)),
-          );
-          if (mounted) {
-            AppToast.success(context, 'Strength 已复制');
-          }
-        },
+        onTap: () => _copyToClipboard('Strength', widget.entry.strength.toStringAsFixed(2)),
       ),
       ProMenuItem(
         id: 'copy_info_extracted',
         label: '复制 Info Extracted',
         icon: Icons.auto_fix_high,
-        onTap: () {
-          Clipboard.setData(
-            ClipboardData(text: widget.entry.infoExtracted.toStringAsFixed(2)),
-          );
-          if (mounted) {
-            AppToast.success(context, 'Info Extracted 已复制');
-          }
-        },
+        onTap: () => _copyToClipboard('Info Extracted', widget.entry.infoExtracted.toStringAsFixed(2)),
       ),
       const ProMenuItem.divider(),
       ProMenuItem(
@@ -124,23 +104,22 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
         label: '删除',
         icon: Icons.delete_outline,
         isDanger: true,
-        onTap: () {
-          if (mounted) {
-            _showDeleteConfirmationDialog();
-          }
-        },
+        onTap: () => _showDeleteConfirmationDialog(),
       ),
     ];
 
     Navigator.of(context).push(
       _ContextMenuRoute(
-        position: menuPosition,
+        position: position ?? const Offset(100, 100),
         items: items,
-        onSelect: (item) {
-          // Item onTap is already called
-        },
+        onSelect: (_) {},
       ),
     );
+  }
+
+  void _copyToClipboard(String label, String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    if (mounted) AppToast.success(context, '$label 已复制');
   }
 
   /// 显示删除确认对话框
@@ -174,22 +153,35 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
     }
   }
 
-  /// 获取缩略图数据
-  Uint8List? get _thumbnailData {
-    if (widget.entry.thumbnail != null &&
-        widget.entry.thumbnail!.isNotEmpty) {
-      return widget.entry.thumbnail;
-    }
-    if (widget.entry.vibeThumbnail != null &&
-        widget.entry.vibeThumbnail!.isNotEmpty) {
-      return widget.entry.vibeThumbnail;
-    }
-    return null;
-  }
+  Uint8List? get _thumbnailData =>
+      widget.entry.thumbnail?.isNotEmpty == true
+          ? widget.entry.thumbnail
+          : widget.entry.vibeThumbnail?.isNotEmpty == true
+              ? widget.entry.vibeThumbnail
+              : null;
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    // 如果是 bundle 条目，使用 BundleVibeCard
+    if (widget.entry.isBundle) {
+      return BundleVibeCard(
+        entry: widget.entry,
+        onExpandToggle: () => setState(() => _isBundleExpanded = !_isBundleExpanded),
+        onUseAll: () => widget.onSendToGeneration?.call(widget.entry),
+        onExportBundle: () => widget.onExport?.call(widget.entry),
+        onUseSingle: (index) {
+          // 处理单个 vibe 使用 - 使用整个 bundle
+          widget.onSendToGeneration?.call(widget.entry);
+        },
+        onExportSingle: (index) {
+          // 处理单个 vibe 导出 - 导出整个 bundle
+          widget.onExport?.call(widget.entry);
+        },
+        isSelected: widget.isSelected,
+      );
+    }
 
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
@@ -459,31 +451,18 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
               offset: const Offset(0, 8),
             ),
           ],
+          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.8), width: 3),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Stack(
             children: [
-              // 缩略图
-              if (thumbnailData != null)
-                Image.memory(
-                  thumbnailData,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                )
-              else
-                Container(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: Center(
-                    child: Icon(
-                      Icons.auto_fix_high,
-                      size: 32,
-                      color: theme.colorScheme.outline,
+              thumbnailData != null
+                  ? Image.memory(thumbnailData, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                  : Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Center(child: Icon(Icons.auto_fix_high, size: 32, color: theme.colorScheme.outline)),
                     ),
-                  ),
-                ),
-              // 名称标签
               Positioned(
                 left: 0,
                 right: 0,
@@ -491,10 +470,7 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.8),
-                      ],
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
@@ -502,25 +478,9 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
                   padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
                   child: Text(
                     widget.entry.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              // 拖拽指示器边框
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: theme.colorScheme.primary.withOpacity(0.8),
-                      width: 3,
-                    ),
                   ),
                 ),
               ),
@@ -542,13 +502,7 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
       children: [
         SizedBox(
           width: 36,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: 9,
-            ),
-          ),
+          child: Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9)),
         ),
         Expanded(
           child: ClipRRect(
@@ -562,41 +516,33 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          '${(value * 100).toInt()}%',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 9,
-          ),
-        ),
+        Text('${(value * 100).toInt()}%', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 9)),
       ],
     );
   }
 }
 
-/// 图片加载占位符（带 shimmer 效果）
+/// 图片加载占位符
 class _ImagePlaceholder extends StatelessWidget {
   final double width;
   final double aspectRatio;
 
-  const _ImagePlaceholder({
-    required this.width,
-    required this.aspectRatio,
-  });
+  const _ImagePlaceholder({required this.width, required this.aspectRatio});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: width,
       height: width / aspectRatio,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Center(
         child: SizedBox(
           width: 24,
           height: 24,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+            color: theme.colorScheme.primary.withOpacity(0.5),
           ),
         ),
       ),
@@ -609,87 +555,32 @@ class _ImageError extends StatelessWidget {
   final double width;
   final double aspectRatio;
 
-  const _ImageError({
-    required this.width,
-    required this.aspectRatio,
-  });
+  const _ImageError({required this.width, required this.aspectRatio});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: width,
       height: width / aspectRatio,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.broken_image,
-            size: 32,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.broken_image, size: 32, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(height: 4),
-          Text(
-            '加载失败',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
+          Text('加载失败', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     );
   }
 }
 
-/// Selection indicator widget
-class _SelectionIndicator extends StatefulWidget {
+/// 选择指示器
+class _SelectionIndicator extends StatelessWidget {
   final bool isSelected;
 
-  const _SelectionIndicator({
-    required this.isSelected,
-  });
-
-  @override
-  State<_SelectionIndicator> createState() => _SelectionIndicatorState();
-}
-
-class _SelectionIndicatorState extends State<_SelectionIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
-    if (widget.isSelected) {
-      _controller.forward();
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _SelectionIndicator oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isSelected != oldWidget.isSelected) {
-      if (widget.isSelected) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  const _SelectionIndicator({required this.isSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -697,49 +588,30 @@ class _SelectionIndicatorState extends State<_SelectionIndicator>
 
     return Stack(
       children: [
-        // Selection Overlay
         AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
-            color: widget.isSelected
-                ? colorScheme.primary.withOpacity(0.15)
-                : Colors.transparent,
+            color: isSelected ? colorScheme.primary.withOpacity(0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        // Checkbox
         Positioned(
           top: 8,
           right: 8,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
+          child: AnimatedScale(
+            scale: isSelected ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutBack,
             child: Container(
               width: 28,
               height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: widget.isSelected
-                    ? colorScheme.primary
-                    : Colors.black.withOpacity(0.5),
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: isSelected ? colorScheme.primary : Colors.black.withOpacity(0.5),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2))],
               ),
-              child: Icon(
-                Icons.check,
-                size: 18,
-                color: widget.isSelected
-                    ? colorScheme.onPrimary
-                    : Colors.transparent,
-              ),
+              child: Icon(Icons.check, size: 18, color: isSelected ? colorScheme.onPrimary : Colors.transparent),
             ),
           ),
         ),
@@ -755,12 +627,7 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool isDanger;
 
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    this.onTap,
-    this.isDanger = false,
-  });
+  const _ActionButton({required this.icon, required this.tooltip, this.onTap, this.isDanger = false});
 
   @override
   Widget build(BuildContext context) {
@@ -779,22 +646,10 @@ class _ActionButton extends StatelessWidget {
             margin: const EdgeInsets.only(left: 4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isDanger
-                  ? colorScheme.error.withOpacity(0.9)
-                  : Colors.white.withOpacity(0.9),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: isDanger ? colorScheme.error.withOpacity(0.9) : Colors.white.withOpacity(0.9),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2))],
             ),
-            child: Icon(
-              icon,
-              size: 16,
-              color: isDanger ? colorScheme.onError : Colors.black87,
-            ),
+            child: Icon(icon, size: 16, color: isDanger ? colorScheme.onError : Colors.black87),
           ),
         ),
       ),
@@ -802,7 +657,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-/// Hover overlay widget with separate state management
+/// 悬浮覆盖层
 class _HoverOverlay extends StatefulWidget {
   final VibeLibraryEntry entry;
   final VoidCallback? onFavoriteToggle;
@@ -836,7 +691,6 @@ class _HoverOverlayState extends State<_HoverOverlay> {
       onExit: (_) => setState(() => _isHovering = false),
       child: Stack(
         children: [
-          // 主体内容
           AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             curve: Curves.easeOut,
@@ -844,21 +698,9 @@ class _HoverOverlayState extends State<_HoverOverlay> {
             transformAlignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: _isHovering
-                  ? Border.all(
-                      color: colorScheme.primary.withOpacity(0.25),
-                      width: 2,
-                    )
-                  : null,
+              border: _isHovering ? Border.all(color: colorScheme.primary.withOpacity(0.25), width: 2) : null,
               boxShadow: _isHovering
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                        spreadRadius: 2,
-                      ),
-                    ]
+                  ? [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 6), spreadRadius: 2)]
                   : null,
             ),
             child: AnimatedOpacity(
@@ -881,44 +723,20 @@ class _HoverOverlayState extends State<_HoverOverlay> {
                   children: [
                     Text(
                       widget.entry.displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(
-                          Icons.tune,
-                          size: 11,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
+                        Icon(Icons.tune, size: 11, color: Colors.white.withOpacity(0.7)),
                         const SizedBox(width: 4),
-                        Text(
-                          'S: ${widget.entry.strength.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 11,
-                          ),
-                        ),
+                        Text('S: ${widget.entry.strength.toStringAsFixed(2)}', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
                         const SizedBox(width: 12),
-                        Icon(
-                          Icons.auto_fix_high,
-                          size: 11,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
+                        Icon(Icons.auto_fix_high, size: 11, color: Colors.white.withOpacity(0.7)),
                         const SizedBox(width: 4),
-                        Text(
-                          'I: ${widget.entry.infoExtracted.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 11,
-                          ),
-                        ),
+                        Text('I: ${widget.entry.infoExtracted.toStringAsFixed(2)}', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
                       ],
                     ),
                     if (widget.entry.tags.isNotEmpty)
@@ -928,25 +746,11 @@ class _HoverOverlayState extends State<_HoverOverlay> {
                           spacing: 4,
                           runSpacing: 4,
                           children: widget.entry.tags.take(3).map((tag) {
-                            final displayTag = tag.length > 12
-                                ? '${tag.substring(0, 12)}...'
-                                : tag;
+                            final displayTag = tag.length > 12 ? '${tag.substring(0, 12)}...' : tag;
                             return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                displayTag,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                              child: Text(displayTag, style: const TextStyle(fontSize: 10, color: Colors.white)),
                             );
                           }).toList(),
                         ),
@@ -956,18 +760,12 @@ class _HoverOverlayState extends State<_HoverOverlay> {
               ),
             ),
           ),
-          // 左上角收藏按钮（悬浮时显示）
           if (_isHovering && widget.onFavoriteToggle != null)
             Positioned(
               top: 8,
               left: 8,
-              child: CardFavoriteButton(
-                isFavorite: widget.entry.isFavorite,
-                onToggle: widget.onFavoriteToggle,
-                size: 18,
-              ),
+              child: CardFavoriteButton(isFavorite: widget.entry.isFavorite, onToggle: widget.onFavoriteToggle, size: 18),
             ),
-          // 右上角操作按钮行（悬浮时显示）
           if (_isHovering)
             Positioned(
               top: 8,
@@ -976,30 +774,13 @@ class _HoverOverlayState extends State<_HoverOverlay> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (widget.onSendToGeneration != null)
-                    _ActionButton(
-                      icon: Icons.send,
-                      tooltip: '发送到生成',
-                      onTap: widget.onSendToGeneration,
-                    ),
+                    _ActionButton(icon: Icons.send, tooltip: '发送到生成', onTap: widget.onSendToGeneration),
                   if (widget.onExport != null)
-                    _ActionButton(
-                      icon: Icons.download,
-                      tooltip: '导出',
-                      onTap: widget.onExport,
-                    ),
+                    _ActionButton(icon: Icons.download, tooltip: '导出', onTap: widget.onExport),
                   if (widget.onEdit != null)
-                    _ActionButton(
-                      icon: Icons.edit,
-                      tooltip: '编辑',
-                      onTap: widget.onEdit,
-                    ),
+                    _ActionButton(icon: Icons.edit, tooltip: '编辑', onTap: widget.onEdit),
                   if (widget.onDelete != null)
-                    _ActionButton(
-                      icon: Icons.delete,
-                      tooltip: '删除',
-                      onTap: widget.onDelete,
-                      isDanger: true,
-                    ),
+                    _ActionButton(icon: Icons.delete, tooltip: '删除', onTap: widget.onDelete, isDanger: true),
                 ],
               ),
             ),

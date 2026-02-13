@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../../../core/enums/precise_ref_type.dart';
+import '../../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_api_utils.dart';
 import '../../../../data/models/image/image_params.dart';
@@ -13,9 +14,11 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/common/collapsible_image_panel.dart';
 
 /// Precise Reference 面板 - 支持多参考、类型选择、独立参数控制
 ///
+
 /// 功能特性：
 /// - 支持添加多个参考图（类似 Vibe Transfer）
 /// - 每个参考可独立设置：类型、强度、保真度
@@ -45,223 +48,139 @@ class _PreciseReferencePanelState
     // 判断是否显示背景（折叠且有数据时显示）
     final showBackground = hasReferences && !_isExpanded;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // 背景图片层
-          if (showBackground)
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 背景图 - 多张时横向并列
-                  if (references.length == 1)
-                    Image.memory(
-                      references.first.image,
-                      fit: BoxFit.cover,
-                    )
-                  else
-                    Row(
-                      children: references.map((ref) {
-                        return Expanded(
-                          child: Image.memory(ref.image, fit: BoxFit.cover),
-                        );
-                      }).toList(),
+    return CollapsibleImagePanel(
+      title: context.l10n.preciseRef_title,
+      icon: Icons.person_pin,
+      isExpanded: _isExpanded,
+      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      hasData: hasReferences,
+      backgroundImage: hasReferences
+          ? (references.length == 1
+              ? Image.memory(
+                  references.first.image,
+                  fit: BoxFit.cover,
+                )
+              : Row(
+                  children: references.map((ref) {
+                    return Expanded(
+                      child: Image.memory(ref.image, fit: BoxFit.cover),
+                    );
+                  }).toList(),
+                ))
+          : null,
+      badge: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 6,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: showBackground
+              ? Colors.white.withOpacity(0.2)
+              : theme.colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          '${references.length}',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: showBackground
+                ? Colors.white
+                : theme.colorScheme.onSecondaryContainer,
+            fontSize: 10,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ThemedDivider(),
+
+            // 非 V4 模型提示
+            if (!isV4Model) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 16,
+                      color: theme.colorScheme.error,
                     ),
-                  // 暗化遮罩
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.black.withOpacity(0.75),
-                        ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        context.l10n.preciseRef_v4Only,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // 说明文字
+            Text(
+              context.l10n.preciseRef_description,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
-          // 内容层
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题栏
-              InkWell(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.person_pin,
-                        size: 20,
-                        color: showBackground
-                            ? Colors.white
-                            : hasReferences
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          context.l10n.preciseRef_title,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: showBackground
-                                ? Colors.white
-                                : hasReferences
-                                    ? theme.colorScheme.primary
-                                    : null,
-                          ),
-                        ),
-                      ),
-                      // 数量标志（有数据时显示）
-                      if (hasReferences) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: showBackground
-                                ? Colors.white.withOpacity(0.2)
-                                : theme.colorScheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${references.length}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: showBackground
-                                  ? Colors.white
-                                  : theme.colorScheme.onSecondaryContainer,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        size: 20,
-                        color: showBackground ? Colors.white : null,
-                      ),
-                    ],
-                  ),
+            const SizedBox(height: 12),
+
+            // 参考类型选择（SegmentedButton）
+            _buildTypeSelector(context, theme),
+            const SizedBox(height: 12),
+
+            // 参考列表
+            if (hasReferences) ...[
+              ...List.generate(references.length, (index) {
+                return _PreciseReferenceCard(
+                  index: index,
+                  reference: references[index],
+                  onRemove: () => _removeReference(index),
+                  onTypeChanged: (type) => _updateReferenceType(index, type),
+                  onStrengthChanged: (value) =>
+                      _updateReferenceStrength(index, value),
+                  onFidelityChanged: (value) =>
+                      _updateReferenceFidelity(index, value),
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+
+            // 添加按钮
+            OutlinedButton.icon(
+              onPressed: isV4Model ? _addReference : null,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(context.l10n.preciseRef_addReference),
+            ),
+
+            // 清除全部按钮
+            if (hasReferences) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: _clearAllReferences,
+                icon: const Icon(Icons.clear_all, size: 18),
+                label: Text(context.l10n.preciseRef_clearAll),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
                 ),
-              ),
-
-              // 展开内容
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 200),
-                crossFadeState: _isExpanded
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                firstChild: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const ThemedDivider(),
-
-                      // 非 V4 模型提示
-                      if (!isV4Model) ...[
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.errorContainer
-                                .withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                size: 16,
-                                color: theme.colorScheme.error,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  context.l10n.preciseRef_v4Only,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.error,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // 说明文字
-                      Text(
-                        context.l10n.preciseRef_description,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // 参考类型选择（SegmentedButton）
-                      _buildTypeSelector(context, theme),
-                      const SizedBox(height: 12),
-
-                      // 参考列表
-                      if (hasReferences) ...[
-                        ...List.generate(references.length, (index) {
-                          return _PreciseReferenceCard(
-                            index: index,
-                            reference: references[index],
-                            onRemove: () => _removeReference(index),
-                            onTypeChanged: (type) =>
-                                _updateReferenceType(index, type),
-                            onStrengthChanged: (value) =>
-                                _updateReferenceStrength(index, value),
-                            onFidelityChanged: (value) =>
-                                _updateReferenceFidelity(index, value),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                      ],
-
-                      // 添加按钮
-                      OutlinedButton.icon(
-                        onPressed: isV4Model ? _addReference : null,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: Text(context.l10n.preciseRef_addReference),
-                      ),
-
-                      // 清除全部按钮
-                      if (hasReferences) ...[
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: _clearAllReferences,
-                          icon: const Icon(Icons.clear_all, size: 18),
-                          label: Text(context.l10n.preciseRef_clearAll),
-                          style: TextButton.styleFrom(
-                            foregroundColor: theme.colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                secondChild: const SizedBox.shrink(),
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
 
   /// 构建类型选择器（DropdownButton）
   Widget _buildTypeSelector(BuildContext context, ThemeData theme) {
@@ -283,18 +202,25 @@ class _PreciseReferencePanelState
           vertical: 12,
         ),
       ),
-      items: PreciseRefType.values.map((type) {
+          items: PreciseRefType.values.map((type) {
         return DropdownMenuItem<PreciseRefType>(
           value: type,
           child: Row(
             children: [
               Icon(
-                _getTypeIcon(type),
+                type.icon,
                 size: 18,
                 color: theme.colorScheme.onSurface.withOpacity(0.7),
               ),
               const SizedBox(width: 8),
-              Text(_getTypeDisplayName(context, type)),
+              Text(
+                type.getDisplayName(
+                  character: context.l10n.preciseRef_typeCharacter,
+                  style: context.l10n.preciseRef_typeStyle,
+                  characterAndStyle:
+                      context.l10n.preciseRef_typeCharacterAndStyle,
+                ),
+              ),
             ],
           ),
         );
@@ -309,25 +235,6 @@ class _PreciseReferencePanelState
             }
           : null,
     );
-  }
-
-  /// 获取类型显示名称
-  String _getTypeDisplayName(BuildContext context, PreciseRefType type) {
-    return switch (type) {
-      PreciseRefType.character => context.l10n.preciseRef_typeCharacter,
-      PreciseRefType.style => context.l10n.preciseRef_typeStyle,
-      PreciseRefType.characterAndStyle =>
-        context.l10n.preciseRef_typeCharacterAndStyle,
-    };
-  }
-
-  /// 获取类型图标
-  IconData _getTypeIcon(PreciseRefType type) {
-    return switch (type) {
-      PreciseRefType.character => Icons.person,
-      PreciseRefType.style => Icons.palette,
-      PreciseRefType.characterAndStyle => Icons.auto_awesome,
-    };
   }
 
   Future<void> _addReference() async {
@@ -548,7 +455,11 @@ class _PreciseReferenceCard extends StatelessWidget {
         return DropdownMenuItem<PreciseRefType>(
           value: type,
           child: Text(
-            _getTypeDisplayName(context, type),
+            type.getDisplayName(
+              character: context.l10n.preciseRef_typeCharacter,
+              style: context.l10n.preciseRef_typeStyle,
+              characterAndStyle: context.l10n.preciseRef_typeCharacterAndStyle,
+            ),
             style: theme.textTheme.bodySmall,
           ),
         );
@@ -559,15 +470,6 @@ class _PreciseReferenceCard extends StatelessWidget {
         }
       },
     );
-  }
-
-  String _getTypeDisplayName(BuildContext context, PreciseRefType type) {
-    return switch (type) {
-      PreciseRefType.character => context.l10n.preciseRef_typeCharacter,
-      PreciseRefType.style => context.l10n.preciseRef_typeStyle,
-      PreciseRefType.characterAndStyle =>
-        context.l10n.preciseRef_typeCharacterAndStyle,
-    };
   }
 
   Widget _buildSliderRow(

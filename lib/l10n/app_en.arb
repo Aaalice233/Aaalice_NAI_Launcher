@@ -1,8 +1,8 @@
 {
   "@@locale": "en",
 
-  "appTitle": "NAI Launcher",
-  "appSubtitle": "NovelAI Third-party Client",
+  "app_title": "NAI Launcher",
+  "app_subtitle": "NovelAI Third-party Client",
 
   "common_cancel": "Cancel",
   "common_confirm": "Confirm",
@@ -3463,6 +3463,16 @@
     "placeholders": {
       "cost": {"type": "int"}
     }
-  }
+  },
+
+  "vibe_export_include_thumbnails": "Include Thumbnails",
+  "vibe_export_include_thumbnails_subtitle": "Include thumbnail preview in export file",
+  "vibe_import_skip": "Skip",
+  "vibe_import_confirm": "Confirm",
+  "shortcuts_customize": "Customize Shortcuts",
+  "gallery_send_to": "Send To",
+  "image_editor_select_tool": "Select Tool",
+  "selection_clear_selection": "Clear Selection",
+  "selection_invert_selection": "Invert Selection"
 
 }

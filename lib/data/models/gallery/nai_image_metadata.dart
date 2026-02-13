@@ -224,11 +224,8 @@ class NaiImageMetadata with _$NaiImageMetadata {
         .replaceAll('k_', '')
         .replaceAll('_', ' ')
         .split(' ')
-        .map(
-          (word) => word.isNotEmpty
-              ? '${word[0].toUpperCase()}${word.substring(1)}'
-              : '',
-        )
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
 }

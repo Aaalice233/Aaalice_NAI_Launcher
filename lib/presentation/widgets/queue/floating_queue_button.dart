@@ -137,68 +137,33 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
   Widget build(BuildContext context) {
     if (!_isInitialized) return const SizedBox.shrink();
 
-    // 安全获取状态
-    FloatingButtonPositionState positionState =
-        const FloatingButtonPositionState();
-    ReplicationQueueState queueState = const ReplicationQueueState();
-    QueueExecutionState executionState = const QueueExecutionState();
+    final positionState = _watchState(
+      floatingButtonPositionNotifierProvider,
+      const FloatingButtonPositionState(),
+    );
+    final queueState = _watchState(
+      replicationQueueNotifierProvider,
+      const ReplicationQueueState(),
+    );
+    // queueState 不会为 null，因为 _watchState 返回默认值
 
-    try {
-      positionState = ref.watch(floatingButtonPositionNotifierProvider);
-    } catch (e) {
-      // Provider 未初始化
-    }
-
-    try {
-      queueState = ref.watch(replicationQueueNotifierProvider);
-    } catch (e) {
-      return const SizedBox.shrink();
-    }
-
-    try {
-      executionState = ref.watch(queueExecutionNotifierProvider);
-    } catch (e) {
-      // 使用默认执行状态
-    }
-
-    // 检查是否被用户手动关闭
+    final executionState = _watchState(
+      queueExecutionNotifierProvider,
+      const QueueExecutionState(),
+    );
     final isManuallyClosed = ref.watch(floatingButtonClosedProvider);
 
-    // 队列为空且未在执行时不显示，或者被用户手动关闭
-    final shouldHide = isManuallyClosed ||
-        (queueState.isEmpty &&
-            queueState.failedTasks.isEmpty &&
-            executionState.isIdle &&
-            !executionState.hasFailedTasks);
-
-    if (shouldHide) {
+    if (_shouldHide(queueState, executionState, isManuallyClosed)) {
       _stopAnimations();
       return const SizedBox.shrink();
     }
 
-    // 根据状态控制动画
     _updateAnimations(executionState);
 
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final containerSize = widget.containerSize ?? MediaQuery.of(context).size;
-
-    // 计算位置
-    double x, y;
-    if (_isDragging) {
-      x = _dragOffset.dx;
-      y = _dragOffset.dy;
-    } else if (!positionState.isInitialized ||
-        (positionState.x == 0 && positionState.y == 0)) {
-      x = containerSize.width - _totalSize - 12;
-      y = containerSize.height - _totalSize - 120;
-    } else {
-      x = positionState.x.clamp(0, containerSize.width - _totalSize);
-      y = positionState.y.clamp(0, containerSize.height - _totalSize);
-    }
-
-    final tooltipMessage =
-        _buildTooltipMessage(l10n, queueState, executionState, theme);
+    final (x, y) = _calculatePosition(positionState, containerSize);
 
     return Positioned(
       left: x,
@@ -208,20 +173,10 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
         onEnter: (_) => _onHoverEnter(),
         onExit: (_) => _onHoverExit(),
         child: Tooltip(
-          richMessage: tooltipMessage,
+          richMessage: _buildTooltipMessage(l10n, queueState, executionState, theme),
           preferBelow: false,
           verticalOffset: _ballSize / 2 + 12,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.inverseSurface.withOpacity(0.92),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+          decoration: _tooltipDecoration(theme),
           waitDuration: const Duration(milliseconds: 400),
           child: GestureDetector(
             onPanStart: _onPanStart,
@@ -237,27 +192,82 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
                 _hoverAnimation,
                 _rotationAnimation,
               ]),
-              builder: (context, child) {
-                final glowIntensity = executionState.isRunning
-                    ? _glowAnimation.value
-                    : (_isHovering ? 0.8 : 0.4);
-                final scale = _hoverAnimation.value;
-
-                return Transform.scale(
-                  scale: scale,
-                  child: _buildFloatingButton(
-                    context: context,
-                    theme: theme,
-                    queueState: queueState,
-                    executionState: executionState,
-                    glowIntensity: glowIntensity,
-                  ),
-                );
-              },
+              builder: (context, child) => Transform.scale(
+                scale: _hoverAnimation.value,
+                child: _buildFloatingButton(
+                  context: context,
+                  theme: theme,
+                  queueState: queueState,
+                  executionState: executionState,
+                  glowIntensity: executionState.isRunning
+                      ? _glowAnimation.value
+                      : (_isHovering ? 0.8 : 0.4),
+                ),
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// 安全地 watch provider 状态
+  T _watchState<T>(ProviderListenable<T> provider, T defaultValue) {
+    try {
+      return ref.watch(provider);
+    } catch (e) {
+      return defaultValue;
+    }
+  }
+
+  /// 判断是否隐藏悬浮球
+  bool _shouldHide(
+    ReplicationQueueState queueState,
+    QueueExecutionState executionState,
+    bool isManuallyClosed,
+  ) {
+    return isManuallyClosed ||
+        (queueState.isEmpty &&
+            queueState.failedTasks.isEmpty &&
+            executionState.isIdle &&
+            !executionState.hasFailedTasks);
+  }
+
+  /// 计算悬浮球位置
+  (double x, double y) _calculatePosition(
+    FloatingButtonPositionState positionState,
+    Size containerSize,
+  ) {
+    if (_isDragging) {
+      return (_dragOffset.dx, _dragOffset.dy);
+    }
+
+    if (!positionState.isInitialized ||
+        (positionState.x == 0 && positionState.y == 0)) {
+      return (
+        containerSize.width - _totalSize - 12,
+        containerSize.height - _totalSize - 120,
+      );
+    }
+
+    return (
+      positionState.x.clamp(0, containerSize.width - _totalSize),
+      positionState.y.clamp(0, containerSize.height - _totalSize),
+    );
+  }
+
+  /// Tooltip 装饰
+  BoxDecoration _tooltipDecoration(ThemeData theme) {
+    return BoxDecoration(
+      color: theme.colorScheme.inverseSurface.withOpacity(0.92),
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.2),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 

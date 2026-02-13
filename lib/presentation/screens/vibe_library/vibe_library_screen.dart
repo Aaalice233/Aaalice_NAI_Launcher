@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/services/vibe_import_service.dart';
+import '../../../data/services/vibe_library_storage_service.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../providers/vibe_library_category_provider.dart';
@@ -27,9 +29,41 @@ import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/common/pro_context_menu.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import 'widgets/vibe_card_3d.dart';
+import 'widgets/vibe_bundle_import_dialog.dart' as bundle_import_dialog;
 import 'widgets/vibe_detail_viewer.dart';
 import 'widgets/vibe_export_dialog.dart';
 import 'widgets/vibe_export_dialog_v2.dart';
+import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
+
+class ImportProgress {
+  final int current;
+  final int total;
+  final String message;
+
+  const ImportProgress({
+    this.current = 0,
+    this.total = 0,
+    this.message = '',
+  });
+
+  double? get progress => total > 0 ? current / total : null;
+
+  bool get isActive => total > 0;
+
+  bool get isComplete => total > 0 && current >= total;
+
+  ImportProgress copyWith({
+    int? current,
+    int? total,
+    String? message,
+  }) {
+    return ImportProgress(
+      current: current ?? this.current,
+      total: total ?? this.total,
+      message: message ?? this.message,
+    );
+  }
+}
 
 /// Vibe库屏幕
 /// Vibe Library Screen
@@ -55,6 +89,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 是否正在打开文件选择器
   bool _isPickingFile = false;
+
+  /// 导入进度信息
+  ImportProgress _importProgress = const ImportProgress();
 
   @override
   void initState() {
@@ -122,7 +159,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             hitTestBehavior: HitTestBehavior.opaque,
             onDropOver: (event) {
               // 检查是否包含文件
-              if (event.session.allowedOperations.contains(DropOperation.copy)) {
+              if (event.session.allowedOperations
+                  .contains(DropOperation.copy)) {
                 if (!_isDragging) {
                   setState(() => _isDragging = true);
                 }
@@ -140,192 +178,204 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
               await _handleDrop(event);
             },
             child: Stack(
-          children: [
-            Row(
               children: [
-                // 左侧分类面板
-                if (_showCategoryPanel && screenWidth > 800)
-                  Container(
-                    width: 250,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerLow,
-                      border: Border(
-                        right: BorderSide(
-                          color:
-                              theme.colorScheme.outlineVariant.withOpacity(0.3),
-                          width: 1,
+                Row(
+                  children: [
+                    // 左侧分类面板
+                    if (_showCategoryPanel && screenWidth > 800)
+                      Container(
+                        width: 250,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          border: Border(
+                            right: BorderSide(
+                              color: theme.colorScheme.outlineVariant
+                                  .withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // 顶部标题栏
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              constraints: const BoxConstraints(minHeight: 62),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.folder_outlined,
+                                    size: 20,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '分类',
+                                      style:
+                                          theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  FilledButton.tonalIcon(
+                                    onPressed: () =>
+                                        _showCreateCategoryDialog(context),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text(
+                                      '新建',
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Divider(
+                              height: 1,
+                              color: theme.colorScheme.outlineVariant
+                                  .withOpacity(0.3),
+                            ),
+                            // 分类树
+                            Expanded(
+                              child: _VibeCategoryTreeView(
+                                categories: categoryState.categories,
+                                totalEntryCount: state.entries.length,
+                                favoriteCount: state.favoriteCount,
+                                selectedCategoryId:
+                                    categoryState.selectedCategoryId,
+                                onCategorySelected: (id) {
+                                  ref
+                                      .read(
+                                        vibeLibraryCategoryNotifierProvider
+                                            .notifier,
+                                      )
+                                      .selectCategory(id);
+                                  if (id == 'favorites') {
+                                    ref
+                                        .read(
+                                          vibeLibraryNotifierProvider.notifier,
+                                        )
+                                        .setFavoritesOnly(true);
+                                  } else {
+                                    // 切换到其他分类时，清除收藏过滤状态
+                                    ref
+                                        .read(
+                                          vibeLibraryNotifierProvider.notifier,
+                                        )
+                                        .setFavoritesOnly(false);
+                                    ref
+                                        .read(
+                                          vibeLibraryNotifierProvider.notifier,
+                                        )
+                                        .setCategoryFilter(id);
+                                  }
+                                },
+                                onCategoryRename: (id, newName) async {
+                                  await ref
+                                      .read(
+                                        vibeLibraryCategoryNotifierProvider
+                                            .notifier,
+                                      )
+                                      .renameCategory(id, newName);
+                                },
+                                onCategoryDelete: (id) async {
+                                  final confirmed =
+                                      await ThemedConfirmDialog.show(
+                                    context: context,
+                                    title: '确认删除',
+                                    content: '确定要删除此分类吗？分类下的Vibe将被移动到未分类。',
+                                    confirmText: '删除',
+                                    cancelText: '取消',
+                                    type: ThemedConfirmDialogType.danger,
+                                    icon: Icons.delete_outline,
+                                  );
+                                  if (confirmed) {
+                                    await ref
+                                        .read(
+                                          vibeLibraryCategoryNotifierProvider
+                                              .notifier,
+                                        )
+                                        .deleteCategory(
+                                          id,
+                                          moveEntriesToParent: true,
+                                        );
+                                  }
+                                },
+                                onAddSubCategory: (parentId) async {
+                                  final name = await ThemedInputDialog.show(
+                                    context: context,
+                                    title: parentId == null ? '新建分类' : '新建子分类',
+                                    hintText: '请输入分类名称',
+                                    confirmText: '创建',
+                                    cancelText: '取消',
+                                  );
+                                  if (name != null && name.isNotEmpty) {
+                                    await ref
+                                        .read(
+                                          vibeLibraryCategoryNotifierProvider
+                                              .notifier,
+                                        )
+                                        .createCategory(
+                                          name,
+                                          parentId: parentId,
+                                        );
+                                  }
+                                },
+                                onCategoryMove:
+                                    (categoryId, newParentId) async {
+                                  await ref
+                                      .read(
+                                        vibeLibraryCategoryNotifierProvider
+                                            .notifier,
+                                      )
+                                      .moveCategory(categoryId, newParentId);
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    child: Column(
-                      children: [
-                        // 顶部标题栏
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                    // 右侧主内容
+                    Expanded(
+                      child: Column(
+                        children: [
+                          // 工具栏
+                          _buildToolbar(state, selectionState, theme),
+                          // 主体内容
+                          Expanded(
+                            child: _buildBody(
+                              state,
+                              columns,
+                              itemWidth,
+                              selectionState,
+                            ),
                           ),
-                          constraints: const BoxConstraints(minHeight: 62),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.folder_outlined,
-                                size: 20,
-                                color: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '分类',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              FilledButton.tonalIcon(
-                                onPressed: () =>
-                                    _showCreateCategoryDialog(context),
-                                icon: const Icon(Icons.add, size: 18),
-                                label: const Text(
-                                  '新建',
-                                  style: TextStyle(fontSize: 13),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          color:
-                              theme.colorScheme.outlineVariant.withOpacity(0.3),
-                        ),
-                        // 分类树
-                        Expanded(
-                          child: _VibeCategoryTreeView(
-                            categories: categoryState.categories,
-                            totalEntryCount: state.entries.length,
-                            favoriteCount: state.favoriteCount,
-                            selectedCategoryId:
-                                categoryState.selectedCategoryId,
-                            onCategorySelected: (id) {
-                              ref
-                                  .read(
-                                    vibeLibraryCategoryNotifierProvider
-                                        .notifier,
-                                  )
-                                  .selectCategory(id);
-                              if (id == 'favorites') {
-                                ref
-                                    .read(vibeLibraryNotifierProvider.notifier)
-                                    .setFavoritesOnly(true);
-                              } else {
-                                // 切换到其他分类时，清除收藏过滤状态
-                                ref
-                                    .read(vibeLibraryNotifierProvider.notifier)
-                                    .setFavoritesOnly(false);
-                                ref
-                                    .read(vibeLibraryNotifierProvider.notifier)
-                                    .setCategoryFilter(id);
-                              }
-                            },
-                            onCategoryRename: (id, newName) async {
-                              await ref
-                                  .read(
-                                    vibeLibraryCategoryNotifierProvider
-                                        .notifier,
-                                  )
-                                  .renameCategory(id, newName);
-                            },
-                            onCategoryDelete: (id) async {
-                              final confirmed = await ThemedConfirmDialog.show(
-                                context: context,
-                                title: '确认删除',
-                                content: '确定要删除此分类吗？分类下的Vibe将被移动到未分类。',
-                                confirmText: '删除',
-                                cancelText: '取消',
-                                type: ThemedConfirmDialogType.danger,
-                                icon: Icons.delete_outline,
-                              );
-                              if (confirmed) {
-                                await ref
-                                    .read(
-                                      vibeLibraryCategoryNotifierProvider
-                                          .notifier,
-                                    )
-                                    .deleteCategory(
-                                      id,
-                                      moveEntriesToParent: true,
-                                    );
-                              }
-                            },
-                            onAddSubCategory: (parentId) async {
-                              final name = await ThemedInputDialog.show(
-                                context: context,
-                                title: parentId == null ? '新建分类' : '新建子分类',
-                                hintText: '请输入分类名称',
-                                confirmText: '创建',
-                                cancelText: '取消',
-                              );
-                              if (name != null && name.isNotEmpty) {
-                                await ref
-                                    .read(
-                                      vibeLibraryCategoryNotifierProvider
-                                          .notifier,
-                                    )
-                                    .createCategory(name, parentId: parentId);
-                              }
-                            },
-                            onCategoryMove: (categoryId, newParentId) async {
-                              await ref
-                                  .read(
-                                    vibeLibraryCategoryNotifierProvider
-                                        .notifier,
-                                  )
-                                  .moveCategory(categoryId, newParentId);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // 右侧主内容
-                Expanded(
-                  child: Column(
-                    children: [
-                      // 工具栏
-                      _buildToolbar(state, selectionState, theme),
-                      // 主体内容
-                      Expanded(
-                        child: _buildBody(
-                          state,
-                          columns,
-                          itemWidth,
-                          selectionState,
-                        ),
+                          // 底部分页条
+                          if (!state.isLoading &&
+                              state.filteredEntries.isNotEmpty &&
+                              state.totalPages > 0)
+                            _buildPaginationBar(state, contentWidth),
+                        ],
                       ),
-                      // 底部分页条
-                      if (!state.isLoading &&
-                          state.filteredEntries.isNotEmpty &&
-                          state.totalPages > 0)
-                        _buildPaginationBar(state, contentWidth),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                // 拖拽覆盖层
+                if (_isDragging) _buildDropOverlay(theme),
+                // 导入进度覆盖层
+                if (_isImporting) _buildImportOverlay(theme),
               ],
             ),
-            // 拖拽覆盖层
-            if (_isDragging) _buildDropOverlay(theme),
-            // 导入进度覆盖层
-            if (_isImporting) _buildImportOverlay(theme),
-          ],
-        ),
-      ),
+          ),
         ),
       ),
     );
@@ -443,7 +493,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                   label: '导入',
                   tooltip: '导入.naiv4vibe或.naiv4vibebundle文件（右键查看更多选项）',
                   isLoading: _isPickingFile,
-                  onPressed: (_isImporting || _isPickingFile) ? null : () => _importVibes(),
+                  onPressed: (_isImporting || _isPickingFile)
+                      ? null
+                      : () => _importVibes(),
                 ),
               ),
               const SizedBox(width: 6),
@@ -915,25 +967,24 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       ),
     );
 
-    if (selectedCategory != null || mounted) {
-      final categoryId = selectedCategory?.id;
-      final ids = selectionState.selectedIds.toList();
+    if (selectedCategory == null || !mounted) return;
 
-      var movedCount = 0;
-      for (final id in ids) {
-        final result = await ref
-            .read(vibeLibraryNotifierProvider.notifier)
-            .updateEntryCategory(id, categoryId);
-        if (result != null) movedCount++;
-      }
+    final categoryId = selectedCategory.id;
+    final ids = selectionState.selectedIds.toList();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已移动 $movedCount 个Vibe')),
-        );
-        ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
-      }
+    var movedCount = 0;
+    for (final id in ids) {
+      final result = await ref
+          .read(vibeLibraryNotifierProvider.notifier)
+          .updateEntryCategory(id, categoryId);
+      if (result != null) movedCount++;
     }
+
+    ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已移动 $movedCount 个Vibe')),
+    );
   }
 
   /// 批量切换收藏
@@ -1099,6 +1150,33 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 导入 Vibe 文件
   Future<void> _importVibes() async {
+    final files = await _pickImportFiles();
+    if (files == null || files.isEmpty) {
+      return;
+    }
+
+    setState(() => _isImporting = true);
+    final (imageFiles, regularFiles) = await _categorizeFiles(files);
+    final currentCategoryId =
+        ref.read(vibeLibraryNotifierProvider).selectedCategoryId;
+    final targetCategoryId =
+        (currentCategoryId != null && currentCategoryId != 'favorites')
+            ? currentCategoryId
+            : null;
+    final result = await _processImportSources(
+      imageItems: imageFiles,
+      vibeFiles: regularFiles,
+      targetCategoryId: targetCategoryId,
+      onProgress: (current, total, message) {
+        AppLogger.d(message, 'VibeLibrary');
+      },
+    );
+    setState(() => _isImporting = false);
+
+    await _handleImportResult(result.success, result.fail);
+  }
+
+  Future<List<PlatformFile>?> _pickImportFiles() async {
     setState(() => _isPickingFile = true);
 
     final result = await FilePicker.platform.pickFiles(
@@ -1109,35 +1187,18 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     );
 
     setState(() => _isPickingFile = false);
+    return result?.files;
+  }
 
-    if (result == null || result.files.isEmpty) return;
-
-    setState(() => _isImporting = true);
-
-    // 获取当前选中的分类（排除 'favorites' 特殊值）
-    final currentCategoryId =
-        ref.read(vibeLibraryNotifierProvider).selectedCategoryId;
-    final targetCategoryId =
-        (currentCategoryId != null && currentCategoryId != 'favorites')
-            ? currentCategoryId
-            : null;
-
-    // 创建导入服务和仓库
-    final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
-    final repository = _VibeLibraryNotifierImportRepository(
-      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
-      onSaveEntry: notifier.saveEntry,
-    );
-    final importService = VibeImportService(repository: repository);
-
-    // 分类文件：图片文件和普通文件
+  Future<(List<VibeImageImportItem>, List<PlatformFile>)> _categorizeFiles(
+    List<PlatformFile> files,
+  ) async {
     final imageFiles = <VibeImageImportItem>[];
     final regularFiles = <PlatformFile>[];
 
-    for (final file in result.files) {
+    for (final file in files) {
       final ext = file.extension?.toLowerCase() ?? '';
       if (ext == 'png') {
-        // 读取图片文件字节
         try {
           final bytes = await _readPlatformFileBytes(file);
           imageFiles.add(
@@ -1154,64 +1215,142 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       }
     }
 
+    return (imageFiles, regularFiles);
+  }
+
+  Future<({int success, int fail})> _processImportSources({
+    required List<VibeImageImportItem> imageItems,
+    required List<PlatformFile> vibeFiles,
+    String? targetCategoryId,
+    required ImportProgressCallback onProgress,
+  }) async {
+    final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+    final repository = _VibeLibraryNotifierImportRepository(
+      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
+      onSaveEntry: notifier.saveEntry,
+    );
+    final importService = VibeImportService(repository: repository);
+
     var totalSuccess = 0;
     var totalFail = 0;
-    final allErrors = <ImportError>[];
+    final totalCount = imageItems.length + vibeFiles.length;
 
-    // 导入图片文件
-    if (imageFiles.isNotEmpty) {
+    if (imageItems.isNotEmpty) {
       try {
         final result = await importService.importFromImage(
-          images: imageFiles,
+          images: imageItems,
           categoryId: targetCategoryId,
-          onProgress: (current, total, message) {
-            AppLogger.d(message, 'VibeLibrary');
+          onProgress: (current, _, message) {
+            onProgress(current, totalCount, message);
           },
         );
         totalSuccess += result.successCount;
         totalFail += result.failCount + result.errors.length;
-        allErrors.addAll(result.errors);
       } catch (e, stackTrace) {
         AppLogger.e('导入图片 Vibe 失败', e, stackTrace, 'VibeLibrary');
-        totalFail += imageFiles.length;
+        totalFail += imageItems.length;
       }
     }
 
-    // 导入普通文件
-    if (regularFiles.isNotEmpty) {
+    if (vibeFiles.isNotEmpty) {
       try {
+        var applyNamingToAll = false;
+        String? batchNamingBase;
         final result = await importService.importFromFile(
-          files: regularFiles,
+          files: vibeFiles,
           categoryId: targetCategoryId,
-          onProgress: (current, total, message) {
-            AppLogger.d(message, 'VibeLibrary');
+          onProgress: (current, _, message) {
+            onProgress(imageItems.length + current, totalCount, message);
+          },
+          onNaming: (
+            suggestedName, {
+            required bool isBatch,
+            Uint8List? thumbnail,
+          }) async {
+            if (!mounted) {
+              return null;
+            }
+
+            if (isBatch && applyNamingToAll && batchNamingBase != null) {
+              return batchNamingBase;
+            }
+
+            final namingResult =
+                await naming_dialog.VibeImportNamingDialog.show(
+              context: context,
+              suggestedName: suggestedName,
+              thumbnail: thumbnail,
+              isBatchImport: isBatch,
+            );
+            if (namingResult == null) {
+              return null;
+            }
+
+            final customName = namingResult.name.trim();
+            if (customName.isEmpty) {
+              return null;
+            }
+
+            if (isBatch && namingResult.applyToAll) {
+              applyNamingToAll = true;
+              batchNamingBase = customName;
+            }
+            return customName;
+          },
+          onBundleOption: (bundleName, vibes) async {
+            if (!mounted) {
+              return null;
+            }
+
+            final bundleResult =
+                await bundle_import_dialog.VibeBundleImportDialog.show(
+              context: context,
+              bundleName: bundleName,
+              vibeNames: vibes.map((vibe) => vibe.displayName).toList(),
+            );
+            if (bundleResult == null) {
+              return null;
+            }
+
+            switch (bundleResult.option) {
+              case bundle_import_dialog.BundleImportOption.keepAsBundle:
+                return const BundleImportOption.keepAsBundle();
+              case bundle_import_dialog.BundleImportOption.split:
+                return const BundleImportOption.split();
+              case bundle_import_dialog.BundleImportOption.importSelected:
+                return BundleImportOption.select(
+                  bundleResult.selectedIndices ?? const <int>[],
+                );
+            }
           },
         );
         totalSuccess += result.successCount;
         totalFail += result.failCount + result.errors.length;
-        allErrors.addAll(result.errors);
       } catch (e, stackTrace) {
         AppLogger.e('导入 Vibe 文件失败', e, stackTrace, 'VibeLibrary');
-        totalFail += regularFiles.length;
+        totalFail += vibeFiles.length;
       }
     }
 
-    setState(() => _isImporting = false);
+    return (success: totalSuccess, fail: totalFail);
+  }
 
-    // 重新加载数据以确保UI显示导入的条目
+  Future<void> _handleImportResult(int totalSuccess, int totalFail) async {
     if (totalSuccess > 0) {
       await ref.read(vibeLibraryNotifierProvider.notifier).reload();
     }
 
-    if (mounted) {
-      if (totalFail == 0) {
-        AppToast.success(context, '成功导入 $totalSuccess 个 Vibe');
-      } else {
-        AppToast.warning(
-          context,
-          '导入完成: $totalSuccess 成功, $totalFail 失败',
-        );
-      }
+    if (!mounted) {
+      return;
+    }
+
+    if (totalFail == 0) {
+      AppToast.success(context, '成功导入 $totalSuccess 个 Vibe');
+    } else {
+      AppToast.warning(
+        context,
+        '导入完成: $totalSuccess 成功, $totalFail 失败',
+      );
     }
   }
 
@@ -1244,11 +1383,38 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     );
   }
 
+  /// 递归扫描文件夹内的 vibe 文件
+  Future<List<String>> _scanVibeFilesInFolder(String folderPath) async {
+    final vibeFiles = <String>[];
+    final dir = Directory(folderPath);
+
+    if (!await dir.exists()) {
+      return vibeFiles;
+    }
+
+    try {
+      await for (final entity
+          in dir.list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          final fileName = p.basename(entity.path);
+          final ext = p.extension(fileName).toLowerCase();
+          if (ext == '.naiv4vibe' || ext == '.naiv4vibebundle') {
+            vibeFiles.add(entity.path);
+          }
+        }
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e('扫描文件夹失败: $folderPath', e, stackTrace, 'VibeLibrary');
+    }
+
+    return vibeFiles;
+  }
+
   /// 处理拖拽文件
-  /// 支持 .naiv4vibe, .naiv4vibebundle, .png 格式
+  /// 支持 .naiv4vibe, .naiv4vibebundle, .png 格式，以及文件夹
   Future<void> _handleDrop(PerformDropEvent event) async {
-    // 收集所有文件路径
-    final filePaths = <String>[];
+    // 收集所有文件/文件夹路径
+    final allPaths = <String>[];
 
     for (final item in event.session.items) {
       final reader = item.dataReader;
@@ -1261,33 +1427,54 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         });
         final uri = await completer.future;
         if (uri != null) {
-          filePaths.add(uri.toFilePath());
+          allPaths.add(uri.toFilePath());
         }
       }
     }
 
-    if (filePaths.isEmpty) return;
+    if (allPaths.isEmpty) return;
 
-    // 分类文件
+    // 分类文件和文件夹
+    final folderPaths = <String>[];
     final imagePaths = <String>[];
     final vibeFilePaths = <String>[];
 
-    for (final path in filePaths) {
-      final fileName = path.split(Platform.pathSeparator).last;
-      final ext = fileName.split('.').last.toLowerCase();
+    for (final path in allPaths) {
+      final entity = FileSystemEntity.typeSync(path, followLinks: false);
 
-      if (ext == 'png') {
-        imagePaths.add(path);
-      } else if (ext == 'naiv4vibe' || ext == 'naiv4vibebundle') {
-        vibeFilePaths.add(path);
+      if (entity == FileSystemEntityType.directory) {
+        folderPaths.add(path);
+      } else if (entity == FileSystemEntityType.file) {
+        final fileName = p.basename(path);
+        final ext = p.extension(fileName).toLowerCase();
+
+        if (ext == '.png') {
+          imagePaths.add(path);
+        } else if (ext == '.naiv4vibe' || ext == '.naiv4vibebundle') {
+          vibeFilePaths.add(path);
+        }
       }
-      // 其他格式静默跳过
+      // 其他类型静默跳过
+    }
+
+    // 递归扫描文件夹
+    if (folderPaths.isNotEmpty) {
+      for (final folderPath in folderPaths) {
+        final scannedFiles = await _scanVibeFilesInFolder(folderPath);
+        vibeFilePaths.addAll(scannedFiles);
+      }
     }
 
     if (imagePaths.isEmpty && vibeFilePaths.isEmpty) return;
 
     // 设置导入状态
-    setState(() => _isImporting = true);
+    setState(() {
+      _isImporting = true;
+      _importProgress = ImportProgress(
+        total: imagePaths.length + vibeFilePaths.length,
+        message: '准备导入...',
+      );
+    });
 
     // 获取当前选中的分类
     final currentCategoryId =
@@ -1297,70 +1484,58 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             ? currentCategoryId
             : null;
 
-    // 创建导入服务和仓库
-    final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
-    final repository = _VibeLibraryNotifierImportRepository(
-      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
-      onSaveEntry: notifier.saveEntry,
-    );
-    final importService = VibeImportService(repository: repository);
-
-    var totalSuccess = 0;
-    var totalFail = 0;
-
-    // 逐个处理图片文件（避免一次性读取所有文件到内存）
+    final imageItems = <VibeImageImportItem>[];
+    var preProcessFail = 0;
     for (final path in imagePaths) {
       try {
-        final file = File(path);
-        final fileName = file.path.split(Platform.pathSeparator).last;
-        final bytes = await file.readAsBytes();
-
-        final result = await importService.importFromImage(
-          images: [
-            VibeImageImportItem(
-              source: fileName,
-              bytes: bytes,
-            ),
-          ],
-          categoryId: targetCategoryId,
+        final bytes = await File(path).readAsBytes();
+        imageItems.add(
+          VibeImageImportItem(
+            source: p.basename(path),
+            bytes: bytes,
+          ),
         );
-
-        totalSuccess += result.successCount;
-        totalFail += result.failCount + result.errors.length;
       } catch (e, stackTrace) {
-        AppLogger.e('导入图片 Vibe 失败: $path', e, stackTrace, 'VibeLibrary');
-        totalFail++;
+        AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
+        preProcessFail++;
       }
     }
 
-    // 逐个处理 vibe 文件
-    for (final path in vibeFilePaths) {
-      try {
-        final file = File(path);
-        final fileName = file.path.split(Platform.pathSeparator).last;
-        final bytes = await file.readAsBytes();
+    final vibeFiles = vibeFilePaths
+        .map(
+          (path) => PlatformFile(
+            name: p.basename(path),
+            size: 0,
+            path: path,
+          ),
+        )
+        .toList();
 
-        final platformFile = PlatformFile(
-          name: fileName,
-          size: bytes.length,
-          bytes: bytes,
-          path: path,
-        );
+    final result = await _processImportSources(
+      imageItems: imageItems,
+      vibeFiles: vibeFiles,
+      targetCategoryId: targetCategoryId,
+      onProgress: (current, total, message) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _importProgress = _importProgress.copyWith(
+            current: current,
+            total: total,
+            message: message,
+          );
+        });
+      },
+    );
 
-        final result = await importService.importFromFile(
-          files: [platformFile],
-          categoryId: targetCategoryId,
-        );
+    final totalSuccess = result.success;
+    final totalFail = result.fail + preProcessFail;
 
-        totalSuccess += result.successCount;
-        totalFail += result.failCount + result.errors.length;
-      } catch (e, stackTrace) {
-        AppLogger.e('导入 Vibe 文件失败: $path', e, stackTrace, 'VibeLibrary');
-        totalFail++;
-      }
-    }
-
-    setState(() => _isImporting = false);
+    setState(() {
+      _isImporting = false;
+      _importProgress = const ImportProgress();
+    });
 
     // 重新加载数据以确保UI显示导入的条目
     if (totalSuccess > 0) {
@@ -1416,7 +1591,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '拖拽 .naiv4vibe/.naiv4vibebundle/.png 文件到此处导入',
+                    '拖拽 .naiv4vibe/.naiv4vibebundle/.png 文件或文件夹到此处导入',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
@@ -1432,11 +1607,15 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 构建导入进度覆盖层
   Widget _buildImportOverlay(ThemeData theme) {
+    final hasProgress = _importProgress.isActive;
+    final progressValue = _importProgress.progress;
+
     return Positioned.fill(
       child: Container(
         color: Colors.black.withOpacity(0.3),
         child: Center(
           child: Container(
+            width: 320,
             padding: const EdgeInsets.symmetric(
               horizontal: 32,
               vertical: 24,
@@ -1459,6 +1638,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                   height: 48,
                   child: CircularProgressIndicator(
                     strokeWidth: 4,
+                    value: progressValue,
                     valueColor: AlwaysStoppedAnimation<Color>(
                       theme.colorScheme.primary,
                     ),
@@ -1469,6 +1649,27 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                   '正在导入...',
                   style: theme.textTheme.titleMedium,
                 ),
+                if (hasProgress) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_importProgress.current} / ${_importProgress.total}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if (_importProgress.message.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _importProgress.message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
             ),
           ),
@@ -1505,7 +1706,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     // 创建导入服务和仓库
     final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
     final repository = _VibeLibraryNotifierImportRepository(
-      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
+      onGetAllEntries: () async =>
+          ref.read(vibeLibraryNotifierProvider).entries,
       onSaveEntry: notifier.saveEntry,
     );
     final importService = VibeImportService(repository: repository);
@@ -1590,7 +1792,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     // 创建导入服务和仓库
     final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
     final repository = _VibeLibraryNotifierImportRepository(
-      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
+      onGetAllEntries: () async =>
+          ref.read(vibeLibraryNotifierProvider).entries,
       onSaveEntry: notifier.saveEntry,
     );
     final importService = VibeImportService(repository: repository);
@@ -2371,7 +2574,9 @@ class _VibeLibraryContentViewState
             _showContextMenu(context, entry, details.globalPosition);
           },
           onFavoriteToggle: () {
-            ref.read(vibeLibraryNotifierProvider.notifier).toggleFavorite(entry.id);
+            ref
+                .read(vibeLibraryNotifierProvider.notifier)
+                .toggleFavorite(entry.id);
           },
           onSendToGeneration: () => _sendEntryToGeneration(context, entry),
           onExport: () => _exportSingleEntry(context, entry),
@@ -2390,13 +2595,21 @@ class _VibeLibraryContentViewState
       heroTag: 'vibe_${entry.id}',
       callbacks: VibeDetailCallbacks(
         onSendToGeneration: (entry, strength, infoExtracted) {
-          _sendEntryToGenerationWithParams(context, entry, strength, infoExtracted);
+          _sendEntryToGenerationWithParams(
+            context,
+            entry,
+            strength,
+            infoExtracted,
+          );
         },
         onExport: (entry) {
           _exportSingleEntry(context, entry);
         },
         onDelete: (entry) {
           _deleteSingleEntry(context, entry);
+        },
+        onRename: (entry, newName) {
+          return _renameSingleEntry(context, entry, newName);
         },
         onParamsChanged: (entry, strength, infoExtracted) {
           _updateEntryParams(context, entry, strength, infoExtracted);
@@ -2436,7 +2649,9 @@ class _VibeLibraryContentViewState
         label: entry.isFavorite ? '取消收藏' : '收藏',
         icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
         onTap: () {
-          ref.read(vibeLibraryNotifierProvider.notifier).toggleFavorite(entry.id);
+          ref
+              .read(vibeLibraryNotifierProvider.notifier)
+              .toggleFavorite(entry.id);
         },
       ),
       ProMenuItem(
@@ -2493,9 +2708,9 @@ class _VibeLibraryContentViewState
     }
 
     final vibeRef = entry.toVibeReference().copyWith(
-      strength: strength,
-      infoExtracted: infoExtracted,
-    );
+          strength: strength,
+          infoExtracted: infoExtracted,
+        );
 
     paramsNotifier.addVibeReferenceV4(vibeRef);
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
@@ -2517,7 +2732,10 @@ class _VibeLibraryContentViewState
   }
 
   /// 删除单个条目
-  Future<void> _deleteSingleEntry(BuildContext context, VibeLibraryEntry entry) async {
+  Future<void> _deleteSingleEntry(
+    BuildContext context,
+    VibeLibraryEntry entry,
+  ) async {
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
       title: '确认删除',
@@ -2529,10 +2747,46 @@ class _VibeLibraryContentViewState
     );
 
     if (confirmed) {
-      await ref.read(vibeLibraryNotifierProvider.notifier).deleteEntries([entry.id]);
+      await ref
+          .read(vibeLibraryNotifierProvider.notifier)
+          .deleteEntries([entry.id]);
       if (context.mounted) {
         AppToast.success(context, '已删除: ${entry.displayName}');
       }
+    }
+  }
+
+  /// 重命名单个条目
+  Future<String?> _renameSingleEntry(
+    BuildContext context,
+    VibeLibraryEntry entry,
+    String newName,
+  ) async {
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) {
+      return '名称不能为空';
+    }
+
+    final result = await ref
+        .read(vibeLibraryNotifierProvider.notifier)
+        .renameEntry(entry.id, trimmedName);
+    if (result.isSuccess) {
+      return null;
+    }
+
+    switch (result.error) {
+      case VibeEntryRenameError.invalidName:
+        return '名称不能为空';
+      case VibeEntryRenameError.nameConflict:
+        return '名称已存在，请使用其他名称';
+      case VibeEntryRenameError.entryNotFound:
+        return '条目不存在，可能已被删除';
+      case VibeEntryRenameError.filePathMissing:
+        return '该条目缺少文件路径，无法重命名';
+      case VibeEntryRenameError.fileRenameFailed:
+        return '重命名文件失败，请稍后重试';
+      case null:
+        return '重命名失败，请稍后重试';
     }
   }
 
@@ -2543,9 +2797,8 @@ class _VibeLibraryContentViewState
     double strength,
     double infoExtracted,
   ) {
-    final updatedEntry = entry
-        .updateStrength(strength)
-        .updateInfoExtracted(infoExtracted);
+    final updatedEntry =
+        entry.updateStrength(strength).updateInfoExtracted(infoExtracted);
 
     ref.read(vibeLibraryNotifierProvider.notifier).saveEntry(updatedEntry);
   }

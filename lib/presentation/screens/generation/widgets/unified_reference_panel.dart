@@ -15,11 +15,84 @@ import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../vibe_library/widgets/vibe_selector_dialog.dart';
+import '../../../widgets/common/collapsible_image_panel.dart';
+
+extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
+
+  List<VibeLibraryEntry> deduplicateByEncodingAndThumbnail({int limit = 5}) {
+    final seenEncodings = <String>{};
+    final seenImageHashes = <String>{};
+    final uniqueEntries = <VibeLibraryEntry>[];
+
+    for (final entry in this) {
+      if (entry.vibeEncoding.isNotEmpty) {
+        if (seenEncodings.contains(entry.vibeEncoding)) {
+          continue;
+        }
+        seenEncodings.add(entry.vibeEncoding);
+        uniqueEntries.add(entry);
+      } else if (entry.hasThumbnail && entry.thumbnail != null) {
+        final hash = _calculateVibeThumbnailHash(entry.thumbnail!);
+        if (seenImageHashes.contains(hash)) {
+          continue;
+        }
+        seenImageHashes.add(hash);
+        uniqueEntries.add(entry);
+      } else {
+        uniqueEntries.add(entry);
+      }
+
+      if (uniqueEntries.length >= limit) {
+        break;
+      }
+    }
+
+    return uniqueEntries;
+  }
+
+  VibeLibraryEntry? findMatchingEntry(VibeReferenceV4 vibe) {
+    if (vibe.vibeEncoding.isNotEmpty) {
+      for (final entry in this) {
+        if (entry.vibeEncoding.isNotEmpty &&
+            entry.vibeEncoding == vibe.vibeEncoding) {
+          return entry;
+        }
+      }
+      return null;
+    }
+
+    if (vibe.thumbnail != null) {
+      final vibeHash = _calculateVibeThumbnailHash(vibe.thumbnail!);
+      for (final entry in this) {
+        if (entry.hasThumbnail && entry.thumbnail != null) {
+          final entryHash = _calculateVibeThumbnailHash(entry.thumbnail!);
+          if (entryHash == vibeHash) {
+            return entry;
+          }
+        }
+      }
+      return null;
+    }
+
+    for (final entry in this) {
+      if (entry.vibeDisplayName == vibe.displayName) {
+        return entry;
+      }
+    }
+
+    return null;
+  }
+}
+
+String _calculateVibeThumbnailHash(Uint8List data) {
+  return sha256.convert(data).toString().substring(0, 16);
+}
 
 /// Vibe Transfer 参考面板 - V4 Vibe Transfer（最多16张、预编码、编码成本显示）
 ///
@@ -41,6 +114,10 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   bool _isExpanded = false;
   bool _isRecentCollapsed = true; // 默认折叠
   List<VibeLibraryEntry> _recentEntries = [];
+
+  /// 跟踪 vibe 的 bundle 来源
+  /// Key: vibe displayName, Value: bundle 名称
+  final Map<String, String> _vibeBundleSources = {};
 
   @override
   void initState() {
@@ -100,37 +177,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     final storageService = ref.read(vibeLibraryStorageServiceProvider);
     try {
       final entries = await storageService.getRecentEntries(limit: 20);
-
-      // 基于内容去重：优先使用 vibeEncoding，其次使用 thumbnail 哈希
-      final seenEncodings = <String>{};
-      final seenImageHashes = <String>{};
-      final uniqueEntries = <VibeLibraryEntry>[];
-
-      for (final entry in entries) {
-        // 使用 vibeEncoding 去重
-        if (entry.vibeEncoding.isNotEmpty) {
-          if (seenEncodings.contains(entry.vibeEncoding)) {
-            continue;
-          }
-          seenEncodings.add(entry.vibeEncoding);
-          uniqueEntries.add(entry);
-        }
-        // 使用 thumbnail 哈希去重
-        else if (entry.hasThumbnail && entry.thumbnail != null) {
-          final hash = _calculateThumbnailHash(entry.thumbnail!);
-          if (seenImageHashes.contains(hash)) {
-            continue;
-          }
-          seenImageHashes.add(hash);
-          uniqueEntries.add(entry);
-        }
-        // 没有编码也没有缩略图的，保留
-        else {
-          uniqueEntries.add(entry);
-        }
-
-        if (uniqueEntries.length >= 5) break;
-      }
+      final uniqueEntries = entries.deduplicateByEncodingAndThumbnail(limit: 5);
 
       if (mounted) {
         setState(() {
@@ -140,11 +187,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     } catch (e, stackTrace) {
       AppLogger.e('Failed to load recent vibes', e, stackTrace);
     }
-  }
-
-  /// 计算缩略图哈希用于去重
-  String _calculateThumbnailHash(Uint8List data) {
-    return sha256.convert(data).toString().substring(0, 16);
   }
 
   @override
@@ -157,136 +199,53 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     // 判断是否显示背景（折叠且有数据时显示）
     final showBackground = hasVibes && !_isExpanded;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // 背景图片层
-          if (showBackground)
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 背景图
-                  _buildBackgroundImage(vibes),
-                  // 暗化遮罩
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.black.withOpacity(0.75),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // 内容层
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题栏
-              InkWell(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.auto_fix_high,
-                        size: 20,
-                        color: showBackground
-                            ? Colors.white
-                            : hasVibes
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          context.l10n.vibe_title,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: showBackground
-                                ? Colors.white
-                                : hasVibes
-                                    ? theme.colorScheme.primary
-                                    : null,
-                          ),
-                        ),
-                      ),
-                      // 数量标志（有数据时显示）
-                      if (hasVibes) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: showBackground
-                                ? Colors.white.withOpacity(0.2)
-                                : theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${params.vibeReferencesV4.length}/16',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: showBackground
-                                  ? Colors.white
-                                  : theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(width: 8),
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        size: 20,
-                        color: showBackground ? Colors.white : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // 展开内容
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 200),
-                crossFadeState: _isExpanded
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                firstChild: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const ThemedDivider(),
-
-                      // Vibe Transfer 内容
-                      _buildVibeContent(
-                        context,
-                        theme,
-                        params,
-                        showBackground,
-                      ),
-                    ],
-                  ),
-                ),
-                secondChild: const SizedBox.shrink(),
-              ),
-            ],
+    return CollapsibleImagePanel(
+      title: context.l10n.vibe_title,
+      icon: Icons.auto_fix_high,
+      isExpanded: _isExpanded,
+      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      hasData: hasVibes,
+      backgroundImage: _buildBackgroundImage(vibes),
+      badge: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: showBackground
+              ? Colors.white.withOpacity(0.2)
+              : theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '${params.vibeReferencesV4.length}/16',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: showBackground
+                ? Colors.white
+                : theme.colorScheme.onPrimaryContainer,
           ),
-        ],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ThemedDivider(),
+
+            // Vibe Transfer 内容
+            _buildVibeContent(
+              context,
+              theme,
+              params,
+              showBackground,
+            ),
+          ],
+        ),
       ),
     );
   }
+
 
   /// 构建背景图片
   Widget _buildBackgroundImage(List<VibeReferenceV4> vibes) {
@@ -764,6 +723,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 // 如果需要提前编码
                 if (encodeNow && mounted) {
                   final encodedVibes = await _encodeVibesNow(vibes);
+                  if (!mounted) continue;
                   if (encodedVibes != null) {
                     vibes = encodedVibes;
                     // 编码成功后自动保存到库
@@ -820,6 +780,14 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
   void _removeVibe(int index) {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final vibes = ref.read(generationParamsNotifierProvider).vibeReferencesV4;
+
+    // 清理 bundle 来源记录
+    if (index < vibes.length) {
+      final vibeName = vibes[index].displayName;
+      _vibeBundleSources.remove(vibeName);
+    }
+
     notifier.removeVibeReferenceV4(index);
     notifier.saveGenerationState();
   }
@@ -844,6 +812,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     notifier.clearVibeReferencesV4();
     notifier.saveGenerationState();
 
+    // 清空 bundle 来源记录
+    _vibeBundleSources.clear();
+
     if (mounted && count > 0) {
       AppToast.success(context, '已删除 $count 个 Vibe');
     }
@@ -856,93 +827,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     VibeLibraryStorageService storageService,
     VibeReferenceV4 vibe,
   ) async {
-    // 获取所有条目
     final allEntries = await storageService.getAllEntries();
-
-    // 如果 vibe 有编码，基于编码查找
-    if (vibe.vibeEncoding.isNotEmpty) {
-      for (final entry in allEntries) {
-        if (entry.vibeEncoding.isNotEmpty &&
-            entry.vibeEncoding == vibe.vibeEncoding) {
-          return entry;
-        }
-      }
-    }
-    // 如果有原始图片数据，基于缩略图哈希查找
-    else if (vibe.thumbnail != null) {
-      final vibeHash = _calculateThumbnailHash(vibe.thumbnail!);
-      for (final entry in allEntries) {
-        if (entry.hasThumbnail && entry.thumbnail != null) {
-          final entryHash = _calculateThumbnailHash(entry.thumbnail!);
-          if (entryHash == vibeHash) {
-            return entry;
-          }
-        }
-      }
-    }
-    // 最后尝试基于名称匹配
-    else {
-      for (final entry in allEntries) {
-        if (entry.vibeDisplayName == vibe.displayName) {
-          return entry;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /// 自动保存 Vibes 到库（无对话框）
-  /// 会检查库中是否已存在相同的 vibe，如果存在则只更新使用记录
-  Future<void> _saveVibesToLibrary(
-    List<VibeReferenceV4> vibes,
-    String baseName,
-  ) async {
-    final storageService = ref.read(vibeLibraryStorageServiceProvider);
-
-    try {
-      var savedCount = 0;
-      var reusedCount = 0;
-
-      for (final vibe in vibes) {
-        // 检查是否已存在相同的 vibe
-        final existingEntry = await _findExistingEntry(storageService, vibe);
-
-        if (existingEntry != null) {
-          // 已存在：更新使用记录
-          await storageService.incrementUsedCount(existingEntry.id);
-          reusedCount++;
-        } else {
-          // 不存在：创建新条目
-          final entry = VibeLibraryEntry.fromVibeReference(
-            name: vibes.length == 1
-                ? baseName
-                : '$baseName - ${vibe.displayName}',
-            vibeData: vibe,
-          );
-          await storageService.saveEntry(entry);
-          savedCount++;
-        }
-      }
-
-      if (mounted) {
-        String message;
-        if (savedCount > 0 && reusedCount > 0) {
-          message = '新增 $savedCount 个，复用 $reusedCount 个';
-        } else if (savedCount > 0) {
-          message = '已自动保存 $savedCount 个到 Vibe 库';
-        } else {
-          message = '库中已存在 $reusedCount 个，已更新使用记录';
-        }
-        AppToast.success(context, message);
-        _loadRecentEntries(); // 刷新最近列表
-      }
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to auto save to library', e, stackTrace);
-      if (mounted) {
-        AppToast.error(context, '自动保存失败: $e');
-      }
-    }
+    return allEntries.findMatchingEntry(vibe);
   }
 
   /// 立即编码 Vibes（调用 API）
@@ -1133,7 +1019,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     ),
                     const SizedBox(height: 24),
                     // Reference Strength 滑条
-                    _buildSaveDialogSlider(
+                    _buildDialogSlider(
                       label: 'Reference Strength',
                       value: strengthValue,
                       onChanged: (value) =>
@@ -1141,7 +1027,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     ),
                     const SizedBox(height: 16),
                     // Information Extracted 滑条
-                    _buildSaveDialogSlider(
+                    _buildDialogSlider(
                       label: 'Information Extracted',
                       value: infoExtractedValue,
                       onChanged: (value) =>
@@ -1234,8 +1120,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     nameController.dispose();
   }
 
-  /// 构建保存对话框的滑条
-  Widget _buildSaveDialogSlider({
+  /// 构建对话框中的滑条
+  Widget _buildDialogSlider({
     required String label,
     required double value,
     required ValueChanged<double> onChanged,
@@ -1285,47 +1171,39 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
       if (result == null || result.selectedEntries.isEmpty) return;
 
-      // 转换为 VibeReferenceV4
-      final newVibes = result.selectedEntries
-          .map((entry) => entry.toVibeReference())
-          .toList();
-
-      // 应用选择
       final notifier = ref.read(generationParamsNotifierProvider.notifier);
+
       if (result.shouldReplace) {
         // 替换模式：清除现有并添加新的
         notifier.clearVibeReferencesV4();
-        notifier.addVibeReferencesV4(newVibes);
-      } else {
-        // 添加模式：只添加新增的（避免重复，按名称去重）
-        final existingNames = ref
-            .read(generationParamsNotifierProvider)
-            .vibeReferencesV4
-            .map((v) => v.displayName)
-            .toSet();
-        final vibesToAdd = newVibes
-            .where((v) => !existingNames.contains(v.displayName))
-            .toList();
-
-        // 检查是否超过限制
-        final currentCount = existingNames.length;
-        final availableSlots = 16 - currentCount;
-        if (vibesToAdd.length > availableSlots) {
-          if (mounted) {
-            AppToast.warning(
-              context,
-              '只能添加 $availableSlots 个，已选择 ${vibesToAdd.length} 个',
-            );
-          }
-          final limitedVibes = vibesToAdd.take(availableSlots).toList();
-          notifier.addVibeReferencesV4(limitedVibes);
-        } else {
-          notifier.addVibeReferencesV4(vibesToAdd);
-        }
       }
 
-      // 更新使用统计
+      // 处理每个选中的条目（支持 bundle 展开）
+      var totalAdded = 0;
       for (final entry in result.selectedEntries) {
+        final currentCount =
+            ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+        if (currentCount >= 16) break;
+
+        if (entry.isBundle) {
+          // 从 bundle 提取 vibes
+          final added = await _extractAndAddBundleVibes(entry);
+          totalAdded += added;
+        } else {
+          // 普通 vibe
+          final existingNames = ref
+              .read(generationParamsNotifierProvider)
+              .vibeReferencesV4
+              .map((v) => v.displayName)
+              .toSet();
+          if (!existingNames.contains(entry.displayName)) {
+            final vibe = entry.toVibeReference();
+            notifier.addVibeReferencesV4([vibe]);
+            totalAdded++;
+          }
+        }
+
+        // 更新使用统计
         await storageService.incrementUsedCount(entry.id);
       }
 
@@ -1335,7 +1213,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       if (mounted) {
         AppToast.success(
           context,
-          '已导入 ${result.selectedEntries.length} 个 Vibe',
+          '已导入 $totalAdded 个 Vibe',
         );
       }
     } catch (e, stackTrace) {
@@ -1346,6 +1224,55 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     }
   }
 
+  /// 从 bundle 提取 vibes 并添加到生成参数
+  /// 返回实际添加的数量
+  Future<int> _extractAndAddBundleVibes(VibeLibraryEntry entry) async {
+    return _addBundleVibesToGeneration(
+      entry: entry,
+      maxCount: 16,
+      showToast: false,
+    );
+  }
+
+  Future<int> _addBundleVibesToGeneration({
+    required VibeLibraryEntry entry,
+    required int maxCount,
+    required bool showToast,
+  }) async {
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final currentCount =
+        ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+    final availableSlots = maxCount - currentCount;
+
+    if (availableSlots <= 0 || entry.filePath == null) return 0;
+
+    try {
+      final fileStorage = VibeFileStorageService();
+      final extractedVibes = <VibeReferenceV4>[];
+
+      for (int i = 0; i < entry.bundledVibeCount.clamp(0, availableSlots); i++) {
+        final vibe = await fileStorage.extractVibeFromBundle(entry.filePath!, i);
+        if (vibe != null) extractedVibes.add(vibe);
+      }
+
+      if (extractedVibes.isNotEmpty) {
+        for (final vibe in extractedVibes) {
+          _vibeBundleSources[vibe.displayName] = entry.displayName;
+        }
+        notifier.addVibeReferencesV4(extractedVibes);
+
+        if (showToast && mounted) {
+          AppToast.success(context, '已添加 ${extractedVibes.length} 个 Vibe');
+        }
+      }
+
+      return extractedVibes.length;
+    } catch (e, stackTrace) {
+      AppLogger.e('从 Bundle 提取 Vibe 失败', e, stackTrace);
+      return 0;
+    }
+  }
+
   /// 添加最近使用的 Vibe
   Future<void> _addRecentVibe(VibeLibraryEntry entry) async {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
@@ -1353,6 +1280,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
     if (vibes.length >= 16) {
       AppToast.warning(context, '已达到最大数量 (16张)');
+      return;
+    }
+
+    // 如果是 bundle，提取所有内部 vibes
+    if (entry.isBundle) {
+      await _addVibesFromBundle(entry);
       return;
     }
 
@@ -1381,6 +1314,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       return;
     }
 
+    // 如果是 bundle，提取所有内部 vibes
+    if (entry.isBundle) {
+      await _addVibesFromBundle(entry);
+      return;
+    }
+
     // 添加 Vibe 到生成参数
     final vibe = entry.toVibeReference();
     notifier.addVibeReferencesV4([vibe]);
@@ -1391,6 +1330,66 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
     if (mounted) {
       AppToast.success(context, '已添加 Vibe: \${entry.displayName}');
+    }
+  }
+
+  /// 从 bundle 中提取并添加所有 vibes
+  Future<void> _addVibesFromBundle(VibeLibraryEntry entry) async {
+    if (entry.filePath == null) {
+      AppToast.error(context, 'Bundle 文件路径不存在');
+      return;
+    }
+
+    // 检查是否有足够空间
+    final currentCount =
+        ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+    final availableSlots = 16 - currentCount;
+    final bundleCount = entry.bundledVibeCount;
+
+    if (availableSlots <= 0) {
+      AppToast.warning(context, '已达到最大数量 (16张)，请先移除一些 Vibe');
+      return;
+    }
+
+    if (bundleCount > availableSlots) {
+      AppToast.warning(
+        context,
+        'Bundle 包含 \$bundleCount 个 Vibe，只能添加前 \$availableSlots 个',
+      );
+    }
+
+    // 显示加载提示
+    AppToast.info(context, '正在提取 Bundle 中的 Vibe...');
+
+    try {
+      final added = await _addBundleVibesToGeneration(
+        entry: entry,
+        maxCount: 16,
+        showToast: false,
+      );
+
+      if (added <= 0) {
+        if (mounted) {
+          AppToast.error(context, '无法从 Bundle 中提取 Vibe');
+        }
+        return;
+      }
+
+      // 更新使用统计
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+      await storageService.incrementUsedCount(entry.id);
+
+      if (mounted) {
+        AppToast.success(
+          context,
+          '已从 Bundle 添加 $added 个 Vibe',
+        );
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e('从 Bundle 提取 Vibe 失败', e, stackTrace);
+      if (mounted) {
+        AppToast.error(context, '提取 Bundle 失败: \$e');
+      }
     }
   }
 
@@ -1445,9 +1444,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             children: [
               if (hasVibes) ...[
                 ...List.generate(vibes.length, (index) {
+                  final vibe = vibes[index];
+                  final bundleSource = _vibeBundleSources[vibe.displayName];
                   return _VibeCard(
                     index: index,
-                    vibe: vibes[index],
+                    vibe: vibe,
+                    bundleSource: bundleSource,
                     onRemove: () => _removeVibe(index),
                     onStrengthChanged: (value) =>
                         _updateVibeStrength(index, value),
@@ -1477,6 +1479,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 class _VibeCard extends StatelessWidget {
   final int index;
   final VibeReferenceV4 vibe;
+  final String? bundleSource;
   final VoidCallback onRemove;
   final ValueChanged<double> onStrengthChanged;
   final ValueChanged<double> onInfoExtractedChanged;
@@ -1485,6 +1488,7 @@ class _VibeCard extends StatelessWidget {
   const _VibeCard({
     required this.index,
     required this.vibe,
+    this.bundleSource,
     required this.onRemove,
     required this.onStrengthChanged,
     required this.onInfoExtractedChanged,
@@ -1514,12 +1518,17 @@ class _VibeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 顶部行：编码状态标签 + 删除按钮
+                // 顶部行：编码状态标签 + Bundle 来源 + 删除按钮
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // 编码状态标签
                     _buildEncodingStatusChip(context, theme),
+                    // Bundle 来源标识
+                    if (bundleSource != null) ...[
+                      const SizedBox(width: 8),
+                      _buildBundleSourceChip(context, theme),
+                    ],
                     const Spacer(),
                     // 删除按钮（右上角）
                     SizedBox(
@@ -1717,6 +1726,43 @@ class _VibeCard extends StatelessWidget {
         ),
       );
     }
+  }
+
+  /// 构建 Bundle 来源标识
+  Widget _buildBundleSourceChip(BuildContext context, ThemeData theme) {
+    if (bundleSource == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.folder_zip,
+            size: 10,
+            color: theme.colorScheme.secondary,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            bundleSource!,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.secondary,
+              fontWeight: FontWeight.w500,
+              fontSize: 10,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSliderRow(

@@ -112,93 +112,6 @@ Map<String, Map<String, int>> _parseCooccurrenceDataWithProgressIsolate(
   return result;
 }
 
-// =============================================================================
-// 顶层 Isolate 辅助函数 - 必须定义在类外部以避免捕获 this
-// =============================================================================
-
-/// 顶层函数：在完全独立的上下文中执行 Isolate.run
-/// 确保不捕获任何实例引用
-Future<Map<String, Map<String, int>>> _runLoadFromFileIsolate(
-  String filePath,
-  SendPort sendPort,
-) async {
-  return Isolate.run(() => _loadFromFileIsolateImpl(filePath, sendPort));
-}
-
-/// 在 Isolate 中加载 CSV 文件（实际实现）
-Future<Map<String, Map<String, int>>> _loadFromFileIsolateImpl(
-  String filePath,
-  SendPort sendPort,
-) async {
-  // 读取文件
-  sendPort.send({'stage': 'reading', 'progress': 0.0});
-  final content = await File(filePath).readAsString();
-  final fileSize = content.length;
-  sendPort.send({'stage': 'reading', 'progress': 1.0, 'size': fileSize});
-
-  // 解析数据（带进度报告）
-  return _parseCooccurrenceDataWithProgress(content, sendPort);
-}
-
-/// 在 Isolate 中解析共现数据（带进度报告）
-Map<String, Map<String, int>> _parseCooccurrenceDataWithProgress(
-  String content,
-  SendPort sendPort, {
-  int progressInterval = 100000, // 每10万行报告一次
-}) {
-  final result = <String, Map<String, int>>{};
-  final lines = content.split('\n');
-  final totalLines = lines.length;
-
-  // 跳过标题行
-  final startIndex = lines.isNotEmpty && lines[0].contains(',') ? 1 : 0;
-
-  for (var i = startIndex; i < lines.length; i++) {
-    var line = lines[i].trim();
-    if (line.isEmpty) continue;
-
-    // 移除可能的引号包裹
-    if (line.startsWith('"') && line.endsWith('"')) {
-      line = line.substring(1, line.length - 1);
-    }
-
-    final parts = line.split(',');
-
-    if (parts.length >= 3) {
-      final tag1 = parts[0].trim().toLowerCase();
-      final tag2 = parts[1].trim().toLowerCase();
-      final countStr = parts[2].trim();
-      // 支持小数格式如 "3816210.0"
-      final count = double.tryParse(countStr)?.toInt() ?? 0;
-
-      if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
-        // 双向添加共现关系
-        result.putIfAbsent(tag1, () => {})[tag2] = count;
-        result.putIfAbsent(tag2, () => {})[tag1] = count;
-      }
-    }
-
-    // 定期报告进度
-    if ((i - startIndex) % progressInterval == 0 && i > startIndex) {
-      final progress = (i - startIndex) / (totalLines - startIndex);
-      sendPort.send({
-        'stage': 'parsing',
-        'progress': progress,
-        'count': i - startIndex,
-      });
-    }
-  }
-
-  // 报告解析完成
-  sendPort.send({
-    'stage': 'parsing',
-    'progress': 1.0,
-    'count': totalLines - startIndex,
-  });
-
-  return result;
-}
-
 /// 顶层函数：在完全独立的上下文中执行 Isolate.run（二进制缓存）
 Future<Map<String, Map<String, int>>> _runLoadBinaryCacheIsolate(
   String filePath,
@@ -1083,23 +996,25 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
     }
   }
 
-  /// 获取缓存文件
-  Future<File> _getCacheFile() async {
+  /// 获取缓存目录
+  Future<Directory> _getCacheDir() async {
     final appDir = await getApplicationSupportDirectory();
     final cacheDir = Directory('${appDir.path}/tag_cache');
     if (!await cacheDir.exists()) {
       await cacheDir.create(recursive: true);
     }
+    return cacheDir;
+  }
+
+  /// 获取缓存文件
+  Future<File> _getCacheFile() async {
+    final cacheDir = await _getCacheDir();
     return File('${cacheDir.path}/$_fileName');
   }
 
   /// 获取二进制缓存文件
   Future<File> _getBinaryCacheFile() async {
-    final appDir = await getApplicationSupportDirectory();
-    final cacheDir = Directory('${appDir.path}/tag_cache');
-    if (!await cacheDir.exists()) {
-      await cacheDir.create(recursive: true);
-    }
+    final cacheDir = await _getCacheDir();
     return File('${cacheDir.path}/$_binaryCacheFileName');
   }
 
@@ -1435,16 +1350,6 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
     } catch (e) {
       AppLogger.w('Failed to save cooccurrence meta: $e', 'Cooccurrence');
     }
-  }
-
-  /// 获取缓存目录
-  Future<Directory> _getCacheDir() async {
-    final appDir = await getApplicationSupportDirectory();
-    final cacheDir = Directory('${appDir.path}/tag_cache');
-    if (!await cacheDir.exists()) {
-      await cacheDir.create(recursive: true);
-    }
-    return cacheDir;
   }
 
   /// 获取刷新间隔

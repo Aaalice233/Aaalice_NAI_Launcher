@@ -30,6 +30,34 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'widgets/data_source_cache_settings.dart';
 import 'widgets/shortcut_settings_panel.dart';
 
+/// 构建标准输入框装饰
+InputDecoration _buildSettingsInputDecoration(ThemeData theme, {String? labelText, String? hintText}) {
+  return InputDecoration(
+    labelText: labelText,
+    hintText: hintText,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.3)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+    ),
+  );
+}
+
+/// 构建标准滑条主题
+SliderThemeData _buildSettingsSliderTheme(BuildContext context) {
+  return SliderTheme.of(context).copyWith(
+    trackHeight: 4,
+    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+    overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+  );
+}
+
 /// 设置页面
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -209,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildSectionHeader(theme, context.l10n.settings_about),
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: Text(context.l10n.appTitle),
+            title: Text(context.l10n.app_title),
             subtitle: Text(context.l10n.settings_version('Beta2.1')),
           ),
           ListTile(
@@ -245,6 +273,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
 
   void _showThemeDialog(
     BuildContext context,
@@ -677,15 +706,7 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
               // 滑条
               Expanded(
                 child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 4,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 8,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 16,
-                    ),
-                  ),
+                  data: _buildSettingsSliderTheme(context),
                   child: Slider(
                     value: retryCount.toDouble(),
                     min: 1,
@@ -710,32 +731,7 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                   controller: _retryCountController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.primary,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
+                  decoration: _buildSettingsInputDecoration(theme),
                   onSubmitted: (value) {
                     final parsed = int.tryParse(value);
                     if (parsed != null) {
@@ -788,23 +784,12 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
               // 滑条
               Expanded(
                 child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 4,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 8,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 16,
-                    ),
-                  ),
+                  data: _buildSettingsSliderTheme(context),
                   child: Slider(
                     value: retryInterval,
                     min: 0.5,
                     max: 10.0,
-                    onChanged: (value) {
-                      final rounded = (value * 2).round() / 2;
-                      _updateRetryInterval(rounded);
-                    },
+                    onChanged: (value) => _updateRetryInterval((value * 2).round() / 2),
                   ),
                 ),
               ),
@@ -822,43 +807,15 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                 width: 56,
                 child: ThemedInput(
                   controller: _retryIntervalController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.primary,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
+                  decoration: _buildSettingsInputDecoration(theme),
                   onSubmitted: (value) {
                     final parsed = double.tryParse(value);
                     if (parsed != null) {
                       _updateRetryInterval(parsed);
                     } else {
-                      _retryIntervalController.text =
-                          retryInterval.toStringAsFixed(1);
+                      _retryIntervalController.text = retryInterval.toStringAsFixed(1);
                     }
                   },
                 ),

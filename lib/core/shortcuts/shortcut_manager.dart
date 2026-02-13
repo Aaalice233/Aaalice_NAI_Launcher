@@ -40,169 +40,88 @@ class AppShortcutManager {
   }
 
   /// 将ShortcutKey转换为Flutter的LogicalKeyboardKey
-  static LogicalKeyboardKey? _getLogicalKey(ShortcutKey key) {
-    switch (key) {
-      // 字母键
-      case ShortcutKey.keyA:
-        return LogicalKeyboardKey.keyA;
-      case ShortcutKey.keyB:
-        return LogicalKeyboardKey.keyB;
-      case ShortcutKey.keyC:
-        return LogicalKeyboardKey.keyC;
-      case ShortcutKey.keyD:
-        return LogicalKeyboardKey.keyD;
-      case ShortcutKey.keyE:
-        return LogicalKeyboardKey.keyE;
-      case ShortcutKey.keyF:
-        return LogicalKeyboardKey.keyF;
-      case ShortcutKey.keyG:
-        return LogicalKeyboardKey.keyG;
-      case ShortcutKey.keyH:
-        return LogicalKeyboardKey.keyH;
-      case ShortcutKey.keyI:
-        return LogicalKeyboardKey.keyI;
-      case ShortcutKey.keyJ:
-        return LogicalKeyboardKey.keyJ;
-      case ShortcutKey.keyK:
-        return LogicalKeyboardKey.keyK;
-      case ShortcutKey.keyL:
-        return LogicalKeyboardKey.keyL;
-      case ShortcutKey.keyM:
-        return LogicalKeyboardKey.keyM;
-      case ShortcutKey.keyN:
-        return LogicalKeyboardKey.keyN;
-      case ShortcutKey.keyO:
-        return LogicalKeyboardKey.keyO;
-      case ShortcutKey.keyP:
-        return LogicalKeyboardKey.keyP;
-      case ShortcutKey.keyQ:
-        return LogicalKeyboardKey.keyQ;
-      case ShortcutKey.keyR:
-        return LogicalKeyboardKey.keyR;
-      case ShortcutKey.keyS:
-        return LogicalKeyboardKey.keyS;
-      case ShortcutKey.keyT:
-        return LogicalKeyboardKey.keyT;
-      case ShortcutKey.keyU:
-        return LogicalKeyboardKey.keyU;
-      case ShortcutKey.keyV:
-        return LogicalKeyboardKey.keyV;
-      case ShortcutKey.keyW:
-        return LogicalKeyboardKey.keyW;
-      case ShortcutKey.keyX:
-        return LogicalKeyboardKey.keyX;
-      case ShortcutKey.keyY:
-        return LogicalKeyboardKey.keyY;
-      case ShortcutKey.keyZ:
-        return LogicalKeyboardKey.keyZ;
-
-      // 数字键
-      case ShortcutKey.digit0:
-        return LogicalKeyboardKey.digit0;
-      case ShortcutKey.digit1:
-        return LogicalKeyboardKey.digit1;
-      case ShortcutKey.digit2:
-        return LogicalKeyboardKey.digit2;
-      case ShortcutKey.digit3:
-        return LogicalKeyboardKey.digit3;
-      case ShortcutKey.digit4:
-        return LogicalKeyboardKey.digit4;
-      case ShortcutKey.digit5:
-        return LogicalKeyboardKey.digit5;
-      case ShortcutKey.digit6:
-        return LogicalKeyboardKey.digit6;
-      case ShortcutKey.digit7:
-        return LogicalKeyboardKey.digit7;
-      case ShortcutKey.digit8:
-        return LogicalKeyboardKey.digit8;
-      case ShortcutKey.digit9:
-        return LogicalKeyboardKey.digit9;
-
-      // 功能键
-      case ShortcutKey.f1:
-        return LogicalKeyboardKey.f1;
-      case ShortcutKey.f2:
-        return LogicalKeyboardKey.f2;
-      case ShortcutKey.f3:
-        return LogicalKeyboardKey.f3;
-      case ShortcutKey.f4:
-        return LogicalKeyboardKey.f4;
-      case ShortcutKey.f5:
-        return LogicalKeyboardKey.f5;
-      case ShortcutKey.f6:
-        return LogicalKeyboardKey.f6;
-      case ShortcutKey.f7:
-        return LogicalKeyboardKey.f7;
-      case ShortcutKey.f8:
-        return LogicalKeyboardKey.f8;
-      case ShortcutKey.f9:
-        return LogicalKeyboardKey.f9;
-      case ShortcutKey.f10:
-        return LogicalKeyboardKey.f10;
-      case ShortcutKey.f11:
-        return LogicalKeyboardKey.f11;
-      case ShortcutKey.f12:
-        return LogicalKeyboardKey.f12;
-
-      // 特殊键
-      case ShortcutKey.enter:
-        return LogicalKeyboardKey.enter;
-      case ShortcutKey.escape:
-        return LogicalKeyboardKey.escape;
-      case ShortcutKey.space:
-        return LogicalKeyboardKey.space;
-      case ShortcutKey.tab:
-        return LogicalKeyboardKey.tab;
-      case ShortcutKey.backspace:
-        return LogicalKeyboardKey.backspace;
-      case ShortcutKey.delete:
-        return LogicalKeyboardKey.delete;
-      case ShortcutKey.insert:
-        return LogicalKeyboardKey.insert;
-      case ShortcutKey.home:
-        return LogicalKeyboardKey.home;
-      case ShortcutKey.end:
-        return LogicalKeyboardKey.end;
-      case ShortcutKey.pageup:
-        return LogicalKeyboardKey.pageUp;
-      case ShortcutKey.pagedown:
-        return LogicalKeyboardKey.pageDown;
-
-      // 方向键
-      case ShortcutKey.arrowup:
-        return LogicalKeyboardKey.arrowUp;
-      case ShortcutKey.arrowdown:
-        return LogicalKeyboardKey.arrowDown;
-      case ShortcutKey.arrowleft:
-        return LogicalKeyboardKey.arrowLeft;
-      case ShortcutKey.arrowright:
-        return LogicalKeyboardKey.arrowRight;
-
-      // 符号键
-      case ShortcutKey.comma:
-        return LogicalKeyboardKey.comma;
-      case ShortcutKey.period:
-        return LogicalKeyboardKey.period;
-      case ShortcutKey.slash:
-        return LogicalKeyboardKey.slash;
-      case ShortcutKey.semicolon:
-        return LogicalKeyboardKey.semicolon;
-      case ShortcutKey.quote:
-        return LogicalKeyboardKey.quoteSingle;
-      case ShortcutKey.bracketleft:
-        return LogicalKeyboardKey.bracketLeft;
-      case ShortcutKey.bracketright:
-        return LogicalKeyboardKey.bracketRight;
-      case ShortcutKey.backslash:
-        return LogicalKeyboardKey.backslash;
-      case ShortcutKey.minus:
-        return LogicalKeyboardKey.minus;
-      case ShortcutKey.equal:
-        return LogicalKeyboardKey.equal;
-      case ShortcutKey.backquote:
-        return LogicalKeyboardKey.backquote;
-    }
-  }
+  static LogicalKeyboardKey? _getLogicalKey(ShortcutKey key) => switch (key) {
+    // 字母键
+    ShortcutKey.keyA => LogicalKeyboardKey.keyA,
+    ShortcutKey.keyB => LogicalKeyboardKey.keyB,
+    ShortcutKey.keyC => LogicalKeyboardKey.keyC,
+    ShortcutKey.keyD => LogicalKeyboardKey.keyD,
+    ShortcutKey.keyE => LogicalKeyboardKey.keyE,
+    ShortcutKey.keyF => LogicalKeyboardKey.keyF,
+    ShortcutKey.keyG => LogicalKeyboardKey.keyG,
+    ShortcutKey.keyH => LogicalKeyboardKey.keyH,
+    ShortcutKey.keyI => LogicalKeyboardKey.keyI,
+    ShortcutKey.keyJ => LogicalKeyboardKey.keyJ,
+    ShortcutKey.keyK => LogicalKeyboardKey.keyK,
+    ShortcutKey.keyL => LogicalKeyboardKey.keyL,
+    ShortcutKey.keyM => LogicalKeyboardKey.keyM,
+    ShortcutKey.keyN => LogicalKeyboardKey.keyN,
+    ShortcutKey.keyO => LogicalKeyboardKey.keyO,
+    ShortcutKey.keyP => LogicalKeyboardKey.keyP,
+    ShortcutKey.keyQ => LogicalKeyboardKey.keyQ,
+    ShortcutKey.keyR => LogicalKeyboardKey.keyR,
+    ShortcutKey.keyS => LogicalKeyboardKey.keyS,
+    ShortcutKey.keyT => LogicalKeyboardKey.keyT,
+    ShortcutKey.keyU => LogicalKeyboardKey.keyU,
+    ShortcutKey.keyV => LogicalKeyboardKey.keyV,
+    ShortcutKey.keyW => LogicalKeyboardKey.keyW,
+    ShortcutKey.keyX => LogicalKeyboardKey.keyX,
+    ShortcutKey.keyY => LogicalKeyboardKey.keyY,
+    ShortcutKey.keyZ => LogicalKeyboardKey.keyZ,
+    // 数字键
+    ShortcutKey.digit0 => LogicalKeyboardKey.digit0,
+    ShortcutKey.digit1 => LogicalKeyboardKey.digit1,
+    ShortcutKey.digit2 => LogicalKeyboardKey.digit2,
+    ShortcutKey.digit3 => LogicalKeyboardKey.digit3,
+    ShortcutKey.digit4 => LogicalKeyboardKey.digit4,
+    ShortcutKey.digit5 => LogicalKeyboardKey.digit5,
+    ShortcutKey.digit6 => LogicalKeyboardKey.digit6,
+    ShortcutKey.digit7 => LogicalKeyboardKey.digit7,
+    ShortcutKey.digit8 => LogicalKeyboardKey.digit8,
+    ShortcutKey.digit9 => LogicalKeyboardKey.digit9,
+    // 功能键
+    ShortcutKey.f1 => LogicalKeyboardKey.f1,
+    ShortcutKey.f2 => LogicalKeyboardKey.f2,
+    ShortcutKey.f3 => LogicalKeyboardKey.f3,
+    ShortcutKey.f4 => LogicalKeyboardKey.f4,
+    ShortcutKey.f5 => LogicalKeyboardKey.f5,
+    ShortcutKey.f6 => LogicalKeyboardKey.f6,
+    ShortcutKey.f7 => LogicalKeyboardKey.f7,
+    ShortcutKey.f8 => LogicalKeyboardKey.f8,
+    ShortcutKey.f9 => LogicalKeyboardKey.f9,
+    ShortcutKey.f10 => LogicalKeyboardKey.f10,
+    ShortcutKey.f11 => LogicalKeyboardKey.f11,
+    ShortcutKey.f12 => LogicalKeyboardKey.f12,
+    // 特殊键
+    ShortcutKey.enter => LogicalKeyboardKey.enter,
+    ShortcutKey.escape => LogicalKeyboardKey.escape,
+    ShortcutKey.space => LogicalKeyboardKey.space,
+    ShortcutKey.tab => LogicalKeyboardKey.tab,
+    ShortcutKey.backspace => LogicalKeyboardKey.backspace,
+    ShortcutKey.delete => LogicalKeyboardKey.delete,
+    ShortcutKey.insert => LogicalKeyboardKey.insert,
+    ShortcutKey.home => LogicalKeyboardKey.home,
+    ShortcutKey.end => LogicalKeyboardKey.end,
+    ShortcutKey.pageup => LogicalKeyboardKey.pageUp,
+    ShortcutKey.pagedown => LogicalKeyboardKey.pageDown,
+    // 方向键
+    ShortcutKey.arrowup => LogicalKeyboardKey.arrowUp,
+    ShortcutKey.arrowdown => LogicalKeyboardKey.arrowDown,
+    ShortcutKey.arrowleft => LogicalKeyboardKey.arrowLeft,
+    ShortcutKey.arrowright => LogicalKeyboardKey.arrowRight,
+    // 符号键
+    ShortcutKey.comma => LogicalKeyboardKey.comma,
+    ShortcutKey.period => LogicalKeyboardKey.period,
+    ShortcutKey.slash => LogicalKeyboardKey.slash,
+    ShortcutKey.semicolon => LogicalKeyboardKey.semicolon,
+    ShortcutKey.quote => LogicalKeyboardKey.quoteSingle,
+    ShortcutKey.bracketleft => LogicalKeyboardKey.bracketLeft,
+    ShortcutKey.bracketright => LogicalKeyboardKey.bracketRight,
+    ShortcutKey.backslash => LogicalKeyboardKey.backslash,
+    ShortcutKey.minus => LogicalKeyboardKey.minus,
+    ShortcutKey.equal => LogicalKeyboardKey.equal,
+    ShortcutKey.backquote => LogicalKeyboardKey.backquote,
+  };
 
   /// 获取快捷键的显示文本（平台适配）
   /// Windows/Linux: Ctrl+Shift+A

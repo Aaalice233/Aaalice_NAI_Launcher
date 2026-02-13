@@ -23,6 +23,9 @@ class LocalStorageService {
 
   /// 获取设置值
   T? getSetting<T>(String key, {T? defaultValue}) {
+    if (!Hive.isBoxOpen(StorageKeys.settingsBox)) {
+      return defaultValue;
+    }
     return _settingsBox.get(key, defaultValue: defaultValue) as T?;
   }
 

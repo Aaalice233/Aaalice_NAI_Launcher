@@ -77,18 +77,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     final isRunning = widget.task.status == ReplicationTaskStatus.running;
 
     // 获取当前执行任务ID和生成进度
-    String? currentTaskId;
-    double generationProgress = 0.0;
-    try {
-      final executionState = ref.watch(queueExecutionNotifierProvider);
-      currentTaskId = executionState.currentTaskId;
-      if (currentTaskId == widget.task.id && executionState.isRunning) {
-        final genState = ref.watch(imageGenerationNotifierProvider);
-        generationProgress = genState.progress;
-      }
-    } catch (e) {
-      // Provider 未初始化
-    }
+    final (currentTaskId, generationProgress) = _getExecutionProgress();
 
     // 判断是否是当前正在执行的任务（有实际进度）
     final isCurrentRunningTask = isRunning && currentTaskId == widget.task.id;
@@ -488,6 +477,21 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     }
   }
 
+  /// 获取当前执行进度
+  (String?, double) _getExecutionProgress() {
+    try {
+      final executionState = ref.watch(queueExecutionNotifierProvider);
+      final currentTaskId = executionState.currentTaskId;
+      if (currentTaskId == widget.task.id && executionState.isRunning) {
+        final genState = ref.watch(imageGenerationNotifierProvider);
+        return (currentTaskId, genState.progress);
+      }
+      return (currentTaskId, 0.0);
+    } catch (e) {
+      return (null, 0.0);
+    }
+  }
+
   /// 确认删除对话框
   Future<bool> _confirmDelete(BuildContext context, dynamic l10n) async {
     return await showDialog<bool>(
@@ -502,7 +506,9 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
                 child: Text(l10n.common_confirm),
               ),
             ],

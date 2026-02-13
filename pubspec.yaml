@@ -54,6 +54,7 @@ dependencies:
   png_chunks_extract: ^1.0.0
 
   # 拖拽功能
+  super_clipboard: ^0.8.23
   super_drag_and_drop: ^0.8.23
 
   # 路由

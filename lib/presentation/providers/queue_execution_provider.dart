@@ -324,30 +324,27 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   void _fillPrompt(ReplicationTask task) {
     // 1. 应用固定词到队列任务的正面提示词
     final fixedTagsState = ref.read(fixedTagsNotifierProvider);
-    String finalPrompt = fixedTagsState.entries.applyToPrompt(task.prompt);
+    var finalPrompt = fixedTagsState.entries.applyToPrompt(task.prompt);
 
     // 2. 应用质量词（如果启用）
     final model = ref.read(generationParamsNotifierProvider).model;
     final qualityContent = ref
         .read(qualityPresetNotifierProvider.notifier)
         .getEffectiveContent(model);
-    if (qualityContent != null && qualityContent.isNotEmpty) {
+    if (qualityContent?.isNotEmpty == true) {
       finalPrompt = finalPrompt.isEmpty
-          ? qualityContent
+          ? qualityContent!
           : '$finalPrompt, $qualityContent';
     }
 
     // 3. 获取主界面负面提示词（UC预设内容）
     final ucContent =
         ref.read(ucPresetNotifierProvider.notifier).getEffectiveContent(model);
-    final finalNegativePrompt = ucContent ?? '';
 
     // 4. 直接更新生成参数（确保生成时使用正确的提示词）
-    // 注意：不再更新 pendingPromptNotifier，保持UI提示词不变
-    // 这样用户可以在队列运行时继续编写新的提示词
     ref.read(generationParamsNotifierProvider.notifier)
       ..updatePrompt(finalPrompt)
-      ..updateNegativePrompt(finalNegativePrompt);
+      ..updateNegativePrompt(ucContent ?? '');
   }
 
   /// 触发自动生成（自动执行模式下使用）
@@ -400,7 +397,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         _onTaskCompleted();
       } else {
         // 非队列模式：立即播放生成完成音效
-        _triggerSingleGenerationNotification();
+        _triggerGenerationNotification();
       }
       return;
     }
@@ -434,8 +431,8 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
   }
 
-  /// 触发单张生成完成音效（非队列模式）
-  void _triggerSingleGenerationNotification() {
+  /// 触发生成完成音效
+  void _triggerGenerationNotification() {
     final settings = ref.read(notificationSettingsNotifierProvider);
     if (!settings.soundEnabled) return;
 
@@ -454,9 +451,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 更新任务状态为 completed
     if (currentTaskId != null) {
       ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
-            currentTaskId,
-            ReplicationTaskStatus.completed,
-          );
+        currentTaskId,
+        ReplicationTaskStatus.completed,
+      );
     }
 
     // 从队列移除已完成的任务
@@ -466,24 +463,18 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       completedCount: state.completedCount + 1,
       retryCount: 0,
     );
-
     await _saveToStorage();
 
     // 检查是否暂停
-    if (state.isPaused) {
-      return;
-    }
+    if (state.isPaused) return;
 
     // 等待任务间隔
     if (state.taskIntervalSeconds > 0) {
       await Future.delayed(
-        Duration(
-          milliseconds: (state.taskIntervalSeconds * 1000).toInt(),
-        ),
+        Duration(milliseconds: (state.taskIntervalSeconds * 1000).toInt()),
       );
     }
 
-    // 处理下一个任务
     _processNextTask();
   }
 
@@ -588,7 +579,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       _saveToStorage();
 
       // 触发队列完成通知
-      _triggerQueueCompletionNotification();
+      _triggerGenerationNotification();
       return;
     }
 
@@ -667,19 +658,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     _saveToStorage();
   }
 
-  /// 触发队列完成音效
-  void _triggerQueueCompletionNotification() {
-    final settings = ref.read(notificationSettingsNotifierProvider);
-    if (!settings.soundEnabled) return;
-
-    // 使用 Future.microtask 避免在同步方法中直接 await
-    Future.microtask(() async {
-      await NotificationService.instance.notifyGenerationComplete(
-        playSound: settings.soundEnabled,
-        customSoundPath: settings.customSoundPath,
-      );
-    });
-  }
 }
 
 /// 队列设置 Provider（从本地存储读取）

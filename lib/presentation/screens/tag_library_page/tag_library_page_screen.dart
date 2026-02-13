@@ -25,6 +25,31 @@ import 'widgets/bulk_move_category_dialog.dart';
 import 'widgets/export_dialog.dart';
 import 'widgets/import_dialog.dart';
 
+/// 条目属性封装类，用于简化卡片和列表项的构建
+class _EntryProps {
+  final TagLibraryEntry entry;
+  final String categoryName;
+  final bool enableDrag;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback onToggleSelection;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleFavorite;
+
+  const _EntryProps({
+    required this.entry,
+    required this.categoryName,
+    required this.enableDrag,
+    required this.isSelectionMode,
+    required this.isSelected,
+    required this.onToggleSelection,
+    required this.onDelete,
+    required this.onEdit,
+    required this.onToggleFavorite,
+  });
+}
+
 /// 词库页面
 class TagLibraryPageScreen extends ConsumerStatefulWidget {
   const TagLibraryPageScreen({super.key});
@@ -364,10 +389,6 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
   /// 构建卡片网格
   Widget _buildCardGrid(ThemeData theme, List<TagLibraryEntry> entries) {
-    final state = ref.read(tagLibraryPageNotifierProvider);
-    final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
-    final allIds = entries.map((e) => e.id).toList();
-
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -377,100 +398,82 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         crossAxisSpacing: 12,
       ),
       itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final categoryName =
-            _getCategoryName(state.categories, entry.categoryId);
-        final isSelected = selectionState.isSelected(entry.id);
-
-        return EntryCard(
-          key: ValueKey(entry.id),
-          entry: entry,
-          categoryName: categoryName,
-          enableDrag: !selectionState.isActive,
-          // 选择模式相关
-          isSelectionMode: selectionState.isActive,
-          isSelected: isSelected,
-          onToggleSelection: () {
-            final selectionNotifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
-            // Shift+点击范围选择
-            final isShiftPressed =
-                HardwareKeyboard.instance.isShiftPressed;
-            if (isShiftPressed) {
-              selectionNotifier.selectRange(entry.id, allIds);
-            } else if (!selectionState.isActive) {
-              // 长按进入选择模式并选中当前项
-              selectionNotifier.enterAndSelect(entry.id);
-            } else {
-              // 已在选择模式，切换选中状态
-              selectionNotifier.toggle(entry.id);
-            }
-          },
-          onTap: () => _showEditDialog(entry),
-          onDelete: () => _showDeleteEntryConfirmation(entry.id),
-          onEdit: () => _showEditDialog(entry),
-          onSend: () => _showEntryDetail(entry),
-          onToggleFavorite: () {
-            ref
-                .read(tagLibraryPageNotifierProvider.notifier)
-                .toggleFavorite(entry.id);
-          },
-        );
-      },
+      itemBuilder: (context, index) => _buildEntryItem(entries[index], true),
     );
   }
 
   /// 构建列表视图
   Widget _buildListView(ThemeData theme, List<TagLibraryEntry> entries) {
-    final state = ref.read(tagLibraryPageNotifierProvider);
-    final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
-    final allIds = entries.map((e) => e.id).toList();
-
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final categoryName =
-            _getCategoryName(state.categories, entry.categoryId);
-        final isSelected = selectionState.isSelected(entry.id);
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _buildEntryItem(entries[index], false),
+      ),
+    );
+  }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: EntryListItem(
-            key: ValueKey(entry.id),
-            entry: entry,
-            categoryName: categoryName,
-            enableDrag: !selectionState.isActive,
-            // 选择模式相关
-            isSelectionMode: selectionState.isActive,
-            isSelected: isSelected,
-            onToggleSelection: () {
-              final selectionNotifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
-              // Shift+点击范围选择
-              final isShiftPressed =
-                  HardwareKeyboard.instance.isShiftPressed;
-              if (isShiftPressed) {
-                selectionNotifier.selectRange(entry.id, allIds);
-              } else if (!selectionState.isActive) {
-                // 长按进入选择模式并选中当前项
-                selectionNotifier.enterAndSelect(entry.id);
-              } else {
-                // 已在选择模式，切换选中状态
-                selectionNotifier.toggle(entry.id);
-              }
-            },
-            onTap: () => _showEntryDetail(entry),
-            onDelete: () => _showDeleteEntryConfirmation(entry.id),
-            onEdit: () => _showEditDialog(entry),
-            onToggleFavorite: () {
-              ref
-                  .read(tagLibraryPageNotifierProvider.notifier)
-                  .toggleFavorite(entry.id);
-            },
-          ),
-        );
-      },
+  /// 构建条目组件（卡片或列表项）
+  Widget _buildEntryItem(TagLibraryEntry entry, bool isCard) {
+    final state = ref.read(tagLibraryPageNotifierProvider);
+    final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
+    final allIds = state.filteredEntries.map((e) => e.id).toList();
+    final categoryName = _getCategoryName(state.categories, entry.categoryId);
+    final isSelected = selectionState.isSelected(entry.id);
+
+    selectionHandler() {
+      final notifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
+      if (HardwareKeyboard.instance.isShiftPressed) {
+        notifier.selectRange(entry.id, allIds);
+      } else if (!selectionState.isActive) {
+        notifier.enterAndSelect(entry.id);
+      } else {
+        notifier.toggle(entry.id);
+      }
+    }
+
+    final commonProps = _EntryProps(
+      entry: entry,
+      categoryName: categoryName,
+      enableDrag: !selectionState.isActive,
+      isSelectionMode: selectionState.isActive,
+      isSelected: isSelected,
+      onToggleSelection: selectionHandler,
+      onDelete: () => _showDeleteEntryConfirmation(entry.id),
+      onEdit: () => _showEditDialog(entry),
+      onToggleFavorite: () => ref.read(tagLibraryPageNotifierProvider.notifier).toggleFavorite(entry.id),
+    );
+
+    if (isCard) {
+      return EntryCard(
+        key: ValueKey(entry.id),
+        entry: commonProps.entry,
+        categoryName: commonProps.categoryName,
+        enableDrag: commonProps.enableDrag,
+        isSelectionMode: commonProps.isSelectionMode,
+        isSelected: commonProps.isSelected,
+        onToggleSelection: commonProps.onToggleSelection,
+        onTap: commonProps.onEdit,
+        onDelete: commonProps.onDelete,
+        onEdit: commonProps.onEdit,
+        onSend: () => _showEntryDetail(entry),
+        onToggleFavorite: commonProps.onToggleFavorite,
+      );
+    }
+
+    return EntryListItem(
+      key: ValueKey(entry.id),
+      entry: commonProps.entry,
+      categoryName: commonProps.categoryName,
+      enableDrag: commonProps.enableDrag,
+      isSelectionMode: commonProps.isSelectionMode,
+      isSelected: commonProps.isSelected,
+      onToggleSelection: commonProps.onToggleSelection,
+      onTap: () => _showEntryDetail(entry),
+      onDelete: commonProps.onDelete,
+      onEdit: commonProps.onEdit,
+      onToggleFavorite: commonProps.onToggleFavorite,
     );
   }
 

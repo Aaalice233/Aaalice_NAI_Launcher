@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';
@@ -158,7 +159,7 @@ class SelectionSettingsPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () => state.clearSelection(),
                 icon: const Icon(Icons.deselect, size: 16),
-                label: const Text('清除选区'),
+                label: Text(context.l10n.selection_clear_selection),
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -168,7 +169,7 @@ class SelectionSettingsPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () => state.invertSelection(),
                 icon: const Icon(Icons.flip, size: 16),
-                label: const Text('反转选区'),
+                label: Text(context.l10n.selection_invert_selection),
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

@@ -87,8 +87,10 @@ void main() {
 
       final container = tester.widget<Container>(find.byType(Container));
       final decoration = container.decoration as BoxDecoration;
-      expect((decoration.color as Color).value,
-          equals(Colors.red.withOpacity(0.9).value));
+      expect(
+        (decoration.color as Color).value,
+        equals(Colors.red.withOpacity(0.9).value),
+      );
     });
 
     testWidgets('shows primary container color when balance sufficient',
@@ -114,8 +116,10 @@ void main() {
 
       final container = tester.widget<Container>(find.byType(Container));
       final decoration = container.decoration as BoxDecoration;
-      expect((decoration.color as Color).value,
-          equals(Colors.blue.withOpacity(0.9).value));
+      expect(
+        (decoration.color as Color).value,
+        equals(Colors.blue.withOpacity(0.9).value),
+      );
     });
   });
 }

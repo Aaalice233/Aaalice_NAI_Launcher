@@ -324,6 +324,17 @@ class VibeFileParser {
     return null;
   }
 
+  /// 从导入信息中提取强度值
+  static double _extractStrength(Map<String, dynamic>? importInfo, double defaultValue) {
+    final strengthValue = importInfo?['strength'];
+    return switch (strengthValue) {
+      final double v => v,
+      final int v => v.toDouble(),
+      final String v => double.tryParse(v) ?? defaultValue,
+      _ => defaultValue,
+    };
+  }
+
   /// 从 .naiv4vibe 文件解析 Vibe 参考
   static Future<VibeReferenceV4> fromNaiV4Vibe(
     String fileName,
@@ -333,24 +344,12 @@ class VibeFileParser {
     final jsonString = utf8.decode(bytes);
     final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
 
-    // 提取名称
     final name = jsonData['name'] as String? ?? fileName;
+    final strength = _extractStrength(
+      jsonData['importInfo'] as Map<String, dynamic>?,
+      defaultStrength,
+    );
 
-    // 提取强度
-    double strength = defaultStrength;
-    final importInfo = jsonData['importInfo'] as Map<String, dynamic>?;
-    if (importInfo != null && importInfo['strength'] != null) {
-      final dynamic strengthValue = importInfo['strength'];
-      if (strengthValue is double) {
-        strength = strengthValue;
-      } else if (strengthValue is int) {
-        strength = strengthValue.toDouble();
-      } else if (strengthValue is String) {
-        strength = double.tryParse(strengthValue) ?? defaultStrength;
-      }
-    }
-
-    // 提取编码
     final vibeEncoding = _extractEncodingFromJson(jsonData);
     if (vibeEncoding == null) {
       throw ArgumentError(
@@ -361,7 +360,7 @@ class VibeFileParser {
     return VibeReferenceV4(
       displayName: name,
       vibeEncoding: vibeEncoding,
-      thumbnail: null, // .naiv4vibe 文件不包含缩略图
+      thumbnail: null,
       strength: strength.clamp(0.0, 1.0),
       sourceType: VibeSourceType.naiv4vibe,
     );
@@ -383,20 +382,10 @@ class VibeFileParser {
       try {
         final vibeJson = vibesList[i] as Map<String, dynamic>;
         final name = vibeJson['name'] as String? ?? '$fileName#$i';
-
-        // 提取强度
-        double strength = defaultStrength;
-        final importInfo = vibeJson['importInfo'] as Map<String, dynamic>?;
-        if (importInfo != null && importInfo['strength'] != null) {
-          final dynamic strengthValue = importInfo['strength'];
-          if (strengthValue is double) {
-            strength = strengthValue;
-          } else if (strengthValue is int) {
-            strength = strengthValue.toDouble();
-          } else if (strengthValue is String) {
-            strength = double.tryParse(strengthValue) ?? defaultStrength;
-          }
-        }
+        final strength = _extractStrength(
+          vibeJson['importInfo'] as Map<String, dynamic>?,
+          defaultStrength,
+        );
 
         final vibeEncoding = _extractEncodingFromJson(vibeJson);
         if (vibeEncoding != null) {
@@ -417,7 +406,6 @@ class VibeFileParser {
             'VibeParser',
           );
         }
-        // 继续处理其他条目
       }
     }
 

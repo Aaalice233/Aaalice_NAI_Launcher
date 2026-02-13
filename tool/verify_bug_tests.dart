@@ -1,32 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'config/test_constants.dart';
+
 void main() async {
   final file = File('test_results/summary.json');
   final json = jsonDecode(await file.readAsString());
 
   final resultsByFile = json['resultsByFile'] as List;
-  final bugTestFiles = [
-    'vibe_encoding_test.dart',
-    'sampler_test.dart',
-    'seed_provider_test.dart',
-    'auth_api_test.dart',
-    'sidebar_state_test.dart',
-    'query_parser_test.dart',
-    'prompt_autofill_test.dart',
-    'character_bar_test.dart',
-  ];
-
-  final bugIdMap = {
-    'vibe_encoding_test.dart': 'BUG-001',
-    'sampler_test.dart': 'BUG-002',
-    'seed_provider_test.dart': 'BUG-003',
-    'auth_api_test.dart': 'BUG-004/005',
-    'sidebar_state_test.dart': 'BUG-006',
-    'query_parser_test.dart': 'BUG-007',
-    'prompt_autofill_test.dart': 'BUG-008',
-    'character_bar_test.dart': 'BUG-009',
-  };
 
   print('=== BUG Tests Verification ===\n');
 

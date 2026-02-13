@@ -102,30 +102,13 @@ class RandomModeSelector extends ConsumerWidget {
     );
   }
 
-  IconData _getModeIcon(RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => Icons.auto_awesome,
-      RandomGenerationMode.custom => Icons.tune,
-      RandomGenerationMode.hybrid => Icons.merge_type,
-    };
-  }
+  IconData _getModeIcon(RandomGenerationMode mode) => mode.icon;
 
-  String _getModeName(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficial,
-      RandomGenerationMode.custom => context.l10n.randomMode_custom,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybrid,
-    };
-  }
+  String _getModeName(BuildContext context, RandomGenerationMode mode) =>
+      mode.getName(context.l10n);
 
-  String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial =>
-        context.l10n.randomMode_naiOfficialDesc,
-      RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
-    };
-  }
+  String _getModeDescription(BuildContext context, RandomGenerationMode mode) =>
+      mode.getDescription(context.l10n);
 }
 
 /// 随机模式选择弹出菜单
@@ -217,30 +200,13 @@ class RandomModePopupMenu extends ConsumerWidget {
     );
   }
 
-  IconData _getModeIcon(RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => Icons.auto_awesome,
-      RandomGenerationMode.custom => Icons.tune,
-      RandomGenerationMode.hybrid => Icons.merge_type,
-    };
-  }
+  IconData _getModeIcon(RandomGenerationMode mode) => mode.icon;
 
-  String _getModeName(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficial,
-      RandomGenerationMode.custom => context.l10n.randomMode_custom,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybrid,
-    };
-  }
+  String _getModeName(BuildContext context, RandomGenerationMode mode) =>
+      mode.getName(context.l10n);
 
-  String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial =>
-        context.l10n.randomMode_naiOfficialDesc,
-      RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
-    };
-  }
+  String _getModeDescription(BuildContext context, RandomGenerationMode mode) =>
+      mode.getDescription(context.l10n);
 }
 
 /// 随机模式选择底部表单

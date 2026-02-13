@@ -85,41 +85,12 @@ class FolderTabs extends ConsumerWidget {
   /// 显示创建文件夹对话框
   Future<void> _showCreateFolderDialog(
       BuildContext context, WidgetRef ref,) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await _showFolderNameDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('创建文件夹'),
-        content: ThemedInput(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '文件夹名称',
-            hintText: '输入文件夹名称',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              Navigator.of(context).pop(value.trim());
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                Navigator.of(context).pop(name);
-              }
-            },
-            child: const Text('创建'),
-          ),
-        ],
-      ),
+      title: '创建文件夹',
+      label: '文件夹名称',
+      hint: '输入文件夹名称',
+      confirmText: '创建',
     );
 
     if (result != null && result.isNotEmpty && context.mounted) {
@@ -178,46 +149,15 @@ class FolderTabs extends ConsumerWidget {
     WidgetRef ref,
     GalleryFolder folder,
   ) async {
-    final controller = TextEditingController(text: folder.name);
-
-    // 等待菜单关闭
     await Future.delayed(const Duration(milliseconds: 100));
-
     if (!context.mounted) return;
 
-    final result = await showDialog<String>(
+    final result = await _showFolderNameDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('重命名文件夹'),
-        content: ThemedInput(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '新名称',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              Navigator.of(context).pop(value.trim());
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                Navigator.of(context).pop(name);
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
-      ),
+      title: '重命名文件夹',
+      label: '新名称',
+      confirmText: '确定',
+      initialValue: folder.name,
     );
 
     if (result != null &&
@@ -241,37 +181,22 @@ class FolderTabs extends ConsumerWidget {
     WidgetRef ref,
     GalleryFolder folder,
   ) async {
-    // 等待菜单关闭
     await Future.delayed(const Duration(milliseconds: 100));
-
     if (!context.mounted) return;
 
-    final confirmed = await showDialog<bool>(
+    final content = folder.imageCount > 0
+        ? '文件夹「${folder.name}」包含 ${folder.imageCount} 张图片，确定要删除吗？\n\n注意：此操作会删除文件夹及其中的所有图片，无法恢复。'
+        : '确定要删除空文件夹「${folder.name}」吗？';
+
+    final confirmed = await _showConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('删除文件夹'),
-        content: Text(
-          folder.imageCount > 0
-              ? '文件夹「${folder.name}」包含 ${folder.imageCount} 张图片，确定要删除吗？\n\n注意：此操作会删除文件夹及其中的所有图片，无法恢复。'
-              : '确定要删除空文件夹「${folder.name}」吗？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除文件夹',
+      content: content,
+      confirmText: '删除',
+      confirmColor: Theme.of(context).colorScheme.error,
     );
 
-    if (confirmed == true && context.mounted) {
+    if (confirmed && context.mounted) {
       final success =
           await ref.read(galleryFolderNotifierProvider.notifier).deleteFolder(
                 folder.path,
@@ -283,6 +208,86 @@ class FolderTabs extends ConsumerWidget {
         AppToast.error(context, '删除失败');
       }
     }
+  }
+
+  /// 通用文件夹名称对话框
+  Future<String?> _showFolderNameDialog({
+    required BuildContext context,
+    required String title,
+    required String label,
+    required String confirmText,
+    String? hint,
+    String? initialValue,
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: ThemedInput(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              Navigator.of(context).pop(value.trim());
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) Navigator.of(context).pop(name);
+            },
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    return result;
+  }
+
+  /// 通用确认对话框
+  Future<bool> _showConfirmDialog({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required String confirmText,
+    Color? confirmColor,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(content),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: confirmColor != null
+                    ? FilledButton.styleFrom(backgroundColor: confirmColor)
+                    : null,
+                child: Text(confirmText),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }
 

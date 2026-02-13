@@ -224,28 +224,13 @@ class _ThemedCheckboxState extends State<ThemedCheckbox>
 
 /// 带标签的主题化复选框
 class ThemedCheckboxListTile extends StatelessWidget {
-  /// 当前值
   final bool? value;
-
-  /// 值改变回调
   final ValueChanged<bool?>? onChanged;
-
-  /// 标签文本
   final Widget title;
-
-  /// 副标题
   final Widget? subtitle;
-
-  /// 是否支持三态
   final bool tristate;
-
-  /// 是否启用
   final bool enabled;
-
-  /// 控件位置
   final ListTileControlAffinity controlAffinity;
-
-  /// 内边距
   final EdgeInsetsGeometry? contentPadding;
 
   const ThemedCheckboxListTile({
@@ -260,40 +245,67 @@ class ThemedCheckboxListTile extends StatelessWidget {
     this.contentPadding,
   });
 
+  bool? get _nextValue {
+    if (tristate) {
+      if (value == false) return true;
+      if (value == true) return null;
+      return false;
+    }
+    return !(value ?? false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final checkbox = ThemedCheckbox(
-      value: value,
-      onChanged: onChanged,
-      tristate: tristate,
+    return _CheckboxListTile(
+      control: ThemedCheckbox(
+        value: value,
+        onChanged: onChanged,
+        tristate: tristate,
+        enabled: enabled,
+      ),
+      title: title,
+      subtitle: subtitle,
       enabled: enabled,
-    );
-
-    return InkWell(
+      controlAffinity: controlAffinity,
+      contentPadding: contentPadding,
       onTap: enabled && onChanged != null
-          ? () {
-              bool? newValue;
-              if (tristate) {
-                if (value == false) {
-                  newValue = true;
-                } else if (value == true) {
-                  newValue = null;
-                } else {
-                  newValue = false;
-                }
-              } else {
-                newValue = !(value ?? false);
-              }
-              onChanged!(newValue);
-            }
+          ? () => onChanged!(_nextValue)
           : null,
+    );
+  }
+}
+
+/// 复选框列表项基础组件
+class _CheckboxListTile extends StatelessWidget {
+  final Widget control;
+  final Widget title;
+  final Widget? subtitle;
+  final bool enabled;
+  final ListTileControlAffinity controlAffinity;
+  final EdgeInsetsGeometry? contentPadding;
+  final VoidCallback? onTap;
+
+  const _CheckboxListTile({
+    required this.control,
+    required this.title,
+    this.subtitle,
+    required this.enabled,
+    required this.controlAffinity,
+    this.contentPadding,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
       child: Padding(
         padding: contentPadding ??
             const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
             if (controlAffinity == ListTileControlAffinity.leading) ...[
-              checkbox,
+              control,
               const SizedBox(width: 12),
             ],
             Expanded(
@@ -331,7 +343,7 @@ class ThemedCheckboxListTile extends StatelessWidget {
             ),
             if (controlAffinity == ListTileControlAffinity.trailing) ...[
               const SizedBox(width: 12),
-              checkbox,
+              control,
             ],
           ],
         ),

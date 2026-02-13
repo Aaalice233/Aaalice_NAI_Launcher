@@ -181,95 +181,81 @@ AutocompleteStrategy? defaultStrategySelector(
   final (isTypingAlias, _, _) =
       AliasParser.detectPartialAlias(text, cursorPosition);
   if (isTypingAlias) {
-    for (final strategy in strategies) {
-      if (strategy is AliasStrategy) {
-        return strategy;
-      }
-    }
+    return _findStrategyByType<AliasStrategy>(strategies);
   }
 
-  // 2. 检测共现标签推荐条件（光标前有 "tag," 且后面没有新输入）
+  // 2. 检测共现标签推荐条件
   if (_shouldTriggerCooccurrence(text, cursorPosition)) {
-    for (final strategy in strategies) {
-      if (strategy is CooccurrenceStrategy) {
-        return strategy;
-      }
-    }
+    return _findStrategyByType<CooccurrenceStrategy>(strategies);
   }
 
   // 3. 默认使用本地标签策略
-  for (final strategy in strategies) {
-    if (strategy is LocalTagStrategy) {
-      return strategy;
-    }
-  }
+  return _findStrategyByType<LocalTagStrategy>(strategies) ??
+      (strategies.isNotEmpty ? strategies.first : null);
+}
 
-  return strategies.isNotEmpty ? strategies.first : null;
+/// 按类型查找策略
+T? _findStrategyByType<T extends AutocompleteStrategy>(
+  List<AutocompleteStrategy> strategies,
+) {
+  for (final strategy in strategies) {
+    if (strategy is T) return strategy;
+  }
+  return null;
 }
 
 /// 检测是否应该触发共现标签推荐
 /// 条件：光标前有 "tag," 模式且后面没有新输入
 bool _shouldTriggerCooccurrence(String text, int cursorPosition) {
-  if (cursorPosition <= 0) {
-    return false;
-  }
-  if (cursorPosition > text.length) {
+  if (cursorPosition <= 0 || cursorPosition > text.length) {
     return false;
   }
 
-  // 获取光标前的文本
   final beforeCursor = text.substring(0, cursorPosition);
+  final lastCommaIndex = _findLastComma(beforeCursor);
 
-  // 从光标前查找最后一个逗号
-  var lastCommaIndex = -1;
-  for (var i = beforeCursor.length - 1; i >= 0; i--) {
-    final char = beforeCursor[i];
-    if (char == ',' || char == '，') {
-      lastCommaIndex = i;
-      break;
-    }
-  }
+  // 必须有逗号才触发
+  if (lastCommaIndex < 0) return false;
 
-  // 重点：必须有逗号才触发共现推荐！没有逗号说明用户在输入第一个标签
-  if (lastCommaIndex < 0) {
-    return false;
-  }
-
-  // 关键检查：逗号后到光标前的内容必须为空（只有空白字符）
-  // 如果这段内容非空，说明用户正在输入新标签，不应该触发共现推荐
+  // 逗号后到光标前必须为空（只有空白字符）
   final afterComma = beforeCursor.substring(lastCommaIndex + 1);
-  if (afterComma.trim().isNotEmpty) {
-    return false;
-  }
+  if (afterComma.trim().isNotEmpty) return false;
 
-  // 提取逗号**前面**的标签（逗号和前一个分隔符之间的内容）
-  // 例如："tag1, tag2, " -> 提取 "tag2"
+  // 提取逗号前面的标签
+  final tag = _extractTagBeforeComma(beforeCursor, lastCommaIndex);
+  return tag.length >= 2;
+}
+
+/// 查找最后一个逗号位置
+int _findLastComma(String text) {
+  for (var i = text.length - 1; i >= 0; i--) {
+    final char = text[i];
+    if (char == ',' || char == '，') return i;
+  }
+  return -1;
+}
+
+/// 提取逗号前的标签文本
+String _extractTagBeforeComma(String text, int commaIndex) {
   var prevSeparatorIndex = -1;
-  for (var i = lastCommaIndex - 1; i >= 0; i--) {
-    final char = beforeCursor[i];
+  for (var i = commaIndex - 1; i >= 0; i--) {
+    final char = text[i];
     if (char == ',' || char == '，' || char == '|') {
       prevSeparatorIndex = i;
       break;
     }
   }
 
-  final tagPart = beforeCursor.substring(prevSeparatorIndex + 1, lastCommaIndex);
+  var tag = text.substring(prevSeparatorIndex + 1, commaIndex).trim();
 
-  // 清理标签文本
-  var tag = tagPart.trim();
-
-  // 移除可能的权重语法前缀
+  // 移除权重语法前缀
   final weightMatch = RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(tag);
   if (weightMatch != null) {
     tag = tag.substring(weightMatch.end);
   }
 
-  // 移除可能的括号前缀
-  tag = tag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
-  tag = tag.trim();
-
-  // 标签至少2个字符才触发
-  return tag.length >= 2;
+  // 移除括号前缀
+  return tag.replaceAll(RegExp(r'^[\{\[\(]+'), '').trim();
 }
 
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {

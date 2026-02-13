@@ -34,19 +34,21 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     super.dispose();
   }
 
+  /// 安全获取执行状态
+  QueueExecutionState _watchExecutionState() {
+    try {
+      return ref.watch(queueExecutionNotifierProvider);
+    } catch (e) {
+      return const QueueExecutionState();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final queueState = ref.watch(replicationQueueNotifierProvider);
-
-    // 安全获取执行状态
-    QueueExecutionState executionState = const QueueExecutionState();
-    try {
-      executionState = ref.watch(queueExecutionNotifierProvider);
-    } catch (e) {
-      // Provider 未初始化
-    }
+    final executionState = _watchExecutionState();
 
     return Scaffold(
       appBar: AppBar(

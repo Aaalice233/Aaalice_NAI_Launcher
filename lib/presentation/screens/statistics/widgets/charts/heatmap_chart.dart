@@ -255,49 +255,40 @@ class _HeatmapChartState extends State<HeatmapChart>
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Text(
-          l10n.statistics_heatmapLess,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-          ),
-        ),
+        _buildLegendLabel(theme, l10n.statistics_heatmapLess, colorScheme),
         const SizedBox(width: 4),
         ...List.generate(5, (index) {
           final value = index / 4;
+          final color = index == 0
+              ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
+              : ChartColors.getHeatmapColor(value);
           return Container(
             width: 14,
             height: 14,
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
-              color: index == 0
-                  ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
-                  : ChartColors.getHeatmapColor(value),
+              color: color,
               borderRadius: BorderRadius.circular(3),
               boxShadow: index > 0
-                  ? [
-                      BoxShadow(
-                        color:
-                            ChartColors.getHeatmapColor(value).withOpacity(0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ]
+                  ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 1))]
                   : null,
             ),
           );
         }),
         const SizedBox(width: 4),
-        Text(
-          l10n.statistics_heatmapMore,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-          ),
-        ),
+        _buildLegendLabel(theme, l10n.statistics_heatmapMore, colorScheme),
       ],
+    );
+  }
+
+  Widget _buildLegendLabel(ThemeData theme, String text, ColorScheme colorScheme) {
+    return Text(
+      text,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+      ),
     );
   }
 }

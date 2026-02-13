@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 
 /// 图片发送目标类型
@@ -45,7 +46,7 @@ class ImageSendDestinationDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('发送到'),
+      title: Text(context.l10n.gallery_send_to),
       content: SizedBox(
         width: 320,
         child: Column(

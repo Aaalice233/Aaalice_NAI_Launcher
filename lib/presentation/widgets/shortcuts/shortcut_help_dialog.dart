@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
@@ -174,7 +174,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
                       });
                     },
                     icon: const Icon(Icons.settings, size: 16),
-                    label: const Text('自定义快捷键'),
+                    label: Text(context.l10n.shortcuts_customize),
                   ),
                 ],
               ),
@@ -346,7 +346,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
   }
 
   String _getActionDisplayName(ShortcutBinding binding) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     final key = binding.actionKey;
 
     // 使用 switch 从 ARB 文件获取本地化文本

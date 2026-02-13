@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,42 +9,40 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/storage_keys.dart';
+import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
-import '../../../core/shortcuts/default_shortcuts.dart';
-import '../../widgets/shortcuts/shortcut_aware_widget.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
-import '../../../data/models/gallery/local_image_record.dart';
+import '../../../core/utils/zip_utils.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
+import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/metadata/metadata_import_options.dart';
-import '../../../core/utils/zip_utils.dart';
-import 'package:file_picker/file_picker.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../providers/bulk_operation_provider.dart';
+import '../../providers/character_prompt_provider.dart';
+import '../../providers/collection_provider.dart';
+import '../../providers/gallery_category_provider.dart';
+import '../../providers/gallery_folder_provider.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
-import '../../providers/collection_provider.dart';
-import '../../providers/bulk_operation_provider.dart';
-import '../../providers/gallery_folder_provider.dart';
-import '../../providers/gallery_category_provider.dart';
-import '../../providers/image_generation_provider.dart';
-import '../../providers/character_prompt_provider.dart';
-import '../../widgets/common/pagination_bar.dart';
-import '../../widgets/grouped_grid_view.dart' show GroupedGridViewState, ImageDateGroup;
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
-import '../../widgets/gallery/gallery_state_views.dart';
-import '../../widgets/gallery/gallery_content_view.dart';
-import '../../widgets/gallery/gallery_category_tree_view.dart';
-import '../../widgets/gallery/image_send_destination_dialog.dart';
+import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
-
-import '../../widgets/common/app_toast.dart';
+import '../../widgets/gallery/gallery_category_tree_view.dart';
+import '../../widgets/gallery/gallery_content_view.dart';
+import '../../widgets/gallery/gallery_state_views.dart';
+import '../../widgets/gallery/image_send_destination_dialog.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
 import '../../widgets/gallery_filter_panel.dart';
-import 'dart:async';
+import '../../widgets/grouped_grid_view.dart'
+    show GroupedGridViewState, ImageDateGroup;
+import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 
 /// 本地画廊屏幕
 /// Local gallery screen
@@ -71,14 +71,61 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   /// Whether to show category panel
   bool _showCategoryPanel = true;
 
+  /// 缓存的快捷方式映射
+  late final Map<String, VoidCallback> _shortcuts = {
+    ShortcutIds.previousPage: _goToPreviousPage,
+    ShortcutIds.nextPage: _goToNextPage,
+    ShortcutIds.refreshGallery: _refreshGallery,
+    ShortcutIds.focusSearch: _focusSearch,
+    ShortcutIds.enterSelectionMode: _enterSelectionMode,
+    ShortcutIds.openFilterPanel: () => showGalleryFilterPanel(context),
+    ShortcutIds.clearFilter: _clearFilters,
+    ShortcutIds.toggleCategoryPanel: _toggleCategoryPanel,
+    ShortcutIds.jumpToDate: _jumpToDate,
+    ShortcutIds.openFolder: _openGalleryFolder,
+  };
+
   @override
   void initState() {
     super.initState();
-    // 首次加载时检查权限并扫描图片
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
       await _showFirstTimeTip();
     });
+  }
+
+  void _goToPreviousPage() {
+    final state = ref.read(localGalleryNotifierProvider);
+    if (state.currentPage > 0) {
+      ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage - 1);
+    }
+  }
+
+  void _goToNextPage() {
+    final state = ref.read(localGalleryNotifierProvider);
+    if (state.currentPage < state.totalPages - 1) {
+      ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage + 1);
+    }
+  }
+
+  void _refreshGallery() {
+    ref.read(localGalleryNotifierProvider.notifier).refresh();
+  }
+
+  void _focusSearch() {
+    final focusNode = FocusManager.instance.primaryFocus;
+    focusNode?.unfocus();
+    Future.delayed(const Duration(milliseconds: 50), () {
+      FocusManager.instance.primaryFocus?.requestFocus();
+    });
+  }
+
+  void _enterSelectionMode() {
+    ref.read(localGallerySelectionNotifierProvider.notifier).enter();
+  }
+
+  void _clearFilters() {
+    ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
   }
 
   @override
@@ -95,77 +142,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
-    // 计算内容区域宽度（减去分类面板宽度）
     final contentWidth = _showCategoryPanel && screenWidth > 800
         ? screenWidth - 250
         : screenWidth;
-
-    // 计算列数（200px/列，最少2列，最多8列）
     final columns = (contentWidth / 200).floor().clamp(2, 8);
     final itemWidth = contentWidth / columns;
 
-    // 定义快捷键动作映射
-    final shortcuts = <String, VoidCallback>{
-      // 上一页
-      ShortcutIds.previousPage: () {
-        if (state.currentPage > 0) {
-          ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage - 1);
-        }
-      },
-      // 下一页
-      ShortcutIds.nextPage: () {
-        if (state.currentPage < state.totalPages - 1) {
-          ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage + 1);
-        }
-      },
-      // 刷新
-      ShortcutIds.refreshGallery: () {
-        ref.read(localGalleryNotifierProvider.notifier).refresh();
-      },
-      // 搜索聚焦
-      ShortcutIds.focusSearch: () {
-        // 通过 FocusScope 请求搜索框焦点
-        // 搜索框在 LocalGalleryToolbar 中，需要通过全局 key 或其他方式访问
-        // 这里使用 FocusManager 来请求焦点到搜索框
-        final focusNode = FocusManager.instance.primaryFocus;
-        if (focusNode != null) {
-          focusNode.unfocus();
-        }
-        // 延迟一下确保能正确聚焦到搜索框
-        Future.delayed(const Duration(milliseconds: 50), () {
-          FocusManager.instance.primaryFocus?.requestFocus();
-        });
-      },
-      // 进入选择模式
-      ShortcutIds.enterSelectionMode: () {
-        ref.read(localGallerySelectionNotifierProvider.notifier).enter();
-      },
-      // 打开筛选面板
-      ShortcutIds.openFilterPanel: () {
-        showGalleryFilterPanel(context);
-      },
-      // 清除筛选
-      ShortcutIds.clearFilter: () {
-        ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
-      },
-      // 切换分类面板
-      ShortcutIds.toggleCategoryPanel: () {
-        // 通过回调触发分类面板切换
-        _toggleCategoryPanel();
-      },
-      // 跳转到日期
-      ShortcutIds.jumpToDate: () {
-        _jumpToDate();
-      },
-      // 打开文件夹
-      ShortcutIds.openFolder: () {
-        _openGalleryFolder();
-      },
-    };
-
     return PageShortcuts(
       contextType: ShortcutContext.gallery,
-      shortcuts: shortcuts,
+      shortcuts: _shortcuts,
       child: KeyboardListener(
         focusNode: _shortcutsFocusNode,
         autofocus: true,
@@ -173,213 +158,201 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         child: Scaffold(
           body: Row(
             children: [
-            // 左侧分类面板
-            if (_showCategoryPanel && screenWidth > 800)
-              Container(
-                width: 250,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  border: Border(
-                    right: BorderSide(
-                      color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                ),
+              if (_showCategoryPanel && screenWidth > 800)
+                _buildCategoryPanel(theme, state, categoryState),
+              Expanded(
                 child: Column(
                   children: [
-                    // 顶部标题栏（参考词库布局）
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      constraints: const BoxConstraints(minHeight: 62),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.folder_outlined,
-                            size: 20,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '分类',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          FilledButton.tonalIcon(
-                            onPressed: () async {
-                              final name = await ThemedInputDialog.show(
-                                context: context,
-                                title: '新建分类',
-                                hintText: '请输入分类名称',
-                                confirmText: '创建',
-                                cancelText: '取消',
-                              );
-                              if (name != null && name.isNotEmpty) {
-                                await ref
-                                    .read(
-                                      galleryCategoryNotifierProvider.notifier,
-                                    )
-                                    .createCategory(name, parentId: null);
-                              }
-                            },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text(
-                              '新建',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                            style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(
-                      height: 1,
-                      color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                    ),
-                    // 分类树
+                    _buildToolbarOrSelectionBar(state, bulkOpState),
                     Expanded(
-                      child: GalleryCategoryTreeView(
-                        categories: categoryState.categories,
-                        totalImageCount: state.allFiles.length,
-                        favoriteCount: ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .getTotalFavoriteCount(),
-                        selectedCategoryId: categoryState.selectedCategoryId,
-                        onCategorySelected: (id) {
-                          ref
-                              .read(galleryCategoryNotifierProvider.notifier)
-                              .selectCategory(id);
-                          // 处理收藏筛选
-                          if (id == 'favorites') {
-                            ref
-                                .read(localGalleryNotifierProvider.notifier)
-                                .setShowFavoritesOnly(true);
-                          } else {
-                            ref
-                                .read(localGalleryNotifierProvider.notifier)
-                                .setShowFavoritesOnly(false);
-                          }
-                        },
-                        onCategoryRename: (id, newName) async {
-                          await ref
-                              .read(galleryCategoryNotifierProvider.notifier)
-                              .renameCategory(id, newName);
-                        },
-                        onCategoryDelete: (id) async {
-                          final confirmed = await ThemedConfirmDialog.show(
-                            context: context,
-                            title: '确认删除',
-                            content: '确定要删除此分类吗？文件夹及其内容将被保留。',
-                            confirmText: '删除',
-                            cancelText: '取消',
-                            type: ThemedConfirmDialogType.danger,
-                            icon: Icons.delete_outline,
-                          );
-                          if (confirmed) {
-                            await ref
-                                .read(galleryCategoryNotifierProvider.notifier)
-                                .deleteCategory(id, deleteFolder: false);
-                          }
-                        },
-                        onAddSubCategory: (parentId) async {
-                          final name = await ThemedInputDialog.show(
-                            context: context,
-                            title: parentId == null ? '新建分类' : '新建子分类',
-                            hintText: '请输入分类名称',
-                            confirmText: '创建',
-                            cancelText: '取消',
-                          );
-                          if (name != null && name.isNotEmpty) {
-                            await ref
-                                .read(galleryCategoryNotifierProvider.notifier)
-                                .createCategory(name, parentId: parentId);
-                          }
-                        },
-                        onCategoryMove: (categoryId, newParentId) async {
-                          await ref
-                              .read(galleryCategoryNotifierProvider.notifier)
-                              .moveCategory(categoryId, newParentId);
-                        },
-                        onCategoryReorder:
-                            (parentId, oldIndex, newIndex) async {
-                          await ref
-                              .read(galleryCategoryNotifierProvider.notifier)
-                              .reorderCategories(parentId, oldIndex, newIndex);
-                        },
-                        onImageDrop: (imagePath, categoryId) async {
-                          final newPath = await ref
-                              .read(galleryCategoryNotifierProvider.notifier)
-                              .moveImageToCategory(imagePath, categoryId);
-                          if (newPath != null) {
-                            ref
-                                .read(localGalleryNotifierProvider.notifier)
-                                .refresh();
-                            if (context.mounted) {
-                              AppToast.success(context, '图片已移动到分类');
-                            }
-                          }
-                        },
-                        onSyncWithFileSystem: () async {
-                          await ref
-                              .read(galleryCategoryNotifierProvider.notifier)
-                              .syncWithFileSystem();
-                          if (context.mounted) {
-                            AppToast.success(context, '分类已与文件夹同步');
-                          }
-                        },
-                      ),
+                      child: _buildBody(state, columns, itemWidth),
                     ),
+                    if (!state.isIndexing &&
+                        state.filteredFiles.isNotEmpty &&
+                        state.totalPages > 0)
+                      PaginationBar(
+                        currentPage: state.currentPage,
+                        totalPages: state.totalPages,
+                        totalItems: state.filteredCount,
+                        itemsPerPage: state.pageSize,
+                        onPageChanged: (p) => ref
+                            .read(localGalleryNotifierProvider.notifier)
+                            .loadPage(p),
+                        onItemsPerPageChanged: (size) => ref
+                            .read(localGalleryNotifierProvider.notifier)
+                            .setPageSize(size),
+                        showItemsPerPage: true,
+                        showTotalInfo: true,
+                        compact: contentWidth < 600,
+                      ),
                   ],
                 ),
               ),
-            // 右侧主内容
-            Expanded(
-              child: Column(
-                children: [
-                  // 批量操作栏（只在选择模式时显示）或工具栏
-                  _buildToolbarOrSelectionBar(state, bulkOpState),
-                  // 主体内容
-                  Expanded(
-                    child: _buildBody(state, columns, itemWidth),
-                  ),
-                  // 底部分页条（增强版）
-                  if (!state.isIndexing &&
-                      state.filteredFiles.isNotEmpty &&
-                      state.totalPages > 0)
-                    PaginationBar(
-                      currentPage: state.currentPage,
-                      totalPages: state.totalPages,
-                      totalItems: state.filteredCount,
-                      itemsPerPage: state.pageSize,
-                      onPageChanged: (p) => ref
-                          .read(localGalleryNotifierProvider.notifier)
-                          .loadPage(p),
-                      onItemsPerPageChanged: (size) => ref
-                          .read(localGalleryNotifierProvider.notifier)
-                          .setPageSize(size),
-                      showItemsPerPage: true,
-                      showTotalInfo: true,
-                      compact: contentWidth < 600,
-                    ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
+  }
+
+  Widget _buildCategoryPanel(
+    ThemeData theme,
+    LocalGalleryState state,
+    GalleryCategoryState categoryState,
+  ) {
+    return Container(
+      width: 250,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          right: BorderSide(
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          _buildCategoryPanelHeader(theme),
+          Divider(
+            height: 1,
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          ),
+          Expanded(
+            child: GalleryCategoryTreeView(
+              categories: categoryState.categories,
+              totalImageCount: state.allFiles.length,
+              favoriteCount: ref
+                  .read(localGalleryNotifierProvider.notifier)
+                  .getTotalFavoriteCount(),
+              selectedCategoryId: categoryState.selectedCategoryId,
+              onCategorySelected: _handleCategorySelected,
+              onCategoryRename: (id, newName) => ref
+                  .read(galleryCategoryNotifierProvider.notifier)
+                  .renameCategory(id, newName),
+              onCategoryDelete: _handleCategoryDelete,
+              onAddSubCategory: _handleAddSubCategory,
+              onCategoryMove: (categoryId, newParentId) => ref
+                  .read(galleryCategoryNotifierProvider.notifier)
+                  .moveCategory(categoryId, newParentId),
+              onCategoryReorder: (parentId, oldIndex, newIndex) => ref
+                  .read(galleryCategoryNotifierProvider.notifier)
+                  .reorderCategories(parentId, oldIndex, newIndex),
+              onImageDrop: (imagePath, categoryId) => _handleImageDrop(imagePath, categoryId!),
+              onSyncWithFileSystem: _handleSyncWithFileSystem,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryPanelHeader(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      constraints: const BoxConstraints(minHeight: 62),
+      child: Row(
+        children: [
+          Icon(
+            Icons.folder_outlined,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '分类',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: _createCategory,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('新建', style: TextStyle(fontSize: 13)),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createCategory() async {
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: '新建分类',
+      hintText: '请输入分类名称',
+      confirmText: '创建',
+      cancelText: '取消',
+    );
+    if (name != null && name.isNotEmpty) {
+      await ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .createCategory(name, parentId: null);
+    }
+  }
+
+  void _handleCategorySelected(String? id) {
+    ref.read(galleryCategoryNotifierProvider.notifier).selectCategory(id);
+    ref
+        .read(localGalleryNotifierProvider.notifier)
+        .setShowFavoritesOnly(id == 'favorites');
+  }
+
+  Future<void> _handleCategoryDelete(String id) async {
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: '确认删除',
+      content: '确定要删除此分类吗？文件夹及其内容将被保留。',
+      confirmText: '删除',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
+    );
+    if (confirmed) {
+      await ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .deleteCategory(id, deleteFolder: false);
+    }
+  }
+
+  Future<void> _handleAddSubCategory(String? parentId) async {
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: parentId == null ? '新建分类' : '新建子分类',
+      hintText: '请输入分类名称',
+      confirmText: '创建',
+      cancelText: '取消',
+    );
+    if (name != null && name.isNotEmpty) {
+      await ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .createCategory(name, parentId: parentId);
+    }
+  }
+
+  Future<void> _handleImageDrop(String imagePath, String categoryId) async {
+    final newPath = await ref
+        .read(galleryCategoryNotifierProvider.notifier)
+        .moveImageToCategory(imagePath, categoryId);
+    if (newPath != null) {
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+      if (mounted) {
+        AppToast.success(context, '图片已移动到分类');
+      }
+    }
+  }
+
+  Future<void> _handleSyncWithFileSystem() async {
+    await ref
+        .read(galleryCategoryNotifierProvider.notifier)
+        .syncWithFileSystem();
+    if (mounted) {
+      AppToast.success(context, '分类已与文件夹同步');
+    }
   }
 
   /// 处理重建索引
@@ -887,134 +860,47 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     // 根据选项应用参数
-    if (options.importPrompt && metadata.prompt.isNotEmpty) {
-      // 自动进行语法转换（SD→NAI + 格式化）
-      var prompt = metadata.prompt;
-      prompt = SdToNaiConverter.convert(prompt);
-      prompt = NaiPromptFormatter.format(prompt);
-      paramsNotifier.updatePrompt(prompt);
-    }
-
-    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
-      // 自动进行语法转换（SD→NAI + 格式化）
-      var negativePrompt = metadata.negativePrompt;
-      negativePrompt = SdToNaiConverter.convert(negativePrompt);
-      negativePrompt = NaiPromptFormatter.format(negativePrompt);
-      paramsNotifier.updateNegativePrompt(negativePrompt);
-    }
-
-    // 应用多角色提示词（如果有）
-    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
-      final characterNotifier =
-          ref.read(characterPromptNotifierProvider.notifier);
-      final characters = <char.CharacterPrompt>[];
-      for (var i = 0; i < metadata.characterPrompts.length; i++) {
-        // 自动进行语法转换（SD→NAI + 格式化）
-        var prompt = metadata.characterPrompts[i];
-        prompt = SdToNaiConverter.convert(prompt);
-        prompt = NaiPromptFormatter.format(prompt);
-
-        var negPrompt = i < metadata.characterNegativePrompts.length
-            ? metadata.characterNegativePrompts[i]
-            : '';
-        if (negPrompt.isNotEmpty) {
-          negPrompt = SdToNaiConverter.convert(negPrompt);
-          negPrompt = NaiPromptFormatter.format(negPrompt);
-        }
-
-        // 尝试从提示词推断性别
-        final gender = _inferGenderFromPrompt(prompt);
-
-        characters.add(
-          char.CharacterPrompt.create(
-            name: 'Character ${i + 1}',
-            gender: gender,
-            prompt: prompt,
-            negativePrompt: negPrompt,
-          ),
-        );
-      }
-      characterNotifier.replaceAll(characters);
-    }
-
-    if (options.importModel && metadata.model != null) {
-      paramsNotifier.updateModel(metadata.model!);
-    }
-    if (options.importSampler && metadata.sampler != null) {
-      paramsNotifier.updateSampler(metadata.sampler!);
-    }
-    if (options.importSteps && metadata.steps != null) {
-      paramsNotifier.updateSteps(metadata.steps!);
-    }
-    if (options.importScale && metadata.scale != null) {
-      paramsNotifier.updateScale(metadata.scale!);
-    }
-    if (options.importSize &&
-        metadata.width != null &&
-        metadata.height != null) {
-      paramsNotifier.updateSize(metadata.width!, metadata.height!);
-    }
-    if (options.importSmea && metadata.smea != null) {
-      paramsNotifier.updateSmea(metadata.smea!);
-    }
-    if (options.importSmeaDyn && metadata.smeaDyn != null) {
-      paramsNotifier.updateSmeaDyn(metadata.smeaDyn!);
-    }
-    if (options.importNoiseSchedule && metadata.noiseSchedule != null) {
-      paramsNotifier.updateNoiseSchedule(metadata.noiseSchedule!);
-    }
-    if (options.importCfgRescale && metadata.cfgRescale != null) {
-      paramsNotifier.updateCfgRescale(metadata.cfgRescale!);
-    }
-    if (options.importQualityToggle && metadata.qualityToggle != null) {
-      paramsNotifier.updateQualityToggle(metadata.qualityToggle!);
-    }
-    if (options.importUcPreset && metadata.ucPreset != null) {
-      paramsNotifier.updateUcPreset(metadata.ucPreset!);
-    }
-
-    // 计算应用的参数数量
     var appliedCount = 0;
-    if (options.importPrompt && metadata.prompt.isNotEmpty) appliedCount++;
-    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
-      appliedCount++;
-    }
-    if (options.importCharacterPrompts &&
-        metadata.characterPrompts.isNotEmpty) {
-      appliedCount++;
-    }
-    if (options.importSeed && metadata.seed != null) appliedCount++;
-    if (options.importSteps && metadata.steps != null) appliedCount++;
-    if (options.importScale && metadata.scale != null) appliedCount++;
-    if (options.importSize &&
-        metadata.width != null &&
-        metadata.height != null) {
-      appliedCount++;
-    }
-    if (options.importSampler && metadata.sampler != null) appliedCount++;
-    if (options.importModel && metadata.model != null) appliedCount++;
-    if (options.importSmea && metadata.smea != null) appliedCount++;
-    if (options.importSmeaDyn && metadata.smeaDyn != null) appliedCount++;
-    if (options.importNoiseSchedule && metadata.noiseSchedule != null) {
-      appliedCount++;
-    }
-    if (options.importCfgRescale && metadata.cfgRescale != null) {
-      appliedCount++;
-    }
-    if (options.importQualityToggle && metadata.qualityToggle != null) {
-      appliedCount++;
-    }
-    if (options.importUcPreset && metadata.ucPreset != null) appliedCount++;
 
-    if (mounted) {
-      if (appliedCount > 0) {
-        AppToast.info(
-          context,
-          context.l10n.metadataImport_appliedToMain(appliedCount),
-        );
-      } else {
-        AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
-      }
+    if (options.importPrompt && metadata.prompt.isNotEmpty) {
+      paramsNotifier.updatePrompt(_formatPrompt(metadata.prompt));
+      appliedCount++;
+    }
+
+    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
+      paramsNotifier.updateNegativePrompt(_formatPrompt(metadata.negativePrompt));
+      appliedCount++;
+    }
+
+    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+      _applyCharacterPrompts(metadata);
+      appliedCount++;
+    }
+
+    // 应用单个参数
+    _applyParam(options.importSeed, metadata.seed, paramsNotifier.updateSeed);
+    _applyParam(options.importSteps, metadata.steps, paramsNotifier.updateSteps);
+    _applyParam(options.importScale, metadata.scale, paramsNotifier.updateScale);
+    _applyParam(options.importSampler, metadata.sampler, paramsNotifier.updateSampler);
+    _applyParam(options.importModel, metadata.model, paramsNotifier.updateModel);
+    _applyParam(options.importSmea, metadata.smea, paramsNotifier.updateSmea);
+    _applyParam(options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn);
+    _applyParam(options.importNoiseSchedule, metadata.noiseSchedule, paramsNotifier.updateNoiseSchedule);
+    _applyParam(options.importCfgRescale, metadata.cfgRescale, paramsNotifier.updateCfgRescale);
+    _applyParam(options.importQualityToggle, metadata.qualityToggle, paramsNotifier.updateQualityToggle);
+    _applyParam(options.importUcPreset, metadata.ucPreset, paramsNotifier.updateUcPreset);
+
+    if (options.importSize && metadata.width != null && metadata.height != null) {
+      paramsNotifier.updateSize(metadata.width!, metadata.height!);
+      appliedCount++;
+    }
+
+    if (!mounted) return;
+
+    if (appliedCount > 0) {
+      AppToast.info(context, context.l10n.metadataImport_appliedToMain(appliedCount));
+    } else {
+      AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
     }
   }
 
@@ -1086,6 +972,44 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         ),
       ],
     );
+  }
+
+  /// 格式化提示词（SD→NAI + 格式化）
+  String _formatPrompt(String prompt) {
+    return NaiPromptFormatter.format(SdToNaiConverter.convert(prompt));
+  }
+
+  /// 应用单个参数（如果条件满足）
+  void _applyParam<T>(bool shouldApply, T? value, void Function(T) updater) {
+    if (shouldApply && value != null) {
+      updater(value);
+    }
+  }
+
+  /// 应用多角色提示词
+  void _applyCharacterPrompts(dynamic metadata) {
+    final characterNotifier = ref.read(characterPromptNotifierProvider.notifier);
+    final characters = <char.CharacterPrompt>[];
+
+    for (var i = 0; i < metadata.characterPrompts.length; i++) {
+      final prompt = _formatPrompt(metadata.characterPrompts[i]);
+      var negPrompt = i < metadata.characterNegativePrompts.length
+          ? metadata.characterNegativePrompts[i]
+          : '';
+      if (negPrompt.isNotEmpty) {
+        negPrompt = _formatPrompt(negPrompt);
+      }
+
+      characters.add(
+        char.CharacterPrompt.create(
+          name: 'Character ${i + 1}',
+          gender: _inferGenderFromPrompt(prompt),
+          prompt: prompt,
+          negativePrompt: negPrompt,
+        ),
+      );
+    }
+    characterNotifier.replaceAll(characters);
   }
 
   /// 从提示词推断角色性别
@@ -1258,7 +1182,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       case 'copy_prompt':
         if (metadata?.fullPrompt.isNotEmpty == true) {
           await Clipboard.setData(ClipboardData(text: metadata!.fullPrompt));
-          if (context.mounted) {
+          if (mounted) {
             AppToast.success(context, 'Prompt 已复制');
           }
         }
@@ -1267,7 +1191,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           await Clipboard.setData(
             ClipboardData(text: metadata!.seed.toString()),
           );
-          if (context.mounted) {
+          if (mounted) {
             AppToast.success(context, 'Seed 已复制');
           }
         }
@@ -1327,7 +1251,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         if (await file.exists()) {
           await file.delete();
           await ref.read(localGalleryNotifierProvider.notifier).refresh();
-          if (context.mounted) {
+          if (mounted) {
             AppToast.success(context, '图片已删除');
           }
         }

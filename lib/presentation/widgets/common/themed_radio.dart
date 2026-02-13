@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../themes/theme_extension.dart';
-
 /// 主题化单选框组件
 ///
 /// 使用立体效果设计，外圈带有内阴影凹槽感，
@@ -91,7 +89,6 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appExt = theme.extension<AppThemeExtension>();
     final isDark = theme.brightness == Brightness.dark;
 
     // 颜色
@@ -107,18 +104,8 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
         ? Color.lerp(theme.colorScheme.surface, Colors.black, 0.3)!
         : Color.lerp(theme.colorScheme.surface, Colors.black, 0.02)!;
 
-    // 内阴影参数
-    final shadowDepth = appExt?.insetShadowDepth ?? 0.12;
-    final shadowBlur = appExt?.insetShadowBlur ?? 8.0;
-    final enableInsetShadow = appExt?.enableInsetShadow ?? true;
-
     // 禁用状态透明度
     final opacity = widget.enabled ? 1.0 : 0.5;
-
-    // 内阴影颜色
-    final shadowColor = isDark
-        ? Colors.black.withOpacity(shadowDepth * 1.5)
-        : Colors.black.withOpacity(shadowDepth);
 
     return MouseRegion(
       cursor:
@@ -144,17 +131,7 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
                 width: 1.5,
               ),
             ),
-            child: enableInsetShadow
-                ? ClipOval(
-                    child: CustomPaint(
-                      painter: _CircleInsetShadowPainter(
-                        shadowColor: shadowColor,
-                        shadowBlur: shadowBlur * 0.5,
-                      ),
-                      child: _buildInnerDot(activeColorBase),
-                    ),
-                  )
-                : _buildInnerDot(activeColorBase),
+            child: _buildInnerDot(activeColorBase),
           ),
         ),
       ),
@@ -189,75 +166,16 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   }
 }
 
-/// 圆形内阴影绘制器
-class _CircleInsetShadowPainter extends CustomPainter {
-  final Color shadowColor;
-  final double shadowBlur;
-
-  _CircleInsetShadowPainter({
-    required this.shadowColor,
-    required this.shadowBlur,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    canvas.save();
-    canvas.clipPath(
-      Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
-    );
-
-    // 顶部内阴影
-    final topGradient = RadialGradient(
-      center: const Alignment(0, -1.2),
-      radius: 1.0,
-      colors: [
-        shadowColor,
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.5],
-    );
-
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final topPaint = Paint()..shader = topGradient.createShader(rect);
-    canvas.drawRect(rect, topPaint);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _CircleInsetShadowPainter oldDelegate) {
-    return oldDelegate.shadowColor != shadowColor ||
-        oldDelegate.shadowBlur != shadowBlur;
-  }
-}
 
 /// 带标签的主题化单选框
 class ThemedRadioListTile<T> extends StatelessWidget {
-  /// 该单选框代表的值
   final T value;
-
-  /// 当前选中的值
   final T? groupValue;
-
-  /// 值改变回调
   final ValueChanged<T?>? onChanged;
-
-  /// 标签文本
   final Widget title;
-
-  /// 副标题
   final Widget? subtitle;
-
-  /// 是否启用
   final bool enabled;
-
-  /// 控件位置
   final ListTileControlAffinity controlAffinity;
-
-  /// 内边距
   final EdgeInsetsGeometry? contentPadding;
 
   const ThemedRadioListTile({
@@ -274,22 +192,54 @@ class ThemedRadioListTile<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radio = ThemedRadio<T>(
-      value: value,
-      groupValue: groupValue,
-      onChanged: onChanged,
+    return _SelectListTile(
+      control: ThemedRadio<T>(
+        value: value,
+        groupValue: groupValue,
+        onChanged: onChanged,
+        enabled: enabled,
+      ),
+      title: title,
+      subtitle: subtitle,
       enabled: enabled,
-    );
-
-    return InkWell(
+      controlAffinity: controlAffinity,
+      contentPadding: contentPadding,
       onTap: enabled && onChanged != null ? () => onChanged!(value) : null,
+    );
+  }
+}
+
+/// 选择列表项基础组件
+class _SelectListTile extends StatelessWidget {
+  final Widget control;
+  final Widget title;
+  final Widget? subtitle;
+  final bool enabled;
+  final ListTileControlAffinity controlAffinity;
+  final EdgeInsetsGeometry? contentPadding;
+  final VoidCallback? onTap;
+
+  const _SelectListTile({
+    required this.control,
+    required this.title,
+    this.subtitle,
+    required this.enabled,
+    required this.controlAffinity,
+    this.contentPadding,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
       child: Padding(
         padding: contentPadding ??
             const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
             if (controlAffinity == ListTileControlAffinity.leading) ...[
-              radio,
+              control,
               const SizedBox(width: 12),
             ],
             Expanded(
@@ -327,7 +277,7 @@ class ThemedRadioListTile<T> extends StatelessWidget {
             ),
             if (controlAffinity == ListTileControlAffinity.trailing) ...[
               const SizedBox(width: 12),
-              radio,
+              control,
             ],
           ],
         ),

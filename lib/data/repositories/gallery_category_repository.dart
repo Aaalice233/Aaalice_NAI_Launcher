@@ -9,36 +9,22 @@ import '../../core/utils/app_logger.dart';
 import '../models/gallery/gallery_category.dart';
 
 /// 画廊分类仓库
-///
-/// 管理分类的CRUD操作，并与文件系统同步
-/// 分类与物理文件夹一一对应
 class GalleryCategoryRepository {
   GalleryCategoryRepository._();
-
-  static final GalleryCategoryRepository instance =
-      GalleryCategoryRepository._();
+  static final GalleryCategoryRepository instance = GalleryCategoryRepository._();
 
   final _localStorage = LocalStorageService();
 
-  /// 分类配置文件名
   static const _categoriesFileName = '.gallery_categories.json';
-
-  /// 支持的图片扩展名
   static const _supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
 
-  /// 获取画廊根路径
-  Future<String?> getRootPath() async {
-    return _localStorage.getImageSavePath();
-  }
+  Future<String?> getRootPath() async => Future.value(_localStorage.getImageSavePath());
 
-  /// 获取分类配置文件路径
   Future<String?> _getCategoriesFilePath() async {
     final rootPath = await getRootPath();
-    if (rootPath == null) return null;
-    return p.join(rootPath, _categoriesFileName);
+    return rootPath != null ? p.join(rootPath, _categoriesFileName) : null;
   }
 
-  /// 加载所有分类
   Future<List<GalleryCategory>> loadCategories() async {
     try {
       final filePath = await _getCategoriesFilePath();
@@ -47,12 +33,8 @@ class GalleryCategoryRepository {
       final file = File(filePath);
       if (!await file.exists()) return [];
 
-      final jsonStr = await file.readAsString();
-      final jsonList = jsonDecode(jsonStr) as List;
-
-      return jsonList
-          .map((json) => GalleryCategory.fromJson(json as Map<String, dynamic>))
-          .toList();
+      final jsonList = jsonDecode(await file.readAsString()) as List;
+      return jsonList.map((j) => GalleryCategory.fromJson(j as Map<String, dynamic>)).toList();
     } catch (e) {
       AppLogger.e('加载分类配置失败', e);
       return [];
@@ -77,10 +59,6 @@ class GalleryCategoryRepository {
   }
 
   /// 创建分类（同时创建文件夹）
-  ///
-  /// [name] 分类名称
-  /// [parentId] 父分类ID（null表示根级分类）
-  /// [existingCategories] 现有分类列表（用于构建路径和排序）
   Future<GalleryCategory?> createCategory({
     required String name,
     String? parentId,
@@ -89,30 +67,15 @@ class GalleryCategoryRepository {
     final rootPath = await getRootPath();
     if (rootPath == null) return null;
 
-    // 清理文件夹名称
     final cleanName = _sanitizeFolderName(name);
     if (cleanName.isEmpty) return null;
 
-    // 构建文件夹路径
-    String relativePath;
-    String absolutePath;
+    final (relativePath, absolutePath) = parentId == null
+        ? (cleanName, p.join(rootPath, cleanName))
+        : _buildChildPath(rootPath, cleanName, parentId, existingCategories);
 
-    if (parentId == null) {
-      // 根级分类
-      relativePath = cleanName;
-      absolutePath = p.join(rootPath, cleanName);
-    } else {
-      // 子分类 - 需要找到父分类的路径
-      final parent = existingCategories.findById(parentId);
-      if (parent == null) {
-        AppLogger.e('父分类不存在: $parentId');
-        return null;
-      }
-      relativePath = p.join(parent.folderPath, cleanName);
-      absolutePath = p.join(rootPath, relativePath);
-    }
+    if (absolutePath.isEmpty) return null;
 
-    // 检查文件夹是否已存在
     final dir = Directory(absolutePath);
     if (await dir.exists()) {
       AppLogger.w('分类文件夹已存在: $absolutePath');
@@ -120,19 +83,14 @@ class GalleryCategoryRepository {
     }
 
     try {
-      // 创建文件夹
       await dir.create(recursive: true);
 
-      // 计算排序顺序
       final siblings = existingCategories.where((c) => c.parentId == parentId);
-      final sortOrder = siblings.isEmpty ? 0 : siblings.length;
-
-      // 创建分类对象
       final category = GalleryCategory.create(
         name: name,
         folderPath: relativePath,
         parentId: parentId,
-        sortOrder: sortOrder,
+        sortOrder: siblings.length,
       );
 
       AppLogger.i('创建分类成功: ${category.name} -> $absolutePath');
@@ -143,9 +101,22 @@ class GalleryCategoryRepository {
     }
   }
 
+  (String relative, String absolute) _buildChildPath(
+    String rootPath,
+    String cleanName,
+    String parentId,
+    List<GalleryCategory> categories,
+  ) {
+    final parent = categories.findById(parentId);
+    if (parent == null) {
+      AppLogger.e('父分类不存在: $parentId');
+      return ('', '');
+    }
+    final relativePath = p.join(parent.folderPath, cleanName);
+    return (relativePath, p.join(rootPath, relativePath));
+  }
+
   /// 重命名分类（同时重命名文件夹）
-  ///
-  /// 会同时更新所有子分类的文件夹路径
   Future<GalleryCategory?> renameCategory(
     GalleryCategory category,
     String newName,
@@ -157,37 +128,29 @@ class GalleryCategoryRepository {
     final cleanName = _sanitizeFolderName(newName);
     if (cleanName.isEmpty) return null;
 
-    final oldAbsolutePath = p.join(rootPath, category.folderPath);
-    final parentPath = p.dirname(oldAbsolutePath);
-    final newAbsolutePath = p.join(parentPath, cleanName);
+    final oldPath = p.join(rootPath, category.folderPath);
+    final newPath = p.join(p.dirname(oldPath), cleanName);
 
     try {
-      final oldDir = Directory(oldAbsolutePath);
+      final oldDir = Directory(oldPath);
       if (!await oldDir.exists()) {
-        AppLogger.w('原分类文件夹不存在: $oldAbsolutePath');
+        AppLogger.w('原分类文件夹不存在: $oldPath');
         return null;
       }
 
-      if (await Directory(newAbsolutePath).exists()) {
-        AppLogger.w('目标文件夹已存在: $newAbsolutePath');
+      if (await Directory(newPath).exists()) {
+        AppLogger.w('目标文件夹已存在: $newPath');
         return null;
       }
 
-      // 重命名文件夹
-      await oldDir.rename(newAbsolutePath);
-
-      // 计算新的相对路径
-      final newRelativePath = p.relative(newAbsolutePath, from: rootPath);
-
-      // 更新分类对象
-      final updated = category.copyWith(
-        name: newName,
-        folderPath: newRelativePath,
-        updatedAt: DateTime.now(),
-      );
+      await oldDir.rename(newPath);
 
       AppLogger.i('重命名分类成功: ${category.name} -> $newName');
-      return updated;
+      return category.copyWith(
+        name: newName,
+        folderPath: p.relative(newPath, from: rootPath),
+        updatedAt: DateTime.now(),
+      );
     } catch (e) {
       AppLogger.e('重命名分类失败: ${category.name}', e);
       return null;
@@ -195,8 +158,6 @@ class GalleryCategoryRepository {
   }
 
   /// 更新所有子分类的文件夹路径
-  ///
-  /// 当父分类被重命名或移动时调用
   List<GalleryCategory> updateDescendantPaths(
     String oldParentPath,
     String newParentPath,
@@ -204,10 +165,8 @@ class GalleryCategoryRepository {
   ) {
     return categories.map((c) {
       if (c.folderPath.startsWith(oldParentPath)) {
-        final newPath =
-            c.folderPath.replaceFirst(oldParentPath, newParentPath);
         return c.copyWith(
-          folderPath: newPath,
+          folderPath: c.folderPath.replaceFirst(oldParentPath, newParentPath),
           updatedAt: DateTime.now(),
         );
       }
@@ -224,38 +183,23 @@ class GalleryCategoryRepository {
     final rootPath = await getRootPath();
     if (rootPath == null) return null;
 
-    // 检查循环引用
-    if (newParentId != null &&
-        allCategories.wouldCreateCycle(category.id, newParentId)) {
+    if (newParentId != null && allCategories.wouldCreateCycle(category.id, newParentId)) {
       AppLogger.w('移动会造成循环引用');
       return null;
     }
 
-    // 构建新路径
-    String newRelativePath;
-    String newAbsolutePath;
+    final (newRelativePath, newAbsolutePath) = newParentId == null
+        ? (p.basename(category.folderPath), p.join(rootPath, p.basename(category.folderPath)))
+        : _buildMovePaths(rootPath, category, newParentId, allCategories);
 
-    if (newParentId == null) {
-      // 移动到根级
-      newRelativePath = p.basename(category.folderPath);
-      newAbsolutePath = p.join(rootPath, newRelativePath);
-    } else {
-      // 移动到其他分类下
-      final newParent = allCategories.findById(newParentId);
-      if (newParent == null) {
-        AppLogger.e('目标父分类不存在: $newParentId');
-        return null;
-      }
-      newRelativePath = p.join(newParent.folderPath, p.basename(category.folderPath));
-      newAbsolutePath = p.join(rootPath, newRelativePath);
-    }
+    if (newAbsolutePath.isEmpty) return null;
 
-    final oldAbsolutePath = p.join(rootPath, category.folderPath);
+    final oldPath = p.join(rootPath, category.folderPath);
 
     try {
-      final oldDir = Directory(oldAbsolutePath);
+      final oldDir = Directory(oldPath);
       if (!await oldDir.exists()) {
-        AppLogger.w('原分类文件夹不存在: $oldAbsolutePath');
+        AppLogger.w('原分类文件夹不存在: $oldPath');
         return null;
       }
 
@@ -264,34 +208,39 @@ class GalleryCategoryRepository {
         return null;
       }
 
-      // 确保目标父文件夹存在
       final newParentDir = Directory(p.dirname(newAbsolutePath));
-      if (!await newParentDir.exists()) {
-        await newParentDir.create(recursive: true);
-      }
+      if (!await newParentDir.exists()) await newParentDir.create(recursive: true);
 
-      // 移动文件夹
       await oldDir.rename(newAbsolutePath);
 
-      // 更新分类对象
-      final updated = category.copyWith(
+      AppLogger.i('移动分类成功: ${category.name}');
+      return category.copyWith(
         parentId: newParentId,
         folderPath: newRelativePath,
         updatedAt: DateTime.now(),
       );
-
-      AppLogger.i('移动分类成功: ${category.name}');
-      return updated;
     } catch (e) {
       AppLogger.e('移动分类失败: ${category.name}', e);
       return null;
     }
   }
 
+  (String relative, String absolute) _buildMovePaths(
+    String rootPath,
+    GalleryCategory category,
+    String newParentId,
+    List<GalleryCategory> categories,
+  ) {
+    final newParent = categories.findById(newParentId);
+    if (newParent == null) {
+      AppLogger.e('目标父分类不存在: $newParentId');
+      return ('', '');
+    }
+    final relativePath = p.join(newParent.folderPath, p.basename(category.folderPath));
+    return (relativePath, p.join(rootPath, relativePath));
+  }
+
   /// 删除分类
-  ///
-  /// [deleteFolder] 是否同时删除文件夹
-  /// [recursive] 是否递归删除（包括子分类和文件夹内容）
   Future<bool> deleteCategory(
     GalleryCategory category,
     List<GalleryCategory> allCategories, {
@@ -301,7 +250,6 @@ class GalleryCategoryRepository {
     final rootPath = await getRootPath();
     if (rootPath == null) return false;
 
-    // 检查是否有子分类
     final children = allCategories.getChildren(category.id);
     if (children.isNotEmpty && !recursive) {
       AppLogger.w('分类包含子分类，无法删除: ${category.name}');
@@ -314,9 +262,7 @@ class GalleryCategoryRepository {
       if (deleteFolder) {
         final dir = Directory(folderPath);
         if (await dir.exists()) {
-          // 检查文件夹是否为空
-          final isEmpty = await _isFolderEmpty(folderPath);
-          if (!isEmpty && !recursive) {
+          if (!recursive && !await _isFolderEmpty(folderPath)) {
             AppLogger.w('文件夹不为空，无法删除: $folderPath');
             return false;
           }
@@ -333,13 +279,7 @@ class GalleryCategoryRepository {
   }
 
   /// 移动图片到分类
-  ///
-  /// [imagePath] 图片文件路径
-  /// [targetCategory] 目标分类（null表示移动到根目录）
-  Future<String?> moveImageToCategory(
-    String imagePath,
-    GalleryCategory? targetCategory,
-  ) async {
+  Future<String?> moveImageToCategory(String imagePath, GalleryCategory? targetCategory) async {
     final rootPath = await getRootPath();
     if (rootPath == null) return null;
 
@@ -352,20 +292,15 @@ class GalleryCategoryRepository {
           ? rootPath
           : p.join(rootPath, targetCategory.folderPath);
 
-      // 确保目标目录存在
       final dir = Directory(targetDir);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
+      if (!await dir.exists()) await dir.create(recursive: true);
 
       var targetPath = p.join(targetDir, fileName);
 
-      // 如果目标已存在，添加时间戳
       if (await File(targetPath).exists()) {
         final baseName = p.basenameWithoutExtension(fileName);
         final ext = p.extension(fileName);
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        targetPath = p.join(targetDir, '${baseName}_$timestamp$ext');
+        targetPath = p.join(targetDir, '${baseName}_${DateTime.now().millisecondsSinceEpoch}$ext');
       }
 
       await file.rename(targetPath);
@@ -377,35 +312,26 @@ class GalleryCategoryRepository {
   }
 
   /// 批量移动图片到分类
-  Future<int> moveImagesToCategory(
-    List<String> imagePaths,
-    GalleryCategory? targetCategory,
-  ) async {
+  Future<int> moveImagesToCategory(List<String> imagePaths, GalleryCategory? targetCategory) async {
     int successCount = 0;
-
     for (final imagePath in imagePaths) {
-      final newPath = await moveImageToCategory(imagePath, targetCategory);
-      if (newPath != null) {
-        successCount++;
-      }
+      if (await moveImageToCategory(imagePath, targetCategory) != null) successCount++;
     }
-
     return successCount;
   }
 
   /// 统计分类内的图片数量
-  ///
-  /// [includeDescendants] 是否包含子分类的图片
   Future<int> countImagesInCategory(
     GalleryCategory category, {
     bool includeDescendants = true,
-    List<GalleryCategory>? allCategories,
   }) async {
     final rootPath = await getRootPath();
     if (rootPath == null) return 0;
 
-    final folderPath = p.join(rootPath, category.folderPath);
-    return _countImagesInFolder(folderPath, recursive: includeDescendants);
+    return _countImagesInFolder(
+      p.join(rootPath, category.folderPath),
+      recursive: includeDescendants,
+    );
   }
 
   /// 获取分类对应的绝对文件夹路径
@@ -515,52 +441,26 @@ class GalleryCategoryRepository {
     }
   }
 
-  // ============================================================
-  // 私有辅助方法
-  // ============================================================
+  String _sanitizeFolderName(String name) =>
+      name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').replaceAll(RegExp(r'\s+'), ' ').trim();
 
-  /// 清理文件夹名称
-  String _sanitizeFolderName(String name) {
-    // Windows 非法字符: \ / : * ? " < > |
-    return name
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  /// 检查文件夹是否为空
   Future<bool> _isFolderEmpty(String folderPath) async {
-    final dir = Directory(folderPath);
     try {
-      final count = await dir.list().length;
-      return count == 0;
+      return await Directory(folderPath).list().isEmpty;
     } catch (_) {
       return true;
     }
   }
 
-  /// 统计文件夹内的图片数量
-  Future<int> _countImagesInFolder(
-    String folderPath, {
-    bool recursive = false,
-  }) async {
+  Future<int> _countImagesInFolder(String folderPath, {bool recursive = false}) async {
     int count = 0;
-    final dir = Directory(folderPath);
-
     try {
-      await for (final entity
-          in dir.list(recursive: recursive, followLinks: false)) {
-        if (entity is File) {
-          final ext = p.extension(entity.path).toLowerCase();
-          if (_supportedExtensions.contains(ext)) {
-            count++;
-          }
+      await for (final entity in Directory(folderPath).list(recursive: recursive, followLinks: false)) {
+        if (entity is File && _supportedExtensions.contains(p.extension(entity.path).toLowerCase())) {
+          count++;
         }
       }
-    } catch (e) {
-      // 忽略访问错误
-    }
-
+    } catch (_) {}
     return count;
   }
 }

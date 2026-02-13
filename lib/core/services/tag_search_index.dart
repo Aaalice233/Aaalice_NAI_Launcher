@@ -385,19 +385,18 @@ class TagSearchIndex {
 
     // 按相关性排序：精确匹配 > 前缀匹配 > count
     results.sort((a, b) {
-      final aExact =
-          a.tag.toLowerCase() == prefix || (a.alias?.toLowerCase() == prefix);
-      final bExact =
-          b.tag.toLowerCase() == prefix || (b.alias?.toLowerCase() == prefix);
+      final aTag = a.tag.toLowerCase();
+      final bTag = b.tag.toLowerCase();
+      final aAlias = a.alias?.toLowerCase();
+      final bAlias = b.alias?.toLowerCase();
 
+      final aExact = aTag == prefix || aAlias == prefix;
+      final bExact = bTag == prefix || bAlias == prefix;
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
 
-      final aStartsWith = a.tag.toLowerCase().startsWith(prefix) ||
-          (a.alias?.toLowerCase().startsWith(prefix) ?? false);
-      final bStartsWith = b.tag.toLowerCase().startsWith(prefix) ||
-          (b.alias?.toLowerCase().startsWith(prefix) ?? false);
-
+      final aStartsWith = aTag.startsWith(prefix) || (aAlias?.startsWith(prefix) ?? false);
+      final bStartsWith = bTag.startsWith(prefix) || (bAlias?.startsWith(prefix) ?? false);
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;
 

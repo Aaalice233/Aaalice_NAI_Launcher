@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../themes/theme_extension.dart';
+import 'inset_shadow_painter.dart';
 
 /// 主题化开关组件
 ///
@@ -210,7 +211,7 @@ class _ThemedSwitchState extends State<ThemedSwitch>
           ? ClipRRect(
               borderRadius: borderRadius,
               child: CustomPaint(
-                painter: _InsetShadowPainter(
+                painter: InsetShadowPainter(
                   shadowColor: shadowColor,
                   shadowBlur: shadowBlur * 0.6,
                   borderRadius: trackHeight / 2,
@@ -259,63 +260,3 @@ class _ThemedSwitchState extends State<ThemedSwitch>
   }
 }
 
-/// 内阴影绘制器（轨道专用）
-class _InsetShadowPainter extends CustomPainter {
-  final Color shadowColor;
-  final double shadowBlur;
-  final double borderRadius;
-
-  _InsetShadowPainter({
-    required this.shadowColor,
-    required this.shadowBlur,
-    required this.borderRadius,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
-
-    canvas.save();
-    canvas.clipRRect(rrect);
-
-    // 顶部内阴影
-    final topGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        shadowColor,
-        shadowColor.withOpacity(shadowColor.opacity * 0.3),
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.4, 1.0],
-    );
-
-    final topRect = Rect.fromLTWH(0, 0, size.width, shadowBlur * 2);
-    final topPaint = Paint()..shader = topGradient.createShader(topRect);
-    canvas.drawRect(topRect, topPaint);
-
-    // 左侧内阴影
-    final leftGradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        shadowColor.withOpacity(shadowColor.opacity * 0.5),
-        Colors.transparent,
-      ],
-    );
-
-    final leftRect = Rect.fromLTWH(0, 0, shadowBlur, size.height);
-    final leftPaint = Paint()..shader = leftGradient.createShader(leftRect);
-    canvas.drawRect(leftRect, leftPaint);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _InsetShadowPainter oldDelegate) {
-    return oldDelegate.shadowColor != shadowColor ||
-        oldDelegate.shadowBlur != shadowBlur ||
-        oldDelegate.borderRadius != borderRadius;
-  }
-}

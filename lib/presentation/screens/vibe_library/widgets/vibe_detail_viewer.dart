@@ -8,7 +8,11 @@ import '../../../../data/models/vibe/vibe_reference_v4.dart';
 /// Vibe 详情页回调函数
 class VibeDetailCallbacks {
   /// 发送到生成页面回调
-  final void Function(VibeLibraryEntry entry, double strength, double infoExtracted)? onSendToGeneration;
+  final void Function(
+    VibeLibraryEntry entry,
+    double strength,
+    double infoExtracted,
+  )? onSendToGeneration;
 
   /// 导出回调
   final void Function(VibeLibraryEntry entry)? onExport;
@@ -16,13 +20,22 @@ class VibeDetailCallbacks {
   /// 删除回调
   final void Function(VibeLibraryEntry entry)? onDelete;
 
+  /// 重命名回调，返回错误信息（null 表示成功）
+  final Future<String?> Function(VibeLibraryEntry entry, String newName)?
+      onRename;
+
   /// 参数更新回调（可选，用于保存调整后的参数）
-  final void Function(VibeLibraryEntry entry, double strength, double infoExtracted)? onParamsChanged;
+  final void Function(
+    VibeLibraryEntry entry,
+    double strength,
+    double infoExtracted,
+  )? onParamsChanged;
 
   const VibeDetailCallbacks({
     this.onSendToGeneration,
     this.onExport,
     this.onDelete,
+    this.onRename,
     this.onParamsChanged,
   });
 }
@@ -75,16 +88,20 @@ class VibeDetailViewer extends StatefulWidget {
 }
 
 class _VibeDetailViewerState extends State<VibeDetailViewer> {
+  late VibeLibraryEntry _entry;
   late double _strength;
   late double _infoExtracted;
-  final TransformationController _transformationController = TransformationController();
+  bool _isRenaming = false;
+  final TransformationController _transformationController =
+      TransformationController();
   final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _strength = widget.entry.strength;
-    _infoExtracted = widget.entry.infoExtracted;
+    _entry = widget.entry;
+    _strength = _entry.strength;
+    _infoExtracted = _entry.infoExtracted;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -127,23 +144,132 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
   }
 
   void _sendToGeneration() {
-    widget.callbacks?.onSendToGeneration?.call(widget.entry, _strength, _infoExtracted);
+    widget.callbacks?.onSendToGeneration
+        ?.call(_entry, _strength, _infoExtracted);
     Navigator.of(context).pop();
   }
 
   void _export() {
-    widget.callbacks?.onExport?.call(widget.entry);
+    widget.callbacks?.onExport?.call(_entry);
   }
 
   void _delete() {
-    widget.callbacks?.onDelete?.call(widget.entry);
+    widget.callbacks?.onDelete?.call(_entry);
     Navigator.of(context).pop();
+  }
+
+  Future<void> _rename() async {
+    final callback = widget.callbacks?.onRename;
+    if (callback == null || _isRenaming) {
+      return;
+    }
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController(text: _entry.displayName);
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            void validate(String value) {
+              final trimmed = value.trim();
+              setState(() {
+                if (trimmed.isEmpty) {
+                  errorText = '名称不能为空';
+                } else {
+                  errorText = null;
+                }
+              });
+            }
+
+            return AlertDialog(
+              title: const Text('重命名 Vibe'),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: '输入新名称',
+                  errorText: errorText,
+                ),
+                onChanged: validate,
+                onSubmitted: (value) {
+                  final trimmed = value.trim();
+                  if (trimmed.isNotEmpty) {
+                    Navigator.of(context).pop(trimmed);
+                  } else {
+                    validate(value);
+                  }
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final trimmed = controller.text.trim();
+                    if (trimmed.isEmpty) {
+                      validate(controller.text);
+                      return;
+                    }
+                    Navigator.of(context).pop(trimmed);
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (!mounted || newName == null) {
+      return;
+    }
+
+    final trimmedName = newName.trim();
+    if (trimmedName == _entry.displayName) {
+      return;
+    }
+
+    setState(() {
+      _isRenaming = true;
+    });
+
+    final errorMessage = await callback(_entry, trimmedName);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isRenaming = false;
+      if (errorMessage == null) {
+        _entry = _entry.copyWith(name: trimmedName);
+      }
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (errorMessage == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('重命名成功')),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      SnackBar(content: Text(errorMessage)),
+    );
   }
 
   void _close() {
     // 如果参数有变化，通知回调
-    if (_strength != widget.entry.strength || _infoExtracted != widget.entry.infoExtracted) {
-      widget.callbacks?.onParamsChanged?.call(widget.entry, _strength, _infoExtracted);
+    if (_strength != _entry.strength ||
+        _infoExtracted != _entry.infoExtracted) {
+      widget.callbacks?.onParamsChanged
+          ?.call(_entry, _strength, _infoExtracted);
     }
     Navigator.of(context).pop();
   }
@@ -173,7 +299,7 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
 
   Uint8List? get _imageBytes {
     // 优先使用原始图片数据，其次使用缩略图
-    return widget.entry.rawImageData ?? widget.entry.thumbnail ?? widget.entry.vibeThumbnail;
+    return _entry.rawImageData ?? _entry.thumbnail ?? _entry.vibeThumbnail;
   }
 
   @override
@@ -321,7 +447,7 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
   /// 构建参数面板
   Widget _buildParamPanel(BuildContext context) {
     final theme = Theme.of(context);
-    final isRawImage = widget.entry.sourceType == VibeSourceType.rawImage;
+    final isRawImage = _entry.sourceType == VibeSourceType.rawImage;
 
     return Container(
       color: theme.colorScheme.surface,
@@ -346,7 +472,7 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.entry.displayName,
+                        _entry.displayName,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -361,11 +487,11 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
                 // 收藏状态
                 IconButton(
                   icon: Icon(
-                    widget.entry.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: widget.entry.isFavorite ? Colors.red : null,
+                    _entry.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: _entry.isFavorite ? Colors.red : null,
                   ),
                   onPressed: null, // 详情页只显示状态，不切换
-                  tooltip: widget.entry.isFavorite ? '已收藏' : '未收藏',
+                  tooltip: _entry.isFavorite ? '已收藏' : '未收藏',
                 ),
               ],
             ),
@@ -437,6 +563,21 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
+                        onPressed: _isRenaming ? null : _rename,
+                        icon: _isRenaming
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.drive_file_rename_outline),
+                        label: const Text('重命名'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
                         onPressed: _export,
                         icon: const Icon(Icons.file_download_outlined),
                         label: const Text('导出'),
@@ -465,20 +606,15 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
 
   /// 构建源类型标签
   Widget _buildSourceTypeChip(ThemeData theme) {
-    final isPreEncoded = widget.entry.isPreEncoded;
+    final isPreEncoded = _entry.isPreEncoded;
+    final color = isPreEncoded ? Colors.green : Colors.orange;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isPreEncoded
-            ? Colors.green.withOpacity(0.1)
-            : Colors.orange.withOpacity(0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: isPreEncoded
-              ? Colors.green.withOpacity(0.3)
-              : Colors.orange.withOpacity(0.3),
-        ),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -486,13 +622,13 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
           Icon(
             isPreEncoded ? Icons.check_circle_outline : Icons.warning_amber,
             size: 12,
-            color: isPreEncoded ? Colors.green : Colors.orange,
+            color: color,
           ),
           const SizedBox(width: 4),
           Text(
-            widget.entry.sourceType.displayLabel,
+            _entry.sourceType.displayLabel,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: isPreEncoded ? Colors.green : Colors.orange,
+              color: color,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -524,7 +660,6 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 标签行
         Row(
           children: [
             Expanded(
@@ -552,7 +687,6 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
           ],
         ),
         const SizedBox(height: 4),
-        // 描述
         Text(
           description,
           style: theme.textTheme.bodySmall?.copyWith(
@@ -560,7 +694,6 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
           ),
         ),
         const SizedBox(height: 8),
-        // 滑块
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 6,
@@ -578,32 +711,19 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
             onChanged: onChanged,
           ),
         ),
-        // 刻度标签
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '0.0',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 11,
-              ),
-            ),
-            Text(
-              '0.5',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 11,
-              ),
-            ),
-            Text(
-              '1.0',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 11,
-              ),
-            ),
-          ],
+          children: ['0.0', '0.5', '1.0']
+              .map(
+                (v) => Text(
+                  v,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+              )
+              .toList(),
         ),
       ],
     );
@@ -627,17 +747,17 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
             ),
           ),
           const SizedBox(height: 12),
-          _buildStatRow(theme, '使用次数', '${widget.entry.usedCount} 次'),
+          _buildStatRow(theme, '使用次数', '${_entry.usedCount} 次'),
           _buildStatRow(
             theme,
             '最后使用',
-            widget.entry.lastUsedAt != null
-                ? _formatDateTime(widget.entry.lastUsedAt!)
+            _entry.lastUsedAt != null
+                ? _formatDateTime(_entry.lastUsedAt!)
                 : '从未使用',
           ),
-          _buildStatRow(theme, '创建时间', _formatDateTime(widget.entry.createdAt)),
-          if (widget.entry.tags.isNotEmpty)
-            _buildStatRow(theme, '标签', widget.entry.tags.join(', ')),
+          _buildStatRow(theme, '创建时间', _formatDateTime(_entry.createdAt)),
+          if (_entry.tags.isNotEmpty)
+            _buildStatRow(theme, '标签', _entry.tags.join(', ')),
         ],
       ),
     );
@@ -672,24 +792,16 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
 
   /// 格式化日期时间
   String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
+    final diff = DateTime.now().difference(dateTime);
 
-    if (diff.inDays == 0) {
-      if (diff.inHours == 0) {
-        if (diff.inMinutes == 0) {
-          return '刚刚';
-        }
-        return '${diff.inMinutes} 分钟前';
-      }
-      return '${diff.inHours} 小时前';
-    } else if (diff.inDays == 1) {
-      return '昨天';
-    } else if (diff.inDays < 7) {
-      return '${diff.inDays} 天前';
-    } else {
+    if (diff.inDays > 6) {
       return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
     }
+    if (diff.inDays > 1) return '${diff.inDays} 天前';
+    if (diff.inDays == 1) return '昨天';
+    if (diff.inHours > 0) return '${diff.inHours} 小时前';
+    if (diff.inMinutes > 0) return '${diff.inMinutes} 分钟前';
+    return '刚刚';
   }
 
   /// 构建图标按钮
@@ -698,21 +810,17 @@ class _VibeDetailViewerState extends State<VibeDetailViewer> {
     required VoidCallback onPressed,
     required String tooltip,
   }) {
-    return Material(
-      color: Colors.black.withOpacity(0.5),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: onPressed,
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
-        child: Tooltip(
-          message: tooltip,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(10),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),
       ),

@@ -101,23 +101,16 @@ class DataMigrationService {
       }
     }
 
-    // 检查旧位置是否存在
+    // 检查旧位置是否存在且有文件
     final oldDir = Directory(oldPath);
     if (!await oldDir.exists()) {
-      // 确保新目录存在
-      if (!await newDir.exists()) {
-        await newDir.create(recursive: true);
-      }
+      await _ensureDirExists(newDir);
       return newPath;
     }
 
-    // 检查旧位置是否有文件
     final oldFiles = await oldDir.list().toList();
     if (oldFiles.isEmpty) {
-      // 确保新目录存在
-      if (!await newDir.exists()) {
-        await newDir.create(recursive: true);
-      }
+      await _ensureDirExists(newDir);
       return newPath;
     }
 
@@ -125,10 +118,7 @@ class DataMigrationService {
     AppLogger.i('从: $oldPath', 'DataMigration');
     AppLogger.i('到: $newPath', 'DataMigration');
 
-    // 确保新目录存在
-    if (!await newDir.exists()) {
-      await newDir.create(recursive: true);
-    }
+    await _ensureDirExists(newDir);
 
     // 迁移文件
     var migratedCount = 0;
@@ -159,9 +149,7 @@ class DataMigrationService {
 
   /// 递归复制目录
   Future<void> _copyDirectory(Directory source, Directory destination) async {
-    if (!await destination.exists()) {
-      await destination.create(recursive: true);
-    }
+    await _ensureDirExists(destination);
 
     await for (final entity in source.list(recursive: false)) {
       final newPath = p.join(destination.path, p.basename(entity.path));
@@ -170,6 +158,13 @@ class DataMigrationService {
       } else if (entity is Directory) {
         await _copyDirectory(entity, Directory(newPath));
       }
+    }
+  }
+
+  /// 确保目录存在（不存在则创建）
+  Future<void> _ensureDirExists(Directory dir) async {
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
     }
   }
 

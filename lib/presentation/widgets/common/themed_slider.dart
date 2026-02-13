@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../themes/theme_extension.dart';
+import 'inset_shadow_painter.dart';
 
 /// 主题化滑块组件
 ///
@@ -251,7 +252,7 @@ class _ThemedSliderState extends State<ThemedSlider> {
           ? ClipRRect(
               borderRadius: borderRadius,
               child: CustomPaint(
-                painter: _TrackInsetShadowPainter(
+                painter: InsetShadowPainter(
                   shadowColor: shadowColor,
                   shadowBlur: shadowBlur * 0.4,
                   borderRadius: trackHeight / 2,
@@ -324,51 +325,6 @@ class _ThemedSliderState extends State<ThemedSlider> {
         ),
       ),
     );
-  }
-}
-
-/// 轨道内阴影绘制器
-class _TrackInsetShadowPainter extends CustomPainter {
-  final Color shadowColor;
-  final double shadowBlur;
-  final double borderRadius;
-
-  _TrackInsetShadowPainter({
-    required this.shadowColor,
-    required this.shadowBlur,
-    required this.borderRadius,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
-
-    canvas.save();
-    canvas.clipRRect(rrect);
-
-    // 顶部内阴影
-    final topGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        shadowColor,
-        Colors.transparent,
-      ],
-    );
-
-    final topRect = Rect.fromLTWH(0, 0, size.width, shadowBlur * 2);
-    final topPaint = Paint()..shader = topGradient.createShader(topRect);
-    canvas.drawRect(topRect, topPaint);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrackInsetShadowPainter oldDelegate) {
-    return oldDelegate.shadowColor != shadowColor ||
-        oldDelegate.shadowBlur != shadowBlur ||
-        oldDelegate.borderRadius != borderRadius;
   }
 }
 

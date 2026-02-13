@@ -143,86 +143,61 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     bool? enableInsetShadow,
     double? insetShadowDepth,
     double? insetShadowBlur,
-  }) {
-    return AppThemeExtension(
-      containerDecoration: containerDecoration ?? this.containerDecoration,
-      blurStrength: blurStrength ?? this.blurStrength,
-      usePixelFont: usePixelFont ?? this.usePixelFont,
-      navBarStyle: navBarStyle ?? this.navBarStyle,
-      interactionStyle: interactionStyle ?? this.interactionStyle,
-      primaryButtonStyle: primaryButtonStyle ?? this.primaryButtonStyle,
-      borderColor: borderColor ?? this.borderColor,
-      borderWidth: borderWidth ?? this.borderWidth,
-      enableCrtEffect: enableCrtEffect ?? this.enableCrtEffect,
-      enableGlowEffect: enableGlowEffect ?? this.enableGlowEffect,
-      enableDotMatrix: enableDotMatrix ?? this.enableDotMatrix,
-      enableNeonGlow: enableNeonGlow ?? this.enableNeonGlow,
-      glowColor: glowColor ?? this.glowColor,
-      shadowIntensity: shadowIntensity ?? this.shadowIntensity,
-      isLightTheme: isLightTheme ?? this.isLightTheme,
-      accentBarColor: accentBarColor ?? this.accentBarColor,
-      dividerColor: dividerColor ?? this.dividerColor,
-      dividerThickness: dividerThickness ?? this.dividerThickness,
-      useDivider: useDivider ?? this.useDivider,
-      enableInsetShadow: enableInsetShadow ?? this.enableInsetShadow,
-      insetShadowDepth: insetShadowDepth ?? this.insetShadowDepth,
-      insetShadowBlur: insetShadowBlur ?? this.insetShadowBlur,
-    );
-  }
+  }) => AppThemeExtension(
+    containerDecoration: containerDecoration ?? this.containerDecoration,
+    blurStrength: blurStrength ?? this.blurStrength,
+    usePixelFont: usePixelFont ?? this.usePixelFont,
+    navBarStyle: navBarStyle ?? this.navBarStyle,
+    interactionStyle: interactionStyle ?? this.interactionStyle,
+    primaryButtonStyle: primaryButtonStyle ?? this.primaryButtonStyle,
+    borderColor: borderColor ?? this.borderColor,
+    borderWidth: borderWidth ?? this.borderWidth,
+    enableCrtEffect: enableCrtEffect ?? this.enableCrtEffect,
+    enableGlowEffect: enableGlowEffect ?? this.enableGlowEffect,
+    enableDotMatrix: enableDotMatrix ?? this.enableDotMatrix,
+    enableNeonGlow: enableNeonGlow ?? this.enableNeonGlow,
+    glowColor: glowColor ?? this.glowColor,
+    shadowIntensity: shadowIntensity ?? this.shadowIntensity,
+    isLightTheme: isLightTheme ?? this.isLightTheme,
+    accentBarColor: accentBarColor ?? this.accentBarColor,
+    dividerColor: dividerColor ?? this.dividerColor,
+    dividerThickness: dividerThickness ?? this.dividerThickness,
+    useDivider: useDivider ?? this.useDivider,
+    enableInsetShadow: enableInsetShadow ?? this.enableInsetShadow,
+    insetShadowDepth: insetShadowDepth ?? this.insetShadowDepth,
+    insetShadowBlur: insetShadowBlur ?? this.insetShadowBlur,
+  );
 
   @override
   AppThemeExtension lerp(ThemeExtension<AppThemeExtension>? other, double t) {
-    if (other is! AppThemeExtension) {
-      return this;
-    }
+    if (other is! AppThemeExtension) return this;
+
+    double lerpDouble(double a, double b) => a + (b - a) * t;
+    T pick<T>(T a, T b) => t < 0.5 ? a : b;
 
     return AppThemeExtension(
-      containerDecoration: BoxDecoration.lerp(
-        containerDecoration,
-        other.containerDecoration,
-        t,
-      ),
-      blurStrength:
-          uiLerpDouble(blurStrength, other.blurStrength, t) ?? blurStrength,
-      usePixelFont: t < 0.5 ? usePixelFont : other.usePixelFont,
-      navBarStyle: t < 0.5 ? navBarStyle : other.navBarStyle,
-      interactionStyle: t < 0.5 ? interactionStyle : other.interactionStyle,
-      primaryButtonStyle:
-          ButtonStyle.lerp(primaryButtonStyle, other.primaryButtonStyle, t),
+      containerDecoration: BoxDecoration.lerp(containerDecoration, other.containerDecoration, t),
+      blurStrength: lerpDouble(blurStrength, other.blurStrength),
+      usePixelFont: pick(usePixelFont, other.usePixelFont),
+      navBarStyle: pick(navBarStyle, other.navBarStyle),
+      interactionStyle: pick(interactionStyle, other.interactionStyle),
+      primaryButtonStyle: ButtonStyle.lerp(primaryButtonStyle, other.primaryButtonStyle, t),
       borderColor: Color.lerp(borderColor, other.borderColor, t),
-      borderWidth:
-          uiLerpDouble(borderWidth, other.borderWidth, t) ?? borderWidth,
-      enableCrtEffect: t < 0.5 ? enableCrtEffect : other.enableCrtEffect,
-      enableGlowEffect: t < 0.5 ? enableGlowEffect : other.enableGlowEffect,
-      enableDotMatrix: t < 0.5 ? enableDotMatrix : other.enableDotMatrix,
-      enableNeonGlow: t < 0.5 ? enableNeonGlow : other.enableNeonGlow,
+      borderWidth: lerpDouble(borderWidth, other.borderWidth),
+      enableCrtEffect: pick(enableCrtEffect, other.enableCrtEffect),
+      enableGlowEffect: pick(enableGlowEffect, other.enableGlowEffect),
+      enableDotMatrix: pick(enableDotMatrix, other.enableDotMatrix),
+      enableNeonGlow: pick(enableNeonGlow, other.enableNeonGlow),
       glowColor: Color.lerp(glowColor, other.glowColor, t),
-      shadowIntensity:
-          uiLerpDouble(shadowIntensity, other.shadowIntensity, t) ??
-              shadowIntensity,
-      isLightTheme: t < 0.5 ? isLightTheme : other.isLightTheme,
+      shadowIntensity: lerpDouble(shadowIntensity, other.shadowIntensity),
+      isLightTheme: pick(isLightTheme, other.isLightTheme),
       accentBarColor: Color.lerp(accentBarColor, other.accentBarColor, t),
-      dividerColor:
-          Color.lerp(dividerColor, other.dividerColor, t) ?? dividerColor,
-      dividerThickness:
-          uiLerpDouble(dividerThickness, other.dividerThickness, t) ??
-              dividerThickness,
-      useDivider: t < 0.5 ? useDivider : other.useDivider,
-      enableInsetShadow: t < 0.5 ? enableInsetShadow : other.enableInsetShadow,
-      insetShadowDepth:
-          uiLerpDouble(insetShadowDepth, other.insetShadowDepth, t) ??
-              insetShadowDepth,
-      insetShadowBlur:
-          uiLerpDouble(insetShadowBlur, other.insetShadowBlur, t) ??
-              insetShadowBlur,
+      dividerColor: Color.lerp(dividerColor, other.dividerColor, t) ?? dividerColor,
+      dividerThickness: lerpDouble(dividerThickness, other.dividerThickness),
+      useDivider: pick(useDivider, other.useDivider),
+      enableInsetShadow: pick(enableInsetShadow, other.enableInsetShadow),
+      insetShadowDepth: lerpDouble(insetShadowDepth, other.insetShadowDepth),
+      insetShadowBlur: lerpDouble(insetShadowBlur, other.insetShadowBlur),
     );
-  }
-
-  /// 辅助方法：处理 double 插值
-  double? uiLerpDouble(double? a, double? b, double t) {
-    if (a == null && b == null) return null;
-    a ??= 0.0;
-    b ??= 0.0;
-    return a + (b - a) * t;
   }
 }

@@ -136,27 +136,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        pageBuilder: (context, state) => CustomTransitionPage(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          state: state,
           child: const LoginScreen(),
-          transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // 使用淡入淡出 + 轻微垂直位移的组合动画
-            // 与 login_form_container.dart 保持一致的动画风格
-            return FadeTransition(
-              opacity:
-                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
-                  end: Offset.zero,
-                ).animate(
-                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
-                ),
-                child: child,
-              ),
-            );
-          },
+          slideOffset: const Offset(0.0, 0.05),
         ),
       ),
 
@@ -177,35 +160,17 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: 'home',
-                pageBuilder: (context, state) => CustomTransitionPage(
-                  key: state.pageKey,
+                pageBuilder: (context, state) => _buildFadePage(
+                  state: state,
                   child: const GenerationScreen(),
-                  transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeOutCubic)
-                          .animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
               GoRoute(
                 path: AppRoutes.generation,
                 name: 'generation',
-                pageBuilder: (context, state) => CustomTransitionPage(
-                  key: state.pageKey,
+                pageBuilder: (context, state) => _buildFadePage(
+                  state: state,
                   child: const GenerationScreen(),
-                  transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeOutCubic)
-                          .animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
             ],
@@ -522,7 +487,6 @@ class DesktopShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
 
     return Scaffold(
@@ -547,53 +511,11 @@ class DesktopShell extends ConsumerWidget {
                       containerSize:
                           Size(constraints.maxWidth, constraints.maxHeight),
                     ),
-                    // 队列管理面板（常驻保活）
-                    if (isQueueVisible)
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: () => ref
-                              .read(queueManagementVisibleProvider.notifier)
-                              .state = false,
-                          child: Container(color: Colors.black54),
-                        ),
-                      ),
-                    // 队列管理面板内容（带滑动动画，常驻保活）
-                    TweenAnimationBuilder<Offset>(
-                      tween: Tween(
-                        begin: const Offset(0, 1),
-                        end: isQueueVisible ? Offset.zero : const Offset(0, 1),
-                      ),
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, offset, child) {
-                        return IgnorePointer(
-                          ignoring: offset.dy >= 0.5, // 动画过半后禁用交互
-                          child: FractionalTranslation(
-                            translation: offset,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 650),
-                          child: Material(
-                            color: theme.scaffoldBackgroundColor,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: SafeArea(
-                              top: false,
-                              child: SizedBox(
-                                height: constraints.maxHeight * 0.85,
-                                child: const QueueManagementPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                    // 队列管理面板
+                    _QueuePanel(
+                      isVisible: isQueueVisible,
+                      maxWidth: 650,
+                      heightFactor: 0.85,
                     ),
                   ],
                 );
@@ -619,7 +541,6 @@ class MobileShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
 
     return Scaffold(
@@ -637,50 +558,11 @@ class MobileShell extends ConsumerWidget {
                 containerSize:
                     Size(constraints.maxWidth, constraints.maxHeight),
               ),
-              // 队列管理面板（常驻保活）
-              if (isQueueVisible)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () => ref
-                        .read(queueManagementVisibleProvider.notifier)
-                        .state = false,
-                    child: Container(color: Colors.black54),
-                  ),
-                ),
-              // 队列管理面板内容（带滑动动画，常驻保活）
-              TweenAnimationBuilder<Offset>(
-                tween: Tween(
-                  begin: const Offset(0, 1),
-                  end: isQueueVisible ? Offset.zero : const Offset(0, 1),
-                ),
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                builder: (context, offset, child) {
-                  return IgnorePointer(
-                    ignoring: offset.dy >= 0.5, // 动画过半后禁用交互
-                    child: FractionalTranslation(
-                      translation: offset,
-                      child: child,
-                    ),
-                  );
-                },
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Material(
-                    color: theme.scaffoldBackgroundColor,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: SafeArea(
-                      top: false,
-                      child: SizedBox(
-                        height: constraints.maxHeight * 0.85,
-                        child: const QueueManagementPage(),
-                      ),
-                    ),
-                  ),
-                ),
+              // 队列管理面板
+              _QueuePanel(
+                isVisible: isQueueVisible,
+                maxWidth: double.infinity,
+                heightFactor: 0.85,
               ),
             ],
           );
@@ -736,5 +618,135 @@ class MobileShell extends ConsumerWidget {
         branchIndex = 0; // home
     }
     navigationShell.goBranch(branchIndex);
+  }
+}
+
+// ============================================
+// 页面过渡动画辅助方法
+// ============================================
+
+const _defaultTransitionDuration = Duration(milliseconds: 300);
+const _defaultCurve = Curves.easeOutCubic;
+
+/// 构建淡入页面过渡
+CustomTransitionPage<void> _buildFadePage({
+  required GoRouterState state,
+  required Widget child,
+  Duration duration = _defaultTransitionDuration,
+}) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: duration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurveTween(curve: _defaultCurve).animate(animation),
+        child: child,
+      );
+    },
+  );
+}
+
+/// 构建淡入+滑动页面过渡
+CustomTransitionPage<void> _buildFadeSlidePage({
+  required GoRouterState state,
+  required Widget child,
+  Offset slideOffset = Offset.zero,
+  Duration duration = _defaultTransitionDuration,
+}) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: duration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curvedAnimation = CurveTween(curve: _defaultCurve).animate(animation);
+      return FadeTransition(
+        opacity: curvedAnimation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: slideOffset,
+            end: Offset.zero,
+          ).animate(curvedAnimation),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+// ============================================
+// 队列面板组件
+// ============================================
+
+/// 队列管理面板组件
+///
+/// 带背景遮罩、滑动动画和队列管理页面
+class _QueuePanel extends ConsumerWidget {
+  final bool isVisible;
+  final double maxWidth;
+  final double heightFactor;
+
+  const _QueuePanel({
+    required this.isVisible,
+    required this.maxWidth,
+    required this.heightFactor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            // 背景遮罩
+            if (isVisible)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => ref.read(queueManagementVisibleProvider.notifier).state = false,
+                  child: Container(color: Colors.black54),
+                ),
+              ),
+            // 滑动面板
+            TweenAnimationBuilder<Offset>(
+              tween: Tween(
+                begin: const Offset(0, 1),
+                end: isVisible ? Offset.zero : const Offset(0, 1),
+              ),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              builder: (context, offset, child) {
+                return IgnorePointer(
+                  ignoring: offset.dy >= 0.5,
+                  child: FractionalTranslation(
+                    translation: offset,
+                    child: child,
+                  ),
+                );
+              },
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Material(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    clipBehavior: Clip.antiAlias,
+                    child: SafeArea(
+                      top: false,
+                      child: SizedBox(
+                        height: constraints.maxHeight * heightFactor,
+                        child: const QueueManagementPage(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

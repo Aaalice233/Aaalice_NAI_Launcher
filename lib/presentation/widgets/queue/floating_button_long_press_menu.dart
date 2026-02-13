@@ -28,21 +28,16 @@ class FloatingButtonLongPressMenu extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
-    // 安全获取执行状态，处理未初始化情况
-    QueueExecutionState executionState = const QueueExecutionState();
-    try {
-      executionState = ref.watch(queueExecutionNotifierProvider);
-    } catch (e) {
-      // Provider 未初始化，使用默认状态
-    }
-
-    // 安全获取队列状态
-    ReplicationQueueState queueState = const ReplicationQueueState();
-    try {
-      queueState = ref.watch(replicationQueueNotifierProvider);
-    } catch (e) {
-      // Provider 未初始化，使用默认状态
-    }
+    final executionState = _watchState(
+      ref,
+      queueExecutionNotifierProvider,
+      const QueueExecutionState(),
+    );
+    final queueState = _watchState(
+      ref,
+      replicationQueueNotifierProvider,
+      const ReplicationQueueState(),
+    );
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -238,6 +233,15 @@ class FloatingButtonLongPressMenu extends ConsumerWidget {
         ref.read(queueExecutionNotifierProvider.notifier).setAutoExecute(value);
       },
     );
+  }
+
+  /// 安全地 watch provider 状态
+  T _watchState<T>(WidgetRef ref, ProviderListenable<T> provider, T defaultValue) {
+    try {
+      return ref.watch(provider);
+    } catch (e) {
+      return defaultValue;
+    }
   }
 
   Future<void> _confirmClearQueue(BuildContext context, WidgetRef ref) async {

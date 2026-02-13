@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../widgets/common/app_toast.dart';
 import 'core/editor_state.dart';
 import 'layers/layer.dart';
@@ -500,7 +501,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       valueListenable: _state.toolChangeNotifier,
       builder: (context, tool, _) {
         if (tool == null) {
-          return const Center(child: Text('选择工具'));
+          return Center(child: Text(context.l10n.image_editor_select_tool));
         }
         return SingleChildScrollView(
           child: tool.buildSettingsPanel(context, _state),

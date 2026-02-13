@@ -43,23 +43,24 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
-
-  /// 搜索防抖定时器
-  Timer? _searchDebounceTimer;
-
-  /// 日期格式化服务实例
-  final _dateFormattingService = DateFormattingService();
-
-  /// 页码输入控制器
   final TextEditingController _pageController = TextEditingController();
   final FocusNode _pageFocusNode = FocusNode();
-  bool _isEditingPage = false;
+  final _dateFormattingService = DateFormattingService();
 
-  /// 当前视图模式（用于检测模式切换）
+  Timer? _searchDebounceTimer;
+  bool _isEditingPage = false;
   GalleryViewMode? _lastViewMode;
 
   @override
   bool get wantKeepAlive => true;
+
+  /// 获取 Gallery Notifier（简化重复代码）
+  OnlineGalleryNotifier get _galleryNotifier =>
+      ref.read(onlineGalleryNotifierProvider.notifier);
+
+  /// 获取 Selection Notifier（简化重复代码）
+  OnlineGallerySelectionNotifier get _selectionNotifier =>
+      ref.read(onlineGallerySelectionNotifierProvider.notifier);
 
   @override
   void initState() {
@@ -79,7 +80,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       }
       // 首次加载
       if (state.posts.isEmpty && !state.isLoading) {
-        ref.read(onlineGalleryNotifierProvider.notifier).loadPosts();
+        _galleryNotifier.loadPosts();
       }
       // 记录当前模式
       _lastViewMode = state.viewMode;
@@ -90,16 +91,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
+      _galleryNotifier.loadMore();
     }
   }
 
   /// 保存当前滚动位置
   void _saveScrollOffset() {
     if (_scrollController.hasClients) {
-      ref
-          .read(onlineGalleryNotifierProvider.notifier)
-          .saveScrollOffset(_scrollController.offset);
+      _galleryNotifier.saveScrollOffset(_scrollController.offset);
     }
   }
 
@@ -154,22 +153,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   /// 提交页码跳转
   void _submitPage() {
     final input = _pageController.text.trim();
-    if (input.isEmpty) {
-      setState(() => _isEditingPage = false);
-      return;
-    }
-
     final parsed = int.tryParse(input);
-    if (parsed == null || parsed < 1) {
-      setState(() => _isEditingPage = false);
-      return;
-    }
 
     setState(() => _isEditingPage = false);
 
+    if (parsed == null || parsed < 1) return;
+
     final state = ref.read(onlineGalleryNotifierProvider);
     if (parsed != state.page) {
-      ref.read(onlineGalleryNotifierProvider.notifier).goToPage(parsed);
+      _galleryNotifier.goToPage(parsed);
     }
   }
 
@@ -225,9 +217,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           // 上一页
           IconButton(
             onPressed: state.page > 1 && !state.isLoading
-                ? () => ref
-                    .read(onlineGalleryNotifierProvider.notifier)
-                    .goToPage(state.page - 1)
+                ? () => _galleryNotifier.goToPage(state.page - 1)
                 : null,
             icon: const Icon(Icons.chevron_left, size: 24),
             tooltip: context.l10n.onlineGallery_previousPage,
@@ -241,9 +231,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           // 下一页
           IconButton(
             onPressed: state.hasMore && !state.isLoading
-                ? () => ref
-                    .read(onlineGalleryNotifierProvider.notifier)
-                    .goToPage(state.page + 1)
+                ? () => _galleryNotifier.goToPage(state.page + 1)
                 : null,
             icon: const Icon(Icons.chevron_right, size: 24),
             tooltip: context.l10n.onlineGallery_nextPage,
@@ -348,17 +336,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       return BulkActionBar(
         selectedCount: selectionState.selectedIds.length,
         isAllSelected: isAllSelected,
-        onExit: () =>
-            ref.read(onlineGallerySelectionNotifierProvider.notifier).exit(),
+        onExit: () => _selectionNotifier.exit(),
         onSelectAll: () {
           if (isAllSelected) {
-            ref
-                .read(onlineGallerySelectionNotifierProvider.notifier)
-                .clearSelection();
+            _selectionNotifier.clearSelection();
           } else {
-            ref
-                .read(onlineGallerySelectionNotifierProvider.notifier)
-                .selectAll(allPostIds);
+            _selectionNotifier.selectAll(allPostIds);
           }
         },
         actions: [
@@ -438,8 +421,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             label: context.l10n.onlineGallery_search,
             isSelected: state.viewMode == GalleryViewMode.search,
             onTap: () {
-              _saveScrollOffset(); // 保存当前滚动位置
-              ref.read(onlineGalleryNotifierProvider.notifier).switchToSearch();
+              _saveScrollOffset();
+              _galleryNotifier.switchToSearch();
             },
             isFirst: true,
           ),
@@ -448,10 +431,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             label: context.l10n.onlineGallery_popular,
             isSelected: state.viewMode == GalleryViewMode.popular,
             onTap: () {
-              _saveScrollOffset(); // 保存当前滚动位置
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .switchToPopular();
+              _saveScrollOffset();
+              _galleryNotifier.switchToPopular();
             },
           ),
           _ModeButton(
@@ -463,10 +444,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 _showLoginDialog(context);
                 return;
               }
-              _saveScrollOffset(); // 保存当前滚动位置
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .switchToFavorites();
+              _saveScrollOffset();
+              _galleryNotifier.switchToFavorites();
             },
             isLast: true,
             showBadge: !authState.isLoggedIn,
@@ -489,7 +468,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       onSuggestionSelected: (value) {
         // 选择补全建议后立即触发搜索
         _searchDebounceTimer?.cancel();
-        ref.read(onlineGalleryNotifierProvider.notifier).search(value);
+        _galleryNotifier.search(value);
       },
       child: Container(
         height: 36,
@@ -523,9 +502,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                     ),
                     onPressed: () {
                       _searchController.clear();
-                      ref
-                          .read(onlineGalleryNotifierProvider.notifier)
-                          .search('');
+                      _galleryNotifier.search('');
                       setState(() {});
                     },
                   )
@@ -537,10 +514,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           onChanged: (value) {
             setState(() {}); // 仅更新清除按钮可见性，不触发搜索
           },
-          onSubmitted: (value) {
-            // 按 Enter 时才搜索
-            ref.read(onlineGalleryNotifierProvider.notifier).search(value);
-          },
+          onSubmitted: _galleryNotifier.search,
         ),
       ),
     );
@@ -558,20 +532,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (state.viewMode == GalleryViewMode.search) ...[
           _SourceDropdown(
             selected: state.source,
-            onChanged: (source) {
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .setSource(source);
-            },
+            onChanged: _galleryNotifier.setSource,
           ),
           const SizedBox(width: 8),
         ],
         // 评级筛选
         _RatingDropdown(
           selected: state.rating,
-          onChanged: (rating) {
-            ref.read(onlineGalleryNotifierProvider.notifier).setRating(rating);
-          },
+          onChanged: _galleryNotifier.setRating,
         ),
         // 日期范围筛选（仅搜索模式）
         if (state.viewMode == GalleryViewMode.search) ...[
@@ -581,10 +549,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         const SizedBox(width: 8),
         // 刷新按钮 (FilledButton.tonal)
         FilledButton.tonalIcon(
-          onPressed: state.isLoading
-              ? null
-              : () =>
-                  ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
+          onPressed: state.isLoading ? null : _galleryNotifier.refresh,
           icon: state.isLoading
               ? SizedBox(
                   width: 16,
@@ -606,9 +571,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         IconButton(
           icon: const Icon(Icons.checklist),
           tooltip: '多选模式',
-          onPressed: () {
-            ref.read(onlineGallerySelectionNotifierProvider.notifier).enter();
-          },
+          onPressed: _selectionNotifier.enter,
         ),
         const SizedBox(width: 8),
         // 用户
@@ -685,10 +648,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
 
     if (picked != null) {
-      ref.read(onlineGalleryNotifierProvider.notifier).setDateRange(
-            picked.start,
-            picked.end,
-          );
+      _galleryNotifier.setDateRange(picked.start, picked.end);
     }
   }
 
@@ -781,9 +741,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ],
           selected: {state.popularScale},
           onSelectionChanged: (selected) {
-            ref
-                .read(onlineGalleryNotifierProvider.notifier)
-                .setPopularScale(selected.first);
+            _galleryNotifier.setPopularScale(selected.first);
           },
           style: const ButtonStyle(
             visualDensity: VisualDensity.compact,
@@ -812,9 +770,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (state.popularDate != null) ...[
           const SizedBox(width: 4),
           IconButton(
-            onPressed: () => ref
-                .read(onlineGalleryNotifierProvider.notifier)
-                .setPopularDate(null),
+            onPressed: () => _galleryNotifier.setPopularDate(null),
             icon: const Icon(Icons.close, size: 16),
             tooltip: context.l10n.onlineGallery_clear,
             style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
@@ -843,7 +799,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       lastDate: now,
     );
     if (picked != null) {
-      ref.read(onlineGalleryNotifierProvider.notifier).setPopularDate(picked);
+      _galleryNotifier.setPopularDate(picked);
     }
   }
 
@@ -855,157 +811,149 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
+    // 加载中状态
     if (state.isLoading && state.posts.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    // 错误状态
     if (state.error != null && state.posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.onlineGallery_loadFailed,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              state.error!,
-              style: theme.textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () =>
-                  ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text(context.l10n.common_retry),
-            ),
-          ],
-        ),
-      );
+      return _buildErrorState(theme, state);
     }
 
+    // 空状态
     if (state.posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              state.viewMode == GalleryViewMode.favorites
-                  ? Icons.favorite_border
-                  : Icons.image_not_supported_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              state.viewMode == GalleryViewMode.favorites
-                  ? context.l10n.onlineGallery_favoritesEmpty
-                  : context.l10n.onlineGallery_noResults,
-              style: theme.textTheme.titleMedium,
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState(theme, state);
     }
 
+    return _buildImageGrid(theme, state);
+  }
+
+  /// 构建错误状态
+  Widget _buildErrorState(ThemeData theme, OnlineGalleryState state) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.onlineGallery_loadFailed,
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            state.error!,
+            style: theme.textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _galleryNotifier.refresh,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: Text(context.l10n.common_retry),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建空状态
+  Widget _buildEmptyState(ThemeData theme, OnlineGalleryState state) {
+    final isFavorites = state.viewMode == GalleryViewMode.favorites;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isFavorites ? Icons.favorite_border : Icons.image_not_supported_outlined,
+            size: 48,
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isFavorites
+                ? context.l10n.onlineGallery_favoritesEmpty
+                : context.l10n.onlineGallery_noResults,
+            style: theme.textTheme.titleMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建图片网格
+  Widget _buildImageGrid(ThemeData theme, OnlineGalleryState state) {
     final screenWidth = MediaQuery.of(context).size.width - 60;
     final columnCount = (screenWidth / 200).floor().clamp(2, 8);
     final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
 
     return MasonryGridView.count(
-      // PageStorageKey 让 Flutter 自动保存/恢复滚动位置
       key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
       controller: _scrollController,
       padding: const EdgeInsets.all(12),
       crossAxisCount: columnCount,
       mainAxisSpacing: 6,
       crossAxisSpacing: 6,
-      itemCount:
-          state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= state.posts.length) {
-          // 显示错误重试按钮或加载指示器
-          if (state.error != null) {
-            return Center(
-              child: TextButton(
-                onPressed: () {
-                  ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
-                },
-                child: Text(
-                  '加载失败，点击重试',
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
-            );
-          }
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
+      itemCount: state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
+      itemBuilder: (context, index) => _buildGridItem(theme, state, index, itemWidth),
+    );
+  }
+
+  /// 构建网格项
+  Widget _buildGridItem(ThemeData theme, OnlineGalleryState state, int index, double itemWidth) {
+    // 加载更多指示器/错误重试
+    if (index >= state.posts.length) {
+      return _buildLoadMoreIndicator(theme, state);
+    }
+
+    final post = state.posts[index];
+    final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
+
+    _prefetchImages(state, index);
+
+    return DanbooruPostCard(
+      post: post,
+      itemWidth: itemWidth,
+      isFavorited: state.favoritedPostIds.contains(post.id),
+      isFavoriteLoading: state.favoriteLoadingPostIds.contains(post.id),
+      selectionMode: selectionState.isActive,
+      isSelected: selectionState.selectedIds.contains(post.id.toString()),
+      canSelect: post.tags.isNotEmpty,
+      onTap: () => _showPostDetail(context, post),
+      onSelectionToggle: () => _selectionNotifier.toggle(post.id.toString()),
+      onLongPress: () {
+        if (!selectionState.isActive) {
+          _selectionNotifier.enterAndSelect(post.id.toString());
         }
-
-        final post = state.posts[index];
-        final isFavorited = state.favoritedPostIds.contains(post.id);
-        final isFavoriteLoading =
-            state.favoriteLoadingPostIds.contains(post.id);
-        final selectionState =
-            ref.watch(onlineGallerySelectionNotifierProvider);
-        final isSelected =
-            selectionState.selectedIds.contains(post.id.toString());
-        final canSelect = post.tags.isNotEmpty;
-
-        // 智能预加载：提前缓存后续 10 张图片
-        _prefetchImages(state, index);
-
-        return DanbooruPostCard(
-          post: post,
-          itemWidth: itemWidth,
-          isFavorited: isFavorited,
-          isFavoriteLoading: isFavoriteLoading,
-          selectionMode: selectionState.isActive,
-          isSelected: isSelected,
-          canSelect: canSelect,
-          onTap: () => _showPostDetail(context, post),
-          onSelectionToggle: () {
-            ref
-                .read(onlineGallerySelectionNotifierProvider.notifier)
-                .toggle(post.id.toString());
-          },
-          onLongPress: () {
-            if (!selectionState.isActive) {
-              ref
-                  .read(onlineGallerySelectionNotifierProvider.notifier)
-                  .enterAndSelect(post.id.toString());
-            }
-          },
-          onTagTap: (tag) {
-            _searchController.text = tag;
-            ref.read(onlineGalleryNotifierProvider.notifier).search(tag);
-          },
-          onFavoriteToggle: () {
-            final authState = ref.read(danbooruAuthProvider);
-            if (!authState.isLoggedIn) {
-              _showLoginDialog(context);
-              return;
-            }
-            final wasFavorited = state.favoritedPostIds.contains(post.id);
-            ref
-                .read(onlineGalleryNotifierProvider.notifier)
-                .toggleFavorite(post.id)
-                .then((success) {
-              if (context.mounted && success) {
-                AppToast.info(context, wasFavorited ? '已取消收藏' : '已收藏');
-              }
-            });
-          },
-        );
       },
+      onTagTap: (tag) {
+        _searchController.text = tag;
+        _galleryNotifier.search(tag);
+      },
+      onFavoriteToggle: () => _handleFavoriteToggle(context, state, post),
+    );
+  }
+
+  /// 构建加载更多指示器
+  Widget _buildLoadMoreIndicator(ThemeData theme, OnlineGalleryState state) {
+    if (state.error != null) {
+      return Center(
+        child: TextButton(
+          onPressed: _galleryNotifier.loadMore,
+          child: Text(
+            '加载失败，点击重试',
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
+        ),
+      );
+    }
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: CircularProgressIndicator(),
+      ),
     );
   }
 
@@ -1032,9 +980,29 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       post: post,
       onTagTap: (tag) {
         _searchController.text = tag;
-        ref.read(onlineGalleryNotifierProvider.notifier).search(tag);
+        _galleryNotifier.search(tag);
       },
     );
+  }
+
+  /// 处理收藏切换
+  Future<void> _handleFavoriteToggle(
+    BuildContext context,
+    OnlineGalleryState state,
+    DanbooruPost post,
+  ) async {
+    final authState = ref.read(danbooruAuthProvider);
+    if (!authState.isLoggedIn) {
+      _showLoginDialog(context);
+      return;
+    }
+
+    final wasFavorited = state.favoritedPostIds.contains(post.id);
+    final success = await _galleryNotifier.toggleFavorite(post.id);
+
+    if (context.mounted && success) {
+      AppToast.info(context, wasFavorited ? '已取消收藏' : '已收藏');
+    }
   }
 
   /// 批量加入队列
@@ -1069,7 +1037,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     if (mounted) {
       AppToast.success(context, '已添加 $addedCount 个任务到队列');
-      ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
+      _selectionNotifier.exit();
     }
   }
 
@@ -1094,18 +1062,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     for (final idStr in selectedIds) {
       final id = int.tryParse(idStr);
       if (id != null && !galleryState.favoritedPostIds.contains(id)) {
-        await ref
-            .read(onlineGalleryNotifierProvider.notifier)
-            .toggleFavorite(id);
+        await _galleryNotifier.toggleFavorite(id);
         count++;
-        // 简单的限流
         await Future.delayed(const Duration(milliseconds: 100));
       }
     }
 
     if (mounted) {
       AppToast.info(context, '已收藏 $count 张图片');
-      ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
+      _selectionNotifier.exit();
     }
   }
 
@@ -1126,7 +1091,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     if (mounted) {
       AppToast.info(context, '开始下载 ${selectedPosts.length} 张图片...');
-      ref.read(onlineGallerySelectionNotifierProvider.notifier).exit();
+      _selectionNotifier.exit();
     }
 
     int successCount = 0;

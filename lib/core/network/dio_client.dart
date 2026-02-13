@@ -65,6 +65,12 @@ class AuthInterceptor extends Interceptor {
   /// 是否正在刷新中（防止并发刷新）
   bool _isRefreshing = false;
 
+  static final RegExp _bearerPrefixRegex = RegExp(
+    r'^Bearer\s+',
+    caseSensitive: false,
+  );
+  static final RegExp _allWhitespaceRegex = RegExp(r'\s+');
+
   AuthInterceptor(this._ref);
 
   @override
@@ -94,17 +100,22 @@ class AuthInterceptor extends Interceptor {
     final token = await storage.getAccessToken();
 
     if (token != null && token.isNotEmpty) {
-      // Trim token and determine correct format
-      final trimmedToken = token.trim();
+      final normalizedToken = _normalizeToken(token);
+      if (normalizedToken.isEmpty) {
+        AppLogger.w('Stored token is empty after normalization', 'DIO');
+        handler.next(options);
+        return;
+      }
+
       // Persistent Tokens (pst-xxx) should be used without Bearer prefix
       // JWT tokens should use Bearer prefix
-      final authHeader = trimmedToken.startsWith('pst-')
-          ? trimmedToken
-          : 'Bearer $trimmedToken';
+      final authHeader = normalizedToken.startsWith('pst-')
+          ? normalizedToken
+          : 'Bearer $normalizedToken';
 
       options.headers['Authorization'] = authHeader;
       AppLogger.d(
-        'Added auth header from storage, token length: ${trimmedToken.length}, format: ${trimmedToken.startsWith("pst-") ? "raw" : "Bearer"}',
+        'Added auth header from storage, token length: ${normalizedToken.length}, format: ${normalizedToken.startsWith("pst-") ? "raw" : "Bearer"}',
         'DIO',
       );
     } else {
@@ -165,8 +176,19 @@ class AuthInterceptor extends Interceptor {
             final newToken = await storage.getAccessToken();
 
             if (newToken != null && newToken.isNotEmpty) {
+              final normalizedToken = _normalizeToken(newToken);
+
+              if (normalizedToken.isEmpty) {
+                _isRefreshing = false;
+                handler.next(err);
+                return;
+              }
+
               // 更新请求头
-              err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              err.requestOptions.headers['Authorization'] =
+                  normalizedToken.startsWith('pst-')
+                  ? normalizedToken
+                  : 'Bearer $normalizedToken';
 
               try {
                 // 创建新的 Dio 实例来重试，避免循环
@@ -226,6 +248,26 @@ class AuthInterceptor extends Interceptor {
 
     handler.next(err);
   }
+
+  String _normalizeToken(String token) {
+    final trimmedToken = token.trim();
+    final unquotedToken = _stripWrappingQuotes(trimmedToken);
+    return unquotedToken
+        .replaceFirst(_bearerPrefixRegex, '')
+        .replaceAll(_allWhitespaceRegex, '');
+  }
+
+  String _stripWrappingQuotes(String value) {
+    if (value.length >= 2) {
+      final first = value[0];
+      final last = value[value.length - 1];
+      if ((first == '"' && last == '"') ||
+          (first == '\'' && last == '\'')) {
+        return value.substring(1, value.length - 1);
+      }
+    }
+    return value;
+  }
 }
 
 /// 错误处理拦截器
@@ -247,30 +289,15 @@ class ErrorInterceptor extends Interceptor {
   }
 
   DioException _mapError(DioException err) {
-    String message;
-
-    switch (err.type) {
-      case DioExceptionType.connectionTimeout:
-        message = '连接超时，请检查网络';
-        break;
-      case DioExceptionType.sendTimeout:
-        message = '发送超时，请重试';
-        break;
-      case DioExceptionType.receiveTimeout:
-        message = '接收超时，图像生成可能需要较长时间';
-        break;
-      case DioExceptionType.badResponse:
-        message = _parseResponseError(err.response);
-        break;
-      case DioExceptionType.cancel:
-        message = '请求已取消';
-        break;
-      case DioExceptionType.connectionError:
-        message = '网络连接错误，请检查网络';
-        break;
-      default:
-        message = err.message ?? '未知错误';
-    }
+    final message = switch (err.type) {
+      DioExceptionType.connectionTimeout => '连接超时，请检查网络',
+      DioExceptionType.sendTimeout => '发送超时，请重试',
+      DioExceptionType.receiveTimeout => '接收超时，图像生成可能需要较长时间',
+      DioExceptionType.badResponse => _parseResponseError(err.response),
+      DioExceptionType.cancel => '请求已取消',
+      DioExceptionType.connectionError => '网络连接错误，请检查网络',
+      _ => err.message ?? '未知错误',
+    };
 
     return DioException(
       requestOptions: err.requestOptions,
@@ -284,39 +311,26 @@ class ErrorInterceptor extends Interceptor {
   String _parseResponseError(Response? response) {
     if (response == null) return '服务器无响应';
 
-    final statusCode = response.statusCode;
-    final data = response.data;
-
     // 尝试从响应中提取错误信息
+    final data = response.data;
     if (data is Map<String, dynamic>) {
       final message = data['message'] ?? data['error'];
       if (message != null) return message.toString();
     }
 
     // 根据状态码返回错误信息
-    switch (statusCode) {
-      case 400:
-        return '请求参数错误';
-      case 401:
-        return '认证失败，请重新登录';
-      case 402:
-        return 'Anlas 不足';
-      case 403:
-        return '无权限访问';
-      case 404:
-        return '资源不存在';
-      case 409:
-        return '请求冲突';
-      case 429:
-        return '请求过于频繁，请稍后重试';
-      case 500:
-        return '服务器内部错误';
-      case 502:
-        return '服务器网关错误';
-      case 503:
-        return '服务暂时不可用';
-      default:
-        return '请求失败 ($statusCode)';
-    }
+    return switch (response.statusCode) {
+      400 => '请求参数错误',
+      401 => '认证失败，请重新登录',
+      402 => 'Anlas 不足',
+      403 => '无权限访问',
+      404 => '资源不存在',
+      409 => '请求冲突',
+      429 => '请求过于频繁，请稍后重试',
+      500 => '服务器内部错误',
+      502 => '服务器网关错误',
+      503 => '服务暂时不可用',
+      final code => '请求失败 ($code)',
+    };
   }
 }
