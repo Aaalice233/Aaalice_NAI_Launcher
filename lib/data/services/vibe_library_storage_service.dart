@@ -41,10 +41,15 @@ class VibeEntryRenameResult {
 /// 负责 Vibe 库条目和分类的 CRUD 操作
 /// 使用 Hive 本地存储，支持搜索、筛选和使用统计
 class VibeLibraryStorageService {
+  // Fallback box names for recovery scenarios (corrupt data, migration failures)
+  // TODO: These can be removed after VibeLibraryMigrationService is verified stable for 2+ releases
   static const String _entriesBoxName = 'vibe_library_entries';
   static const String _entriesFallbackBoxName = 'vibe_library_entries_v2';
   static const String _entriesEmergencyBoxName = 'vibe_library_entries_v3';
+  static const String _entriesRecoveryBoxName = 'vibe_library_entries_recovery';
   static const String _categoriesBoxName = 'vibe_library_categories';
+  static const String _categoriesRecoveryBoxName =
+      'vibe_library_categories_recovery';
   static const String _tag = 'VibeLibrary';
 
   VibeLibraryStorageService({VibeFileStorageService? fileStorage})
@@ -67,8 +72,7 @@ class VibeLibraryStorageService {
 
     _entriesBox = await _openEntriesBoxWithFallback();
 
-    _categoriesBox =
-        await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
+    _categoriesBox = await _openCategoriesBoxWithFallback();
     AppLogger.d('VibeLibraryStorageService initialized', 'VibeLibrary');
   }
 
@@ -77,6 +81,7 @@ class VibeLibraryStorageService {
         error.toString().contains('unknown typeId');
   }
 
+  // TODO: Remove fallback chain after VibeLibraryMigrationService is verified stable for 2+ releases
   Future<Box<VibeLibraryEntry>> _openEntriesBoxWithFallback() async {
     final candidates = <String>[
       _entriesBoxName,
@@ -102,7 +107,18 @@ class VibeLibraryStorageService {
       }
     }
 
-    throw StateError('无法打开任何 Vibe 条目缓存箱: $lastError');
+    AppLogger.w('所有默认 Vibe 条目缓存箱均不可用，切换恢复箱: $lastError', _tag);
+    return Hive.openBox<VibeLibraryEntry>(_entriesRecoveryBoxName);
+  }
+
+  Future<Box<VibeLibraryCategory>> _openCategoriesBoxWithFallback() async {
+    try {
+      return await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
+    } catch (e, stackTrace) {
+      AppLogger.w('打开分类缓存箱失败，切换到恢复箱: $e', _tag);
+      AppLogger.e('Open categories box failed', e, stackTrace, _tag);
+      return Hive.openBox<VibeLibraryCategory>(_categoriesRecoveryBoxName);
+    }
   }
 
   /// 确保已初始化（线程安全）
@@ -116,7 +132,13 @@ class VibeLibraryStorageService {
 
     // 使用 Future 锁避免并发初始化
     _initFuture ??= init();
-    await _initFuture;
+    try {
+      await _initFuture;
+    } catch (e, stackTrace) {
+      _initFuture = null;
+      AppLogger.e('VibeLibrary 初始化失败', e, stackTrace, _tag);
+      rethrow;
+    }
   }
 
   // ==================== Entry CRUD ====================
@@ -281,19 +303,15 @@ class VibeLibraryStorageService {
 
   /// 获取最近使用的条目（按最后使用时间排序）
   Future<List<VibeLibraryEntry>> getRecentEntries({int limit = 20}) async {
-    await _ensureInit();
     try {
+      await _ensureInit();
       final entries = _entriesBox!.values
           .where((entry) => entry.lastUsedAt != null)
           .toList();
       entries.sort((a, b) => b.lastUsedAt!.compareTo(a.lastUsedAt!));
       return entries.take(limit).toList();
     } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get recent entries: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
+      AppLogger.e('Failed to get recent entries', e, stackTrace, _tag);
       return [];
     }
   }

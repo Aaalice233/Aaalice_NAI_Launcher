@@ -31,6 +31,7 @@ import 'font_provider.dart';
 import 'prompt_config_provider.dart';
 import 'proxy_settings_provider.dart';
 import 'subscription_provider.dart';
+import '../../data/services/vibe_library_migration_service.dart';
 
 part 'warmup_provider.g.dart';
 
@@ -122,6 +123,19 @@ class WarmupNotifier extends _$WarmupNotifier {
 
           // 清除进度回调
           migrationService.onProgress = null;
+
+          // Vibe 库 schema 迁移
+          try {
+            final vibeResult = await VibeLibraryMigrationService().migrateIfNeeded();
+            if (vibeResult.success) {
+              AppLogger.i('Vibe 库迁移完成，导出 ${vibeResult.exportedCount} 条', 'Warmup');
+            } else {
+              AppLogger.w('Vibe 库迁移失败: ${vibeResult.error}', 'Warmup');
+            }
+          } catch (e) {
+            AppLogger.w('Vibe 库迁移异常: $e', 'Warmup');
+          }
+
           state = state.copyWith(subTaskMessage: null);
 
           if (result.isSuccess) {

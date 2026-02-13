@@ -67,6 +67,15 @@ class VibeLibraryMigrationService {
   Future<VibeLibraryMigrationResult> migrateIfNeeded({
     ProgressCallback? onProgress,
   }) async {
+    // 若设置中残留“迁移进行中”但当前进程并未持锁，说明上次可能异常退出，需先清理孤立锁。
+    final settingsBox = await _openSettingsBox();
+    final inProgress = settingsBox.get(_migrationInProgressKey) == true;
+    if (inProgress && !_localLock) {
+      AppLogger.w('检测到上次迁移中断的孤立锁，正在恢复...', _tag);
+      await settingsBox.put(_migrationInProgressKey, false);
+      AppLogger.i('孤立锁已清除，允许重新迁移', _tag);
+    }
+
     if (!await _acquireLock()) {
       return const VibeLibraryMigrationResult(
         success: false,
@@ -274,11 +283,85 @@ class VibeLibraryMigrationService {
       await Hive.box(_entriesBoxName).close();
     }
 
-    final box = await Hive.openBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
-    final entries = box.values.toList(growable: false);
-    await box.close();
-    AppLogger.i('读取到旧条目 ${entries.length} 条', _tag);
-    return entries;
+    try {
+      final box = await Hive.openBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
+      final entries = box.values.toList(growable: false);
+      await box.close();
+      AppLogger.i('读取到旧条目 ${entries.length} 条', _tag);
+      return entries;
+    } catch (error, stackTrace) {
+      if (_isUnknownTypeIdError(error)) {
+        final errorText = error.toString();
+        final typeId = RegExp(r'unknown typeId[^0-9]*(\d+)')
+                .firstMatch(errorText)
+                ?.group(1) ??
+            'unknown';
+        AppLogger.e(
+          '检测到未知的 typeId 错误(typeId=$typeId)，备份并清理 corrupt 数据: $errorText',
+          error,
+          stackTrace,
+          _tag,
+        );
+
+        final backupPath = await _backupCorruptHiveFiles();
+        await _deleteCorruptHiveFiles();
+        AppLogger.i('已备份 corrupt 文件到: $backupPath', _tag);
+        return <LegacyVibeLibraryEntryV20>[];
+      }
+      rethrow;
+    }
+  }
+
+  bool _isUnknownTypeIdError(Object error) {
+    return error is HiveError &&
+        error.toString().contains('unknown typeId');
+  }
+
+  Future<String> _backupCorruptHiveFiles() async {
+    final hivePath = await HiveStorageHelper.instance.getPath();
+    final backupRoot =
+        Directory(p.join(hivePath, 'vibe_library_migration_backup'));
+    if (!await backupRoot.exists()) {
+      await backupRoot.create(recursive: true);
+    }
+
+    final backupDirName =
+        'corrupt_${DateTime.now().millisecondsSinceEpoch}';
+    final backupDir = Directory(p.join(backupRoot.path, backupDirName));
+    await backupDir.create(recursive: true);
+
+    final targets = [
+      '$_entriesBoxName.hive',
+      '$_entriesBoxName.lock',
+      '$_entriesBoxName.crc',
+    ];
+
+    for (final name in targets) {
+      final src = File(p.join(hivePath, name));
+      if (!await src.exists()) {
+        continue;
+      }
+      final dst = File(p.join(backupDir.path, name));
+      await src.copy(dst.path);
+    }
+
+    return backupDir.path;
+  }
+
+  Future<void> _deleteCorruptHiveFiles() async {
+    final hivePath = await HiveStorageHelper.instance.getPath();
+    final targets = [
+      '$_entriesBoxName.hive',
+      '$_entriesBoxName.lock',
+      '$_entriesBoxName.crc',
+    ];
+
+    for (final name in targets) {
+      final file = File(p.join(hivePath, name));
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
   }
 
   Future<_ExportedEntry> _exportEntry(LegacyVibeLibraryEntryV20 entry) async {
