@@ -20,9 +20,8 @@ part 'translation_lazy_service.g.dart';
 /// 翻译懒加载服务
 class TranslationLazyService implements LazyDataSourceService<String> {
   static const String _baseUrl =
-      'https://huggingface.co/datasets/SmirkingFace/NAI_tag_translation/resolve/main';
-  static const String _tagTranslationFile = 'translation.csv';
-  static const String _charTranslationFile = 'character.csv';
+      'https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv/resolve/main';
+  static const String _tagsFile = 'danbooru_tags.csv';
   static const String _cacheDirName = 'tag_cache';
   static const String _metaFileName = 'translation_meta.json';
 
@@ -81,7 +80,21 @@ class TranslationLazyService implements LazyDataSourceService<String> {
       }
       _onProgress?.call(0.2, '数据库已就绪');
 
-      final needsDownload = await shouldRefresh();
+      var needsDownload = await shouldRefresh();
+
+      // 检查数据库中是否实际有翻译数据
+      if (!needsDownload) {
+        final sampleTranslation = await _unifiedDb.getTranslation('1girl');
+        if (sampleTranslation == null) {
+          AppLogger.w(
+            'Translation data appears empty in database, forcing download',
+            'TranslationLazy',
+          );
+          needsDownload = true;
+          // 重置 _lastUpdate 以确保下次会重新下载
+          _lastUpdate = null;
+        }
+      }
 
       if (needsDownload) {
         _onProgress?.call(0.3, '需要下载翻译数据...');
@@ -174,31 +187,19 @@ class TranslationLazyService implements LazyDataSourceService<String> {
       final allTranslations = <TranslationRecord>[];
 
       _onProgress?.call(0.1, '下载标签翻译...');
-      final tagTranslations = await _downloadTranslationFile(_tagTranslationFile);
+      final tagTranslations = await _downloadTranslationFile(_tagsFile);
       if (tagTranslations != null) {
         for (final entry in tagTranslations.entries) {
           allTranslations.add(
             TranslationRecord(
               enTag: entry.key.toLowerCase().trim(),
               zhTranslation: entry.value,
-              source: 'hf_translation',
+              source: 'hf_danbooru_tags',
             ),
           );
         }
-      }
-
-      _onProgress?.call(0.5, '下载角色翻译...');
-      final charTranslations = await _downloadTranslationFile(_charTranslationFile);
-      if (charTranslations != null) {
-        for (final entry in charTranslations.entries) {
-          allTranslations.add(
-            TranslationRecord(
-              enTag: entry.key.toLowerCase().trim(),
-              zhTranslation: entry.value,
-              source: 'hf_character',
-            ),
-          );
-        }
+      } else {
+        throw Exception('标签翻译文件下载失败');
       }
 
       _onProgress?.call(0.8, '导入数据库...');
@@ -218,6 +219,7 @@ class TranslationLazyService implements LazyDataSourceService<String> {
     } catch (e, stack) {
       AppLogger.e('Failed to refresh translation data', e, stack, 'TranslationLazy');
       _onProgress?.call(1.0, '刷新失败: $e');
+      // 下载失败时不更新 _lastUpdate，确保下次启动会重新尝试下载
       rethrow;
     } finally {
       _isRefreshing = false;
@@ -225,6 +227,7 @@ class TranslationLazyService implements LazyDataSourceService<String> {
   }
 
   Future<Map<String, String>?> _downloadTranslationFile(String fileName) async {
+    // 尝试主 URL
     try {
       final response = await _dio.get(
         '$_baseUrl/$fileName',
@@ -251,14 +254,27 @@ class TranslationLazyService implements LazyDataSourceService<String> {
   Map<String, String> _parseCsvContent(String content) {
     final result = <String, String>{};
     final lines = const LineSplitter().convert(content);
+    var isFirstLine = true;
 
     for (final line in lines) {
       if (line.trim().isEmpty) continue;
 
+      // 跳过 CSV 标题行
+      if (isFirstLine) {
+        isFirstLine = false;
+        if (line.toLowerCase().contains('tag') && line.toLowerCase().contains('alias')) {
+          continue;
+        }
+      }
+
       final parts = line.split(',');
-      if (parts.length >= 2) {
+      // 新格式: tag,category,count,alias1,alias2,alias3...
+      // alias 列包含多语言翻译（中文、日文、韩文、英文等），直接显示所有 alias
+      if (parts.length >= 4) {
         final tag = parts[0].trim().toLowerCase();
-        final translation = parts.sublist(1).join(',').trim();
+        // 从第4列开始是 alias（索引3），将所有 alias 用逗号连接
+        final aliases = parts.sublist(3).where((a) => a.trim().isNotEmpty).toList();
+        final translation = aliases.join(', ');
 
         if (tag.isNotEmpty && translation.isNotEmpty) {
           result[tag] = translation;

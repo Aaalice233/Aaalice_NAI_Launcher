@@ -257,6 +257,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       var currentPage = 1;
       var consecutiveEmpty = 0;
       var estimatedTotalTags = _estimateTotalTags(_currentThreshold);
+      var downloadFailed = false;
 
       while (currentPage <= _maxPages && !_isCancelled) {
         const batchSize = _concurrentRequests;
@@ -276,6 +277,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
           if (tags == null) {
             AppLogger.w('Failed to fetch page, stopping', 'DanbooruTagsLazy');
+            downloadFailed = true;
             _isCancelled = true;
             break;
           }
@@ -313,6 +315,11 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         }
       }
 
+      // 如果下载失败，抛出异常以确保不更新 _lastUpdate
+      if (downloadFailed) {
+        throw Exception('Danbooru 标签下载失败');
+      }
+
       _onProgress?.call(0.95, '导入数据库...');
 
       // 导入数据 - UnifiedTagDatabase 会自动处理连接问题
@@ -345,6 +352,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     } catch (e, stack) {
       AppLogger.e('Failed to refresh Danbooru tags', e, stack, 'DanbooruTagsLazy');
       _onProgress?.call(1.0, '刷新失败: $e');
+      // 下载失败时不更新 _lastUpdate，确保下次启动会重新尝试下载
       rethrow;
     } finally {
       _isRefreshing = false;
