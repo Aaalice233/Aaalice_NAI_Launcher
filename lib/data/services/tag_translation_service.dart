@@ -48,10 +48,37 @@ _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
 
   // 解析标签翻译 CSV
   final tagRows = converter.convert(params.tagCsvContent);
+  var isFirstRow = true;
   for (final row in tagRows) {
     if (row.length >= 2) {
-      final englishTag = row[0].toString().trim().toLowerCase();
-      final chineseTranslation = row[1].toString().trim();
+      // 处理可能的引号包裹
+      var englishTag = row[0].toString().trim().toLowerCase();
+      var chineseTranslation = row[1].toString().trim();
+
+      // 去除可能的引号
+      if (englishTag.startsWith('"') && englishTag.endsWith('"')) {
+        englishTag = englishTag.substring(1, englishTag.length - 1);
+      }
+      if (chineseTranslation.startsWith('"') &&
+          chineseTranslation.endsWith('"')) {
+        chineseTranslation = chineseTranslation.substring(
+          1,
+          chineseTranslation.length - 1,
+        );
+      }
+
+      // 跳过标题行
+      if (isFirstRow) {
+        isFirstRow = false;
+        if (englishTag == 'tag' ||
+            englishTag == 'en' ||
+            englishTag == 'name' ||
+            (englishTag.contains('tag') &&
+                chineseTranslation.contains('translation'))) {
+          continue;
+        }
+      }
+
       if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
         tagTranslations[englishTag] = chineseTranslation;
       }
@@ -60,10 +87,31 @@ _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
 
   // 解析角色翻译 CSV（格式：中文名,英文名）
   final charRows = converter.convert(params.charCsvContent);
+  isFirstRow = true;
   for (final row in charRows) {
     if (row.length >= 2) {
-      final chineseName = row[0].toString().trim();
-      final englishTag = row[1].toString().trim().toLowerCase();
+      var chineseName = row[0].toString().trim();
+      var englishTag = row[1].toString().trim().toLowerCase();
+
+      // 去除可能的引号
+      if (chineseName.startsWith('"') && chineseName.endsWith('"')) {
+        chineseName = chineseName.substring(1, chineseName.length - 1);
+      }
+      if (englishTag.startsWith('"') && englishTag.endsWith('"')) {
+        englishTag = englishTag.substring(1, englishTag.length - 1);
+      }
+
+      // 跳过标题行
+      if (isFirstRow) {
+        isFirstRow = false;
+        if (chineseName.toLowerCase() == 'name' ||
+            chineseName == '中文名' ||
+            englishTag == 'tag' ||
+            englishTag == 'en') {
+          continue;
+        }
+      }
+
       if (englishTag.isNotEmpty && chineseName.isNotEmpty) {
         characterTranslations[englishTag] = chineseName;
       }
@@ -138,9 +186,30 @@ class TagTranslationService {
         'TagTranslation',
       );
 
-      // 先加载 CSV 文件内容（必须在主线程，因为 rootBundle 不能在 Isolate 中使用）
-      final tagCsvContent =
-          await rootBundle.loadString('assets/translations/danbooru.csv');
+      // 加载所有翻译 CSV 文件
+      final csvFiles = [
+        'assets/translations/danbooru.csv', // 主要翻译
+        'assets/translations/danbooru_zh.csv', // 中文翻译
+        'assets/translations/github_sanlvzhetang.csv', // GitHub 翻译
+        'assets/translations/github_chening233.csv', // Wiki 翻译
+      ];
+
+      final csvContents = <String>[];
+      for (final file in csvFiles) {
+        try {
+          final content = await rootBundle.loadString(file);
+          csvContents.add(content);
+          AppLogger.d('Loaded translation file: $file', 'TagTranslation');
+        } catch (e) {
+          AppLogger.w(
+            'Failed to load translation file: $file - $e',
+            'TagTranslation',
+          );
+        }
+      }
+
+      // 合并所有 CSV 内容
+      final tagCsvContent = csvContents.join('\n');
       final charCsvContent =
           await rootBundle.loadString('assets/translations/wai_characters.csv');
 
