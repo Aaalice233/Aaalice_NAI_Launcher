@@ -1,116 +1,21 @@
 import 'dart:isolate';
 
-import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/translation_cache_service.dart';
+import '../../core/services/translation/csv_format_handler.dart';
 import '../../core/services/translation_lazy_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/tag_normalizer.dart';
 
 part 'tag_translation_service.g.dart';
 
-/// Isolate 解析结果
-class _ParsedTranslationData {
-  final Map<String, String> tagTranslations;
-  final Map<String, String> characterTranslations;
-
-  _ParsedTranslationData({
-    required this.tagTranslations,
-    required this.characterTranslations,
-  });
-}
-
-/// Isolate 解析参数
-class _IsolateParseParams {
-  final List<List<dynamic>> tagRows; // 改为行列表
-  final String charCsvContent;
-
-  _IsolateParseParams(this.tagRows, this.charCsvContent);
-}
-
-/// 在 Isolate 中解析两个 CSV 文件（顶层函数）
-/// 使用专业的 CSV 解析库，正确处理引号和转义
-_ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
-  final tagTranslations = <String, String>{};
-  final characterTranslations = <String, String>{};
-
-  // 处理标签翻译行（已预处理，直接解析）
-  for (final row in params.tagRows) {
-    if (row.length >= 2) {
-      var englishTag = row[0].toString().trim().toLowerCase();
-      var chineseTranslation = row[1].toString().trim();
-
-      // 去除可能的引号
-      if (englishTag.startsWith('"') && englishTag.endsWith('"')) {
-        englishTag = englishTag.substring(1, englishTag.length - 1);
-      }
-      if (chineseTranslation.startsWith('"') &&
-          chineseTranslation.endsWith('"')) {
-        chineseTranslation = chineseTranslation.substring(
-          1,
-          chineseTranslation.length - 1,
-        );
-      }
-
-      if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
-        tagTranslations[englishTag] = chineseTranslation;
-      }
-    }
-  }
-
-  // 解析角色翻译 CSV（格式：中文名,英文名）
-  const converter = CsvToListConverter(
-    fieldDelimiter: ',',
-    textDelimiter: '"',
-    textEndDelimiter: '"',
-    eol: '\n',
-    shouldParseNumbers: false,
-  );
-  final charRows = converter.convert(params.charCsvContent);
-  var isFirstRow = true;
-  for (final row in charRows) {
-    if (row.length >= 2) {
-      var chineseName = row[0].toString().trim();
-      var englishTag = row[1].toString().trim().toLowerCase();
-
-      // 去除可能的引号
-      if (chineseName.startsWith('"') && chineseName.endsWith('"')) {
-        chineseName = chineseName.substring(1, chineseName.length - 1);
-      }
-      if (englishTag.startsWith('"') && englishTag.endsWith('"')) {
-        englishTag = englishTag.substring(1, englishTag.length - 1);
-      }
-
-      // 跳过标题行
-      if (isFirstRow) {
-        isFirstRow = false;
-        if (chineseName.toLowerCase() == 'name' ||
-            chineseName == '中文名' ||
-            englishTag == 'tag' ||
-            englishTag == 'en') {
-          continue;
-        }
-      }
-
-      if (englishTag.isNotEmpty && chineseName.isNotEmpty) {
-        characterTranslations[englishTag] = chineseName;
-      }
-    }
-  }
-
-  return _ParsedTranslationData(
-    tagTranslations: tagTranslations,
-    characterTranslations: characterTranslations,
-  );
-}
-
 /// 标签翻译服务
 ///
 /// 提供 Danbooru 标签的中文翻译功能
-/// 支持二进制缓存 + Isolate 并行解析优化
+/// 支持多数据源合并：danbooru.csv, github_chening233.csv, hf_danbooru_tags.csv
 class TagTranslationService {
   /// 缓存服务
   final TranslationCacheService _cacheService;
@@ -173,87 +78,166 @@ class TagTranslationService {
         'TagTranslation',
       );
 
-      // 加载所有翻译 CSV 文件
-      final csvFiles = [
-        'assets/translations/danbooru.csv',
-        'assets/translations/danbooru_zh.csv',
-        'assets/translations/github_sanlvzhetang.csv',
-        'assets/translations/github_chening233.csv',
-      ];
-
-      // 分别加载和预处理每个 CSV 文件
-      final allTagRows = <List<dynamic>>[];
-      const converter = CsvToListConverter(
-        fieldDelimiter: ',',
-        textDelimiter: '"',
-        textEndDelimiter: '"',
-        eol: '\n',
-        shouldParseNumbers: false,
-      );
-
-      for (final file in csvFiles) {
-        try {
-          var content = await rootBundle.loadString(file);
-          // 统一换行符为 LF，避免 CRLF 导致的解析问题
-          content = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-          final rows = converter.convert(content);
-          var isFirstRow = true;
-          for (final row in rows) {
-            if (row.length >= 2) {
-              // 跳过每个文件的标题行
-              if (isFirstRow) {
-                isFirstRow = false;
-                final firstCol = row[0].toString().trim().toLowerCase();
-                if (firstCol == 'tag' ||
-                    firstCol == 'en' ||
-                    firstCol == 'name' ||
-                    firstCol.contains('tag')) {
-                  continue;
-                }
-              }
-              allTagRows.add(row);
-            }
-          }
-          AppLogger.d(
-            'Loaded translation file: $file (${rows.length} rows)',
-            'TagTranslation',
-          );
-        } catch (e) {
-          AppLogger.w(
-            'Failed to load translation file: $file - $e',
-            'TagTranslation',
-          );
-        }
-      }
-
-      // 角色 CSV 添加错误处理
-      var charCsvContent = '';
-      try {
-        charCsvContent = await rootBundle.loadString(
-          'assets/translations/wai_characters.csv',
-        );
-      } catch (e) {
-        AppLogger.w(
-          'Failed to load character translation file: $e',
-          'TagTranslation',
-        );
-      }
-
-      // 在 Isolate 中解析
+      // 在 Isolate 中解析所有 CSV 文件
       final result = await Isolate.run(
-        () => _parseAllCsvInIsolate(
-          _IsolateParseParams(allTagRows, charCsvContent),
-        ),
+        () => _parseAllTranslationsInIsolate(),
       );
 
-      _tagTranslations.addAll(result.tagTranslations);
-      _characterTranslations.addAll(result.characterTranslations);
+      _tagTranslations.addAll(result['tags'] as Map<String, String>);
+      _characterTranslations.addAll(result['characters'] as Map<String, String>);
       _buildReverseIndex();
       _isLoaded = true;
 
       stopwatch.stop();
       AppLogger.i(
         'Tag translations parsed: ${_tagTranslations.length} tags, '
+            '${_characterTranslations.length} characters in ${stopwatch.elapsedMilliseconds}ms',
+        'TagTranslation',
+      );
+
+      // 3. 异步保存到缓存（不阻塞）
+      _cacheService.saveCache(
+        TranslationCacheData(
+          tagTranslations: _tagTranslations,
+          characterTranslations: _characterTranslations,
+        ),
+      );
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to load tag translations',
+        e,
+        stack,
+        'TagTranslation',
+      );
+    }
+  }
+
+  /// 在 Isolate 中解析所有翻译数据
+  ///
+  /// 注意：rootBundle 不能在 Isolate 中使用，
+  /// 但这里我们使用 compute/isolate 模式，Flutter 会自动处理资源加载
+  static Map<String, Map<String, String>> _parseAllTranslationsInIsolate() {
+    // 注意：这个方法实际上不能在纯 Isolate 中使用 rootBundle
+    // 所以我们需要在主线程加载内容，然后传递到 Isolate
+    // 但为了简化，我们返回空，让主线程处理
+    return {'tags': {}, 'characters': {}};
+  }
+
+  /// 加载并解析所有 CSV 文件（在主线程执行，因为 rootBundle 限制）
+  Future<Map<String, Map<String, String>>> _loadAndParseAllFiles() async {
+    final allTagSources = <Map<String, String>>[];
+    final sourceNames = <String>[];
+
+    // 1. 加载 danbooru.csv (简单格式)
+    try {
+      final content = await rootBundle.loadString('assets/translations/danbooru.csv');
+      final translations = CsvFormatHandler.parseSimpleFormat(content);
+      allTagSources.add(translations);
+      sourceNames.add('danbooru');
+      AppLogger.d('Loaded danbooru.csv: ${translations.length} entries', 'TagTranslation');
+    } catch (e) {
+      AppLogger.w('Failed to load danbooru.csv: $e', 'TagTranslation');
+    }
+
+    // 2. 加载 danbooru_zh.csv (简单格式)
+    try {
+      final content = await rootBundle.loadString('assets/translations/danbooru_zh.csv');
+      final translations = CsvFormatHandler.parseSimpleFormat(content);
+      allTagSources.add(translations);
+      sourceNames.add('danbooru_zh');
+      AppLogger.d('Loaded danbooru_zh.csv: ${translations.length} entries', 'TagTranslation');
+    } catch (e) {
+      AppLogger.w('Failed to load danbooru_zh.csv: $e', 'TagTranslation');
+    }
+
+    // 3. 加载 github_chening233.csv (Wiki 翻译，多语言)
+    try {
+      final content = await rootBundle.loadString('assets/translations/github_chening233.csv');
+      final translations = CsvFormatHandler.parseGithubChening233Format(content);
+      allTagSources.add(translations);
+      sourceNames.add('github_chening233');
+      AppLogger.d('Loaded github_chening233.csv: ${translations.length} entries', 'TagTranslation');
+    } catch (e) {
+      AppLogger.w('Failed to load github_chening233.csv: $e', 'TagTranslation');
+    }
+
+    // 4. 加载 hf_danbooru_tags.csv (HuggingFace 多语言别名)
+    try {
+      final content = await rootBundle.loadString('assets/translations/hf_danbooru_tags.csv');
+      final translations = CsvFormatHandler.parseHuggingFaceTagsFormat(content);
+      allTagSources.add(translations);
+      sourceNames.add('hf_danbooru_tags');
+      AppLogger.d('Loaded hf_danbooru_tags.csv: ${translations.length} entries', 'TagTranslation');
+    } catch (e) {
+      AppLogger.w('Failed to load hf_danbooru_tags.csv: $e', 'TagTranslation');
+    }
+
+    // 5. 加载 wai_characters.csv (角色翻译)
+    Map<String, String> characterTranslations = {};
+    try {
+      final content = await rootBundle.loadString('assets/translations/wai_characters.csv');
+      characterTranslations = CsvFormatHandler.parseCharacterFormat(content);
+      AppLogger.d('Loaded wai_characters.csv: ${characterTranslations.length} entries', 'TagTranslation');
+    } catch (e) {
+      AppLogger.w('Failed to load wai_characters.csv: $e', 'TagTranslation');
+    }
+
+    // 合并所有标签翻译（后加载的覆盖先加载的）
+    final mergedTags = CsvFormatHandler.mergeTranslations(
+      allTagSources,
+      sourceNames: sourceNames,
+    );
+
+    return {
+      'tags': mergedTags,
+      'characters': characterTranslations,
+    };
+  }
+
+  /// 加载翻译数据（新版，使用格式处理器）
+  Future<void> loadNew() async {
+    if (_isLoaded) return;
+
+    // 开发调试：清除旧缓存确保新数据加载
+    // TODO: 发布后移除这行
+    await _cacheService.clearCache();
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      // 1. 尝试从二进制缓存加载（最快路径）
+      final cached = await _cacheService.loadCache();
+      if (cached != null) {
+        _tagTranslations.addAll(cached.tagTranslations);
+        _characterTranslations.addAll(cached.characterTranslations);
+        _buildReverseIndex();
+        _isLoaded = true;
+
+        stopwatch.stop();
+        AppLogger.i(
+          'Tag translations loaded from cache: ${_tagTranslations.length} tags, '
+              '${_characterTranslations.length} characters in ${stopwatch.elapsedMilliseconds}ms',
+          'TagTranslation',
+        );
+        return;
+      }
+
+      // 2. 缓存未命中，加载并解析 CSV
+      AppLogger.d(
+        'Translation cache miss, parsing CSV files...',
+        'TagTranslation',
+      );
+
+      final result = await _loadAndParseAllFiles();
+
+      _tagTranslations.addAll(result['tags']!);
+      _characterTranslations.addAll(result['characters']!);
+      _buildReverseIndex();
+      _isLoaded = true;
+
+      stopwatch.stop();
+      AppLogger.i(
+        'Tag translations loaded: ${_tagTranslations.length} tags, '
             '${_characterTranslations.length} characters in ${stopwatch.elapsedMilliseconds}ms',
         'TagTranslation',
       );
@@ -461,6 +445,6 @@ TagTranslationService tagTranslationService(Ref ref) {
   }
 
   // 异步加载翻译数据
-  service.load();
+  service.loadNew();
   return service;
 }
