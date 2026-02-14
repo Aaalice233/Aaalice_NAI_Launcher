@@ -244,6 +244,9 @@ class UnifiedTagDatabase {
         singleInstance: true,
       );
 
+      // 验证数据库表是否存在（处理预打包数据库解压失败导致空文件的情况）
+      await _verifyAndFixTables();
+
       // 设置 PRAGMA
       await _db!.execute('PRAGMA foreign_keys = ON');
       await _db!.execute('PRAGMA journal_mode = WAL');
@@ -295,6 +298,23 @@ class UnifiedTagDatabase {
         'No prebuilt database found in assets or extraction failed: $e',
         'UnifiedTagDatabase',
       );
+
+      // 确保删除可能部分创建的数据库文件，以便 onCreate 能正确执行
+      try {
+        final dbFile = File(targetPath);
+        if (await dbFile.exists()) {
+          await dbFile.delete();
+          AppLogger.i(
+            'Deleted partial database file after extraction failure',
+            'UnifiedTagDatabase',
+          );
+        }
+      } catch (deleteError) {
+        AppLogger.w(
+          'Failed to delete partial database file: $deleteError',
+          'UnifiedTagDatabase',
+        );
+      }
     }
   }
 
@@ -391,6 +411,103 @@ class UnifiedTagDatabase {
       'Database upgrade from $oldVersion to $newVersion',
       'UnifiedTagDatabase',
     );
+  }
+
+  /// 验证数据库表是否存在，如果不存在或损坏则重新创建
+  ///
+  /// 这是为了处理以下情况：
+  /// 1. 预打包数据库解压失败导致空数据库文件
+  /// 2. 数据库文件损坏 (database disk image is malformed)
+  Future<void> _verifyAndFixTables() async {
+    var needsRecreate = false;
+
+    try {
+      // 检查关键表是否存在
+      final tables = await _db!.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='danbooru_tags'",
+      );
+
+      if (tables.isEmpty) {
+        AppLogger.w(
+          'Database tables missing, need to recreate',
+          'UnifiedTagDatabase',
+        );
+        needsRecreate = true;
+      }
+    } catch (e) {
+      // 查询失败，可能是数据库损坏
+      AppLogger.w(
+        'Failed to query database tables, database may be corrupted: $e',
+        'UnifiedTagDatabase',
+      );
+      needsRecreate = true;
+    }
+
+    if (needsRecreate) {
+      await _recreateDatabase();
+    }
+  }
+
+  /// 重新创建数据库
+  Future<void> _recreateDatabase() async {
+    AppLogger.w(
+      'Recreating database...',
+      'UnifiedTagDatabase',
+    );
+
+    try {
+      // 关闭当前数据库连接
+      await _db?.close();
+      _db = null;
+
+      // 删除损坏的数据库文件
+      final dbPath = await getDatabasePath();
+      final dbFile = File(dbPath);
+
+      if (await dbFile.exists()) {
+        await dbFile.delete();
+        AppLogger.i(
+          'Deleted corrupted database file',
+          'UnifiedTagDatabase',
+        );
+      }
+
+      // 删除相关的 WAL 和 SHM 文件
+      final walFile = File('$dbPath-wal');
+      final shmFile = File('$dbPath-shm');
+
+      if (await walFile.exists()) {
+        await walFile.delete();
+      }
+      if (await shmFile.exists()) {
+        await shmFile.delete();
+      }
+
+      // 重新打开数据库（会触发 onCreate）
+      _db = await openDatabase(
+        dbPath,
+        version: _databaseVersion,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+        singleInstance: true,
+      );
+
+      // 重新设置初始化标志
+      _isInitialized = true;
+
+      AppLogger.i(
+        'Database recreated successfully',
+        'UnifiedTagDatabase',
+      );
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to recreate database',
+        e,
+        stack,
+        'UnifiedTagDatabase',
+      );
+      rethrow;
+    }
   }
 
   /// 关闭数据库
