@@ -40,7 +40,11 @@ _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
     final parts = line.split(',');
     if (parts.length >= 2) {
       final englishTag = parts[0].trim().toLowerCase();
-      final chineseTranslation = parts.sublist(1).join(',').trim();
+      var chineseTranslation = parts.sublist(1).join(',').trim();
+      // 去除翻译值首尾的双引号（CSV 格式残留）
+      if (chineseTranslation.startsWith('"') && chineseTranslation.endsWith('"')) {
+        chineseTranslation = chineseTranslation.substring(1, chineseTranslation.length - 1);
+      }
       if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
         tagTranslations[englishTag] = chineseTranslation;
       }
@@ -189,7 +193,8 @@ class TagTranslationService {
   /// [isCharacter] 是否为角色标签（优先查找角色翻译表）
   /// 返回中文翻译，如果没有翻译则返回 null
   Future<String?> translate(String tag, {bool isCharacter = false}) async {
-    final normalizedTag = tag.trim().toLowerCase();
+    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
+    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
 
     // 1. 首先尝试从懒加载服务获取（如果可用且已初始化）
     if (_lazyService != null && _lazyService!.isInitialized) {
@@ -211,7 +216,8 @@ class TagTranslationService {
 
   /// 获取角色翻译
   Future<String?> translateCharacter(String tag) async {
-    final normalizedTag = tag.trim().toLowerCase();
+    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
+    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
 
     // 优先从动态数据获取
     if (_lazyService != null && _lazyService!.isInitialized) {
@@ -226,7 +232,8 @@ class TagTranslationService {
 
   /// 获取通用标签翻译
   Future<String?> translateTag(String tag) async {
-    final normalizedTag = tag.trim().toLowerCase();
+    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
+    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
 
     // 优先从动态数据获取
     if (_lazyService != null && _lazyService!.isInitialized) {
@@ -241,13 +248,15 @@ class TagTranslationService {
 
   /// 同步获取通用标签翻译（仅访问已加载的内存数据）
   String? translateTagSync(String tag) {
-    final normalizedTag = tag.trim().toLowerCase();
+    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
+    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
     return _tagTranslations[normalizedTag];
   }
 
   /// 同步获取角色翻译（仅访问已加载的内存数据）
   String? translateCharacterSync(String tag) {
-    final normalizedTag = tag.trim().toLowerCase();
+    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
+    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
     return _characterTranslations[normalizedTag];
   }
 

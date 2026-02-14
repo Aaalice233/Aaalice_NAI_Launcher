@@ -139,7 +139,8 @@ class TranslationLazyService implements LazyDataSourceService<String> {
 
   @override
   Future<String?> get(String key) async {
-    final normalizedKey = key.toLowerCase().trim();
+    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
+    final normalizedKey = key.toLowerCase().trim().replaceAll(' ', '_');
 
     if (_hotDataCache.containsKey(normalizedKey)) {
       return _hotDataCache[normalizedKey];
