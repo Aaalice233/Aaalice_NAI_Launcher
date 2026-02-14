@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -35,6 +36,20 @@ class _LoadFromFileParams {
 void _loadFromFileIsolateEntry(_LoadFromFileParams params) async {
   final result = await _loadFromFileInIsolate(params.filePath, params.sendPort);
   params.sendPort.send(result);
+}
+
+/// 虚拟 SendPort，用于不需要进度报告的 Isolate 解析
+class _DummySendPort implements SendPort {
+  @override
+  void send(Object? message) {
+    // 忽略进度消息
+  }
+
+  @override
+  int get hashCode => 0;
+
+  @override
+  bool operator ==(Object other) => other is _DummySendPort;
 }
 
 /// 在 Isolate 中执行的实际加载逻辑
@@ -1182,6 +1197,58 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
     AppLogger.i('Cooccurrence load mode set to: $mode', 'Cooccurrence');
   }
 
+  /// 从本地 assets 加载共现数据
+  Future<bool> _loadFromAssets() async {
+    try {
+      onLoadProgress?.call(
+        CooccurrenceLoadStage.reading,
+        0.0,
+        0.0,
+        '从本地资源加载共现数据...',
+      );
+
+      final csvContent = await rootBundle.loadString(
+        'assets/translations/hf_danbooru_cooccurrence.csv',
+      );
+
+      onLoadProgress?.call(
+        CooccurrenceLoadStage.parsing,
+        0.3,
+        0.0,
+        '解析共现数据...',
+      );
+
+      final result = await Isolate.run(
+        () => _parseCooccurrenceDataWithProgressIsolate(
+          csvContent,
+          _DummySendPort(),
+        ),
+      );
+
+      onLoadProgress?.call(
+        CooccurrenceLoadStage.merging,
+        0.7,
+        0.0,
+        '合并数据...',
+      );
+
+      _data.replaceAllData(result);
+
+      onLoadProgress?.call(
+        CooccurrenceLoadStage.complete,
+        1.0,
+        1.0,
+        '共现数据加载完成: ${result.length} 个标签',
+      );
+
+      AppLogger.i('Loaded cooccurrence data from assets: ${result.length} tags', 'Cooccurrence');
+      return true;
+    } catch (e, stack) {
+      AppLogger.w('Failed to load cooccurrence from assets: $e\n$stack', 'Cooccurrence');
+      return false;
+    }
+  }
+
   Future<void> initializeLazy() async {
     if (_data.isLoaded) return;
 
@@ -1194,7 +1261,20 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
       final counts = await unifiedDb.getRecordCounts();
       final hasData = counts.cooccurrences > 0;
       if (!hasData) {
-        AppLogger.i('Cooccurrence database is empty, will download after entering main screen', 'Cooccurrence');
+        AppLogger.i('Cooccurrence database is empty, trying to load from assets...', 'Cooccurrence');
+
+        // 先尝试从本地 assets 加载
+        final loadedFromAssets = await _loadFromAssets();
+        if (loadedFromAssets) {
+          _unifiedDb = unifiedDb;
+          _loadMode = CooccurrenceLoadMode.lazy;
+          onProgress?.call(1.0, '共现数据加载完成');
+          AppLogger.i('Cooccurrence data loaded from assets successfully', 'Cooccurrence');
+          return;
+        }
+
+        // Assets 加载失败，标记为需要下载
+        AppLogger.i('No local cooccurrence data available, will download after entering main screen', 'Cooccurrence');
         _unifiedDb = unifiedDb;
         _loadMode = CooccurrenceLoadMode.lazy;
         onProgress?.call(1.0, '需要下载共现数据');
