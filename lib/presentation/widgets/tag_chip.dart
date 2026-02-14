@@ -51,10 +51,10 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
     }
   }
 
-  void _fetchTranslation() {
+  Future<void> _fetchTranslation() async {
     final translationService = ref.read(tagTranslationServiceProvider);
     final isCharacter = widget.category == 4;
-    _autoTranslation = translationService.translate(
+    _autoTranslation = await translationService.translate(
       widget.tag,
       isCharacter: isCharacter,
     );

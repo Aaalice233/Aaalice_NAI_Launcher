@@ -717,15 +717,19 @@ class _TagSection extends StatelessWidget {
             spacing: 4,
             runSpacing: 4,
             children: tags.map((tag) {
-              final translation = translationService.translate(
-                tag,
-                isCharacter: isCharacter,
-              );
-              return SimpleTagChip(
-                tag: tag,
-                color: color,
-                translation: translation,
-                onTap: () => onTagTap(tag),
+              return FutureBuilder<String?>(
+                future: translationService.translate(
+                  tag,
+                  isCharacter: isCharacter,
+                ),
+                builder: (context, snapshot) {
+                  return SimpleTagChip(
+                    tag: tag,
+                    color: color,
+                    translation: snapshot.data,
+                    onTap: () => onTagTap(tag),
+                  );
+                },
               );
             }).toList(),
           ),

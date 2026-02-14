@@ -6,14 +6,12 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/crypto/nai_crypto_service.dart';
-import '../../core/services/danbooru_tags_sync_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_auth_api_service.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/auth/saved_account.dart';
 import 'account_manager_provider.dart';
-import 'data_source_cache_provider.dart';
 
 part 'auth_provider.g.dart';
 
@@ -334,8 +332,6 @@ class AuthNotifier extends _$AuthNotifier {
             'Auto-login successful with account: ${lastUsedAccount.displayName}',
           );
 
-          // 自动登录成功后也触发同步检查
-          _triggerArtistsSync();
           return;
         } catch (e) {
           AppLogger.w(
@@ -440,9 +436,6 @@ class AuthNotifier extends _$AuthNotifier {
         displayName: displayName,
         subscriptionInfo: subscriptionInfo,
       );
-
-      // 5. 登录成功后异步触发首次数据同步（如果_needed）
-      _triggerArtistsSync();
 
       return true;
     } catch (e) {
@@ -653,9 +646,6 @@ class AuthNotifier extends _$AuthNotifier {
         subscriptionInfo: subscriptionInfo,
       );
 
-      // 9. 登录成功后异步触发画师数据同步（不阻塞登录流程）
-      _triggerArtistsSync();
-
       AppLogger.auth('Credentials login successful for: $email');
       return true;
     } catch (e) {
@@ -805,37 +795,6 @@ class AuthNotifier extends _$AuthNotifier {
       state = state.copyWith(subscriptionInfo: subscriptionInfo);
     } catch (e) {
       AppLogger.e('Failed to refresh subscription: $e');
-    }
-  }
-
-  /// 登录成功后触发画师数据同步
-  ///
-  /// 仅在需要时同步（首次、失败或超过30天）
-  void _triggerArtistsSync() async {
-    try {
-      // 延迟执行，确保登录流程完全完成
-      await Future.delayed(const Duration(seconds: 2));
-
-      // 检查是否需要同步
-      final syncService = ref.read(danbooruTagsSyncServiceProvider);
-      await syncService.initialize();
-
-      final shouldSync = await syncService.shouldSyncArtists();
-      if (!shouldSync) {
-        AppLogger.i('Artists sync not needed, skipping', 'Auth');
-        return;
-      }
-
-      AppLogger.i('Triggering artists sync after login', 'Auth');
-
-      // 使用 Provider 触发同步（带进度通知）
-      final cacheNotifier = ref.read(danbooruTagsCacheNotifierProvider.notifier);
-      await cacheNotifier.syncArtists();
-
-      AppLogger.i('Artists sync completed after login', 'Auth');
-    } catch (e) {
-      // 同步失败不应影响登录状态
-      AppLogger.w('Artists sync failed after login: $e', 'Auth');
     }
   }
 

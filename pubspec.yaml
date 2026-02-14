@@ -134,6 +134,7 @@ flutter:
     - assets/data/
     - assets/data/wordlists/
     - assets/sounds/
+    - assets/database/
 
   fonts:
     - family: LXGW ZhenKai GB

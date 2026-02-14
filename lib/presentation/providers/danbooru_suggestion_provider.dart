@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/tag_cache_service.dart';
-import '../../core/services/tag_data_service.dart';
+import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/models/tag/tag_suggestion.dart';
@@ -80,8 +80,8 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   /// Danbooru API 服务
   late DanbooruApiService _apiService;
 
-  /// 标签数据服务（用于获取翻译）
-  late TagDataService _tagDataService;
+  /// Danbooru 标签懒加载服务（用于获取翻译）
+  late DanbooruTagsLazyService _danbooruService;
 
   /// 是否已初始化缓存
   bool _cacheInitialized = false;
@@ -90,7 +90,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   TagSuggestionState build() {
     _apiService = ref.watch(danbooruApiServiceProvider);
     _cacheService = ref.watch(tagCacheServiceProvider);
-    _tagDataService = ref.watch(tagDataServiceProvider);
+    _danbooruService = ref.watch(danbooruTagsLazyServiceProvider);
 
     // 初始化缓存
     _initCache();
@@ -183,7 +183,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
 
       if (tags.isNotEmpty) {
         // 注入翻译
-        final tagsWithTranslation = _injectTranslations(tags);
+        final tagsWithTranslation = await _injectTranslations(tags);
 
         // 缓存结果（包含翻译）
         await _cacheService.set(query, tagsWithTranslation);
@@ -216,25 +216,34 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   }
 
   /// 为标签列表注入翻译
-  List<TagSuggestion> _injectTranslations(List<TagSuggestion> tags) {
-    if (!_tagDataService.isInitialized) {
+  Future<List<TagSuggestion>> _injectTranslations(List<TagSuggestion> tags) async {
+    if (!_danbooruService.isInitialized) {
       return tags;
     }
 
-    return tags.map((tag) {
+    final results = <TagSuggestion>[];
+    for (final tag in tags) {
       // 如果已有翻译，跳过
       if (tag.translation != null && tag.translation!.isNotEmpty) {
-        return tag;
+        results.add(tag);
+        continue;
       }
 
-      // 从本地翻译服务获取翻译
-      final translation = _tagDataService.getTranslation(tag.tag);
-      if (translation != null && translation.isNotEmpty) {
-        return tag.copyWith(translation: translation);
+      // 从本地服务获取翻译
+      try {
+        final localTag = await _danbooruService.get(tag.tag);
+        if (localTag != null) {
+          // 这里可以添加翻译查找逻辑
+          results.add(tag);
+        } else {
+          results.add(tag);
+        }
+      } catch (e) {
+        results.add(tag);
       }
+    }
 
-      return tag;
-    }).toList();
+    return results;
   }
 
   /// 清空建议

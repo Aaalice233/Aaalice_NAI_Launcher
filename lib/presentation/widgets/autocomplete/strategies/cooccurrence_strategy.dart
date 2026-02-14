@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/smart_tag_recommendation_service.dart';
-import '../../../../core/services/tag_data_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../autocomplete_controller.dart';
@@ -14,7 +13,6 @@ import '../generic_suggestion_tile.dart';
 /// 显示与该标签共现的相关标签推荐
 class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   final SmartTagRecommendationService _recommendationService;
-  final TagDataService _tagDataService;
   final AutocompleteConfig _config;
   final WidgetRef _ref;
 
@@ -26,11 +24,9 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
   CooccurrenceStrategy._({
     required SmartTagRecommendationService recommendationService,
-    required TagDataService tagDataService,
     required AutocompleteConfig config,
     required WidgetRef ref,
   })  : _recommendationService = recommendationService,
-        _tagDataService = tagDataService,
         _config = config,
         _ref = ref;
 
@@ -38,7 +34,6 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   static CooccurrenceStrategy create(WidgetRef ref, AutocompleteConfig config) {
     return CooccurrenceStrategy._(
       recommendationService: ref.read(smartTagRecommendationServiceProvider),
-      tagDataService: ref.read(tagDataServiceProvider),
       config: config,
       ref: ref,
     );
@@ -116,12 +111,9 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
   @override
   SuggestionData toSuggestionData(RecommendedTag item) {
-    // 获取标签的完整信息（用于分类、计数等）
-    final tagData = _tagDataService.search(item.tag).firstOrNull;
-
     return SuggestionData(
       tag: item.tag,
-      category: tagData?.category ?? 0,
+      category: 0, // 共现标签默认分类
       count: item.cooccurrence, // 使用共现次数代替使用次数
       translation: item.translation,
       // 共现标签的特殊标记
@@ -239,31 +231,31 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   /// 返回小写规范化后的标签集合
   Set<String> _extractExistingTags(String text, int cursorPosition) {
     final tags = <String>{};
-    
+
     // 简化处理：按逗号分割，提取所有标签
     final parts = text.split(RegExp(r'[,，]'));
-    
+
     for (var part in parts) {
       var tag = part.trim();
-      
+
       // 跳过当前正在输入的位置（光标后的内容）
       // 这里简化处理，只提取光标前的标签
-      
+
       // 移除权重语法前缀
       final weightMatch = RegExp(r'^-?(?:\d+\.?\d*|\.\d+)::').firstMatch(tag);
       if (weightMatch != null) {
         tag = tag.substring(weightMatch.end);
       }
-      
+
       // 移除括号前缀
       tag = tag.replaceAll(RegExp(r'^[\{\[\(]+'), '');
       tag = tag.trim();
-      
+
       if (tag.length >= 2) {
         tags.add(tag.toLowerCase());
       }
     }
-    
+
     return tags;
   }
 }

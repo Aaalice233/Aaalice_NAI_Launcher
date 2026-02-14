@@ -4,9 +4,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/proxy_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/hive_storage_helper.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
@@ -175,6 +177,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.folder_open, size: 20),
+                  tooltip: '打开文件夹',
+                  onPressed: () async {
+                    try {
+                      String path;
+                      if (saveSettings.hasCustomPath) {
+                        path = saveSettings.customPath!;
+                      } else {
+                        final docDir = await getApplicationDocumentsDirectory();
+                        path = '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
+                      }
+                      await launchUrl(
+                        Uri.directory(path),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (e) {
+                      AppLogger.e('打开文件夹失败', e);
+                    }
+                  },
+                ),
                 if (saveSettings.hasCustomPath)
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
@@ -1261,6 +1284,21 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          IconButton(
+            icon: const Icon(Icons.folder_open, size: 20),
+            tooltip: '打开文件夹',
+            onPressed: () async {
+              try {
+                final path = await _pathHelper.getPath();
+                await launchUrl(
+                  Uri.directory(path),
+                  mode: LaunchMode.externalApplication,
+                );
+              } catch (e) {
+                AppLogger.e('打开文件夹失败', e);
+              }
+            },
+          ),
           if (hasCustomPath)
             IconButton(
               icon: const Icon(Icons.close, size: 20),
@@ -1380,6 +1418,21 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          IconButton(
+            icon: const Icon(Icons.folder_open, size: 20),
+            tooltip: '打开文件夹',
+            onPressed: () async {
+              try {
+                final path = await _hiveHelper.getPath();
+                await launchUrl(
+                  Uri.directory(path),
+                  mode: LaunchMode.externalApplication,
+                );
+              } catch (e) {
+                AppLogger.e('打开文件夹失败', e);
+              }
+            },
+          ),
           if (hasCustomPath)
             IconButton(
               icon: const Icon(Icons.close, size: 20),

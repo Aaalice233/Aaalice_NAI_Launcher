@@ -787,8 +787,9 @@ class _TagRow extends StatelessWidget {
             spacing: 4,
             runSpacing: 2,
             children: tags.map((tag) {
-              final translation =
-                  translationService.translate(tag, isCharacter: isCharacter);
+              final translation = isCharacter
+                  ? translationService.translateCharacterSync(tag)
+                  : translationService.translateTagSync(tag);
               final displayText = tag.replaceAll('_', ' ');
               return Text(
                 translation != null

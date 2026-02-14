@@ -362,9 +362,6 @@ class _MainShellState extends ConsumerState<MainShell> {
       downloadNotifier.setContext(context);
     }
 
-    // 后台初始化标签数据
-    await downloadNotifier.initializeTagData();
-
     // 下载共现标签数据（100MB）
     if (mounted) {
       try {

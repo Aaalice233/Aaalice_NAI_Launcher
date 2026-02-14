@@ -194,13 +194,13 @@ class _TagChipState extends ConsumerState<TagChip>
     return favorites.any((f) => f.tag.text == widget.tag.text);
   }
 
-  void _fetchTranslation() {
+  Future<void> _fetchTranslation() async {
     if (widget.tag.translation != null) {
       _translation = widget.tag.translation;
       return;
     }
     final translationService = ref.read(tagTranslationServiceProvider);
-    _translation = translationService.translate(
+    _translation = await translationService.translate(
       widget.tag.text,
       isCharacter: widget.tag.category == 4,
     );

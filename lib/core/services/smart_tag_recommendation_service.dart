@@ -7,7 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import 'cooccurrence_service.dart';
-import 'tag_data_service.dart';
+import 'danbooru_tags_lazy_service.dart';
+import 'translation_lazy_service.dart';
 
 part 'smart_tag_recommendation_service.g.dart';
 
@@ -33,14 +34,16 @@ class RecommendedTag {
 /// 使用 Jaccard 相似度算法推荐相关标签
 class SmartTagRecommendationService {
   final CooccurrenceService _cooccurrenceService;
-  final TagDataService _tagDataService;
+  final DanbooruTagsLazyService _danbooruService;
+  final TranslationLazyService _translationService;
 
   /// 是否启用智能推荐
   bool _isEnabled = true;
 
   SmartTagRecommendationService(
     this._cooccurrenceService,
-    this._tagDataService,
+    this._danbooruService,
+    this._translationService,
   );
 
   /// 是否启用
@@ -117,7 +120,7 @@ class SmartTagRecommendationService {
       AppLogger.d('Found ${relatedTags.length} related tags for "$inputTag": ${relatedTags.take(5).map((t) => '"${t.tag}"').join(', ')}', 'SmartRec');
 
       // 获取输入标签的使用次数
-      final inputTagData = _tagDataService.search(inputTag).firstOrNull;
+      final inputTagData = await _danbooruService.get(inputTag);
       final inputTagCount = inputTagData?.count ?? 1000; // 默认值
 
       for (final related in relatedTags) {
@@ -127,7 +130,7 @@ class SmartTagRecommendationService {
         if (excludeTags?.contains(related.tag) == true) continue;
 
         // 获取相关标签的使用次数
-        final relatedTagData = _tagDataService.search(related.tag).firstOrNull;
+        final relatedTagData = await _danbooruService.get(related.tag);
         final relatedTagCount = relatedTagData?.count ?? 1000;
 
         // 计算 Jaccard 相似度
@@ -166,7 +169,7 @@ class SmartTagRecommendationService {
           (candidate.totalScore / candidate.matchCount) * matchBonus;
 
       // 获取翻译
-      final translation = _tagDataService.getTranslation(candidate.tag);
+      final translation = await _translationService.get(candidate.tag);
 
       results.add(
         RecommendedTag(
@@ -220,7 +223,12 @@ class _CandidateScore {
 @Riverpod(keepAlive: true)
 SmartTagRecommendationService smartTagRecommendationService(Ref ref) {
   final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
-  final tagDataService = ref.read(tagDataServiceProvider);
+  final danbooruService = ref.read(danbooruTagsLazyServiceProvider);
+  final translationService = ref.read(translationLazyServiceProvider);
 
-  return SmartTagRecommendationService(cooccurrenceService, tagDataService);
+  return SmartTagRecommendationService(
+    cooccurrenceService,
+    danbooruService,
+    translationService,
+  );
 }

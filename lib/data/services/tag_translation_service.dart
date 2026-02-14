@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/translation_cache_service.dart';
-import '../../core/services/tag_data_service.dart';
+import '../../core/services/translation_lazy_service.dart';
 import '../../core/utils/app_logger.dart';
 
 part 'tag_translation_service.g.dart';
@@ -83,8 +83,8 @@ class TagTranslationService {
   /// 反向翻译映射 (中文 -> 英文标签列表)
   final Map<String, List<String>> _reverseTranslationMap = {};
 
-  /// TagDataService 引用（可选，用于动态数据）
-  TagDataService? _tagDataService;
+  /// 懒加载翻译服务引用（可选，用于动态数据）
+  TranslationLazyService? _lazyService;
 
   bool _isLoaded = false;
 
@@ -93,9 +93,9 @@ class TagTranslationService {
   /// 是否已加载
   bool get isLoaded => _isLoaded;
 
-  /// 设置 TagDataService 引用
-  void setTagDataService(TagDataService service) {
-    _tagDataService = service;
+  /// 设置懒加载服务引用
+  void setLazyService(TranslationLazyService service) {
+    _lazyService = service;
   }
 
   /// 加载翻译数据（优化版：缓存优先 + Isolate 并行解析）
@@ -188,12 +188,12 @@ class TagTranslationService {
   /// [tag] 英文标签
   /// [isCharacter] 是否为角色标签（优先查找角色翻译表）
   /// 返回中文翻译，如果没有翻译则返回 null
-  String? translate(String tag, {bool isCharacter = false}) {
+  Future<String?> translate(String tag, {bool isCharacter = false}) async {
     final normalizedTag = tag.trim().toLowerCase();
 
-    // 1. 首先尝试从 TagDataService 获取（如果可用）
-    if (_tagDataService != null && _tagDataService!.isInitialized) {
-      final dynamicTranslation = _tagDataService!.getTranslation(normalizedTag);
+    // 1. 首先尝试从懒加载服务获取（如果可用且已初始化）
+    if (_lazyService != null && _lazyService!.isInitialized) {
+      final dynamicTranslation = await _lazyService!.get(normalizedTag);
       if (dynamicTranslation != null) {
         return dynamicTranslation;
       }
@@ -210,12 +210,12 @@ class TagTranslationService {
   }
 
   /// 获取角色翻译
-  String? translateCharacter(String tag) {
+  Future<String?> translateCharacter(String tag) async {
     final normalizedTag = tag.trim().toLowerCase();
 
     // 优先从动态数据获取
-    if (_tagDataService != null && _tagDataService!.isInitialized) {
-      final dynamicTranslation = _tagDataService!.getTranslation(normalizedTag);
+    if (_lazyService != null && _lazyService!.isInitialized) {
+      final dynamicTranslation = await _lazyService!.get(normalizedTag);
       if (dynamicTranslation != null) {
         return dynamicTranslation;
       }
@@ -225,12 +225,12 @@ class TagTranslationService {
   }
 
   /// 获取通用标签翻译
-  String? translateTag(String tag) {
+  Future<String?> translateTag(String tag) async {
     final normalizedTag = tag.trim().toLowerCase();
 
     // 优先从动态数据获取
-    if (_tagDataService != null && _tagDataService!.isInitialized) {
-      final dynamicTranslation = _tagDataService!.getTranslation(normalizedTag);
+    if (_lazyService != null && _lazyService!.isInitialized) {
+      final dynamicTranslation = await _lazyService!.get(normalizedTag);
       if (dynamicTranslation != null) {
         return dynamicTranslation;
       }
@@ -239,22 +239,24 @@ class TagTranslationService {
     return _tagTranslations[normalizedTag];
   }
 
+  /// 同步获取通用标签翻译（仅访问已加载的内存数据）
+  String? translateTagSync(String tag) {
+    final normalizedTag = tag.trim().toLowerCase();
+    return _tagTranslations[normalizedTag];
+  }
+
+  /// 同步获取角色翻译（仅访问已加载的内存数据）
+  String? translateCharacterSync(String tag) {
+    final normalizedTag = tag.trim().toLowerCase();
+    return _characterTranslations[normalizedTag];
+  }
+
   /// 通过中文查找英文标签
   ///
   /// [chinese] 中文翻译
   /// 返回匹配的英文标签列表
   List<String> findTagsByChinese(String chinese) {
     final trimmedChinese = chinese.trim();
-
-    // 1. 首先尝试从 TagDataService 获取
-    if (_tagDataService != null && _tagDataService!.isInitialized) {
-      final dynamicTags = _tagDataService!.findTagsByChinese(trimmedChinese);
-      if (dynamicTags.isNotEmpty) {
-        return dynamicTags;
-      }
-    }
-
-    // 2. 从本地反向映射获取
     return _reverseTranslationMap[trimmedChinese] ?? [];
   }
 
@@ -272,20 +274,7 @@ class TagTranslationService {
     final results = <String, String>{};
     final lowerQuery = query.toLowerCase();
 
-    // 1. 首先尝试从 TagDataService 搜索
-    if (_tagDataService != null && _tagDataService!.isInitialized) {
-      final searchResults = _tagDataService!.search(query, limit: limit);
-      for (final tag in searchResults) {
-        if (tag.translation != null) {
-          results[tag.tag] = tag.translation!;
-        }
-      }
-      if (results.isNotEmpty) {
-        return results;
-      }
-    }
-
-    // 2. 从本地翻译表搜索
+    // 从本地翻译表搜索
     for (final entry in _tagTranslations.entries) {
       if (results.length >= limit) break;
 
@@ -294,7 +283,7 @@ class TagTranslationService {
       }
     }
 
-    // 3. 也搜索角色翻译
+    // 也搜索角色翻译
     for (final entry in _characterTranslations.entries) {
       if (results.length >= limit) break;
 
@@ -309,13 +298,13 @@ class TagTranslationService {
   /// 批量翻译标签
   ///
   /// 返回 Map<原始标签, 翻译>（只包含有翻译的标签）
-  Map<String, String> translateBatch(
+  Future<Map<String, String>> translateBatch(
     List<String> tags, {
     bool isCharacter = false,
-  }) {
+  }) async {
     final result = <String, String>{};
     for (final tag in tags) {
-      final translation = translate(tag, isCharacter: isCharacter);
+      final translation = await translate(tag, isCharacter: isCharacter);
       if (translation != null) {
         result[tag] = translation;
       }
@@ -327,8 +316,8 @@ class TagTranslationService {
   ///
   /// 如果有翻译，返回 "英文 (中文)"
   /// 如果没有翻译，返回原始标签（下划线替换为空格）
-  String getDisplayText(String tag, {bool isCharacter = false}) {
-    final translation = translate(tag, isCharacter: isCharacter);
+  Future<String> getDisplayText(String tag, {bool isCharacter = false}) async {
+    final translation = await translate(tag, isCharacter: isCharacter);
     final displayTag = tag.replaceAll('_', ' ');
 
     if (translation != null) {
@@ -342,8 +331,8 @@ class TagTranslationService {
       _tagTranslations.length + _characterTranslations.length;
 
   /// 检查是否有某个标签的翻译
-  bool hasTranslation(String tag) {
-    return translate(tag) != null;
+  Future<bool> hasTranslation(String tag) async {
+    return await translate(tag) != null;
   }
 }
 
@@ -353,12 +342,12 @@ TagTranslationService tagTranslationService(Ref ref) {
   final cacheService = ref.read(translationCacheServiceProvider);
   final service = TagTranslationService(cacheService);
 
-  // 尝试获取 TagDataService 并关联
+  // 尝试获取懒加载服务并关联
   try {
-    final tagDataService = ref.read(tagDataServiceProvider);
-    service.setTagDataService(tagDataService);
+    final lazyService = ref.read(translationLazyServiceProvider);
+    service.setLazyService(lazyService);
   } catch (_) {
-    // TagDataService 可能还未初始化
+    // 懒加载服务可能还未初始化
   }
 
   // 异步加载翻译数据

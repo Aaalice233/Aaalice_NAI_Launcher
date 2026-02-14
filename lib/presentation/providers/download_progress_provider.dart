@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/cooccurrence_service.dart';
-import '../../core/services/tag_data_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/download_message_keys.dart';
 import '../../core/utils/localization_extension.dart';
@@ -107,36 +106,6 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     _context = context;
   }
 
-  /// 初始化标签数据
-  Future<void> initializeTagData() async {
-    final tagService = ref.read(tagDataServiceProvider);
-
-    if (tagService.isInitialized) return;
-
-    bool isDownloading = false;
-
-    // 设置下载进度回调（只有真正下载时才会被调用）
-    tagService.onDownloadProgress = (fileName, progress, message) {
-      if (!isDownloading) {
-        // 第一次回调，说明需要下载，添加任务
-        isDownloading = true;
-        _addTask('tags', _context?.l10n.download_tagsData ?? 'Tags Data');
-      }
-      _updateTaskProgress('tags', progress, message: message);
-    };
-
-    try {
-      await tagService.initialize();
-      // 只有真正下载了才显示完成提示
-      if (isDownloading) {
-        _completeTask('tags');
-      }
-    } catch (e) {
-      if (isDownloading) {
-        _failTask('tags', e.toString());
-      }
-    }
-  }
 
   /// 上次报告的进度里程碑（用于去重）
   int _lastReportedProgressMilestone = -1;
@@ -294,31 +263,6 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
         progress: 0,
       );
     }
-  }
-
-  /// 更新任务进度
-  void _updateTaskProgress(String id, double progress, {String? message}) {
-    final task = state.tasks[id];
-    if (task == null) return;
-
-    // 将消息 key 转换为本地化字符串
-    final localizedMessage = _context != null && message != null
-        ? DownloadMessageKeys.localizeMessage(_context!, message)
-        : message;
-
-    state = state.copyWith(
-      tasks: {
-        ...state.tasks,
-        id: task.copyWith(progress: progress, message: localizedMessage),
-      },
-    );
-
-    // 更新 Toast
-    _toastController?.updateProgress(
-      progress,
-      message: localizedMessage,
-      subtitle: '${(progress * 100).toInt()}%',
-    );
   }
 
   /// 完成任务

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/services/tag_data_service.dart';
 import '../../../../data/models/tag/tag_suggestion.dart';
 import '../../../providers/danbooru_suggestion_provider.dart';
 import '../autocomplete_strategy.dart';
@@ -105,22 +104,7 @@ class DanbooruStrategy extends AutocompleteStrategy<TagSuggestion> {
 
     _currentQuery = query;
 
-    if (isChinese) {
-      // 中文搜索：先从本地翻译表查找对应英文标签
-      final tagDataService = _ref.read(tagDataServiceProvider);
-      if (tagDataService.isInitialized) {
-        final results = tagDataService.search(query, limit: 20);
-        if (results.isNotEmpty) {
-          // 使用第一个匹配的英文标签进行搜索
-          _ref
-              .read(danbooruSuggestionNotifierProvider.notifier)
-              .search(results.first.tag, immediate: immediate);
-          return;
-        }
-      }
-    }
-
-    // 英文搜索或中文无匹配时，直接搜索
+    // 直接搜索（中文搜索功能暂时简化，直接搜索中文关键词）
     _ref
         .read(danbooruSuggestionNotifierProvider.notifier)
         .search(query, immediate: immediate);

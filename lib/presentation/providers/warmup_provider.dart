@@ -14,8 +14,8 @@ import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
-import '../../core/services/tag_data_service.dart';
 import '../../core/services/translation_lazy_service.dart';
+import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_metrics_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_auth_api_service.dart';
@@ -233,11 +233,42 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
+    // ==== 第2组前：初始化统一数据库（串行，阻塞后续数据服务）====
+    _warmupService.registerTask(
+      WarmupTask(
+        name: 'warmup_initUnifiedDatabase',
+        weight: 2,
+        timeout: const Duration(seconds: 30),
+        task: () async {
+          AppLogger.i('Initializing unified tag database...', 'Warmup');
+          // 监听统一数据库初始化状态
+          final asyncValue = ref.read(unifiedTagDatabaseProvider);
+          await asyncValue.when(
+            data: (db) async {
+              AppLogger.i('Unified tag database initialized', 'Warmup');
+            },
+            loading: () async {
+              // 等待初始化完成
+              await ref.read(unifiedTagDatabaseProvider.future);
+            },
+            error: (err, stack) async {
+              AppLogger.e('Failed to initialize unified database', err, stack, 'Warmup');
+              // 即使失败也继续，应用可以降级到旧的服务
+            },
+          );
+        },
+      ),
+    );
+
     // ==== 第2组：数据服务（并行执行）====
+    // 注意：三个任务相互独立，可以并行执行
+    // - translationService 在 Provider 中自动获取 tagDataService
+    // - tagDataService 独立初始化
+    // - promptConfig 独立加载
     _warmupService.registerGroup(
       WarmupTaskGroup(
         name: 'dataServices',
-        parallel: false,
+        parallel: true,
         tasks: [
           // 加载标签翻译服务
           WarmupTask(
@@ -247,18 +278,6 @@ class WarmupNotifier extends _$WarmupNotifier {
             task: () async {
               final translationService = ref.read(tagTranslationServiceProvider);
               await translationService.load();
-            },
-          ),
-          // 初始化标签数据服务
-          WarmupTask(
-            name: 'warmup_initTagSystem',
-            weight: 1,
-            timeout: const Duration(seconds: 30),
-            task: () async {
-              final translationService = ref.read(tagTranslationServiceProvider);
-              final tagDataService = ref.read(tagDataServiceProvider);
-              translationService.setTagDataService(tagDataService);
-              await tagDataService.initialize();
             },
           ),
           // 加载随机提示词配置

@@ -129,7 +129,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final artistTexts = post.artistTags.take(3).map((t) {
-        final translation = translationService.translateTag(t);
+        final translation = translationService.translateTagSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');
@@ -155,7 +155,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final charTexts = post.characterTags.take(5).map((t) {
-        final translation = translationService.translate(t, isCharacter: true);
+        final translation = translationService.translateCharacterSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');
@@ -189,7 +189,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final copyrightTexts = post.copyrightTags.take(3).map((t) {
-        final translation = translationService.translateTag(t);
+        final translation = translationService.translateTagSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');
@@ -215,7 +215,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final tagTexts = post.generalTags.take(8).map((t) {
-        final translation = translationService.translateTag(t);
+        final translation = translationService.translateTagSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');

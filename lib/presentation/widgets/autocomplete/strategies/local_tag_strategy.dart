@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/services/tag_data_service.dart';
+import '../../../../core/services/danbooru_tags_lazy_service.dart';
 import '../../../../data/models/tag/local_tag.dart';
 import '../autocomplete_controller.dart';
 import '../autocomplete_strategy.dart';
@@ -11,9 +11,9 @@ import '../generic_suggestion_tile.dart';
 
 /// 本地标签补全策略
 ///
-/// 使用本地 TagDataService 进行标签搜索
+/// 使用本地 DanbooruTagsLazyService 进行标签搜索
 class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
-  final TagDataService _tagDataService;
+  final DanbooruTagsLazyService _danbooruService;
   final AutocompleteConfig _config;
 
   /// 当前搜索词
@@ -29,15 +29,15 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
   Timer? _debounceTimer;
 
   LocalTagStrategy._({
-    required TagDataService tagDataService,
+    required DanbooruTagsLazyService danbooruService,
     required AutocompleteConfig config,
-  })  : _tagDataService = tagDataService,
+  })  : _danbooruService = danbooruService,
         _config = config;
 
   /// 工厂方法：创建 LocalTagStrategy
   static LocalTagStrategy create(WidgetRef ref, AutocompleteConfig config) {
     return LocalTagStrategy._(
-      tagDataService: ref.read(tagDataServiceProvider),
+      danbooruService: ref.read(danbooruTagsLazyServiceProvider),
       config: config,
     );
   }
@@ -79,19 +79,21 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
     notifyListeners();
 
     if (immediate) {
-      _performSearch(trimmedQuery);
+      await _performSearch(trimmedQuery);
     } else {
-      _debounceTimer = Timer(_config.debounceDelay, () {
-        _performSearch(trimmedQuery);
+      _debounceTimer = Timer(_config.debounceDelay, () async {
+        await _performSearch(trimmedQuery);
       });
     }
   }
 
   /// 执行搜索
-  void _performSearch(String query) {
+  Future<void> _performSearch(String query) async {
     try {
-      _suggestions =
-          _tagDataService.search(query, limit: _config.maxSuggestions);
+      _suggestions = await _danbooruService.searchTags(
+        query,
+        limit: _config.maxSuggestions,
+      );
     } catch (e) {
       _suggestions = [];
     } finally {

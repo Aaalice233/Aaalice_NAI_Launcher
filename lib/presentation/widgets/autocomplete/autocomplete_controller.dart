@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../core/services/tag_data_service.dart';
+import '../../../core/services/danbooru_tags_lazy_service.dart';
 import '../../../data/models/tag/local_tag.dart';
 
 /// 自动补全控制器
 /// 管理搜索状态和建议列表
 class AutocompleteController extends ChangeNotifier {
-  final TagDataService _tagDataService;
+  final DanbooruTagsLazyService _danbooruService;
 
   /// 当前搜索词
   String _currentQuery = '';
@@ -32,11 +32,11 @@ class AutocompleteController extends ChangeNotifier {
   final int minQueryLength;
 
   AutocompleteController({
-    required TagDataService tagDataService,
+    required DanbooruTagsLazyService danbooruService,
     this.debounceDelay = const Duration(milliseconds: 150),
     this.maxSuggestions = 20,
     this.minQueryLength = 2,
-  }) : _tagDataService = tagDataService;
+  }) : _danbooruService = danbooruService;
 
   /// 当前搜索词
   String get currentQuery => _currentQuery;
@@ -87,9 +87,12 @@ class AutocompleteController extends ChangeNotifier {
   }
 
   /// 执行搜索
-  void _performSearch(String query) {
+  Future<void> _performSearch(String query) async {
     try {
-      _suggestions = _tagDataService.search(query, limit: maxSuggestions);
+      _suggestions = await _danbooruService.searchTags(
+        query,
+        limit: maxSuggestions,
+      );
     } catch (e) {
       _suggestions = [];
     } finally {

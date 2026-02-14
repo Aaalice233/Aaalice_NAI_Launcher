@@ -462,59 +462,40 @@ class _TagCompletionDataSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final state = ref.watch(danbooruTagsCacheNotifierProvider);
 
-    // 合并的同步处理函数
+    // 同步处理函数
     Future<void> handleSync() async {
       final notifier = ref.read(danbooruTagsCacheNotifierProvider.notifier);
-
-      // 同时启动标签和画师同步
-      final futures = <Future<void>>[
-        notifier.refresh(),
-      ];
-
-      if (state.syncArtists) {
-        futures.add(notifier.syncArtists(force: true));
-      }
-
-      await Future.wait(futures);
+      await notifier.refresh();
     }
 
     // 取消同步处理
     void handleCancel() {
       ref.read(danbooruTagsCacheNotifierProvider.notifier).cancelSync();
-      if (state.syncArtists) {
-        ref.read(danbooruTagsCacheNotifierProvider.notifier).cancelArtistsSync();
-      }
     }
 
     // 判断是否正在同步
-    final isSyncing = state.isRefreshing || state.isSyncingArtists;
+    final isSyncing = state.isRefreshing;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 状态信息 - 同时显示标签和画师数量
-        _TagsStatusRow(
-          totalTags: state.totalTags,
-          totalArtists: state.artistsTotal,
+        // 状态信息 - 显示标签数量
+        _StatusRow(
+          isLoaded: state.totalTags > 0,
+          loadedText: '已加载 ${state.totalTags} 个标签',
+          notLoadedText: '未加载',
           lastUpdate: state.lastUpdate,
-          lastArtistsUpdate: state.artistsLastUpdate,
         ),
         const SizedBox(height: 12),
 
-        // 热度档位选择 + 同步画师复选框（同一行）
-        _HotPresetWithArtistsToggle(
+        // 热度档位选择
+        _HotPresetSelector(
           preset: state.hotPreset,
           customThreshold: state.customThreshold,
-          syncArtists: state.syncArtists,
           onPresetChanged: (preset, customThreshold) {
             ref
                 .read(danbooruTagsCacheNotifierProvider.notifier)
                 .setHotPreset(preset, customThreshold: customThreshold);
-          },
-          onSyncArtistsChanged: (value) {
-            ref
-                .read(danbooruTagsCacheNotifierProvider.notifier)
-                .setSyncArtists(value);
           },
         ),
         const SizedBox(height: 12),
@@ -530,58 +511,11 @@ class _TagCompletionDataSection extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
-        // 合并的进度条（标签和画师同步）
+        // 进度条（标签同步）
         if (isSyncing) ...[
-          Builder(
-            builder: (context) {
-              // 计算综合进度
-              final isSyncingTags = state.isRefreshing;
-              final isSyncingArtists = state.syncArtists && state.isSyncingArtists;
-
-              double overallProgress;
-              String statusText;
-
-              if (isSyncingTags && isSyncingArtists) {
-                // 两者都在同步：各算50%
-                final tagsProgress = state.progress;
-                final artistsProgress = state.artistsProgress;
-                overallProgress = (tagsProgress + artistsProgress) / 2;
-                statusText = '标签 ${(tagsProgress * 100).toInt()}% · 画师 ${(artistsProgress * 100).toInt()}%';
-              } else if (isSyncingTags) {
-                // 只有标签同步
-                overallProgress = state.progress;
-                statusText = state.message ?? '${(overallProgress * 100).toInt()}%';
-              } else if (isSyncingArtists) {
-                // 只有画师同步
-                overallProgress = state.artistsProgress;
-                statusText = '画师 ${(overallProgress * 100).toInt()}%';
-              } else {
-                overallProgress = 0;
-                statusText = '准备中...';
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: overallProgress > 0 ? overallProgress : null,
-                      minHeight: 6,
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    statusText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              );
-            },
+          _SyncProgressIndicator(
+            progress: state.progress,
+            message: state.message,
           ),
           const SizedBox(height: 12),
         ],
@@ -893,87 +827,16 @@ class _StatusRow extends StatelessWidget {
   }
 }
 
-/// 标签和画师状态行（合并显示）
-class _TagsStatusRow extends StatelessWidget {
-  final int totalTags;
-  final int totalArtists;
-  final DateTime? lastUpdate;
-  final DateTime? lastArtistsUpdate;
-
-  const _TagsStatusRow({
-    required this.totalTags,
-    required this.totalArtists,
-    this.lastUpdate,
-    this.lastArtistsUpdate,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final hasTags = totalTags > 0;
-    final hasArtists = totalArtists > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            hasTags ? Icons.check_circle : Icons.cloud_off,
-            size: 16,
-            color: hasTags
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 第一行：标签和画师数量
-                Text(
-                  hasTags
-                      ? '已加载 $totalTags 个标签'
-                          '${hasArtists ? ' · $totalArtists 个画师' : ''}'
-                      : '未加载',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                // 第二行：更新时间
-                if (lastUpdate != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    '上次更新: ${timeago.format(lastUpdate!, locale: 'zh')}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 热度档位选择器 + 同步画师复选框（同一行）
-class _HotPresetWithArtistsToggle extends StatelessWidget {
+/// 热度档位选择器
+class _HotPresetSelector extends StatelessWidget {
   final TagHotPreset preset;
   final int customThreshold;
-  final bool syncArtists;
   final void Function(TagHotPreset preset, int? customThreshold) onPresetChanged;
-  final ValueChanged<bool> onSyncArtistsChanged;
 
-  const _HotPresetWithArtistsToggle({
+  const _HotPresetSelector({
     required this.preset,
     required this.customThreshold,
-    required this.syncArtists,
     required this.onPresetChanged,
-    required this.onSyncArtistsChanged,
   });
 
   @override
@@ -992,50 +855,24 @@ class _HotPresetWithArtistsToggle extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        // 档位选择和同步画师复选框（同一行，复选框靠左）
-        Row(
-          children: [
-            // 同步画师复选框（靠左）
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Checkbox(
-                  value: syncArtists,
-                  onChanged: (v) => onSyncArtistsChanged(v ?? false),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '同步画师',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 16),
-            // 档位选择
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: TagHotPreset.values.map((p) {
-                  final isSelected = p == preset;
-                  return ChoiceChip(
-                    label: Text(p.displayName),
-                    selected: isSelected,
-                    onSelected: (_) => onPresetChanged(p, null),
-                    labelStyle: TextStyle(
-                      color: isSelected
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.onSurface,
-                      fontSize: 12,
-                    ),
-                  );
-                }).toList(),
+        // 档位选择
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: TagHotPreset.values.map((p) {
+            final isSelected = p == preset;
+            return ChoiceChip(
+              label: Text(p.displayName),
+              selected: isSelected,
+              onSelected: (_) => onPresetChanged(p, null),
+              labelStyle: TextStyle(
+                color: isSelected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurface,
+                fontSize: 12,
               ),
-            ),
-          ],
+            );
+          }).toList(),
         ),
         // 自定义阈值滑块
         if (preset == TagHotPreset.custom) ...[

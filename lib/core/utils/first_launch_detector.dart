@@ -5,8 +5,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/storage_keys.dart';
-import '../services/danbooru_tags_sync_service.dart';
-import '../services/hf_translation_sync_service.dart';
+import '../services/danbooru_tags_lazy_service.dart';
+import '../services/translation_lazy_service.dart';
 import 'app_logger.dart';
 
 part 'first_launch_detector.g.dart';
@@ -14,15 +14,15 @@ part 'first_launch_detector.g.dart';
 /// 首次启动检测器
 /// 负责检测应用是否首次启动，并触发必要的后台数据同步
 class FirstLaunchDetector {
-  final HFTranslationSyncService _translationService;
-  final DanbooruTagsSyncService _tagsService;
+  final TranslationLazyService _translationService;
+  final DanbooruTagsLazyService _tagsService;
 
   /// 是否正在执行初始同步
   bool _isInitialSyncing = false;
 
   FirstLaunchDetector({
-    required HFTranslationSyncService translationService,
-    required DanbooruTagsSyncService tagsService,
+    required TranslationLazyService translationService,
+    required DanbooruTagsLazyService tagsService,
   })  : _translationService = translationService,
         _tagsService = tagsService;
 
@@ -64,7 +64,7 @@ class FirstLaunchDetector {
   }
 
   /// 检查并标记需要后台刷新
-  /// 
+  ///
   /// 新的非阻塞实现：不再执行同步，而是标记需要刷新
   /// 实际的数据下载将在进入主界面后通过后台刷新处理
   Future<bool> checkAndMarkPendingRefresh() async {
@@ -74,11 +74,11 @@ class FirstLaunchDetector {
     try {
       // 检查各数据源是否需要刷新
       final needsTranslationRefresh = await _translationService.shouldRefresh();
-      final needsTagsRefresh = await _tagsService.shouldRefreshAsync();
+      final needsTagsRefresh = await _tagsService.shouldRefresh();
 
       // 设置标记，让主界面知道需要显示后台刷新提示
       final prefs = await SharedPreferences.getInstance();
-      
+
       if (needsTranslationRefresh || needsTagsRefresh) {
         await prefs.setBool(StorageKeys.pendingDataSourceRefresh, true);
         AppLogger.i(
@@ -89,7 +89,7 @@ class FirstLaunchDetector {
 
       // 标记已完成首次启动
       await markLaunched();
-      
+
       return true;
     } catch (e, stack) {
       AppLogger.e('Failed to check and mark pending refresh', e, stack, 'FirstLaunch');
@@ -98,14 +98,13 @@ class FirstLaunchDetector {
       _isInitialSyncing = false;
     }
   }
-
 }
 
 /// FirstLaunchDetector Provider
 @Riverpod(keepAlive: true)
 FirstLaunchDetector firstLaunchDetector(Ref ref) {
-  final translationService = ref.read(hfTranslationSyncServiceProvider);
-  final tagsService = ref.read(danbooruTagsSyncServiceProvider);
+  final translationService = ref.read(translationLazyServiceProvider);
+  final tagsService = ref.read(danbooruTagsLazyServiceProvider);
 
   return FirstLaunchDetector(
     translationService: translationService,
@@ -151,7 +150,7 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
   }
 
   /// 检查并执行首次启动同步
-  /// 
+  ///
   /// 新的非阻塞实现：只标记需要刷新，不执行实际同步
   Future<void> checkAndSync(BuildContext context) async {
     final detector = ref.read(firstLaunchDetectorProvider);

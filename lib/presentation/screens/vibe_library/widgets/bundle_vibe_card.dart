@@ -344,7 +344,7 @@ class _BundleVibeCardState extends State<BundleVibeCard>
               ),
               const SizedBox(height: 2),
               Text(
-                '$_vibeCount 个 Vibe',
+                'Bundle · $_vibeCount 个 Vibe',
                 style: TextStyle(
                   fontSize: 12,
                   color: colorScheme.onSurfaceVariant,
