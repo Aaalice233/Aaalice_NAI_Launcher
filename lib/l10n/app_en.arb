@@ -1252,6 +1252,7 @@
   "warmup_complete": "Complete",
   "warmup_danbooruAuth": "Initializing Danbooru authentication...",
   "warmup_loadingTranslation": "Loading translation data...",
+  "warmup_initUnifiedDatabase": "Initializing tag database...",
   "warmup_initTagSystem": "Initializing tag system...",
   "warmup_loadingPromptConfig": "Loading prompt config...",
   "warmup_imageEditor": "Initializing image editor...",

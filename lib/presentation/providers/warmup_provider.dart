@@ -266,7 +266,7 @@ class WarmupNotifier extends _$WarmupNotifier {
             timeout: const Duration(seconds: 30),
             task: () async {
               final translationService = ref.read(tagTranslationServiceProvider);
-              await translationService.load();
+              await translationService.loadNew();
             },
           ),
           // 加载随机提示词配置

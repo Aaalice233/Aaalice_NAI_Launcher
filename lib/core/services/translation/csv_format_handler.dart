@@ -251,10 +251,7 @@ class CsvFormatHandler {
       for (final entry in source.entries) {
         if (merged.containsKey(entry.key)) {
           duplicateCounts[entry.key] = (duplicateCounts[entry.key] ?? 1) + 1;
-          AppLogger.d(
-            'Duplicate tag "${entry.key}": overwriting with $sourceName translation',
-            'CsvFormatHandler',
-          );
+          // 不打印逐条日志，避免日志狂刷
         }
         merged[entry.key] = entry.value;
       }
