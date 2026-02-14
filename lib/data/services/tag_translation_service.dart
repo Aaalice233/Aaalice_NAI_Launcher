@@ -143,6 +143,10 @@ class TagTranslationService {
   Future<void> load() async {
     if (_isLoaded) return;
 
+    // 开发调试：清除旧缓存确保新数据加载
+    // TODO: 发布后移除这行
+    await _cacheService.clearCache();
+
     final stopwatch = Stopwatch()..start();
 
     try {
