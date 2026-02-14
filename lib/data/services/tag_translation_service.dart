@@ -193,7 +193,9 @@ class TagTranslationService {
 
       for (final file in csvFiles) {
         try {
-          final content = await rootBundle.loadString(file);
+          var content = await rootBundle.loadString(file);
+          // 统一换行符为 LF，避免 CRLF 导致的解析问题
+          content = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
           final rows = converter.convert(content);
           var isFirstRow = true;
           for (final row in rows) {
