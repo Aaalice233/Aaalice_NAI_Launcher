@@ -31,7 +31,7 @@ class UnifiedTranslationService {
   static const int _maxHotCacheSize = 1000;
 
   /// 缓存版本号（修改此值可强制重新加载）
-  static const int _cacheVersion = 5; // 强制刷新：重新加载所有翻译数据
+  static const int _cacheVersion = 6; // 强制刷新：修复CSV换行符问题
 
   UnifiedTranslationService({
     List<TranslationDataSourceConfig>? dataSources,
@@ -267,7 +267,10 @@ class UnifiedTranslationService {
   Future<Map<String, String>> _loadLocalAssets(
     TranslationDataSourceConfig config,
   ) async {
-    final csvContent = await rootBundle.loadString(config.path);
+    var csvContent = await rootBundle.loadString(config.path);
+
+    // 统一换行符：将 Windows 换行符(\r\n)和旧 Mac 换行符(\r)统一为 Unix 换行符(\n)
+    csvContent = csvContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 
     // 使用 Isolate 解析大文件
     return await Isolate.run(() {

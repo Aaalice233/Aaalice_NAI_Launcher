@@ -271,7 +271,11 @@ class TranslationLazyService implements LazyDataSourceService<String> {
     final result = <String, String>{};
 
     try {
-      final csvContent = await rootBundle.loadString('assets/translations/danbooru.csv');
+      var csvContent = await rootBundle.loadString('assets/translations/danbooru.csv');
+
+      // 统一换行符：将 Windows 换行符(\r\n)和旧 Mac 换行符(\r)统一为 Unix 换行符(\n)
+      csvContent = csvContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
       const converter = CsvToListConverter(
         fieldDelimiter: ',',
         textDelimiter: '"',
