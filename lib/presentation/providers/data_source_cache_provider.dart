@@ -171,17 +171,12 @@ class DanbooruTagsCacheState {
 class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
   @override
   DanbooruTagsCacheState build() {
-    _initialize();
-    return const DanbooruTagsCacheState();
-  }
-
-  Future<void> _initialize() async {
+    // 在 build 中同步初始化状态，避免访问未初始化的 state
     final service = ref.read(danbooruTagsLazyServiceProvider);
+    final preset = service.getHotPreset();
+    final refreshInterval = service.getRefreshInterval();
 
-    final preset = await service.getHotPreset();
-    final refreshInterval = await service.getRefreshInterval();
-
-    state = state.copyWith(
+    return DanbooruTagsCacheState(
       lastUpdate: service.lastUpdate,
       totalTags: 0,
       hotPreset: preset,

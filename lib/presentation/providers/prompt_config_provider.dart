@@ -68,7 +68,7 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
   PromptConfigState build() {
     // 只在首次构建时创建 Completer 并加载
     _loadCompleter ??= Completer<void>();
-    if (state.isLoading && !_loadCompleter!.isCompleted) {
+    if (!_loadCompleter!.isCompleted) {
       _loadPresets();
     }
     return const PromptConfigState(isLoading: true);

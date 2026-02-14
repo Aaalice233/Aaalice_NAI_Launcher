@@ -241,21 +241,10 @@ class WarmupNotifier extends _$WarmupNotifier {
         timeout: const Duration(seconds: 30),
         task: () async {
           AppLogger.i('Initializing unified tag database...', 'Warmup');
-          // 监听统一数据库初始化状态
-          final asyncValue = ref.read(unifiedTagDatabaseProvider);
-          await asyncValue.when(
-            data: (db) async {
-              AppLogger.i('Unified tag database initialized', 'Warmup');
-            },
-            loading: () async {
-              // 等待初始化完成
-              await ref.read(unifiedTagDatabaseProvider.future);
-            },
-            error: (err, stack) async {
-              AppLogger.e('Failed to initialize unified database', err, stack, 'Warmup');
-              // 即使失败也继续，应用可以降级到旧的服务
-            },
-          );
+          // 初始化统一数据库
+          final db = ref.read(unifiedTagDatabaseProvider);
+          await db.initialize();
+          AppLogger.i('Unified tag database initialized', 'Warmup');
         },
       ),
     );

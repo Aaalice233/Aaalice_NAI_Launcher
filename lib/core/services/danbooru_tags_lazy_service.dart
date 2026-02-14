@@ -17,7 +17,9 @@ import 'unified_tag_database.dart';
 
 part 'danbooru_tags_lazy_service.g.dart';
 
-/// Danbooru 标签懒加载服务
+/// Danbooru 标签懒加载服务 V2
+/// 
+/// 使用新的 UnifiedTagDatabase API，简化连接管理。
 class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   static const String _baseUrl = 'https://danbooru.donmai.us';
   static const String _tagsEndpoint = '/tags.json';
@@ -77,17 +79,33 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized && _hotDataCache.isNotEmpty) {
+      return;
+    }
 
     try {
       _onProgress?.call(0.0, '初始化标签数据...');
 
-      if (!_unifiedDb.isInitialized) {
-        await _unifiedDb.initialize();
-      }
+      // 确保数据库已初始化
+      await _unifiedDb.initialize();
       _onProgress?.call(0.2, '数据库已就绪');
 
-      final needsDownload = await shouldRefresh();
+      // 检查数据库中实际有多少记录
+      final tagCount = await _unifiedDb.getDanbooruTagCount();
+      AppLogger.i('Danbooru tag count in database: $tagCount', 'DanbooruTagsLazy');
+
+      // 如果数据库为空，强制下载
+      var needsDownload = await shouldRefresh();
+      if (tagCount == 0) {
+        AppLogger.w('Database is empty, forcing download', 'DanbooruTagsLazy');
+        needsDownload = true;
+        _lastUpdate = null;
+      }
+
+      AppLogger.i(
+        'Danbooru tags shouldRefresh: $needsDownload, lastUpdate: $_lastUpdate',
+        'DanbooruTagsLazy',
+      );
 
       if (needsDownload) {
         _onProgress?.call(0.3, '需要下载标签数据...');
@@ -99,10 +117,22 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       }
 
       await _loadHotData();
-      _onProgress?.call(1.0, '标签数据初始化完成');
 
+      // 如果热数据为空，再次尝试下载
+      if (_hotDataCache.isEmpty && tagCount == 0) {
+        AppLogger.w('Hot data is empty, triggering download...', 'DanbooruTagsLazy');
+        _onProgress?.call(0.3, '数据库为空，需要下载标签数据...');
+        await refresh();
+        await _loadHotData();
+      }
+
+      _onProgress?.call(1.0, '标签数据初始化完成');
       _isInitialized = true;
-      AppLogger.i('Danbooru tags lazy service initialized', 'DanbooruTagsLazy');
+
+      AppLogger.i(
+        'Danbooru tags lazy service initialized with ${_hotDataCache.length} hot tags',
+        'DanbooruTagsLazy',
+      );
     } catch (e, stack) {
       AppLogger.e(
         'Failed to initialize Danbooru tags lazy service',
@@ -149,36 +179,17 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
     final record = await _unifiedDb.getDanbooruTag(normalizedKey);
     if (record != null) {
-      final tag = LocalTag(
+      return LocalTag(
         tag: record.tag,
         category: record.category,
         count: record.postCount,
       );
-      _hotDataCache[normalizedKey] = tag;
-      return tag;
     }
 
     return null;
   }
 
-  @override
-  Future<List<LocalTag>> getMultiple(List<String> keys) async {
-    if (keys.isEmpty) return [];
-
-    final normalizedKeys = keys.map((k) => k.toLowerCase().trim()).toList();
-    final records = await _unifiedDb.getDanbooruTags(normalizedKeys);
-    return records
-        .map(
-          (r) => LocalTag(
-            tag: r.tag,
-            category: r.category,
-            count: r.postCount,
-          ),
-        )
-        .toList();
-  }
-
-  Future<List<LocalTag>> searchTags(
+  Future<List<LocalTag>> search(
     String query, {
     int? category,
     int limit = 20,
@@ -238,6 +249,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     if (_isRefreshing) return;
 
     _isRefreshing = true;
+    _isCancelled = false;
     _onProgress?.call(0.0, '开始同步标签...');
 
     try {
@@ -303,6 +315,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
       _onProgress?.call(0.95, '导入数据库...');
 
+      // 导入数据 - UnifiedTagDatabase 会自动处理连接问题
       final records = allTags
           .map(
             (t) => DanbooruTagRecord(
@@ -313,7 +326,10 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
             ),
           )
           .toList();
+
+      AppLogger.i('Preparing to import ${records.length} tags...', 'DanbooruTagsLazy');
       await _unifiedDb.insertDanbooruTags(records);
+      AppLogger.i('Successfully imported ${records.length} tags', 'DanbooruTagsLazy');
 
       _onProgress?.call(0.99, '更新热数据...');
       await _loadHotData();
@@ -390,25 +406,18 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         }
         return tags;
       }
+
       return [];
     } on DioException catch (e) {
-      if (e.response?.statusCode == 429) {
-        AppLogger.w('Rate limited, waiting...', 'DanbooruTagsLazy');
-        await Future.delayed(const Duration(seconds: 2));
-        return _fetchTagsPage(page, minPostCount);
+      if (e.response?.statusCode == 404) {
+        return [];
       }
-      AppLogger.e('Failed to fetch tags page $page', e, null, 'DanbooruTagsLazy');
+      AppLogger.w('Failed to fetch tags page $page: $e', 'DanbooruTagsLazy');
+      return null;
+    } catch (e) {
+      AppLogger.w('Failed to fetch tags page $page: $e', 'DanbooruTagsLazy');
       return null;
     }
-  }
-
-  Future<Directory> _getCacheDirectory() async {
-    final appDir = await getApplicationSupportDirectory();
-    final cacheDir = Directory('${appDir.path}/$_cacheDirName');
-    if (!await cacheDir.exists()) {
-      await cacheDir.create(recursive: true);
-    }
-    return cacheDir;
   }
 
   Future<void> _loadMeta() async {
@@ -450,89 +459,67 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       _lastUpdate = now;
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        StorageKeys.danbooruTagsLastUpdate,
-        now.toIso8601String(),
-      );
+      await prefs.setInt(StorageKeys.danbooruTagsLastUpdate, now.millisecondsSinceEpoch);
     } catch (e) {
       AppLogger.w('Failed to save Danbooru tags meta: $e', 'DanbooruTagsLazy');
     }
   }
 
-  @override
-  Future<void> clearCache() async {
-    try {
-      _hotDataCache.clear();
-      _lastUpdate = null;
-      _isInitialized = false;
-      _isRefreshing = false;
-
-      try {
-        final cacheDir = await _getCacheDirectory();
-        if (await cacheDir.exists()) {
-          await cacheDir.delete(recursive: true);
-        }
-      } catch (e) {
-        AppLogger.w('Failed to delete Danbooru cache directory: $e', 'DanbooruTagsLazy');
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(StorageKeys.danbooruTagsLastUpdate);
-      await prefs.remove(StorageKeys.danbooruTagsRefreshIntervalDays);
-      await prefs.remove(StorageKeys.danbooruTagsHotThreshold);
-
-      AppLogger.i('Danbooru tags cache cleared', 'DanbooruTagsLazy');
-    } catch (e) {
-      AppLogger.w('Failed to clear Danbooru tags cache: $e', 'DanbooruTagsLazy');
+  Future<Directory> _getCacheDirectory() async {
+    final appDir = await getApplicationSupportDirectory();
+    final cacheDir = Directory('${appDir.path}/$_cacheDirName');
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
     }
+    return cacheDir;
   }
 
-  Future<TagHotPreset> getHotPreset() async {
-    final prefs = await SharedPreferences.getInstance();
-    final threshold = prefs.getInt(StorageKeys.danbooruTagsHotThreshold);
-    return TagHotPreset.fromThreshold(threshold ?? 1000);
+  // 实现 LazyDataSourceService 接口的缺失方法
+  @override
+  Future<List<LocalTag>> getMultiple(List<String> keys) async {
+    final result = <LocalTag>[];
+    for (final key in keys) {
+      final tag = await get(key);
+      if (tag != null) {
+        result.add(tag);
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<void> clearCache() async {
+    _hotDataCache.clear();
+    AppLogger.i('Danbooru tags cache cleared', 'DanbooruTagsLazy');
+  }
+
+  // 兼容旧 API 的方法
+  Future<List<LocalTag>> searchTags(String query, {int? category, int limit = 20}) async {
+    return search(query, category: category, limit: limit);
+  }
+
+  TagHotPreset getHotPreset() {
+    return TagHotPreset.fromThreshold(_currentThreshold);
   }
 
   Future<void> setHotPreset(TagHotPreset preset, {int? customThreshold}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final threshold =
-        preset.isCustom ? (customThreshold ?? 1000) : preset.threshold;
-    await prefs.setInt(StorageKeys.danbooruTagsHotThreshold, threshold);
-    _currentThreshold = threshold;
+    _currentThreshold = customThreshold ?? preset.threshold;
   }
 
-  Future<AutoRefreshInterval> getRefreshInterval() async {
-    final prefs = await SharedPreferences.getInstance();
-    final days = prefs.getInt(StorageKeys.danbooruTagsRefreshIntervalDays);
-    return AutoRefreshInterval.fromDays(days ?? 30);
+  AutoRefreshInterval getRefreshInterval() {
+    return _refreshInterval;
   }
 
   Future<void> setRefreshInterval(AutoRefreshInterval interval) async {
+    _refreshInterval = interval;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(StorageKeys.danbooruTagsRefreshIntervalDays, interval.days);
-    _refreshInterval = interval;
   }
 }
 
-/// DanbooruTagsLazyService Provider
 @Riverpod(keepAlive: true)
 DanbooruTagsLazyService danbooruTagsLazyService(Ref ref) {
-  final unifiedDb = ref.watch(unifiedTagDatabaseProvider).valueOrNull;
-  final dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 10),
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'NAI-Launcher/1.0',
-      },
-    ),
-  );
-
-  if (unifiedDb == null) {
-    throw StateError('UnifiedTagDatabase not initialized');
-  }
-
+  final unifiedDb = ref.watch(unifiedTagDatabaseProvider);
+  final dio = Dio();
   return DanbooruTagsLazyService(unifiedDb, dio);
 }

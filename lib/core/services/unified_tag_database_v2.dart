@@ -7,7 +7,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/app_logger.dart';
 import 'tag_database_connection.dart';
 
-part 'unified_tag_database.g.dart';
+part 'unified_tag_database_v2.g.dart';
 
 // ==================== 数据记录类 ====================
 
@@ -130,9 +130,6 @@ class UnifiedTagDatabase {
 
   /// 是否已连接
   bool get isConnected => _connection.isConnected;
-
-  /// 是否已初始化（兼容旧 API）
-  bool get isInitialized => _connection.isConnected;
 
   /// 初始化数据库
   Future<void> initialize() async {
@@ -727,25 +724,6 @@ AppLogger.w(
     _danbooruTagCache.clear();
     _cooccurrenceCache.clear();
     AppLogger.i('All caches cleared', 'UnifiedTagDatabase');
-  }
-
-  // 兼容旧 API 的方法
-  Future<Map<String, String>> getTranslations(List<String> tags) async {
-    return getTranslationsBatch(tags);
-  }
-
-  Future<List<RelatedTag>> getRelatedTagsForMultiple(
-    List<String> tags, {
-    int limit = 20,
-  }) async {
-    final allRelated = <RelatedTag>[];
-    for (final tag in tags) {
-      final related = await getRelatedTags(tag, limit: limit);
-      allRelated.addAll(related);
-    }
-    // 按 count 排序
-    allRelated.sort((a, b) => b.count.compareTo(a.count));
-    return allRelated.take(limit).toList();
   }
 }
 

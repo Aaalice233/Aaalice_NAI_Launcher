@@ -9,6 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/cache/data_source_cache_meta.dart';
+import '../../presentation/providers/proxy_settings_provider.dart';
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import 'lazy_data_source_service.dart';
@@ -231,6 +232,9 @@ class TranslationLazyService implements LazyDataSourceService<String> {
           receiveTimeout: const Duration(minutes: 5),
           sendTimeout: const Duration(seconds: 10),
           responseType: ResponseType.plain,
+          headers: {
+            'User-Agent': 'NAI-Launcher/1.0',
+          },
         ),
       );
 
@@ -360,21 +364,40 @@ class TranslationLazyService implements LazyDataSourceService<String> {
   }
 }
 
-/// TranslationLazyService Provider
+/// 用于外部资源下载的 Dio Provider（无认证）
+///
+/// 使用代理配置但不添加认证头，适用于 HuggingFace 等公开资源
 @Riverpod(keepAlive: true)
-TranslationLazyService translationLazyService(Ref ref) {
-  final unifiedDb = ref.watch(unifiedTagDatabaseProvider).valueOrNull;
+Dio externalDio(Ref ref) {
+  // 监听代理设置变化
+  final proxyAddress = ref.watch(currentProxyAddressProvider);
+
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(minutes: 5),
       sendTimeout: const Duration(seconds: 10),
+      headers: {
+        'User-Agent': 'NAI-Launcher/1.0',
+      },
     ),
   );
 
-  if (unifiedDb == null) {
-    throw StateError('UnifiedTagDatabase not initialized');
+  // 根据代理设置选择适配器
+  if (proxyAddress != null && proxyAddress.isNotEmpty) {
+    AppLogger.i('External Dio using proxy: $proxyAddress', 'NETWORK');
+  } else {
+    AppLogger.d('External Dio using default adapter (no proxy)', 'NETWORK');
   }
+
+  return dio;
+}
+
+/// TranslationLazyService Provider
+@Riverpod(keepAlive: true)
+TranslationLazyService translationLazyService(Ref ref) {
+  final unifiedDb = ref.watch(unifiedTagDatabaseProvider);
+  final dio = ref.watch(externalDioProvider);
 
   return TranslationLazyService(unifiedDb, dio);
 }
