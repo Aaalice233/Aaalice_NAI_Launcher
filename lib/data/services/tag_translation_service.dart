@@ -25,10 +25,10 @@ class _ParsedTranslationData {
 
 /// Isolate 解析参数
 class _IsolateParseParams {
-  final String tagCsvContent;
+  final List<List<dynamic>> tagRows; // 改为行列表
   final String charCsvContent;
 
-  _IsolateParseParams(this.tagCsvContent, this.charCsvContent);
+  _IsolateParseParams(this.tagRows, this.charCsvContent);
 }
 
 /// 在 Isolate 中解析两个 CSV 文件（顶层函数）
@@ -37,21 +37,9 @@ _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
   final tagTranslations = <String, String>{};
   final characterTranslations = <String, String>{};
 
-  // CSV 解析器配置
-  const converter = CsvToListConverter(
-    fieldDelimiter: ',',
-    textDelimiter: '"',
-    textEndDelimiter: '"',
-    eol: '\n',
-    shouldParseNumbers: false,
-  );
-
-  // 解析标签翻译 CSV
-  final tagRows = converter.convert(params.tagCsvContent);
-  var isFirstRow = true;
-  for (final row in tagRows) {
+  // 处理标签翻译行（已预处理，直接解析）
+  for (final row in params.tagRows) {
     if (row.length >= 2) {
-      // 处理可能的引号包裹
       var englishTag = row[0].toString().trim().toLowerCase();
       var chineseTranslation = row[1].toString().trim();
 
@@ -67,18 +55,6 @@ _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
         );
       }
 
-      // 跳过标题行
-      if (isFirstRow) {
-        isFirstRow = false;
-        if (englishTag == 'tag' ||
-            englishTag == 'en' ||
-            englishTag == 'name' ||
-            (englishTag.contains('tag') &&
-                chineseTranslation.contains('translation'))) {
-          continue;
-        }
-      }
-
       if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
         tagTranslations[englishTag] = chineseTranslation;
       }
@@ -86,8 +62,15 @@ _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
   }
 
   // 解析角色翻译 CSV（格式：中文名,英文名）
+  const converter = CsvToListConverter(
+    fieldDelimiter: ',',
+    textDelimiter: '"',
+    textEndDelimiter: '"',
+    eol: '\n',
+    shouldParseNumbers: false,
+  );
   final charRows = converter.convert(params.charCsvContent);
-  isFirstRow = true;
+  var isFirstRow = true;
   for (final row in charRows) {
     if (row.length >= 2) {
       var chineseName = row[0].toString().trim();
@@ -188,18 +171,47 @@ class TagTranslationService {
 
       // 加载所有翻译 CSV 文件
       final csvFiles = [
-        'assets/translations/danbooru.csv', // 主要翻译
-        'assets/translations/danbooru_zh.csv', // 中文翻译
-        'assets/translations/github_sanlvzhetang.csv', // GitHub 翻译
-        'assets/translations/github_chening233.csv', // Wiki 翻译
+        'assets/translations/danbooru.csv',
+        'assets/translations/danbooru_zh.csv',
+        'assets/translations/github_sanlvzhetang.csv',
+        'assets/translations/github_chening233.csv',
       ];
 
-      final csvContents = <String>[];
+      // 分别加载和预处理每个 CSV 文件
+      final allTagRows = <List<dynamic>>[];
+      const converter = CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        textEndDelimiter: '"',
+        eol: '\n',
+        shouldParseNumbers: false,
+      );
+
       for (final file in csvFiles) {
         try {
           final content = await rootBundle.loadString(file);
-          csvContents.add(content);
-          AppLogger.d('Loaded translation file: $file', 'TagTranslation');
+          final rows = converter.convert(content);
+          var isFirstRow = true;
+          for (final row in rows) {
+            if (row.length >= 2) {
+              // 跳过每个文件的标题行
+              if (isFirstRow) {
+                isFirstRow = false;
+                final firstCol = row[0].toString().trim().toLowerCase();
+                if (firstCol == 'tag' ||
+                    firstCol == 'en' ||
+                    firstCol == 'name' ||
+                    firstCol.contains('tag')) {
+                  continue;
+                }
+              }
+              allTagRows.add(row);
+            }
+          }
+          AppLogger.d(
+            'Loaded translation file: $file (${rows.length} rows)',
+            'TagTranslation',
+          );
         } catch (e) {
           AppLogger.w(
             'Failed to load translation file: $file - $e',
@@ -208,15 +220,23 @@ class TagTranslationService {
         }
       }
 
-      // 合并所有 CSV 内容
-      final tagCsvContent = csvContents.join('\n');
-      final charCsvContent =
-          await rootBundle.loadString('assets/translations/wai_characters.csv');
+      // 角色 CSV 添加错误处理
+      var charCsvContent = '';
+      try {
+        charCsvContent = await rootBundle.loadString(
+          'assets/translations/wai_characters.csv',
+        );
+      } catch (e) {
+        AppLogger.w(
+          'Failed to load character translation file: $e',
+          'TagTranslation',
+        );
+      }
 
       // 在 Isolate 中解析
       final result = await Isolate.run(
         () => _parseAllCsvInIsolate(
-          _IsolateParseParams(tagCsvContent, charCsvContent),
+          _IsolateParseParams(allTagRows, charCsvContent),
         ),
       );
 
