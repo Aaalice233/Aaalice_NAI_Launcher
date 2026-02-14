@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/app_logger.dart';
 import 'autocomplete_controller.dart';
 
 /// 通用补全建议项数据
@@ -119,6 +120,15 @@ class GenericSuggestionTile extends StatelessWidget {
     final theme = Theme.of(context);
     final categoryColor = _getCategoryColor(data.category);
     final filteredTranslation = _filterTranslation(data.translation);
+
+    // 调试日志：输出翻译信息
+    AppLogger.d(
+      '[SuggestionTile] tag="${data.tag}", '
+      'rawTranslation="${data.translation}", '
+      'filteredTranslation="$filteredTranslation", '
+      'showTranslation=${config.showTranslation}',
+      'SuggestionTile',
+    );
 
     return Material(
       color: isSelected

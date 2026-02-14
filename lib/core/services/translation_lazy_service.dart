@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:csv/csv.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -12,6 +14,7 @@ import '../../data/models/cache/data_source_cache_meta.dart';
 import '../../presentation/providers/proxy_settings_provider.dart';
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
+import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
 import 'unified_tag_database.dart';
 
@@ -139,8 +142,8 @@ class TranslationLazyService implements LazyDataSourceService<String> {
 
   @override
   Future<String?> get(String key) async {
-    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
-    final normalizedKey = key.toLowerCase().trim().replaceAll(' ', '_');
+    // 统一标准化标签
+    final normalizedKey = TagNormalizer.normalize(key);
 
     if (_hotDataCache.containsKey(normalizedKey)) {
       return _hotDataCache[normalizedKey];
@@ -185,23 +188,59 @@ class TranslationLazyService implements LazyDataSourceService<String> {
     _onProgress?.call(0.0, '开始同步翻译...');
 
     try {
+      // 1. 先加载本地 CSV 翻译（用于补充 HuggingFace 缺失的数据）
+      _onProgress?.call(0.05, '加载本地翻译数据...');
+      final localTranslations = await _loadLocalTranslations();
+      AppLogger.i('Loaded ${localTranslations.length} local translations', 'TranslationLazy');
+
+      // 2. 下载 HuggingFace 数据
       final allTranslations = <TranslationRecord>[];
+      final translatedTags = <String>{};
 
       _onProgress?.call(0.1, '下载标签翻译...');
       final tagTranslations = await _downloadTranslationFile(_tagsFile);
       if (tagTranslations != null) {
         for (final entry in tagTranslations.entries) {
-          allTranslations.add(
-            TranslationRecord(
-              enTag: entry.key.toLowerCase().trim(),
-              zhTranslation: entry.value,
-              source: 'hf_danbooru_tags',
-            ),
-          );
+          final tag = entry.key.toLowerCase().trim();
+          var translation = entry.value;
+
+          // HuggingFace 翻译为空，使用本地翻译补充
+          if (translation.isEmpty && localTranslations.containsKey(tag)) {
+            translation = localTranslations[tag]!;
+            AppLogger.d('Using local translation for "$tag": "$translation"', 'TranslationLazy');
+          }
+
+          if (translation.isNotEmpty) {
+            allTranslations.add(
+              TranslationRecord(
+                enTag: tag,
+                zhTranslation: translation,
+                source: 'hf_danbooru_tags',
+              ),
+            );
+            translatedTags.add(tag);
+          }
         }
       } else {
         throw Exception('标签翻译文件下载失败');
       }
+
+      // 3. 添加本地有但 HuggingFace 没有的翻译
+      _onProgress?.call(0.7, '合并本地翻译...');
+      var localAddedCount = 0;
+      for (final entry in localTranslations.entries) {
+        if (!translatedTags.contains(entry.key)) {
+          allTranslations.add(
+            TranslationRecord(
+              enTag: entry.key,
+              zhTranslation: entry.value,
+              source: 'local_assets',
+            ),
+          );
+          localAddedCount++;
+        }
+      }
+      AppLogger.i('Added $localAddedCount translations from local assets', 'TranslationLazy');
 
       _onProgress?.call(0.8, '导入数据库...');
       await _unifiedDb.insertTranslations(allTranslations);
@@ -225,6 +264,39 @@ class TranslationLazyService implements LazyDataSourceService<String> {
     } finally {
       _isRefreshing = false;
     }
+  }
+
+  /// 加载本地 assets 中的翻译数据（用于补充 HuggingFace 缺失的翻译）
+  Future<Map<String, String>> _loadLocalTranslations() async {
+    final result = <String, String>{};
+
+    try {
+      final csvContent = await rootBundle.loadString('assets/translations/danbooru.csv');
+      const converter = CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        textEndDelimiter: '"',
+        eol: '\n',
+        shouldParseNumbers: false,
+      );
+
+      final rows = converter.convert(csvContent);
+      for (final row in rows) {
+        if (row.length >= 2) {
+          final tag = row[0].toString().trim().toLowerCase();
+          final translation = row[1].toString().trim();
+          if (tag.isNotEmpty && translation.isNotEmpty) {
+            result[tag] = translation;
+          }
+        }
+      }
+
+      AppLogger.i('Loaded ${result.length} translations from local assets', 'TranslationLazy');
+    } catch (e, stack) {
+      AppLogger.e('Failed to load local translations', e, stack, 'TranslationLazy');
+    }
+
+    return result;
   }
 
   Future<Map<String, String>?> _downloadTranslationFile(String fileName) async {

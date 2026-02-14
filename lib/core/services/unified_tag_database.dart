@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/tag_normalizer.dart';
 import 'tag_database_connection.dart';
 
 part 'unified_tag_database.g.dart';
@@ -109,6 +110,19 @@ class RecordCounts {
   });
 }
 
+/// 翻译匹配结果
+class TranslationMatch {
+  final String tag;
+  final String translation;
+  final int score;
+
+  const TranslationMatch({
+    required this.tag,
+    required this.translation,
+    required this.score,
+  });
+}
+
 // ==================== 统一标签数据库服务 V2 ====================
 
 /// 统一标签数据库服务 V2
@@ -174,6 +188,168 @@ AppLogger.w(
 
   // ==================== Translations 表操作 ====================
 
+  /// 获取翻译缓存版本号
+  Future<int> getTranslationCacheVersion() async {
+    try {
+      final db = await _getDb();
+      final result = await db.query(
+        'metadata',
+        columns: ['data_version'],
+        where: 'source = ?',
+        whereArgs: ['translations'],
+        limit: 1,
+      );
+
+      if (result.isEmpty) return -1;
+
+      final versionStr = result.first['data_version'] as String;
+      return int.tryParse(versionStr) ?? -1;
+    } catch (e) {
+      AppLogger.w('Failed to get translation cache version: $e', 'UnifiedTagDatabase');
+      return -1;
+    }
+  }
+
+  /// 设置翻译缓存版本号
+  Future<void> setTranslationCacheVersion(int version) async {
+    try {
+      final db = await _getDb();
+      await db.insert(
+        'metadata',
+        {
+          'source': 'translations',
+          'last_update': DateTime.now().millisecondsSinceEpoch,
+          'data_version': version.toString(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      AppLogger.w('Failed to set translation cache version: $e', 'UnifiedTagDatabase');
+    }
+  }
+
+  /// 获取翻译记录数量
+  Future<int> getTranslationCount() async {
+    try {
+      final db = await _getDb();
+      final result = await db.rawQuery('SELECT COUNT(*) as count FROM translations');
+      return (result.first['count'] as num?)?.toInt() ?? 0;
+    } catch (e) {
+      AppLogger.w('Failed to get translation count: $e', 'UnifiedTagDatabase');
+      return 0;
+    }
+  }
+
+  /// 清空所有翻译数据
+  Future<void> clearTranslations() async {
+    try {
+      final db = await _getDb();
+      await db.delete('translations');
+      _translationCache.clear();
+      AppLogger.i('Translations table cleared', 'UnifiedTagDatabase');
+    } catch (e) {
+      AppLogger.w('Failed to clear translations: $e', 'UnifiedTagDatabase');
+    }
+  }
+
+  /// 搜索翻译（支持部分匹配）
+  Future<List<TranslationMatch>> searchTranslations(
+    String query, {
+    int limit = 20,
+    bool matchTag = true,
+    bool matchTranslation = true,
+  }) async {
+    final normalizedQuery = query.toLowerCase().trim();
+    if (normalizedQuery.isEmpty) return [];
+
+    try {
+      final db = await _getDb();
+      final results = <TranslationMatch>[];
+
+      if (matchTag) {
+        // 搜索标签匹配
+        final tagResults = await db.query(
+          'translations',
+          columns: ['en_tag', 'zh_translation'],
+          where: 'en_tag LIKE ?',
+          whereArgs: ['%$normalizedQuery%'],
+          limit: limit,
+        );
+
+        for (final row in tagResults) {
+          final tag = row['en_tag'] as String;
+          final translation = row['zh_translation'] as String;
+          // 计算匹配分数（前缀匹配分数更高）
+          var score = 0;
+          if (tag.startsWith(normalizedQuery)) {
+            score += 100;
+          } else if (tag.contains(normalizedQuery)) {
+            score += 50;
+          }
+
+          results.add(
+            TranslationMatch(
+              tag: tag,
+              translation: translation,
+              score: score,
+            ),
+          );
+        }
+      }
+
+      if (matchTranslation) {
+        // 搜索中文翻译匹配
+        final transResults = await db.query(
+          'translations',
+          columns: ['en_tag', 'zh_translation'],
+          where: 'zh_translation LIKE ?',
+          whereArgs: ['%$normalizedQuery%'],
+          limit: limit,
+        );
+
+        for (final row in transResults) {
+          final tag = row['en_tag'] as String;
+          final translation = row['zh_translation'] as String;
+          // 计算匹配分数
+          var score = 0;
+          if (translation.startsWith(normalizedQuery)) {
+            score += 80;
+          } else if (translation.contains(normalizedQuery)) {
+            score += 40;
+          }
+
+          // 检查是否已存在（避免重复）
+          final existingIndex = results.indexWhere((r) => r.tag == tag);
+          if (existingIndex >= 0) {
+            // 合并分数
+            final existing = results[existingIndex];
+            results[existingIndex] = TranslationMatch(
+              tag: existing.tag,
+              translation: existing.translation,
+              score: existing.score + score,
+            );
+          } else {
+            results.add(
+              TranslationMatch(
+                tag: tag,
+                translation: translation,
+                score: score,
+              ),
+            );
+          }
+        }
+      }
+
+      // 按分数排序
+      results.sort((a, b) => b.score.compareTo(a.score));
+
+      return results.take(limit).toList();
+    } catch (e) {
+      AppLogger.w('Failed to search translations: $e', 'UnifiedTagDatabase');
+      return [];
+    }
+  }
+
   /// 批量插入翻译
   Future<void> insertTranslations(
     List<TranslationRecord> records, {
@@ -229,10 +405,14 @@ AppLogger.w(
 
   /// 获取单个翻译
   Future<String?> getTranslation(String tag) async {
-    final normalizedTag = tag.toLowerCase().trim();
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
+    AppLogger.d('[UnifiedTagDatabase] getTranslation("$tag") -> normalized="$normalizedTag"', 'UnifiedTagDatabase');
 
     if (_translationCache.containsKey(normalizedTag)) {
-      return _translationCache[normalizedTag];
+      final cached = _translationCache[normalizedTag];
+      AppLogger.d('[UnifiedTagDatabase] cache hit: "$cached"', 'UnifiedTagDatabase');
+      return cached;
     }
 
     try {
@@ -245,13 +425,18 @@ AppLogger.w(
         limit: 1,
       );
 
-      if (results.isEmpty) return null;
+      AppLogger.d('[UnifiedTagDatabase] DB query results: ${results.length} rows', 'UnifiedTagDatabase');
+      if (results.isEmpty) {
+        AppLogger.d('[UnifiedTagDatabase] no translation found for "$normalizedTag"', 'UnifiedTagDatabase');
+        return null;
+      }
 
       final translation = results.first['zh_translation'] as String;
+      AppLogger.d('[UnifiedTagDatabase] found translation: "$translation"', 'UnifiedTagDatabase');
       _addToTranslationCache(normalizedTag, translation);
       return translation;
     } catch (e) {
-AppLogger.w(
+      AppLogger.w(
         'Failed to get translation for "$tag": $e',
         'UnifiedTagDatabase',
       );
@@ -267,7 +452,8 @@ AppLogger.w(
     final tagsToQuery = <String>[];
 
     for (final tag in tags) {
-      final normalizedTag = tag.toLowerCase().trim();
+      // 统一标准化标签
+      final normalizedTag = TagNormalizer.normalize(tag);
       if (_translationCache.containsKey(normalizedTag)) {
         result[normalizedTag] = _translationCache[normalizedTag]!;
       } else {
@@ -286,7 +472,8 @@ AppLogger.w(
       );
 
       for (final row in rows) {
-        final enTag = (row['en_tag'] as String).toLowerCase().trim();
+        // 统一标准化标签
+        final enTag = TagNormalizer.normalize(row['en_tag'] as String);
         final zhTranslation = row['zh_translation'] as String;
         result[enTag] = zhTranslation;
         _addToTranslationCache(enTag, zhTranslation);
@@ -356,7 +543,8 @@ AppLogger.w(
 
   /// 获取单个 Danbooru 标签
   Future<DanbooruTagRecord?> getDanbooruTag(String tag) async {
-    final normalizedTag = tag.toLowerCase().trim();
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
 
     if (_danbooruTagCache.containsKey(normalizedTag)) {
       return _danbooruTagCache[normalizedTag];
@@ -395,7 +583,8 @@ AppLogger.w(
   Future<List<DanbooruTagRecord>> getDanbooruTags(List<String> tags) async {
     if (tags.isEmpty) return [];
 
-    final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
+    // 统一标准化标签
+    final normalizedTags = TagNormalizer.normalizeList(tags);
     final results = <DanbooruTagRecord>[];
     final tagsToQuery = <String>[];
 
@@ -500,8 +689,10 @@ AppLogger.w(
             .toList();
       } else {
         // 英文搜索：直接在 danbooru_tags 表中搜索
+        // 将查询词标准化（空格转下划线）
+        final normalizedQueryUnderscore = TagNormalizer.normalize(query);
         var whereClause = 'tag LIKE ?';
-        final whereArgs = <dynamic>['%$normalizedQuery%'];
+        final whereArgs = <dynamic>['%$normalizedQueryUnderscore%'];
 
         if (category != null) {
           whereClause += ' AND category = ?';

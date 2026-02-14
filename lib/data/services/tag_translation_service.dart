@@ -1,5 +1,6 @@
 import 'dart:isolate';
 
+import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -7,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/cache/translation_cache_service.dart';
 import '../../core/services/translation_lazy_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/tag_normalizer.dart';
 
 part 'tag_translation_service.g.dart';
 
@@ -30,34 +32,38 @@ class _IsolateParseParams {
 }
 
 /// 在 Isolate 中解析两个 CSV 文件（顶层函数）
+/// 使用专业的 CSV 解析库，正确处理引号和转义
 _ParsedTranslationData _parseAllCsvInIsolate(_IsolateParseParams params) {
   final tagTranslations = <String, String>{};
   final characterTranslations = <String, String>{};
 
+  // CSV 解析器配置
+  const converter = CsvToListConverter(
+    fieldDelimiter: ',',
+    textDelimiter: '"',
+    textEndDelimiter: '"',
+    eol: '\n',
+    shouldParseNumbers: false,
+  );
+
   // 解析标签翻译 CSV
-  for (final line in params.tagCsvContent.split('\n')) {
-    if (line.trim().isEmpty) continue;
-    final parts = line.split(',');
-    if (parts.length >= 2) {
-      final englishTag = parts[0].trim().toLowerCase();
-      var chineseTranslation = parts.sublist(1).join(',').trim();
-      // 去除翻译值首尾的双引号（CSV 格式残留）
-      if (chineseTranslation.startsWith('"') && chineseTranslation.endsWith('"')) {
-        chineseTranslation = chineseTranslation.substring(1, chineseTranslation.length - 1);
-      }
+  final tagRows = converter.convert(params.tagCsvContent);
+  for (final row in tagRows) {
+    if (row.length >= 2) {
+      final englishTag = row[0].toString().trim().toLowerCase();
+      final chineseTranslation = row[1].toString().trim();
       if (englishTag.isNotEmpty && chineseTranslation.isNotEmpty) {
         tagTranslations[englishTag] = chineseTranslation;
       }
     }
   }
 
-  // 解析角色翻译 CSV
-  for (final line in params.charCsvContent.split('\n')) {
-    if (line.trim().isEmpty) continue;
-    final parts = line.split(',');
-    if (parts.length >= 2) {
-      final chineseName = parts[0].trim();
-      final englishTag = parts.sublist(1).join(',').trim().toLowerCase();
+  // 解析角色翻译 CSV（格式：中文名,英文名）
+  final charRows = converter.convert(params.charCsvContent);
+  for (final row in charRows) {
+    if (row.length >= 2) {
+      final chineseName = row[0].toString().trim();
+      final englishTag = row[1].toString().trim().toLowerCase();
       if (englishTag.isNotEmpty && chineseName.isNotEmpty) {
         characterTranslations[englishTag] = chineseName;
       }
@@ -193,8 +199,8 @@ class TagTranslationService {
   /// [isCharacter] 是否为角色标签（优先查找角色翻译表）
   /// 返回中文翻译，如果没有翻译则返回 null
   Future<String?> translate(String tag, {bool isCharacter = false}) async {
-    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
-    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
 
     // 1. 首先尝试从懒加载服务获取（如果可用且已初始化）
     if (_lazyService != null && _lazyService!.isInitialized) {
@@ -216,8 +222,8 @@ class TagTranslationService {
 
   /// 获取角色翻译
   Future<String?> translateCharacter(String tag) async {
-    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
-    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
 
     // 优先从动态数据获取
     if (_lazyService != null && _lazyService!.isInitialized) {
@@ -232,8 +238,8 @@ class TagTranslationService {
 
   /// 获取通用标签翻译
   Future<String?> translateTag(String tag) async {
-    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
-    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
 
     // 优先从动态数据获取
     if (_lazyService != null && _lazyService!.isInitialized) {
@@ -248,15 +254,15 @@ class TagTranslationService {
 
   /// 同步获取通用标签翻译（仅访问已加载的内存数据）
   String? translateTagSync(String tag) {
-    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
-    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
     return _tagTranslations[normalizedTag];
   }
 
   /// 同步获取角色翻译（仅访问已加载的内存数据）
   String? translateCharacterSync(String tag) {
-    // 将空格替换为下划线，因为翻译数据库存储的是下划线格式
-    final normalizedTag = tag.trim().toLowerCase().replaceAll(' ', '_');
+    // 统一标准化标签
+    final normalizedTag = TagNormalizer.normalize(tag);
     return _characterTranslations[normalizedTag];
   }
 

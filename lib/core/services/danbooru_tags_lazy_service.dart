@@ -12,6 +12,7 @@ import '../../data/models/cache/data_source_cache_meta.dart';
 import '../../data/models/tag/local_tag.dart';
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
+import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
 import 'unified_tag_database.dart';
 
@@ -165,7 +166,10 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       );
 
       for (final tag in tags) {
-        final translation = translations[tag.tag.toLowerCase()];
+        // 统一使用标准化标签作为 key 查找翻译
+        final normalizedTag = TagNormalizer.normalize(tag.tag);
+        final translation = translations[normalizedTag];
+        AppLogger.d('[_loadHotData] tag="${tag.tag}", normalized="$normalizedTag", translation="$translation"', 'DanbooruTagsLazy');
         if (translation != null) {
           _hotDataCache[tag.tag] = tag.copyWith(translation: translation);
         } else {
@@ -183,16 +187,23 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<LocalTag?> get(String key) async {
-    final normalizedKey = key.toLowerCase().trim();
+    // 统一标准化标签
+    final normalizedKey = TagNormalizer.normalize(key);
+    AppLogger.d('[DanbooruTagsLazy] get("$key") -> normalizedKey="$normalizedKey"', 'DanbooruTagsLazy');
 
+    // 尝试精确匹配
     if (_hotDataCache.containsKey(normalizedKey)) {
-      return _hotDataCache[normalizedKey];
+      final cached = _hotDataCache[normalizedKey];
+      AppLogger.d('[DanbooruTagsLazy] cache hit: translation="${cached?.translation}"', 'DanbooruTagsLazy');
+      return cached;
     }
 
     final record = await _unifiedDb.getDanbooruTag(normalizedKey);
+    AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
     if (record != null) {
       // 获取翻译
       final translation = await _unifiedDb.getTranslation(normalizedKey);
+      AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
       return LocalTag(
         tag: record.tag,
         category: record.category,
@@ -232,7 +243,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       );
 
       return tags.map((tag) {
-        final translation = translations[tag.tag.toLowerCase()];
+        // 统一使用标准化标签作为 key 查找翻译
+        final normalizedTag = TagNormalizer.normalize(tag.tag);
+        final translation = translations[normalizedTag];
         if (translation != null) {
           return tag.copyWith(translation: translation);
         }
@@ -270,7 +283,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       );
 
       return tags.map((tag) {
-        final translation = translations[tag.tag.toLowerCase()];
+        // 统一使用标准化标签作为 key 查找翻译
+        final normalizedTag = TagNormalizer.normalize(tag.tag);
+        final translation = translations[normalizedTag];
         if (translation != null) {
           return tag.copyWith(translation: translation);
         }
