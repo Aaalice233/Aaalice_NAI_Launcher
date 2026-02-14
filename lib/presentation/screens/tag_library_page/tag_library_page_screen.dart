@@ -19,7 +19,7 @@ import 'widgets/category_tree_view.dart';
 import 'widgets/entry_card.dart';
 import 'widgets/entry_list_item.dart';
 import 'widgets/entry_add_dialog.dart';
-import 'widgets/send_to_home_dialog_v2.dart';
+import 'widgets/send_to_home_dialog.dart';
 import 'widgets/tag_library_toolbar.dart';
 import 'widgets/bulk_move_category_dialog.dart';
 import 'widgets/export_dialog.dart';
@@ -760,8 +760,8 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   }
 
   void _showEntryDetail(TagLibraryEntry entry) async {
-    // 显示发送选项对话框 V2
-    final sendOptions = await SendToHomeDialogV2.show(
+    // 显示发送选项对话框
+    final sendOptions = await SendToHomeDialog.show(
       context,
       entry: entry,
     );

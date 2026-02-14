@@ -14,18 +14,18 @@ import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../widgets/common/app_toast.dart';
 
-/// Vibe 导出对话框 V2
+/// Vibe 导出对话框（高级版）
 /// 支持导出单个 vibe、批量导出，以及从 bundle 中导出单个 vibe
-class VibeExportDialogV2 extends ConsumerStatefulWidget {
+class VibeExportDialogAdvanced extends ConsumerStatefulWidget {
   final List<VibeLibraryEntry> entries;
 
-  const VibeExportDialogV2({
+  const VibeExportDialogAdvanced({
     super.key,
     required this.entries,
   });
 
   @override
-  ConsumerState<VibeExportDialogV2> createState() => _VibeExportDialogV2State();
+  ConsumerState<VibeExportDialogAdvanced> createState() => _VibeExportDialogAdvancedState();
 }
 
 /// 导出验证结果
@@ -36,7 +36,7 @@ class _ValidationResult {
   const _ValidationResult({required this.isValid, this.errorMessage});
 }
 
-class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
+class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvanced> {
   // 导出选项状态
   bool _exportBundle = true;
   bool _embedIntoImage = false;
@@ -855,7 +855,7 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
         AppToast.success(context, '导出成功');
       }
     } catch (e, stack) {
-      AppLogger.e('导出 Vibe 失败', e, stack, 'VibeExportDialogV2');
+      AppLogger.e('导出 Vibe 失败', e, stack, 'VibeExportDialogAdvanced');
       if (mounted) {
         setState(() {
           _isExporting = false;
@@ -921,7 +921,7 @@ class _VibeExportDialogV2State extends ConsumerState<VibeExportDialogV2> {
 
       final vibe = await storageService.extractVibeFromBundle(filePath, index);
       if (vibe == null) {
-        AppLogger.w('无法提取索引 $index 的 vibe', 'VibeExportDialogV2');
+        AppLogger.w('无法提取索引 $index 的 vibe', 'VibeExportDialogAdvanced');
         continue;
       }
 

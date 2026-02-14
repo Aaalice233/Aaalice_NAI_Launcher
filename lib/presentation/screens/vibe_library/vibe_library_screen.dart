@@ -32,7 +32,7 @@ import 'widgets/vibe_card_3d.dart';
 import 'widgets/vibe_bundle_import_dialog.dart' as bundle_import_dialog;
 import 'widgets/vibe_detail_viewer.dart';
 import 'widgets/vibe_export_dialog.dart';
-import 'widgets/vibe_export_dialog_v2.dart';
+import 'widgets/vibe_export_dialog_advanced.dart';
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
 
 class ImportProgress {
@@ -1377,7 +1377,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     await showDialog<void>(
       context: context,
-      builder: (context) => VibeExportDialogV2(
+      builder: (context) => VibeExportDialogAdvanced(
         entries: entriesToExport,
       ),
     );
