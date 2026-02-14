@@ -31,7 +31,7 @@ class UnifiedTranslationService {
   static const int _maxHotCacheSize = 1000;
 
   /// 缓存版本号（修改此值可强制重新加载）
-  static const int _cacheVersion = 1;
+  static const int _cacheVersion = 5; // 强制刷新：重新加载所有翻译数据
 
   UnifiedTranslationService({
     List<TranslationDataSourceConfig>? dataSources,
@@ -294,6 +294,9 @@ class UnifiedTranslationService {
           final tag = row[tagIndex].toString().trim().toLowerCase();
           var translation = row[transIndex].toString().trim();
 
+          // 跳过 "None" 值（表示无翻译）
+          if (translation.toLowerCase() == 'none') continue;
+
           // 对于多 alias 的情况，只取第一个（通常是中文）
           if (translation.contains(',')) {
             translation = translation.split(',')[0].trim();
@@ -357,6 +360,29 @@ class UnifiedTranslationService {
       _hotCache.remove(_hotCache.keys.first);
     }
     _hotCache[tag] = translation;
+  }
+
+  /// 从热缓存同步获取翻译
+  ///
+  /// 这是为了向后兼容 TagTranslationService 的同步方法。
+  /// 如果热缓存中没有，会触发异步加载，但本次返回 null。
+  String? getTranslationFromCache(String tag) {
+    final normalizedTag = TagNormalizer.normalize(tag);
+
+    // 先查热缓存
+    if (_hotCache.containsKey(normalizedTag)) {
+      return _hotCache[normalizedTag];
+    }
+
+    // 触发异步加载到缓存（但不等待）
+    if (_isInitialized) {
+      getTranslation(normalizedTag).then((translation) {
+        // 结果会被自动添加到热缓存
+        AppLogger.d('[UnifiedTranslation] Async loaded "$normalizedTag" for future cache hits', 'UnifiedTranslation');
+      });
+    }
+
+    return null;
   }
 
   /// 搜索翻译（支持部分匹配）

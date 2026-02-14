@@ -92,20 +92,6 @@ class PredefinedDataSources {
     ),
   );
 
-  /// GitHub - SANLVZHETANG - 内置版本
-  /// 下载地址：https://github.com/SANLVZHETANG/danbooru-tag-list-zh
-  static const githubSanlvzhetang = TranslationDataSourceConfig(
-    id: 'github_sanlvzhetang',
-    name: 'GitHub Sanlvzhetang 翻译',
-    path: 'assets/translations/github_sanlvzhetang.csv',
-    priority: 60,
-    csvConfig: CsvFormatConfig(
-      tagColumnIndex: 0,
-      translationColumnIndex: 1,
-      hasHeader: true,
-    ),
-  );
-
   /// GitHub - CheNing233 - 内置版本
   /// 下载地址：https://github.com/CheNing233/datasets_danbooru_tag_wiki
   static const githubCheNing233 = TranslationDataSourceConfig(
@@ -138,7 +124,6 @@ class PredefinedDataSources {
     localDanbooruZh,
     localCharacters,
     hfDanbooruTags,
-    githubSanlvzhetang,
     githubCheNing233,
   ];
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../core/services/cooccurrence_service.dart';
+import '../../../../core/services/translation/translation_providers.dart';
 import '../../../../data/models/cache/data_source_cache_meta.dart';
 import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -156,10 +157,10 @@ class _DataSourceCacheSettingsState
         content: const Text(
           '确定要清除所有数据源缓存吗？\n\n'
           '这将删除：\n'
-          '• 翻译数据\n'
+          '• 翻译数据（网络+本地）\n'
           '• 标签补全数据\n'
           '• 共现标签数据\n\n'
-          '清除后需要重新从网络下载。',
+          '清除后需要重新下载/加载。',
         ),
         actions: [
           TextButton(
@@ -185,6 +186,13 @@ class _DataSourceCacheSettingsState
       if (context.mounted) {
         await _clearAllCaches(context);
       }
+    }
+  }
+
+  /// 关闭对话框（如果存在且有效）
+  void _closeDialog(BuildContext? ctx) {
+    if (ctx != null && ctx.mounted) {
+      Navigator.of(ctx).pop();
     }
   }
 
@@ -229,10 +237,14 @@ class _DataSourceCacheSettingsState
     await Future.delayed(const Duration(milliseconds: 100));
 
     try {
-      // 清除翻译缓存
+      // 清除 HuggingFace 翻译缓存（网络数据源）
       await ref
           .read(hFTranslationCacheNotifierProvider.notifier)
           .clearCache();
+
+      // 清除统一翻译服务缓存（SQLite）
+      final translationService = await ref.read(unifiedTranslationServiceProvider.future);
+      await translationService.clear();
 
       // 清除 Danbooru 标签缓存
       await ref
@@ -247,30 +259,18 @@ class _DataSourceCacheSettingsState
       ref.invalidate(hFTranslationCacheNotifierProvider);
       ref.invalidate(danbooruTagsCacheNotifierProvider);
 
-      // 关闭进度对话框
-      final dialogCtx = dialogContextOrNull;
-      if (dialogCtx != null && dialogCtx.mounted) {
-        Navigator.of(dialogCtx).pop();
-      }
-
-      // 延迟一帧确保对话框已关闭
+      // 关闭进度对话框并延迟显示成功提示
+      _closeDialog(dialogContextOrNull);
       await Future.delayed(const Duration(milliseconds: 100));
 
-      // 显示成功提示
       if (rootContext.mounted) {
         AppToast.success(rootContext, '所有缓存已清除');
       }
     } catch (e) {
-      // 关闭进度对话框
-      final dialogCtx = dialogContextOrNull;
-      if (dialogCtx != null && dialogCtx.mounted) {
-        Navigator.of(dialogCtx).pop();
-      }
-
-      // 延迟一帧确保对话框已关闭
+      // 关闭进度对话框并延迟显示错误提示
+      _closeDialog(dialogContextOrNull);
       await Future.delayed(const Duration(milliseconds: 100));
 
-      // 显示错误提示
       if (rootContext.mounted) {
         AppToast.error(rootContext, '清除缓存失败: $e');
       }

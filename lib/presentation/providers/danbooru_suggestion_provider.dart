@@ -244,13 +244,34 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
     }
   }
 
+  /// 获取统一翻译服务（等待初始化完成）
+  Future<UnifiedTranslationService?> _getTranslationService() async {
+    // 如果已经初始化，直接返回
+    if (_translationService?.isInitialized == true) {
+      return _translationService;
+    }
+
+    // 等待服务初始化完成
+    try {
+      final service = await ref.read(unifiedTranslationServiceProvider.future);
+      _translationService = service;
+      return service;
+    } catch (e) {
+      AppLogger.w('[_getTranslationService] Failed to get service: $e', 'DanbooruSuggestion');
+      return null;
+    }
+  }
+
   /// 为标签列表注入翻译
   ///
   /// 优先使用统一翻译服务（多数据源合并），
   /// 如果统一服务没有翻译，则回退到 DanbooruTagsLazyService
   Future<List<TagSuggestion>> _injectTranslations(List<TagSuggestion> tags) async {
     AppLogger.d('[_injectTranslations] start, tags count: ${tags.length}', 'DanbooruSuggestion');
-    AppLogger.d('[_injectTranslations] _translationService?.isInitialized: ${_translationService?.isInitialized}', 'DanbooruSuggestion');
+
+    // 确保获取翻译服务（等待初始化完成）
+    final translationService = await _getTranslationService();
+    AppLogger.d('[_injectTranslations] translationService ready: ${translationService?.isInitialized}', 'DanbooruSuggestion');
     AppLogger.d('[_injectTranslations] _danbooruService.isInitialized: ${_danbooruService.isInitialized}', 'DanbooruSuggestion');
 
     final results = <TagSuggestion>[];
@@ -265,9 +286,9 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       // 1. 优先使用统一翻译服务（合并多个数据源）
       String? translation;
 
-      if (_translationService?.isInitialized == true) {
-        translation = await _translationService!.getTranslation(tag.tag);
-        if (translation != null && translation.isNotEmpty) {
+      if (translationService != null && translationService.isInitialized) {
+        translation = await translationService.getTranslation(tag.tag);
+        if (translation != null && translation.isNotEmpty && translation != '0') {
           AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in unified service: "$translation"', 'DanbooruSuggestion');
           results.add(tag.copyWith(translation: translation));
           continue;
