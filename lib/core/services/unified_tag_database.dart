@@ -436,41 +436,97 @@ AppLogger.w(
   }
 
   /// 搜索 Danbooru 标签
+  /// 支持英文标签搜索和中文翻译搜索
   Future<List<DanbooruTagRecord>> searchDanbooruTags(
     String query, {
     int? category,
     int limit = 20,
   }) async {
     final normalizedQuery = query.toLowerCase().trim();
+    if (normalizedQuery.isEmpty) return [];
+
+    // 检测是否为中文搜索
+    final isChinese = RegExp(r'[\u4e00-\u9fa5]').hasMatch(normalizedQuery);
 
     try {
       final db = await _getDb();
-      var whereClause = 'tag LIKE ?';
-      final whereArgs = <dynamic>['%$normalizedQuery%'];
 
-      if (category != null) {
-        whereClause += ' AND category = ?';
-        whereArgs.add(category);
+      if (isChinese) {
+        // 中文搜索：先在 translations 表中查找匹配的翻译
+        final translationResults = await db.query(
+          'translations',
+          columns: ['en_tag'],
+          where: 'zh_translation LIKE ?',
+          whereArgs: ['%$normalizedQuery%'],
+          limit: limit,
+        );
+
+        if (translationResults.isEmpty) {
+          return [];
+        }
+
+        // 获取对应的英文标签
+        final enTags = translationResults
+            .map((r) => r['en_tag'] as String)
+            .toList();
+
+        // 在 danbooru_tags 表中查询这些标签
+        final placeholders = List.filled(enTags.length, '?').join(',');
+        var whereClause = 'tag IN ($placeholders)';
+        final whereArgs = <dynamic>[...enTags];
+
+        if (category != null) {
+          whereClause += ' AND category = ?';
+          whereArgs.add(category);
+        }
+
+        final results = await db.query(
+          'danbooru_tags',
+          where: whereClause,
+          whereArgs: whereArgs,
+          orderBy: 'post_count DESC',
+          limit: limit,
+        );
+
+        return results
+            .map(
+              (row) => DanbooruTagRecord(
+                tag: row['tag'] as String,
+                category: row['category'] as int,
+                postCount: row['post_count'] as int,
+                lastUpdated: row['last_updated'] as int,
+              ),
+            )
+            .toList();
+      } else {
+        // 英文搜索：直接在 danbooru_tags 表中搜索
+        var whereClause = 'tag LIKE ?';
+        final whereArgs = <dynamic>['%$normalizedQuery%'];
+
+        if (category != null) {
+          whereClause += ' AND category = ?';
+          whereArgs.add(category);
+        }
+
+        final results = await db.query(
+          'danbooru_tags',
+          where: whereClause,
+          whereArgs: whereArgs,
+          orderBy: 'post_count DESC',
+          limit: limit,
+        );
+
+        return results
+            .map(
+              (row) => DanbooruTagRecord(
+                tag: row['tag'] as String,
+                category: row['category'] as int,
+                postCount: row['post_count'] as int,
+                lastUpdated: row['last_updated'] as int,
+              ),
+            )
+            .toList();
       }
-
-      final results = await db.query(
-        'danbooru_tags',
-        where: whereClause,
-        whereArgs: whereArgs,
-        orderBy: 'post_count DESC',
-        limit: limit,
-      );
-
-      return results
-          .map(
-            (row) => DanbooruTagRecord(
-              tag: row['tag'] as String,
-              category: row['category'] as int,
-              postCount: row['post_count'] as int,
-              lastUpdated: row['last_updated'] as int,
-            ),
-          )
-          .toList();
     } catch (e) {
       AppLogger.w('Failed to search danbooru tags: $e', 'UnifiedTagDatabase');
       return [];

@@ -158,8 +158,20 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         )
         .toList();
 
-    for (final tag in tags) {
-      _hotDataCache[tag.tag] = tag;
+    // 批量获取翻译
+    if (tags.isNotEmpty) {
+      final translations = await _unifiedDb.getTranslationsBatch(
+        tags.map((t) => t.tag).toList(),
+      );
+
+      for (final tag in tags) {
+        final translation = translations[tag.tag.toLowerCase()];
+        if (translation != null) {
+          _hotDataCache[tag.tag] = tag.copyWith(translation: translation);
+        } else {
+          _hotDataCache[tag.tag] = tag;
+        }
+      }
     }
 
     _onProgress?.call(1.0, '热数据加载完成');
@@ -179,10 +191,13 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
     final record = await _unifiedDb.getDanbooruTag(normalizedKey);
     if (record != null) {
+      // 获取翻译
+      final translation = await _unifiedDb.getTranslation(normalizedKey);
       return LocalTag(
         tag: record.tag,
         category: record.category,
         count: record.postCount,
+        translation: translation,
       );
     }
 
@@ -199,7 +214,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       category: category,
       limit: limit,
     );
-    return records
+
+    // 批量获取翻译
+    final tags = records
         .map(
           (r) => LocalTag(
             tag: r.tag,
@@ -208,6 +225,22 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
           ),
         )
         .toList();
+
+    if (tags.isNotEmpty) {
+      final translations = await _unifiedDb.getTranslationsBatch(
+        tags.map((t) => t.tag).toList(),
+      );
+
+      return tags.map((tag) {
+        final translation = translations[tag.tag.toLowerCase()];
+        if (translation != null) {
+          return tag.copyWith(translation: translation);
+        }
+        return tag;
+      }).toList();
+    }
+
+    return tags;
   }
 
   Future<List<LocalTag>> getHotTags({
@@ -220,7 +253,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       minCount: minCount,
       limit: limit,
     );
-    return records
+    final tags = records
         .map(
           (r) => LocalTag(
             tag: r.tag,
@@ -229,6 +262,23 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
           ),
         )
         .toList();
+
+    // 批量获取翻译
+    if (tags.isNotEmpty) {
+      final translations = await _unifiedDb.getTranslationsBatch(
+        tags.map((t) => t.tag).toList(),
+      );
+
+      return tags.map((tag) {
+        final translation = translations[tag.tag.toLowerCase()];
+        if (translation != null) {
+          return tag.copyWith(translation: translation);
+        }
+        return tag;
+      }).toList();
+    }
+
+    return tags;
   }
 
   @override

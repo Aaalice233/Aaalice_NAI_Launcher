@@ -232,9 +232,8 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       // 从本地服务获取翻译
       try {
         final localTag = await _danbooruService.get(tag.tag);
-        if (localTag != null) {
-          // 这里可以添加翻译查找逻辑
-          results.add(tag);
+        if (localTag != null && localTag.translation != null) {
+          results.add(tag.copyWith(translation: localTag.translation));
         } else {
           results.add(tag);
         }
