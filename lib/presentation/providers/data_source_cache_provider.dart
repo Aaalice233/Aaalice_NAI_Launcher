@@ -17,6 +17,12 @@ class DanbooruTagsCacheState {
   final int customThreshold;
   final String? error;
   final AutoRefreshInterval refreshInterval;
+  // 画师同步相关状态
+  final bool syncArtists;
+  final bool isSyncingArtists;
+  final double artistsProgress;
+  final int artistsTotal;
+  final DateTime? artistsLastUpdate;
 
   const DanbooruTagsCacheState({
     this.isRefreshing = false,
@@ -28,6 +34,12 @@ class DanbooruTagsCacheState {
     this.customThreshold = 1000,
     this.error,
     this.refreshInterval = AutoRefreshInterval.days30,
+    // 画师同步默认值
+    this.syncArtists = true,
+    this.isSyncingArtists = false,
+    this.artistsProgress = 0.0,
+    this.artistsTotal = 0,
+    this.artistsLastUpdate,
   });
 
   DanbooruTagsCacheState copyWith({
@@ -40,6 +52,11 @@ class DanbooruTagsCacheState {
     int? customThreshold,
     String? error,
     AutoRefreshInterval? refreshInterval,
+    bool? syncArtists,
+    bool? isSyncingArtists,
+    double? artistsProgress,
+    int? artistsTotal,
+    DateTime? artistsLastUpdate,
   }) {
     return DanbooruTagsCacheState(
       isRefreshing: isRefreshing ?? this.isRefreshing,
@@ -51,6 +68,11 @@ class DanbooruTagsCacheState {
       customThreshold: customThreshold ?? this.customThreshold,
       error: error,
       refreshInterval: refreshInterval ?? this.refreshInterval,
+      syncArtists: syncArtists ?? this.syncArtists,
+      isSyncingArtists: isSyncingArtists ?? this.isSyncingArtists,
+      artistsProgress: artistsProgress ?? this.artistsProgress,
+      artistsTotal: artistsTotal ?? this.artistsTotal,
+      artistsLastUpdate: artistsLastUpdate ?? this.artistsLastUpdate,
     );
   }
 }
@@ -156,4 +178,21 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     await service.setRefreshInterval(interval);
     state = state.copyWith(refreshInterval: interval);
   }
-}
+
+  /// 设置是否同步画师
+  Future<void> setSyncArtists(bool value) async {
+    state = state.copyWith(syncArtists: value);
+    // TODO: 持久化到存储
+  }
+
+  /// 同步画师数据（占位实现）
+  Future<void> syncArtists({bool force = false}) async {
+    // TODO: 实现画师同步功能
+  }
+
+  /// 取消画师同步
+  void cancelArtistsSync() {
+    state = state.copyWith(isSyncingArtists: false);
+  }
+  
+} 

@@ -16,6 +16,7 @@ import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
+import 'data_source_cache_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import 'auth_provider.dart';
@@ -515,13 +516,37 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   Future<void> _preloadDanbooruTagsInBackground() async {
     final service = ref.read(danbooruTagsLazyServiceProvider);
+    final cacheState = ref.read(danbooruTagsCacheNotifierProvider);
+
     service.onProgress = (progress, message) {
       ref
           .read(backgroundTaskNotifierProvider.notifier)
           .updateProgress('danbooru_tags_preload', progress, message: message);
     };
+
+    // 轻量级初始化
     await service.initializeLightweight();
-    await service.preloadHotDataInBackground();
+
+    // 检查是否需要自动刷新（根据设置中的自动刷新间隔）
+    final shouldRefresh = await service.shouldRefreshInBackground();
+    final tagCount = await service.getTagCount();
+
+    if (tagCount == 0 || shouldRefresh) {
+      AppLogger.i('Danbooru tags need refresh (count: $tagCount, shouldRefresh: $shouldRefresh)', 'Warmup');
+      // 自动触发数据拉取
+      await service.refresh();
+
+      // 如果开启了同步画师，也同步画师数据
+      if (cacheState.syncArtists) {
+        AppLogger.i('Artist sync is enabled, syncing artists...', 'Warmup');
+        // TODO: 实现画师同步
+        // await ref.read(danbooruTagsCacheNotifierProvider.notifier).syncArtists();
+      }
+    } else {
+      // 不需要刷新，只加载热数据
+      await service.preloadHotDataInBackground();
+    }
+
     service.onProgress = null;
   }
 }

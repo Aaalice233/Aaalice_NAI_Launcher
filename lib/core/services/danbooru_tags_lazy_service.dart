@@ -645,6 +645,11 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   void cancelBackgroundOperation() {
     _isCancelled = true;
   }
+
+  /// 获取当前标签数量
+  Future<int> getTagCount() async {
+    return await _unifiedDb.getDanbooruTagCount();
+  }
 }
 
 @Riverpod(keepAlive: true)

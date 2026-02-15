@@ -144,6 +144,10 @@ void setupWindowsWakeUpChannel() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化日志系统（必须在其他操作之前）
+  await AppLogger.initialize(isTestEnvironment: false);
+  AppLogger.i('应用启动', 'Main');
 
   // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
   PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
