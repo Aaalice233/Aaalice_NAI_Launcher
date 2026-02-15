@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import '../utils/download_message_keys.dart';
+import '../utils/file_hash_utils.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 import 'lazy_data_source_service.dart';
 import 'unified_tag_database.dart';
@@ -1388,6 +1389,204 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   /// 设置外部 UnifiedTagDatabase 实例（避免重复初始化）
   void setUnifiedDatabase(UnifiedTagDatabase db) {
     _unifiedDb = db;
+  }
+
+  // ===========================================================================
+  // 新的统一初始化流程 (SQLite 为主存储)
+  // ===========================================================================
+
+  /// 统一的初始化流程：检查 → 导入 → 完成
+  ///
+  /// 返回: true 表示数据已就绪，false 表示需要后台导入
+  Future<bool> initializeUnified() async {
+    AppLogger.i('Initializing cooccurrence (unified)...', 'Cooccurrence');
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      // 1. 确保数据库已初始化
+      if (_unifiedDb == null) {
+        throw StateError('UnifiedTagDatabase not initialized');
+      }
+      if (!_unifiedDb!.isInitialized) {
+        await _unifiedDb!.initialize();
+      }
+
+      // 2. 检查 SQLite 中是否已有数据
+      final counts = await _unifiedDb!.getRecordCounts();
+      if (counts.cooccurrences > 0) {
+        // 有数据，检查版本
+        final csvHash = await FileHashUtils.calculateAssetHash(
+          'assets/translations/hf_danbooru_cooccurrence.csv',
+        );
+
+        final needsUpdate = await _unifiedDb!.needsCooccurrenceUpdate(csvHash);
+
+        if (!needsUpdate) {
+          // 数据最新，直接使用
+          _loadMode = CooccurrenceLoadMode.sqlite;
+          _data.markLoaded();
+          stopwatch.stop();
+          AppLogger.i(
+            'Cooccurrence data up to date, using SQLite (${counts.cooccurrences} records) in ${stopwatch.elapsedMilliseconds}ms',
+            'Cooccurrence',
+          );
+          return true;
+        } else {
+          // 需要更新，标记后后台处理
+          AppLogger.i('Cooccurrence data needs update', 'Cooccurrence');
+          _loadMode = CooccurrenceLoadMode.sqlite;
+          _data.markLoaded();
+          return false; // 需要后台更新
+        }
+      }
+
+      // 3. 数据库为空，需要首次导入
+      AppLogger.i('Cooccurrence database empty, needs initial import', 'Cooccurrence');
+      _loadMode = CooccurrenceLoadMode.sqlite;
+      return false; // 需要后台导入
+    } catch (e, stack) {
+      AppLogger.e('Cooccurrence unified init failed', e, stack, 'Cooccurrence');
+      _data.markLoaded();
+      return false;
+    }
+  }
+
+  /// 将 Assets 中的 CSV 导入 SQLite（分批处理，避免阻塞）
+  ///
+  /// 返回: 导入的记录数，-1 表示失败
+  Future<int> importCsvToSQLite({
+    void Function(double progress, String message)? onProgress,
+  }) async {
+    if (_unifiedDb == null) {
+      throw StateError('UnifiedTagDatabase not initialized');
+    }
+
+    final stopwatch = Stopwatch()..start();
+    onProgress?.call(0.0, '读取 CSV 文件...');
+
+    try {
+      // 1. 读取 CSV 内容
+      final csvContent = await rootBundle.loadString(
+        'assets/translations/hf_danbooru_cooccurrence.csv',
+      );
+
+      onProgress?.call(0.1, '解析数据...');
+
+      // 2. 解析 CSV（在 Isolate 中）
+      final lines = await Isolate.run(() => csvContent.split('\n'));
+      final totalLines = lines.length;
+
+      onProgress?.call(0.2, '准备导入...');
+
+      // 3. 清空旧数据
+      await _unifiedDb!.clearCooccurrences();
+
+      // 4. 分批导入
+      const batchSize = 5000;
+      var importedCount = 0;
+      final records = <CooccurrenceRecord>[];
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (line.isEmpty) continue;
+
+        // 跳过表头
+        if (i == 0 && line.contains(',')) continue;
+
+        // 去除引号
+        if (line.startsWith('"') && line.endsWith('"')) {
+          line = line.substring(1, line.length - 1);
+        }
+
+        final parts = line.split(',');
+        if (parts.length >= 3) {
+          final tag1 = parts[0].trim().toLowerCase();
+          final tag2 = parts[1].trim().toLowerCase();
+          final countStr = parts[2].trim();
+          final count = double.tryParse(countStr)?.toInt() ?? 0;
+
+          if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
+            records.add(
+              CooccurrenceRecord(
+                tag1: tag1,
+                tag2: tag2,
+                count: count,
+                cooccurrenceScore: 0.0,
+              ),
+            );
+          }
+        }
+
+        // 达到批次大小，执行导入
+        if (records.length >= batchSize) {
+          await _unifiedDb!.insertCooccurrences(records);
+          importedCount += records.length;
+          records.clear();
+
+          // 更新进度
+          final progress = 0.2 + (i / totalLines) * 0.7;
+          onProgress?.call(
+            progress,
+            '导入中... ${(progress * 100).toInt()}%',
+          );
+
+          // 让出时间片，避免阻塞 UI
+          await Future.delayed(Duration.zero);
+        }
+      }
+
+      // 导入剩余记录
+      if (records.isNotEmpty) {
+        await _unifiedDb!.insertCooccurrences(records);
+        importedCount += records.length;
+      }
+
+      onProgress?.call(1.0, '导入完成');
+
+      stopwatch.stop();
+      AppLogger.i(
+        'Cooccurrence CSV imported: $importedCount records in ${stopwatch.elapsedMilliseconds}ms',
+        'Cooccurrence',
+      );
+
+      return importedCount;
+    } catch (e, stack) {
+      AppLogger.e('Failed to import CSV to SQLite', e, stack, 'Cooccurrence');
+      onProgress?.call(1.0, '导入失败');
+      return -1;
+    }
+  }
+
+  /// 后台执行 CSV 导入（带版本更新）
+  Future<void> performBackgroundImport({
+    void Function(double progress, String message)? onProgress,
+  }) async {
+    try {
+      // 1. 执行导入
+      final imported = await importCsvToSQLite(onProgress: onProgress);
+
+      if (imported > 0) {
+        // 2. 更新版本信息
+        final csvHash = await FileHashUtils.calculateAssetHash(
+          'assets/translations/hf_danbooru_cooccurrence.csv',
+        );
+
+        await _unifiedDb!.updateDataSourceVersion(
+          'cooccurrence_csv',
+          1, // 版本号
+          hash: csvHash,
+          extraData: {
+            'importedAt': DateTime.now().toIso8601String(),
+            'recordCount': imported,
+          },
+        );
+
+        _data.markLoaded();
+        AppLogger.i('Cooccurrence background import completed', 'Cooccurrence');
+      }
+    } catch (e, stack) {
+      AppLogger.e('Background import failed', e, stack, 'Cooccurrence');
+    }
   }
 
   @override
