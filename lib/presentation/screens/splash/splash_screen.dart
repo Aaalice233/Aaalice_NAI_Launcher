@@ -205,6 +205,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_loadingTranslation;
       case 'warmup_initTagSystem':
         return l10n.warmup_initTagSystem;
+      case 'warmup_initUnifiedDatabase':
+        return l10n.warmup_initUnifiedDatabase;
       case 'warmup_loadingPromptConfig':
         return l10n.warmup_loadingPromptConfig;
       case 'warmup_danbooruAuth':
