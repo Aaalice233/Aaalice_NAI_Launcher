@@ -489,7 +489,7 @@ enum CooccurrenceLoadMode {
 }
 
 /// 共现标签服务
-class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
+class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   @override
   String get serviceName => 'cooccurrence';
 
@@ -1249,14 +1249,19 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
     }
   }
 
-  Future<void> initializeLazy() async {
+  Future<void> initializeLazy({UnifiedTagDatabase? existingDb}) async {
     if (_data.isLoaded) return;
 
     try {
       onProgress?.call(0.0, '初始化共现数据...');
 
-      final unifiedDb = UnifiedTagDatabase();
-      await unifiedDb.initialize();
+      // 使用传入的数据库实例，或自己的实例
+      final unifiedDb = existingDb ?? (_unifiedDb ?? UnifiedTagDatabase());
+      _unifiedDb = unifiedDb;
+
+      if (!unifiedDb.isInitialized) {
+        await unifiedDb.initialize();
+      }
 
       final counts = await unifiedDb.getRecordCounts();
       final hasData = counts.cooccurrences > 0;
@@ -1294,6 +1299,95 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
       _data.markLoaded();
       onProgress?.call(1.0, '初始化失败，使用空数据');
     }
+  }
+
+  /// V2: 轻量级初始化（仅检查状态，不加载大量数据）
+  @override
+  Future<void> initializeLightweight() async {
+    if (_data.isLoaded) return;
+
+    try {
+      onProgress?.call(0.0, '检查共现数据状态...');
+
+      // 复用已初始化的 UnifiedTagDatabase
+      // 注意：外部需要传入已初始化的实例
+      final unifiedDb = _unifiedDb;
+      if (unifiedDb == null) {
+        // 如果没有外部传入的实例，标记为需要后续初始化
+        _loadMode = CooccurrenceLoadMode.lazy;
+        onProgress?.call(1.0, '等待数据库连接...');
+        return;
+      }
+
+      // 只检查数据库中是否有数据，不加载
+      final counts = await unifiedDb.getRecordCounts();
+      final hasData = counts.cooccurrences > 0;
+
+      if (hasData) {
+        _loadMode = CooccurrenceLoadMode.lazy;
+        _data.markLoaded(); // 标记为已加载（实际数据按需加载）
+        onProgress?.call(1.0, '共现数据已就绪');
+      } else {
+        // 数据库为空，需要后续从 assets 或下载加载
+        _loadMode = CooccurrenceLoadMode.lazy;
+        _lastUpdate = null;
+        onProgress?.call(1.0, '需要加载共现数据');
+      }
+    } catch (e, stack) {
+      AppLogger.e('Cooccurrence lightweight init failed', e, stack, 'Cooccurrence');
+      _data.markLoaded();
+    }
+  }
+
+  /// V2: 后台预加载热数据
+  @override
+  Future<void> preloadHotDataInBackground() async {
+    if (_data.isLoaded && _data.mapSize > 0) return;
+
+    try {
+      onProgress?.call(0.0, '开始加载共现数据...');
+
+      // 尝试从本地加载（assets 或缓存文件）
+      final loaded = await _loadFromLocal();
+
+      if (loaded) {
+        onProgress?.call(0.5, '加载热标签数据...');
+        await _data.preloadHotData(); // 预加载热标签
+        onProgress?.call(1.0, '共现数据加载完成');
+      } else {
+        // 本地无数据，需要下载
+        onProgress?.call(1.0, '需要下载共现数据');
+        _lastUpdate = null;
+      }
+    } catch (e, stack) {
+      AppLogger.e('Cooccurrence hot data preload failed', e, stack, 'Cooccurrence');
+      onProgress?.call(1.0, '加载失败');
+    }
+  }
+
+  /// 从本地加载（assets 或缓存文件）
+  Future<bool> _loadFromLocal() async {
+    // 1. 尝试二进制缓存
+    final binaryCacheFile = await _getBinaryCacheFile();
+    if (await binaryCacheFile.exists()) {
+      final success = await _loadFromBinaryCache(binaryCacheFile);
+      if (success) return true;
+    }
+
+    // 2. 尝试 CSV 缓存
+    final cacheFile = await _getCacheFile();
+    if (await cacheFile.exists()) {
+      await _loadFromFile(cacheFile);
+      return true;
+    }
+
+    // 3. 尝试 assets
+    return await _loadFromAssets();
+  }
+
+  /// 设置外部 UnifiedTagDatabase 实例（避免重复初始化）
+  void setUnifiedDatabase(UnifiedTagDatabase db) {
+    _unifiedDb = db;
   }
 
   @override
@@ -1346,6 +1440,28 @@ class CooccurrenceService implements LazyDataSourceService<List<RelatedTag>> {
       _isDownloading = false;
       onDownloadProgress = null;
     }
+  }
+
+  // ===========================================================================
+  // V2: LazyDataSourceServiceV2 接口实现
+  // ===========================================================================
+
+  @override
+  Future<bool> shouldRefreshInBackground() async {
+    if (_lastUpdate == null) {
+      await _loadMeta();
+    }
+    return _refreshInterval.shouldRefresh(_lastUpdate);
+  }
+
+  @override
+  set onBackgroundProgress(DataSourceProgressCallback? callback) {
+    onProgress = callback;
+  }
+
+  @override
+  void cancelBackgroundOperation() {
+    _isDownloading = false;
   }
 }
 

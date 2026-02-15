@@ -455,6 +455,64 @@ class TranslationLazyService implements LazyDataSourceService<String> {
     await prefs.setInt(StorageKeys.hfTranslationRefreshInterval, interval.days);
     _refreshInterval = interval;
   }
+
+  // ===========================================================================
+  // V2: 三阶段预热架构支持
+  // ===========================================================================
+
+  /// V2: 轻量级初始化（仅检查状态，不下载）
+  Future<void> initializeLightweight() async {
+    if (_isInitialized) return;
+
+    try {
+      // 只检查数据库中是否有数据，不触发下载
+      final sampleTranslation = await _unifiedDb.getTranslation('1girl');
+      if (sampleTranslation != null) {
+        _isInitialized = true;
+      }
+      // 注意：这里不触发 refresh()，留到后台阶段
+    } catch (e) {
+      AppLogger.w('Translation lightweight init failed: $e', 'TranslationLazy');
+    }
+  }
+
+  /// V2: 后台预加载（仅加载热数据，不强制下载）
+  Future<void> preloadHotDataInBackground() async {
+    try {
+      _onProgress?.call(0.0, '检查翻译数据...');
+
+      // 加载热数据到内存
+      await _loadHotData();
+
+      // 检查是否需要后台更新（但不阻塞）
+      if (await shouldRefreshInBackground()) {
+        _onProgress?.call(0.5, '需要更新翻译数据...');
+        // 可以在这里触发后台下载，或标记为待更新
+      }
+
+      _onProgress?.call(1.0, '翻译数据就绪');
+    } catch (e) {
+      AppLogger.w('Translation hot data preload failed: $e', 'TranslationLazy');
+    }
+  }
+
+  /// 是否应该后台刷新（不阻塞启动）
+  Future<bool> shouldRefreshInBackground() async {
+    if (_lastUpdate == null) {
+      await _loadMeta();
+    }
+    return _refreshInterval.shouldRefresh(_lastUpdate);
+  }
+
+  /// V2: 后台进度回调（与 onProgress 相同）
+  set onBackgroundProgress(DataSourceProgressCallback? callback) {
+    _onProgress = callback;
+  }
+
+  /// V2: 取消后台操作（翻译服务暂不需要特殊处理）
+  void cancelBackgroundOperation() {
+    // 翻译服务没有长时间运行的后台操作，无需取消
+  }
 }
 
 /// 用于外部资源下载的 Dio Provider（无认证）

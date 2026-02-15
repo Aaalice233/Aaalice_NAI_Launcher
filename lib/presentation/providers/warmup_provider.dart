@@ -11,6 +11,7 @@ import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/network/system_proxy_http_overrides.dart';
+import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
@@ -19,6 +20,8 @@ import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/translation_lazy_service.dart';
 import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_metrics_service.dart';
+import '../../core/services/warmup_task_scheduler.dart';
+import 'background_task_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_auth_api_service.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
@@ -81,25 +84,27 @@ class WarmupState {
 /// 预加载状态 Notifier
 @riverpod
 class WarmupNotifier extends _$WarmupNotifier {
-  late AppWarmupService _warmupService;
+  late WarmupTaskScheduler _scheduler;
   late WarmupMetricsService _metricsService;
-  StreamSubscription<WarmupProgress>? _subscription;
+  StreamSubscription<PhaseProgress>? _phaseSubscription;
+  final _completer = Completer<void>();
 
   @override
   WarmupState build() {
-    // 注册生命周期回调
     ref.onDispose(() {
-      _subscription?.cancel();
+      _phaseSubscription?.cancel();
     });
 
-    // 初始化服务并开始预加载
-    _warmupService = AppWarmupService();
+    _scheduler = WarmupTaskScheduler();
     _metricsService = ref.read(warmupMetricsServiceProvider);
-    _registerTasks();
-    _startWarmup();
+    _registerTasksV2();
+    _startWarmupV2();
 
     return WarmupState.initial();
   }
+
+  /// 等待预热完成
+  Future<void> get whenComplete => _completer.future;
 
   /// 创建带进度回调的数据源初始化任务
   WarmupTask _createDataSourceTask({
@@ -146,190 +151,6 @@ class WarmupNotifier extends _$WarmupNotifier {
           AppLogger.i(logMessage, 'Warmup');
         }
       },
-    );
-  }
-
-  /// 注册所有预加载任务
-  void _registerTasks() {
-    // ==== 第0步：数据迁移（串行，最先执行）====
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_dataMigration',
-        weight: 2,
-        timeout: const Duration(seconds: 60),
-        task: _runDataMigration,
-      ),
-    );
-
-    // ==== 第1步：网络环境检测（串行）====
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_networkCheck',
-        weight: 1,
-        timeout: Duration.zero,
-        task: () async => _checkNetworkEnvironment(),
-      ),
-    );
-
-    // ==== 第1组：基础UI服务（并行执行）====
-    _warmupService.registerGroup(
-      WarmupTaskGroup(
-        name: 'basicUI',
-        parallel: true,
-        tasks: [
-          WarmupTask(
-            name: 'warmup_imageCache',
-            weight: 1,
-            task: _configureImageCache,
-          ),
-          WarmupTask(
-            name: 'warmup_fonts',
-            weight: 1,
-            task: _preloadFonts,
-          ),
-          WarmupTask(
-            name: 'warmup_imageEditor',
-            weight: 1,
-            task: _warmupImageEditor,
-          ),
-        ],
-      ),
-    );
-
-    // ==== 第2组前：初始化统一数据库（串行）====
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_initUnifiedDatabase',
-        weight: 2,
-        timeout: const Duration(seconds: 30),
-        task: () async {
-          AppLogger.i('Initializing unified tag database...', 'Warmup');
-          await ref.read(unifiedTagDatabaseProvider).initialize();
-          AppLogger.i('Unified tag database initialized', 'Warmup');
-        },
-      ),
-    );
-
-    // ==== 第2组：数据服务（并行执行）====
-    _warmupService.registerGroup(
-      WarmupTaskGroup(
-        name: 'dataServices',
-        parallel: true,
-        tasks: [
-          WarmupTask(
-            name: 'warmup_loadingTranslation',
-            weight: 2,
-            timeout: const Duration(seconds: 30),
-            task: () async {
-              // 统一翻译服务现在会同时支持标签库和补全菜单
-              AppLogger.i('Warmup: Starting unified translation service...', 'Warmup');
-              final service = await ref.read(unifiedTranslationServiceProvider.future);
-              AppLogger.i('Warmup: Unified translation service ready, loaded ${await service.getTranslationCount()} translations', 'Warmup');
-            },
-          ),
-          WarmupTask(
-            name: 'warmup_loadingPromptConfig',
-            weight: 1,
-            timeout: const Duration(seconds: 20),
-            task: () async {
-              final notifier = ref.read(promptConfigNotifierProvider.notifier);
-              await notifier.whenLoaded.timeout(const Duration(seconds: 15));
-            },
-          ),
-        ],
-      ),
-    );
-
-    // ==== 第3组：网络服务（并行执行）====
-    _warmupService.registerGroup(
-      WarmupTaskGroup(
-        name: 'networkServices',
-        parallel: true,
-        tasks: [
-          _createNetworkWarmupTask(),
-          _createProviderTask(
-            'warmup_danbooruAuth',
-            weight: 1,
-            provider: danbooruAuthProvider,
-            logMessage: 'Danbooru auth provider initialized',
-          ),
-          _createSubscriptionTask(),
-        ],
-      ),
-    );
-
-    // ==== 第4组：缓存服务（并行执行）====
-    _warmupService.registerGroup(
-      WarmupTaskGroup(
-        name: 'cacheServices',
-        parallel: true,
-        tasks: [
-          _createCacheServiceTask(),
-          _createGalleryCountTask(),
-        ],
-      ),
-    );
-
-    // ==== 串行任务：统计数据 ====
-    _warmupService.registerTask(
-      WarmupTask(
-        name: 'warmup_statistics',
-        weight: 3,
-        timeout: const Duration(seconds: 10),
-        task: () async {
-          try {
-            await ref.read(statisticsNotifierProvider.notifier).preloadForWarmup();
-          } catch (e) {
-            AppLogger.w('Statistics preload failed: $e', 'Warmup');
-          }
-        },
-      ),
-    );
-
-    // ==== 第5组：数据源懒加载初始化（并行执行）====
-    _warmupService.registerGroup(
-      WarmupTaskGroup(
-        name: 'dataSourceInitialization',
-        parallel: true,
-        tasks: [
-          _createDataSourceTask(
-            name: 'warmup_cooccurrenceInit',
-            label: '共现',
-            weight: 3,
-            timeout: const Duration(seconds: 180),
-            task: (setProgress) async {
-              final service = ref.read(cooccurrenceServiceProvider);
-              service.onProgress = setProgress;
-              await service.initializeLazy();
-              service.onProgress = null;
-            },
-          ),
-          _createDataSourceTask(
-            name: 'warmup_translationInit',
-            label: '翻译',
-            weight: 3,
-            timeout: const Duration(seconds: 60),
-            task: (setProgress) async {
-              final service = ref.read(translationLazyServiceProvider);
-              service.onProgress = setProgress;
-              await service.initialize();
-              service.onProgress = null;
-            },
-          ),
-          _createDataSourceTask(
-            name: 'warmup_danbooruTagsInit',
-            label: '标签',
-            weight: 3,
-            timeout: const Duration(seconds: 120),
-            task: (setProgress) async {
-              final service = ref.read(danbooruTagsLazyServiceProvider);
-              service.onProgress = setProgress;
-              await service.initialize();
-              service.onProgress = null;
-            },
-          ),
-        ],
-      ),
     );
   }
 
@@ -504,40 +325,13 @@ class WarmupNotifier extends _$WarmupNotifier {
     );
   }
 
-  /// 开始预加载
-  void _startWarmup() {
-    _subscription = _warmupService.run().listen(
-      (progress) {
-        // 保存指标数据
-        if (progress.isComplete && progress.metrics != null) {
-          _metricsService.saveSession(progress.metrics!).catchError((e) {
-            AppLogger.e('Failed to save warmup metrics: $e', 'Warmup');
-          });
-        }
-
-        state = state.copyWith(
-          progress: progress,
-          isComplete: progress.isComplete,
-        );
-      },
-      onError: (error) {
-        state = state.copyWith(
-          error: error.toString(),
-        );
-      },
-      onDone: () {
-        if (!state.isComplete) {
-          state = WarmupState.complete();
-        }
-      },
-    );
-  }
-
   /// 重试预加载
   void retry() {
-    _subscription?.cancel();
+    _phaseSubscription?.cancel();
+    _scheduler.clear();
     state = WarmupState.initial();
-    _startWarmup();
+    _registerTasksV2();
+    _startWarmupV2();
   }
 
   /// 确保网络服务 Provider 已完全重建
@@ -659,5 +453,316 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _waitForUserAction(String message) async {
     state = state.copyWith(subTaskMessage: message);
     await Future.delayed(const Duration(seconds: 2));
+  }
+
+  /// 检查网络环境（带超时）- V2优化版
+  Future<void> _checkNetworkEnvironmentWithTimeout() async {
+    const timeout = Duration(seconds: 30);
+    const checkInterval = Duration(seconds: 2);
+    const maxAttempts = 15; // 30秒 / 2秒 = 15次
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      state = state.copyWith(
+        subTaskMessage: '正在检测网络连接... (尝试 ${attempt + 1}/$maxAttempts)',
+      );
+
+      final result = await ProxyService.testNovelAIConnection();
+      if (result.success) {
+        AppLogger.i('Network check successful: ${result.latencyMs}ms', 'Warmup');
+        state = state.copyWith(
+          subTaskMessage: '网络连接正常 (${result.latencyMs}ms)',
+        );
+        await Future.delayed(const Duration(milliseconds: 500));
+        return;
+      }
+
+      AppLogger.w(
+        'Network check attempt ${attempt + 1} failed: ${result.errorMessage}',
+        'Warmup',
+      );
+
+      if (attempt < maxAttempts - 1) {
+        await Future.delayed(checkInterval);
+      }
+    }
+
+    // 超时后记录日志但不阻塞
+    AppLogger.w(
+      'Network check timeout after ${timeout.inSeconds}s, continuing offline',
+      'Warmup',
+    );
+    state = state.copyWith(subTaskMessage: '网络检测超时，继续离线启动');
+    await Future.delayed(const Duration(seconds: 1));
+  }
+
+  // ===========================================================================
+  // V2: 三阶段预热架构
+  // ===========================================================================
+
+  /// 注册所有预热任务（新架构）
+  void _registerTasksV2() {
+    // ==== 阶段 1: Critical ====
+    _registerCriticalPhaseTasks();
+
+    // ==== 阶段 2: Quick ====
+    _registerQuickPhaseTasks();
+
+    // ==== 阶段 3: Background ====
+    _registerBackgroundPhaseTasks();
+  }
+
+  void _registerCriticalPhaseTasks() {
+    // 1. 数据迁移
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_dataMigration',
+        phase: WarmupPhase.critical,
+        weight: 2,
+        timeout: const Duration(seconds: 60),
+        task: _runDataMigration,
+      ),
+    );
+
+    // 2. 数据库轻量级初始化
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_unifiedDbInit',
+        phase: WarmupPhase.critical,
+        weight: 1,
+        timeout: const Duration(seconds: 10),
+        task: _initUnifiedDatabaseLightweight,
+      ),
+    );
+
+    // 3. 基础UI服务（并行）
+    _scheduler.registerGroup(
+      PhasedTaskGroup(
+        name: 'basicUI',
+        phase: WarmupPhase.critical,
+        parallel: true,
+        tasks: [
+          PhasedWarmupTask(
+            name: 'warmup_imageCache',
+            phase: WarmupPhase.critical,
+            weight: 1,
+            task: _configureImageCache,
+          ),
+          PhasedWarmupTask(
+            name: 'warmup_fonts',
+            phase: WarmupPhase.critical,
+            weight: 1,
+            task: _preloadFonts,
+          ),
+          PhasedWarmupTask(
+            name: 'warmup_imageEditor',
+            phase: WarmupPhase.critical,
+            weight: 1,
+            task: _warmupImageEditor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _registerQuickPhaseTasks() {
+    // 1. 轻量级网络检测（带超时）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_networkCheck',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        timeout: const Duration(seconds: 30),
+        task: _checkNetworkEnvironmentWithTimeout,
+      ),
+    );
+
+    // 2. 提示词配置
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_loadingPromptConfig',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        timeout: const Duration(seconds: 10),
+        task: _loadPromptConfig,
+      ),
+    );
+
+    // 3. 画廊计数
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_galleryFileCount',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        timeout: const Duration(seconds: 3),
+        task: _countGalleryFiles,
+      ),
+    );
+
+    // 4. 订阅信息（仅缓存，不强制网络）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_subscription',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        timeout: const Duration(seconds: 3),
+        task: _loadSubscriptionCached,
+      ),
+    );
+  }
+
+  void _registerBackgroundPhaseTasks() {
+    // 后台任务注册到 BackgroundTaskProvider
+    // 实际执行在进入主界面后
+    final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
+
+    // 共现数据后台加载
+    backgroundNotifier.registerTask(
+      'cooccurrence_preload',
+      '共现数据',
+      () => _preloadCooccurrenceInBackground(),
+    );
+
+    // 翻译数据后台加载
+    backgroundNotifier.registerTask(
+      'translation_preload',
+      '翻译数据',
+      () => _preloadTranslationInBackground(),
+    );
+
+    // Danbooru标签后台加载
+    backgroundNotifier.registerTask(
+      'danbooru_tags_preload',
+      '标签数据',
+      () => _preloadDanbooruTagsInBackground(),
+    );
+  }
+
+  /// 开始新的预热流程
+  Future<void> _startWarmupV2() async {
+    try {
+      // 阶段 1: Critical
+      await for (final progress in _scheduler.runPhase(WarmupPhase.critical)) {
+        state = state.copyWith(
+          progress: WarmupProgress(
+            progress: progress.progress * 0.3, // critical 占 30%
+            currentTask: progress.currentTask,
+          ),
+          subTaskMessage: progress.currentTask,
+        );
+      }
+
+      // 阶段 2: Quick
+      await for (final progress in _scheduler.runPhase(WarmupPhase.quick)) {
+        state = state.copyWith(
+          progress: WarmupProgress(
+            progress: 0.3 + progress.progress * 0.7, // quick 占 70%
+            currentTask: progress.currentTask,
+          ),
+          subTaskMessage: progress.currentTask,
+        );
+      }
+
+      // 完成，进入主界面
+      state = WarmupState.complete();
+      _completer.complete();
+
+      // 启动后台任务
+      await Future.delayed(const Duration(seconds: 1)); // 稍等片刻让UI稳定
+      ref.read(backgroundTaskNotifierProvider.notifier).startAll();
+    } catch (e, stack) {
+      AppLogger.e('Warmup failed', e, stack, 'Warmup');
+      state = state.copyWith(
+        error: e.toString(),
+        progress: WarmupProgress.error(e.toString()),
+      );
+      _completer.completeError(e);
+    }
+  }
+
+  /// 轻量级初始化统一数据库
+  Future<void> _initUnifiedDatabaseLightweight() async {
+    AppLogger.i('Initializing unified tag database (lightweight)...', 'Warmup');
+    final db = ref.read(unifiedTagDatabaseProvider);
+    await db.initialize();
+    AppLogger.i('Unified tag database initialized', 'Warmup');
+  }
+
+  /// 加载提示词配置
+  Future<void> _loadPromptConfig() async {
+    final notifier = ref.read(promptConfigNotifierProvider.notifier);
+    await notifier.whenLoaded.timeout(const Duration(seconds: 8));
+  }
+
+  /// 统计画廊文件数
+  Future<void> _countGalleryFiles() async {
+    try {
+      final files = await LocalGalleryRepository.instance.getAllImageFiles();
+      AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
+    } catch (e) {
+      AppLogger.w('Gallery file count failed: $e', 'Warmup');
+    }
+  }
+
+  /// 加载缓存的订阅信息（快速）
+  Future<void> _loadSubscriptionCached() async {
+    try {
+      final authState = ref.read(authNotifierProvider);
+      if (!authState.isAuthenticated) {
+        AppLogger.i('User not authenticated, skip subscription', 'Warmup');
+        return;
+      }
+      // 仅读取缓存，不强制网络请求
+      final subState = ref.read(subscriptionNotifierProvider);
+      if (!subState.isLoaded) {
+        // 尝试快速加载，超时则跳过
+        await ref
+            .read(subscriptionNotifierProvider.notifier)
+            .fetchSubscription()
+            .timeout(
+              const Duration(seconds: 2),
+              onTimeout: () => null,
+            );
+      }
+    } catch (e) {
+      AppLogger.w('Subscription load failed (non-critical): $e', 'Warmup');
+    }
+  }
+
+  // ==== 后台任务方法 ====
+
+  Future<void> _preloadCooccurrenceInBackground() async {
+    final service = ref.read(cooccurrenceServiceProvider);
+    service.onProgress = (progress, message) {
+      ref
+          .read(backgroundTaskNotifierProvider.notifier)
+          .updateProgress('cooccurrence_preload', progress, message: message);
+    };
+    await service.initializeLightweight();
+    await service.preloadHotDataInBackground();
+    service.onProgress = null;
+  }
+
+  Future<void> _preloadTranslationInBackground() async {
+    final service = ref.read(translationLazyServiceProvider);
+    service.onProgress = (progress, message) {
+      ref
+          .read(backgroundTaskNotifierProvider.notifier)
+          .updateProgress('translation_preload', progress, message: message);
+    };
+    await service.initializeLightweight();
+    await service.preloadHotDataInBackground();
+    service.onProgress = null;
+  }
+
+  Future<void> _preloadDanbooruTagsInBackground() async {
+    final service = ref.read(danbooruTagsLazyServiceProvider);
+    service.onProgress = (progress, message) {
+      ref
+          .read(backgroundTaskNotifierProvider.notifier)
+          .updateProgress('danbooru_tags_preload', progress, message: message);
+    };
+    await service.initializeLightweight();
+    await service.preloadHotDataInBackground();
+    service.onProgress = null;
   }
 }
