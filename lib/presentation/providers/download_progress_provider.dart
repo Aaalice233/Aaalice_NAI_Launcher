@@ -166,19 +166,19 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       }
     }
 
-    // 需要下载
-    AppLogger.i('Starting cooccurrence download...', 'DownloadProgress');
+    // 使用新的后台导入流程替代下载
+    AppLogger.i('Starting cooccurrence import...', 'DownloadProgress');
     _lastReportedProgressMilestone = -1;
     _lastReportedMessage = null;
 
-    // 添加下载任务
+    // 添加导入任务
     _addTask(
       'cooccurrence',
       _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data',
     );
 
-    // 设置下载进度回调（带10%去重）
-    cooccurrenceService.onDownloadProgress = (progress, message) {
+    // 设置导入进度回调（带10%去重）
+    cooccurrenceService.onProgress = (progress, message) {
       _updateTaskProgressWithDeduplication(
         'cooccurrence',
         progress,
@@ -187,13 +187,11 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     };
 
     try {
-      final success = await cooccurrenceService.download();
-      if (success) {
-        _completeTask('cooccurrence');
-      } else {
-        _failTask('cooccurrence', '下载失败');
-      }
-      return success;
+      await cooccurrenceService.performBackgroundImport(
+        onProgress: cooccurrenceService.onProgress,
+      );
+      _completeTask('cooccurrence');
+      return true;
     } catch (e) {
       _failTask('cooccurrence', e.toString());
       return false;

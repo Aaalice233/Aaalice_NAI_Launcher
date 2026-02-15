@@ -671,25 +671,21 @@ class _CooccurrenceDataSectionState
       final service = ref.read(cooccurrenceServiceProvider);
 
       // 设置进度回调以更新UI
-      service.onDownloadProgress = (progress, message) {
-        final msg = message ?? '下载中...';
+      service.onProgress = (progress, message) {
+        final msg = message ?? '导入中...';
         // 更新消息
         messageNotifier.value = msg;
       };
 
-      final success = await service.download();
+      await service.performBackgroundImport(onProgress: service.onProgress);
 
       if (mounted) {
-        if (success) {
-          setState(() => _lastUpdate = service.lastUpdate);
-          AppToast.success(context, '共现标签数据已下载');
-        } else {
-          AppToast.error(context, '下载失败');
-        }
+        setState(() => _lastUpdate = DateTime.now());
+        AppToast.success(context, '共现标签数据已导入');
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, '下载失败: $e');
+        AppToast.error(context, '导入失败: $e');
       }
     } finally {
       // 关闭进度对话框
