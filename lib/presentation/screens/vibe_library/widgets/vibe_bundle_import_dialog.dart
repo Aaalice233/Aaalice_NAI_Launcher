@@ -195,7 +195,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
               if (_selectedOption == BundleImportOption.importSelected) ...[
                 const SizedBox(height: 16),
                 _buildSelectionHeader(theme),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Flexible(
                   child: _buildVibeSelectionList(theme),
                 ),
@@ -469,17 +469,24 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     );
   }
 
-  /// 构建 Vibe 选择列表
+  /// 构建 Vibe 选择列表（网格布局）
   Widget _buildVibeSelectionList(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: ListView.builder(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 计算列数：每列最小宽度 100，最大 4 列
+        const double minItemWidth = 100;
+        final int crossAxisCount =
+            (constraints.maxWidth / minItemWidth).floor().clamp(2, 4);
+
+        return GridView.builder(
           shrinkWrap: true,
+          physics: const ClampingScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.75,
+          ),
           itemCount: widget.vibeCount,
           itemBuilder: (context, index) {
             final vibeName = widget.vibeNames[index];
@@ -489,7 +496,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                 : null;
             final isSelected = _selectedIndices.contains(index);
 
-            return _buildVibeListTile(
+            return _buildVibeGridCard(
               theme,
               index: index,
               name: vibeName,
@@ -497,88 +504,170 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
               isSelected: isSelected,
             );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 
-  /// 构建单个 Vibe 列表项
-  Widget _buildVibeListTile(
+  /// 构建单个 Vibe 网格卡片
+  Widget _buildVibeGridCard(
     ThemeData theme, {
     required int index,
     required String name,
     Uint8List? thumbnail,
     required bool isSelected,
   }) {
-    return InkWell(
-      onTap: () => _toggleVibeSelection(index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _toggleVibeSelection(index),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            // 选中时使用主色边框，未选中时使用柔和边框
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant.withOpacity(0.6),
+              width: isSelected ? 2.5 : 1,
             ),
+            borderRadius: BorderRadius.circular(12),
+            // 添加渐变背景增加层次感
+            color: isSelected
+                ? theme.colorScheme.primaryContainer.withOpacity(0.25)
+                : theme.colorScheme.surface,
+            // 选中时添加阴影增加立体感
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withOpacity(0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withOpacity(0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
-        ),
-        child: Row(
-          children: [
-            Checkbox(
-              value: isSelected,
-              onChanged: (_) => _toggleVibeSelection(index),
-            ),
-            const SizedBox(width: 8),
-            // 缩略图
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: theme.colorScheme.surfaceContainerHighest,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: thumbnail != null
-                  ? Image.memory(
-                      thumbnail,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.image_not_supported,
-                          size: 24,
-                          color: theme.colorScheme.outline,
-                        );
-                      },
-                    )
-                  : Icon(
-                      Icons.image,
-                      size: 24,
-                      color: theme.colorScheme.outline,
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '#${index + 1}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 缩略图区域
+              Expanded(
+                flex: 3,
+                child: Container(
+                  margin: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    // 内部边框区分图片区域
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withOpacity(0.3),
                     ),
                   ),
-                ],
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 缩略图
+                      thumbnail != null
+                          ? Image.memory(
+                              thumbnail,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 28,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                );
+                              },
+                            )
+                          : Center(
+                              child: Icon(
+                                Icons.image,
+                                size: 28,
+                                color: theme.colorScheme.outline,
+                              ),
+                            ),
+                      // 选中时的遮罩
+                      if (isSelected)
+                        Container(
+                          color: theme.colorScheme.primary.withOpacity(0.15),
+                        ),
+                      // 选中标记（右上角勾选图标）
+                      if (isSelected)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.shadow
+                                      .withOpacity(0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.check,
+                              size: 14,
+                              color: theme.colorScheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+              // 信息区域
+              Expanded(
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        name,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '#${index + 1}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withOpacity(0.7),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
