@@ -155,34 +155,8 @@ class UnifiedDataSourceManager {
       }
     }).toList();
 
-    // 定期报告总体进度
-    final progressTimer = Stream.periodic(const Duration(milliseconds: 100));
-    final progressSubscription = progressTimer.listen((_) {
-      if (progressMap.isNotEmpty) {
-        // 计算总体进度
-        progressMap.values
-            .map((p) => p.overallProgress)
-            .reduce((a, b) => a + b) /
-        progressMap.length;
-
-        final activeSource = progressMap.values
-            .where((p) => !p.isComplete && p.error == null)
-            .map((p) => p.sourceName)
-            .firstOrNull;
-
-        // 找到最活跃的数据源来代表当前进度
-        if (activeSource != null) {
-          // 获取活跃数据源的进度
-          progressMap[activeSource];
-          // 通过回调或流发送进度
-        }
-      }
-    });
-
     // 等待所有初始化完成
     await Future.wait(futures);
-
-    await progressSubscription.cancel();
 
     // 发送最终完成进度
     yield DataSourceInitProgress.complete('all');
@@ -260,5 +234,62 @@ class UnifiedDataSourceManager {
         );
       }
     }
+  }
+}
+
+/// 懒加载数据源接口 V2
+/// 支持三阶段预热架构
+abstract class LazyDataSourceServiceV2<T> implements LazyDataSourceService<T> {
+  /// 初始化轻量级版本（仅建表/检查状态，不加载大量数据）
+  /// 在 Critical 阶段调用
+  Future<void> initializeLightweight();
+
+  /// 后台预加载热数据
+  /// 在 Background 阶段调用
+  Future<void> preloadHotDataInBackground();
+
+  /// 设置后台进度回调
+  set onBackgroundProgress(DataSourceProgressCallback? callback);
+
+  /// 是否需要后台刷新（基于上次更新时间）
+  Future<bool> shouldRefreshInBackground();
+
+  /// 取消后台操作
+  void cancelBackgroundOperation();
+}
+
+/// 统一的数据源管理器 V2
+class UnifiedDataSourceManagerV2 extends UnifiedDataSourceManager {
+  final Map<String, LazyDataSourceServiceV2> _servicesV2 = {};
+
+  /// 注册 V2 数据源
+  void registerV2(LazyDataSourceServiceV2 service) {
+    _servicesV2[service.serviceName] = service;
+    super.register(service);
+  }
+
+  /// 阶段 1: 轻量级初始化所有数据源
+  Future<void> initializeAllLightweight() async {
+    for (final service in _servicesV2.values) {
+      try {
+        AppLogger.i('Lightweight init: ${service.serviceName}', 'UnifiedDataSourceV2');
+        await service.initializeLightweight();
+      } catch (e) {
+        AppLogger.w('Lightweight init failed for ${service.serviceName}: $e', 'UnifiedDataSourceV2');
+      }
+    }
+  }
+
+  /// 阶段 3: 后台预加载热数据
+  Future<void> preloadAllHotDataInBackground() async {
+    await Future.wait(
+      _servicesV2.values.map((service) async {
+        try {
+          await service.preloadHotDataInBackground();
+        } catch (e) {
+          AppLogger.w('Hot data preload failed for ${service.serviceName}: $e', 'UnifiedDataSourceV2');
+        }
+      }),
+    );
   }
 }

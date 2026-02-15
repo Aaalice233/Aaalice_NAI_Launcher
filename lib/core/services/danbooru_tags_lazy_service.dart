@@ -14,6 +14,7 @@ import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
+import 'translation_lazy_service.dart';
 import 'unified_tag_database.dart';
 
 part 'danbooru_tags_lazy_service.g.dart';
@@ -588,11 +589,68 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(StorageKeys.danbooruTagsRefreshIntervalDays, interval.days);
   }
+
+  // ===========================================================================
+  // V2: 三阶段预热架构支持
+  // ===========================================================================
+
+  /// V2: 轻量级初始化（仅检查状态）
+  Future<void> initializeLightweight() async {
+    if (_isInitialized) return;
+
+    try {
+      await _unifiedDb.getDanbooruTagCount();
+      _isInitialized = true; // 标记为已初始化，即使数据为空
+      // 注意：不触发 refresh()，数据下载留到后台阶段
+    } catch (e) {
+      AppLogger.w('Danbooru tags lightweight init failed: $e', 'DanbooruTagsLazy');
+      _isInitialized = true;
+    }
+  }
+
+  /// V2: 后台预加载
+  Future<void> preloadHotDataInBackground() async {
+    try {
+      _onProgress?.call(0.0, '检查标签数据...');
+
+      // 加载热数据
+      await _loadHotData();
+
+      // 检查是否需要后台更新
+      final tagCount = await _unifiedDb.getDanbooruTagCount();
+      if (tagCount == 0) {
+        _onProgress?.call(0.5, '需要下载标签数据...');
+        // 标记为需要下载，但由用户触发或后台静默下载
+      }
+
+      _onProgress?.call(1.0, '标签数据就绪');
+    } catch (e) {
+      AppLogger.w('Danbooru tags hot data preload failed: $e', 'DanbooruTagsLazy');
+    }
+  }
+
+  /// 是否应该后台刷新（不阻塞启动）
+  Future<bool> shouldRefreshInBackground() async {
+    if (_lastUpdate == null) {
+      await _loadMeta();
+    }
+    return _refreshInterval.shouldRefresh(_lastUpdate);
+  }
+
+  /// V2: 后台进度回调
+  set onBackgroundProgress(DataSourceProgressCallback? callback) {
+    _onProgress = callback;
+  }
+
+  /// V2: 取消后台操作
+  void cancelBackgroundOperation() {
+    _isCancelled = true;
+  }
 }
 
 @Riverpod(keepAlive: true)
 DanbooruTagsLazyService danbooruTagsLazyService(Ref ref) {
   final unifiedDb = ref.watch(unifiedTagDatabaseProvider);
-  final dio = Dio();
+  final dio = ref.watch(externalDioProvider);
   return DanbooruTagsLazyService(unifiedDb, dio);
 }
