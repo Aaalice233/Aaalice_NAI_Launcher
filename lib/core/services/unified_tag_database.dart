@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -943,6 +944,73 @@ AppLogger.w(
       AppLogger.w('Failed to get record counts: $e', 'UnifiedTagDatabase');
       return const RecordCounts();
     }
+  }
+
+  // ==================== CSV 版本管理 ====================
+
+  /// 获取 CSV 数据源版本信息
+  Future<Map<String, dynamic>?> getDataSourceVersion(String sourceName) async {
+    try {
+      final db = await _getDb();
+      final result = await db.query(
+        'metadata',
+        columns: ['data_version', 'last_updated', 'extra_data'],
+        where: 'source = ?',
+        whereArgs: [sourceName],
+        limit: 1,
+      );
+
+      if (result.isEmpty) return null;
+
+      final row = result.first;
+      final extraData = row['extra_data'] as String?;
+
+      return {
+        'version': row['data_version'] as int? ?? 0,
+        'lastUpdated': row['last_updated'] as String?,
+        'extraData': extraData != null ? jsonDecode(extraData) : null,
+      };
+    } catch (e) {
+      AppLogger.w('Failed to get data source version: $e', 'UnifiedTagDatabase');
+      return null;
+    }
+  }
+
+  /// 更新 CSV 数据源版本信息
+  Future<void> updateDataSourceVersion(
+    String sourceName,
+    int version, {
+    String? hash,
+    Map<String, dynamic>? extraData,
+  }) async {
+    try {
+      final db = await _getDb();
+      final extra = extraData != null ? jsonEncode(extraData) : null;
+
+      await db.insert(
+        'metadata',
+        {
+          'source': sourceName,
+          'data_version': version,
+          'last_updated': DateTime.now().toIso8601String(),
+          'extra_data': extra ?? (hash != null ? jsonEncode({'hash': hash}) : null),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      AppLogger.i('Updated $sourceName version to $version', 'UnifiedTagDatabase');
+    } catch (e) {
+      AppLogger.w('Failed to update data source version: $e', 'UnifiedTagDatabase');
+    }
+  }
+
+  /// 检查共现数据是否需要更新
+  Future<bool> needsCooccurrenceUpdate(String csvHash) async {
+    final version = await getDataSourceVersion('cooccurrence_csv');
+    if (version == null) return true;
+
+    final storedHash = version['extraData']?['hash'] as String?;
+    return storedHash != csvHash;
   }
 
   // ==================== 缓存管理 ====================
