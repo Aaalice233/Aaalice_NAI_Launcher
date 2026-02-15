@@ -12,7 +12,7 @@ import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
-import '../../core/services/translation_lazy_service.dart';
+import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
@@ -237,6 +237,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_dataMigration',
+        displayName: '数据迁移',
         phase: WarmupPhase.critical,
         weight: 2,
         timeout: const Duration(seconds: 60),
@@ -248,6 +249,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_unifiedDbInit',
+        displayName: '初始化数据库',
         phase: WarmupPhase.critical,
         weight: 1,
         timeout: const Duration(seconds: 10),
@@ -259,23 +261,27 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerGroup(
       PhasedTaskGroup(
         name: 'basicUI',
+        displayName: '准备界面',
         phase: WarmupPhase.critical,
         parallel: true,
         tasks: [
           PhasedWarmupTask(
             name: 'warmup_imageCache',
+            displayName: '图片缓存',
             phase: WarmupPhase.critical,
             weight: 1,
             task: _configureImageCache,
           ),
           PhasedWarmupTask(
             name: 'warmup_fonts',
+            displayName: '字体加载',
             phase: WarmupPhase.critical,
             weight: 1,
             task: _preloadFonts,
           ),
           PhasedWarmupTask(
             name: 'warmup_imageEditor',
+            displayName: '编辑器',
             phase: WarmupPhase.critical,
             weight: 1,
             task: _warmupImageEditor,
@@ -290,6 +296,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_cooccurrenceInit',
+        displayName: '初始化共现数据',
         phase: WarmupPhase.quick,
         weight: 1,
         timeout: const Duration(seconds: 10),
@@ -301,6 +308,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_networkCheck',
+        displayName: '检测网络',
         phase: WarmupPhase.quick,
         weight: 1,
         timeout: const Duration(seconds: 30),
@@ -312,6 +320,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_loadingPromptConfig',
+        displayName: '加载提示词配置',
         phase: WarmupPhase.quick,
         weight: 1,
         timeout: const Duration(seconds: 10),
@@ -323,6 +332,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_galleryFileCount',
+        displayName: '扫描画廊',
         phase: WarmupPhase.quick,
         weight: 1,
         timeout: const Duration(seconds: 3),
@@ -334,6 +344,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_subscription',
+        displayName: '加载订阅信息',
         phase: WarmupPhase.quick,
         weight: 1,
         timeout: const Duration(seconds: 3),
@@ -494,27 +505,12 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _checkAndImportCooccurrence() async {
     final service = ref.read(cooccurrenceServiceProvider);
 
-    service.onProgress = (progress, message) {
-      ref
-          .read(backgroundTaskNotifierProvider.notifier)
-          .updateProgress('cooccurrence_import', progress, message: message);
-    };
-
-    await service.performBackgroundImport(onProgress: service.onProgress);
-
-    service.onProgress = null;
+    await service.performBackgroundImport();
   }
 
   Future<void> _preloadTranslationInBackground() async {
-    final service = ref.read(translationLazyServiceProvider);
-    service.onProgress = (progress, message) {
-      ref
-          .read(backgroundTaskNotifierProvider.notifier)
-          .updateProgress('translation_preload', progress, message: message);
-    };
-    await service.initializeLightweight();
-    await service.preloadHotDataInBackground();
-    service.onProgress = null;
+    // 统一翻译服务在读取 provider 时自动初始化
+    await ref.read(unifiedTranslationServiceProvider.future);
   }
 
   Future<void> _preloadDanbooruTagsInBackground() async {

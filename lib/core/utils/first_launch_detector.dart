@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/storage_keys.dart';
 import '../services/danbooru_tags_lazy_service.dart';
-import '../services/translation_lazy_service.dart';
 import 'app_logger.dart';
 
 part 'first_launch_detector.g.dart';
@@ -14,17 +13,14 @@ part 'first_launch_detector.g.dart';
 /// 首次启动检测器
 /// 负责检测应用是否首次启动，并触发必要的后台数据同步
 class FirstLaunchDetector {
-  final TranslationLazyService _translationService;
   final DanbooruTagsLazyService _tagsService;
 
   /// 是否正在执行初始同步
   bool _isInitialSyncing = false;
 
   FirstLaunchDetector({
-    required TranslationLazyService translationService,
     required DanbooruTagsLazyService tagsService,
-  })  : _translationService = translationService,
-        _tagsService = tagsService;
+  }) : _tagsService = tagsService;
 
   /// 是否正在执行初始同步
   bool get isInitialSyncing => _isInitialSyncing;
@@ -72,17 +68,16 @@ class FirstLaunchDetector {
     _isInitialSyncing = true;
 
     try {
-      // 检查各数据源是否需要刷新
-      final needsTranslationRefresh = await _translationService.shouldRefresh();
+      // 检查标签数据源是否需要刷新（翻译服务使用内置CSV，自动处理）
       final needsTagsRefresh = await _tagsService.shouldRefresh();
 
       // 设置标记，让主界面知道需要显示后台刷新提示
       final prefs = await SharedPreferences.getInstance();
 
-      if (needsTranslationRefresh || needsTagsRefresh) {
+      if (needsTagsRefresh) {
         await prefs.setBool(StorageKeys.pendingDataSourceRefresh, true);
         AppLogger.i(
-          'Marked pending refresh: translation=$needsTranslationRefresh, tags=$needsTagsRefresh',
+          'Marked pending refresh: tags=$needsTagsRefresh',
           'FirstLaunch',
         );
       }
@@ -103,11 +98,9 @@ class FirstLaunchDetector {
 /// FirstLaunchDetector Provider
 @Riverpod(keepAlive: true)
 FirstLaunchDetector firstLaunchDetector(Ref ref) {
-  final translationService = ref.read(translationLazyServiceProvider);
   final tagsService = ref.read(danbooruTagsLazyServiceProvider);
 
   return FirstLaunchDetector(
-    translationService: translationService,
     tagsService: tagsService,
   );
 }

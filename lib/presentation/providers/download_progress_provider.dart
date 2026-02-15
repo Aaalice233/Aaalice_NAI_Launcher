@@ -116,27 +116,8 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
 
     AppLogger.i(
-        'downloadCooccurrenceData called: isDownloading=${cooccurrenceService.isDownloading}, isLoaded=${cooccurrenceService.isLoaded}, force=$force',
+        'downloadCooccurrenceData called: isLoaded=${cooccurrenceService.isLoaded}, force=$force',
         'DownloadProgress',);
-
-    if (cooccurrenceService.isDownloading) {
-      AppLogger.w(
-          'Cooccurrence is already downloading, skip', 'DownloadProgress',);
-      return false;
-    }
-
-    // 启动期默认使用懒加载 + SQLite 模式。
-    // 该模式下若立即触发完整缓存加载，会在进入主页时出现明显卡顿。
-    // 非强制刷新时直接跳过，由用户手动刷新（force=true）或后续后台策略触发。
-    final isLazyMode =
-        cooccurrenceService.loadMode == CooccurrenceLoadMode.lazy;
-    if (!force && isLazyMode) {
-      AppLogger.i(
-        'Skip cooccurrence full bootstrap in lazy mode to avoid UI freeze on startup',
-        'DownloadProgress',
-      );
-      return true;
-    }
 
     // 检查是否需要下载/刷新
     if (!force) {
@@ -153,7 +134,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       // 2. 尝试从缓存加载
       AppLogger.i(
           'Trying to load cooccurrence from cache...', 'DownloadProgress',);
-      final cacheLoaded = await cooccurrenceService.initialize();
+      final cacheLoaded = await cooccurrenceService.initializeUnified();
       AppLogger.i(
           'Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress',);
       if (cacheLoaded) {
@@ -177,18 +158,15 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data',
     );
 
-    // 设置导入进度回调（带10%去重）
-    cooccurrenceService.onProgress = (progress, message) {
-      _updateTaskProgressWithDeduplication(
-        'cooccurrence',
-        progress,
-        message: message,
-      );
-    };
-
     try {
       await cooccurrenceService.performBackgroundImport(
-        onProgress: cooccurrenceService.onProgress,
+        onProgress: (progress, message) {
+          _updateTaskProgressWithDeduplication(
+            'cooccurrence',
+            progress,
+            message: message,
+          );
+        },
       );
       _completeTask('cooccurrence');
       return true;
@@ -240,7 +218,6 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       _toastController?.updateProgress(
         progress,
         message: localizedMessage ?? '共现标签数据下载中...',
-        subtitle: '$milestone%',
       );
     }
   }
@@ -286,9 +263,11 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
     // 完成 Toast
     if (_context != null) {
-      _toastController?.complete(
-        message: _context!.l10n.download_completed(task.name),
-      );
+      // 共现数据使用导入完成提示，其他使用下载完成提示
+      final message = id == 'cooccurrence'
+          ? _context!.l10n.import_completed(task.name)
+          : _context!.l10n.download_completed(task.name);
+      _toastController?.complete(message: message);
     }
     _toastController = null;
   }

@@ -17,7 +17,7 @@ import '../utils/app_logger.dart';
 /// - 确保所有操作使用有效的连接
 class TagDatabaseConnection {
   static const String _databaseName = 'tag_data_v2.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
   
   Database? _db;
   bool _isInitializing = false;
@@ -110,7 +110,44 @@ class TagDatabaseConnection {
     await _openDatabase();
     AppLogger.i('Database rebuilt successfully', 'TagDatabaseConnection');
   }
-  
+
+  /// 删除整个数据库文件（用于"清除缓存"功能）
+  Future<void> deleteDatabase() async {
+    if (_db != null) {
+      await _db!.close();
+      _db = null;
+    }
+
+    final dbPath = await getDatabasePath();
+    final dbFile = File(dbPath);
+    final walFile = File('$dbPath-wal');
+    final shmFile = File('$dbPath-shm');
+
+    if (await dbFile.exists()) {
+      await dbFile.delete();
+    }
+    if (await walFile.exists()) {
+      await walFile.delete();
+    }
+    if (await shmFile.exists()) {
+      await shmFile.delete();
+    }
+
+    AppLogger.i('Database deleted', 'TagDatabaseConnection');
+  }
+
+  /// 检查数据库是否存在
+  Future<bool> databaseExists() async {
+    final dbPath = await getDatabasePath();
+    return File(dbPath).exists();
+  }
+
+  /// 获取数据库文件路径
+  Future<String> getDatabasePath() async {
+    final appDir = await getApplicationSupportDirectory();
+    return path.join(appDir.path, 'databases', _databaseName);
+  }
+
   /// 内部方法：打开数据库
   Future<void> _openDatabase() async {
     _ensureSqliteFfiInitialized();
@@ -250,6 +287,7 @@ class TagDatabaseConnection {
     ''');
     
     // 共现关系表
+    // 注意：移除外键约束，因为 CSV 数据可能包含 danbooru_tags 表中不存在的标签
     await db.execute('''
       CREATE TABLE IF NOT EXISTS cooccurrences (
         tag1 TEXT NOT NULL COLLATE NOCASE,
@@ -257,11 +295,7 @@ class TagDatabaseConnection {
         count INTEGER NOT NULL CHECK (count > 0),
         cooccurrence_score REAL NOT NULL DEFAULT 0.0 CHECK (cooccurrence_score >= 0),
         PRIMARY KEY (tag1, tag2),
-        CHECK (tag1 <> tag2),
-        FOREIGN KEY (tag1) REFERENCES danbooru_tags(tag)
-          ON UPDATE CASCADE ON DELETE CASCADE,
-        FOREIGN KEY (tag2) REFERENCES danbooru_tags(tag)
-          ON UPDATE CASCADE ON DELETE CASCADE
+        CHECK (tag1 <> tag2)
       ) WITHOUT ROWID
     ''');
     
@@ -312,6 +346,39 @@ class TagDatabaseConnection {
   /// 数据库升级
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     AppLogger.i('Database upgrade from $oldVersion to $newVersion', 'TagDatabaseConnection');
+    
+    if (oldVersion < 2) {
+      // 版本 2: 移除外键约束以解决共现数据导入失败问题
+      AppLogger.i('Upgrading to v2: Recreating cooccurrences table without foreign keys', 'TagDatabaseConnection');
+      
+      // 删除旧表（外键约束会导致导入失败）
+      await db.execute('DROP TABLE IF EXISTS cooccurrences');
+      
+      // 重新创建表（无 FK 约束）
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cooccurrences (
+          tag1 TEXT NOT NULL COLLATE NOCASE,
+          tag2 TEXT NOT NULL COLLATE NOCASE,
+          count INTEGER NOT NULL CHECK (count > 0),
+          cooccurrence_score REAL NOT NULL DEFAULT 0.0 CHECK (cooccurrence_score >= 0),
+          PRIMARY KEY (tag1, tag2),
+          CHECK (tag1 <> tag2)
+        ) WITHOUT ROWID
+      ''');
+      
+      // 重建索引
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cooccurrences_tag1_count_desc
+          ON cooccurrences(tag1, count DESC, tag2)
+      ''');
+      
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cooccurrences_count_desc
+          ON cooccurrences(count DESC)
+      ''');
+      
+      AppLogger.i('Cooccurrences table recreated without foreign keys', 'TagDatabaseConnection');
+    }
   }
 }
 

@@ -4081,6 +4081,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String import_completed(Object name) {
+    return '$name导入完成';
+  }
+
+  @override
   String get sync_preparing => '准备同步...';
 
   @override

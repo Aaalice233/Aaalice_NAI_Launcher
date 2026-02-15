@@ -778,9 +778,21 @@ AppLogger.w(
     }
   }
 
+  /// 清空所有 Danbooru 标签
+  Future<void> clearDanbooruTags() async {
+    try {
+      final db = await _getDb();
+      await db.delete('danbooru_tags');
+      _danbooruTagCache.clear();
+      AppLogger.i('Danbooru tags table cleared', 'UnifiedTagDatabase');
+    } catch (e) {
+      AppLogger.w('Failed to clear danbooru tags: $e', 'UnifiedTagDatabase');
+    }
+  }
+
   // ==================== Cooccurrences 表操作 ====================
 
-  /// 批量插入共现关系
+  /// 批量插入共现关系（删除索引→批量插入→重建索引）
   Future<void> insertCooccurrences(
     List<CooccurrenceRecord> records, {
     void Function(int processed, int total)? onProgress,
@@ -789,13 +801,18 @@ AppLogger.w(
 
     final db = await _getDb();
     final stopwatch = Stopwatch()..start();
-    var processed = 0;
-    const batchSize = 2000;
 
     await db.execute('PRAGMA journal_mode = MEMORY');
     await db.execute('PRAGMA synchronous = OFF');
 
     try {
+      // 1. 删除索引以加速插入
+      await db.execute('DROP INDEX IF EXISTS idx_cooccurrences_tag1_count_desc');
+      await db.execute('DROP INDEX IF EXISTS idx_cooccurrences_count_desc');
+
+      // 2. 大事务批量插入（每批50000条）
+      const batchSize = 50000;
+      var processed = 0;
       var batch = db.batch();
 
       for (final record in records) {
@@ -810,22 +827,31 @@ AppLogger.w(
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
 
-        processed++;
-
-        if (processed % batchSize == 0) {
+        if (++processed % batchSize == 0) {
           await batch.commit(noResult: true);
           batch = db.batch();
           onProgress?.call(processed, records.length);
         }
       }
 
+      // 提交剩余
       if ((batch as dynamic).length > 0) {
         await batch.commit(noResult: true);
       }
 
+      // 3. 重建索引
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cooccurrences_tag1_count_desc
+          ON cooccurrences(tag1, count DESC, tag2)
+      ''');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cooccurrences_count_desc
+          ON cooccurrences(count DESC)
+      ''');
+
       stopwatch.stop();
       AppLogger.i(
-        'Inserted $processed cooccurrence records in ${stopwatch.elapsedMilliseconds}ms',
+        'Inserted ${records.length} cooccurrence records in ${stopwatch.elapsedMilliseconds}ms',
         'UnifiedTagDatabase',
       );
     } finally {
@@ -954,7 +980,7 @@ AppLogger.w(
       final db = await _getDb();
       final result = await db.query(
         'metadata',
-        columns: ['data_version', 'last_updated', 'extra_data'],
+        columns: ['data_version', 'last_update'],
         where: 'source = ?',
         whereArgs: [sourceName],
         limit: 1,
@@ -963,12 +989,11 @@ AppLogger.w(
       if (result.isEmpty) return null;
 
       final row = result.first;
-      final extraData = row['extra_data'] as String?;
 
       return {
-        'version': row['data_version'] as int? ?? 0,
-        'lastUpdated': row['last_updated'] as String?,
-        'extraData': extraData != null ? jsonDecode(extraData) : null,
+        'version': int.tryParse(row['data_version'] as String? ?? '0') ?? 0,
+        'lastUpdated': row['last_update']?.toString(),
+        'extraData': null,
       };
     } catch (e) {
       AppLogger.w('Failed to get data source version: $e', 'UnifiedTagDatabase');
@@ -985,15 +1010,13 @@ AppLogger.w(
   }) async {
     try {
       final db = await _getDb();
-      final extra = extraData != null ? jsonEncode(extraData) : null;
 
       await db.insert(
         'metadata',
         {
           'source': sourceName,
-          'data_version': version,
-          'last_updated': DateTime.now().toIso8601String(),
-          'extra_data': extra ?? (hash != null ? jsonEncode({'hash': hash}) : null),
+          'data_version': version.toString(),
+          'last_update': DateTime.now().millisecondsSinceEpoch,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );

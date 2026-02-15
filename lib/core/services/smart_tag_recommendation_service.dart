@@ -8,7 +8,7 @@ import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import 'cooccurrence_service.dart';
 import 'danbooru_tags_lazy_service.dart';
-import 'translation_lazy_service.dart';
+import 'translation/translation_providers.dart';
 
 part 'smart_tag_recommendation_service.g.dart';
 
@@ -35,7 +35,7 @@ class RecommendedTag {
 class SmartTagRecommendationService {
   final CooccurrenceService _cooccurrenceService;
   final DanbooruTagsLazyService _danbooruService;
-  final TranslationLazyService _translationService;
+  final Ref _ref;
 
   /// 是否启用智能推荐
   bool _isEnabled = true;
@@ -43,7 +43,7 @@ class SmartTagRecommendationService {
   SmartTagRecommendationService(
     this._cooccurrenceService,
     this._danbooruService,
-    this._translationService,
+    this._ref,
   );
 
   /// 是否启用
@@ -94,7 +94,7 @@ class SmartTagRecommendationService {
 
     // 确保共现服务已初始化（按需加载）
     if (!_cooccurrenceService.isLoaded) {
-      await _cooccurrenceService.initializeLazy();
+      await _cooccurrenceService.initializeUnified();
     }
 
     if (!_cooccurrenceService.isLoaded) return [];
@@ -169,7 +169,8 @@ class SmartTagRecommendationService {
           (candidate.totalScore / candidate.matchCount) * matchBonus;
 
       // 获取翻译
-      final translation = await _translationService.get(candidate.tag);
+      final translationService = await _ref.read(unifiedTranslationServiceProvider.future);
+      final translation = await translationService.getTranslation(candidate.tag);
 
       results.add(
         RecommendedTag(
@@ -224,11 +225,10 @@ class _CandidateScore {
 SmartTagRecommendationService smartTagRecommendationService(Ref ref) {
   final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
   final danbooruService = ref.read(danbooruTagsLazyServiceProvider);
-  final translationService = ref.read(translationLazyServiceProvider);
 
   return SmartTagRecommendationService(
     cooccurrenceService,
     danbooruService,
-    translationService,
+    ref,
   );
 }

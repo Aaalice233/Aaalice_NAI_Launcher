@@ -14,7 +14,6 @@ import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
-import 'translation_lazy_service.dart';
 import 'unified_tag_database.dart';
 
 part 'danbooru_tags_lazy_service.g.dart';
@@ -651,6 +650,12 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 @Riverpod(keepAlive: true)
 DanbooruTagsLazyService danbooruTagsLazyService(Ref ref) {
   final unifiedDb = ref.watch(unifiedTagDatabaseProvider);
-  final dio = ref.watch(externalDioProvider);
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 15),
+    ),
+  );
   return DanbooruTagsLazyService(unifiedDb, dio);
 }

@@ -4081,6 +4081,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String import_completed(Object name) {
+    return '$name import completed';
+  }
+
+  @override
   String get sync_preparing => 'Preparing to sync...';
 
   @override

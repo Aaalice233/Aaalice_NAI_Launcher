@@ -69,12 +69,6 @@ class BackgroundLoadingIndicator extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(
-                  '${(task.progress * 100).toInt()}%',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 4),

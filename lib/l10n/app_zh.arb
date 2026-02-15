@@ -1754,6 +1754,13 @@
     }
   },
 
+  "import_completed": "{name}导入完成",
+  "@import_completed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
   "sync_preparing": "准备同步...",
   "sync_fetching": "正在获取 {category}...",
   "@sync_fetching": {

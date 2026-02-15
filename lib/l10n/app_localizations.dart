@@ -7703,6 +7703,12 @@ abstract class AppLocalizations {
   /// **'{name} download completed'**
   String download_completed(Object name);
 
+  /// No description provided for @import_completed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} import completed'**
+  String import_completed(Object name);
+
   /// No description provided for @sync_preparing.
   ///
   /// In en, this message translates to:

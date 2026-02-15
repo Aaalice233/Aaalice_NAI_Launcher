@@ -5,10 +5,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/storage_keys.dart';
-import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/lazy_data_source_service.dart';
-import '../../core/services/translation_lazy_service.dart';
 import '../../core/utils/app_logger.dart';
 
 part 'background_refresh_provider.g.dart';
@@ -172,13 +170,9 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
     // 由于 build 方法中不能直接使用 ref，我们需要延迟获取
     Future.microtask(() {
       try {
-        final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
-        final translationService = ref.read(translationLazyServiceProvider);
         final danbooruTagsService = ref.read(danbooruTagsLazyServiceProvider);
 
         registerServices([
-          cooccurrenceService,
-          translationService,
           danbooruTagsService,
         ]);
       } catch (e) {

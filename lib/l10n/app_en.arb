@@ -2054,6 +2054,13 @@
     }
   },
 
+  "import_completed": "{name} import completed",
+  "@import_completed": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
   "sync_preparing": "Preparing to sync...",
   "sync_fetching": "Fetching {category}...",
   "@sync_fetching": {
