@@ -60,6 +60,5 @@ class BoldRetroTheme {
   static String get displayName => 'Bold Retro';
 
   /// Theme description.
-  static String get description =>
-      '复古现代主义风格 - 温暖的红黄蓝配色，怀旧而不失现代感';
+  static String get description => '复古现代主义风格 - 温暖的红黄蓝配色，怀旧而不失现代感';
 }

@@ -5,6 +5,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
+import '../vibe/vibe_reference_v4.dart';
+
 part 'generation_record.freezed.dart';
 part 'generation_record.g.dart';
 
@@ -94,6 +96,14 @@ class GenerationRecord with _$GenerationRecord {
 
     /// 图像文件大小（字节）
     @HiveField(9) @Default(0) int fileSize,
+
+    /// Vibe 参考数据 (Hive 专用，不序列化为 JSON)
+    @HiveField(10)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    VibeReferenceV4? vibeData,
+
+    /// 是否有 Vibe 元数据
+    @HiveField(11) @Default(false) bool hasVibeMetadata,
   }) = _GenerationRecord;
 
   factory GenerationRecord.fromJson(Map<String, dynamic> json) =>
@@ -160,7 +170,9 @@ class GenerationRecord with _$GenerationRecord {
   /// 格式化的文件大小
   String get formattedFileSize {
     if (fileSize < 1024) return '${fileSize}B';
-    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)}KB';
+    if (fileSize < 1024 * 1024) {
+      return '${(fileSize / 1024).toStringAsFixed(1)}KB';
+    }
     return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 }
@@ -169,8 +181,10 @@ class GenerationRecord with _$GenerationRecord {
 enum GallerySortOrder {
   /// 最新优先
   newestFirst,
+
   /// 最旧优先
   oldestFirst,
+
   /// 收藏优先
   favoritesFirst,
 }
@@ -184,6 +198,9 @@ class GalleryFilter with _$GalleryFilter {
 
     /// 只显示收藏
     @Default(false) bool favoritesOnly,
+
+    /// 只显示 Vibe 图片
+    @Default(false) bool vibeOnly,
 
     /// 模型筛选
     String? modelFilter,

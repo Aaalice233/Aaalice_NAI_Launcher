@@ -106,7 +106,7 @@ class AnlasBalanceChip extends ConsumerWidget {
         HapticFeedback.lightImpact();
         ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(8),
       child: _ChipContainer(
         compact: compact,
         backgroundColor: backgroundColor,
@@ -140,7 +140,7 @@ class AnlasBalanceChip extends ConsumerWidget {
         HapticFeedback.lightImpact();
         ref.read(subscriptionNotifierProvider.notifier).fetchSubscription();
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(8),
       child: Tooltip(
         message: '点击重试',
         child: _ChipContainer(
@@ -203,7 +203,7 @@ class _ChipContainer extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: backgroundColor ?? theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: child,
     );

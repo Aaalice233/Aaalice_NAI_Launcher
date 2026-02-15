@@ -101,7 +101,11 @@ class DTextParser {
   /// - 将空格替换为下划线
   /// - 移除多余的空白字符
   static String normalizeTagName(String tag) {
-    return tag.trim().toLowerCase().replaceAll(' ', '_').replaceAll(RegExp(r'_+'), '_');
+    return tag
+        .trim()
+        .toLowerCase()
+        .replaceAll(' ', '_')
+        .replaceAll(RegExp(r'_+'), '_');
   }
 
   /// 从标签名生成显示名称
@@ -173,7 +177,9 @@ class DTextParser {
     // 移除链接标记，保留显示文本或链接目标
     text = text.replaceAllMapped(
       RegExp(r'\[\[([^\]|]+)(?:\|([^\]]*))?\]\]'),
-      (match) => match.group(2)?.isNotEmpty == true ? match.group(2)! : match.group(1)!,
+      (match) => match.group(2)?.isNotEmpty == true
+          ? match.group(2)!
+          : match.group(1)!,
     );
 
     // 移除加粗标记 [b]...[/b]

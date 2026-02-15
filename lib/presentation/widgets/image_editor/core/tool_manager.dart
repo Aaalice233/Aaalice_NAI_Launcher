@@ -82,7 +82,11 @@ class ToolManager extends ChangeNotifier {
   void _saveToolSettings(EditorTool tool) {
     if (tool is BrushTool) {
       settingsManager.setSetting(tool.id, 'settings', tool.settings.toJson());
-      settingsManager.setSetting(tool.id, 'presetIndex', tool.selectedPresetIndex);
+      settingsManager.setSetting(
+        tool.id,
+        'presetIndex',
+        tool.selectedPresetIndex,
+      );
     } else if (tool is EraserTool) {
       settingsManager.setSetting(tool.id, 'size', tool.size);
       settingsManager.setSetting(tool.id, 'hardness', tool.hardness);

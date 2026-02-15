@@ -15,11 +15,6 @@ class AppLogger {
     level: Level.debug,
   );
 
-  /// 初始化日志系统（保留接口兼容性）
-  static Future<void> init() async {
-    // 无需初始化
-  }
-
   /// 调试日志
   static void d(String message, [String? tag]) {
     final tagPrefix = tag != null ? '[$tag] ' : '';
@@ -39,24 +34,44 @@ class AppLogger {
   }
 
   /// 错误日志
-  static void e(String message, [dynamic error, StackTrace? stackTrace, String? tag]) {
+  static void e(
+    String message, [
+    dynamic error,
+    StackTrace? stackTrace,
+    String? tag,
+  ]) {
     final tagPrefix = tag != null ? '[$tag] ' : '';
     _logger.e('$tagPrefix$message', error: error, stackTrace: stackTrace);
   }
 
   /// 网络请求日志
-  static void network(String method, String url, {dynamic data, dynamic response, dynamic error}) {
+  static void network(
+    String method,
+    String url, {
+    dynamic data,
+    dynamic response,
+    dynamic error,
+  }) {
     if (error != null) {
       _logger.e('[HTTP] $method $url', error: error);
     } else if (response != null) {
-      _logger.i('[HTTP] $method $url\nResponse: ${_truncate(response.toString(), 500)}');
+      _logger.i(
+        '[HTTP] $method $url\nResponse: ${_truncate(response.toString(), 500)}',
+      );
     } else {
-      _logger.d('[HTTP] $method $url\nData: ${_truncate(data?.toString() ?? 'null', 500)}');
+      _logger.d(
+        '[HTTP] $method $url\nData: ${_truncate(data?.toString() ?? 'null', 500)}',
+      );
     }
   }
 
   /// 加密相关日志（敏感数据脱敏）
-  static void crypto(String operation, {String? email, int? keyLength, bool? success}) {
+  static void crypto(
+    String operation, {
+    String? email,
+    int? keyLength,
+    bool? success,
+  }) {
     final emailMasked = email != null ? _maskEmail(email) : null;
     final parts = <String>[
       '[Crypto] $operation',
@@ -68,7 +83,12 @@ class AppLogger {
   }
 
   /// 认证相关日志
-  static void auth(String action, {String? email, bool? success, String? error}) {
+  static void auth(
+    String action, {
+    String? email,
+    bool? success,
+    String? error,
+  }) {
     final emailMasked = email != null ? _maskEmail(email) : null;
     final parts = <String>[
       '[Auth] $action',

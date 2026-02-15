@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 /// Toast 类型
@@ -112,9 +114,14 @@ class _NoOpToastController implements ToastController {
 }
 
 /// 全局 Toast 通知服务
+/// 桌面端显示右上角可堆叠toast，移动端显示底部SnackBar
 class AppToast {
   static OverlayEntry? _progressEntry;
   static final List<_ActiveToast> _activeToasts = [];
+
+  /// 判断是否为桌面端
+  static bool get _isDesktop =>
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
   /// 显示成功通知
   static void success(BuildContext context, String message) {
@@ -176,12 +183,29 @@ class AppToast {
   }
 
   static void _show(BuildContext context, String message, ToastType type) {
+    if (_isDesktop) {
+      _showDesktopToast(context, message, type);
+    } else {
+      _showMobileSnackBar(context, message, type);
+    }
+  }
+
+  /// 用于生成唯一 toast ID 的计数器
+  static int _toastIdCounter = 0;
+
+  /// 桌面端：右上角堆叠toast
+  static void _showDesktopToast(
+    BuildContext context,
+    String message,
+    ToastType type,
+  ) {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
       return;
     }
 
-    final id = DateTime.now().millisecondsSinceEpoch;
+    // 使用递增计数器确保 ID 唯一，避免同一毫秒内创建的 toast 有相同 ID
+    final id = _toastIdCounter++;
 
     // 先创建 ActiveToast，entry 先为占位符
     final activeToast = _ActiveToast(
@@ -189,17 +213,18 @@ class AppToast {
       entry: OverlayEntry(builder: (_) => const SizedBox.shrink()),
     );
     _activeToasts.add(activeToast);
-    final index = _activeToasts.indexOf(activeToast);
 
     // 创建真正的 entry
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) {
+        // 动态计算当前 index，确保在 markNeedsBuild 后位置能正确更新
+        final currentIndex = _activeToasts.indexWhere((t) => t.id == id);
         return _SingleToastWidget(
           key: ValueKey(id),
           message: message,
           type: type,
-          index: index,
+          index: currentIndex,
           onDismiss: () {
             entry.remove();
             _activeToasts.remove(activeToast);
@@ -217,16 +242,48 @@ class AppToast {
 
     overlay.insert(entry);
   }
+
+  /// 移动端：底部SnackBar
+  static void _showMobileSnackBar(
+    BuildContext context,
+    String message,
+    ToastType type,
+  ) {
+    final (icon, color) = _getTypeStyle(Theme.of(context), type);
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 }
 
 class _ActiveToast {
   final int id;
   OverlayEntry entry;
-  
+
   _ActiveToast({required this.id, required this.entry});
 }
 
-/// 单个 Toast Widget
+/// 单个 Toast Widget（桌面端纯色背景样式）
 class _SingleToastWidget extends StatefulWidget {
   final String message;
   final ToastType type;
@@ -300,8 +357,7 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final (icon, color) = _getTypeStyle(theme, widget.type);
+    final (icon, color) = _getTypeStyle(Theme.of(context), widget.type);
     final topOffset = 16.0 + (widget.index >= 0 ? widget.index : 0) * 64.0;
 
     return Positioned(
@@ -317,43 +373,42 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
               constraints: const BoxConstraints(maxWidth: 360),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: color.withOpacity(0.5),
-                  width: 1,
-                ),
+                color: color,
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: color.withOpacity(0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
+                    spreadRadius: 2,
                   ),
                 ],
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 10),
-                  Flexible(
+                  Icon(icon, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Text(
                       widget.message,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   InkWell(
                     onTap: _dismiss,
                     borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
                       child: Icon(
                         Icons.close,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
+                        size: 18,
+                        color: Colors.white70,
                       ),
                     ),
                   ),
@@ -463,6 +518,8 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
     if (!mounted) return;
     setState(() {
       _type = ToastType.error;
+      _progress = null;
+      _subtitle = null;
       if (message != null) _message = message;
       _autoClose = true;
     });
@@ -500,17 +557,17 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
               constraints: const BoxConstraints(maxWidth: 360, minWidth: 240),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: color.withOpacity(0.5),
-                  width: 1,
-                ),
+                color: _type == ToastType.progress
+                    ? theme.colorScheme.surfaceContainerHigh
+                    : color,
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: (_type == ToastType.progress ? Colors.black : color)
+                        .withOpacity(0.25),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
+                    spreadRadius: 2,
                   ),
                 ],
               ),
@@ -522,28 +579,18 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_type == ToastType.progress)
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: _progress != null
-                              ? CircularProgressIndicator(
-                                  value: _progress,
-                                  strokeWidth: 2,
-                                  color: color,
-                                )
-                              : CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: color,
-                                ),
-                        )
+                        Icon(Icons.downloading_rounded, color: color, size: 20)
                       else
-                        Icon(icon, color: color, size: 20),
-                      const SizedBox(width: 10),
+                        Icon(icon, color: Colors.white, size: 20),
+                      const SizedBox(width: 12),
                       Flexible(
                         child: Text(
                           _message,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface,
+                          style: TextStyle(
+                            color: _type == ToastType.progress
+                                ? theme.colorScheme.onSurface
+                                : Colors.white,
+                            fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -557,8 +604,10 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                             padding: const EdgeInsets.all(4),
                             child: Icon(
                               Icons.close,
-                              size: 16,
-                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 18,
+                              color: _type == ToastType.progress
+                                  ? theme.colorScheme.onSurfaceVariant
+                                  : Colors.white70,
                             ),
                           ),
                         ),
@@ -571,8 +620,11 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
                         _subtitle!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _type == ToastType.progress
+                              ? theme.colorScheme.onSurfaceVariant
+                              : Colors.white70,
                         ),
                       ),
                     ),
@@ -586,16 +638,6 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
                         backgroundColor: color.withOpacity(0.2),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                         minHeight: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        '${(_progress! * 100).toInt()}%',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
                       ),
                     ),
                   ],

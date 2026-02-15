@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +6,8 @@ import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import '../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 笔刷预设
 class BrushPreset {
@@ -289,7 +292,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 笔刷预设
         Padding(
@@ -319,7 +322,8 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
                         onTap: () {
                           setState(() {
                             widget.tool.applyPreset(preset, index);
-                            _sizeController.text = preset.size.round().toString();
+                            _sizeController.text =
+                                preset.size.round().toString();
                           });
                           widget.onSettingsChanged();
                         },
@@ -331,7 +335,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 大小
         _SettingRow(
@@ -393,39 +397,53 @@ class _BrushPresetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 56,
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: isSelected ? theme.colorScheme.primaryContainer : null,
-          border: Border.all(
-            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
-            width: isSelected ? 2 : 1,
+    return Semantics(
+      label: preset.name,
+      hint: context.l10n.brushPreset_selectHint,
+      button: true,
+      selected: isSelected,
+      enabled: true,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 56,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.colorScheme.primaryContainer : null,
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
           ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              preset.icon,
-              size: 24,
-              color: isSelected ? theme.colorScheme.primary : null,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              preset.name,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: isSelected ? theme.colorScheme.primary : null,
-                fontWeight: isSelected ? FontWeight.bold : null,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                preset.icon,
+                size: 24,
+                color: isSelected
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
               ),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                preset.name,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: isSelected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -485,7 +503,7 @@ class _SettingRow extends StatelessWidget {
           SizedBox(
             width: 50,
             child: controller != null
-                ? TextField(
+                ? ThemedInput(
                     controller: controller,
                     style: theme.textTheme.bodySmall,
                     textAlign: TextAlign.center,

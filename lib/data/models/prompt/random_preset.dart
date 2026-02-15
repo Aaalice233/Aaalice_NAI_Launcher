@@ -7,6 +7,7 @@ import 'default_categories.dart';
 import 'default_tag_group_mappings.dart';
 import 'pool_mapping.dart';
 import 'random_category.dart';
+import 'random_tag_group.dart';
 import 'tag_group_mapping.dart';
 
 part 'random_preset.freezed.dart';
@@ -31,6 +32,9 @@ class RandomPreset with _$RandomPreset {
 
     /// 是否为默认预设（不可删除）
     @Default(false) bool isDefault,
+
+    /// 是否基于默认预设创建（用于判断是否显示重置按钮）
+    @Default(false) bool isBasedOnDefault,
 
     /// 数据版本
     @Default(2) int version,
@@ -163,20 +167,51 @@ class RandomPreset with _$RandomPreset {
       algorithmConfig: source.algorithmConfig,
       categoryProbabilities: source.categoryProbabilities,
       categories: source.categories.map((c) => c.deepCopy()).toList(),
-      tagGroupMappings: source.tagGroupMappings.map((m) => m.copyWith(
-        id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
-      ),).toList(),
-      poolMappings: source.poolMappings.map((m) => m.copyWith(
-        id: 'pool_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
-      ),).toList(),
+      tagGroupMappings: source.tagGroupMappings
+          .map(
+            (m) => m.copyWith(
+              id: 'mapping_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
+            ),
+          )
+          .toList(),
+      poolMappings: source.poolMappings
+          .map(
+            (m) => m.copyWith(
+              id: 'pool_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 8)}',
+            ),
+          )
+          .toList(),
       createdAt: now,
       updatedAt: now,
     );
   }
 
   /// 获取词库总标签数
+  ///
+  /// 包括：
+  /// - categories 中的自定义标签
+  /// - tagGroupMappings 中已同步的 Danbooru 标签
+  /// - poolMappings 中已同步的 Pool 标签
   int get totalTagCount {
-    return categories.fold(0, (sum, cat) => sum + cat.totalTagCount);
+    // 1. 类别中的自定义标签（只计算 custom 和 builtin 类型）
+    int customTagCount = 0;
+    for (final cat in categories) {
+      for (final group in cat.groups) {
+        if (group.sourceType == TagGroupSourceType.custom ||
+            group.sourceType == TagGroupSourceType.builtin) {
+          customTagCount += group.tagCount;
+        }
+      }
+    }
+
+    // 2. TagGroup 映射中的标签数
+    final tagGroupTagCount = tagGroupMappings
+        .where((m) => m.enabled)
+        .fold(0, (sum, m) => sum + m.lastSyncedTagCount);
+
+    // 3. Pool 不计算标签数（Pool 是基于帖子的，不是基于标签的）
+
+    return customTagCount + tagGroupTagCount;
   }
 
   /// 获取启用的标签数
@@ -188,8 +223,7 @@ class RandomPreset with _$RandomPreset {
   int get categoryCount => categories.length;
 
   /// 获取启用的类别数量
-  int get enabledCategoryCount =>
-      categories.where((c) => c.enabled).length;
+  int get enabledCategoryCount => categories.where((c) => c.enabled).length;
 
   /// 更新最后修改时间
   RandomPreset touch() {
@@ -303,7 +337,8 @@ class RandomPreset with _$RandomPreset {
   /// 删除 Tag Group 映射
   RandomPreset removeTagGroupMapping(String mappingId) {
     return copyWith(
-      tagGroupMappings: tagGroupMappings.where((m) => m.id != mappingId).toList(),
+      tagGroupMappings:
+          tagGroupMappings.where((m) => m.id != mappingId).toList(),
       updatedAt: DateTime.now(),
     );
   }

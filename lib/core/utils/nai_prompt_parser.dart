@@ -164,16 +164,13 @@ class NaiPromptParser {
     }
 
     // 计算有效的括号层数（取开闭括号的最小值）
-    final effectiveBraces =
-        braceCount < closeBraceCount ? braceCount : closeBraceCount;
-    final effectiveBrackets =
-        bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
+    final effectiveBraces = braceCount < closeBraceCount ? braceCount : closeBraceCount;
+    final effectiveBrackets = bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
 
-    // 计算权重
+    // 计算权重并移除括号
     if (effectiveBraces > 0) {
       weight = 1.0 + (effectiveBraces * weightStep);
       syntaxType = WeightSyntaxType.bracket;
-      // 移除括号
       processedText = processedText.substring(
         effectiveBraces,
         processedText.length - effectiveBraces,
@@ -181,7 +178,6 @@ class NaiPromptParser {
     } else if (effectiveBrackets > 0) {
       weight = 1.0 - (effectiveBrackets * weightStep);
       syntaxType = WeightSyntaxType.bracket;
-      // 移除括号
       processedText = processedText.substring(
         effectiveBrackets,
         processedText.length - effectiveBrackets,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 移动端底部工具栏
 class MobileToolbar extends StatelessWidget {
@@ -56,7 +57,7 @@ class MobileToolbar extends StatelessWidget {
             },
           ),
 
-          const VerticalDivider(width: 1, indent: 12, endIndent: 12),
+          const ThemedDivider(height: 1, vertical: true, indent: 12, endIndent: 12),
 
           // 工具列表 - 监听工具切换
           Expanded(
@@ -80,7 +81,7 @@ class MobileToolbar extends StatelessWidget {
             ),
           ),
 
-          const VerticalDivider(width: 1, indent: 12, endIndent: 12),
+          const ThemedDivider(height: 1, vertical: true, indent: 12, endIndent: 12),
 
           // 图层按钮
           _ActionButton(

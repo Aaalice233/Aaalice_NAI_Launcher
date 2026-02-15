@@ -1,8 +1,8 @@
 {
   "@@locale": "en",
 
-  "appTitle": "NAI Launcher",
-  "appSubtitle": "NovelAI Third-party Client",
+  "app_title": "NAI Launcher",
+  "app_subtitle": "NovelAI Third-party Client",
 
   "common_cancel": "Cancel",
   "common_confirm": "Confirm",
@@ -33,6 +33,14 @@
   "common_add": "Add",
   "common_confirmDelete": "Confirm Delete",
   "common_settings": "Settings",
+  "common_today": "Today",
+  "common_yesterday": "Yesterday",
+  "common_daysAgo": "{days} days ago",
+  "@common_daysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
 
   "nav_canvas": "Canvas",
   "nav_gallery": "Gallery",
@@ -41,6 +49,7 @@
   "nav_dictionary": "Dictionary (WIP)",
   "nav_settings": "Settings",
   "nav_discordCommunity": "Discord Community",
+  "nav_githubRepo": "GitHub Repository",
 
   "auth_login": "Login",
   "auth_logout": "Logout",
@@ -123,6 +132,26 @@
   "auth_autoLogin": "Auto login",
   "auth_forgotPassword": "Forgot password?",
   "auth_passwordTooShort": "Password must be at least 6 characters",
+  "auth_loggingIn": "Logging in...",
+  "auth_pleaseWait": "Please wait",
+  "auth_viewTroubleshootingTips": "View Troubleshooting Tips",
+  "auth_troubleshoot_checkConnection_title": "Check Network Connection",
+  "auth_troubleshoot_checkConnection_desc": "Ensure your device is connected to the internet",
+  "auth_troubleshoot_retry_title": "Try Again",
+  "auth_troubleshoot_retry_desc": "Network issues may be temporary, please retry",
+  "auth_troubleshoot_proxy_title": "Check Proxy Settings",
+  "auth_troubleshoot_proxy_desc": "If using a proxy, verify it's configured correctly",
+  "auth_troubleshoot_firewall_title": "Check Firewall Settings",
+  "auth_troubleshoot_firewall_desc": "Ensure your firewall allows connections to NovelAI servers",
+  "auth_troubleshoot_serverStatus_title": "Check Server Status",
+  "auth_troubleshoot_serverStatus_desc": "Visit NovelAI status page or community to check for outages",
+
+  "auth_passwordResetHelp_title": "Password Reset",
+  "auth_passwordResetHelp_desc": "Clicking 'Forgot password?' will open NovelAI's password reset page in your browser where you can reset your password",
+  "auth_passwordResetAfterReset_title": "After Password Reset",
+  "auth_passwordResetAfterReset_desc": "After resetting your password on NovelAI website, return to this app and login with your new password",
+  "auth_passwordResetNoEmail_title": "Didn't receive reset email?",
+  "auth_passwordResetNoEmail_desc": "Check your spam folder or contact NovelAI support if you don't receive the password reset email within a few minutes",
 
   "common_paste": "Paste",
   "common_default": "Default",
@@ -136,6 +165,7 @@
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
   "settings_selectStyle": "Select Style",
+  "settings_defaultPreset": "Default",
   "settings_selectFont": "Select Font",
   "settings_selectLanguage": "Select Language",
   "settings_loadFailed": "Load failed: {error}",
@@ -196,6 +226,9 @@
   "settings_avatarRemoved": "Avatar removed",
   "settings_avatarFileMissing": "Avatar file missing, select again?",
   "settings_setAsDefaultSuccess": "Set as default account",
+
+  "settings_startupPerformance": "Startup Performance",
+  "settings_startupPerformanceSubtitle": "Configure startup performance settings",
 
   "generation_title": "Generate",
   "generation_generate": "Generate",
@@ -307,6 +340,18 @@
   "prompt_negative": "Negative",
   "prompt_positivePrompt": "Positive Prompt",
   "prompt_negativePrompt": "Negative Prompt",
+  "prompt_mainPositive": "Main Prompt (Positive)",
+  "prompt_mainNegative": "Main Prompt (Negative)",
+  "prompt_characterPrompts": "Multi-Character Prompts",
+  "prompt_characterPromptItem": "{name}: {content}",
+  "@prompt_characterPromptItem": {
+    "placeholders": {
+      "name": {},
+      "content": {}
+    }
+  },
+  "prompt_finalPrompt": "Final Effective Prompt",
+  "prompt_finalNegative": "Final Effective Negative",
   "prompt_tags": "{count} tags",
   "@prompt_tags": {
     "placeholders": {
@@ -325,7 +370,7 @@
   "prompt_inputPrompt": "Enter prompt...",
   "prompt_inputNegativePrompt": "Enter negative prompt...",
   "prompt_describeImage": "Describe the image you want to generate...",
-  "prompt_describeImageWithHint": "Describe the image you want to generate... (Tag suggestions appear after 2 characters)",
+  "prompt_describeImageWithHint": "Enter prompt to describe image, type < to reference library, supports tag autocomplete",
   "prompt_unwantedContent": "Content you don't want in the image...",
   "prompt_addTagsHint": "Add tags to describe your desired image",
   "prompt_addUnwantedHint": "Add unwanted elements",
@@ -341,20 +386,19 @@
   "prompt_smartAutocomplete": "Smart Autocomplete",
   "prompt_smartAutocompleteSubtitle": "Show tag suggestions while typing",
   "prompt_autoFormat": "Auto Format",
-  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-close brackets, etc.",
+  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-add underscores",
   "prompt_highlightEmphasis": "Highlight Emphasis",
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
   "prompt_sdSyntaxAutoConvertSubtitle": "Convert SD weight syntax to NAI format on blur",
+  "prompt_cooccurrenceRecommendation": "Co-occurrence Tag Recommendation",
+  "prompt_cooccurrenceRecommendationSubtitle": "Automatically recommend related tags after entering a tag",
   "prompt_formatted": "Formatted",
-  "prompt_textMode": "Text",
-  "prompt_tagMode": "Tags",
-  "prompt_switchToTagView": "Switch to Tag View",
-  "prompt_switchToTextView": "Switch to Text View",
 
   "image_save": "Save",
   "image_copy": "Copy",
   "image_upscale": "Upscale",
+  "image_saveToLibrary": "Save to Library",
   "image_imageSaved": "Image saved to: {path}",
   "@image_imageSaved": {
     "placeholders": {
@@ -514,6 +558,8 @@
   "img2img_maskEnabled": "Inpaint Mask",
   "img2img_uploadImage": "Upload Image",
   "img2img_drawSketch": "Draw Sketch",
+  "img2img_maskTooltip": "White = modify, Black = preserve",
+  "img2img_maskHelpText": "In the mask, white areas will be modified during generation, while black areas will be preserved from the source image",
 
   "editor_title": "Image Editor",
   "editor_done": "Done",
@@ -571,9 +617,22 @@
   "editor_subtractFromSelection": "Subtract from selection",
   "editor_selectionHint": "Draw selection for inpaint mask",
 
+  "layer_duplicate": "Duplicate",
+  "layer_delete": "Delete",
+  "layer_merge": "Merge Down",
+  "layer_visibility": "Toggle Visibility",
+  "layer_lock": "Toggle Lock",
+  "layer_rename": "Rename",
+  "layer_moveUp": "Move Up",
+  "layer_moveDown": "Move Down",
+
   "vibe_title": "Vibe Transfer",
   "vibe_hint": "Add reference images to transfer visual style (max 4)",
   "vibe_description": "Change the image, keep the vision.",
+  "vibe_addFromFileTitle": "Add from File",
+  "vibe_addFromFileSubtitle": "PNG, JPG, Vibe files",
+  "vibe_addFromLibraryTitle": "Import from Library",
+  "vibe_addFromLibrarySubtitle": "Select from Vibe Library",
   "vibe_addReference": "Add Reference",
   "vibe_clearAll": "Clear All",
   "vibe_referenceNumber": "Reference #{index}",
@@ -605,6 +664,13 @@
   "vibe_sourceType_v4vibe": "V4 Vibe",
   "vibe_sourceType_bundle": "Bundle",
   "vibe_sourceType_image": "Image",
+  "vibe_sourceType": "Source",
+  "vibe_reuseButton": "Reuse",
+  "vibe_reuseSuccess": "Vibe added to generation params",
+  "vibe_info": "Vibe Info",
+  "vibe_name": "Name",
+  "vibe_strength": "Strength",
+  "vibe_infoExtracted": "Info Extracted",
 
   "characterRef_title": "Character Reference",
   "characterRef_hint": "Upload character reference images to maintain consistency (V4+ only)",
@@ -629,6 +695,7 @@
   "unifiedRef_switchTitle": "Switch Mode",
   "unifiedRef_switchContent": "Switching modes will clear current references. Continue?",
 
+  "character_buttonLabel": "Characters",
   "character_title": "Multi-Character (V4 Only)",
   "character_hint": "Define independent prompts and positions for each character (max 6)",
   "character_addCharacter": "Add Character",
@@ -813,6 +880,8 @@
   "onlineGallery_favCount": "Favorites",
   "onlineGallery_rating": "Rating",
   "onlineGallery_type": "Type",
+  "mediaType_video": "Video",
+  "mediaType_gif": "GIF",
   "onlineGallery_tags": "Tags",
   "onlineGallery_artists": "Artists",
   "onlineGallery_characters": "Characters",
@@ -822,6 +891,10 @@
   "onlineGallery_copyTags": "Copy Tags",
   "onlineGallery_open": "Open",
   "onlineGallery_all": "All",
+  "onlineGallery_ratingGeneral": "General",
+  "onlineGallery_ratingSensitive": "Sensitive",
+  "onlineGallery_ratingQuestionable": "Questionable",
+  "onlineGallery_ratingExplicit": "Explicit",
   "onlineGallery_clear": "Clear",
   "onlineGallery_previousPage": "Previous Page",
   "onlineGallery_nextPage": "Next Page",
@@ -923,6 +996,7 @@
   "tag_inputHint": "Enter tag...",
   "tag_copiedToClipboard": "Copied to clipboard",
   "tag_emptyHint": "Add tags to describe your desired image",
+  "tag_emptyHintSub": "You can browse, search, or add tags manually",
 
   "tagCategory_artist": "Artist",
   "tagCategory_copyright": "Copyright",
@@ -1028,6 +1102,8 @@
   "presetEdit_newConfigGroup": "New Config Group",
   "presetEdit_enterPresetName": "Please enter preset name",
   "presetEdit_saveSuccess": "Saved successfully",
+  "presetEdit_saveError": "Failed to save preset",
+  "presetEdit_deleteConfigConfirm": "Delete config group \"{name}\"?",
   "presetEdit_previewTitle": "Preview Generation Result",
   "presetEdit_emptyResult": "(Empty result, please check config)",
   "presetEdit_regenerate": "Regenerate",
@@ -1067,8 +1143,14 @@
   },
 
   "qualityTags_label": "Quality",
+  "qualityTags_positive": "Quality (Positive)",
+  "qualityTags_negative": "Quality (Negative)",
   "qualityTags_disabled": "Quality tags disabled\nClick to enable",
   "qualityTags_addToEnd": "Add to prompt end:",
+  "qualityTags_naiDefault": "NAI Default",
+  "qualityTags_none": "None",
+  "qualityTags_addFromLibrary": "Add from Library",
+  "qualityTags_selectFromLibrary": "Select Quality Tag Entry",
 
   "ucPreset_label": "UC Preset",
   "ucPreset_heavy": "Heavy",
@@ -1076,9 +1158,12 @@
   "ucPreset_furryFocus": "Furry",
   "ucPreset_humanFocus": "Human",
   "ucPreset_none": "None",
+  "ucPreset_custom": "Custom",
   "ucPreset_disabled": "Undesired content preset disabled",
   "ucPreset_addToNegative": "Add to negative prompt:",
   "ucPreset_nsfwHint": "💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt",
+  "ucPreset_addFromLibrary": "Add from Library",
+  "ucPreset_selectFromLibrary": "Select UC Entry",
 
   "randomMode_enabledTip": "Random mode enabled\nAuto-randomize prompt after each generation",
   "randomMode_disabledTip": "Random mode\nClick to auto-randomize prompts on generation",
@@ -1144,11 +1229,65 @@
     }
   },
 
+  "warmup_networkCheck": "Checking network connection...",
+  "warmup_networkCheck_noProxy": "Cannot connect to NovelAI, please enable VPN or proxy settings",
+  "warmup_networkCheck_noSystemProxy": "Proxy enabled but no system proxy detected, please enable VPN",
+  "warmup_networkCheck_manualIncomplete": "Manual proxy config incomplete, please check settings",
+  "warmup_networkCheck_testing": "Testing network connection...",
+  "warmup_networkCheck_testingProxy": "Testing network via proxy...",
+  "warmup_networkCheck_failed": "Network connection failed: {error}, please check VPN",
+  "@warmup_networkCheck_failed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "warmup_networkCheck_success": "Network connection OK ({latency}ms)",
+  "@warmup_networkCheck_success": {
+    "placeholders": {
+      "latency": {}
+    }
+  },
+
   "warmup_preparing": "Preparing...",
   "warmup_complete": "Complete",
+  "warmup_danbooruAuth": "Initializing Danbooru authentication...",
   "warmup_loadingTranslation": "Loading translation data...",
+  "warmup_initUnifiedDatabase": "Initializing tag database...",
   "warmup_initTagSystem": "Initializing tag system...",
   "warmup_loadingPromptConfig": "Loading prompt config...",
+  "warmup_imageEditor": "Initializing image editor...",
+  "warmup_database": "Loading recent history...",
+  "warmup_network": "Checking network connection...",
+  "warmup_fonts": "Preloading fonts...",
+  "warmup_imageCache": "Warming up image cache...",
+  "warmup_statistics": "Loading statistics...",
+  "warmup_artistsSync": "Syncing artists data...",
+  "warmup_subscription": "Loading subscription info...",
+  "warmup_dataSourceCache": "Initializing data source cache...",
+  "warmup_galleryFileCount": "Scanning gallery files...",
+  "warmup_cooccurrenceData": "Loading tag cooccurrence data...",
+  "warmup_retryFailed": "Retry Failed Tasks",
+  "warmup_errorDetail": "Error",
+  "warmup_group_basicUI": "Initializing basic UI services...",
+  "warmup_group_basicUI_complete": "Basic UI services ready",
+  "warmup_group_dataServices": "Initializing data services...",
+  "warmup_group_dataServices_complete": "Data services ready",
+  "warmup_group_networkServices": "Initializing network services...",
+  "warmup_group_networkServices_complete": "Network services ready",
+  "warmup_group_cacheServices": "Initializing cache services...",
+  "warmup_group_cacheServices_complete": "Cache services ready",
+  "warmup_cooccurrenceInit": "Initializing cooccurrence data...",
+  "warmup_translationInit": "Initializing translation data...",
+  "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
+  "warmup_group_dataSourceInitialization": "Initializing data source services...",
+  "warmup_group_dataSourceInitialization_complete": "Data source services ready",
+
+  "performanceReport_title": "Startup Performance",
+  "performanceReport_export": "Export Report",
+  "performanceReport_taskStats": "Task Statistics",
+  "performanceReport_averageDuration": "Average Duration",
+  "performanceReport_successRate": "Success Rate",
+  "performanceReport_exportSuccess": "Report exported successfully",
 
   "copyName": " (Copy)",
 
@@ -1246,10 +1385,13 @@
   "characterEditor_addFemale": "F",
   "characterEditor_addMale": "M",
   "characterEditor_addOther": "Other",
+  "characterEditor_addFromLibrary": "Library",
+  "characterEditor_editCharacter": "Edit Character",
   "characterEditor_moveUp": "Move Up",
   "characterEditor_moveDown": "Move Down",
   "characterEditor_aiChoice": "AI",
   "characterEditor_positionLabel": "Position:",
+  "characterEditor_positionHint": "Select character position in the image",
   "characterEditor_promptLabel": "Prompt:",
   "characterEditor_disabled": "[Disabled]",
   "characterEditor_characterCount": "{count} characters",
@@ -1273,8 +1415,6 @@
   },
   "characterEditor_clickToEdit": "Click to edit multi-character prompts",
 
-  "toolbar_switchToTextView": "Switch to Text View",
-  "toolbar_switchToTagView": "Switch to Tag View",
   "toolbar_randomPrompt": "Random Prompt",
   "toolbar_fullscreenEdit": "Fullscreen Edit",
   "toolbar_clear": "Clear",
@@ -1360,6 +1500,7 @@
   "naiMode_title": "Default Mode",
   "naiMode_subtitle": "Replicate NovelAI official random algorithm",
   "naiMode_syncLibrary": "Manage Extended Library",
+  "manageLibrary": "Manage Library",
   "naiMode_algorithmInfo": "Algorithm Info",
   "naiMode_tagCountBadge": "{count} tags",
   "@naiMode_tagCountBadge": {
@@ -1946,6 +2087,9 @@
   "download_tags_data": "Downloading tags data...",
   "download_cooccurrence_data": "Downloading cooccurrence data...",
   "download_parsing_data": "Parsing data...",
+  "download_readingFile": "Reading file...",
+  "download_mergingData": "Merging data...",
+  "download_loadComplete": "Loading complete",
 
   "time_just_now": "Just now",
   "time_minutes_ago": "{n} minutes ago",
@@ -2053,6 +2197,11 @@
   "preset_resetConfirmTitle": "Reset Preset",
   "preset_resetConfirmMessage": "Are you sure you want to reset all categories and groups in the current preset to default? This action cannot be undone.",
   "preset_resetSuccess": "Preset has been reset to default",
+  "newPresetDialog_title": "Create New Preset",
+  "newPresetDialog_blank": "Completely Blank",
+  "newPresetDialog_blankDesc": "Create preset from scratch with no preset content",
+  "newPresetDialog_template": "Based on Default Preset",
+  "newPresetDialog_templateDesc": "Copy all settings from default preset as starting point",
 
   "category_addNew": "Add Category",
   "category_dialogTitle": "Create Category",
@@ -2161,12 +2310,12 @@
 
   "scope_title": "Scope",
   "scope_titleDesc": "Set the applicable scope of this category/group",
-  "scope_global": "Global",
-  "scope_globalDesc": "Only for main prompt",
-  "scope_character": "Character",
-  "scope_characterDesc": "Only for character prompts",
-  "scope_all": "All",
-  "scope_allDesc": "Available for both main and character prompts",
+  "scope_global": "Main",
+  "scope_globalTooltip": "Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.",
+  "scope_character": "Char",
+  "scope_characterTooltip": "Prompt will only appear in character prompts\nGenerated separately for each character\nSuitable for: hair color, eye color, clothing, expression, etc.",
+  "scope_all": "Both",
+  "scope_allTooltip": "Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags",
 
   "tagGroupSettings_resetToCategory": "Reset to Category Settings",
 
@@ -2183,5 +2332,1185 @@
   "vibeEncodeConfirm": "Continue and consume Anlas?",
   "vibeCancel": "Cancel",
   "vibeConfirmEncode": "Encode",
-  "vibeParseFailed": "Failed to parse Vibe file"
+  "vibeParseFailed": "Failed to parse Vibe file",
+
+  "tagGroupBrowser_searchHint": "Search tags...",
+  "tagGroupBrowser_tagCount": "{count} tags",
+  "@tagGroupBrowser_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagGroupBrowser_filteredTagCount": "Showing {filtered} of {total} tags",
+  "@tagGroupBrowser_filteredTagCount": {
+    "placeholders": {
+      "filtered": {},
+      "total": {}
+    }
+  },
+  "tagGroupBrowser_noTags": "No tags",
+  "tagGroupBrowser_noLibrary": "Tag library not loaded",
+  "tagGroupBrowser_importLibraryHint": "Please import a tag library first",
+  "tagGroupBrowser_noCategories": "No enabled tag categories",
+  "tagGroupBrowser_enableCategoriesHint": "Please enable tag categories in settings",
+  "tagGroupBrowser_danbooruSuggestions": "Danbooru Suggestions",
+
+  "tag_favoritesTitle": "Favorite Tags",
+  "tag_favoritesEmpty": "No favorite tags yet",
+  "tag_favoritesEmptyHint": "Long-press on a tag to add it to favorites",
+  "tag_alreadyAdded": "Tag already added to current prompt",
+  "tag_removeFavoriteTitle": "Remove from Favorites",
+  "tag_removeFavoriteMessage": "Remove \"{tag}\" from favorites?",
+  "@tag_removeFavoriteMessage": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+
+  "tag_templatesTitle": "Tag Templates",
+  "tag_templatesEmpty": "No tag templates yet",
+  "tag_templatesEmptyHint": "Select tags and click the + button to create a template",
+  "tag_templateCreate": "Create Template",
+  "tag_templateNameLabel": "Template Name",
+  "tag_templateNameHint": "Enter template name",
+  "tag_templateNameRequired": "Please enter a template name",
+  "tag_templateDescLabel": "Description (Optional)",
+  "tag_templateDescHint": "Enter template description",
+  "tag_templatePreview": "Tag Preview",
+  "tag_templateTagCount": "{count} tags",
+  "@tag_templateTagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateMoreTags": "{count} more tags...",
+  "@tag_templateMoreTags": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tag_templateInserted": "Inserted template \"{name}\"",
+  "@tag_templateInserted": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tag_templateNoTags": "No tags to save",
+  "tag_templateSaved": "Template saved",
+  "tag_templateNameExists": "Template name already exists",
+  "tag_templateDeleteTitle": "Delete Template",
+  "tag_templateDeleteMessage": "Delete template \"{name}\"?",
+  "@tag_templateDeleteMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+
+  "tag_tabTags": "Tags",
+  "tag_tabGroups": "Groups",
+  "tag_tabFavorites": "Favorites",
+  "tag_tabTemplates": "Templates",
+
+  "tag_categoryGeneral": "General",
+  "tag_categoryArtist": "Artist",
+  "tag_categoryCopyright": "Copyright",
+  "tag_categoryCharacter": "Character",
+  "tag_categoryMeta": "Meta",
+  "tag_countBadgeTooltip": "Total {total} tags",
+  "@tag_countBadgeTooltip": {
+    "placeholders": {
+      "total": {}
+    }
+  },
+  "tag_countBadgeBreakdown": "Tag Breakdown",
+  "tag_countEnabled": "{count} enabled",
+  "@tag_countEnabled": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+
+  "localGallery_searchIndexing": "Building search index...",
+  "localGallery_searchIndexComplete": "Search index ready",
+  "localGallery_searchIndexFailed": "Search index error",
+  "localGallery_cacheStatus": "Cache: {current}/{max} images",
+  "@localGallery_cacheStatus": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "localGallery_cacheHitRate": "Hit rate: {rate}%",
+  "@localGallery_cacheHitRate": {
+    "placeholders": {
+      "rate": {}
+    }
+  },
+  "localGallery_preloading": "Preloading images...",
+  "localGallery_preloadComplete": "Preload complete",
+  "localGallery_progressiveLoadError": "Failed to load image",
+  "localGallery_noImagesFound": "No images found",
+  "localGallery_searchPlaceholder": "Search prompts, models, samplers...",
+  "localGallery_filterByDate": "Filter by date",
+  "localGallery_clearFilters": "Clear filters",
+
+  "slideshow_title": "Slideshow",
+  "slideshow_of": "of",
+  "slideshow_play": "Play",
+  "slideshow_pause": "Pause",
+  "slideshow_previous": "Previous",
+  "slideshow_next": "Next",
+  "slideshow_exit": "Exit (Esc)",
+  "slideshow_noImages": "No images to display",
+  "slideshow_keyboardHint": "Use ← → to navigate, Space to play/pause, Esc to exit",
+  "slideshow_autoPlayInterval": "Auto-play interval: {seconds}s",
+  "@slideshow_autoPlayInterval": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "comparison_title": "Image Comparison",
+  "comparison_noImages": "No images to display",
+  "comparison_tooManyImages": "Too many images",
+  "comparison_maxImages": "Maximum 4 images allowed for comparison",
+  "comparison_close": "Close comparison",
+  "comparison_zoomHint": "Pinch or scroll to zoom independently",
+  "comparison_loadError": "Failed to load image",
+
+  "statistics_title": "Statistics",
+  "statistics_tabOverview": "Overview",
+  "statistics_tabTrends": "Trends",
+  "statistics_tabDetails": "Details",
+  "statistics_noData": "No statistics available",
+  "statistics_generatedCount": "Generated",
+  "statistics_favoriteCount": "Favorites",
+  "statistics_tooltipGenerated": "Generated: {count}",
+  "@statistics_tooltipGenerated": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_tooltipFavorite": "Favorites: {count}",
+  "@statistics_tooltipFavorite": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_noTagData": "No tag data",
+  "statistics_generateFirst": "Generate some images first",
+  "statistics_overview": "Overview",
+  "statistics_totalImages": "Total Images",
+  "statistics_totalSize": "Total Size",
+  "statistics_favorites": "Favorites",
+  "statistics_tagged": "Tagged",
+  "statistics_modelDistribution": "Model Distribution",
+  "statistics_resolutionDistribution": "Resolution Distribution",
+  "statistics_samplerDistribution": "Sampler Distribution",
+  "statistics_sizeDistribution": "File Size Distribution",
+  "statistics_additionalStats": "Additional Statistics",
+  "statistics_averageFileSize": "Average File Size",
+  "statistics_withMetadata": "Images with Metadata",
+  "statistics_calculatedAt": "Calculated At",
+  "statistics_justNow": "Just now",
+  "statistics_minutesAgo": "{count} minutes ago",
+  "@statistics_minutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_hoursAgo": "{count} hours ago",
+  "@statistics_hoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_daysAgo": "{count} days ago",
+  "@statistics_daysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_anlasCost": "Anlas Cost",
+  "statistics_totalAnlasCost": "Total Cost",
+  "statistics_avgDailyCost": "Daily Average",
+  "statistics_noAnlasData": "No Anlas consumption data",
+  "statistics_peakActivity": "Peak Activity",
+  "statistics_timeMorning": "Morning",
+  "statistics_timeAfternoon": "Afternoon",
+  "statistics_timeEvening": "Evening",
+  "statistics_timeNight": "Night",
+
+  "localGallery_favoritesOnly": "Favorites Only",
+  "localGallery_noFavorites": "No favorites yet",
+  "localGallery_markAsFavorite": "Mark as Favorite",
+  "localGallery_removeFromFavorites": "Remove from Favorites",
+  "localGallery_tags": "Tags",
+  "localGallery_addTag": "Add Tag",
+  "localGallery_removeTag": "Remove Tag",
+  "localGallery_noTags": "No tags",
+  "localGallery_filterByTags": "Filter by Tags",
+  "localGallery_selectTags": "Select Tags",
+  "localGallery_tagFilterMatchAll": "Match All Tags",
+  "localGallery_tagFilterMatchAny": "Match Any Tag",
+  "localGallery_clearTagFilter": "Clear Tag Filter",
+  "localGallery_noTagsFound": "No tags found",
+  "localGallery_advancedFilters": "Advanced Filters",
+  "localGallery_filterByModel": "Filter by Model",
+  "localGallery_filterBySampler": "Filter by Sampler",
+  "localGallery_filterBySteps": "Filter by Steps",
+  "localGallery_filterByCfg": "Filter by CFG Scale",
+  "localGallery_filterByResolution": "Filter by Resolution",
+  "localGallery_model": "Model",
+  "localGallery_sampler": "Sampler",
+  "localGallery_steps": "Steps",
+  "localGallery_cfgScale": "CFG Scale",
+  "localGallery_resolution": "Resolution",
+  "localGallery_any": "Any",
+  "localGallery_custom": "Custom",
+  "localGallery_to": "to",
+  "localGallery_applyFilters": "Apply Filters",
+  "localGallery_resetAdvancedFilters": "Reset Advanced Filters",
+  "localGallery_exportMetadata": "Export Metadata",
+  "localGallery_exportSelected": "Export Selected",
+  "localGallery_exportFailed": "Export failed",
+  "localGallery_exporting": "Exporting...",
+  "localGallery_selectToExport": "Select images to export",
+  "localGallery_noImagesSelected": "No images selected",
+  "localGallery_exportSuccessDetail": "Exported {count} images with metadata",
+  "@localGallery_exportSuccessDetail": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "bulkExport_title": "Export {count} images",
+  "@bulkExport_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkExport_format": "Format",
+  "bulkExport_jsonFormat": "JSON",
+  "bulkExport_csvFormat": "CSV",
+  "bulkExport_metadataOptions": "Metadata Options",
+  "bulkExport_includeMetadata": "Include metadata",
+  "bulkExport_includeMetadataHint": "Export generation parameters with images",
+
+  "localGallery_group_today": "Today",
+  "localGallery_group_yesterday": "Yesterday",
+  "localGallery_group_thisWeek": "This Week",
+  "localGallery_group_earlier": "Earlier",
+  "localGallery_group_dateFormat": "MMM dd",
+  "localGallery_jumpToDate": "Jump to Date",
+  "localGallery_noImagesOnThisDate": "No images on this date",
+
+  "localGallery_selectedImagesNoPrompt": "Selected images have no prompt information",
+  "localGallery_addedTasksToQueue": "Added {count} tasks to queue",
+  "@localGallery_addedTasksToQueue": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_cannotOpenFolder": "Cannot open folder: {error}",
+  "@localGallery_cannotOpenFolder": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_jumpedToDate": "Jumped to {date}",
+  "@localGallery_jumpedToDate": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+
+  "localGallery_permissionRequiredTitle": "Storage Permission Required",
+  "localGallery_permissionRequiredContent": "Local gallery needs storage permission to scan your generated images.\n\nPlease grant permission in settings and try again.",
+  "localGallery_openSettings": "Open Settings",
+  "localGallery_firstTimeTipTitle": "💡 Tips",
+  "localGallery_firstTimeTipContent": "Right-click (desktop) or long-press (mobile) on images to:\n\n• Copy Prompt\n• Copy Seed\n• View full metadata",
+  "localGallery_gotIt": "Got it",
+  "localGallery_undone": "Undone",
+  "localGallery_redone": "Redone",
+  "localGallery_confirmBulkDelete": "Confirm Bulk Delete",
+  "localGallery_confirmBulkDeleteContent": "Are you sure you want to delete {count} selected images?\n\nThis will permanently remove them from the file system and cannot be undone.",
+  "@localGallery_confirmBulkDeleteContent": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_deletedImages": "Deleted {count} images",
+  "@localGallery_deletedImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_noFoldersAvailable": "No folders available, please create a folder first",
+  "localGallery_moveToFolder": "Move to Folder",
+  "localGallery_imageCount": "{count} images",
+  "@localGallery_imageCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_movedImages": "Moved {count} images",
+  "@localGallery_movedImages": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "localGallery_moveImagesFailed": "Failed to move images",
+  "localGallery_addedToCollection": "Added {count} images to collection \"{name}\"",
+  "@localGallery_addedToCollection": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_addToCollectionFailed": "Failed to add images to collection",
+
+  "brushPreset_selectHint": "Double tap to select this brush preset",
+  "brushPreset_selected": "Selected",
+  "brushPreset_pencil": "Pencil",
+  "brushPreset_fine": "Fine Brush",
+  "brushPreset_standard": "Standard Brush",
+  "brushPreset_soft": "Soft Brush",
+  "brushPreset_airbrush": "Airbrush",
+  "brushPreset_marker": "Marker",
+  "brushPreset_thick": "Thick Brush",
+  "brushPreset_smudge": "Smudge Brush",
+
+  "bulkProgress_progress": "Processing {current} of {total}",
+  "@bulkProgress_progress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "bulkProgress_success": "{count} succeeded",
+  "@bulkProgress_success": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_failed": "{count} failed",
+  "@bulkProgress_failed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_errors": "Errors:",
+  "bulkProgress_moreErrors": "...and {count} more errors",
+  "@bulkProgress_moreErrors": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completed": "{count} items completed",
+  "@bulkProgress_completed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkProgress_completedWithErrors": "{success} succeeded, {failed} failed",
+  "@bulkProgress_completedWithErrors": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "bulkProgress_title_delete": "Deleting Images",
+  "bulkProgress_title_export": "Exporting Metadata",
+  "bulkProgress_title_metadataEdit": "Editing Metadata",
+  "bulkProgress_title_addToCollection": "Adding to Collection",
+  "bulkProgress_title_removeFromCollection": "Removing from Collection",
+  "bulkProgress_title_toggleFavorite": "Updating Favorites",
+  "bulkProgress_title_default": "Processing",
+  "collectionSelect_dialogTitle": "Select Collection",
+  "collectionSelect_filterHint": "Search collections...",
+  "collectionSelect_noCollections": "No collections",
+  "collectionSelect_createCollectionHint": "Create a collection first",
+  "collectionSelect_noFilterResults": "No matching collections found",
+  "collectionSelect_imageCount": "{count} images",
+  "@collectionSelect_imageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "statistics_navOverview": "Overview",
+  "statistics_navModels": "Models",
+  "statistics_navTags": "Tags",
+  "statistics_navParameters": "Parameters",
+  "statistics_navTrends": "Trends",
+  "statistics_navActivity": "Activity",
+
+  "statistics_sectionTagAnalysis": "Tag Analysis",
+  "statistics_sectionParameterPrefs": "Parameter Preferences",
+  "statistics_sectionActivityAnalysis": "Activity Analysis",
+
+  "statistics_chartUsageDistribution": "Usage Distribution",
+  "statistics_chartModelRanking": "Model Ranking",
+  "statistics_chartModelUsageOverTime": "Model Usage Over Time",
+  "statistics_chartTopTags": "Top Tags",
+  "statistics_chartTagCloud": "Tag Cloud",
+  "statistics_chartParameterOverview": "Parameter Overview",
+  "statistics_chartAspectRatio": "Aspect Ratio Distribution",
+  "statistics_chartActivityHeatmap": "Activity Heatmap",
+  "statistics_chartHourlyDistribution": "Hourly Distribution",
+  "statistics_chartWeekdayDistribution": "Weekday Distribution",
+
+  "statistics_filterTitle": "Filters",
+  "statistics_filterClear": "Clear",
+  "statistics_filterDateRange": "Date Range",
+  "statistics_filterModel": "Model",
+  "statistics_filterAllModels": "All Models",
+  "statistics_filterResolution": "Resolution",
+  "statistics_filterAllResolutions": "All Resolutions",
+
+  "statistics_granularity": "Granularity",
+  "statistics_granularityDay": "Day",
+  "statistics_granularityWeek": "Week",
+  "statistics_granularityMonth": "Month",
+
+  "statistics_labelTotalDays": "Total Days",
+  "statistics_labelPeak": "Peak",
+  "statistics_labelAverage": "Average",
+  "statistics_labelSteps": "Steps",
+  "statistics_labelCfg": "CFG",
+  "statistics_labelWidth": "Width",
+  "statistics_labelHeight": "Height",
+  "statistics_labelFavPercent": "Fav%",
+  "statistics_labelTagPercent": "Tag%",
+
+  "statistics_aspectSquare": "Square",
+  "statistics_aspectLandscape": "Landscape",
+  "statistics_aspectPortrait": "Portrait",
+  "statistics_aspectOther": "Other",
+
+  "statistics_refresh": "Refresh",
+  "statistics_retry": "Retry",
+  "statistics_error": "Error: {error}",
+  "@statistics_error": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statistics_noMetadata": "No metadata available",
+  "statistics_unknown": "Unknown",
+
+  "statistics_weekLabel": "W{week}",
+  "@statistics_weekLabel": {
+    "placeholders": {
+      "week": {}
+    }
+  },
+
+  "statistics_peakHour": "Peak Hour",
+  "statistics_mostActiveDay": "Most Active Day",
+  "statistics_leastActiveDay": "Least Active Day",
+
+  "statistics_morning": "Morning",
+  "statistics_afternoon": "Afternoon",
+  "statistics_evening": "Evening",
+  "statistics_night": "Night",
+
+  "statistics_sunday": "Sun",
+  "statistics_monday": "Mon",
+  "statistics_tuesday": "Tue",
+  "statistics_wednesday": "Wed",
+  "statistics_thursday": "Thu",
+  "statistics_friday": "Fri",
+  "statistics_saturday": "Sat",
+
+  "fixedTags_label": "Fixed Tags",
+  "fixedTags_empty": "No fixed tags",
+  "fixedTags_emptyHint": "Click the button below to add fixed tags, they will be automatically applied to your prompts",
+  "fixedTags_clickToManage": "Click to manage fixed tags",
+  "fixedTags_manage": "Manage Fixed Tags",
+  "fixedTags_add": "Add",
+  "fixedTags_edit": "Edit Fixed Tag",
+  "fixedTags_openLibrary": "Open Library",
+  "fixedTags_prefix": "Prefix",
+  "fixedTags_suffix": "Suffix",
+  "fixedTags_prefixDesc": "Add before prompt",
+  "fixedTags_suffixDesc": "Add after prompt",
+  "fixedTags_disabled": "Disabled",
+  "fixedTags_weight": "Weight",
+  "fixedTags_position": "Position",
+  "fixedTags_name": "Name",
+  "fixedTags_nameHint": "Enter a display name (optional)",
+  "fixedTags_content": "Content",
+  "fixedTags_contentHint": "Enter prompt content, NAI syntax supported",
+  "fixedTags_syntaxHelp": "Supports NAI syntax for weight enhancement/reduction and tag alternation",
+  "fixedTags_resetWeight": "Reset to 1.0",
+  "fixedTags_weightPreview": "Weight preview:",
+  "fixedTags_deleteTitle": "Delete Fixed Tag",
+  "fixedTags_deleteConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@fixedTags_deleteConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "fixedTags_enabledCount": "{enabled}/{total} enabled",
+  "@fixedTags_enabledCount": {
+    "placeholders": {
+      "enabled": {},
+      "total": {}
+    }
+  },
+  "fixedTags_saveToLibrary": "Also save to library",
+  "fixedTags_saveToLibraryHint": "For reuse in the tag library later",
+  "fixedTags_saveToCategory": "Save to category",
+  "fixedTags_clearAll": "Clear All",
+  "fixedTags_clearAllTitle": "Clear All Fixed Tags",
+  "fixedTags_clearAllConfirm": "Are you sure you want to clear all {count} fixed tags? This action cannot be undone.",
+  "@fixedTags_clearAllConfirm": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "fixedTags_clearedSuccess": "All fixed tags cleared",
+
+  "common_rename": "Rename",
+  "common_create": "Create",
+
+  "tagLibrary_categories": "Categories",
+  "tagLibrary_newCategory": "New Category",
+  "tagLibrary_addEntry": "Add Entry",
+  "tagLibrary_editEntry": "Edit Entry",
+  "tagLibrary_searchHint": "Search entries...",
+  "tagLibrary_cardView": "Card View",
+  "tagLibrary_listView": "List View",
+  "tagLibrary_import": "Import",
+  "tagLibrary_export": "Export",
+  "tagLibrary_allEntries": "All",
+  "tagLibrary_favorites": "Favorites",
+  "tagLibrary_addSubCategory": "Add Subcategory",
+  "tagLibrary_moveToRoot": "Move to Root",
+  "tagLibrary_categoryNameHint": "Enter category name",
+  "tagLibrary_deleteCategoryTitle": "Delete Category",
+  "tagLibrary_deleteCategoryConfirm": "Are you sure you want to delete category \"{name}\"? {count} entries will be moved to root.",
+  "@tagLibrary_deleteCategoryConfirm": {
+    "placeholders": {
+      "name": {},
+      "count": {}
+    }
+  },
+  "tagLibrary_deleteEntryTitle": "Delete Entry",
+  "tagLibrary_deleteEntryConfirm": "Are you sure you want to delete entry \"{name}\"?",
+  "@tagLibrary_deleteEntryConfirm": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "tagLibrary_noSearchResults": "No matching entries found",
+  "tagLibrary_tryDifferentSearch": "Try different keywords",
+  "tagLibrary_categoryEmpty": "This category is empty",
+  "tagLibrary_empty": "Library is empty",
+  "tagLibrary_addFirstEntry": "Click the button above to add your first entry",
+
+  "tagLibraryPicker_title": "Select Entry",
+  "tagLibraryPicker_searchHint": "Search entries...",
+  "tagLibraryPicker_allCategories": "All Categories",
+
+  "tagLibrary_addToFixed": "Add to Fixed Tags",
+  "tagLibrary_addedToFixed": "Added to Fixed Tags",
+  "tagLibrary_entryMoved": "Entry moved to target category",
+  "tagLibrary_useCount": "Used {count} times",
+  "@tagLibrary_useCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tagLibrary_removeFavorite": "Remove from Favorites",
+  "tagLibrary_addFavorite": "Add to Favorites",
+  "tagLibrary_pinned": "Favorited",
+  "tagLibrary_thumbnail": "Thumbnail",
+  "tagLibrary_selectImage": "Select Image",
+  "tagLibrary_thumbnailHint": "Supports PNG/JPG/WEBP",
+  "tagLibrary_name": "Name",
+  "tagLibrary_nameHint": "Enter entry name",
+  "tagLibrary_category": "Category",
+  "tagLibrary_rootCategory": "Root",
+  "tagLibrary_tags": "Tags",
+  "tagLibrary_tagsHint": "Enter tags, separated by commas",
+  "tagLibrary_tagsHelper": "Tags are used for filtering and searching",
+  "tagLibrary_content": "Prompt Content",
+  "tagLibrary_contentHint": "Enter prompt content, supports autocomplete",
+
+  "settings_network": "Network",
+  "settings_enableProxy": "Enable Proxy",
+  "settings_proxyEnabled": "Enabled",
+  "settings_proxyDisabled": "Direct connection",
+  "settings_proxyMode": "Proxy Mode",
+  "settings_proxyModeAuto": "Auto-detect system proxy",
+  "settings_proxyModeManual": "Manual configuration",
+  "settings_auto": "Auto",
+  "settings_manual": "Manual",
+  "settings_proxyHost": "Proxy Host",
+  "settings_proxyPort": "Port",
+  "settings_proxyNotDetected": "No system proxy detected",
+  "settings_testConnection": "Test Connection",
+  "settings_testConnectionHint": "Click to test if proxy is working",
+  "settings_testSuccess": "Connection successful ({latency}ms)",
+  "@settings_testSuccess": {
+    "placeholders": {
+      "latency": {}
+    }
+  },
+  "settings_testFailed": "Connection failed: {error}",
+  "@settings_testFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settings_proxyRestartHint": "Proxy settings changed, restart recommended",
+
+  "tagLibrary_categoryNameExists": "Category name already exists",
+  "tagLibrary_addToLibrary": "Add to Library",
+  "tagLibrary_saveToLibrary": "Save to Library",
+  "tagLibrary_entrySaved": "Saved to library",
+  "tagLibrary_entryUpdated": "Entry updated",
+  "tagLibrary_uncategorized": "Uncategorized",
+  "tagLibrary_contentPreview": "Content Preview",
+  "tagLibrary_confirmAdd": "Confirm",
+  "tagLibrary_entryName": "Name",
+  "tagLibrary_entryNameHint": "Enter entry name",
+
+  "queue_title": "Queue",
+  "queue_management": "Queue Management",
+  "queue_empty": "Queue is empty",
+  "queue_emptyHint": "No tasks in the queue",
+  "queue_taskCount": "{count} tasks",
+  "@queue_taskCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_pending": "Pending",
+  "queue_running": "Running",
+  "queue_completed": "Completed",
+  "queue_failed": "Failed",
+  "queue_skipped": "Skipped",
+  "queue_paused": "Paused",
+  "queue_idle": "Idle",
+  "queue_ready": "Ready",
+  "queue_clickToStart": "Click to start queue execution",
+  "queue_clickToPause": "Click to pause queue",
+  "queue_clickToResume": "Click to resume execution",
+  "queue_noTasksToStart": "Queue is empty, cannot start",
+  "queue_allTasksCompleted": "All tasks completed",
+
+  "queue_executionProgress": "Execution Progress",
+  "queue_totalTasks": "Total",
+  "queue_completedTasks": "Completed",
+  "queue_failedTasks": "Failed",
+  "queue_remainingTasks": "Remaining",
+  "queue_estimatedTime": "Estimated: about {time}",
+  "@queue_estimatedTime": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "queue_seconds": "{count} seconds",
+  "@queue_seconds": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_minutes": "{count} minutes",
+  "@queue_minutes": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_hours": "{hours} hours {minutes} minutes",
+  "@queue_hours": {
+    "placeholders": {
+      "hours": {},
+      "minutes": {}
+    }
+  },
+
+  "queue_pause": "Pause",
+  "queue_resume": "Resume",
+  "queue_pauseExecution": "Pause Execution",
+  "queue_resumeExecution": "Resume Execution",
+  "queue_autoExecute": "Auto Execute",
+  "queue_autoExecuteOn": "Auto execute next task when completed",
+  "queue_autoExecuteOff": "Manual click required to generate",
+  "queue_taskInterval": "Task Interval",
+  "queue_taskIntervalHint": "Wait time between tasks (0-10 seconds)",
+
+  "queue_clearQueue": "Clear Queue",
+  "queue_closeFloatingButton": "Close Floating Button",
+  "queue_clearQueueConfirm": "Are you sure you want to clear all queue tasks? This action cannot be undone.",
+  "queue_confirmClear": "Confirm Clear",
+
+  "queue_failureStrategy": "Failure Strategy",
+  "queue_failureStrategyAutoRetry": "Auto Retry",
+  "queue_failureStrategyAutoRetryDesc": "Move task to queue end after max retries",
+  "queue_failureStrategySkip": "Skip",
+  "queue_failureStrategySkipDesc": "Move failed task to failed pool, continue next",
+  "queue_failureStrategyPause": "Pause and Wait",
+  "queue_failureStrategyPauseDesc": "Pause queue, wait for manual handling",
+
+  "queue_retryCount": "Retry {current}/{max}",
+  "@queue_retryCount": {
+    "placeholders": {
+      "current": {},
+      "max": {}
+    }
+  },
+  "queue_retry": "Retry",
+  "queue_requeue": "Requeue",
+  "queue_requeueToEnd": "Move to queue end",
+  "queue_clearFailedTasks": "Clear All",
+  "queue_noFailedTasks": "No failed tasks",
+  "queue_noCompletedTasks": "No completed records",
+
+  "queue_editTask": "Edit Task",
+  "queue_duplicateTask": "Duplicate Task",
+  "queue_taskDuplicated": "Task duplicated",
+  "queue_queueFull": "Queue is full, cannot duplicate",
+  "queue_positivePrompt": "Positive Prompt",
+  "queue_enterPositivePrompt": "Enter positive prompt...",
+  "queue_parametersPreview": "Parameters Preview",
+  "queue_model": "Model",
+  "queue_seed": "Seed",
+  "queue_sampler": "Sampler",
+  "queue_steps": "Steps",
+  "queue_cfg": "CFG",
+  "queue_size": "Size",
+  "queue_addToQueue": "Add to Queue",
+  "queue_taskAdded": "Added to queue",
+  "queue_negativePromptFromMain": "Negative prompt will use main page settings",
+
+  "queue_pinToTop": "Pin to Top",
+  "queue_delete": "Delete",
+  "queue_edit": "Edit",
+  "queue_selectAll": "Select All",
+  "queue_invertSelection": "Invert",
+  "queue_cancelSelection": "Cancel",
+  "queue_selectedCount": "{count} selected",
+  "@queue_selectedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_batchDelete": "Delete Selected",
+  "queue_batchPinToTop": "Pin Selected",
+  "queue_confirmDeleteSelected": "Are you sure you want to delete {count} selected tasks?",
+  "@queue_confirmDeleteSelected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "queue_export": "Export",
+  "queue_import": "Import",
+  "queue_exportImport": "Import/Export Queue",
+  "queue_exportFormat": "Export Format",
+  "queue_exportFormatJson": "JSON",
+  "queue_exportFormatJsonDesc": "Complete data with all parameters",
+  "queue_exportFormatCsv": "CSV",
+  "queue_exportFormatCsvDesc": "Table format with prompts and basic info",
+  "queue_exportFormatText": "Plain Text",
+  "queue_exportFormatTextDesc": "Prompts only, one per line",
+  "queue_importStrategy": "Import Strategy",
+  "queue_importStrategyMerge": "Merge",
+  "queue_importStrategyMergeDesc": "Add imported tasks to end of existing queue",
+  "queue_importStrategyReplace": "Replace",
+  "queue_importStrategyReplaceDesc": "Clear existing queue and replace with imported",
+  "queue_supportedFormats": "Supported formats:",
+  "queue_exportSuccess": "Export successful",
+  "queue_exportFailed": "Export failed: {error}",
+  "@queue_exportFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "queue_importSuccess": "Successfully imported {count} tasks",
+  "@queue_importSuccess": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_importFailed": "Import failed: {error}",
+  "@queue_importFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "queue_selectFile": "Select file to import",
+  "queue_noValidTasks": "No valid tasks in file",
+
+  "queue_settings": "Queue Settings",
+  "queue_currentQueueInfo": "Current queue contains {count} tasks",
+  "@queue_currentQueueInfo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+
+  "queue_tooltipTasksTotal": "Tasks: {count}",
+  "@queue_tooltipTasksTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipCompleted": "Completed: {count}",
+  "@queue_tooltipCompleted": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipFailed": "Failed: {count}",
+  "@queue_tooltipFailed": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_tooltipCurrentTask": "Current: {task}",
+  "@queue_tooltipCurrentTask": {
+    "placeholders": {
+      "task": {}
+    }
+  },
+  "queue_tooltipNoTasks": "No tasks in queue",
+  "queue_tooltipDoubleClickToOpen": "Double-click to start/pause",
+  "queue_tooltipClickToToggle": "Click to open queue",
+  "queue_tooltipDragToMove": "Drag to reposition",
+  "queue_statusIdle": "Status: Idle",
+  "queue_statusReady": "Status: Ready",
+  "queue_statusRunning": "Status: Running",
+  "queue_statusPaused": "Status: Paused",
+  "queue_statusCompleted": "Status: Completed",
+
+  "settings_notification": "Sound",
+  "settings_notificationSound": "Completion Sound",
+  "settings_notificationSoundSubtitle": "Play sound when generation completes",
+  "settings_notificationCustomSound": "Custom Sound",
+  "settings_notificationCustomSoundSubtitle": "Select custom sound file",
+  "settings_notificationSelectSound": "Select Sound",
+  "settings_notificationResetSound": "Reset to Default",
+
+  "categoryConfiguration": "Category Configuration",
+  "resetToDefault": "Reset to Default",
+  "resetToDefaultTooltip": "Reset to default configuration",
+  "resetToDefaultConfirmTitle": "Reset to Default",
+  "resetToDefaultConfirmContent": "This will restore official default configuration. Your custom groups will be kept but disabled.",
+  "groupEnabled": "Group enabled",
+  "groupDisabled": "Group disabled",
+  "toggleGroupEnabled": "Toggle group enabled state",
+  "diyNotAvailableForDefault": "DIY not available for default preset",
+  "diyNotAvailableHint": "Please copy to a custom preset to edit",
+  "customGroupDisabledAfterReset": "Custom group (disabled)",
+  "confirmReset": "Confirm Reset",
+
+  "alias_hintText": "Enter prompts, or use <library name> to reference library content",
+  "alias_libraryCategory": "Library",
+  "alias_tagCount": "{count} tags",
+  "@alias_tagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "alias_useCount": "Used {count} times",
+  "@alias_useCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "alias_favorited": "Favorited",
+
+  "statistics_heatmapLess": "Less",
+  "statistics_heatmapMore": "More",
+  "statistics_heatmapWeekLabel": "Week",
+  "statistics_heatmapActivities": "{count} activities",
+  "@statistics_heatmapActivities": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statistics_heatmapNoActivity": "No activity",
+
+  "sendToHome_dialogTitle": "Send to Home",
+  "sendToHome_mainPrompt": "Send to Main Prompt",
+  "sendToHome_mainPromptSubtitle": "Fill into the main prompt input field",
+  "sendToHome_replaceCharacter": "Replace Character Prompt",
+  "sendToHome_replaceCharacterSubtitle": "Clear existing characters and add as new",
+  "sendToHome_appendCharacter": "Append Character Prompt",
+  "sendToHome_appendCharacterSubtitle": "Keep existing characters and append new",
+  "sendToHome_successMainPrompt": "Sent to main prompt",
+  "sendToHome_successReplaceCharacter": "Character prompt replaced",
+  "sendToHome_successAppendCharacter": "Character prompt appended",
+
+  "metadataImport_title": "Select Parameters to Import",
+  "metadataImport_promptsSection": "Prompts",
+  "metadataImport_generationSection": "Generation Parameters",
+  "metadataImport_advancedSection": "Advanced Options",
+  "metadataImport_selectAll": "Select All",
+  "metadataImport_deselectAll": "Deselect All",
+  "metadataImport_promptsOnly": "Prompts Only",
+  "metadataImport_generationOnly": "Generation Only",
+  "metadataImport_prompt": "Positive Prompt",
+  "metadataImport_negativePrompt": "Negative Prompt",
+  "metadataImport_characterPrompts": "Character Prompts",
+  "metadataImport_seed": "Seed",
+  "metadataImport_steps": "Steps",
+  "metadataImport_scale": "CFG Scale",
+  "metadataImport_size": "Size",
+  "metadataImport_sampler": "Sampler",
+  "metadataImport_model": "Model",
+  "metadataImport_smea": "SMEA",
+  "metadataImport_smeaDyn": "SMEA Dyn",
+  "metadataImport_noiseSchedule": "Noise Schedule",
+  "metadataImport_cfgRescale": "CFG Rescale",
+  "metadataImport_qualityToggle": "Quality Toggle",
+  "metadataImport_ucPreset": "UC Preset",
+  "metadataImport_noData": "(no data)",
+  "metadataImport_selectedCount": "{count} selected",
+  "@metadataImport_selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_noDataFound": "No NovelAI metadata found",
+  "metadataImport_noParamsSelected": "No parameters selected",
+  "metadataImport_appliedCount": "Applied {count} parameters",
+  "@metadataImport_appliedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_appliedTitle": "Metadata Applied",
+  "metadataImport_appliedDescription": "The following parameters have been applied:",
+  "metadataImport_charactersCount": "characters",
+  "metadataImport_extractFailed": "Failed to extract metadata: {error}",
+  "@metadataImport_extractFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "metadataImport_appliedToMain": "Applied {count} parameters to main screen",
+  "@metadataImport_appliedToMain": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "metadataImport_quickSelectHint": "Click buttons above to quickly select parameter types",
+
+  "shortcut_context_global": "Global",
+  "shortcut_context_generation": "Generation",
+  "shortcut_context_gallery": "Gallery List",
+  "shortcut_context_viewer": "Image Viewer",
+  "shortcut_context_tag_library": "Tag Library",
+  "shortcut_context_random_config": "Random Config",
+  "shortcut_context_settings": "Settings",
+  "shortcut_context_input": "Input Field",
+
+  "shortcut_action_navigate_to_generation": "Generation Page",
+  "shortcut_action_navigate_to_local_gallery": "Local Gallery",
+  "shortcut_action_navigate_to_online_gallery": "Online Gallery",
+  "shortcut_action_navigate_to_random_config": "Random Config",
+  "shortcut_action_navigate_to_tag_library": "Tag Library",
+  "shortcut_action_navigate_to_statistics": "Statistics",
+  "shortcut_action_navigate_to_settings": "Settings",
+  "shortcut_action_generate_image": "Generate Image",
+  "shortcut_action_cancel_generation": "Cancel Generation",
+  "shortcut_action_add_to_queue": "Add to Queue",
+  "shortcut_action_random_prompt": "Random Prompt",
+  "shortcut_action_clear_prompt": "Clear Prompt",
+  "shortcut_action_toggle_prompt_mode": "Toggle Prompt Mode",
+  "shortcut_action_open_tag_library": "Open Tag Library",
+  "shortcut_action_save_image": "Save Image",
+  "shortcut_action_upscale_image": "Upscale Image",
+  "shortcut_action_copy_image": "Copy Image",
+  "shortcut_action_fullscreen_preview": "Fullscreen Preview",
+  "shortcut_action_open_params_panel": "Open Params Panel",
+  "shortcut_action_open_history_panel": "Open History Panel",
+  "shortcut_action_reuse_params": "Reuse Parameters",
+  "shortcut_action_previous_image": "Previous Image",
+  "shortcut_action_next_image": "Next Image",
+  "shortcut_action_zoom_in": "Zoom In",
+  "shortcut_action_zoom_out": "Zoom Out",
+  "shortcut_action_reset_zoom": "Reset Zoom",
+  "shortcut_action_toggle_fullscreen": "Toggle Fullscreen",
+  "shortcut_action_close_viewer": "Close Viewer",
+  "shortcut_action_toggle_favorite": "Toggle Favorite",
+  "shortcut_action_copy_prompt": "Copy Prompt",
+  "shortcut_action_reuse_gallery_params": "Reuse Parameters",
+  "shortcut_action_delete_image": "Delete Image",
+  "shortcut_action_previous_page": "Previous Page",
+  "shortcut_action_next_page": "Next Page",
+  "shortcut_action_refresh_gallery": "Refresh Gallery",
+  "shortcut_action_focus_search": "Focus Search",
+  "shortcut_action_enter_selection_mode": "Enter Selection Mode",
+  "shortcut_action_open_filter_panel": "Open Filter Panel",
+  "shortcut_action_clear_filter": "Clear Filter",
+  "shortcut_action_toggle_category_panel": "Toggle Category Panel",
+  "shortcut_action_jump_to_date": "Jump to Date",
+  "shortcut_action_open_folder": "Open Folder",
+  "shortcut_action_select_all_tags": "Select All Tags",
+  "shortcut_action_deselect_all_tags": "Deselect All Tags",
+  "shortcut_action_new_category": "New Category",
+  "shortcut_action_new_tag": "New Tag",
+  "shortcut_action_search_tags": "Search Tags",
+  "shortcut_action_batch_delete_tags": "Batch Delete Tags",
+  "shortcut_action_batch_copy_tags": "Batch Copy Tags",
+  "shortcut_action_send_to_home": "Send to Home",
+  "shortcut_action_exit_selection_mode": "Exit Selection Mode",
+  "shortcut_action_sync_danbooru": "Sync Danbooru",
+  "shortcut_action_generate_preview": "Generate Preview",
+  "shortcut_action_search_presets": "Search Presets",
+  "shortcut_action_new_preset": "New Preset",
+  "shortcut_action_duplicate_preset": "Duplicate Preset",
+  "shortcut_action_delete_preset": "Delete Preset",
+  "shortcut_action_close_config": "Close Config",
+  "shortcut_action_minimize_to_tray": "Minimize to Tray",
+  "shortcut_action_quit_app": "Quit Application",
+  "shortcut_action_show_shortcut_help": "Show Shortcut Help",
+  "shortcut_action_toggle_queue": "Toggle Queue",
+  "shortcut_action_toggle_queue_pause": "Toggle Queue Pause",
+  "shortcut_action_toggle_theme": "Toggle Theme",
+
+  "shortcut_settings_title": "Keyboard Shortcuts",
+  "shortcut_settings_description": "Customize keyboard shortcuts for quick access",
+  "shortcut_settings_enable": "Enable Shortcuts",
+  "shortcut_settings_show_badges": "Show Shortcut Badges",
+  "shortcut_settings_show_in_tooltips": "Show in Tooltips",
+  "shortcut_settings_reset_all": "Reset All to Default",
+  "shortcut_settings_search": "Search shortcuts...",
+  "shortcut_settings_no_results": "No shortcuts found",
+  "shortcut_settings_press_key": "Press key combination...",
+  "shortcut_settings_conflict": "Conflict with: {action}",
+  "@shortcut_settings_conflict": {
+    "placeholders": {
+      "action": {}
+    }
+  },
+  "shortcut_help_title": "Keyboard Shortcuts Help",
+  "shortcut_help_search": "Search shortcuts...",
+  "shortcut_help_customize": "Customize Shortcuts",
+
+  "drop_dialogTitle": "How to use this image?",
+  "drop_hint": "Drop image here",
+  "drop_img2img": "Image to Image",
+  "drop_vibeTransfer": "Vibe Transfer",
+  "drop_characterReference": "Precise Reference",
+  "drop_unsupportedFormat": "Unsupported file format",
+  "drop_addedToImg2Img": "Added to Image to Image",
+  "drop_addedToVibe": "Added to Vibe Transfer",
+  "drop_addedMultipleToVibe": "Added {count} vibe references",
+  "@drop_addedMultipleToVibe": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "drop_addedToCharacterRef": "Added to Precise Reference",
+  "drop_extractMetadata": "Extract Metadata",
+  "drop_extractMetadataSubtitle": "Read Prompt, Seed and other parameters from image",
+  "drop_addToQueue": "Add to Queue",
+  "drop_addToQueueSubtitle": "Extract positive prompt and add to generation queue",
+  "drop_vibeDetected": "Pre-encoded Vibe detected (saves 2 Anlas)",
+  "drop_vibeStrength": "Strength: {value}%",
+  "@drop_vibeStrength": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "drop_vibeInfoExtracted": "Info Extracted: {value}%",
+  "@drop_vibeInfoExtracted": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "drop_reuseVibe": "Reuse Vibe",
+  "drop_reuseVibeSubtitle": "Use pre-encoded data directly (free)",
+  "drop_useAsRawImage": "Use as Raw Image",
+  "drop_useAsRawImageSubtitle": "Re-encode (costs 2 Anlas)",
+
+  "preciseRef_title": "Precise Reference",
+  "preciseRef_description": "Add reference images and set type and parameters. Multiple references can be used simultaneously.",
+  "preciseRef_addReference": "Add Reference",
+  "preciseRef_clearAll": "Clear All",
+  "preciseRef_remove": "Remove",
+  "preciseRef_referenceType": "Reference Type",
+  "preciseRef_strength": "Strength",
+  "preciseRef_fidelity": "Fidelity",
+  "preciseRef_v4Only": "This feature requires V4+ models",
+  "preciseRef_typeCharacter": "Character",
+  "preciseRef_typeStyle": "Style",
+  "preciseRef_typeCharacterAndStyle": "Character + Style",
+
+  "vibeLibrary_title": "Vibe Library",
+  "vibeLibrary_save": "Save to Library",
+  "vibeLibrary_import": "Import Vibe",
+  "vibeLibrary_searchHint": "Search name, tags...",
+  "vibeLibrary_empty": "Vibe Library is empty",
+  "vibeLibrary_emptyHint": "Add some entries to Vibe Library first",
+  "vibe_export_title": "Export Vibe",
+  "vibe_export_format": "Export Format",
+  "vibe_selector_title": "Select Vibe",
+  "vibe_selector_recent": "Recent",
+  "vibe_category_add": "Add Category",
+  "vibe_category_rename": "Rename Category",
+  "drop_vibe_detected": "Vibe image detected",
+  "drop_reuse_vibe": "Reuse Vibe",
+  "drop_save_anlas": "Save {cost} Anlas",
+  "@drop_save_anlas": {
+    "placeholders": {
+      "cost": {"type": "int"}
+    }
+  },
+
+  "vibe_export_include_thumbnails": "Include Thumbnails",
+  "vibe_export_include_thumbnails_subtitle": "Include thumbnail preview in export file",
+  "vibe_import_skip": "Skip",
+  "vibe_import_confirm": "Confirm",
+  "bundle_internalVibes": "Internal Vibes",
+  "shortcuts_customize": "Customize Shortcuts",
+  "gallery_send_to": "Send To",
+  "image_editor_select_tool": "Select Tool",
+  "selection_clear_selection": "Clear Selection",
+  "selection_invert_selection": "Invert Selection",
+  "search_results": "Search Results",
+  "search_noResults": "No matching results",
+  "addToCurrent": "Add to Current",
+  "replaceExisting": "Replace Existing",
+  "confirmSelection": "Confirm Selection",
+  "selectAll": "Select All",
+  "clearSelection": "Clear",
+  "clearFilters": "Clear Filters",
+
+  "shortcut_context_vibe_detail": "Vibe Detail",
+  "shortcut_action_vibe_detail_send_to_generation": "Send to Generation",
+  "shortcut_action_vibe_detail_export": "Export",
+  "shortcut_action_vibe_detail_rename": "Rename",
+  "shortcut_action_vibe_detail_delete": "Delete",
+  "shortcut_action_vibe_detail_toggle_favorite": "Toggle Favorite",
+  "shortcut_action_vibe_detail_prev_sub_vibe": "Previous Sub Vibe",
+  "shortcut_action_vibe_detail_next_sub_vibe": "Next Sub Vibe",
+  "shortcut_action_navigate_to_vibe_library": "Vibe Library",
+  "shortcut_action_vibe_import": "Import Vibe",
+  "shortcut_action_vibe_export": "Export Vibe",
+
+  "vibeSelectorFilterFavorites": "Favorites",
+  "vibeSelectorFilterSourceAll": "All Types",
+  "vibeSelectorSortCreated": "Created",
+  "vibeSelectorSortLastUsed": "Last Used",
+  "vibeSelectorSortUsedCount": "Usage Count",
+  "vibeSelectorSortName": "Name",
+  "vibeSelectorItemsCount": "{count} items",
+  "@vibeSelectorItemsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
+
 }

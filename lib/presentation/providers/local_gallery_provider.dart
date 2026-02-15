@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/services/gallery/gallery_scan_service.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -14,263 +17,505 @@ part 'local_gallery_provider.g.dart';
 @freezed
 class LocalGalleryState with _$LocalGalleryState {
   const factory LocalGalleryState({
-    /// 所有文件（原始列表）
+    /// 所有文件
     @Default([]) List<File> allFiles,
-    /// 过滤后的文件列表
+    /// 过滤后的文件
     @Default([]) List<File> filteredFiles,
-    /// 当前页显示的图片记录
+    /// 当前页显示的记录
     @Default([]) List<LocalImageRecord> currentImages,
     @Default(0) int currentPage,
     @Default(50) int pageSize,
-    @Default(false) bool isIndexing,
-    @Default(false) bool isPageLoading,
-    /// 搜索关键词（匹配文件名和 Prompt）
+    @Default(false) bool isLoading,
+    @Default(false) bool isIndexing,      // 用于兼容旧代码
+    @Default(false) bool isPageLoading,   // 用于兼容旧代码
+    /// 搜索关键词
     @Default('') String searchQuery,
-    /// 日期过滤：开始日期
+    /// 日期过滤
     DateTime? dateStart,
-    /// 日期过滤：结束日期
     DateTime? dateEnd,
+    /// 收藏过滤
+    @Default(false) bool showFavoritesOnly,
+    /// Vibe过滤
+    @Default(false) bool vibeOnly,
+    /// 标签过滤
+    @Default([]) List<String> selectedTags,
+    /// 元数据过滤
+    String? filterModel,
+    String? filterSampler,
+    int? filterMinSteps,
+    int? filterMaxSteps,
+    double? filterMinCfg,
+    double? filterMaxCfg,
+    String? filterResolution,
+    /// 分组视图（兼容旧代码）
+    @Default(false) bool isGroupedView,
+    @Default([]) List<LocalImageRecord> groupedImages,
+    @Default(false) bool isGroupedLoading,
+    /// 后台扫描进度（0-100，null表示未开始）
+    double? backgroundScanProgress,
+    /// 扫描阶段：'checking' | 'indexing' | 'completed' | null
+    String? scanPhase,
+    /// 当前扫描的文件
+    String? scanningFile,
+    /// 已扫描文件数
+    @Default(0) int scannedCount,
+    /// 总文件数
+    @Default(0) int totalScanCount,
+    /// 是否正在重建索引（全量扫描）
+    @Default(false) bool isRebuildingIndex,
+    /// 错误信息
     String? error,
   }) = _LocalGalleryState;
-  
+
   const LocalGalleryState._();
-  
-  /// 总页数（基于过滤后的文件）
-  int get totalPages => filteredFiles.isEmpty ? 0 : (filteredFiles.length / pageSize).ceil();
-  
-  /// 是否有过滤条件
-  bool get hasFilters => searchQuery.isNotEmpty || dateStart != null || dateEnd != null;
-  
-  /// 过滤后的图片数量
+
+  int get totalPages => filteredFiles.isEmpty
+      ? 0
+      : (filteredFiles.length / pageSize).ceil();
+
+  /// 兼容旧代码的 getter
   int get filteredCount => filteredFiles.length;
-  
-  /// 总图片数量
   int get totalCount => allFiles.length;
+
+  bool get hasFilters =>
+      searchQuery.isNotEmpty ||
+      dateStart != null ||
+      dateEnd != null ||
+      showFavoritesOnly ||
+      vibeOnly ||
+      selectedTags.isNotEmpty ||
+      filterModel != null ||
+      filterSampler != null ||
+      filterMinSteps != null ||
+      filterMaxSteps != null ||
+      filterMinCfg != null ||
+      filterMaxCfg != null ||
+      filterResolution != null;
 }
 
-/// 本地画廊 Notifier
+/// 本地画廊 Notifier（简化版）
+///
+/// 依赖关系：
+/// - LocalGalleryRepository: 数据操作
+/// - SQLite (via Repository): 唯一数据源
+/// - FileWatcherService (via Repository): 自动增量更新
 @Riverpod(keepAlive: true)
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
-  final _repository = LocalGalleryRepository.instance;
-  
-  /// 缓存：文件路径 -> LocalImageRecord（用于搜索 Prompt）
-  final Map<String, LocalImageRecord> _recordCache = {};
+  late final LocalGalleryRepository _repo;
 
   @override
   LocalGalleryState build() {
+    _repo = LocalGalleryRepository.instance;
     return const LocalGalleryState();
   }
 
-  /// 初始化：快速索引文件 + 加载首页
+  // ============================================================
+  // 初始化
+  // ============================================================
+
+  /// 初始化画廊（优化启动速度）
+  ///
+  /// 1. 立即显示文件列表（从文件系统读取）
+  /// 2. 后台扫描索引文件
+  /// 3. 后台继续扫描剩余文件
   Future<void> initialize() async {
     if (state.allFiles.isNotEmpty) return;
-    state = state.copyWith(isIndexing: true, error: null);
+
+    state = state.copyWith(
+      isLoading: true,
+      isIndexing: true,
+      isPageLoading: true,
+      backgroundScanProgress: 0.0,
+    );
+
     try {
-      final files = await _repository.getAllImageFiles();
+      // 【关键】先加载文件列表，让用户立即看到图片
+      // 这一步不依赖数据库，直接从文件系统读取
+      final files = await _repo.getAllImageFiles();
       state = state.copyWith(
         allFiles: files,
-        filteredFiles: files, // 初始无过滤
-        isIndexing: false,
+        filteredFiles: files,
+        isLoading: false,  // 文件列表已显示，可以交互了
       );
+
+      // 加载首页（显示图片）
       await loadPage(0);
+
+      // 在后台初始化仓库（扫描索引）
+      // 这不会阻塞UI，因为文件已经显示了
+      unawaited(_initializeInBackground());
+
     } catch (e) {
-      state = state.copyWith(error: e.toString(), isIndexing: false);
+      AppLogger.e('Failed to initialize', e, null, 'LocalGalleryNotifier');
+      state = state.copyWith(
+        error: e.toString(),
+        isLoading: false,
+        isIndexing: false,
+        isPageLoading: false,
+        backgroundScanProgress: null,
+      );
     }
   }
 
-  /// 加载指定页面
-  Future<void> loadPage(int page) async {
-    // Handle empty list case (totalPages is 0)
-    if (state.filteredFiles.isEmpty) {
-       state = state.copyWith(currentImages: [], isPageLoading: false, currentPage: 0);
-       return;
+  /// 后台初始化（扫描索引）
+  Future<void> _initializeInBackground() async {
+    try {
+      // 初始化仓库（快速扫描 + 后台完整扫描）
+      await _repo.initialize(onProgress: _onScanProgress);
+
+      // 扫描完成后，静默刷新当前页以显示元数据（不显示加载中）
+      state = state.copyWith(
+        isIndexing: false,
+        isPageLoading: false,
+      );
+      // 后台刷新，不显示加载状态，避免干扰用户浏览
+      await loadPage(state.currentPage, showLoading: false);
+      
+      // 延迟清理扫描状态（让用户看到 100% 完成）
+      Future.delayed(const Duration(seconds: 2), () {
+        if (state.scanPhase == 'completed') {
+          state = state.copyWith(
+            backgroundScanProgress: null,
+            scanPhase: null,
+            scanningFile: null,
+          );
+        }
+      });
+    } catch (e) {
+      AppLogger.w('Background initialization failed: $e', 'LocalGalleryNotifier');
+      state = state.copyWith(
+        isIndexing: false,
+        isPageLoading: false,
+        backgroundScanProgress: null,
+        scanPhase: null,
+      );
     }
-    
+  }
+
+  /// 处理扫描进度回调
+  void _onScanProgress({
+    required int processed,
+    required int total,
+    String? currentFile,
+    required String phase,
+  }) {
+    // 如果是 'pending' 阶段，表示有大量文件待处理，跳过预热阶段
+    if (phase == 'pending') {
+      state = state.copyWith(
+        scanPhase: 'pending',
+        totalScanCount: total,
+        isIndexing: false, // 用户可立即交互
+      );
+      return;
+    }
+
+    final progress = total > 0 ? processed / total : 0.0;
+    state = state.copyWith(
+      backgroundScanProgress: progress,
+      scanPhase: phase,
+      scanningFile: currentFile,
+      scannedCount: processed,
+      totalScanCount: total,
+    );
+
+    // 扫描完成时清理状态
+    if (phase == 'completed') {
+      Future.delayed(const Duration(seconds: 2), () {
+        state = state.copyWith(
+          backgroundScanProgress: null,
+          scanPhase: null,
+          scanningFile: null,
+        );
+      });
+    }
+  }
+
+  // ============================================================
+  // 数据加载
+  // ============================================================
+
+  /// 加载指定页面
+  /// 
+  /// [showLoading] - 是否显示加载状态。后台刷新时应为 false，避免干扰用户浏览
+  Future<void> loadPage(int page, {bool showLoading = true}) async {
+    if (state.filteredFiles.isEmpty) {
+      state = state.copyWith(currentImages: [], currentPage: 0);
+      return;
+    }
     if (page < 0 || page >= state.totalPages) return;
-    
-    state = state.copyWith(isPageLoading: true, currentPage: page);
+
+    if (showLoading) {
+      state = state.copyWith(isLoading: true, currentPage: page);
+    }
     try {
       final start = page * state.pageSize;
       final end = min(start + state.pageSize, state.filteredFiles.length);
       final batch = state.filteredFiles.sublist(start, end);
-      
-      final records = await _repository.loadRecords(batch);
-      
-      // 缓存记录用于搜索
-      for (final record in records) {
-        _recordCache[record.path] = record;
-      }
-      
-      state = state.copyWith(currentImages: records, isPageLoading: false);
+
+      final records = await _repo.loadRecords(batch);
+      state = state.copyWith(currentImages: records, isLoading: false);
     } catch (e) {
-       state = state.copyWith(isPageLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, isIndexing: false, isPageLoading: false);
     }
   }
 
-  /// 设置搜索关键词
+  /// 刷新（增量扫描）
+  Future<void> refresh() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repo.performIncrementalScan();
+      final files = await _repo.getAllImageFiles();
+      state = state.copyWith(allFiles: files, isLoading: false);
+      await _applyFilters();
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
+
+  /// 取消令牌，用于取消重建索引
+  bool _shouldCancelRebuild = false;
+
+  /// 重建索引（全量扫描）
+  /// 返回扫描结果，调用方应根据结果显示 Toast
+  Future<ScanResult?> performFullScan() async {
+    if (state.isRebuildingIndex) {
+      // 如果已经在重建中，则取消
+      _shouldCancelRebuild = true;
+      return null;
+    }
+
+    _shouldCancelRebuild = false;
+    state = state.copyWith(isRebuildingIndex: true, isLoading: true);
+    
+    try {
+      final result = await _repo.performFullScan(
+        onProgress: ({required processed, required total, currentFile, required phase}) {
+          // 检查是否被取消
+          if (_shouldCancelRebuild) {
+            return; // 忽略进度更新
+          }
+          _onScanProgress(
+            processed: processed,
+            total: total,
+            currentFile: currentFile,
+            phase: phase,
+          );
+        },
+      );
+      
+      if (_shouldCancelRebuild) {
+        AppLogger.i('Rebuild index cancelled by user', 'LocalGalleryNotifier');
+        state = state.copyWith(
+          isLoading: false,
+          isRebuildingIndex: false,
+        );
+        return null;
+      }
+      
+      final files = await _repo.getAllImageFiles();
+      state = state.copyWith(
+        allFiles: files,
+        isLoading: false,
+        isRebuildingIndex: false,
+      );
+      await _applyFilters();
+      return result;
+    } catch (e) {
+      state = state.copyWith(
+        error: e.toString(),
+        isLoading: false,
+        isRebuildingIndex: false,
+      );
+      return null;
+    }
+  }
+
+  // ============================================================
+  // 搜索和过滤
+  // ============================================================
+
   Future<void> setSearchQuery(String query) async {
     if (state.searchQuery == query) return;
-    
-    state = state.copyWith(searchQuery: query, isPageLoading: true);
+    state = state.copyWith(searchQuery: query);
     await _applyFilters();
   }
-  
-  /// 设置日期范围过滤
+
   Future<void> setDateRange(DateTime? start, DateTime? end) async {
     if (state.dateStart == start && state.dateEnd == end) return;
-    
-    state = state.copyWith(dateStart: start, dateEnd: end, isPageLoading: true);
+    state = state.copyWith(dateStart: start, dateEnd: end);
     await _applyFilters();
   }
-  
-  /// 清除日期过滤
-  Future<void> clearDateFilter() async {
-    await setDateRange(null, null);
+
+  Future<void> setShowFavoritesOnly(bool value) async {
+    if (state.showFavoritesOnly == value) return;
+    state = state.copyWith(showFavoritesOnly: value);
+    await _applyFilters();
   }
-  
-  /// 清除所有过滤条件
+
+  Future<void> toggleVibeOnly() async {
+    state = state.copyWith(vibeOnly: !state.vibeOnly);
+    await _applyFilters();
+  }
+
+  Future<void> setPageSize(int size) async {
+    if (state.pageSize == size) return;
+    state = state.copyWith(pageSize: size, currentPage: 0);
+    await loadPage(0);
+  }
+
+  Future<void> setFilterModel(String? model) async {
+    state = state.copyWith(filterModel: model);
+    await _applyFilters();
+  }
+
+  Future<void> setFilterSampler(String? sampler) async {
+    state = state.copyWith(filterSampler: sampler);
+    await _applyFilters();
+  }
+
+  Future<void> setFilterSteps(int? min, int? max) async {
+    state = state.copyWith(filterMinSteps: min, filterMaxSteps: max);
+    await _applyFilters();
+  }
+
+  Future<void> setFilterCfg(double? min, double? max) async {
+    state = state.copyWith(filterMinCfg: min, filterMaxCfg: max);
+    await _applyFilters();
+  }
+
+  Future<void> setFilterResolution(String? resolution) async {
+    state = state.copyWith(filterResolution: resolution);
+    await _applyFilters();
+  }
+
+  /// 设置分组视图
+  Future<void> setGroupedView(bool value) async {
+    state = state.copyWith(isGroupedView: value);
+    if (value) {
+      await _loadGroupedImages();
+    } else {
+      await loadPage(state.currentPage);
+    }
+  }
+
+  Future<void> _loadGroupedImages() async {
+    state = state.copyWith(isGroupedLoading: true);
+    try {
+      final records = await _repo.loadRecords(state.filteredFiles);
+      state = state.copyWith(groupedImages: records, isGroupedLoading: false);
+    } catch (e) {
+      state = state.copyWith(isGroupedLoading: false);
+    }
+  }
+
   Future<void> clearAllFilters() async {
     state = state.copyWith(
       searchQuery: '',
       dateStart: null,
       dateEnd: null,
-      isPageLoading: true,
+      showFavoritesOnly: false,
+      vibeOnly: false,
+      selectedTags: [],
+      filterModel: null,
+      filterSampler: null,
+      filterMinSteps: null,
+      filterMaxSteps: null,
+      filterMinCfg: null,
+      filterMaxCfg: null,
+      filterResolution: null,
     );
     await _applyFilters();
   }
-  
-  /// 应用过滤条件
+
+  /// 应用过滤
   Future<void> _applyFilters() async {
     final query = state.searchQuery.toLowerCase().trim();
-    final dateStart = state.dateStart;
-    final dateEnd = state.dateEnd;
-    
-    // 无过滤条件：直接使用全部文件
-    if (query.isEmpty && dateStart == null && dateEnd == null) {
-      state = state.copyWith(
-        filteredFiles: state.allFiles,
-        currentPage: 0,
-        isPageLoading: false,
-      );
+
+    // 无过滤
+    if (query.isEmpty &&
+        state.dateStart == null &&
+        state.dateEnd == null &&
+        !state.showFavoritesOnly &&
+        state.selectedTags.isEmpty &&
+        !_hasMetadataFilters) {
+      state = state.copyWith(filteredFiles: state.allFiles, currentPage: 0);
       await loadPage(0);
       return;
     }
-    
-    // 有过滤条件：需要加载所有记录进行过滤
-    // 为了性能，先用日期过滤（基于文件修改时间，无需加载元数据）
-    List<File> dateFiltered = state.allFiles;
-    
-    if (dateStart != null || dateEnd != null) {
-      dateFiltered = state.allFiles.where((file) {
+
+    // 有搜索关键词：使用数据库搜索
+    if (query.isNotEmpty) {
+      try {
+        final records = await _repo.advancedSearch(
+          textQuery: query,
+          favoritesOnly: state.showFavoritesOnly,
+          dateStart: state.dateStart,
+          dateEnd: state.dateEnd,
+          limit: 10000,
+        );
+        final files = records.map((r) => File(r.path)).toList();
+        state = state.copyWith(filteredFiles: files, currentPage: 0);
+        await loadPage(0);
+        return;
+      } catch (e) {
+        AppLogger.w('Search failed: $e', 'LocalGalleryNotifier');
+      }
+    }
+
+    // 回退到本地过滤
+    final filtered = state.allFiles.where((file) {
+      if (query.isNotEmpty) {
+        final name = file.path.split(Platform.pathSeparator).last.toLowerCase();
+        if (!name.contains(query)) return false;
+      }
+      if (state.dateStart != null || state.dateEnd != null) {
         try {
-          final stat = file.statSync();
-          final modifiedAt = stat.modified;
-          
-          if (dateStart != null && modifiedAt.isBefore(dateStart)) return false;
-          if (dateEnd != null && modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) return false;
-          
-          return true;
+          final modified = file.statSync().modified;
+          if (state.dateStart != null && modified.isBefore(state.dateStart!)) return false;
+          if (state.dateEnd != null && modified.isAfter(state.dateEnd!.add(const Duration(days: 1)))) return false;
         } catch (_) {
           return false;
         }
-      }).toList();
-    }
-    
-    // 如果没有搜索关键词，直接使用日期过滤结果
-    if (query.isEmpty) {
-      state = state.copyWith(
-        filteredFiles: dateFiltered,
-        currentPage: 0,
-        isPageLoading: false,
-      );
-      await loadPage(0);
-      return;
-    }
-    
-    // 有搜索关键词：需要加载记录进行 Prompt 匹配
-    // 先按文件名过滤，减少需要加载的记录数
-    final fileNameMatched = <File>[];
-    final needPromptCheck = <File>[];
-    
-    for (final file in dateFiltered) {
-      final fileName = file.path.split(Platform.pathSeparator).last.toLowerCase();
-      if (fileName.contains(query)) {
-        fileNameMatched.add(file);
-      } else {
-        needPromptCheck.add(file);
       }
-    }
-    
-    // 对需要检查 Prompt 的文件，批量加载记录
-    final promptMatched = <File>[];
-    
-    // 分批加载，避免一次性加载太多
-    const batchSize = 100;
-    for (var i = 0; i < needPromptCheck.length; i += batchSize) {
-      final end = min(i + batchSize, needPromptCheck.length);
-      final batch = needPromptCheck.sublist(i, end);
-      
-      // 优先使用缓存
-      final uncached = <File>[];
-      for (final file in batch) {
-        final cached = _recordCache[file.path];
-        if (cached != null) {
-          // 检查 Prompt
-          if (_matchesPrompt(cached, query)) {
-            promptMatched.add(file);
-          }
-        } else {
-          uncached.add(file);
-        }
-      }
-      
-      // 加载未缓存的记录
-      if (uncached.isNotEmpty) {
-        try {
-          final records = await _repository.loadRecords(uncached);
-          for (final record in records) {
-            _recordCache[record.path] = record;
-            if (_matchesPrompt(record, query)) {
-              promptMatched.add(File(record.path));
-            }
-          }
-        } catch (_) {
-          // 忽略加载错误
-        }
-      }
-    }
-    
-    // 合并结果
-    final filtered = [...fileNameMatched, ...promptMatched];
-    
-    state = state.copyWith(
-      filteredFiles: filtered,
-      currentPage: 0,
-      isPageLoading: false,
-    );
+      return true;
+    }).toList();
+
+    state = state.copyWith(filteredFiles: filtered, currentPage: 0);
     await loadPage(0);
   }
-  
-  /// 检查记录的 Prompt 是否匹配搜索词
-  bool _matchesPrompt(LocalImageRecord record, String query) {
-    final metadata = record.metadata;
-    if (metadata == null) return false;
-    
-    // 检查正向 Prompt
-    final prompt = metadata.prompt.toLowerCase();
-    if (prompt.contains(query)) return true;
-    
-    // 检查负向 Prompt
-    final negativePrompt = metadata.negativePrompt.toLowerCase();
-    if (negativePrompt.contains(query)) return true;
-    
-    return false;
+
+  bool get _hasMetadataFilters =>
+      state.filterModel != null ||
+      state.filterSampler != null ||
+      state.filterMinSteps != null ||
+      state.filterMaxSteps != null ||
+      state.filterMinCfg != null ||
+      state.filterMaxCfg != null ||
+      state.filterResolution != null;
+
+  // ============================================================
+  // 收藏
+  // ============================================================
+
+  Future<void> toggleFavorite(String filePath) async {
+    try {
+      await _repo.toggleFavorite(filePath);
+      await loadPage(state.currentPage);
+    } catch (e) {
+      AppLogger.e('Toggle favorite failed', e, null, 'LocalGalleryNotifier');
+    }
   }
 
-  /// 刷新画廊
-  Future<void> refresh() async {
-    _recordCache.clear(); // 清除缓存
-    state = const LocalGalleryState(); // Reset
-    await initialize();
+  int getTotalFavoriteCount() => _repo.getTotalFavoriteCount();
+
+  // ============================================================
+  // 标签
+  // ============================================================
+
+  List<String> getTags(String filePath) => _repo.getTags(filePath);
+
+  Future<void> setTags(String filePath, List<String> tags) async {
+    await _repo.setTags(filePath, tags);
+    await loadPage(state.currentPage);
   }
 }

@@ -16,20 +16,20 @@ class AvatarResult {
   const AvatarResult(this.path, this.errorMessage, this.type);
 
   /// 成功结果
-  const AvatarResult.success(this.path) 
-    : errorMessage = null, 
-      type = AvatarResultType.success;
+  const AvatarResult.success(this.path)
+      : errorMessage = null,
+        type = AvatarResultType.success;
 
   /// 失败结果
-  const AvatarResult.failure(this.errorMessage) 
-    : path = null, 
-      type = AvatarResultType.failure;
+  const AvatarResult.failure(this.errorMessage)
+      : path = null,
+        type = AvatarResultType.failure;
 
   /// 取消结果（用户未选择）
-  const AvatarResult.cancel() 
-    : path = null, 
-      errorMessage = null, 
-      type = AvatarResultType.cancel;
+  const AvatarResult.cancel()
+      : path = null,
+        errorMessage = null,
+        type = AvatarResultType.cancel;
 
   /// 是否成功
   bool get isSuccess => type == AvatarResultType.success;
@@ -133,7 +133,10 @@ class AvatarService {
         if (await tempFile.exists()) {
           await tempFile.delete();
         }
-        AppLogger.e('Failed to rename temp file: $renameError', 'AvatarService');
+        AppLogger.e(
+          'Failed to rename temp file: $renameError',
+          'AvatarService',
+        );
         return AvatarResult.failure('无法保存头像：$renameError');
       }
 
@@ -146,7 +149,10 @@ class AvatarService {
             AppLogger.i('Deleted old avatar: $oldAvatarPath', 'AvatarService');
           }
         } catch (deleteError) {
-          AppLogger.w('Failed to delete old avatar: $deleteError', 'AvatarService');
+          AppLogger.w(
+            'Failed to delete old avatar: $deleteError',
+            'AvatarService',
+          );
           // 旧头像删除失败不影响新头像生效
         }
       }
@@ -168,7 +174,10 @@ class AvatarService {
         final file = File(account.avatarPath!);
         if (await file.exists()) {
           await file.delete();
-          AppLogger.i('Deleted avatar file: ${account.avatarPath}', 'AvatarService');
+          AppLogger.i(
+            'Deleted avatar file: ${account.avatarPath}',
+            'AvatarService',
+          );
         }
       }
 

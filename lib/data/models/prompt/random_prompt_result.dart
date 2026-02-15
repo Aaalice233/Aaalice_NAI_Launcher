@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../character/character_prompt.dart';
@@ -170,4 +171,28 @@ enum RandomGenerationMode {
   /// 混合模式（可部分自定义）
   @JsonValue('hybrid')
   hybrid,
+}
+
+/// RandomGenerationMode 扩展
+extension RandomGenerationModeX on RandomGenerationMode {
+  /// 获取图标
+  IconData get icon => switch (this) {
+        RandomGenerationMode.naiOfficial => Icons.auto_awesome,
+        RandomGenerationMode.custom => Icons.tune,
+        RandomGenerationMode.hybrid => Icons.merge_type,
+      };
+
+  /// 获取名称
+  String getName(dynamic l10n) => switch (this) {
+        RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficial,
+        RandomGenerationMode.custom => l10n.randomMode_custom,
+        RandomGenerationMode.hybrid => l10n.randomMode_hybrid,
+      };
+
+  /// 获取描述
+  String getDescription(dynamic l10n) => switch (this) {
+        RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficialDesc,
+        RandomGenerationMode.custom => l10n.randomMode_customDesc,
+        RandomGenerationMode.hybrid => l10n.randomMode_hybridDesc,
+      };
 }

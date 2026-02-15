@@ -206,7 +206,8 @@ class _DraggableNumberInputState extends State<DraggableNumberInput> {
                             ),
                             decoration: const InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                              contentPadding:
+                                  EdgeInsets.symmetric(horizontal: 4),
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,

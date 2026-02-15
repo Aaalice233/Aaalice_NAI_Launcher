@@ -44,15 +44,17 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   @override
   void didUpdateWidget(SimpleTagChip oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.tag != widget.tag && widget.autoTranslate && widget.translation == null) {
+    if (oldWidget.tag != widget.tag &&
+        widget.autoTranslate &&
+        widget.translation == null) {
       _fetchTranslation();
     }
   }
 
-  void _fetchTranslation() {
+  Future<void> _fetchTranslation() async {
     final translationService = ref.read(tagTranslationServiceProvider);
     final isCharacter = widget.category == 4;
-    _autoTranslation = translationService.translate(
+    _autoTranslation = await translationService.translate(
       widget.tag,
       isCharacter: isCharacter,
     );
@@ -65,9 +67,9 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final displayText = widget.tag.replaceAll('_', ' ');
-    final chipColor = widget.color ?? 
-        (widget.category != null 
-            ? TagColors.fromCategory(widget.category!) 
+    final chipColor = widget.color ??
+        (widget.category != null
+            ? TagColors.fromCategory(widget.category!)
             : theme.colorScheme.primary);
     final translationText = widget.translation ?? _autoTranslation;
 
@@ -159,11 +161,11 @@ class SimpleTagChipWithTooltip extends StatelessWidget {
 
 /// 标签分类颜色
 class TagColors {
-  static const Color artist = Color(0xFFFF8A8A);     // 红色 - 艺术家
+  static const Color artist = Color(0xFFFF8A8A); // 红色 - 艺术家
   static const Color character = Color(0xFF8AFF8A); // 绿色 - 角色
   static const Color copyright = Color(0xFFCC8AFF); // 紫色 - 版权/作品
-  static const Color general = Color(0xFF8AC8FF);   // 蓝色 - 通用
-  static const Color meta = Color(0xFFFFB38A);      // 橙色 - 元数据
+  static const Color general = Color(0xFF8AC8FF); // 蓝色 - 通用
+  static const Color meta = Color(0xFFFFB38A); // 橙色 - 元数据
 
   /// 根据 Danbooru 标签分类获取颜色
   /// - 0 = general (通用)

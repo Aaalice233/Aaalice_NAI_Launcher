@@ -25,8 +25,12 @@ class DanbooruPost with _$DanbooruPost {
     @JsonKey(name: 'large_file_url') String? largeFileUrl,
     @JsonKey(name: 'preview_file_url') String? previewFileUrl,
     @JsonKey(name: 'tag_string_general') @Default('') String tagStringGeneral,
-    @JsonKey(name: 'tag_string_character') @Default('') String tagStringCharacter,
-    @JsonKey(name: 'tag_string_copyright') @Default('') String tagStringCopyright,
+    @JsonKey(name: 'tag_string_character')
+    @Default('')
+    String tagStringCharacter,
+    @JsonKey(name: 'tag_string_copyright')
+    @Default('')
+    String tagStringCopyright,
     @JsonKey(name: 'tag_string_artist') @Default('') String tagStringArtist,
     @JsonKey(name: 'tag_string_meta') @Default('') String tagStringMeta,
     @JsonKey(name: 'fav_count') @Default(0) int favCount,
@@ -107,10 +111,12 @@ class DanbooruPost with _$DanbooruPost {
   String get postUrl => 'https://danbooru.donmai.us/posts/$id';
 
   /// 是否为视频
-  bool get isVideo => const ['mp4', 'webm', 'zip'].contains(fileExt.toLowerCase());
+  bool get isVideo =>
+      const ['mp4', 'webm', 'zip'].contains(fileExt.toLowerCase());
 
   /// 是否为动图
-  bool get isAnimated => fileExt.toLowerCase() == 'gif' || 
+  bool get isAnimated =>
+      fileExt.toLowerCase() == 'gif' ||
       tagStringMeta.contains('animated') ||
       tagStringMeta.contains('video');
 

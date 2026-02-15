@@ -24,6 +24,8 @@ class MinimalGlassPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Color(0xFF1A1A1A),
+        primaryContainer: Color(0xFF3D3220), // Dark gold/brown for contrast
+        onPrimaryContainer: Color(0xFFFFECC0), // Light gold for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: Color(0xFFE1E6EB),

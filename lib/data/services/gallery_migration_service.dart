@@ -32,7 +32,10 @@ class GalleryMigrationService {
       // 1. 检查是否已经迁移过
       final newBox = await Hive.openBox(_newBoxName);
       if (newBox.isNotEmpty) {
-        AppLogger.w('Migration already completed, skipping', 'GalleryMigration');
+        AppLogger.w(
+          'Migration already completed, skipping',
+          'GalleryMigration',
+        );
         await newBox.close();
         return (true, newBox.length, null);
       }
@@ -42,7 +45,10 @@ class GalleryMigrationService {
       final oldData = oldBox.get(_oldRecordsKey);
 
       if (oldData == null) {
-        AppLogger.i('No old data found, nothing to migrate', 'GalleryMigration');
+        AppLogger.i(
+          'No old data found, nothing to migrate',
+          'GalleryMigration',
+        );
         await newBox.close();
         return (true, 0, null);
       }
@@ -70,7 +76,12 @@ class GalleryMigrationService {
             migratedCount++;
           }
         } catch (e, stack) {
-          AppLogger.e('Failed to migrate record: $e', e, stack, 'GalleryMigration');
+          AppLogger.e(
+            'Failed to migrate record: $e',
+            e,
+            stack,
+            'GalleryMigration',
+          );
         }
       }
 
@@ -85,11 +96,18 @@ class GalleryMigrationService {
           'GalleryMigration',
         );
         // 不删除旧数据，保留作为备份
-        return (false, migratedCount, 'Count mismatch: $oldCount -> $migratedCount');
+        return (
+          false,
+          migratedCount,
+          'Count mismatch: $oldCount -> $migratedCount'
+        );
       }
 
       // 6. 迁移成功，删除旧数据
-      AppLogger.i('Migration successful, deleting old data', 'GalleryMigration');
+      AppLogger.i(
+        'Migration successful, deleting old data',
+        'GalleryMigration',
+      );
       await oldBox.delete(_oldRecordsKey);
 
       return (true, migratedCount, null);
@@ -131,7 +149,12 @@ class GalleryMigrationService {
       await newBox.close();
       AppLogger.i('Migration rolled back', 'GalleryMigration');
     } catch (e, stack) {
-      AppLogger.e('Failed to rollback migration: $e', e, stack, 'GalleryMigration');
+      AppLogger.e(
+        'Failed to rollback migration: $e',
+        e,
+        stack,
+        'GalleryMigration',
+      );
     }
   }
 }

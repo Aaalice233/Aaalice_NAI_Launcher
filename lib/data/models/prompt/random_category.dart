@@ -99,8 +99,7 @@ class RandomCategory with _$RandomCategory {
   int get enabledGroupCount => groups.where((g) => g.enabled).length;
 
   /// 获取所有标签总数
-  int get totalTagCount =>
-      groups.fold(0, (sum, group) => sum + group.tagCount);
+  int get totalTagCount => groups.fold(0, (sum, group) => sum + group.tagCount);
 
   /// 获取启用分组的标签总数
   int get enabledTagCount => enabled

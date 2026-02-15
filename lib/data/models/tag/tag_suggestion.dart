@@ -7,12 +7,16 @@ part 'tag_suggestion.g.dart';
 enum TagCategory {
   /// 通用标签
   general(0),
+
   /// 角色标签
   character(1),
+
   /// 版权标签
   copyright(3),
+
   /// 艺术家标签
   artist(4),
+
   /// 元数据标签
   meta(5);
 
@@ -57,6 +61,9 @@ class TagSuggestion with _$TagSuggestion {
 
     /// 标签别名（如果有）
     String? alias,
+
+    /// 中文翻译（如果有）
+    String? translation,
   }) = _TagSuggestion;
 
   factory TagSuggestion.fromJson(Map<String, dynamic> json) =>
@@ -67,6 +74,9 @@ class TagSuggestion with _$TagSuggestion {
 extension TagSuggestionExtension on TagSuggestion {
   /// 获取分类枚举
   TagCategory get categoryEnum => TagCategory.fromValue(category);
+
+  /// 获取分类名称（中文）
+  String get categoryName => categoryEnum.displayName;
 
   /// 格式化显示的计数
   String get formattedCount {

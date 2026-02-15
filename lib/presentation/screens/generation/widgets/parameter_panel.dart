@@ -1,18 +1,23 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/image/resolution_preset.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
+import '../../../widgets/common/themed_slider.dart';
+import '../../../widgets/common/themed_divider.dart';
 import 'img2img_panel.dart';
 import 'unified_reference_panel.dart';
+import 'precise_reference_panel.dart';
 import 'prompt_input.dart';
+
+import '../../../widgets/common/app_toast.dart';
 
 /// 参数面板组件
 class ParameterPanel extends ConsumerStatefulWidget {
@@ -79,13 +84,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                       .cancel()
                   : () {
                       if (params.prompt.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              context.l10n.generation_pleaseInputPrompt,
-                            ),
-                          ),
-                        );
+                        AppToast.info(
+                            context, context.l10n.generation_pleaseInputPrompt,);
                         return;
                       }
                       ref
@@ -107,7 +107,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             ),
           ),
           const SizedBox(height: 24),
-          const Divider(),
+          const ThemedDivider(),
           const SizedBox(height: 16),
         ],
 
@@ -220,12 +220,11 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
           theme,
           context.l10n.generation_steps(params.steps.toString()),
         ),
-        Slider(
+        ThemedSlider(
           value: params.steps.toDouble(),
           min: 1,
           max: 50,
           divisions: 49,
-          label: params.steps.toString(),
           onChanged: (value) {
             ref
                 .read(generationParamsNotifierProvider.notifier)
@@ -266,12 +265,11 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             ),
           ],
         ),
-        Slider(
+        ThemedSlider(
           value: params.scale,
           min: 1,
           max: 20,
           divisions: 38,
-          label: params.scale.toStringAsFixed(1),
           onChanged: (value) {
             ref
                 .read(generationParamsNotifierProvider.notifier)
@@ -313,12 +311,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                               Clipboard.setData(
                                 ClipboardData(text: params.seed.toString()),
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(context.l10n.common_copied),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
+                              AppToast.success(
+                                  context, context.l10n.common_copied,);
                             },
                           ),
                           // 清空按钮
@@ -328,7 +322,9 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                             onPressed: () {
                               _seedController.clear();
                               ref
-                                  .read(generationParamsNotifierProvider.notifier)
+                                  .read(
+                                    generationParamsNotifierProvider.notifier,
+                                  )
                                   .updateSeed(-1);
                             },
                           ),
@@ -341,7 +337,9 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             // 种子锁定按钮
             IconButton(
               icon: Icon(
-                ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                ref
+                        .watch(generationParamsNotifierProvider.notifier)
+                        .isSeedLocked
                     ? Icons.lock
                     : Icons.lock_open,
                 size: 20,
@@ -349,21 +347,31 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
               onPressed: () {
                 // 先同步输入框的值到 state（防止用户输入后 state 未更新）
                 final inputText = _seedController.text.trim();
-                final inputSeed = inputText.isEmpty ? -1 : (int.tryParse(inputText) ?? -1);
-                if (inputSeed != ref.read(generationParamsNotifierProvider).seed) {
-                  ref.read(generationParamsNotifierProvider.notifier).updateSeed(inputSeed);
+                final inputSeed =
+                    inputText.isEmpty ? -1 : (int.tryParse(inputText) ?? -1);
+                if (inputSeed !=
+                    ref.read(generationParamsNotifierProvider).seed) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateSeed(inputSeed);
                 }
-                
-                ref.read(generationParamsNotifierProvider.notifier).toggleSeedLock();
+
+                ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .toggleSeedLock();
                 // 更新输入框显示
                 final newSeed = ref.read(generationParamsNotifierProvider).seed;
                 _seedController.text = newSeed == -1 ? '' : newSeed.toString();
               },
-              tooltip: ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+              tooltip: ref
+                      .watch(generationParamsNotifierProvider.notifier)
+                      .isSeedLocked
                   ? context.l10n.generation_seedUnlock
                   : context.l10n.generation_seedLock,
               style: IconButton.styleFrom(
-                backgroundColor: ref.watch(generationParamsNotifierProvider.notifier).isSeedLocked
+                backgroundColor: ref
+                        .watch(generationParamsNotifierProvider.notifier)
+                        .isSeedLocked
                     ? theme.colorScheme.primary.withOpacity(0.15)
                     : theme.colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(
@@ -383,8 +391,13 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
 
         const SizedBox(height: 8),
 
-        // 统一参考面板 (Vibe Transfer 和角色参考二选一)
+        // 风格迁移面板 (Vibe Transfer)
         const UnifiedReferencePanel(),
+
+        const SizedBox(height: 8),
+
+        // Precise Reference 面板 (角色/风格参考)
+        const PreciseReferencePanel(),
 
         const SizedBox(height: 16),
 
@@ -475,7 +488,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                     params.cfgRescale.toStringAsFixed(2),
                   ),
                 ),
-                subtitle: Slider(
+                subtitle: ThemedSlider(
                   value: params.cfgRescale,
                   min: 0,
                   max: 1,
@@ -571,32 +584,23 @@ class _SizeSelectorState extends State<_SizeSelector> {
 
   String _getGroupName(BuildContext context, ResolutionGroup group) {
     final l10n = context.l10n;
-    switch (group) {
-      case ResolutionGroup.normal:
-        return l10n.resolution_groupNormal;
-      case ResolutionGroup.large:
-        return l10n.resolution_groupLarge;
-      case ResolutionGroup.wallpaper:
-        return l10n.resolution_groupWallpaper;
-      case ResolutionGroup.small:
-        return l10n.resolution_groupSmall;
-      case ResolutionGroup.custom:
-        return l10n.resolution_groupCustom;
-    }
+    return switch (group) {
+      ResolutionGroup.normal => l10n.resolution_groupNormal,
+      ResolutionGroup.large => l10n.resolution_groupLarge,
+      ResolutionGroup.wallpaper => l10n.resolution_groupWallpaper,
+      ResolutionGroup.small => l10n.resolution_groupSmall,
+      ResolutionGroup.custom => l10n.resolution_groupCustom,
+    };
   }
 
   String _getTypeName(BuildContext context, ResolutionType type) {
     final l10n = context.l10n;
-    switch (type) {
-      case ResolutionType.portrait:
-        return l10n.resolution_typePortrait;
-      case ResolutionType.landscape:
-        return l10n.resolution_typeLandscape;
-      case ResolutionType.square:
-        return l10n.resolution_typeSquare;
-      case ResolutionType.custom:
-        return l10n.resolution_typeCustom;
-    }
+    return switch (type) {
+      ResolutionType.portrait => l10n.resolution_typePortrait,
+      ResolutionType.landscape => l10n.resolution_typeLandscape,
+      ResolutionType.square => l10n.resolution_typeSquare,
+      ResolutionType.custom => l10n.resolution_typeCustom,
+    };
   }
 
   void _onPresetSelected(String? presetId) {

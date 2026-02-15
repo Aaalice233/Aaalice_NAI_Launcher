@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
+import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 图层面板
 class LayerPanel extends StatefulWidget {
@@ -48,9 +51,10 @@ class _LayerPanelState extends State<LayerPanel> {
 
   /// 调度缩略图更新（带防抖）
   /// 仅在图层内容变化时调用（不在 UI 变化如锁定/重命名时调用）
+  /// 使用 500ms 防抖以在图层切换时提供额外安全裕度
   void _scheduleThumbnailUpdate() {
     _thumbnailUpdateTimer?.cancel();
-    _thumbnailUpdateTimer = Timer(const Duration(milliseconds: 300), () {
+    _thumbnailUpdateTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         _updateThumbnails();
       }
@@ -127,80 +131,85 @@ class _LayerPanelState extends State<LayerPanel> {
                     : null,
               ),
 
-              const Divider(height: 1),
+              const ThemedDivider(height: 1),
 
               // 图层列表
+              // 使用 RepaintBoundary 隔离整个图层列表，防止父组件更新触发重绘
               Expanded(
-                child: layers.isEmpty
-                    ? Center(
-                        child: Text(
-                          '无图层',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                child: RepaintBoundary(
+                  child: layers.isEmpty
+                      ? Center(
+                          child: Text(
+                            '无图层',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
+                        )
+                      : ReorderableListView.builder(
+                          buildDefaultDragHandles: false,
+                          // Krita 风格：顶部图层在列表顶部
+                          itemCount: layers.length,
+                          onReorder: (oldIndex, newIndex) {
+                            // UI索引转换为实际图层索引
+                            // UI index 0 = 顶部图层 = layers[length-1]
+                            if (oldIndex < newIndex) {
+                              newIndex -= 1;
+                            }
+                            final actualOldIndex = layers.length - 1 - oldIndex;
+                            final actualNewIndex = layers.length - 1 - newIndex;
+                            state.layerManager.reorderLayer(
+                              actualOldIndex,
+                              actualNewIndex,
+                            );
+                          },
+                          itemBuilder: (context, index) {
+                            // UI index 0 = 顶部图层 = layers[length-1]
+                            final actualIndex = layers.length - 1 - index;
+                            final layer = layers[actualIndex];
+                            // 使用 layer.isActiveNotifier 单独监听活动状态
+                            // 切换活动图层时仅重建新旧活动图层的 tile（O(1)），而非所有图层（O(n)）
+                            return ValueListenableBuilder<bool>(
+                              key: ValueKey(layer.id),
+                              valueListenable: layer.isActiveNotifier,
+                              builder: (context, isActive, _) {
+                                return _LayerTile(
+                                  layer: layer,
+                                  isActive: isActive,
+                                  index: index,
+                                  showThumbnail: true,
+                                  onTap: () {
+                                    state.layerManager.setActiveLayer(layer.id);
+                                  },
+                                  onVisibilityToggle: () {
+                                    state.layerManager
+                                        .toggleVisibility(layer.id);
+                                  },
+                                  onLockToggle: () {
+                                    state.layerManager.toggleLock(layer.id);
+                                  },
+                                  onDelete: layers.length > 1
+                                      ? () => state.layerManager
+                                          .removeLayer(layer.id)
+                                      : null,
+                                  onDuplicate: () {
+                                    state.layerManager.duplicateLayer(layer.id);
+                                  },
+                                  onRename: (newName) {
+                                    state.layerManager
+                                        .renameLayer(layer.id, newName);
+                                  },
+                                  onOpacityChanged: (opacity) {
+                                    state.layerManager
+                                        .setLayerOpacity(layer.id, opacity);
+                                  },
+                                  state: state,
+                                );
+                              },
+                            );
+                          },
                         ),
-                      )
-                    : ReorderableListView.builder(
-                        buildDefaultDragHandles: false,
-                        // Krita 风格：顶部图层在列表顶部
-                        itemCount: layers.length,
-                        onReorder: (oldIndex, newIndex) {
-                          // UI索引转换为实际图层索引
-                          // UI index 0 = 顶部图层 = layers[length-1]
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
-                          final actualOldIndex = layers.length - 1 - oldIndex;
-                          final actualNewIndex = layers.length - 1 - newIndex;
-                          state.layerManager.reorderLayer(
-                            actualOldIndex,
-                            actualNewIndex,
-                          );
-                        },
-                        itemBuilder: (context, index) {
-                          // UI index 0 = 顶部图层 = layers[length-1]
-                          final actualIndex = layers.length - 1 - index;
-                          final layer = layers[actualIndex];
-                          // 使用 layer.isActiveNotifier 单独监听活动状态
-                          // 切换活动图层时仅重建新旧活动图层的 tile（O(1)），而非所有图层（O(n)）
-                          return ValueListenableBuilder<bool>(
-                            key: ValueKey(layer.id),
-                            valueListenable: layer.isActiveNotifier,
-                            builder: (context, isActive, _) {
-                              return _LayerTile(
-                                layer: layer,
-                                isActive: isActive,
-                                index: index,
-                                showThumbnail: true,
-                                onTap: () {
-                                  state.layerManager.setActiveLayer(layer.id);
-                                },
-                                onVisibilityToggle: () {
-                                  state.layerManager.toggleVisibility(layer.id);
-                                },
-                                onLockToggle: () {
-                                  state.layerManager.toggleLock(layer.id);
-                                },
-                                onDelete: layers.length > 1
-                                    ? () =>
-                                        state.layerManager.removeLayer(layer.id)
-                                    : null,
-                                onDuplicate: () {
-                                  state.layerManager.duplicateLayer(layer.id);
-                                },
-                                onRename: (newName) {
-                                  state.layerManager
-                                      .renameLayer(layer.id, newName);
-                                },
-                                onOpacityChanged: (opacity) {
-                                  state.layerManager
-                                      .setLayerOpacity(layer.id, opacity);
-                                },
-                              );
-                            },
-                          );
-                        },
-                      ),
+                ),
               ),
             ],
           ),
@@ -268,6 +277,7 @@ class _LayerTile extends StatefulWidget {
   final VoidCallback onDuplicate;
   final ValueChanged<String> onRename;
   final ValueChanged<double> onOpacityChanged;
+  final EditorState state;
 
   const _LayerTile({
     required this.layer,
@@ -281,6 +291,7 @@ class _LayerTile extends StatefulWidget {
     required this.onDuplicate,
     required this.onRename,
     required this.onOpacityChanged,
+    required this.state,
   });
 
   @override
@@ -330,6 +341,7 @@ class _LayerTileState extends State<_LayerTile>
         child: InkWell(
           onTap: widget.onTap,
           onLongPress: () => _showContextMenu(context),
+          onSecondaryTap: () => _showContextMenu(context),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             height: widget.showThumbnail ? 56 : null,
@@ -371,7 +383,7 @@ class _LayerTileState extends State<_LayerTile>
                 // 图层名称
                 Expanded(
                   child: _isEditing
-                      ? TextField(
+                      ? ThemedInput(
                           controller: _nameController,
                           autofocus: true,
                           style: theme.textTheme.bodySmall,
@@ -435,126 +447,191 @@ class _LayerTileState extends State<_LayerTile>
     );
   }
 
-  void _showContextMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => _LayerContextMenu(
-        layer: widget.layer,
-        onDelete: widget.onDelete,
-        onDuplicate: widget.onDuplicate,
-        onRename: () {
-          Navigator.pop(context);
-          setState(() => _isEditing = true);
-        },
-        onOpacityChanged: widget.onOpacityChanged,
-      ),
-    );
-  }
-}
-
-/// 图层上下文菜单
-class _LayerContextMenu extends StatefulWidget {
-  final Layer layer;
-  final VoidCallback? onDelete;
-  final VoidCallback onDuplicate;
-  final VoidCallback onRename;
-  final ValueChanged<double> onOpacityChanged;
-
-  const _LayerContextMenu({
-    required this.layer,
-    this.onDelete,
-    required this.onDuplicate,
-    required this.onRename,
-    required this.onOpacityChanged,
-  });
-
-  @override
-  State<_LayerContextMenu> createState() => _LayerContextMenuState();
-}
-
-class _LayerContextMenuState extends State<_LayerContextMenu> {
-  late double _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _opacity = widget.layer.opacity;
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  void _showContextMenu(BuildContext context) async {
     final theme = Theme.of(context);
+    final layerManager = widget.state.layerManager;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.layer.name,
-            style: theme.textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
+    // 获取图层索引用于判断是否可以移动
+    final layers = layerManager.layers;
+    final layerIndex = layers.indexWhere((l) => l.id == widget.layer.id);
+    final canMoveUp = layerIndex > 0;
+    final canMoveDown = layerIndex < layers.length - 1;
+    final canMergeDown = layerIndex > 0;
+    final canDelete = widget.onDelete != null && !widget.layer.locked;
 
-          // 不透明度滑块
-          Row(
-            children: [
-              const Text('不透明度'),
-              Expanded(
-                child: Slider(
-                  value: _opacity,
-                  onChanged: (value) {
-                    setState(() => _opacity = value);
-                    widget.onOpacityChanged(value);
-                  },
-                ),
-              ),
-              Text('${(_opacity * 100).round()}%'),
-            ],
-          ),
+    // 获取按钮位置用于定位菜单
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final Offset offset = button.localToGlobal(Offset.zero);
+    final screenSize = MediaQuery.of(context).size;
 
-          const SizedBox(height: 16),
-
-          // 操作按钮
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onRename();
-                },
-                icon: const Icon(Icons.edit, size: 18),
-                label: const Text('重命名'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onDuplicate();
-                },
-                icon: const Icon(Icons.copy, size: 18),
-                label: const Text('复制'),
-              ),
-              if (widget.onDelete != null)
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    widget.onDelete!();
-                  },
-                  icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('删除'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
+    // 使用 Rect 定义菜单弹出的锚点位置
+    final menuAnchor = Rect.fromLTWH(
+      offset.dx,
+      offset.dy,
+      button.size.width,
+      button.size.height,
     );
+
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(menuAnchor, Offset.zero & screenSize),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      items: [
+        // 复制图层
+        PopupMenuItem<String>(
+          value: 'duplicate',
+          child: Row(
+            children: [
+              const Icon(Icons.copy_outlined, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.layer_duplicate),
+            ],
+          ),
+        ),
+
+        // 删除图层
+        PopupMenuItem<String>(
+          value: 'delete',
+          enabled: canDelete,
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_outlined,
+                size: 18,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                context.l10n.layer_delete,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ],
+          ),
+        ),
+
+        // 向下合并
+        PopupMenuItem<String>(
+          value: 'merge_down',
+          enabled: canMergeDown,
+          child: Row(
+            children: [
+              const Icon(Icons.merge_type, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.layer_merge),
+            ],
+          ),
+        ),
+
+        const PopupMenuDivider(),
+
+        // 切换可见性
+        PopupMenuItem<String>(
+          value: 'toggle_visibility',
+          child: Row(
+            children: [
+              Icon(
+                widget.layer.visible ? Icons.visibility_off : Icons.visibility,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.layer.visible
+                    ? context.l10n.layer_visibility
+                    : context.l10n.layer_visibility,
+              ),
+            ],
+          ),
+        ),
+
+        // 切换锁定
+        PopupMenuItem<String>(
+          value: 'toggle_lock',
+          child: Row(
+            children: [
+              Icon(
+                widget.layer.locked ? Icons.lock_open : Icons.lock,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.layer.locked
+                    ? context.l10n.layer_lock
+                    : context.l10n.layer_lock,
+              ),
+            ],
+          ),
+        ),
+
+        // 重命名
+        PopupMenuItem<String>(
+          value: 'rename',
+          child: Row(
+            children: [
+              const Icon(Icons.edit_outlined, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.layer_rename),
+            ],
+          ),
+        ),
+
+        const PopupMenuDivider(),
+
+        // 上移图层
+        PopupMenuItem<String>(
+          value: 'move_up',
+          enabled: canMoveUp,
+          child: Row(
+            children: [
+              const Icon(Icons.arrow_upward, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.layer_moveUp),
+            ],
+          ),
+        ),
+
+        // 下移图层
+        PopupMenuItem<String>(
+          value: 'move_down',
+          enabled: canMoveDown,
+          child: Row(
+            children: [
+              const Icon(Icons.arrow_downward, size: 18),
+              const SizedBox(width: 12),
+              Text(context.l10n.layer_moveDown),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (value == null || !mounted) return;
+
+    switch (value) {
+      case 'duplicate':
+        widget.onDuplicate();
+        break;
+      case 'delete':
+        widget.onDelete?.call();
+        break;
+      case 'merge_down':
+        layerManager.mergeDown();
+        break;
+      case 'toggle_visibility':
+        widget.onVisibilityToggle();
+        break;
+      case 'toggle_lock':
+        widget.onLockToggle();
+        break;
+      case 'rename':
+        setState(() => _isEditing = true);
+        break;
+      case 'move_up':
+        layerManager.moveLayerUp(widget.layer.id);
+        break;
+      case 'move_down':
+        layerManager.moveLayerDown(widget.layer.id);
+        break;
+    }
   }
 }
 

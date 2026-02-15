@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import 'pool_output_config.dart';
 import 'tag_category.dart';
 
@@ -63,19 +63,14 @@ class PoolMapping with _$PoolMapping {
   /// 格式化上次同步时间
   String formatLastSyncTime(BuildContext context) {
     if (lastSyncedAt == null) return context.l10n.time_never_synced;
-    final now = DateTime.now();
-    final diff = now.difference(lastSyncedAt!);
 
-    if (diff.inMinutes < 1) {
-      return context.l10n.time_just_now;
-    } else if (diff.inHours < 1) {
-      return context.l10n.time_minutes_ago(diff.inMinutes);
-    } else if (diff.inDays < 1) {
-      return context.l10n.time_hours_ago(diff.inHours);
-    } else if (diff.inDays < 30) {
-      return context.l10n.time_days_ago(diff.inDays);
-    } else {
-      return '${lastSyncedAt!.year}-${lastSyncedAt!.month.toString().padLeft(2, '0')}-${lastSyncedAt!.day.toString().padLeft(2, '0')}';
-    }
+    final diff = DateTime.now().difference(lastSyncedAt!);
+
+    if (diff.inMinutes < 1) return context.l10n.time_just_now;
+    if (diff.inHours < 1) return context.l10n.time_minutes_ago(diff.inMinutes);
+    if (diff.inDays < 1) return context.l10n.time_hours_ago(diff.inHours);
+    if (diff.inDays < 30) return context.l10n.time_days_ago(diff.inDays);
+
+    return '${lastSyncedAt!.year}-${lastSyncedAt!.month.toString().padLeft(2, '0')}-${lastSyncedAt!.day.toString().padLeft(2, '0')}';
   }
 }

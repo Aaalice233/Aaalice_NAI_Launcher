@@ -1,13 +1,21 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
+import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/gallery_provider.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
+import '../../widgets/common/themed_input.dart';
+import '../../widgets/gallery/gallery_statistics_dialog.dart';
+
+import '../../widgets/common/app_toast.dart';
 
 /// 画廊页面
 class GalleryScreen extends ConsumerStatefulWidget {
@@ -68,7 +76,8 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ref.read(galleryNotifierProvider.notifier).exitSelectionMode();
           },
         ),
-        title: Text(context.l10n.gallery_selected(state.selectedCount.toString())),
+        title:
+            Text(context.l10n.gallery_selected(state.selectedCount.toString())),
         actions: [
           IconButton(
             icon: const Icon(Icons.select_all),
@@ -107,6 +116,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             onSelected: (value) => _handleMenuAction(value, context),
             itemBuilder: (menuContext) => [
               PopupMenuItem(
+                value: 'statistics',
+                child: ListTile(
+                  leading: const Icon(Icons.bar_chart),
+                  title: Text(context.l10n.statistics_title),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
                 value: 'select',
                 child: ListTile(
                   leading: const Icon(Icons.check_box_outlined),
@@ -135,8 +152,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: AutocompleteTextField(
+      child: AutocompleteWrapper.localTag(
         controller: _searchController,
+        ref: ref,
         config: const AutocompleteConfig(
           maxSuggestions: 15,
           showTranslation: true,
@@ -145,30 +163,30 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           autoInsertComma: false, // 搜索不需要自动逗号
           minQueryLength: 2,
         ),
-        decoration: InputDecoration(
-          hintText: context.l10n.gallery_searchHint,
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(galleryNotifierProvider.notifier)
-                        .setSearchQuery(null);
-                  },
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        ),
         onChanged: (value) {
           ref.read(galleryNotifierProvider.notifier).setSearchQuery(
                 value.isEmpty ? null : value,
               );
         },
+        child: ThemedInput(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: context.l10n.gallery_searchHint,
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref
+                          .read(galleryNotifierProvider.notifier)
+                          .setSearchQuery(null);
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
       ),
     );
   }
@@ -197,6 +215,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ),
           ),
           const SizedBox(width: 8),
+
           // 排序选择
           PopupMenuButton<GallerySortOrder>(
             onSelected: (order) {
@@ -250,6 +269,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ],
           ),
           const Spacer(),
+          // 统计按钮
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => GalleryStatisticsDialog.show(context),
+            tooltip: context.l10n.statistics_title,
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 8),
           // 记录数量
           Text(
             context.l10n.gallery_imageCount(state.records.length.toString()),
@@ -294,58 +321,82 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   Widget _buildGalleryGrid(BuildContext context, GalleryState state) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 根据宽度计算列数
-        final crossAxisCount = constraints.maxWidth > 1200
-            ? 6
-            : constraints.maxWidth > 800
-                ? 4
-                : constraints.maxWidth > 600
-                    ? 3
-                    : 2;
+        // 优先使用用户设置的列数，否则根据宽度自动计算
+        final crossAxisCount = state.gridColumnCount ??
+            (constraints.maxWidth > 1200
+                ? 6
+                : constraints.maxWidth > 800
+                    ? 4
+                    : constraints.maxWidth > 600
+                        ? 3
+                        : 2);
 
-        return GridView.builder(
-          padding: const EdgeInsets.all(12),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: state.records.length,
-          itemBuilder: (context, index) {
-            final record = state.records[index];
-            final isSelected = state.selectedIds.contains(record.id);
-
-            return _GalleryTile(
-              record: record,
-              isSelected: isSelected,
-              isSelectionMode: state.isSelectionMode,
-              onTap: () {
-                if (state.isSelectionMode) {
+        // 监听滚轮事件（Ctrl+滚轮缩放）
+        return Listener(
+          onPointerSignal: (pointerSignal) {
+            if (pointerSignal is PointerScrollEvent) {
+              // 检查是否按下了Ctrl键
+              final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+              if (isCtrlPressed) {
+                final delta = pointerSignal.scrollDelta.dy;
+                if (delta > 0) {
+                  // 向下滚动：增加列数（缩小卡片）
                   ref
                       .read(galleryNotifierProvider.notifier)
-                      .toggleSelection(record.id);
-                } else {
-                  _showFullscreen(context, record);
+                      .increaseGridColumns();
+                } else if (delta < 0) {
+                  // 向上滚动：减少列数（放大卡片）
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .decreaseGridColumns();
                 }
-              },
-              onLongPress: () {
-                if (!state.isSelectionMode) {
-                  ref
-                      .read(galleryNotifierProvider.notifier)
-                      .enterSelectionMode();
-                  ref
-                      .read(galleryNotifierProvider.notifier)
-                      .toggleSelection(record.id);
-                }
-              },
-              onFavoriteToggle: () {
-                ref
-                    .read(galleryNotifierProvider.notifier)
-                    .toggleFavorite(record.id);
-              },
-            );
+              }
+            }
           },
+          child: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: state.records.length,
+            itemBuilder: (context, index) {
+              final record = state.records[index];
+              final isSelected = state.selectedIds.contains(record.id);
+
+              return _GalleryTile(
+                record: record,
+                isSelected: isSelected,
+                isSelectionMode: state.isSelectionMode,
+                onTap: () {
+                  if (state.isSelectionMode) {
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .toggleSelection(record.id);
+                  } else {
+                    _showFullscreen(context, record);
+                  }
+                },
+                onLongPress: () {
+                  if (!state.isSelectionMode) {
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .enterSelectionMode();
+                    ref
+                        .read(galleryNotifierProvider.notifier)
+                        .toggleSelection(record.id);
+                  }
+                },
+                onFavoriteToggle: () {
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .toggleFavorite(record.id);
+                },
+              );
+            },
+          ),
         );
       },
     );
@@ -370,7 +421,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       ),
       child: Row(
         children: [
-          Text(context.l10n.gallery_selectedCount(state.selectedCount.toString())),
+          Text(
+            context.l10n.gallery_selectedCount(state.selectedCount.toString()),
+          ),
           const Spacer(),
           TextButton.icon(
             onPressed: state.hasSelection
@@ -407,6 +460,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   void _handleMenuAction(String action, BuildContext context) {
     switch (action) {
+      case 'statistics':
+        GalleryStatisticsDialog.show(context);
+        break;
       case 'select':
         ref.read(galleryNotifierProvider.notifier).enterSelectionMode();
         break;
@@ -492,7 +548,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
     if (mounted) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(l10n.gallery_exportSuccess(successCount.toString(), result))),
+        SnackBar(
+          content: Text(
+            l10n.gallery_exportSuccess(successCount.toString(), result),
+          ),
+        ),
       );
       notifier.exitSelectionMode();
     }
@@ -613,6 +673,35 @@ class _GalleryTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                // Vibe 标识（左下角）
+                if (record.hasVibeMetadata)
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: Tooltip(
+                      message: record.vibeData?.displayName ?? 'Vibe',
+                      child: GestureDetector(
+                        onTap: () => _showVibeInfo(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome,
+                                color: Colors.amber,
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 // 底部信息
                 Positioned(
                   left: 0,
@@ -646,6 +735,14 @@ class _GalleryTile extends StatelessWidget {
                         const SizedBox(height: 2),
                         Row(
                           children: [
+                            if (record.hasVibeMetadata) ...[
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: Colors.amber,
+                                size: 10,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
                             Text(
                               record.resolution,
                               style: TextStyle(
@@ -707,6 +804,84 @@ class _GalleryTile extends StatelessWidget {
       ),
     );
   }
+
+  void _showVibeInfo(BuildContext context) {
+    final vibeData = record.vibeData;
+    if (vibeData == null) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                color: Colors.amber,
+              ),
+              const SizedBox(width: 8),
+              Text(context.l10n.vibe_info),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_name,
+                vibeData.displayName,
+              ),
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_strength,
+                '${(vibeData.strength * 100).toInt()}%',
+              ),
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_infoExtracted,
+                '${(vibeData.infoExtracted * 100).toInt()}%',
+              ),
+              _buildVibeInfoRow(
+                context,
+                context.l10n.vibe_sourceType,
+                vibeData.sourceType.displayLabel,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVibeInfoRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// 全屏查看器
@@ -717,6 +892,8 @@ class _FullscreenViewer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hasVibeData = record.vibeData != null;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -754,14 +931,202 @@ class _FullscreenViewer extends ConsumerWidget {
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: InteractiveViewer(
-        minScale: 0.5,
-        maxScale: 4.0,
-        child: Center(
-          child: _buildFullImage(),
-        ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 主图像
+          InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: _buildFullImage(),
+            ),
+          ),
+          // Vibe 信息面板
+          if (hasVibeData)
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: _buildVibeInfoPanel(context, ref),
+            ),
+        ],
       ),
     );
+  }
+
+  /// 构建 Vibe 信息面板
+  Widget _buildVibeInfoPanel(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final vibe = record.vibeData!;
+    final isRawImage = vibe.sourceType == VibeSourceType.rawImage;
+
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          Row(
+            children: [
+              Icon(
+                Icons.auto_fix_high,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                context.l10n.vibe_title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 缩略图
+          if (vibe.thumbnail != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                vibe.thumbnail!,
+                width: double.infinity,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+            ),
+          const SizedBox(height: 12),
+          // 数据源类型
+          _buildVibeInfoRow(
+            context,
+            label: context.l10n.vibe_sourceType,
+            value: vibe.sourceType.displayLabel,
+          ),
+          const SizedBox(height: 8),
+          // 强度值
+          _buildVibeInfoRow(
+            context,
+            label: context.l10n.vibe_referenceStrength,
+            value: vibe.strength.toStringAsFixed(1),
+          ),
+          // 信息提取值（仅原始图片模式）
+          if (isRawImage) ...[
+            const SizedBox(height: 8),
+            _buildVibeInfoRow(
+              context,
+              label: context.l10n.vibe_infoExtraction,
+              value: vibe.infoExtracted.toStringAsFixed(1),
+            ),
+          ],
+          const SizedBox(height: 12),
+          // 一键复用按钮
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _reuseVibe(context, ref),
+              icon: const Icon(Icons.replay, size: 16),
+              label: Text(context.l10n.vibe_reuseButton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建 Vibe 信息行
+  Widget _buildVibeInfoRow(
+    BuildContext context, {
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 12,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 一键复用 Vibe
+  void _reuseVibe(BuildContext context, WidgetRef ref) {
+    final vibe = record.vibeData;
+    if (vibe == null) {
+      AppToast.warning(context, '没有可用的 Vibe 数据');
+      return;
+    }
+
+    // 检查是否已存在相同的 Vibe（根据 vibeEncoding 判断）
+    final currentParams = ref.read(generationParamsNotifierProvider);
+    final existingVibes = currentParams.vibeReferencesV4;
+
+    final isDuplicate = existingVibes.any((existing) {
+      // 如果 vibeEncoding 相同，则认为是重复的
+      if (existing.vibeEncoding.isNotEmpty &&
+          vibe.vibeEncoding.isNotEmpty &&
+          existing.vibeEncoding == vibe.vibeEncoding) {
+        return true;
+      }
+      // 或者根据 displayName 判断（作为备用）
+      if (existing.displayName == vibe.displayName) {
+        return true;
+      }
+      return false;
+    });
+
+    if (isDuplicate) {
+      AppToast.info(context, '该 Vibe 已在生成参数中');
+      return;
+    }
+
+    // 检查是否已达到最大限制（16个）
+    if (existingVibes.length >= 16) {
+      AppToast.warning(context, 'Vibe 数量已达到上限（16个）');
+      return;
+    }
+
+    // 添加到生成参数
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .addVibeReferencesV4([vibe]);
+
+    // 关闭全屏查看器并导航到生成屏幕
+    Navigator.of(context).pop();
+
+    if (context.mounted) {
+      AppToast.success(context, 'Vibe 已添加到生成参数');
+    }
   }
 
   Widget _buildFullImage() {
@@ -805,22 +1170,59 @@ class _FullscreenViewer extends ConsumerWidget {
                 children: [
                   Text(
                     context.l10n.gallery_generationParams,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  _buildMetadataRow(context, context.l10n.gallery_metaModel, record.params.model),
-                  _buildMetadataRow(context, context.l10n.gallery_metaResolution, record.resolution),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSteps, record.params.steps.toString()),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSampler, record.params.sampler),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaModel,
+                    record.params.model,
+                  ),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaResolution,
+                    record.resolution,
+                  ),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaSteps,
+                    record.params.steps.toString(),
+                  ),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaSampler,
+                    record.params.sampler,
+                  ),
                   _buildMetadataRow(
                     context,
                     context.l10n.gallery_metaCfgScale,
                     record.params.scale.toString(),
                   ),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSeed, record.params.seed.toString()),
-                  _buildMetadataRow(context, context.l10n.gallery_metaSmea, record.params.smea ? context.l10n.gallery_metaSmeaOn : context.l10n.gallery_metaSmeaOff),
-                  _buildMetadataRow(context, context.l10n.gallery_metaGenerationTime, record.createdAt.toString()),
-                  _buildMetadataRow(context, context.l10n.gallery_metaFileSize, record.formattedFileSize),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaSeed,
+                    record.params.seed.toString(),
+                  ),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaSmea,
+                    record.params.smea
+                        ? context.l10n.gallery_metaSmeaOn
+                        : context.l10n.gallery_metaSmeaOff,
+                  ),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaGenerationTime,
+                    record.createdAt.toString(),
+                  ),
+                  _buildMetadataRow(
+                    context,
+                    context.l10n.gallery_metaFileSize,
+                    record.formattedFileSize,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     context.l10n.gallery_positivePrompt,
@@ -878,11 +1280,7 @@ class _FullscreenViewer extends ConsumerWidget {
         );
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(path != null ? context.l10n.gallery_savedTo(path) : context.l10n.gallery_saveFailed),
-        ),
-      );
+      AppToast.success(context, context.l10n.gallery_savedTo(path ?? ''));
     }
   }
 

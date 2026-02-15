@@ -21,6 +21,8 @@ class AppleLightPalette extends BaseColorModule {
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFD1E2FF), // Light blue for contrast
+        onPrimaryContainer: Color(0xFF002D6F), // Dark blue for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: Color(0xFFFF6D00),

@@ -114,8 +114,6 @@ class _EditorCanvasState extends State<EditorCanvas>
                           Positioned.fill(
                             child: CustomPaint(
                               painter: LayerPainter(state: widget.state),
-                              isComplex: true,
-                              willChange: true,
                             ),
                           ),
 

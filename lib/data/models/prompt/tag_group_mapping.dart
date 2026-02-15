@@ -94,19 +94,15 @@ class TagGroupMapping with _$TagGroupMapping {
   /// 从 groupTitle 提取显示名称
   static String _extractDisplayName(String groupTitle) {
     // 移除 "tag_group:" 前缀
-    var name = groupTitle;
-    if (name.startsWith('tag_group:')) {
-      name = name.substring('tag_group:'.length);
-    }
+    final name = groupTitle.startsWith('tag_group:')
+        ? groupTitle.substring('tag_group:'.length)
+        : groupTitle;
 
     // 将下划线替换为空格，并将首字母大写
     return name
         .split('_')
-        .map(
-          (word) => word.isNotEmpty
-              ? '${word[0].toUpperCase()}${word.substring(1)}'
-              : '',
-        )
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
 }

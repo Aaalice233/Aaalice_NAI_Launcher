@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/utils/localization_extension.dart';
+import '../../router/app_router.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
@@ -15,6 +16,9 @@ import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../tag_chip.dart';
+import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/app_toast.dart';
+import 'video_player_widget.dart';
 
 /// 在线画廊帖子详情弹窗
 ///
@@ -98,7 +102,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           ),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -108,7 +112,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
             child: isWide
                 ? _buildWideLayout(theme, authState, isFavorited)
                 : _buildNarrowLayout(theme, authState, isFavorited),
@@ -119,7 +123,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 宽屏布局（左图右信息）
-  Widget _buildWideLayout(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildWideLayout(
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Row(
       children: [
         // 媒体区域
@@ -131,7 +139,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         Container(
           width: 320,
           decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: theme.dividerColor)),
+            border: Border(
+              left: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+            ),
           ),
           child: _buildInfoPanel(theme, authState, isFavorited),
         ),
@@ -140,7 +150,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 窄屏布局（上图下信息）
-  Widget _buildNarrowLayout(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildNarrowLayout(
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Column(
       children: [
         // 媒体区域
@@ -164,13 +178,22 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 可交互图片查看器
-          InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: CachedNetworkImage(
-              imageUrl: widget.post.sampleUrl ?? widget.post.fileUrl ?? widget.post.previewUrl,
+          // 根据媒体类型渲染不同组件
+          if (widget.post.isVideo)
+            // 视频播放器
+            VideoPlayerWidget(
+              videoUrl: widget.post.fileUrl ?? widget.post.sampleUrl ?? '',
+            )
+          else if (widget.post.isAnimated)
+            // GIF 自动循环播放
+            CachedNetworkImage(
+              imageUrl: widget.post.fileUrl ??
+                  widget.post.sampleUrl ??
+                  widget.post.previewUrl,
               fit: BoxFit.contain,
+              errorListener: (error) {
+                // 静默处理图片加载错误
+              },
               placeholder: (context, url) => const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
@@ -181,27 +204,41 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                     Icon(Icons.error, color: Colors.white54, size: 48),
                     SizedBox(height: 8),
                     Text(
-                      '加载失败',
+                      'GIF加载失败',
                       style: TextStyle(color: Colors.white54),
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-          // 媒体类型标识
-          if (widget.post.isVideo || widget.post.isAnimated)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  shape: BoxShape.circle,
+            )
+          else
+            // 普通图片（支持缩放平移）
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: CachedNetworkImage(
+                imageUrl: widget.post.sampleUrl ??
+                    widget.post.fileUrl ??
+                    widget.post.previewUrl,
+                fit: BoxFit.contain,
+                errorListener: (error) {
+                  // 静默处理图片加载错误
+                },
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
                 ),
-                child: Icon(
-                  widget.post.isVideo ? Icons.play_arrow : Icons.gif,
-                  color: Colors.white,
-                  size: 56,
+                errorWidget: (context, url, error) => const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error, color: Colors.white54, size: 48),
+                      SizedBox(height: 8),
+                      Text(
+                        '加载失败',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -218,53 +255,58 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               ),
             ),
           ),
-          // 缩放提示
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.zoom_in, color: Colors.white54, size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    '双指缩放',
-                    style: TextStyle(color: Colors.white54, fontSize: 11),
-                  ),
-                ],
+          // 缩放提示（仅图片显示）
+          if (!widget.post.isVideo && !widget.post.isAnimated)
+            Positioned(
+              bottom: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.zoom_in, color: Colors.white54, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      '双指缩放',
+                      style: TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
   /// 信息面板
-  Widget _buildInfoPanel(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildInfoPanel(
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 标题栏
         _buildTitleBar(theme, authState, isFavorited),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 图片信息
         Padding(
           padding: const EdgeInsets.all(16),
           child: _buildInfoSection(theme),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 标签区域
         Expanded(
           child: _buildTagsSection(theme),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 操作按钮
         _buildActionButtons(theme),
       ],
@@ -272,14 +314,19 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   }
 
   /// 标题栏
-  Widget _buildTitleBar(ThemeData theme, DanbooruAuthState authState, bool isFavorited) {
+  Widget _buildTitleBar(
+    ThemeData theme,
+    DanbooruAuthState authState,
+    bool isFavorited,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       child: Row(
         children: [
           Text(
             'Post #${widget.post.id}',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 8),
           // 评级徽章
@@ -303,12 +350,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           IconButton(
             onPressed: () {
               if (!authState.isLoggedIn) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(context.l10n.onlineGallery_pleaseLogin)),
-                );
+                AppToast.info(context, context.l10n.onlineGallery_pleaseLogin);
                 return;
               }
-              ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(widget.post.id);
+              ref
+                  .read(onlineGalleryNotifierProvider.notifier)
+                  .toggleFavorite(widget.post.id);
             },
             icon: Icon(
               isFavorited ? Icons.favorite : Icons.favorite_border,
@@ -337,8 +384,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           icon: Icons.star,
           label: context.l10n.onlineGallery_score,
           value: '${widget.post.score}',
-          valueColor: widget.post.score > 0 ? Colors.green : 
-                      widget.post.score < 0 ? Colors.red : null,
+          valueColor: widget.post.score > 0
+              ? Colors.green
+              : widget.post.score < 0
+                  ? Colors.red
+                  : null,
         ),
         const SizedBox(height: 6),
         _InfoRow(
@@ -362,7 +412,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
     final translationService = ref.watch(tagTranslationServiceProvider);
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -370,7 +420,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         children: [
           Text(
             context.l10n.onlineGallery_tags,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           // 艺术家标签
@@ -497,43 +548,35 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   void _copyTags() {
     final tags = widget.post.tags.join(', ');
     Clipboard.setData(ClipboardData(text: tags));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.onlineGallery_copied)),
-    );
+    AppToast.success(context, context.l10n.onlineGallery_copied);
   }
 
   /// 发送到生成页面
   void _sendToGenerate() {
     if (widget.post.tags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('此图片没有标签信息')),
-      );
+      AppToast.info(context, '此图片没有标签信息');
       return;
     }
 
     // 清空角色提示词
     ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
-    
+
     // 设置待填充提示词
     ref.read(pendingPromptNotifierProvider.notifier).set(
-      prompt: widget.post.tags.join(', '),
-    );
+          prompt: widget.post.tags.join(', '),
+        );
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
-    context.go('/generate');
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('提示词已发送到生成页面')),
-    );
+    context.go(AppRoutes.generation);
+
+    AppToast.success(context, '提示词已发送到生成页面');
   }
 
   /// 加入队列
   Future<void> _addToQueue() async {
     if (widget.post.tags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('此图片没有标签信息')),
-      );
+      AppToast.info(context, '此图片没有标签信息');
       return;
     }
 
@@ -543,12 +586,15 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       source: ReplicationTaskSource.online,
     );
 
-    final added = await ref.read(replicationQueueNotifierProvider.notifier).add(task);
-    
+    final added =
+        await ref.read(replicationQueueNotifierProvider.notifier).add(task);
+
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(added ? '已加入队列' : '队列已满（最多50项）')),
-      );
+      if (added) {
+        AppToast.success(context, '已加入队列');
+      } else {
+        AppToast.warning(context, '队列已满（最多50项）');
+      }
     }
   }
 
@@ -671,15 +717,19 @@ class _TagSection extends StatelessWidget {
             spacing: 4,
             runSpacing: 4,
             children: tags.map((tag) {
-              final translation = translationService.translate(
-                tag,
-                isCharacter: isCharacter,
-              );
-              return SimpleTagChip(
-                tag: tag,
-                color: color,
-                translation: translation,
-                onTap: () => onTagTap(tag),
+              return FutureBuilder<String?>(
+                future: translationService.translate(
+                  tag,
+                  isCharacter: isCharacter,
+                ),
+                builder: (context, snapshot) {
+                  return SimpleTagChip(
+                    tag: tag,
+                    color: color,
+                    translation: snapshot.data,
+                    onTap: () => onTagTap(tag),
+                  );
+                },
               );
             }).toList(),
           ),

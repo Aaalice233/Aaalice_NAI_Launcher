@@ -88,10 +88,12 @@ class HistoryManager extends ChangeNotifier {
   }
 
   /// 获取撤销操作描述
-  String? get undoDescription => _undoStack.isNotEmpty ? _undoStack.last.description : null;
+  String? get undoDescription =>
+      _undoStack.isNotEmpty ? _undoStack.last.description : null;
 
   /// 获取重做操作描述
-  String? get redoDescription => _redoStack.isNotEmpty ? _redoStack.last.description : null;
+  String? get redoDescription =>
+      _redoStack.isNotEmpty ? _redoStack.last.description : null;
 }
 
 /// 添加笔画操作
@@ -233,8 +235,11 @@ class MergeLayerAction extends EditorAction {
 
   @override
   void undo(EditorState state) {
-    if (!_executed || _topLayerData == null || _bottomLayerData == null ||
-        _topIndex == null || _bottomIndex == null) {
+    if (!_executed ||
+        _topLayerData == null ||
+        _bottomLayerData == null ||
+        _topIndex == null ||
+        _bottomIndex == null) {
       return;
     }
 
@@ -278,6 +283,65 @@ class ReorderLayerAction extends EditorAction {
 
   @override
   String get description => '重排图层';
+}
+
+/// 画布调整大小操作
+/// 调整画布大小操作
+class ResizeCanvasAction extends EditorAction {
+  final Size newSize;
+  final CanvasResizeMode mode;
+  Size? _previousSize;
+
+  ResizeCanvasAction({
+    required this.newSize,
+    required this.mode,
+  });
+
+  @override
+  void execute(EditorState state) {
+    _previousSize = state.canvasSize;
+    final oldSize = _previousSize!;
+
+    // 变换所有图层内容
+    state.layerManager.transformAllLayers(oldSize, newSize, mode);
+
+    // 更新画布尺寸
+    state.setCanvasSize(newSize);
+  }
+
+  @override
+  void undo(EditorState state) {
+    if (_previousSize == null) return;
+
+    final oldSize = state.canvasSize;
+    final newSize = _previousSize!;
+
+    // 反向变换图层内容
+    // 注意：反向变换时使用相反的模式
+    final reverseMode = _getReverseMode(mode);
+    state.layerManager.transformAllLayers(oldSize, newSize, reverseMode);
+
+    // 恢复画布尺寸
+    state.setCanvasSize(newSize);
+  }
+
+  /// 获取反向变换模式
+  CanvasResizeMode _getReverseMode(CanvasResizeMode mode) {
+    switch (mode) {
+      case CanvasResizeMode.crop:
+        // 如果原来是裁剪（变小），反向就是填充（变大）
+        return CanvasResizeMode.pad;
+      case CanvasResizeMode.pad:
+        // 如果原来是填充（变大），反向就是裁剪（变小）
+        return CanvasResizeMode.crop;
+      case CanvasResizeMode.stretch:
+        // 拉伸模式反向仍然是拉伸
+        return CanvasResizeMode.stretch;
+    }
+  }
+
+  @override
+  String get description => '调整画布大小 (${mode.label})';
 }
 
 /// 笔画数据（用于历史记录）

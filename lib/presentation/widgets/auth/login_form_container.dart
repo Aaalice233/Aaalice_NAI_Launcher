@@ -20,60 +20,64 @@ class LoginFormContainer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = ref.watch(authModeProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 登录模式切换器
-        const AuthModeSwitcher(),
-        const SizedBox(height: 24),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 登录模式切换器
+          const AuthModeSwitcher(),
+          const SizedBox(height: 24),
 
-        // 根据当前模式显示对应的登录表单
-        // 使用 AnimatedSize 处理高度变化的平滑过渡
-        AnimatedSize(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: AnimatedSwitcher(
+          // 根据当前模式显示对应的登录表单
+          // 使用 AnimatedSize 处理高度变化的平滑过渡
+          AnimatedSize(
             duration: const Duration(milliseconds: 300),
-            // 使用更自然的曲线
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            // 自定义过渡动画：淡入淡出 + 轻微垂直位移
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            // 布局构建器，确保动画期间顶部对齐
-            layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
-              return Stack(
-                alignment: Alignment.topCenter,
-                children: <Widget>[
-                  ...previousChildren,
-                  if (currentChild != null) currentChild,
-                ],
-              );
-            },
-            child: switch (currentMode) {
-              AuthMode.credentials => CredentialsLoginForm(
-                  key: const Key('credentials_form'),
-                  onLoginSuccess: onLoginSuccess,
-                ),
-              AuthMode.token => TokenLoginCard(
-                  key: const Key('token_form'),
-                  onLoginSuccess: onLoginSuccess,
-                ),
-            },
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              // 使用更自然的曲线
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              // 自定义过渡动画：淡入淡出 + 轻微垂直位移
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              // 布局构建器，确保动画期间顶部对齐
+              layoutBuilder:
+                  (Widget? currentChild, List<Widget> previousChildren) {
+                return Stack(
+                  alignment: Alignment.topCenter,
+                  children: <Widget>[
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                );
+              },
+              child: switch (currentMode) {
+                AuthMode.credentials => CredentialsLoginForm(
+                    key: const Key('credentials_form'),
+                    onLoginSuccess: onLoginSuccess,
+                  ),
+                AuthMode.token => TokenLoginCard(
+                    key: const Key('token_form'),
+                    onLoginSuccess: onLoginSuccess,
+                  ),
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

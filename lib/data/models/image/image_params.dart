@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/enums/precise_ref_type.dart';
 import '../vibe/vibe_reference_v4.dart';
 
 part 'image_params.freezed.dart';
@@ -27,32 +28,23 @@ extension ImageGenerationActionExtension on ImageGenerationAction {
   }
 }
 
-/// Vibe Transfer 参考图配置
+/// Precise Reference 配置 (仅 V4+ 模型支持)
+/// 支持 Character/Style/CharacterAndStyle 三种类型
 @freezed
-class VibeReference with _$VibeReference {
-  const factory VibeReference({
+class PreciseReference with _$PreciseReference {
+  const factory PreciseReference({
     /// 参考图像数据
     required Uint8List image,
+
+    /// Precise Reference 类型
+    required PreciseRefType type,
 
     /// 参考强度 (0-1)，越高越强烈模仿视觉线索
-    @Default(0.6) double strength,
+    @Default(1.0) double strength,
 
-    /// 信息提取量 (0-1)，降低会减少纹理保留构图
-    @Default(1.0) double informationExtracted,
-  }) = _VibeReference;
-}
-
-/// 角色参考配置 (Director Reference, 仅 V4+ 模型支持)
-/// 注：informationExtracted/strengthValue 固定为 1，secondaryStrength 由全局 fidelity 计算
-@freezed
-class CharacterReference with _$CharacterReference {
-  const factory CharacterReference({
-    /// 参考图像数据
-    required Uint8List image,
-
-    /// 角色描述 (可选)
-    @Default('') String description,
-  }) = _CharacterReference;
+    /// 保真度 (0-1)，越高越忠实于原图
+    @Default(1.0) double fidelity,
+  }) = _PreciseReference;
 }
 
 /// 多角色提示词配置 (仅 V4 模型支持)
@@ -182,15 +174,9 @@ class ImageParams with _$ImageParams {
     // ========== Inpainting 参数 ==========
 
     /// 蒙版图像 (白色区域为修补区域)
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    Uint8List? maskImage,
+    @JsonKey(includeFromJson: false, includeToJson: false) Uint8List? maskImage,
 
     // ========== Vibe Transfer 参数 ==========
-
-    /// Vibe 参考图列表 (旧版，原始图片模式)
-    @Default([])
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    List<VibeReference> vibeReferences,
 
     /// V4 Vibe 参考列表 (支持预编码和原始图片)
     @Default([])
@@ -200,18 +186,12 @@ class ImageParams with _$ImageParams {
     /// 是否标准化多个 Vibe 参考的强度值
     @Default(true) bool normalizeVibeStrength,
 
-    // ========== 角色参考参数 (仅 V4+ 模型) ==========
+    // ========== Precise Reference 参数 (仅 V4+ 模型) ==========
 
-    /// 角色参考图列表 (最多1张)
+    /// Precise Reference 图列表
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
-    List<CharacterReference> characterReferences,
-
-    /// 角色参考 - Style Aware (传输角色相关风格信息)
-    @Default(true) bool characterReferenceStyleAware,
-
-    /// 角色参考 - Fidelity (0=旧版行为, 1=新版行为)
-    @Default(1.0) double characterReferenceFidelity,
+    List<PreciseReference> preciseReferences,
 
     // ========== 多角色参数 (仅 V4 模型) ==========
 
@@ -244,15 +224,11 @@ extension ImageParamsExtension on ImageParams {
   /// 检查是否启用了多角色
   bool get hasCharacters => characters.isNotEmpty;
 
-  /// 检查是否启用了 Vibe Transfer (旧版)
-  bool get hasVibeReferences => vibeReferences.isNotEmpty;
-
   /// 检查是否启用了 V4 Vibe Transfer
   bool get hasVibeReferencesV4 => vibeReferencesV4.isNotEmpty;
 
-  /// 检查是否有任何 Vibe 参考 (V3 或 V4)
-  bool get hasAnyVibeReferences =>
-      vibeReferences.isNotEmpty || vibeReferencesV4.isNotEmpty;
+  /// 检查是否有任何 Vibe 参考
+  bool get hasAnyVibeReferences => vibeReferencesV4.isNotEmpty;
 
   /// 计算需要编码的 Vibe 数量 (消耗 Anlas)
   int get vibeEncodingCount =>
@@ -261,8 +237,14 @@ extension ImageParamsExtension on ImageParams {
   /// 计算 Vibe 编码成本 (每张 2 Anlas)
   int get vibeEncodingCost => vibeEncodingCount * 2;
 
-  /// 检查是否启用了角色参考
-  bool get hasCharacterReferences => characterReferences.isNotEmpty;
+  /// 检查是否启用了 Precise Reference
+  bool get hasPreciseReferences => preciseReferences.isNotEmpty;
+
+  /// 计算 Precise Reference 数量 (消耗 Anlas)
+  int get preciseReferenceCount => preciseReferences.length;
+
+  /// 计算 Precise Reference 成本 (每张 5 Anlas)
+  int get preciseReferenceCost => preciseReferenceCount * 5;
 
   /// 检查是否为 img2img 模式
   bool get isImg2Img =>
@@ -312,9 +294,12 @@ class ImageGenerationParameters with _$ImageGenerationParameters {
     // inpainting 参数
     String? mask,
     // vibe transfer 参数
-    @JsonKey(name: 'reference_image_multiple') List<String>? referenceImageMultiple,
-    @JsonKey(name: 'reference_strength_multiple') List<double>? referenceStrengthMultiple,
-    @JsonKey(name: 'reference_information_extracted_multiple') List<double>? referenceInformationExtractedMultiple,
+    @JsonKey(name: 'reference_image_multiple')
+    List<String>? referenceImageMultiple,
+    @JsonKey(name: 'reference_strength_multiple')
+    List<double>? referenceStrengthMultiple,
+    @JsonKey(name: 'reference_information_extracted_multiple')
+    List<double>? referenceInformationExtractedMultiple,
   }) = _ImageGenerationParameters;
 
   factory ImageGenerationParameters.fromJson(Map<String, dynamic> json) =>

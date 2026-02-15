@@ -18,18 +18,20 @@ class ZenPalette extends BaseColorModule {
   const ZenPalette();
 
   // Design spec colors
-  static const Color _primary = Color(0xFF60A5FA);        // --primary
-  static const Color _secondary = Color(0xFF94A3B8);      // --text-muted
+  static const Color _primary = Color(0xFF60A5FA); // --primary
+  static const Color _secondary = Color(0xFF94A3B8); // --text-muted
   static const Color _tertiary = Color(0xFFA78BFA);
-  static const Color _background = Color(0xFF050505);     // --background
-  static const Color _surface = Color(0xFF0E0E0F);        // --surface
+  static const Color _background = Color(0xFF050505); // --background
+  static const Color _surface = Color(0xFF0E0E0F); // --surface
   static const Color _surfaceElevated = Color(0xFF151517); // --surface-elevated
-  static const Color _onSurface = Color(0xFFFCFCFC);      // --text-main
+  static const Color _onSurface = Color(0xFFFCFCFC); // --text-main
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: Color(0xFF3B82F6),
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
+        onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
         secondary: Color(0xFF64748B),
         onSecondary: Colors.white,
         tertiary: Color(0xFF8B5CF6),
@@ -43,15 +45,18 @@ class ZenPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.black,
+        primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
+        onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
         secondary: _secondary,
         onSecondary: Colors.black,
         tertiary: _tertiary,
         surface: _surface,
         onSurface: _onSurface,
-        onSurfaceVariant: Color(0xFF9CA3AF),  // Gray-400 for better contrast
+        onSurfaceVariant: Color(0xFF9CA3AF), // Gray-400 for better contrast
         surfaceContainerHighest: _surfaceElevated,
-        surfaceContainerLowest: _background, // Use background for lowest container
-        outline: Color(0xFF52525B),  // Zinc-600 for better visibility
+        surfaceContainerLowest:
+            _background, // Use background for lowest container
+        outline: Color(0xFF52525B), // Zinc-600 for better visibility
       );
 
   @override

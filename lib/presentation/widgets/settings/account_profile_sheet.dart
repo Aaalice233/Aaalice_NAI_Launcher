@@ -1,15 +1,16 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/avatar_service.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
 import '../common/app_toast.dart';
+import '../common/themed_divider.dart';
 import 'nickname_edit_dialog.dart';
 
 /// 账号资料底部操作面板
@@ -89,7 +90,10 @@ class _AccountProfileBottomSheetState
         }
       } else if (result.isFailure && mounted) {
         // 显示错误信息
-        AppToast.error(context, result.errorMessage ?? context.l10n.common_error);
+        AppToast.error(
+          context,
+          result.errorMessage ?? context.l10n.common_error,
+        );
       }
       // 取消操作不需要提示
     } catch (e) {
@@ -224,7 +228,9 @@ class _AccountProfileBottomSheetState
     // 使用 ref.watch 实现响应式更新
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
     final currentAccountId = ref.watch(authNotifierProvider).accountId;
-    final isDefaultAccount = currentAccount.isDefault;
+    final defaultAccount =
+        ref.read(accountManagerNotifierProvider.notifier).defaultAccount;
+    final isDefaultAccount = defaultAccount?.id == currentAccount.id;
     final hasMultipleAccounts = accounts.length > 1;
 
     return Container(
@@ -260,9 +266,7 @@ class _AccountProfileBottomSheetState
                   _buildAvatarActions(context),
                   const SizedBox(height: 16),
                   // 分割线
-                  Divider(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-                  ),
+                  const ThemedDivider(),
                   const SizedBox(height: 16),
                   // 昵称行
                   _buildNicknameRow(context),
@@ -476,8 +480,9 @@ class _AccountProfileBottomSheetState
             Text(
               context.l10n.settings_setAsDefault,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color:
-                    isDefault ? theme.colorScheme.primary : theme.colorScheme.outline,
+                color: isDefault
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline,
               ),
             ),
             const Spacer(),
@@ -540,6 +545,11 @@ class _AccountProfileBottomSheetState
             context,
             account,
             account.id == currentAccountId,
+            ref
+                    .read(accountManagerNotifierProvider.notifier)
+                    .defaultAccount
+                    ?.id ==
+                account.id,
           ),
         ),
       ],
@@ -551,6 +561,7 @@ class _AccountProfileBottomSheetState
     BuildContext context,
     SavedAccount account,
     bool isCurrent,
+    bool isDefault,
   ) {
     final theme = Theme.of(context);
 
@@ -588,7 +599,8 @@ class _AccountProfileBottomSheetState
               else
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: _getColorFromName(account.displayName, theme),
+                  backgroundColor:
+                      _getColorFromName(account.displayName, theme),
                   child: Text(
                     account.displayName.isNotEmpty
                         ? account.displayName.characters.first.toUpperCase()
@@ -611,16 +623,21 @@ class _AccountProfileBottomSheetState
                           child: Text(
                             account.displayName,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: isCurrent
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (account.isDefault) ...[
+                        if (isDefault) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(4),

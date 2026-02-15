@@ -1,39 +1,33 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
 import '../../data/models/queue/replication_task.dart';
+import 'base_hive_storage.dart';
 
 part 'replication_queue_storage.g.dart';
 
 /// 复刻队列存储服务
 ///
 /// 使用独立的 Hive Box 存储队列数据，以 JSON 字符串形式保存
-class ReplicationQueueStorage {
-  Box<String>? _box;
-
-  /// 获取队列 Box（懒加载）
-  Future<Box<String>> _getBox() async {
-    _box ??= await Hive.openBox<String>(StorageKeys.replicationQueueBox);
-    return _box!;
-  }
+/// 注意: Box 在 main.dart 中已预先打开，此处直接同步获取
+class ReplicationQueueStorage extends BaseHiveStorage<void> {
+  ReplicationQueueStorage()
+    : super(boxName: StorageKeys.replicationQueueBox, useLazyLoading: false);
 
   /// 保存队列到本地存储
   Future<void> save(List<ReplicationTask> tasks) async {
-    final box = await _getBox();
     final taskList = ReplicationTaskList(tasks: tasks);
     final jsonString = jsonEncode(taskList.toJson());
     await box.put(StorageKeys.replicationQueueData, jsonString);
   }
 
-  /// 从本地存储加载队列
-  Future<List<ReplicationTask>> load() async {
+  /// 从本地存储加载队列（同步加载）
+  List<ReplicationTask> load() {
     try {
-      final box = await _getBox();
-      final jsonString = box.get(StorageKeys.replicationQueueData);
+      final jsonString = box.get(StorageKeys.replicationQueueData) as String?;
 
       if (jsonString == null || jsonString.isEmpty) {
         return [];
@@ -49,8 +43,8 @@ class ReplicationQueueStorage {
   }
 
   /// 清空存储
+  @override
   Future<void> clear() async {
-    final box = await _getBox();
     await box.delete(StorageKeys.replicationQueueData);
   }
 }

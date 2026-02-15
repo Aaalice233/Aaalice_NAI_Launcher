@@ -1,9 +1,12 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../widgets/common/themed_divider.dart';
+import '../../../widgets/common/themed_slider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 多角色面板组件 (仅 V4 模型支持)
 class CharacterPanel extends ConsumerStatefulWidget {
@@ -97,7 +100,7 @@ class _CharacterPanelState extends ConsumerState<CharacterPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Divider(),
+                  const ThemedDivider(),
 
                   // 说明文字
                   Text(
@@ -289,7 +292,7 @@ class _CharacterItemState extends State<_CharacterItem> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 角色提示词
-                TextField(
+                ThemedInput(
                   controller: _promptController,
                   decoration: InputDecoration(
                     labelText: context.l10n.character_description,
@@ -327,7 +330,7 @@ class _CharacterItemState extends State<_CharacterItem> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // 角色负向提示词
-                        TextField(
+                        ThemedInput(
                           controller: _negativeController,
                           decoration: InputDecoration(
                             labelText: context.l10n.character_negativeOptional,
@@ -500,7 +503,7 @@ class _PositionSlider extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Slider(
+              child: ThemedSlider(
                 value: value ?? 0.5,
                 min: 0.0,
                 max: 1.0,

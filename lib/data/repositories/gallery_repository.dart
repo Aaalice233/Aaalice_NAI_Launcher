@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/generation_record.dart';
+import '../models/gallery/gallery_statistics.dart';
 import '../services/gallery_migration_service.dart';
 
 part 'gallery_repository.g.dart';
@@ -17,18 +18,11 @@ part 'gallery_repository.g.dart';
 /// 画廊数据仓库
 ///
 /// 管理生成记录的 CRUD 操作和持久化
-/// 使用 O(1) 单条 Hive 对象操作替代 O(N) JSON 序列化
 class GalleryRepository {
-  /// 新 Hive Box 名称 (迁移后的版本)
-  static const String _newBoxName = '${StorageKeys.galleryBox}_v2';
-
-  /// 新 Box 实例
-  Box<GenerationRecord>? _newBox;
-
-  /// 最大记录数量 (移除 500 限制，使用更大值)
+  static const String _boxName = '${StorageKeys.galleryBox}_v2';
   static const int maxRecords = 5000;
 
-  /// 图像保存目录
+  Box<GenerationRecord>? _box;
   Directory? _imageDir;
 
   /// 初始化
@@ -60,14 +54,16 @@ class GalleryRepository {
         await _imageDir!.create(recursive: true);
       }
 
-      // 打开新的 Hive Box
-      _newBox = await Hive.openBox<GenerationRecord>(_newBoxName);
+      _box = await Hive.openBox<GenerationRecord>(_boxName);
 
       // 执行数据迁移 (如果尚未迁移)
       final migrationService = GalleryMigrationService();
       final (success, count, error) = await migrationService.migrate();
       if (success) {
-        AppLogger.i('GalleryRepository initialized with $count migrated records', 'Gallery');
+        AppLogger.i(
+          'GalleryRepository initialized with $count migrated records',
+          'Gallery',
+        );
       } else {
         AppLogger.e('Migration failed: $error', null, null, 'Gallery');
       }
@@ -76,46 +72,31 @@ class GalleryRepository {
     }
   }
 
-  /// 生成基于提示词的智能文件名
-  ///
-  /// 格式: NAI_[Date]_[PromptSnippet].png
-  /// - 日期时间戳避免文件名冲突
-  /// - 提示词片段：前30个字符，移除特殊字符
+  /// 生成基于提示词的智能文件名（格式: NAI_[Date]_[PromptSnippet].png）
   String _generateFileName(String? prompt, {String prefix = 'nai'}) {
-    // 生成时间戳（ISO 8601 格式，移除冒号以兼容文件系统）
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').substring(0, 19);
 
-    // 如果没有提示词，使用纯时间戳格式
     if (prompt == null || prompt.isEmpty) {
       return '${prefix}_$timestamp.png';
     }
 
-    // 截取提示词片段，移除特殊字符
-    String snippet = prompt
+    final snippet = prompt
         .substring(0, min(30, prompt.length))
-        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '') // 移除 Windows 文件系统非法字符
-        .replaceAll(' ', '_') // 空格替换为下划线
-        .replaceAll(',', '') // 移除逗号
+        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '')
+        .replaceAll(' ', '_')
+        .replaceAll(',', '')
         .trim();
 
-    // 如果处理后为空，使用默认名称
-    if (snippet.isEmpty) snippet = 'generated';
-
-    return '${prefix}_${timestamp}_$snippet.png';
+    return '${prefix}_${timestamp}_${snippet.isEmpty ? 'generated' : snippet}.png';
   }
 
   /// 获取所有记录
   List<GenerationRecord> getAllRecords() {
     try {
-      if (_newBox == null || _newBox!.isEmpty) {
-        return [];
-      }
+      if (_box == null || _box!.isEmpty) return [];
 
-      // 从新 Box 读取所有记录
-      final records = _newBox!.values.toList();
-
-      // 按创建时间倒序排列
-      records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final records = _box!.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       return records;
     } catch (e, stack) {
@@ -153,15 +134,12 @@ class GalleryRepository {
     );
 
     // 检查是否超出最大数量限制
-    if (_newBox != null && _newBox!.length >= maxRecords) {
-      // 删除最旧的记录
-      final oldestRecord = _newBox!.values
-          .reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b);
+    if (_box != null && _box!.length >= maxRecords) {
+      final oldestRecord = _box!.values.reduce((a, b) => a.createdAt.isBefore(b.createdAt) ? a : b);
       await _deleteRecordInternal(oldestRecord);
     }
 
-    // 直接写入新 Box (O(1))
-    await _newBox!.put(record.id, record);
+    await _box!.put(record.id, record);
     AppLogger.d('Record added: ${record.id}', 'Gallery');
 
     return record;
@@ -182,15 +160,15 @@ class GalleryRepository {
     }
 
     // 从 Hive Box 删除
-    await _newBox!.delete(record.id);
+    await _box!.delete(record.id);
   }
 
   /// 更新记录
   Future<void> updateRecord(GenerationRecord record) async {
-    if (_newBox == null) return;
+    if (_box == null) return;
 
     try {
-      await _newBox!.put(record.id, record);
+      await _box!.put(record.id, record);
       AppLogger.d('Record updated: ${record.id}', 'Gallery');
     } catch (e, stack) {
       AppLogger.e('Failed to update record: $e', e, stack, 'Gallery');
@@ -199,10 +177,10 @@ class GalleryRepository {
 
   /// 删除记录
   Future<void> deleteRecord(String id) async {
-    if (_newBox == null) return;
+    if (_box == null) return;
 
     try {
-      final record = _newBox!.get(id);
+      final record = _box!.get(id);
       if (record == null) {
         AppLogger.w('Record not found: $id', 'Gallery');
         return;
@@ -217,14 +195,12 @@ class GalleryRepository {
 
   /// 批量删除记录
   Future<void> deleteRecords(List<String> ids) async {
-    if (_newBox == null) return;
+    if (_box == null) return;
 
     try {
       for (final id in ids) {
-        final record = _newBox!.get(id);
-        if (record != null) {
-          await _deleteRecordInternal(record);
-        }
+        final record = _box!.get(id);
+        if (record != null) await _deleteRecordInternal(record);
       }
       AppLogger.d('Deleted ${ids.length} records', 'Gallery');
     } catch (e, stack) {
@@ -234,13 +210,13 @@ class GalleryRepository {
 
   /// 切换收藏状态
   Future<GenerationRecord> toggleFavorite(String id) async {
-    if (_newBox == null) throw Exception('Repository not initialized');
+    if (_box == null) throw Exception('Repository not initialized');
 
-    final record = _newBox!.get(id);
+    final record = _box!.get(id);
     if (record == null) throw Exception('Record not found');
 
     final updated = record.copyWith(isFavorite: !record.isFavorite);
-    await _newBox!.put(id, updated);
+    await _box!.put(id, updated);
 
     AppLogger.d('Toggled favorite: $id -> ${updated.isFavorite}', 'Gallery');
     return updated;
@@ -270,7 +246,8 @@ class GalleryRepository {
       final imageData = await getImageData(record);
       if (imageData == null) return null;
 
-      final fileName = _generateFileName(record.params.prompt, prefix: 'nai_export');
+      final fileName =
+          _generateFileName(record.params.prompt, prefix: 'nai_export');
       final file = File('$targetDir/$fileName');
       await file.writeAsBytes(imageData);
 
@@ -284,11 +261,11 @@ class GalleryRepository {
 
   /// 搜索记录
   List<GenerationRecord> searchRecords(String query) {
-    if (_newBox == null || _newBox!.isEmpty) return [];
+    if (_box == null || _box!.isEmpty) return [];
 
     final lowerQuery = query.toLowerCase();
 
-    return _newBox!.values.where((r) {
+    return _box!.values.where((r) {
       return r.params.prompt.toLowerCase().contains(lowerQuery) ||
           r.params.negativePrompt.toLowerCase().contains(lowerQuery) ||
           r.userTags.any((tag) => tag.toLowerCase().contains(lowerQuery));
@@ -298,7 +275,7 @@ class GalleryRepository {
 
   /// 应用筛选条件
   List<GenerationRecord> filterRecords(GalleryFilter filter) {
-    var records = _newBox?.values.toList() ?? [];
+    var records = _box?.values.toList() ?? [];
 
     if (records.isEmpty) return [];
 
@@ -317,17 +294,25 @@ class GalleryRepository {
       records = records.where((r) => r.isFavorite).toList();
     }
 
+    // 只显示 Vibe 图片
+    if (filter.vibeOnly) {
+      records = records.where((r) => r.hasVibeMetadata).toList();
+    }
+
     // 模型筛选
     if (filter.modelFilter != null && filter.modelFilter!.isNotEmpty) {
-      records = records.where((r) => r.params.model == filter.modelFilter).toList();
+      records =
+          records.where((r) => r.params.model == filter.modelFilter).toList();
     }
 
     // 日期筛选
     if (filter.dateFrom != null) {
-      records = records.where((r) => r.createdAt.isAfter(filter.dateFrom!)).toList();
+      records =
+          records.where((r) => r.createdAt.isAfter(filter.dateFrom!)).toList();
     }
     if (filter.dateTo != null) {
-      records = records.where((r) => r.createdAt.isBefore(filter.dateTo!)).toList();
+      records =
+          records.where((r) => r.createdAt.isBefore(filter.dateTo!)).toList();
     }
 
     // 标签筛选
@@ -341,61 +326,201 @@ class GalleryRepository {
     switch (filter.sortOrder) {
       case GallerySortOrder.newestFirst:
         records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
       case GallerySortOrder.oldestFirst:
         records.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        break;
       case GallerySortOrder.favoritesFirst:
         records.sort((a, b) {
           if (a.isFavorite && !b.isFavorite) return -1;
           if (!a.isFavorite && b.isFavorite) return 1;
           return b.createdAt.compareTo(a.createdAt);
         });
-        break;
     }
 
     return records;
   }
 
   /// 获取统计信息
-  Map<String, dynamic> getStats() {
-    if (_newBox == null) {
-      return {'totalCount': 0, 'favoritesCount': 0, 'totalSize': 0, 'maxRecords': maxRecords};
+  GalleryStatistics getStats() {
+    if (_box == null || _box!.isEmpty) {
+      return GalleryStatistics(
+        totalImages: 0,
+        totalSizeBytes: 0,
+        averageFileSizeBytes: 0,
+        favoriteCount: 0,
+        taggedImageCount: 0,
+        imagesWithMetadata: 0,
+        resolutionDistribution: const [],
+        modelDistribution: const [],
+        samplerDistribution: const [],
+        sizeDistribution: const [],
+        calculatedAt: DateTime.now(),
+      );
     }
 
-    final records = _newBox!.values.toList();
-    final favorites = records.where((r) => r.isFavorite).length;
-    final totalSize = records.fold<int>(0, (sum, r) => sum + r.fileSize);
+    final records = _box!.values.toList();
+    final totalImages = records.length;
 
-    return {
-      'totalCount': records.length,
-      'favoritesCount': favorites,
-      'totalSize': totalSize,
-      'maxRecords': maxRecords,
-    };
+    AppLogger.d('Calculating statistics for $totalImages images', 'Gallery');
+
+    final totalSizeBytes = records.fold(0, (sum, r) => sum + r.fileSize);
+
+    return GalleryStatistics(
+      totalImages: totalImages,
+      totalSizeBytes: totalSizeBytes,
+      averageFileSizeBytes: totalImages > 0 ? totalSizeBytes / totalImages : 0.0,
+      favoriteCount: records.where((r) => r.isFavorite).length,
+      taggedImageCount: records.where((r) => r.userTags.isNotEmpty).length,
+      imagesWithMetadata: records.where((r) => r.params.width > 0 && r.params.height > 0).length,
+      resolutionDistribution: _calculateResolutionDistribution(records, totalImages),
+      modelDistribution: _calculateModelDistribution(records, totalImages),
+      samplerDistribution: _calculateSamplerDistribution(records, totalImages),
+      sizeDistribution: _calculateSizeDistribution(records, totalImages),
+      calculatedAt: DateTime.now(),
+    );
+  }
+
+  /// 计算分布统计的通用方法
+  List<T> _calculateDistribution<T>({
+    required List<GenerationRecord> records,
+    required int totalImages,
+    required String? Function(GenerationRecord) getKey,
+    required T Function(String key, int count, double percentage) createStat,
+  }) {
+    final counts = <String, int>{};
+
+    for (final record in records) {
+      final key = getKey(record);
+      if (key != null && key.isNotEmpty) {
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+
+    final sortedEntries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return sortedEntries
+        .map(
+          (entry) => createStat(
+            entry.key,
+            entry.value,
+            totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+          ),
+        )
+        .toList();
+  }
+
+  /// 计算分辨率分布统计
+  List<ResolutionStatistics> _calculateResolutionDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    return _calculateDistribution<ResolutionStatistics>(
+      records: records,
+      totalImages: totalImages,
+      getKey: (r) =>
+          (r.params.width > 0 && r.params.height > 0) ? '${r.params.width}x${r.params.height}' : null,
+      createStat: (key, count, pct) => ResolutionStatistics(
+        label: key,
+        count: count,
+        percentage: pct,
+      ),
+    );
+  }
+
+  /// 计算模型分布统计
+  List<ModelStatistics> _calculateModelDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    return _calculateDistribution<ModelStatistics>(
+      records: records,
+      totalImages: totalImages,
+      getKey: (r) => r.params.model.isNotEmpty ? r.params.model : null,
+      createStat: (key, count, pct) => ModelStatistics(
+        modelName: key,
+        count: count,
+        percentage: pct,
+      ),
+    );
+  }
+
+  /// 计算采样器分布统计
+  List<SamplerStatistics> _calculateSamplerDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    return _calculateDistribution<SamplerStatistics>(
+      records: records,
+      totalImages: totalImages,
+      getKey: (r) => r.params.sampler.isNotEmpty ? _formatSamplerName(r.params.sampler) : null,
+      createStat: (key, count, pct) => SamplerStatistics(
+        samplerName: key,
+        count: count,
+        percentage: pct,
+      ),
+    );
+  }
+
+  /// 格式化采样器名称（k_euler_ancestral -> Euler Ancestral）
+  String _formatSamplerName(String sampler) {
+    return sampler
+        .replaceAll('k_', '')
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .join(' ');
+  }
+
+  /// 计算文件大小分布统计
+  List<SizeDistributionStatistics> _calculateSizeDistribution(
+    List<GenerationRecord> records,
+    int totalImages,
+  ) {
+    const mb = 1024 * 1024;
+    final sizeRanges = <String, int>{'< 1 MB': 0, '1-2 MB': 0, '2-5 MB': 0, '5-10 MB': 0, '> 10 MB': 0};
+
+    for (final record in records) {
+      final sizeMB = record.fileSize / mb;
+      final key = sizeMB < 1
+          ? '< 1 MB'
+          : sizeMB < 2
+              ? '1-2 MB'
+              : sizeMB < 5
+                  ? '2-5 MB'
+                  : sizeMB < 10
+                      ? '5-10 MB'
+                      : '> 10 MB';
+      sizeRanges[key] = sizeRanges[key]! + 1;
+    }
+
+    return sizeRanges.entries
+        .where((e) => e.value > 0)
+        .map(
+          (e) => SizeDistributionStatistics(
+            label: e.key,
+            count: e.value,
+            percentage: totalImages > 0 ? (e.value / totalImages) * 100 : 0.0,
+          ),
+        )
+        .toList();
   }
 
   /// 清空所有记录
   Future<void> clearAll() async {
-    if (_newBox == null) return;
+    if (_box == null) return;
 
-    // 获取所有记录以删除图像文件
-    final records = _newBox!.values.toList();
-    for (final record in records) {
+    for (final record in _box!.values) {
       if (record.filePath != null) {
         try {
           final file = File(record.filePath!);
-          if (await file.exists()) {
-            await file.delete();
-          }
+          if (await file.exists()) await file.delete();
         } catch (e) {
           AppLogger.w('Failed to delete image: $e', 'Gallery');
         }
       }
     }
 
-    // 清空 Box
-    await _newBox!.clear();
+    await _box!.clear();
     AppLogger.d('All records cleared', 'Gallery');
   }
 }

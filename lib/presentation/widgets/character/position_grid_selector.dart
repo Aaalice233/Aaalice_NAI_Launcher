@@ -55,16 +55,19 @@ class PositionGridSelector extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: List.generate(gridSize, (row) {
           return Padding(
-            padding: EdgeInsets.only(bottom: row < gridSize - 1 ? cellSpacing : 0),
+            padding:
+                EdgeInsets.only(bottom: row < gridSize - 1 ? cellSpacing : 0),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: List.generate(gridSize, (column) {
                 final rowPercent = row / (gridSize - 1).toDouble();
                 final colPercent = column / (gridSize - 1).toDouble();
-                final position = CharacterPosition(row: rowPercent, column: colPercent);
+                final position =
+                    CharacterPosition(row: rowPercent, column: colPercent);
                 final isSelected = selectedPosition != null &&
                     (selectedPosition!.row * (gridSize - 1)).round() == row &&
-                    (selectedPosition!.column * (gridSize - 1)).round() == column;
+                    (selectedPosition!.column * (gridSize - 1)).round() ==
+                        column;
 
                 return Padding(
                   padding: EdgeInsets.only(
@@ -88,7 +91,6 @@ class PositionGridSelector extends StatelessWidget {
     );
   }
 }
-
 
 /// 网格单元格组件
 class _GridCell extends StatelessWidget {
@@ -242,7 +244,8 @@ class LabeledPositionGridSelector extends StatelessWidget {
                         child: Text(
                           '${row + 1}',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            color:
+                                colorScheme.onSurfaceVariant.withOpacity(0.7),
                             fontWeight: FontWeight.w500,
                           ),
                         ),

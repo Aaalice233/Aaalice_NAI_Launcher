@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
@@ -14,6 +15,7 @@ import '../../data/models/prompt/random_tag_group.dart';
 import '../../data/models/prompt/tag_category.dart';
 import '../../data/models/prompt/tag_group_mapping.dart';
 import '../../data/services/wordlist_service.dart';
+import 'tag_library_provider.dart';
 
 part 'random_preset_provider.g.dart';
 
@@ -36,7 +38,8 @@ class RandomPresetState {
     if (selectedPresetId == null) return null;
     return presets.firstWhere(
       (p) => p.id == selectedPresetId,
-      orElse: () => presets.isNotEmpty ? presets.first : RandomPreset.defaultPreset(),
+      orElse: () =>
+          presets.isNotEmpty ? presets.first : RandomPreset.defaultPreset(),
     );
   }
 
@@ -194,8 +197,15 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     String? description,
     bool copyFromCurrent = true,
   }) async {
-    final newPreset = copyFromCurrent && state.selectedPreset != null
-        ? RandomPreset.copyFrom(state.selectedPreset!, name: name)
+    final currentPreset = state.selectedPreset;
+    final isBasedOnDefault = copyFromCurrent &&
+        (currentPreset?.isDefault == true ||
+            currentPreset?.isBasedOnDefault == true);
+
+    final newPreset = copyFromCurrent && currentPreset != null
+        ? RandomPreset.copyFrom(currentPreset, name: name).copyWith(
+            isBasedOnDefault: isBasedOnDefault,
+          )
         : RandomPreset.create(name: name, description: description);
 
     final newPresets = [...state.presets, newPreset];
@@ -228,6 +238,24 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     final preset = state.presets.firstWhereOrNull((p) => p.id == id);
     if (preset == null) return;
     await updatePreset(preset.copyWith(name: newName));
+  }
+
+  /// 更新预设描述
+  Future<void> updatePresetDescription(String id, String description) async {
+    final preset = state.presets.firstWhereOrNull((p) => p.id == id);
+    if (preset == null) return;
+    await updatePreset(preset.copyWith(description: description));
+  }
+
+  /// 添加预设到状态（用于预设复制）
+  Future<void> addPreset(RandomPreset preset) async {
+    final newPresets = [...state.presets, preset];
+    state = state.copyWith(
+      presets: newPresets,
+      selectedPresetId: preset.id,
+    );
+    await _savePreset(preset);
+    await _box.put(_selectedIdKey, preset.id);
   }
 
   /// 删除预设
@@ -440,7 +468,10 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   ///
   /// [categoryKey] 类别的 key（如 'hairColor'）
   /// [group] 要添加的分组
-  Future<void> addGroupToCategory(String categoryKey, RandomTagGroup group) async {
+  Future<void> addGroupToCategory(
+    String categoryKey,
+    RandomTagGroup group,
+  ) async {
     final preset = state.selectedPreset;
     if (preset == null) {
       return;
@@ -456,7 +487,10 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 
   /// 从指定类别移除分组
-  Future<void> removeGroupFromCategory(String categoryKey, String groupId) async {
+  Future<void> removeGroupFromCategory(
+    String categoryKey,
+    String groupId,
+  ) async {
     final preset = state.selectedPreset;
     if (preset == null) return;
 
@@ -468,7 +502,10 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   }
 
   /// 更新自定义词组（在所有预设的所有类别中查找并更新）
-  Future<void> updateCustomGroup(String groupId, RandomTagGroup newGroup) async {
+  Future<void> updateCustomGroup(
+    String groupId,
+    RandomTagGroup newGroup,
+  ) async {
     // 遍历所有预设，找到并更新匹配的词组
     for (final preset in state.presets) {
       var presetUpdated = false;
@@ -512,12 +549,20 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   /// 批量更新选中的组（完整版本，包含添加新映射）
   Future<void> updateSelectedGroupsWithTree(
     Set<String> selectedGroupTitles,
-    Map<String, ({String displayName, TagSubCategory category, bool includeChildren})> groupInfoMap,
+    Map<
+            String,
+            ({
+              String displayName,
+              TagSubCategory category,
+              bool includeChildren
+            })>
+        groupInfoMap,
   ) async {
     final preset = state.selectedPreset;
     if (preset == null) return;
 
-    final existingGroupTitles = preset.tagGroupMappings.map((m) => m.groupTitle).toSet();
+    final existingGroupTitles =
+        preset.tagGroupMappings.map((m) => m.groupTitle).toSet();
 
     // 更新现有映射的 enabled 状态
     final updatedMappings = preset.tagGroupMappings.map((m) {
@@ -529,25 +574,177 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     }).toList();
 
     // 添加新的映射
-    final newGroupTitles = selectedGroupTitles.difference(existingGroupTitles).toList();
+    final newGroupTitles =
+        selectedGroupTitles.difference(existingGroupTitles).toList();
 
     if (newGroupTitles.isNotEmpty) {
       for (final groupTitle in newGroupTitles) {
         final info = groupInfoMap[groupTitle];
         if (info != null) {
-          updatedMappings.add(TagGroupMapping(
-            id: const Uuid().v4(),
-            groupTitle: groupTitle,
-            displayName: info.displayName,
-            targetCategory: info.category,
-            createdAt: DateTime.now(),
-            includeChildren: info.includeChildren,
-            enabled: true,
-          ),);
+          updatedMappings.add(
+            TagGroupMapping(
+              id: const Uuid().v4(),
+              groupTitle: groupTitle,
+              displayName: info.displayName,
+              targetCategory: info.category,
+              createdAt: DateTime.now(),
+              includeChildren: info.includeChildren,
+              enabled: true,
+            ),
+          );
         }
       }
     }
 
     await updatePreset(preset.copyWith(tagGroupMappings: updatedMappings));
   }
+
+  // ========== 重置与词组开关 ==========
+
+  /// 重置预设为默认配置
+  ///
+  /// 重置逻辑：
+  /// 1. 恢复所有官方默认词组的配置（概率、排序等）
+  /// 2. 保留用户自定义词组，但将其禁用（enabled = false）
+  /// 3. 恢复类别配置
+  Future<void> resetToDefault(String presetId) async {
+    final presetIndex = state.presets.indexWhere((p) => p.id == presetId);
+    if (presetIndex == -1) return;
+
+    final preset = state.presets[presetIndex];
+    final defaultPreset = RandomPreset.defaultPreset();
+
+    final mergedCategories = <RandomCategory>[];
+
+    for (final defaultCat in defaultPreset.categories) {
+      final existingCat = preset.categories.firstWhereOrNull(
+        (c) => c.key == defaultCat.key,
+      );
+
+      if (existingCat == null) {
+        // 类别不存在，直接添加默认类别
+        mergedCategories.add(defaultCat);
+      } else {
+        // 类别存在，合并词组
+        final mergedGroups = <RandomTagGroup>[];
+
+        // 1. 添加默认词组（恢复默认配置）
+        for (final defaultGroup in defaultCat.groups) {
+          mergedGroups.add(defaultGroup.copyWith(enabled: true));
+        }
+
+        // 2. 添加用户自定义词组（禁用）
+        for (final customGroup in existingCat.groups) {
+          final isDefaultGroup = defaultCat.groups.any(
+            (g) => g.sourceId == customGroup.sourceId && g.sourceId != null,
+          );
+          if (!isDefaultGroup &&
+              customGroup.sourceType == TagGroupSourceType.custom) {
+            mergedGroups.add(customGroup.copyWith(enabled: false));
+          }
+        }
+
+        mergedCategories.add(
+          existingCat.copyWith(
+            groups: mergedGroups,
+            probability: defaultCat.probability,
+            enabled: defaultCat.enabled,
+          ),
+        );
+      }
+    }
+
+    // 保存更新后的预设
+    final resetPreset = preset.copyWith(
+      categories: mergedCategories,
+      algorithmConfig: defaultPreset.algorithmConfig,
+      updatedAt: DateTime.now(),
+    );
+
+    final newPresets = [...state.presets];
+    newPresets[presetIndex] = resetPreset;
+    state = state.copyWith(presets: newPresets);
+    await _savePreset(resetPreset);
+  }
+}
+
+/// 计算真实的标签数量（包括内置词库）
+///
+/// 这个 Provider 会从 TagLibrary 获取内置词库的标签数量
+/// 性能优化：使用 select 只监听必要的数据变化
+@riverpod
+int presetTotalTagCount(Ref ref) {
+  // 只监听 preset 和 library 的变化，不监听其他无关状态
+  final preset = ref.watch(
+    randomPresetNotifierProvider.select((s) => s.selectedPreset),
+  );
+  if (preset == null) return 0;
+
+  final library = ref.watch(
+    tagLibraryNotifierProvider.select((s) => s.library),
+  );
+
+  int totalCount = 0;
+
+  // 1. 计算类别中的标签数
+  for (final cat in preset.categories) {
+    for (final group in cat.groups) {
+      if (group.sourceType == TagGroupSourceType.custom) {
+        // 自定义类型：直接计算 tags.length
+        totalCount += group.tagCount;
+      } else if (group.sourceType == TagGroupSourceType.builtin) {
+        // 内置词库类型：从 TagLibrary 获取标签数
+        if (library != null && group.sourceId != null) {
+          final category =
+              TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+                    (c) => c?.name == group.sourceId,
+                    orElse: () => null,
+                  );
+          if (category != null) {
+            totalCount += library.getCategory(category).length;
+          }
+        }
+      }
+      // tagGroup 和 pool 类型在下面单独计算
+    }
+  }
+
+  // 2. TagGroup 映射中的标签数
+  totalCount += preset.tagGroupMappings
+      .where((m) => m.enabled)
+      .fold(0, (sum, m) => sum + m.lastSyncedTagCount);
+
+  return totalCount;
+}
+
+/// 获取单个词组的真实标签数量
+///
+/// 根据词组的 sourceType 和 sourceId 计算正确的标签数
+@riverpod
+int groupTagCount(Ref ref, RandomTagGroup group) {
+  // 自定义类型：直接返回 tags.length
+  if (group.sourceType == TagGroupSourceType.custom) {
+    return group.tagCount;
+  }
+
+  // 内置词库类型：从 TagLibrary 获取
+  if (group.sourceType == TagGroupSourceType.builtin) {
+    final library = ref.watch(
+      tagLibraryNotifierProvider.select((s) => s.library),
+    );
+    if (library != null && group.sourceId != null) {
+      final category = TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+            (c) => c?.name == group.sourceId,
+            orElse: () => null,
+          );
+      if (category != null) {
+        return library.getCategory(category).length;
+      }
+    }
+    return 0;
+  }
+
+  // TagGroup/Pool 类型：从缓存服务获取（返回已同步的数量）
+  // 这里暂时返回 0，因为实际数量在 tagGroupMappings 中
+  return group.tagCount;
 }

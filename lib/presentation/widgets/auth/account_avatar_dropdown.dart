@@ -1,10 +1,12 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
+
+import '../common/app_toast.dart';
 
 /// 账号头像下拉菜单组件（Google 风格）
 class AccountAvatarDropdown extends ConsumerWidget {
@@ -29,7 +31,8 @@ class AccountAvatarDropdown extends ConsumerWidget {
     // 监听账号状态变化以触发重建
     ref.watch(accountManagerNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
-    final accounts = ref.read(accountManagerNotifierProvider.notifier).sortedAccounts;
+    final accounts =
+        ref.read(accountManagerNotifierProvider.notifier).sortedAccounts;
 
     if (accounts.isEmpty) {
       return const SizedBox.shrink();
@@ -43,9 +46,9 @@ class AccountAvatarDropdown extends ConsumerWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withOpacity(0.1),
         ),
       ),
       child: Padding(
@@ -93,14 +96,18 @@ class AccountAvatarDropdown extends ConsumerWidget {
                       account: accounts[i],
                       isFirst: i == 0,
                       isLast: i == accounts.length - 1 || i == 4,
-                      isSelected: currentAccount?.id == accounts[i].id && authState.isAuthenticated,
+                      isSelected: currentAccount?.id == accounts[i].id &&
+                          authState.isAuthenticated,
+                      isDefault: i == 0, // 第一个为最近使用的账号
                       onTap: () => _onAccountTap(context, ref, accounts[i]),
                     ),
                   if (accounts.length > 5)
                     ListTile(
                       dense: true,
                       leading: const Icon(Icons.more_horiz),
-                      title: Text(context.l10n.auth_moreAccounts(accounts.length - 5)),
+                      title: Text(
+                        context.l10n.auth_moreAccounts(accounts.length - 5),
+                      ),
                       onTap: onManageAccounts,
                     ),
                 ],
@@ -137,9 +144,7 @@ class AccountAvatarDropdown extends ConsumerWidget {
 
     if (token == null) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-        );
+        AppToast.info(context, context.l10n.auth_tokenNotFound);
       }
       return;
     }
@@ -160,6 +165,7 @@ class _AccountListTile extends StatelessWidget {
   final bool isFirst;
   final bool isLast;
   final bool isSelected;
+  final bool isDefault;
   final VoidCallback? onTap;
 
   const _AccountListTile({
@@ -167,6 +173,7 @@ class _AccountListTile extends StatelessWidget {
     required this.isFirst,
     required this.isLast,
     this.isSelected = false,
+    this.isDefault = false,
     this.onTap,
   });
 
@@ -230,7 +237,7 @@ class _AccountListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (account.isDefault) ...[
+                      if (isDefault) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(

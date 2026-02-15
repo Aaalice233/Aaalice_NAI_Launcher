@@ -1,7 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/widgets.dart';
-
-import '../../../core/utils/localization_extension.dart';
 
 part 'tag_group.freezed.dart';
 part 'tag_group.g.dart';
@@ -362,8 +361,10 @@ class TagGroupSyncProgress {
   String localizedMessage(BuildContext context) {
     return switch (type) {
       TagGroupSyncProgressType.initial => context.l10n.sync_preparing,
-      TagGroupSyncProgressType.fetchingGroup => context.l10n.sync_fetching(currentGroup ?? ''),
-      TagGroupSyncProgressType.fetchingTags => context.l10n.sync_fetching_tags(currentGroup ?? ''),
+      TagGroupSyncProgressType.fetchingGroup =>
+        context.l10n.sync_fetching(currentGroup ?? ''),
+      TagGroupSyncProgressType.fetchingTags =>
+        context.l10n.sync_fetching_tags(currentGroup ?? ''),
       TagGroupSyncProgressType.filtering => context.l10n.sync_filtering,
       TagGroupSyncProgressType.merging => context.l10n.sync_merging,
       TagGroupSyncProgressType.saving => context.l10n.sync_saving,

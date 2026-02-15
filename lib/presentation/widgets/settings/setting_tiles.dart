@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../common/themed_slider.dart';
+
 /// 滑块设置项
 ///
 /// 用于显示带有标题、描述和滑块的设置项
@@ -30,7 +32,8 @@ class SliderSettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final displayValue = valueFormatter?.call(value) ?? value.toStringAsFixed(1);
+    final displayValue =
+        valueFormatter?.call(value) ?? value.toStringAsFixed(1);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -68,17 +71,12 @@ class SliderSettingTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
-            ),
-            child: Slider(
-              value: value.clamp(min, max),
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-            ),
+          ThemedSlider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
           ),
         ],
       ),
@@ -120,7 +118,8 @@ class IntSliderSettingTile extends StatelessWidget {
       min: min.toDouble(),
       max: max.toDouble(),
       divisions: max - min,
-      valueFormatter: (v) => valueFormatter?.call(v.round()) ?? v.round().toString(),
+      valueFormatter: (v) =>
+          valueFormatter?.call(v.round()) ?? v.round().toString(),
       onChanged: onChanged != null ? (v) => onChanged!(v.round()) : null,
       leading: leading,
     );

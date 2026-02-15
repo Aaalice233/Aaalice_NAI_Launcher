@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import 'package:flutter/widgets.dart';
 
 part 'sync_config.freezed.dart';
@@ -78,8 +78,7 @@ class TagLibrarySyncConfig with _$TagLibrarySyncConfig {
     if (!autoSyncEnabled) return false;
     if (lastSyncTime == null) return true;
 
-    final daysSinceLastSync =
-        DateTime.now().difference(lastSyncTime!).inDays;
+    final daysSinceLastSync = DateTime.now().difference(lastSyncTime!).inDays;
     return daysSinceLastSync >= syncIntervalDays;
   }
 
@@ -206,7 +205,8 @@ class SyncProgress {
   String localizedMessage(BuildContext context) {
     return switch (type) {
       SyncProgressType.initial => context.l10n.sync_preparing,
-      SyncProgressType.fetching => context.l10n.sync_fetching(currentCategory ?? ''),
+      SyncProgressType.fetching =>
+        context.l10n.sync_fetching(currentCategory ?? ''),
       SyncProgressType.processing => context.l10n.sync_processing,
       SyncProgressType.saving => context.l10n.sync_saving,
       SyncProgressType.completed => context.l10n.sync_completed(fetchedCount),

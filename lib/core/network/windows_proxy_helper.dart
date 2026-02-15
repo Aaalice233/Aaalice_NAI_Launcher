@@ -76,7 +76,11 @@ class WindowsProxyHelper {
         return 'DIRECT';
       }
     } catch (e, stackTrace) {
-      AppLogger.e('Failed to read Windows proxy settings: $e', 'PROXY', stackTrace);
+      AppLogger.e(
+        'Failed to read Windows proxy settings: $e',
+        'PROXY',
+        stackTrace,
+      );
       return 'DIRECT';
     }
   }
@@ -107,7 +111,8 @@ class WindowsProxyHelper {
           final hostPort = kv[1].trim();
 
           // 优先使用 http，其次 https
-          if ((protocol == 'http' || protocol == 'https') && hostPort.isNotEmpty) {
+          if ((protocol == 'http' || protocol == 'https') &&
+              hostPort.isNotEmpty) {
             return hostPort;
           }
         }
@@ -121,7 +126,10 @@ class WindowsProxyHelper {
           final hostPort = kv[1].trim();
 
           if (protocol == 'socks' && hostPort.isNotEmpty) {
-            AppLogger.w('SOCKS proxy detected but Dart HttpClient has limited SOCKS support', 'PROXY');
+            AppLogger.w(
+              'SOCKS proxy detected but Dart HttpClient has limited SOCKS support',
+              'PROXY',
+            );
             return hostPort;
           }
         }

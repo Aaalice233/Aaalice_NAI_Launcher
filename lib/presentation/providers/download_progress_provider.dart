@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/cooccurrence_service.dart';
-import '../../core/services/tag_data_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/download_message_keys.dart';
 import '../../core/utils/localization_extension.dart';
 import '../widgets/common/app_toast.dart';
@@ -106,70 +106,142 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     _context = context;
   }
 
-  /// 初始化标签数据
-  Future<void> initializeTagData() async {
-    final tagService = ref.read(tagDataServiceProvider);
+  /// 上次报告的进度里程碑（用于去重）
+  int _lastReportedProgressMilestone = -1;
 
-    if (tagService.isInitialized) return;
-
-    bool isDownloading = false;
-
-    // 设置下载进度回调（只有真正下载时才会被调用）
-    tagService.onDownloadProgress = (fileName, progress, message) {
-      if (!isDownloading) {
-        // 第一次回调，说明需要下载，添加任务
-        isDownloading = true;
-        _addTask('tags', _context?.l10n.download_tagsData ?? 'Tags Data');
-      }
-      _updateTaskProgress('tags', progress, message: message);
-    };
-
-    try {
-      await tagService.initialize();
-      // 只有真正下载了才显示完成提示
-      if (isDownloading) {
-        _completeTask('tags');
-      }
-    } catch (e) {
-      if (isDownloading) {
-        _failTask('tags', e.toString());
-      }
-    }
-  }
-
-  /// 下载共现标签数据（可选）
-  Future<bool> downloadCooccurrenceData() async {
+  /// 下载共现标签数据（支持首次下载和刷新）
+  ///
+  /// [force] 是否强制下载，忽略刷新间隔检查
+  Future<bool> downloadCooccurrenceData({bool force = false}) async {
     final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
 
-    if (cooccurrenceService.isLoaded) return true;
-    if (cooccurrenceService.isDownloading) return false;
+    AppLogger.i(
+        'downloadCooccurrenceData called: isDownloading=${cooccurrenceService.isDownloading}, isLoaded=${cooccurrenceService.isLoaded}, force=$force',
+        'DownloadProgress',);
 
-    // 先尝试从缓存加载
-    final cacheLoaded = await cooccurrenceService.initialize();
-    if (cacheLoaded) {
-      return true; // 缓存已存在，无需下载
+    if (cooccurrenceService.isDownloading) {
+      AppLogger.w(
+          'Cooccurrence is already downloading, skip', 'DownloadProgress',);
+      return false;
     }
 
-    // 缓存不存在，需要下载
-    // 添加下载任务
-    _addTask('cooccurrence', _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data');
+    // 启动期默认使用懒加载 + SQLite 模式。
+    // 该模式下若立即触发完整缓存加载，会在进入主页时出现明显卡顿。
+    // 非强制刷新时直接跳过，由用户手动刷新（force=true）或后续后台策略触发。
+    final isLazyMode =
+        cooccurrenceService.loadMode == CooccurrenceLoadMode.lazy;
+    if (!force && isLazyMode) {
+      AppLogger.i(
+        'Skip cooccurrence full bootstrap in lazy mode to avoid UI freeze on startup',
+        'DownloadProgress',
+      );
+      return true;
+    }
 
-    // 设置下载进度回调
-    cooccurrenceService.onDownloadProgress = (progress, message) {
-      _updateTaskProgress('cooccurrence', progress, message: message);
+    // 检查是否需要下载/刷新
+    if (!force) {
+      // 1. 如果已经加载且不需要刷新，跳过
+      if (cooccurrenceService.isLoaded) {
+        final needsRefresh = await cooccurrenceService.shouldRefresh();
+        AppLogger.i('Cooccurrence isLoaded=true, needsRefresh=$needsRefresh',
+            'DownloadProgress',);
+        if (!needsRefresh) {
+          return true; // 数据新鲜，无需刷新
+        }
+      }
+
+      // 2. 尝试从缓存加载
+      AppLogger.i(
+          'Trying to load cooccurrence from cache...', 'DownloadProgress',);
+      final cacheLoaded = await cooccurrenceService.initialize();
+      AppLogger.i(
+          'Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress',);
+      if (cacheLoaded) {
+        // 缓存加载成功，检查是否需要刷新
+        final needsRefresh = await cooccurrenceService.shouldRefresh();
+        if (!needsRefresh) {
+          return true; // 缓存数据新鲜，无需下载
+        }
+        // 缓存存在但需要刷新，继续下载
+      }
+    }
+
+    // 使用新的后台导入流程替代下载
+    AppLogger.i('Starting cooccurrence import...', 'DownloadProgress');
+    _lastReportedProgressMilestone = -1;
+    _lastReportedMessage = null;
+
+    // 添加导入任务
+    _addTask(
+      'cooccurrence',
+      _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data',
+    );
+
+    // 设置导入进度回调（带10%去重）
+    cooccurrenceService.onProgress = (progress, message) {
+      _updateTaskProgressWithDeduplication(
+        'cooccurrence',
+        progress,
+        message: message,
+      );
     };
 
     try {
-      final success = await cooccurrenceService.download();
-      if (success) {
-        _completeTask('cooccurrence');
-      } else {
-        _failTask('cooccurrence', '下载失败');
-      }
-      return success;
+      await cooccurrenceService.performBackgroundImport(
+        onProgress: cooccurrenceService.onProgress,
+      );
+      _completeTask('cooccurrence');
+      return true;
     } catch (e) {
       _failTask('cooccurrence', e.toString());
       return false;
+    }
+  }
+
+  /// 上次报告的消息（用于检测消息变化）
+  String? _lastReportedMessage;
+
+  /// 更新任务进度（带10%去重，但消息变化时立即更新）
+  void _updateTaskProgressWithDeduplication(
+    String id,
+    double progress, {
+    String? message,
+  }) {
+    final task = state.tasks[id];
+    if (task == null) return;
+
+    final percent = (progress * 100).toInt();
+    final milestone = (percent ~/ 10) * 10; // 0, 10, 20, ..., 100
+
+    // 检测消息是否变化
+    final messageChanged = message != null && message != _lastReportedMessage;
+
+    // 更新内部状态（每次进度都更新）
+    state = state.copyWith(
+      tasks: {
+        ...state.tasks,
+        id: task.copyWith(progress: progress, message: message),
+      },
+    );
+
+    // 去重：只在跨越10%边界或消息变化时更新Toast
+    if (milestone > _lastReportedProgressMilestone || messageChanged) {
+      _lastReportedProgressMilestone = milestone;
+      if (message != null) {
+        _lastReportedMessage = message;
+      }
+
+      // 将消息 key 转换为本地化字符串
+      final localizedMessage = _context != null && message != null
+          ? DownloadMessageKeys.localizeMessage(_context!, message)
+          : message;
+
+      // 更新 Toast
+      _toastController?.updateProgress(
+        progress,
+        message: localizedMessage ?? '共现标签数据下载中...',
+        subtitle: '$milestone%',
+      );
     }
   }
 
@@ -195,31 +267,6 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
         progress: 0,
       );
     }
-  }
-
-  /// 更新任务进度
-  void _updateTaskProgress(String id, double progress, {String? message}) {
-    final task = state.tasks[id];
-    if (task == null) return;
-
-    // 将消息 key 转换为本地化字符串
-    final localizedMessage = _context != null && message != null
-        ? DownloadMessageKeys.localizeMessage(_context!, message)
-        : message;
-
-    state = state.copyWith(
-      tasks: {
-        ...state.tasks,
-        id: task.copyWith(progress: progress, message: localizedMessage),
-      },
-    );
-
-    // 更新 Toast
-    _toastController?.updateProgress(
-      progress,
-      message: localizedMessage,
-      subtitle: '${(progress * 100).toInt()}%',
-    );
   }
 
   /// 完成任务
@@ -261,10 +308,15 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
           .any((t) => t.status == DownloadTaskStatus.downloading),
     );
 
-    // 失败 Toast
+    // 失败 Toast - 显示简要错误信息
     if (_context != null) {
+      var errorMsg = error;
+      // 截断过长的错误信息
+      if (errorMsg.length > 50) {
+        errorMsg = '${errorMsg.substring(0, 50)}...';
+      }
       _toastController?.fail(
-        message: _context!.l10n.download_failed(task.name),
+        message: '${_context!.l10n.download_failed(task.name)}\n$errorMsg',
       );
     }
     _toastController = null;
@@ -283,4 +335,3 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     );
   }
 }
-

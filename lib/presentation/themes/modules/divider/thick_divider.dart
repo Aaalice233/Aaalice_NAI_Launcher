@@ -1,5 +1,5 @@
 /// Thick Divider - Bold, prominent dividers
-/// 
+///
 /// For themes with strong visual separation:
 /// - Brutalist / Motorola Beeper (thick black lines)
 /// - Grunge Collage (rough texture effect)
@@ -9,10 +9,10 @@ import 'package:flutter/material.dart';
 import '../../core/divider_module.dart';
 
 /// A divider module with thick, prominent dividers.
-/// 
+///
 /// Used for brutalist and industrial design aesthetics
 /// where bold lines are a key visual element.
-/// 
+///
 /// Note: The thick line effect is preserved in ThemedDivider component,
 /// while Flutter's theme.dividerColor uses a subtler variant for panel borders.
 class ThickDividerModule extends BaseDividerModule {
@@ -24,9 +24,9 @@ class ThickDividerModule extends BaseDividerModule {
     required Color color,
     double thickness = 2.0,
     Color? borderColor,
-  }) : _dividerColor = color,
-       _thickness = thickness,
-       _borderColor = borderColor ?? color;
+  })  : _dividerColor = color,
+        _thickness = thickness,
+        _borderColor = borderColor ?? color;
 
   /// Brutalist style - thick black lines for ThemedDivider
   /// Panel borders use a more subtle dark gray
@@ -57,23 +57,23 @@ class ThickDividerModule extends BaseDividerModule {
 
   @override
   BoxDecoration? get horizontalDecoration => BoxDecoration(
-    border: Border(
-      bottom: BorderSide(
-        color: _dividerColor,
-        width: _thickness,
-      ),
-    ),
-  );
+        border: Border(
+          bottom: BorderSide(
+            color: _dividerColor,
+            width: _thickness,
+          ),
+        ),
+      );
 
   @override
   BoxDecoration? get verticalDecoration => BoxDecoration(
-    border: Border(
-      right: BorderSide(
-        color: _dividerColor,
-        width: _thickness,
-      ),
-    ),
-  );
+        border: Border(
+          right: BorderSide(
+            color: _dividerColor,
+            width: _thickness,
+          ),
+        ),
+      );
 
   @override
   BoxDecoration panelBorder({
@@ -84,10 +84,18 @@ class ThickDividerModule extends BaseDividerModule {
   }) {
     return BoxDecoration(
       border: Border(
-        top: top ? BorderSide(color: _dividerColor, width: _thickness) : BorderSide.none,
-        right: right ? BorderSide(color: _dividerColor, width: _thickness) : BorderSide.none,
-        bottom: bottom ? BorderSide(color: _dividerColor, width: _thickness) : BorderSide.none,
-        left: left ? BorderSide(color: _dividerColor, width: _thickness) : BorderSide.none,
+        top: top
+            ? BorderSide(color: _dividerColor, width: _thickness)
+            : BorderSide.none,
+        right: right
+            ? BorderSide(color: _dividerColor, width: _thickness)
+            : BorderSide.none,
+        bottom: bottom
+            ? BorderSide(color: _dividerColor, width: _thickness)
+            : BorderSide.none,
+        left: left
+            ? BorderSide(color: _dividerColor, width: _thickness)
+            : BorderSide.none,
       ),
     );
   }

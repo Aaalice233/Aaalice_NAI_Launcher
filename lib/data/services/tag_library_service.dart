@@ -54,81 +54,72 @@ class TagLibraryService {
   /// 加载本地词库
   Future<TagLibrary?> loadLocalLibrary() async {
     await _ensureInit();
-    try {
-      final json = _box?.get(_libraryKey) as String?;
-      if (json != null) {
-        final data = jsonDecode(json) as Map<String, dynamic>;
-        return TagLibrary.fromJson(data);
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load local library: $e', 'TagLibrary');
-    }
-    return null;
+    return _loadJson(_libraryKey, TagLibrary.fromJson);
   }
 
   /// 保存词库到本地
   Future<void> saveLibrary(TagLibrary library) async {
     await _ensureInit();
-    try {
-      final json = jsonEncode(library.toJson());
-      await _box?.put(_libraryKey, json);
-      AppLogger.d('Library saved: ${library.totalTagCount} tags', 'TagLibrary');
-    } catch (e) {
-      AppLogger.e('Failed to save library: $e', 'TagLibrary');
-      rethrow;
-    }
+    await _saveJson(
+      _libraryKey,
+      library.toJson(),
+      onSuccess: () => AppLogger.d('Library saved: ${library.totalTagCount} tags', 'TagLibrary'),
+    );
   }
 
   /// 加载同步配置
   Future<TagLibrarySyncConfig> loadSyncConfig() async {
     await _ensureInit();
-    try {
-      final json = _box?.get(_syncConfigKey) as String?;
-      if (json != null) {
-        final data = jsonDecode(json) as Map<String, dynamic>;
-        return TagLibrarySyncConfig.fromJson(data);
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load sync config: $e', 'TagLibrary');
-    }
-    return const TagLibrarySyncConfig();
+    final result = await _loadJson<TagLibrarySyncConfig>(_syncConfigKey, TagLibrarySyncConfig.fromJson);
+    return result ?? const TagLibrarySyncConfig();
   }
 
   /// 保存同步配置
   Future<void> saveSyncConfig(TagLibrarySyncConfig config) async {
     await _ensureInit();
-    try {
-      final json = jsonEncode(config.toJson());
-      await _box?.put(_syncConfigKey, json);
-    } catch (e) {
-      AppLogger.e('Failed to save sync config: $e', 'TagLibrary');
-      rethrow;
-    }
+    await _saveJson(_syncConfigKey, config.toJson());
   }
 
   /// 加载分类过滤配置
   Future<CategoryFilterConfig> loadCategoryFilterConfig() async {
     await _ensureInit();
-    try {
-      final json = _box?.get(_categoryFilterKey) as String?;
-      if (json != null) {
-        final data = jsonDecode(json) as Map<String, dynamic>;
-        return CategoryFilterConfig.fromJson(data);
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load category filter config: $e', 'TagLibrary');
-    }
-    return const CategoryFilterConfig();
+    final result = await _loadJson<CategoryFilterConfig>(_categoryFilterKey, CategoryFilterConfig.fromJson);
+    return result ?? const CategoryFilterConfig();
   }
 
   /// 保存分类过滤配置
   Future<void> saveCategoryFilterConfig(CategoryFilterConfig config) async {
     await _ensureInit();
+    await _saveJson(_categoryFilterKey, config.toJson());
+  }
+
+  /// 通用 JSON 加载方法
+  Future<T?> _loadJson<T>(
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
     try {
-      final json = jsonEncode(config.toJson());
-      await _box?.put(_categoryFilterKey, json);
+      final json = _box?.get(key) as String?;
+      if (json != null) {
+        return fromJson(jsonDecode(json) as Map<String, dynamic>);
+      }
     } catch (e) {
-      AppLogger.e('Failed to save category filter config: $e', 'TagLibrary');
+      AppLogger.e('Failed to load $key: $e', 'TagLibrary');
+    }
+    return null;
+  }
+
+  /// 通用 JSON 保存方法
+  Future<void> _saveJson(
+    String key,
+    Map<String, dynamic> data, {
+    void Function()? onSuccess,
+  }) async {
+    try {
+      await _box?.put(key, jsonEncode(data));
+      onSuccess?.call();
+    } catch (e) {
+      AppLogger.e('Failed to save $key: $e', 'TagLibrary');
       rethrow;
     }
   }
@@ -446,78 +437,31 @@ class TagLibraryService {
 
   // ==================== Pool 同步配置 ====================
 
+  // ==================== Pool 同步配置 ====================
+
   /// 加载 Pool 同步配置
   Future<PoolSyncConfig> loadPoolSyncConfig() async {
     await _ensureInit();
-    try {
-      final json = _box?.get(_poolSyncConfigKey) as String?;
-      if (json != null) {
-        final data = jsonDecode(json) as Map<String, dynamic>;
-        return PoolSyncConfig.fromJson(data);
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load pool sync config: $e', 'TagLibrary');
-    }
-    // 返回默认配置（包含预设的 Pool 映射）
-    return DefaultPoolMappings.getDefaultConfig();
+    final result = await _loadJson<PoolSyncConfig>(_poolSyncConfigKey, PoolSyncConfig.fromJson);
+    return result ?? DefaultPoolMappings.getDefaultConfig();
   }
 
   /// 保存 Pool 同步配置
   Future<void> savePoolSyncConfig(PoolSyncConfig config) async {
     await _ensureInit();
-    try {
-      final json = jsonEncode(config.toJson());
-      await _box?.put(_poolSyncConfigKey, json);
-      AppLogger.d('Pool sync config saved', 'TagLibrary');
-    } catch (e) {
-      AppLogger.e('Failed to save pool sync config: $e', 'TagLibrary');
-      rethrow;
-    }
+    await _saveJson(
+      _poolSyncConfigKey,
+      config.toJson(),
+      onSuccess: () => AppLogger.d('Pool sync config saved', 'TagLibrary'),
+    );
   }
 
   /// 合并 Pool 标签到词库
-  ///
-  /// [library] 原始词库
-  /// [poolTags] Pool 提取的标签（按目标分类）
-  ///
-  /// 返回合并后的词库
   TagLibrary mergePoolTags(
     TagLibrary library,
     Map<TagSubCategory, List<WeightedTag>> poolTags,
   ) {
-    if (poolTags.isEmpty) {
-      return library;
-    }
-
-    final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
-    var addedCount = 0;
-
-    for (final entry in poolTags.entries) {
-      final categoryName = entry.key.name;
-      final existingTags = mergedCategories[categoryName] ?? [];
-      final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
-
-      // 添加不重复的标签
-      for (final tag in entry.value) {
-        if (!existingNames.contains(tag.tag.toLowerCase())) {
-          existingTags.add(tag);
-          existingNames.add(tag.tag.toLowerCase());
-          addedCount++;
-        }
-      }
-
-      mergedCategories[categoryName] = existingTags;
-    }
-
-    AppLogger.d(
-      'Merged $addedCount pool tags into library',
-      'TagLibrary',
-    );
-
-    return library.copyWith(
-      categories: mergedCategories,
-      lastUpdated: DateTime.now(),
-    );
+    return _mergeTags(library, poolTags, updateSupplement: false);
   }
 
   /// 清除词库缓存
@@ -532,55 +476,44 @@ class TagLibraryService {
   /// 加载 Tag Group 同步配置
   Future<TagGroupSyncConfig> loadTagGroupSyncConfig() async {
     await _ensureInit();
-    try {
-      final json = _box?.get(_tagGroupSyncConfigKey) as String?;
-      if (json != null) {
-        final data = jsonDecode(json) as Map<String, dynamic>;
-        return TagGroupSyncConfig.fromJson(data);
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load tag group sync config: $e', 'TagLibrary');
-    }
-    // 返回默认配置
-    return DefaultTagGroupMappings.getDefaultConfig();
+    final result = await _loadJson<TagGroupSyncConfig>(_tagGroupSyncConfigKey, TagGroupSyncConfig.fromJson);
+    return result ?? DefaultTagGroupMappings.getDefaultConfig();
   }
 
   /// 保存 Tag Group 同步配置
   Future<void> saveTagGroupSyncConfig(TagGroupSyncConfig config) async {
     await _ensureInit();
-    try {
-      final json = jsonEncode(config.toJson());
-      await _box?.put(_tagGroupSyncConfigKey, json);
-      AppLogger.d('Tag group sync config saved', 'TagLibrary');
-    } catch (e) {
-      AppLogger.e('Failed to save tag group sync config: $e', 'TagLibrary');
-      rethrow;
-    }
+    await _saveJson(
+      _tagGroupSyncConfigKey,
+      config.toJson(),
+      onSuccess: () => AppLogger.d('Tag group sync config saved', 'TagLibrary'),
+    );
   }
 
   /// 合并 Tag Group 标签到词库
-  ///
-  /// [library] 原始词库
-  /// [tagGroupTags] Tag Group 提取的标签（按目标分类）
-  ///
-  /// 返回合并后的词库
   TagLibrary mergeTagGroupTags(
     TagLibrary library,
     Map<TagSubCategory, List<WeightedTag>> tagGroupTags,
   ) {
-    if (tagGroupTags.isEmpty) {
-      return library;
-    }
+    return _mergeTags(library, tagGroupTags, updateSupplement: true);
+  }
+
+  /// 通用标签合并逻辑
+  TagLibrary _mergeTags(
+    TagLibrary library,
+    Map<TagSubCategory, List<WeightedTag>> tags, {
+    required bool updateSupplement,
+  }) {
+    if (tags.isEmpty) return library;
 
     final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
     var addedCount = 0;
 
-    for (final entry in tagGroupTags.entries) {
+    for (final entry in tags.entries) {
       final categoryName = entry.key.name;
       final existingTags = mergedCategories[categoryName] ?? [];
       final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
 
-      // 添加不重复的标签
       for (final tag in entry.value) {
         if (!existingNames.contains(tag.tag.toLowerCase())) {
           existingTags.add(tag);
@@ -592,16 +525,13 @@ class TagLibraryService {
       mergedCategories[categoryName] = existingTags;
     }
 
-    AppLogger.d(
-      'Merged $addedCount tag group tags into library',
-      'TagLibrary',
-    );
+    AppLogger.d('Merged $addedCount tags into library', 'TagLibrary');
 
     return library.copyWith(
       categories: mergedCategories,
       lastUpdated: DateTime.now(),
-      hasDanbooruSupplement: true,
-      danbooruSupplementCount: addedCount,
+      hasDanbooruSupplement: updateSupplement ? true : library.hasDanbooruSupplement,
+      danbooruSupplementCount: updateSupplement ? addedCount : library.danbooruSupplementCount,
     );
   }
 

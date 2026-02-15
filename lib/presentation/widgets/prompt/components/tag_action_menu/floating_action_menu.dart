@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
 import '../../core/prompt_tag_config.dart';
@@ -198,7 +198,9 @@ class _ActionButtonsSection extends StatelessWidget {
           icon: tag.enabled
               ? Icons.visibility_off_outlined
               : Icons.visibility_outlined,
-          tooltip: tag.enabled ? context.l10n.tooltip_disable : context.l10n.tooltip_enable,
+          tooltip: tag.enabled
+              ? context.l10n.tooltip_disable
+              : context.l10n.tooltip_enable,
           color: theme.colorScheme.onSurface.withOpacity(0.7),
           onTap: () {
             onToggleEnabled?.call();

@@ -1,0 +1,902 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/themed_divider.dart';
+
+/// 词库条目卡片
+class EntryCard extends StatefulWidget {
+  final TagLibraryEntry entry;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onToggleFavorite;
+  final VoidCallback? onEdit;
+  final VoidCallback? onSend;
+
+  /// 所属分类名称
+  final String? categoryName;
+
+  /// 是否启用拖拽到分类功能
+  final bool enableDrag;
+
+  // ===== 批量选择相关属性 =====
+  /// 是否处于选择模式
+  final bool isSelectionMode;
+
+  /// 是否被选中
+  final bool isSelected;
+
+  /// 切换选择状态回调
+  final VoidCallback? onToggleSelection;
+
+  const EntryCard({
+    super.key,
+    required this.entry,
+    required this.onTap,
+    required this.onDelete,
+    required this.onToggleFavorite,
+    this.onEdit,
+    this.onSend,
+    this.categoryName,
+    this.enableDrag = false,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onToggleSelection,
+  });
+
+  @override
+  State<EntryCard> createState() => _EntryCardState();
+}
+
+class _EntryCardState extends State<EntryCard> {
+  bool _isHovering = false;
+  bool _isDragging = false;
+  OverlayEntry? _overlayEntry;
+  final _layerLink = LayerLink();
+
+  @override
+  void dispose() {
+    _hidePreviewOverlay();
+    super.dispose();
+  }
+
+  void _showPreviewOverlay() {
+    if (_overlayEntry != null) return;
+
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final cardSize = renderBox.size;
+    final cardPosition = renderBox.localToGlobal(Offset.zero);
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _EntryPreviewOverlay(
+        entry: widget.entry,
+        layerLink: _layerLink,
+        cardSize: cardSize,
+        cardPosition: cardPosition,
+        onDismiss: _hidePreviewOverlay,
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _hidePreviewOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final entry = widget.entry;
+
+    // 选择模式下的边框颜色
+    final borderColor = widget.isSelected
+        ? theme.colorScheme.primary
+        : (_isHovering
+            ? theme.colorScheme.primary.withOpacity(0.4)
+            : theme.colorScheme.outlineVariant.withOpacity(0.15));
+
+    // 选择模式下的背景色
+    final backgroundColor = widget.isSelected
+        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+        : theme.colorScheme.surfaceContainerHigh;
+
+    Widget cardContent = CompositedTransformTarget(
+      link: _layerLink,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (!_isDragging && !widget.isSelectionMode) {
+            setState(() => _isHovering = true);
+            // 延迟显示预览，避免快速划过时闪烁
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (_isHovering && mounted && !_isDragging) {
+                _showPreviewOverlay();
+              }
+            });
+          }
+        },
+        onExit: (_) {
+          setState(() => _isHovering = false);
+          _hidePreviewOverlay();
+        },
+        child: GestureDetector(
+          // 选择模式下点击切换选择，否则打开详情
+          onTap:
+              widget.isSelectionMode ? widget.onToggleSelection : widget.onTap,
+          // 长按进入选择模式并选中
+          onLongPress: widget.isSelectionMode
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  widget.onToggleSelection?.call();
+                },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              // 精致边框 - 选择模式下使用主色
+              border: Border.all(
+                color: borderColor,
+                width: widget.isSelected ? 2 : 1,
+              ),
+              // 深度层叠风格：多层阴影
+              boxShadow: _isHovering && !widget.isSelectionMode
+                  ? [
+                      // 主阴影 - 带主题色
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                      // 中层阴影
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                      // 底层阴影
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [
+                      // 静态主阴影
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                      // 静态底层阴影
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Stack(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 预览图区域
+                    Expanded(
+                      flex: 3,
+                      child: _buildThumbnail(theme, entry),
+                    ),
+
+                    // 信息区域
+                    Expanded(
+                      flex: 2,
+                      child: _buildInfo(theme, entry),
+                    ),
+                  ],
+                ),
+
+                // 选择模式覆盖层
+                if (widget.isSelectionMode)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: widget.isSelected
+                            ? theme.colorScheme.primary.withOpacity(0.08)
+                            : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          // 左上角复选框
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: _SelectionCheckbox(
+                              isSelected: widget.isSelected,
+                              onTap: widget.onToggleSelection,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 如果启用拖拽，包装为 Draggable
+    if (widget.enableDrag) {
+      cardContent = Draggable<TagLibraryEntry>(
+        data: entry,
+        feedback: _buildDragFeedback(theme, entry),
+        childWhenDragging: Opacity(
+          opacity: 0.4,
+          child: cardContent,
+        ),
+        onDragStarted: () {
+          HapticFeedback.mediumImpact();
+          _hidePreviewOverlay();
+          setState(() {
+            _isDragging = true;
+            _isHovering = false;
+          });
+        },
+        onDragEnd: (_) {
+          setState(() {
+            _isDragging = false;
+          });
+        },
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
+  }
+
+  /// 构建拖拽反馈UI
+  Widget _buildDragFeedback(ThemeData theme, TagLibraryEntry entry) {
+    return Material(
+      elevation: 12,
+      borderRadius: BorderRadius.circular(8),
+      color: theme.colorScheme.surfaceContainerHigh,
+      shadowColor: Colors.black54,
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 缩略图
+            if (entry.hasThumbnail)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(entry.thumbnail!),
+                  height: 80,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.image_outlined,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.library_books,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            // 名称
+            Text(
+              entry.displayName,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            // 提示
+            Row(
+              children: [
+                Icon(
+                  Icons.drive_file_move_outline,
+                  size: 12,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '拖到左侧分类归档',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.outline,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(ThemeData theme, TagLibraryEntry entry) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 背景
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+          child: entry.hasThumbnail
+              ? Image.file(
+                  File(entry.thumbnail!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) =>
+                      _buildPlaceholder(theme),
+                )
+              : _buildPlaceholder(theme),
+        ),
+
+        // 悬停遮罩和操作按钮
+        if (_isHovering)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(11)),
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 发送按钮
+                      if (widget.onSend != null)
+                        _ActionButton(
+                          icon: Icons.send_outlined,
+                          tooltip: context.l10n.sendToHome_dialogTitle,
+                          onTap: widget.onSend!,
+                        ),
+                      if (widget.onSend != null) const SizedBox(width: 8),
+                      // 编辑按钮
+                      if (widget.onEdit != null)
+                        _ActionButton(
+                          icon: Icons.edit_outlined,
+                          tooltip: context.l10n.common_edit,
+                          onTap: widget.onEdit!,
+                        ),
+                      if (widget.onEdit != null) const SizedBox(width: 8),
+                      // 复制按钮
+                      _ActionButton(
+                        icon: Icons.content_copy,
+                        tooltip: context.l10n.common_copy,
+                        onTap: () => _copyToClipboard(entry.content),
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionButton(
+                        icon: Icons.delete_outline,
+                        tooltip: context.l10n.common_delete,
+                        onTap: widget.onDelete,
+                        isDestructive: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // 右上角收藏按钮 - 红心样式
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: widget.onToggleFavorite,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: entry.isFavorite
+                    ? Colors.red.shade400
+                    : Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: entry.isFavorite
+                        ? Colors.red.shade400.withOpacity(0.4)
+                        : Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    spreadRadius: entry.isFavorite ? 2 : 0,
+                  ),
+                ],
+              ),
+              child: Icon(
+                entry.isFavorite ? Icons.favorite : Icons.favorite_border,
+                size: 16,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholder(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Icon(
+          Icons.image_outlined,
+          size: 32,
+          color: theme.colorScheme.outline.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfo(ThemeData theme, TagLibraryEntry entry) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        // 底部微妙渐变背景
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.colorScheme.surfaceContainerHigh,
+            theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(11)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 名称行
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.displayName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // 分类标签
+              if (widget.categoryName != null &&
+                  widget.categoryName!.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    widget.categoryName!,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+
+          // 内容预览
+          Expanded(
+            child: Text(
+              entry.contentPreview,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          // 底部信息
+          Row(
+            children: [
+              // 所属分类
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withOpacity(0.2),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.folder_outlined,
+                      size: 10,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      widget.categoryName?.isNotEmpty == true
+                          ? widget.categoryName!
+                          : context.l10n.tagLibrary_rootCategory,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 标签数量
+              Icon(
+                Icons.sell_outlined,
+                size: 10,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${entry.promptTagCount}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              if (entry.useCount > 0) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.repeat,
+                  size: 10,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${entry.useCount}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _copyToClipboard(String content) {
+    Clipboard.setData(ClipboardData(text: content));
+    AppToast.success(context, context.l10n.common_copied);
+  }
+}
+
+/// 选择复选框
+class _SelectionCheckbox extends StatelessWidget {
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _SelectionCheckbox({
+    required this.isSelected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.5),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                size: 16,
+                color: theme.colorScheme.onPrimary,
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+/// 操作按钮
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool isDestructive;
+
+  const _ActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withOpacity(0.9),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              icon,
+              size: 20,
+              color: isDestructive ? Colors.red : Colors.black87,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 悬停预览浮层
+class _EntryPreviewOverlay extends StatelessWidget {
+  final TagLibraryEntry entry;
+  final LayerLink layerLink;
+  final Size cardSize;
+  final Offset cardPosition;
+  final VoidCallback onDismiss;
+
+  const _EntryPreviewOverlay({
+    required this.entry,
+    required this.layerLink,
+    required this.cardSize,
+    required this.cardPosition,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final screenSize = MediaQuery.of(context).size;
+
+    // 计算浮层位置 - 默认在卡片右侧，如果空间不够则放左侧
+    const previewWidth = 320.0;
+    const previewMaxHeight = 400.0;
+
+    // 检查右侧是否有足够空间
+    final rightSpace = screenSize.width - (cardPosition.dx + cardSize.width);
+    final showOnRight = rightSpace >= previewWidth + 16;
+
+    return Positioned(
+      left: 0,
+      top: 0,
+      child: CompositedTransformFollower(
+        link: layerLink,
+        showWhenUnlinked: false,
+        offset: Offset(
+          showOnRight ? cardSize.width + 8 : -previewWidth - 8,
+          0,
+        ),
+        child: MouseRegion(
+          onExit: (_) => onDismiss(),
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(8),
+            color: theme.colorScheme.surfaceContainerHigh,
+            child: Container(
+              width: previewWidth,
+              constraints: const BoxConstraints(maxHeight: previewMaxHeight),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 预览图
+                    if (entry.hasThumbnail)
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(8),
+                        ),
+                        child: Image.file(
+                          File(entry.thumbnail!),
+                          width: previewWidth,
+                          height: 180,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) =>
+                              const SizedBox.shrink(),
+                        ),
+                      ),
+
+                    // 内容区域
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 名称
+                          Text(
+                            entry.displayName,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+                          const ThemedDivider(height: 1),
+                          const SizedBox(height: 8),
+
+                          // 完整内容
+                          Text(
+                            entry.content,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontFamily: 'monospace',
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.4,
+                            ),
+                            maxLines: 8,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // 标签
+                          if (entry.tags.isNotEmpty) ...[
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: entry.tags.map((tag) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer
+                                        .withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    tag,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color:
+                                          theme.colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // 统计信息
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.repeat,
+                                size: 14,
+                                color: theme.colorScheme.outline,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                context.l10n
+                                    .tagLibrary_useCount(entry.useCount),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.outline,
+                                ),
+                              ),
+                              if (entry.lastUsedAt != null) ...[
+                                const SizedBox(width: 16),
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: theme.colorScheme.outline,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatLastUsed(context, entry.lastUsedAt!),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatLastUsed(BuildContext context, DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inDays == 0) {
+      return context.l10n.common_today;
+    } else if (diff.inDays == 1) {
+      return context.l10n.common_yesterday;
+    } else if (diff.inDays < 7) {
+      return context.l10n.common_daysAgo(diff.inDays);
+    } else {
+      return DateFormat.MMMd().format(date);
+    }
+  }
+}

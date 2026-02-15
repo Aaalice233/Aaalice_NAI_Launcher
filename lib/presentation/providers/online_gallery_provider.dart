@@ -10,38 +10,40 @@ import '../../data/services/danbooru_auth_service.dart';
 part 'online_gallery_provider.g.dart';
 
 /// 顶级函数：在 Isolate 中解析帖子数据 (用于 compute)
-/// 
+///
 /// 避免主线程阻塞，提升 UI 流畅度
 List<DanbooruPost> parsePostsInIsolate(Map<String, dynamic> data) {
   final rawList = data['rawList'] as List;
   final source = data['source'] as String;
 
-  return rawList.map((item) {
-    final json = item as Map<String, dynamic>;
-    
-    // Gelbooru 需要特殊字段映射
-    if (source == 'gelbooru') {
-      return DanbooruPost(
-        id: json['id'] as int? ?? 0,
-        score: json['score'] as int? ?? 0,
-        source: json['source'] as String? ?? '',
-        md5: json['md5'] as String? ?? '',
-        rating: json['rating'] as String? ?? 'g',
-        width: json['width'] as int? ?? 0,
-        height: json['height'] as int? ?? 0,
-        tagString: json['tags'] as String? ?? '',
-        fileExt: json['image']?.toString().split('.').last ?? 'jpg',
-        fileUrl: json['file_url'] as String?,
-        previewFileUrl: json['preview_url'] as String?,
-        largeFileUrl: json['sample_url'] as String?,
-      );
-    }
-    
-    // Danbooru/Safebooru 使用标准字段
-    return DanbooruPost.fromJson(json);
-  }).where((post) => post.previewUrl.isNotEmpty).toList();
-}
+  return rawList
+      .map((item) {
+        final json = item as Map<String, dynamic>;
 
+        // Gelbooru 需要特殊字段映射
+        if (source == 'gelbooru') {
+          return DanbooruPost(
+            id: json['id'] as int? ?? 0,
+            score: json['score'] as int? ?? 0,
+            source: json['source'] as String? ?? '',
+            md5: json['md5'] as String? ?? '',
+            rating: json['rating'] as String? ?? 'g',
+            width: json['width'] as int? ?? 0,
+            height: json['height'] as int? ?? 0,
+            tagString: json['tags'] as String? ?? '',
+            fileExt: json['image']?.toString().split('.').last ?? 'jpg',
+            fileUrl: json['file_url'] as String?,
+            previewFileUrl: json['preview_url'] as String?,
+            largeFileUrl: json['sample_url'] as String?,
+          );
+        }
+
+        // Danbooru/Safebooru 使用标准字段
+        return DanbooruPost.fromJson(json);
+      })
+      .where((post) => post.previewUrl.isNotEmpty)
+      .toList();
+}
 
 /// 画廊视图模式
 enum GalleryViewMode {
@@ -51,7 +53,7 @@ enum GalleryViewMode {
 }
 
 /// 单个模式的缓存状态
-/// 
+///
 /// 每个模式（搜索/排行榜/收藏夹）维护独立的数据和滚动位置
 class ModeCache {
   final List<DanbooruPost> posts;
@@ -82,7 +84,7 @@ class ModeCache {
 }
 
 /// 在线画廊状态
-/// 
+///
 /// 重构：每个模式维护独立的缓存，切换模式时不丢失数据
 class OnlineGalleryState {
   final bool isLoading;
@@ -108,6 +110,9 @@ class OnlineGalleryState {
   /// 已收藏的帖子 ID 集合（用于快速查找）
   final Set<int> favoritedPostIds;
 
+  /// 正在执行收藏操作的帖子 ID 集合
+  final Set<int> favoriteLoadingPostIds;
+
   /// 日期范围筛选（搜索模式）
   final DateTime? dateRangeStart;
   final DateTime? dateRangeEnd;
@@ -125,6 +130,7 @@ class OnlineGalleryState {
     this.popularScale = PopularScale.day,
     this.popularDate,
     this.favoritedPostIds = const {},
+    this.favoriteLoadingPostIds = const {},
     this.dateRangeStart,
     this.dateRangeEnd,
   });
@@ -166,6 +172,7 @@ class OnlineGalleryState {
     PopularScale? popularScale,
     DateTime? popularDate,
     Set<int>? favoritedPostIds,
+    Set<int>? favoriteLoadingPostIds,
     DateTime? dateRangeStart,
     DateTime? dateRangeEnd,
     bool clearError = false,
@@ -185,7 +192,10 @@ class OnlineGalleryState {
       popularScale: popularScale ?? this.popularScale,
       popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
       favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
-      dateRangeStart: clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
+      favoriteLoadingPostIds:
+          favoriteLoadingPostIds ?? this.favoriteLoadingPostIds,
+      dateRangeStart:
+          clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
       dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
     );
   }
@@ -209,11 +219,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   late Dio _dio;
   static const int _pageSize = 40;
 
+  /// 用于取消正在进行的请求
+  CancelToken? _cancelToken;
+
   @override
   OnlineGalleryState build() {
     // 保持状态在切换Tab时不被销毁
     ref.keepAlive();
-    
+
     _dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 30),
@@ -222,6 +235,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
 
     return const OnlineGalleryState();
+  }
+
+  /// 取消当前正在进行的加载请求
+  void _cancelCurrentRequest() {
+    if (_cancelToken != null && !_cancelToken!.isCancelled) {
+      _cancelToken!.cancel('用户取消请求');
+    }
+    _cancelToken = CancelToken();
   }
 
   /// 获取 API 服务
@@ -241,10 +262,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 切换到搜索模式（保留缓存数据）
   Future<void> switchToSearch() async {
     if (state.viewMode == GalleryViewMode.search) return;
-    
+
     // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.search);
-    
+
     // 如果目标模式没有缓存数据，才加载
     if (state.searchCache.posts.isEmpty) {
       await loadPosts(refresh: true);
@@ -254,10 +275,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 切换到排行榜模式（保留缓存数据）
   Future<void> switchToPopular() async {
     if (state.viewMode == GalleryViewMode.popular) return;
-    
+
     // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.popular);
-    
+
     // 如果目标模式没有缓存数据，才加载
     if (state.popularCache.posts.isEmpty) {
       await _loadPopularPosts(refresh: true);
@@ -271,10 +292,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (state.viewMode == GalleryViewMode.favorites) return;
-    
+
     // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.favorites);
-    
+
     // 如果目标模式没有缓存数据，才加载
     if (state.favoritesCache.posts.isEmpty) {
       await _loadFavorites(refresh: true);
@@ -305,18 +326,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载排行榜帖子
   Future<void> _loadPopularPosts({bool refresh = false}) async {
-    if (state.isLoading) return;
+    // 取消之前的请求，支持打断
+    _cancelCurrentRequest();
 
     final currentCache = state.popularCache;
     final page = refresh ? 1 : currentCache.page;
-    
+
     // 更新加载状态，刷新时清空缓存
     state = state.copyWith(
       isLoading: true,
       clearError: true,
-      popularCache: refresh 
-          ? const ModeCache() 
-          : currentCache,
+      popularCache: refresh ? const ModeCache() : currentCache,
     );
 
     try {
@@ -332,9 +352,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
       // 更新缓存
       final newCache = ModeCache(
-        posts: refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
+        posts:
+            refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
         page: page,
-        hasMore: posts.isNotEmpty,
+        hasMore: posts.length >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
@@ -343,6 +364,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         popularCache: newCache,
       );
     } catch (e, stack) {
+      // 如果是取消请求，重置加载状态但不显示错误
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
       AppLogger.e(
         'Failed to load popular posts: $e',
         e,
@@ -351,7 +377,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       );
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: _getNetworkErrorMessage(e),
       );
     }
   }
@@ -360,7 +386,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载收藏夹
   Future<void> _loadFavorites({bool refresh = false}) async {
-    if (state.isLoading) return;
+    // 取消之前的请求，支持打断
+    _cancelCurrentRequest();
 
     final authState = _authState;
     if (!authState.isLoggedIn || authState.user == null) {
@@ -369,7 +396,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     final currentCache = state.favoritesCache;
-    
+
     // 计算分页参数
     final apiPage = _getNextPageParamForCache(refresh, currentCache);
     final statePage = refresh ? 1 : currentCache.page + 1;
@@ -400,7 +427,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final newCache = ModeCache(
         posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
-        hasMore: rawCount > 0,
+        hasMore: rawCount >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
@@ -410,10 +437,15 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         favoritedPostIds: favoritedIds,
       );
     } catch (e, stack) {
+      // 如果是取消请求，重置加载状态但不显示错误
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
       AppLogger.e('Failed to load favorites: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: _getNetworkErrorMessage(e),
       );
     }
   }
@@ -422,11 +454,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<bool> addFavorite(int postId) async {
     if (!_authState.isLoggedIn) return false;
 
+    // 设置 loading 状态
+    state = state.copyWith(
+      favoriteLoadingPostIds: {...state.favoriteLoadingPostIds, postId},
+    );
+
     final success = await _apiService.addFavorite(postId);
+
+    // 清除 loading 状态
+    final loadingIds = {...state.favoriteLoadingPostIds};
+    loadingIds.remove(postId);
+
     if (success) {
       state = state.copyWith(
         favoritedPostIds: {...state.favoritedPostIds, postId},
+        favoriteLoadingPostIds: loadingIds,
       );
+    } else {
+      state = state.copyWith(favoriteLoadingPostIds: loadingIds);
     }
     return success;
   }
@@ -435,11 +480,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<bool> removeFavorite(int postId) async {
     if (!_authState.isLoggedIn) return false;
 
+    // 设置 loading 状态
+    state = state.copyWith(
+      favoriteLoadingPostIds: {...state.favoriteLoadingPostIds, postId},
+    );
+
     final success = await _apiService.removeFavorite(postId);
+
+    // 清除 loading 状态
+    final loadingIds = {...state.favoriteLoadingPostIds};
+    loadingIds.remove(postId);
+
     if (success) {
       final newIds = {...state.favoritedPostIds};
       newIds.remove(postId);
-      state = state.copyWith(favoritedPostIds: newIds);
+      state = state.copyWith(
+        favoritedPostIds: newIds,
+        favoriteLoadingPostIds: loadingIds,
+      );
 
       // 如果在收藏夹视图中，从列表中移除
       if (state.viewMode == GalleryViewMode.favorites) {
@@ -449,6 +507,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         );
         state = state.copyWith(favoritesCache: newCache);
       }
+    } else {
+      state = state.copyWith(favoriteLoadingPostIds: loadingIds);
     }
     return success;
   }
@@ -506,10 +566,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载搜索帖子
   Future<void> _loadSearchPosts({bool refresh = false}) async {
-    if (state.isLoading) return;
+    // 取消之前的请求，支持打断
+    _cancelCurrentRequest();
 
     final currentCache = state.searchCache;
-    
+
     // 计算分页参数
     final apiPage = _getNextPageParamForCache(refresh, currentCache);
     final statePage = refresh ? 1 : currentCache.page + 1;
@@ -534,7 +595,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final newCache = ModeCache(
         posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
-        hasMore: rawCount > 0,
+        hasMore: rawCount >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
@@ -543,10 +604,15 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         searchCache: newCache,
       );
     } catch (e, stack) {
+      // 如果是取消请求，重置加载状态但不显示错误
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
       AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: _getNetworkErrorMessage(e),
       );
     }
   }
@@ -565,26 +631,80 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 跳转到指定页码
   Future<void> goToPage(int page) async {
     if (page < 1 || state.isLoading) return;
-    
+
     // 更新当前模式缓存的页码
     final newCache = state.currentCache.copyWith(page: page - 1);
     state = state.updateCurrentCache(newCache);
-    
+
     await loadPosts(refresh: true);
   }
 
   /// 搜索
+  ///
+  /// 支持：
+  /// - 逗号分隔多个 tag（AND 逻辑，结果必须包含所有 tag）
+  /// - 模糊匹配（自动添加通配符）
+  /// - 末尾逗号会被忽略
   Future<void> search(String query) async {
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
+    final processedQuery = _processSearchQuery(query);
     state = state.copyWith(
-      searchQuery: query.trim(),
+      searchQuery: processedQuery,
       viewMode: GalleryViewMode.search,
     );
     await loadPosts(refresh: true);
   }
 
+  /// 处理搜索查询
+  ///
+  /// 将逗号分隔的 tag 转换为 Danbooru API 格式：
+  /// - 逗号分隔 → 空格分隔（AND 逻辑）
+  /// - 每个 tag 添加通配符实现模糊匹配
+  /// - 忽略空 tag（处理末尾逗号）
+  String _processSearchQuery(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return '';
+
+    // 按逗号分隔，处理中英文逗号
+    final tags = trimmed
+        .split(RegExp(r'[,，]'))
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+
+    if (tags.isEmpty) return '';
+
+    // 对每个 tag 进行处理
+    final processedTags = tags.map((tag) {
+      // 如果 tag 已经包含特殊语法（如 rating:, order:, date:, *）则不处理
+      if (_isSpecialTag(tag)) {
+        return tag;
+      }
+      // 添加通配符实现模糊匹配
+      return '*$tag*';
+    }).toList();
+
+    // 用空格连接（Danbooru 的 AND 语法）
+    return processedTags.join(' ');
+  }
+
+  /// 检查是否为特殊标签（不应添加通配符）
+  bool _isSpecialTag(String tag) {
+    // 已包含通配符
+    if (tag.contains('*')) return true;
+    // 包含冒号的元标签（rating:, order:, date:, score:, etc.）
+    if (tag.contains(':')) return true;
+    // 包含波浪号的排除标签
+    if (tag.startsWith('-')) return true;
+    return false;
+  }
+
   /// 设置数据源
   Future<void> setSource(String source) async {
     if (state.source == source) return;
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(source: source);
     await loadPosts(refresh: true);
   }
@@ -592,12 +712,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 设置评级筛选
   Future<void> setRating(String rating) async {
     if (state.rating == rating) return;
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(rating: rating);
     await loadPosts(refresh: true);
   }
 
   /// 设置日期范围筛选（搜索模式）
   Future<void> setDateRange(DateTime? start, DateTime? end) async {
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(
       dateRangeStart: start,
       dateRangeEnd: end,
@@ -609,6 +733,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 清除日期范围
   Future<void> clearDateRange() async {
+    // 立即取消当前请求，确保快速响应
+    _cancelCurrentRequest();
     state = state.copyWith(clearDateRange: true);
     await loadPosts(refresh: true);
   }
@@ -623,6 +749,34 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   List<DanbooruPost> _filterByRating(List<DanbooruPost> posts) {
     if (state.rating == 'all') return posts;
     return posts.where((p) => p.rating == state.rating).toList();
+  }
+
+  /// 将网络错误转换为用户友好的提示信息
+  String _getNetworkErrorMessage(dynamic error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionError:
+          return '网络连接失败，请检查网络设置或代理配置';
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return '网络请求超时，请检查网络连接';
+        case DioExceptionType.badResponse:
+          final statusCode = error.response?.statusCode;
+          if (statusCode == 403) return '访问被拒绝，可能需要登录或权限不足';
+          if (statusCode == 404) return '请求的资源不存在';
+          if (statusCode == 429) return '请求过于频繁，请稍后再试';
+          if (statusCode != null && statusCode >= 500) {
+            return '服务器错误，请稍后再试';
+          }
+          return '请求失败 (${statusCode ?? '未知状态'})';
+        case DioExceptionType.cancel:
+          return '请求已取消';
+        default:
+          return '网络请求失败，请稍后重试';
+      }
+    }
+    return '加载失败，请稍后重试';
   }
 
   /// 从 API 获取帖子，返回 (过滤后的列表, 原始数量)
@@ -640,7 +794,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (rating != 'all') {
       tags = tags.isEmpty ? 'rating:$rating' : '$tags rating:$rating';
     }
-    
+
     // 添加日期范围筛选（Danbooru 语法：date:start..end）
     if (state.dateRangeStart != null && state.dateRangeEnd != null) {
       final startStr = _formatDateForQuery(state.dateRangeStart!);
@@ -675,11 +829,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           'User-Agent': 'NAI-Launcher/1.0',
         },
       ),
+      cancelToken: _cancelToken,
     );
 
     if (response.data is List) {
       final rawList = response.data as List;
-      
+
       // 使用 compute 在独立 Isolate 中解析，避免主线程阻塞 UI
       final List<DanbooruPost> posts = await compute(
         parsePostsInIsolate,
@@ -724,5 +879,4 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         return '/posts.json';
     }
   }
-
 }

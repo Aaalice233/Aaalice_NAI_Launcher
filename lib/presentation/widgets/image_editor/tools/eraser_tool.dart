@@ -5,6 +5,8 @@ import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import '../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 橡皮擦工具
 class EraserTool extends EditorTool {
@@ -125,7 +127,6 @@ class EraserTool extends EditorTool {
   }
 }
 
-
 class _EraserSettingsPanel extends StatefulWidget {
   final EraserTool tool;
   final VoidCallback onSettingsChanged;
@@ -173,7 +174,7 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 大小
         Padding(
@@ -188,8 +189,10 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 2,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 12),
                   ),
                   child: Slider(
                     value: widget.tool.size,
@@ -207,7 +210,7 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
               ),
               SizedBox(
                 width: 50,
-                child: TextField(
+                child: ThemedInput(
                   controller: _sizeController,
                   style: theme.textTheme.bodySmall,
                   textAlign: TextAlign.center,
@@ -248,8 +251,10 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 2,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 12),
                   ),
                   child: Slider(
                     value: widget.tool.hardness * 100,
@@ -275,7 +280,6 @@ class _EraserSettingsPanelState extends State<_EraserSettingsPanel> {
             ],
           ),
         ),
-
       ],
     );
   }
