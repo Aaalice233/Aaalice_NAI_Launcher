@@ -1,12 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -87,157 +83,6 @@ Map<String, Map<String, int>> _parseCooccurrenceDataWithProgressIsolate(
     'stage': 'parsing',
     'progress': 1.0,
     'count': totalLines - startIndex,
-  });
-
-  return result;
-}
-
-/// 顶层函数：在完全独立的上下文中执行 Isolate.run（二进制缓存）
-Future<Map<String, Map<String, int>>> _runLoadBinaryCacheIsolate(
-  String filePath,
-  SendPort sendPort,
-) async {
-  return Isolate.run(() => _loadBinaryCacheIsolateImpl(filePath, sendPort));
-}
-
-/// 在 Isolate 中加载二进制缓存（实际实现）
-Future<Map<String, Map<String, int>>> _loadBinaryCacheIsolateImpl(
-  String filePath,
-  SendPort sendPort,
-) async {
-  sendPort.send({'stage': 'reading', 'progress': 0.0});
-
-  final bytes = await File(filePath).readAsBytes();
-  final fileSize = bytes.length;
-  sendPort.send({
-    'stage': 'reading',
-    'progress': 1.0,
-    'size': fileSize,
-  });
-
-  return _parseBinaryCacheWithProgress(bytes, sendPort);
-}
-
-/// 解析二进制缓存（带进度报告）
-Map<String, Map<String, int>> _parseBinaryCacheWithProgress(
-  Uint8List bytes,
-  SendPort sendPort, {
-  int progressInterval = 10000,
-}) {
-  final result = <String, Map<String, int>>{};
-  var offset = 0;
-
-  const headerSize = 16;
-  const maxStringLength = 1024;
-  const maxRelatedCount = 100000;
-
-  if (bytes.length < headerSize) {
-    throw FormatException('Binary cache file too small: ${bytes.length} bytes');
-  }
-
-  int readInt32() {
-    if (offset + 4 > bytes.length) {
-      throw FormatException('Unexpected end of file at offset $offset');
-    }
-    final value = (bytes[offset] << 24) |
-        (bytes[offset + 1] << 16) |
-        (bytes[offset + 2] << 8) |
-        bytes[offset + 3];
-    offset += 4;
-    return value;
-  }
-
-  int readInt64() {
-    if (offset + 8 > bytes.length) {
-      throw FormatException('Unexpected end of file at offset $offset');
-    }
-    final value = (bytes[offset] << 56) |
-        (bytes[offset + 1] << 48) |
-        (bytes[offset + 2] << 40) |
-        (bytes[offset + 3] << 32) |
-        (bytes[offset + 4] << 24) |
-        (bytes[offset + 5] << 16) |
-        (bytes[offset + 6] << 8) |
-        bytes[offset + 7];
-    offset += 8;
-    return value;
-  }
-
-  String readString() {
-    final length = readInt32();
-    if (length < 0 || length > maxStringLength) {
-      throw FormatException('Invalid string length: $length at offset ${offset - 4}');
-    }
-    if (offset + length > bytes.length) {
-      throw FormatException('String extends beyond file: $length bytes at offset $offset');
-    }
-    final str = utf8.decode(bytes.sublist(offset, offset + length));
-    offset += length;
-    return str;
-  }
-
-  const binaryCacheMagic = 0x434F4F43;
-  final magic = readInt32();
-  if (magic != binaryCacheMagic) {
-    throw FormatException('Invalid binary cache magic: 0x${magic.toRadixString(16)}');
-  }
-
-  const binaryCacheVersion = 1;
-  final version = readInt32();
-  if (version != binaryCacheVersion) {
-    throw FormatException('Binary cache version mismatch: $version (expected $binaryCacheVersion)');
-  }
-
-  final entryCount = readInt32();
-  if (entryCount < 0 || entryCount > 10000000) {
-    throw FormatException('Invalid entry count: $entryCount');
-  }
-
-  readInt32();
-
-  for (var i = 0; i < entryCount && offset < bytes.length; i++) {
-    try {
-      final tag1 = readString();
-      final relatedCount = readInt32();
-
-      if (relatedCount < 0 || relatedCount > maxRelatedCount) {
-        throw FormatException('Invalid related count: $relatedCount for tag "$tag1"');
-      }
-
-      final related = <String, int>{};
-
-      for (var j = 0; j < relatedCount; j++) {
-        final tag2 = readString();
-        final count = readInt64();
-
-        if (count < 0) {
-          throw FormatException('Invalid count: $count for pair ("$tag1", "$tag2")');
-        }
-
-        related[tag2] = count;
-      }
-
-      result[tag1] = related;
-
-      if (i % progressInterval == 0 && i > 0) {
-        final progress = i / entryCount;
-        sendPort.send({
-          'stage': 'parsing',
-          'progress': progress,
-          'count': i,
-        });
-      }
-    } on FormatException {
-      rethrow;
-    } catch (e) {
-      break;
-    }
-  }
-
-  sendPort.send({
-    'stage': 'parsing',
-    'progress': 1.0,
-    'count': entryCount,
   });
 
   return result;
@@ -472,10 +317,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   @override
   DataSourceProgressCallback? onProgress;
 
-  static const String _binaryCacheFileName = 'cooccurrence_cache.bin';
-  static const int _binaryCacheVersion = 1;
-  static const int _binaryCacheMagic = 0x434F4F43;
-
   final CooccurrenceData _data = CooccurrenceData();
   UnifiedTagDatabase? _unifiedDb;
 
@@ -484,11 +325,7 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   DateTime? _lastUpdate;
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
 
-  static const String _metaFileName = 'cooccurrence_meta.json';
-
-  CooccurrenceService() {
-    unawaited(_loadMeta());
-  }
+  CooccurrenceService();
 
   CooccurrenceLoadMode get loadMode => _loadMode;
   bool get isUsingUnifiedDb => _unifiedDb != null;
@@ -570,238 +407,8 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   }
 
   Future<bool> _initializeInternal() async {
-    final binaryCacheFile = await _getBinaryCacheFile();
-    if (await binaryCacheFile.exists()) {
-      final success = await _loadFromBinaryCache(binaryCacheFile);
-      if (success) return true;
-      try {
-        await binaryCacheFile.delete();
-      } catch (e) {
-        AppLogger.w('Failed to delete corrupted binary cache: $e', 'Cooccurrence');
-      }
-    }
-
+    // 旧的二进制缓存已废弃，直接返回 false
     return false;
-  }
-
-  Future<Directory> _getCacheDir() async {
-    final appDir = await getApplicationSupportDirectory();
-    final cacheDir = Directory('${appDir.path}/tag_cache');
-    if (!await cacheDir.exists()) {
-      await cacheDir.create(recursive: true);
-    }
-    return cacheDir;
-  }
-
-  Future<File> _getBinaryCacheFile() async {
-    final cacheDir = await _getCacheDir();
-    return File('${cacheDir.path}/$_binaryCacheFileName');
-  }
-
-  static Future<void> _saveToBinaryCache(
-    Map<String, Map<String, int>> data,
-    String filePath,
-  ) async {
-    await Isolate.run(() async {
-      final buffer = BytesBuilder();
-
-      buffer.addByte((_binaryCacheMagic >> 24) & 0xFF);
-      buffer.addByte((_binaryCacheMagic >> 16) & 0xFF);
-      buffer.addByte((_binaryCacheMagic >> 8) & 0xFF);
-      buffer.addByte(_binaryCacheMagic & 0xFF);
-
-      buffer.addByte((_binaryCacheVersion >> 24) & 0xFF);
-      buffer.addByte((_binaryCacheVersion >> 16) & 0xFF);
-      buffer.addByte((_binaryCacheVersion >> 8) & 0xFF);
-      buffer.addByte(_binaryCacheVersion & 0xFF);
-
-      final entryCount = data.length;
-      buffer.addByte((entryCount >> 24) & 0xFF);
-      buffer.addByte((entryCount >> 16) & 0xFF);
-      buffer.addByte((entryCount >> 8) & 0xFF);
-      buffer.addByte(entryCount & 0xFF);
-
-      buffer.add([0, 0, 0, 0]);
-
-      for (final entry in data.entries) {
-        final tag1Bytes = utf8.encode(entry.key);
-        buffer.addByte((tag1Bytes.length >> 24) & 0xFF);
-        buffer.addByte((tag1Bytes.length >> 16) & 0xFF);
-        buffer.addByte((tag1Bytes.length >> 8) & 0xFF);
-        buffer.addByte(tag1Bytes.length & 0xFF);
-        buffer.add(tag1Bytes);
-
-        final related = entry.value;
-        buffer.addByte((related.length >> 24) & 0xFF);
-        buffer.addByte((related.length >> 16) & 0xFF);
-        buffer.addByte((related.length >> 8) & 0xFF);
-        buffer.addByte(related.length & 0xFF);
-
-        for (final r in related.entries) {
-          final tag2Bytes = utf8.encode(r.key);
-          buffer.addByte((tag2Bytes.length >> 24) & 0xFF);
-          buffer.addByte((tag2Bytes.length >> 16) & 0xFF);
-          buffer.addByte((tag2Bytes.length >> 8) & 0xFF);
-          buffer.addByte(tag2Bytes.length & 0xFF);
-          buffer.add(tag2Bytes);
-
-          final count = r.value;
-          buffer.addByte((count >> 56) & 0xFF);
-          buffer.addByte((count >> 48) & 0xFF);
-          buffer.addByte((count >> 40) & 0xFF);
-          buffer.addByte((count >> 32) & 0xFF);
-          buffer.addByte((count >> 24) & 0xFF);
-          buffer.addByte((count >> 16) & 0xFF);
-          buffer.addByte((count >> 8) & 0xFF);
-          buffer.addByte(count & 0xFF);
-        }
-      }
-
-      final file = File(filePath);
-      await file.writeAsBytes(buffer.toBytes());
-    });
-  }
-
-  Future<bool> _loadFromBinaryCache(File file) async {
-    try {
-      final filePath = file.path;
-
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.reading,
-        0.0,
-        0.0,
-        '读取二进制缓存...',
-      );
-
-      final receivePort = ReceivePort();
-      final sendPort = receivePort.sendPort;
-      final progressStream = receivePort.asBroadcastStream();
-
-      final progressSubscription = progressStream.listen((message) {
-        if (message is Map<String, dynamic>) {
-          final stage = message['stage'] as String?;
-          final progress = message['progress'] as double?;
-
-          if (stage == 'parsing') {
-            onLoadProgress?.call(
-              CooccurrenceLoadStage.parsing,
-              0.3 + (progress ?? 0) * 0.4,
-              progress,
-              '解析二进制数据...',
-            );
-          } else if (stage == 'reading') {
-            onLoadProgress?.call(
-              CooccurrenceLoadStage.reading,
-              (progress ?? 0) * 0.3,
-              progress,
-              '读取二进制缓存...',
-            );
-          }
-        }
-      });
-
-      final data = await _runLoadBinaryCacheIsolate(filePath, sendPort);
-
-      await progressSubscription.cancel();
-      receivePort.close();
-
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.merging,
-        0.7,
-        0.0,
-        '合并数据...',
-      );
-
-      _data.replaceAllData(data);
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.complete,
-        1.0,
-        1.0,
-        '加载完成: ${data.length} 个标签',
-      );
-      AppLogger.i('Loaded cooccurrence data from binary cache', 'Cooccurrence');
-      return true;
-    } catch (e) {
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.error,
-        0.0,
-        0.0,
-        '加载失败: $e',
-      );
-      AppLogger.w('Failed to load binary cache: $e', 'Cooccurrence');
-      return false;
-    }
-  }
-
-  Future<void> _generateBinaryCache() async {
-    try {
-      AppLogger.i('Generating binary cache...', 'Cooccurrence');
-      final binaryFile = await _getBinaryCacheFile();
-
-      final data = <String, Map<String, int>>{};
-      for (final tag1 in _data._cooccurrenceMap.keys) {
-        data[tag1] = Map<String, int>.from(_data._cooccurrenceMap[tag1]!);
-      }
-
-      await _saveToBinaryCache(data, binaryFile.path);
-      AppLogger.i('Binary cache generated', 'Cooccurrence');
-    } catch (e) {
-      AppLogger.w('Failed to generate binary cache: $e', 'Cooccurrence');
-    }
-  }
-
-  Future<void> _importToUnifiedDb() async {
-    if (_unifiedDb == null) return;
-
-    try {
-      AppLogger.i('Importing data to unified database...', 'Cooccurrence');
-
-      var totalRecords = 0;
-      for (final tag1 in _data._cooccurrenceMap.keys) {
-        totalRecords += _data._cooccurrenceMap[tag1]!.length;
-      }
-
-      AppLogger.i('Importing $totalRecords cooccurrence records...', 'Cooccurrence');
-
-      final records = <CooccurrenceRecord>[];
-      var processedCount = 0;
-      var lastProgress = 0.0;
-
-      for (final tag1 in _data._cooccurrenceMap.keys) {
-        final related = _data._cooccurrenceMap[tag1]!;
-        for (final entry in related.entries) {
-          records.add(
-            CooccurrenceRecord(
-              tag1: tag1,
-              tag2: entry.key,
-              count: entry.value,
-              cooccurrenceScore: 0.0,
-            ),
-          );
-
-          if (records.length >= 5000) {
-            await _unifiedDb!.insertCooccurrences(records);
-            processedCount += records.length;
-            records.clear();
-
-            final progress = processedCount / totalRecords;
-            if (progress - lastProgress >= 0.1) {
-              lastProgress = progress;
-              AppLogger.d('Unified DB import: ${(progress * 100).toInt()}%', 'Cooccurrence');
-            }
-          }
-        }
-      }
-
-      if (records.isNotEmpty) {
-        await _unifiedDb!.insertCooccurrences(records);
-        processedCount += records.length;
-      }
-
-      AppLogger.i('Data imported to unified database successfully: $processedCount records', 'Cooccurrence');
-    } catch (e) {
-      AppLogger.w('Failed to import data to unified database: $e', 'Cooccurrence');
-    }
   }
 
   @override
@@ -812,23 +419,8 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
         _unifiedDb = null;
       }
 
-      final binaryCacheFile = await _getBinaryCacheFile();
-      if (await binaryCacheFile.exists()) {
-        await binaryCacheFile.delete();
-      }
-
       _data.clear();
       _lastUpdate = null;
-
-      try {
-        final cacheDir = await _getCacheDir();
-        final metaFile = File('${cacheDir.path}/$_metaFileName');
-        if (await metaFile.exists()) {
-          await metaFile.delete();
-        }
-      } catch (e) {
-        AppLogger.w('Failed to delete meta file: $e', 'Cooccurrence');
-      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(StorageKeys.cooccurrenceLastUpdate);
@@ -836,51 +428,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
       AppLogger.i('Cooccurrence cache cleared', 'Cooccurrence');
     } catch (e) {
       AppLogger.w('Failed to clear cooccurrence cache: $e', 'Cooccurrence');
-    }
-  }
-
-  Future<void> _loadMeta() async {
-    try {
-      final cacheDir = await _getCacheDir();
-      final metaFile = File('${cacheDir.path}/$_metaFileName');
-
-      if (await metaFile.exists()) {
-        final content = await metaFile.readAsString();
-        final json = jsonDecode(content) as Map<String, dynamic>;
-        _lastUpdate = DateTime.parse(json['lastUpdate'] as String);
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      final intervalDays = prefs.getInt(StorageKeys.cooccurrenceRefreshInterval);
-      if (intervalDays != null) {
-        _refreshInterval = AutoRefreshInterval.fromDays(intervalDays);
-      }
-    } catch (e) {
-      AppLogger.w('Failed to load cooccurrence meta: $e', 'Cooccurrence');
-    }
-  }
-
-  Future<void> _saveMeta() async {
-    try {
-      final cacheDir = await _getCacheDir();
-      final metaFile = File('${cacheDir.path}/$_metaFileName');
-
-      final now = DateTime.now();
-      final json = {
-        'lastUpdate': now.toIso8601String(),
-        'version': 1,
-      };
-
-      await metaFile.writeAsString(jsonEncode(json));
-      _lastUpdate = now;
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        StorageKeys.cooccurrenceLastUpdate,
-        now.toIso8601String(),
-      );
-    } catch (e) {
-      AppLogger.w('Failed to save cooccurrence meta: $e', 'Cooccurrence');
     }
   }
 
@@ -1084,19 +631,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
       AppLogger.e('Cooccurrence hot data preload failed', e, stack, 'Cooccurrence');
       onProgress?.call(1.0, '加载失败');
     }
-  }
-
-  /// 从本地加载（assets）
-  Future<bool> _loadFromLocal() async {
-    // 1. 尝试二进制缓存
-    final binaryCacheFile = await _getBinaryCacheFile();
-    if (await binaryCacheFile.exists()) {
-      final success = await _loadFromBinaryCache(binaryCacheFile);
-      if (success) return true;
-    }
-
-    // 2. 尝试 assets
-    return await _loadFromAssets();
   }
 
   /// 设置外部 UnifiedTagDatabase 实例（避免重复初始化）
@@ -1319,9 +853,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
 
   @override
   Future<bool> shouldRefresh() async {
-    if (_lastUpdate == null) {
-      await _loadMeta();
-    }
     return _refreshInterval.shouldRefresh(_lastUpdate);
   }
 
@@ -1346,9 +877,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
 
   @override
   Future<bool> shouldRefreshInBackground() async {
-    if (_lastUpdate == null) {
-      await _loadMeta();
-    }
     return _refreshInterval.shouldRefresh(_lastUpdate);
   }
 
@@ -1361,213 +889,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   void cancelBackgroundOperation() {
     // 取消后台操作
   }
-}
-
-/// 分块加载配置
-class ChunkedLoadConfig {
-  final int chunkSize;
-  final Duration yieldInterval;
-  final int maxConcurrentChunks;
-
-  const ChunkedLoadConfig({
-    this.chunkSize = 50000,
-    this.yieldInterval = const Duration(milliseconds: 1),
-    this.maxConcurrentChunks = 2,
-  });
-}
-
-/// 分块共现数据加载器
-class ChunkedCooccurrenceLoader {
-  final CooccurrenceLoadCallback? onProgress;
-
-  ChunkedCooccurrenceLoader({this.onProgress});
-
-  Future<Map<String, Map<String, int>>> loadInChunks(
-    File file, {
-    ChunkedLoadConfig config = const ChunkedLoadConfig(),
-  }) async {
-    onProgress?.call(
-      CooccurrenceLoadStage.reading,
-      0.0,
-      0.0,
-      '准备分块加载...',
-    );
-
-    final fileSize = await file.length();
-    onProgress?.call(
-      CooccurrenceLoadStage.reading,
-      0.1,
-      0.0,
-      '文件大小: ${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB',
-    );
-
-    final receivePort = ReceivePort();
-    final sendPort = receivePort.sendPort;
-    final progressStream = receivePort.asBroadcastStream();
-
-    final progressSubscription = progressStream.listen((message) {
-      if (message is Map<String, dynamic>) {
-        final stage = message['stage'] as String?;
-        final progress = message['progress'] as double?;
-        final chunkIndex = message['chunkIndex'] as int?;
-        final totalChunks = message['totalChunks'] as int?;
-
-        if (stage == 'reading') {
-          onProgress?.call(
-            CooccurrenceLoadStage.reading,
-            0.1 + (progress ?? 0) * 0.3,
-            progress,
-            totalChunks != null ? '读取块 $chunkIndex / $totalChunks' : '读取中...',
-          );
-        } else if (stage == 'parsing') {
-          onProgress?.call(
-            CooccurrenceLoadStage.parsing,
-            0.4 + (progress ?? 0) * 0.4,
-            progress,
-            '解析块 $chunkIndex / $totalChunks',
-          );
-        } else if (stage == 'merging') {
-          onProgress?.call(
-            CooccurrenceLoadStage.merging,
-            0.8 + (progress ?? 0) * 0.2,
-            progress,
-            '合并数据...',
-          );
-        }
-      }
-    });
-
-    try {
-      final result = await _runLoadFileInChunksIsolate(file.path, sendPort, config);
-
-      await progressSubscription.cancel();
-      receivePort.close();
-
-      onProgress?.call(
-        CooccurrenceLoadStage.complete,
-        1.0,
-        1.0,
-        '加载完成: ${result.length} 个标签',
-      );
-
-      return result;
-    } catch (e) {
-      await progressSubscription.cancel();
-      receivePort.close();
-      onProgress?.call(
-        CooccurrenceLoadStage.error,
-        0.0,
-        0.0,
-        '加载失败: $e',
-      );
-      rethrow;
-    }
-  }
-}
-
-/// 顶层函数：在完全独立的上下文中执行 Isolate.run（分块加载）
-Future<Map<String, Map<String, int>>> _runLoadFileInChunksIsolate(
-  String filePath,
-  SendPort sendPort,
-  ChunkedLoadConfig config,
-) async {
-  return Isolate.run(() => _loadFileInChunksIsolate(filePath, sendPort, config));
-}
-
-/// Isolate中分块加载文件（实际实现，必须是顶层函数）
-Future<Map<String, Map<String, int>>> _loadFileInChunksIsolate(
-  String filePath,
-  SendPort sendPort,
-  ChunkedLoadConfig config,
-) async {
-  final file = File(filePath);
-  final result = <String, Map<String, int>>{};
-
-  final stream = file.openRead();
-  final lines = stream
-      .transform(utf8.decoder)
-      .transform(const LineSplitter());
-
-  var currentChunk = <String>[];
-  var chunkIndex = 0;
-  var isFirstLine = true;
-
-  sendPort.send({'stage': 'reading', 'progress': 0.0});
-
-  await for (final line in lines) {
-    if (isFirstLine) {
-      isFirstLine = false;
-      if (line.contains(',')) continue;
-    }
-
-    currentChunk.add(line);
-
-    if (currentChunk.length >= config.chunkSize) {
-      await _processChunk(
-        currentChunk,
-        result,
-        chunkIndex,
-        sendPort,
-        config,
-      );
-      currentChunk = [];
-      chunkIndex++;
-    }
-  }
-
-  if (currentChunk.isNotEmpty) {
-    await _processChunk(
-      currentChunk,
-      result,
-      chunkIndex,
-      sendPort,
-      config,
-    );
-  }
-
-  return result;
-}
-
-/// 处理单个数据块（顶层函数）
-Future<void> _processChunk(
-  List<String> lines,
-  Map<String, Map<String, int>> result,
-  int chunkIndex,
-  SendPort sendPort,
-  ChunkedLoadConfig config,
-) async {
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    if (line.isEmpty) continue;
-
-    if (line.startsWith('"') && line.endsWith('"')) {
-      line = line.substring(1, line.length - 1);
-    }
-
-    final parts = line.split(',');
-
-    if (parts.length >= 3) {
-      final tag1 = parts[0].trim().toLowerCase();
-      final tag2 = parts[1].trim().toLowerCase();
-      final countStr = parts[2].trim();
-      final count = double.tryParse(countStr)?.toInt() ?? 0;
-
-      if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
-        result.putIfAbsent(tag1, () => {})[tag2] = count;
-        result.putIfAbsent(tag2, () => {})[tag1] = count;
-      }
-    }
-
-    if (i % 10000 == 0) {
-      await Future.delayed(Duration.zero);
-    }
-  }
-
-  sendPort.send({
-    'stage': 'parsing',
-    'progress': 0.5,
-    'chunkIndex': chunkIndex,
-  });
 }
 
 /// CooccurrenceService Provider
