@@ -929,194 +929,14 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     );
   }
 
-  // 紧凑全图卡片 (Step 4) - Bento Grids 风格
+  // 紧凑全图卡片 (Step 4) - Bento Grids 风格 + 悬浮动效
   Widget _buildCompactVibeCard(VibeLibraryEntry entry, bool isSelected) {
-    final theme = Theme.of(context);
-    final thumbnail = entry.thumbnail ?? entry.vibeThumbnail;
-
-    return AnimatedScale(
-      scale: isSelected ? 1.02 : 1.0,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      child: Container(
-        decoration: BoxDecoration(
-          // Bento 风格：更大的圆角
-          borderRadius: BorderRadius.circular(16),
-          // 柔和的背景色
-          color: theme.colorScheme.surface,
-          // Dimensional Layering：多层阴影营造深度
-          boxShadow: isSelected
-              ? [
-                  // 主阴影 - 扩散范围广，模糊大
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.25),
-                    blurRadius: 20,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 8),
-                  ),
-                  // 环境阴影 - 更柔和
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    blurRadius: 40,
-                    spreadRadius: -8,
-                    offset: const Offset(0, 12),
-                  ),
-                ]
-              : [
-                  // 默认状态：微妙的双层阴影
-                  BoxShadow(
-                    color: theme.colorScheme.shadow.withOpacity(0.08),
-                    blurRadius: 12,
-                    spreadRadius: -2,
-                    offset: const Offset(0, 4),
-                  ),
-                  BoxShadow(
-                    color: theme.colorScheme.shadow.withOpacity(0.04),
-                    blurRadius: 24,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _toggleSelection(entry.id),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 缩略图或占位
-                  thumbnail != null
-                      ? Image.memory(
-                          thumbnail,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
-                        )
-                      : _buildPlaceholder(theme),
-
-                  // 选中时：内发光效果替代遮罩
-                  if (isSelected)
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: theme.colorScheme.primary,
-                          width: 3,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        // 内部光晕
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.primary.withOpacity(0.15),
-                            blurRadius: 0,
-                            spreadRadius: 0,
-                            offset: Offset.zero,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // 底部渐变遮罩 + 信息 - 更柔和的渐变
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.6),
-                            Colors.black.withOpacity(0.8),
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                              letterSpacing: -0.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          _buildMiniProgressBars(
-                            entry.strength,
-                            entry.infoExtracted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // 来源类型徽章
-                _buildSourceTypeBadge(entry.sourceType),
-
-                // 选中指示器（改进为带阴影的圆形勾选）
-                if (isSelected)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.shadow.withOpacity(0.4),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.check,
-                        size: 14,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-
-                // 收藏心形（添加背景圆形容器）
-                if (entry.isFavorite)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.favorite,
-                        size: 14,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
+    return _SelectableVibeCard(
+      entry: entry,
+      isSelected: isSelected,
+      onToggleSelection: () => _toggleSelection(entry.id),
+    );
+  }
 
 Widget _buildPlaceholder(ThemeData theme) {
     return Container(
@@ -1210,230 +1030,20 @@ Widget _buildPlaceholder(ThemeData theme) {
     );
   }
 
-  // Bundle 紧凑卡片 (Step 5) - Bento Grids 风格
+  // Bundle 紧凑卡片 (Step 5) - Bento Grids 风格 + 悬浮动效
   Widget _buildBundleCardCompact(
     VibeLibraryEntry entry,
     bool isSelected,
     bool isExpanded,
   ) {
-    final theme = Theme.of(context);
-    final thumbnail = entry.bundledVibePreviews?.isNotEmpty == true
-        ? entry.bundledVibePreviews!.first
-        : null;
-
-    return AnimatedScale(
-      scale: isSelected ? 1.02 : 1.0,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      child: Container(
-        decoration: BoxDecoration(
-          // Bento 风格：更大的圆角
-          borderRadius: BorderRadius.circular(16),
-          color: theme.colorScheme.surface,
-          // Dimensional Layering：多层阴影
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.25),
-                    blurRadius: 20,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    blurRadius: 40,
-                    spreadRadius: -8,
-                    offset: const Offset(0, 12),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.orange.withOpacity(0.12),
-                    blurRadius: 12,
-                    spreadRadius: -2,
-                    offset: const Offset(0, 4),
-                  ),
-                  BoxShadow(
-                    color: Colors.orange.withOpacity(0.06),
-                    blurRadius: 24,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _toggleBundleSelection(entry),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 封面缩略图
-                  thumbnail != null
-                      ? Image.memory(
-                          thumbnail,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _buildPlaceholder(theme),
-                        )
-                      : _buildPlaceholder(theme),
-
-                  // 选中时：内发光效果
-                  if (isSelected)
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: theme.colorScheme.primary,
-                          width: 3,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-
-                // 底部渐变 + 信息
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                    child: Text(
-                      entry.displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-
-                // Bundle 徽章（改进样式）
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.layers, size: 10, color: Colors.white),
-                        const SizedBox(width: 4),
-                        Text(
-                          '×${entry.bundledVibeCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // 选中指示器（改进为带阴影）
-                if (isSelected)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.shadow.withOpacity(0.4),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.check,
-                        size: 14,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-
-                // 展开/收起按钮（改进样式）
-                Positioned(
-                  bottom: 4,
-                  right: 4,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: InkWell(
-                      onTap: () => _toggleBundleExpanded(entry.id),
-                      borderRadius: BorderRadius.circular(16),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: AnimatedRotation(
-                          turns: isExpanded ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 300),
-                          child: const Icon(
-                            Icons.expand_more,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
+    return _SelectableBundleCard(
+      entry: entry,
+      isSelected: isSelected,
+      isExpanded: isExpanded,
+      onToggleSelection: () => _toggleBundleSelection(entry),
+      onToggleExpand: () => _toggleBundleExpanded(entry.id),
+    );
+  }
 
 // Bundle 内部的 vibe 卡片
   Widget _buildBundledVibeCard(
@@ -1697,6 +1307,616 @@ Widget _buildPlaceholder(ThemeData theme) {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// 可选择的 Vibe 卡片组件（带悬浮动效）
+class _SelectableVibeCard extends StatefulWidget {
+  final VibeLibraryEntry entry;
+  final bool isSelected;
+  final VoidCallback onToggleSelection;
+
+  const _SelectableVibeCard({
+    required this.entry,
+    required this.isSelected,
+    required this.onToggleSelection,
+  });
+
+  @override
+  State<_SelectableVibeCard> createState() => _SelectableVibeCardState();
+}
+
+class _SelectableVibeCardState extends State<_SelectableVibeCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final thumbnail = widget.entry.thumbnail ?? widget.entry.vibeThumbnail;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()
+          ..scale(widget.isSelected ? 1.02 : (_isHovered ? 1.035 : 1.0)),
+        transformAlignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: theme.colorScheme.surface,
+          // 悬浮或选中时的多层阴影效果
+          boxShadow: _buildShadows(theme),
+          // 悬浮时添加边框高亮
+          border: _buildBorder(theme),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onToggleSelection,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 缩略图或占位
+                  thumbnail != null
+                      ? Image.memory(
+                          thumbnail,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+                        )
+                      : _buildPlaceholder(theme),
+
+                  // 底部渐变遮罩 + 信息
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.6),
+                            Colors.black.withOpacity(0.8),
+                          ],
+                          stops: const [0.0, 0.5, 1.0],
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.entry.displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          _buildMiniProgressBars(
+                            widget.entry.strength,
+                            widget.entry.infoExtracted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 来源类型徽章
+                  _buildSourceTypeBadge(widget.entry.sourceType),
+
+                  // 选中指示器
+                  if (widget.isSelected)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.colorScheme.shadow.withOpacity(0.4),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          size: 14,
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+
+                  // 收藏心形
+                  if (widget.entry.isFavorite)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.favorite,
+                          size: 14,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<BoxShadow> _buildShadows(ThemeData theme) {
+    if (widget.isSelected) {
+      return [
+        BoxShadow(
+          color: theme.colorScheme.primary.withOpacity(0.25),
+          blurRadius: 20,
+          spreadRadius: -4,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: theme.colorScheme.primary.withOpacity(0.1),
+          blurRadius: 40,
+          spreadRadius: -8,
+          offset: const Offset(0, 12),
+        ),
+      ];
+    }
+
+    if (_isHovered) {
+      return [
+        // 悬浮时更强的阴影
+        BoxShadow(
+          color: theme.colorScheme.primary.withOpacity(0.2),
+          blurRadius: 24,
+          spreadRadius: -2,
+          offset: const Offset(0, 10),
+        ),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.2),
+          blurRadius: 32,
+          spreadRadius: -4,
+          offset: const Offset(0, 14),
+        ),
+      ];
+    }
+
+    // 默认状态：微妙的双层阴影
+    return [
+      BoxShadow(
+        color: theme.colorScheme.shadow.withOpacity(0.08),
+        blurRadius: 12,
+        spreadRadius: -2,
+        offset: const Offset(0, 4),
+      ),
+      BoxShadow(
+        color: theme.colorScheme.shadow.withOpacity(0.04),
+        blurRadius: 24,
+        spreadRadius: -4,
+        offset: const Offset(0, 8),
+      ),
+    ];
+  }
+
+  Border? _buildBorder(ThemeData theme) {
+    if (widget.isSelected) {
+      return Border.all(
+        color: theme.colorScheme.primary,
+        width: 3,
+      );
+    }
+    if (_isHovered) {
+      return Border.all(
+        color: theme.colorScheme.primary.withOpacity(0.4),
+        width: 2,
+      );
+    }
+    return null;
+  }
+
+  Widget _buildPlaceholder(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHigh,
+      child: Center(
+        child: Icon(
+          Icons.image_outlined,
+          size: 48,
+          color: theme.colorScheme.outline.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniProgressBars(double strength, double info) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: strength,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: info,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSourceTypeBadge(VibeSourceType type) {
+    final colorMap = {
+      VibeSourceType.png: Colors.teal,
+      VibeSourceType.naiv4vibe: Colors.blue,
+      VibeSourceType.naiv4vibebundle: Colors.orange,
+      VibeSourceType.rawImage: Colors.purple,
+    };
+
+    final color = colorMap[type] ?? Colors.grey;
+
+    return Positioned(
+      top: 8,
+      left: 8,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          type.displayLabel,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 可选择的 Bundle 卡片组件（带悬浮动效）
+class _SelectableBundleCard extends StatefulWidget {
+  final VibeLibraryEntry entry;
+  final bool isSelected;
+  final bool isExpanded;
+  final VoidCallback onToggleSelection;
+  final VoidCallback onToggleExpand;
+
+  const _SelectableBundleCard({
+    required this.entry,
+    required this.isSelected,
+    required this.isExpanded,
+    required this.onToggleSelection,
+    required this.onToggleExpand,
+  });
+
+  @override
+  State<_SelectableBundleCard> createState() => _SelectableBundleCardState();
+}
+
+class _SelectableBundleCardState extends State<_SelectableBundleCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final thumbnail = widget.entry.bundledVibePreviews?.isNotEmpty == true
+        ? widget.entry.bundledVibePreviews!.first
+        : null;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()
+          ..scale(widget.isSelected ? 1.02 : (_isHovered ? 1.035 : 1.0)),
+        transformAlignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: theme.colorScheme.surface,
+          boxShadow: _buildShadows(theme),
+          border: _buildBorder(theme),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onToggleSelection,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 封面缩略图
+                  thumbnail != null
+                      ? Image.memory(
+                          thumbnail,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+                        )
+                      : _buildPlaceholder(theme),
+
+                  // 底部渐变 + 信息
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.7),
+                          ],
+                        ),
+                      ),
+                      child: Text(
+                        widget.entry.displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+
+                  // Bundle 徽章
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.layers, size: 10, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            '×${widget.entry.bundledVibeCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 选中指示器
+                  if (widget.isSelected)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.colorScheme.shadow.withOpacity(0.4),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          size: 14,
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+
+                  // 展开/收起按钮
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: InkWell(
+                        onTap: widget.onToggleExpand,
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: AnimatedRotation(
+                            turns: widget.isExpanded ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 300),
+                            child: const Icon(
+                              Icons.expand_more,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<BoxShadow> _buildShadows(ThemeData theme) {
+    if (widget.isSelected) {
+      return [
+        BoxShadow(
+          color: theme.colorScheme.primary.withOpacity(0.25),
+          blurRadius: 20,
+          spreadRadius: -4,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: theme.colorScheme.primary.withOpacity(0.1),
+          blurRadius: 40,
+          spreadRadius: -8,
+          offset: const Offset(0, 12),
+        ),
+      ];
+    }
+
+    if (_isHovered) {
+      return [
+        // 悬浮时使用橙色调阴影，与 Bundle 主题一致
+        BoxShadow(
+          color: Colors.orange.withOpacity(0.25),
+          blurRadius: 24,
+          spreadRadius: -2,
+          offset: const Offset(0, 10),
+        ),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.2),
+          blurRadius: 32,
+          spreadRadius: -4,
+          offset: const Offset(0, 14),
+        ),
+      ];
+    }
+
+    // 默认状态：橙色微弱阴影
+    return [
+      BoxShadow(
+        color: Colors.orange.withOpacity(0.12),
+        blurRadius: 12,
+        spreadRadius: -2,
+        offset: const Offset(0, 4),
+      ),
+      BoxShadow(
+        color: Colors.orange.withOpacity(0.06),
+        blurRadius: 24,
+        spreadRadius: -4,
+        offset: const Offset(0, 8),
+      ),
+    ];
+  }
+
+  Border? _buildBorder(ThemeData theme) {
+    if (widget.isSelected) {
+      return Border.all(
+        color: theme.colorScheme.primary,
+        width: 3,
+      );
+    }
+    if (_isHovered) {
+      return Border.all(
+        color: Colors.orange.withOpacity(0.5),
+        width: 2,
+      );
+    }
+    return null;
+  }
+
+  Widget _buildPlaceholder(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHigh,
+      child: Center(
+        child: Icon(
+          Icons.image_outlined,
+          size: 48,
+          color: theme.colorScheme.outline.withOpacity(0.5),
+        ),
+      ),
     );
   }
 }
