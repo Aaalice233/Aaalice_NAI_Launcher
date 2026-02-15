@@ -202,6 +202,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_initTagSystem;
       case 'warmup_loadingPromptConfig':
         return l10n.warmup_loadingPromptConfig;
+      case 'warmup_unifiedDbInit':
+        return l10n.warmup_unifiedDbInit;
+      case 'warmup_dataMigration':
+        return l10n.warmup_dataMigration;
       default:
         return taskKey;
     }
