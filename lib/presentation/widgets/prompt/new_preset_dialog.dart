@@ -1,6 +1,5 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
-
-import '../../../core/utils/localization_extension.dart';
 
 /// 预设创建模式
 enum PresetCreationMode {
@@ -150,7 +149,8 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
                     subtitle: l10n.newPresetDialog_templateDesc,
                     isSelected: _selectedMode == PresetCreationMode.template,
                     onTap: () => setState(
-                        () => _selectedMode = PresetCreationMode.template,),
+                      () => _selectedMode = PresetCreationMode.template,
+                    ),
                   ),
                   const SizedBox(height: 8),
 
@@ -161,7 +161,8 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
                     subtitle: l10n.newPresetDialog_blankDesc,
                     isSelected: _selectedMode == PresetCreationMode.blank,
                     onTap: () => setState(
-                        () => _selectedMode = PresetCreationMode.blank,),
+                      () => _selectedMode = PresetCreationMode.blank,
+                    ),
                   ),
                 ],
               ),
@@ -173,7 +174,8 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                      color: colorScheme.outlineVariant.withOpacity(0.3),),
+                    color: colorScheme.outlineVariant.withOpacity(0.3),
+                  ),
                 ),
               ),
               child: Row(

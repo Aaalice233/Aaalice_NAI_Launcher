@@ -1,4 +1,4 @@
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../presentation/providers/auth_provider.dart';
 import '../utils/app_logger.dart';

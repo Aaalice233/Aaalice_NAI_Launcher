@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 
 /// 图片发送目标类型
@@ -66,12 +66,11 @@ class ImageSendDestinationDialog extends StatelessWidget {
               context,
               icon: Icons.style,
               title: 'Vibe Transfer',
-              subtitle: hasVibeData
-                  ? '提取并应用图片的风格/角色'
-                  : '此图片不包含 Vibe 数据',
+              subtitle: hasVibeData ? '提取并应用图片的风格/角色' : '此图片不包含 Vibe 数据',
               enabled: hasVibeData,
               onTap: hasVibeData
-                  ? () => Navigator.of(context).pop(SendDestination.vibeTransfer)
+                  ? () =>
+                      Navigator.of(context).pop(SendDestination.vibeTransfer)
                   : null,
             ),
           ],

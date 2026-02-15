@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
@@ -22,8 +22,7 @@ class ShortcutHelpDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<ShortcutHelpDialog> createState() =>
-      _ShortcutHelpDialogState();
+  ConsumerState<ShortcutHelpDialog> createState() => _ShortcutHelpDialogState();
 }
 
 class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
@@ -192,9 +191,8 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
       return _buildSearchResults();
     }
 
-    final contextsToShow = _selectedContext != null
-        ? [_selectedContext!]
-        : ShortcutContext.values;
+    final contextsToShow =
+        _selectedContext != null ? [_selectedContext!] : ShortcutContext.values;
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -204,8 +202,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
         final bindings = bindingsByContext[shortcutContext] ?? [];
 
         // 过滤禁用的快捷键
-        final enabledBindings =
-            bindings.where((b) => b.enabled).toList();
+        final enabledBindings = bindings.where((b) => b.enabled).toList();
 
         if (enabledBindings.isEmpty) return const SizedBox.shrink();
 
@@ -311,8 +308,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
   }
 
   Widget _buildSearchResults() {
-    final searchResults =
-        ref.read(searchShortcutsProvider(_searchQuery));
+    final searchResults = ref.read(searchShortcutsProvider(_searchQuery));
 
     if (searchResults.isEmpty) {
       return Center(

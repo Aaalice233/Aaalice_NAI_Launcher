@@ -6,13 +6,11 @@ import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
-import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import '../../data/services/anlas_statistics_service.dart';
 import '../../data/services/statistics_cache_service.dart';
@@ -140,7 +138,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 应用固定词到提示词
     final fixedTagsState = ref.read(fixedTagsNotifierProvider);
     final promptWithFixedTags =
-        fixedTagsState.entries.applyToPrompt(effectiveParams.prompt);
+        fixedTagsState.applyToPrompt(effectiveParams.prompt);
     if (promptWithFixedTags != effectiveParams.prompt) {
       AppLogger.d(
         'Applied fixed tags: ${fixedTagsState.enabledCount} entries',

@@ -1,10 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/pending_prompt_provider.dart';
@@ -97,7 +97,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       ShortcutIds.deselectAllTags: () {
         final selectionState = ref.read(tagLibrarySelectionNotifierProvider);
         if (selectionState.isActive) {
-          ref.read(tagLibrarySelectionNotifierProvider.notifier).clearSelection();
+          ref
+              .read(tagLibrarySelectionNotifierProvider.notifier)
+              .clearSelection();
         }
       },
       // 新建分类
@@ -183,9 +185,8 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     if (selectedIds.isEmpty) return;
 
     final pageState = ref.read(tagLibraryPageNotifierProvider);
-    final selectedEntries = pageState.entries
-        .where((e) => selectedIds.contains(e.id))
-        .toList();
+    final selectedEntries =
+        pageState.entries.where((e) => selectedIds.contains(e.id)).toList();
 
     if (selectedEntries.isEmpty) return;
 
@@ -200,10 +201,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
     // 设置待填充提示词
     ref.read(pendingPromptNotifierProvider.notifier).set(
-      prompt: content,
-      targetType: SendTargetType.mainPrompt,
-      clearOnConsume: true,
-    );
+          prompt: content,
+          targetType: SendTargetType.mainPrompt,
+          clearOnConsume: true,
+        );
 
     // 记录所有选中项的使用
     for (final entry in selectedEntries) {
@@ -442,7 +443,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       onToggleSelection: selectionHandler,
       onDelete: () => _showDeleteEntryConfirmation(entry.id),
       onEdit: () => _showEditDialog(entry),
-      onToggleFavorite: () => ref.read(tagLibraryPageNotifierProvider.notifier).toggleFavorite(entry.id),
+      onToggleFavorite: () => ref
+          .read(tagLibraryPageNotifierProvider.notifier)
+          .toggleFavorite(entry.id),
     );
 
     if (isCard) {
@@ -581,7 +584,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     if (mounted) {
       AppToast.success(
         context,
-        allFavorited ? '已取消收藏 ${selectedIds.length} 个词条' : '已收藏 ${selectedIds.length} 个词条',
+        allFavorited
+            ? '已取消收藏 ${selectedIds.length} 个词条'
+            : '已收藏 ${selectedIds.length} 个词条',
       );
     }
   }
@@ -594,9 +599,8 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     if (selectedIds.isEmpty) return;
 
     final state = ref.read(tagLibraryPageNotifierProvider);
-    final selectedEntries = state.entries
-        .where((e) => selectedIds.contains(e.id))
-        .toList();
+    final selectedEntries =
+        state.entries.where((e) => selectedIds.contains(e.id)).toList();
 
     // 按当前排序拼接内容
     final content = selectedEntries.map((e) => e.content).join(', ');
@@ -791,10 +795,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
     // 设置待填充提示词
     ref.read(pendingPromptNotifierProvider.notifier).set(
-      prompt: content,
-      targetType: sendOptions.targetType,
-      clearOnConsume: true,
-    );
+          prompt: content,
+          targetType: sendOptions.targetType,
+          clearOnConsume: true,
+        );
 
     // 记录使用
     await ref
@@ -837,5 +841,4 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       ),
     );
   }
-
 }

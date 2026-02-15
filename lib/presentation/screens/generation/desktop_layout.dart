@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -9,7 +10,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
@@ -38,7 +38,7 @@ import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/history_panel.dart';
 import 'widgets/upscale_dialog.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
 /// 桌面端三栏布局
 class DesktopGenerationLayout extends ConsumerStatefulWidget {
@@ -492,7 +492,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       // 清空提示词
       ShortcutIds.clearPrompt: () {
         ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
-        ref.read(generationParamsNotifierProvider.notifier).updateNegativePrompt('');
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNegativePrompt('');
         ref.read(characterPromptNotifierProvider.notifier).clearAll();
       },
       // 切换正/负面模式（通过触发最大化来切换）
@@ -515,14 +517,16 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       ShortcutIds.upscaleImage: () {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
-          UpscaleDialog.show(context, image: generationState.displayImages.first.bytes);
+          UpscaleDialog.show(context,
+              image: generationState.displayImages.first.bytes);
         }
       },
       // 复制图像（复制到剪贴板）
       ShortcutIds.copyImage: () {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
-          _copyImageToClipboard(context, ref, generationState.displayImages.first.bytes);
+          _copyImageToClipboard(
+              context, ref, generationState.displayImages.first.bytes);
         }
       },
       // 全屏预览

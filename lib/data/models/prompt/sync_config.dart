@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import 'package:flutter/widgets.dart';
 
 part 'sync_config.freezed.dart';

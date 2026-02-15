@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -7,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../widgets/common/app_toast.dart';
 import 'core/editor_state.dart';
 import 'layers/layer.dart';
@@ -330,7 +330,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-            bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),),
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+        ),
       ),
       child: Row(
         children: [
@@ -365,7 +366,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
 
           const ThemedDivider(
-              height: 1, vertical: true, indent: 8, endIndent: 8,),
+            height: 1,
+            vertical: true,
+            indent: 8,
+            endIndent: 8,
+          ),
 
           // 切换面板
           IconButton(
@@ -391,7 +396,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
 
           const ThemedDivider(
-              height: 1, vertical: true, indent: 8, endIndent: 8,),
+            height: 1,
+            vertical: true,
+            indent: 8,
+            endIndent: 8,
+          ),
 
           // 导出按钮
           Padding(
@@ -429,7 +438,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             border: Border(
-                top: BorderSide(color: theme.dividerColor.withOpacity(0.3)),),
+              top: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+            ),
           ),
           child: Row(
             children: [
@@ -887,7 +897,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           AppLogger.w('Invalid file extension: $extension', 'ImageEditor');
           if (mounted) {
             AppToast.error(
-                context, '不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP等）',);
+              context,
+              '不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP等）',
+            );
           }
           return;
         }

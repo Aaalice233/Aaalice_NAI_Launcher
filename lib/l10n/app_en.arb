@@ -3451,6 +3451,9 @@
   "vibeLibrary_title": "Vibe Library",
   "vibeLibrary_save": "Save to Library",
   "vibeLibrary_import": "Import Vibe",
+  "vibeLibrary_searchHint": "Search name, tags...",
+  "vibeLibrary_empty": "Vibe Library is empty",
+  "vibeLibrary_emptyHint": "Add some entries to Vibe Library first",
   "vibe_export_title": "Export Vibe",
   "vibe_export_format": "Export Format",
   "vibe_selector_title": "Select Vibe",
@@ -3470,10 +3473,44 @@
   "vibe_export_include_thumbnails_subtitle": "Include thumbnail preview in export file",
   "vibe_import_skip": "Skip",
   "vibe_import_confirm": "Confirm",
+  "bundle_internalVibes": "Internal Vibes",
   "shortcuts_customize": "Customize Shortcuts",
   "gallery_send_to": "Send To",
   "image_editor_select_tool": "Select Tool",
   "selection_clear_selection": "Clear Selection",
-  "selection_invert_selection": "Invert Selection"
+  "selection_invert_selection": "Invert Selection",
+  "search_results": "Search Results",
+  "search_noResults": "No matching results",
+  "addToCurrent": "Add to Current",
+  "replaceExisting": "Replace Existing",
+  "confirmSelection": "Confirm Selection",
+  "selectAll": "Select All",
+  "clearSelection": "Clear",
+  "clearFilters": "Clear Filters",
+
+  "shortcut_context_vibe_detail": "Vibe Detail",
+  "shortcut_action_vibe_detail_send_to_generation": "Send to Generation",
+  "shortcut_action_vibe_detail_export": "Export",
+  "shortcut_action_vibe_detail_rename": "Rename",
+  "shortcut_action_vibe_detail_delete": "Delete",
+  "shortcut_action_vibe_detail_toggle_favorite": "Toggle Favorite",
+  "shortcut_action_vibe_detail_prev_sub_vibe": "Previous Sub Vibe",
+  "shortcut_action_vibe_detail_next_sub_vibe": "Next Sub Vibe",
+  "shortcut_action_navigate_to_vibe_library": "Vibe Library",
+  "shortcut_action_vibe_import": "Import Vibe",
+  "shortcut_action_vibe_export": "Export Vibe",
+
+  "vibeSelectorFilterFavorites": "Favorites",
+  "vibeSelectorFilterSourceAll": "All Types",
+  "vibeSelectorSortCreated": "Created",
+  "vibeSelectorSortLastUsed": "Last Used",
+  "vibeSelectorSortUsedCount": "Usage Count",
+  "vibeSelectorSortName": "Name",
+  "vibeSelectorItemsCount": "{count} items",
+  "@vibeSelectorItemsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 
 }

@@ -1,10 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/avatar_service.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -228,7 +228,8 @@ class _AccountProfileBottomSheetState
     // 使用 ref.watch 实现响应式更新
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
     final currentAccountId = ref.watch(authNotifierProvider).accountId;
-    final defaultAccount = ref.read(accountManagerNotifierProvider.notifier).defaultAccount;
+    final defaultAccount =
+        ref.read(accountManagerNotifierProvider.notifier).defaultAccount;
     final isDefaultAccount = defaultAccount?.id == currentAccount.id;
     final hasMultipleAccounts = accounts.length > 1;
 
@@ -544,7 +545,10 @@ class _AccountProfileBottomSheetState
             context,
             account,
             account.id == currentAccountId,
-            ref.read(accountManagerNotifierProvider.notifier).defaultAccount?.id ==
+            ref
+                    .read(accountManagerNotifierProvider.notifier)
+                    .defaultAccount
+                    ?.id ==
                 account.id,
           ),
         ),

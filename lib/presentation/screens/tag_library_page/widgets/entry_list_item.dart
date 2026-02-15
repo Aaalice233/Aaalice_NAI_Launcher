@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
 
@@ -66,9 +66,8 @@ class _EntryListItemState extends State<EntryListItem> {
             : theme.colorScheme.surfaceContainerHigh);
 
     // 选择模式下的边框
-    final borderColor = widget.isSelected
-        ? theme.colorScheme.primary
-        : Colors.transparent;
+    final borderColor =
+        widget.isSelected ? theme.colorScheme.primary : Colors.transparent;
 
     Widget itemContent = MouseRegion(
       onEnter: (_) {
@@ -80,9 +79,7 @@ class _EntryListItemState extends State<EntryListItem> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         // 选择模式下点击切换选择，否则打开详情
-        onTap: widget.isSelectionMode
-            ? widget.onToggleSelection
-            : widget.onTap,
+        onTap: widget.isSelectionMode ? widget.onToggleSelection : widget.onTap,
         // 长按进入选择模式并选中
         onLongPress: widget.isSelectionMode
             ? null
@@ -98,8 +95,7 @@ class _EntryListItemState extends State<EntryListItem> {
           // 悬停时微微上移（非选择模式）
           transform: widget.isSelectionMode
               ? null
-              : (Matrix4.identity()
-                ..translate(0.0, _isHovering ? -2.0 : 0.0)),
+              : (Matrix4.identity()..translate(0.0, _isHovering ? -2.0 : 0.0)),
           decoration: BoxDecoration(
             // 背景色 - 选中时使用主色容器
             color: backgroundColor,

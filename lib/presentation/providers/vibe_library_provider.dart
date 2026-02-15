@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -433,6 +434,40 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       return updated;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to update entry tags', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
+  /// 更新条目缩略图
+  Future<VibeLibraryEntry?> updateEntryThumbnail(
+    String id,
+    Uint8List? thumbnail,
+  ) async {
+    try {
+      final updated = await _storage.updateEntryThumbnail(id, thumbnail);
+      if (updated == null) return null;
+
+      // 更新本地状态
+      final updatedEntries = state.entries.map((e) {
+        return e.id == id ? updated : e;
+      }).toList();
+
+      state = state.copyWith(entries: updatedEntries);
+      await _applyFilters();
+
+      AppLogger.d(
+        'Entry thumbnail updated: ${updated.displayName}',
+        'VibeLibrary',
+      );
+      return updated;
+    } catch (e, stackTrace) {
+      AppLogger.e(
+        'Failed to update entry thumbnail',
+        e,
+        stackTrace,
+        'VibeLibrary',
+      );
       state = state.copyWith(error: e.toString());
       return null;
     }

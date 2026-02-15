@@ -322,7 +322,7 @@ class _BundleVibeCardState extends State<BundleVibeCard>
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
-            Icons.layers,
+            Icons.style,
             size: 20,
             color: colorScheme.onPrimaryContainer,
           ),

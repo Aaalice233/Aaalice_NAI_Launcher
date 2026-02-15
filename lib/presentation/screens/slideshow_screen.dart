@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -5,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
 
 /// 幻灯片屏幕

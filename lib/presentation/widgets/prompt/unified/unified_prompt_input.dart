@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
@@ -300,11 +300,13 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     BuildContext context,
     EditableTextState editableTextState,
   ) {
-    final selectedText = TextSelectionUtils.getSelectedText(_effectiveController);
+    final selectedText =
+        TextSelectionUtils.getSelectedText(_effectiveController);
     final hasSelection = selectedText.isNotEmpty;
 
     // 获取默认的上下文菜单项
-    final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
+    final List<ContextMenuButtonItem> buttonItems =
+        editableTextState.contextMenuButtonItems;
 
     // 如果有选中文本，添加"保存到词库"选项
     if (hasSelection) {
@@ -327,9 +329,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   }
 
   /// 显示保存到词库对话框
-  Future<void> _showSaveToLibraryDialog(BuildContext context, String selectedText) async {
+  Future<void> _showSaveToLibraryDialog(
+      BuildContext context, String selectedText) async {
     final categories = ref.read(tagLibraryPageCategoriesProvider);
-    
+
     await showDialog<void>(
       context: context,
       builder: (context) => EntryAddDialog(
@@ -338,7 +341,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         initialContent: selectedText,
       ),
     );
-    
+
     // 注意：EntryAddDialog 会自己处理保存逻辑并显示 toast
   }
 

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -5,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
@@ -183,7 +183,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                 // 选项
                 CheckboxListTile(
                   title: Text(context.l10n.vibe_export_include_thumbnails),
-                  subtitle: Text(context.l10n.vibe_export_include_thumbnails_subtitle),
+                  subtitle: Text(
+                      context.l10n.vibe_export_include_thumbnails_subtitle),
                   value: _includeThumbnails,
                   onChanged: (value) {
                     setState(() => _includeThumbnails = value ?? true);
@@ -204,9 +205,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                     ),
                     const SizedBox(width: 8),
                     FilledButton.icon(
-                      onPressed: _selectedEntryIds.isEmpty
-                          ? null
-                          : _export,
+                      onPressed: _selectedEntryIds.isEmpty ? null : _export,
                       icon: const Icon(Icons.file_download),
                       label: Text(
                         '导出 (${_selectedEntryIds.length} 个)',
@@ -329,8 +328,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   Widget _buildSelectionActions(ThemeData theme) {
     final exportableEntries =
         widget.entries.where((e) => _canExportEntry(e)).toList();
-    final allEntriesSelected = _selectedEntryIds.length ==
-        exportableEntries.length;
+    final allEntriesSelected =
+        _selectedEntryIds.length == exportableEntries.length;
     final allCategoriesSelected =
         _selectedCategoryIds.length == widget.categories.length;
     final allSelected = allEntriesSelected && allCategoriesSelected;
@@ -790,9 +789,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
   Future<void> _export() async {
     // 过滤选中的条目
-    final selectedEntries = widget.entries
-        .where((e) => _selectedEntryIds.contains(e.id))
-        .toList();
+    final selectedEntries =
+        widget.entries.where((e) => _selectedEntryIds.contains(e.id)).toList();
 
     if (selectedEntries.isEmpty) {
       AppToast.warning(context, '请先选择要导出的 Vibe');

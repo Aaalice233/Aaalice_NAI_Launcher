@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,7 +8,6 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_api_utils.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -32,8 +32,7 @@ class PreciseReferencePanel extends ConsumerStatefulWidget {
       _PreciseReferencePanelState();
 }
 
-class _PreciseReferencePanelState
-    extends ConsumerState<PreciseReferencePanel> {
+class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
   bool _isExpanded = false;
   PreciseRefType _selectedType = PreciseRefType.character;
 
@@ -181,7 +180,6 @@ class _PreciseReferencePanelState
     );
   }
 
-
   /// 构建类型选择器（DropdownButton）
   Widget _buildTypeSelector(BuildContext context, ThemeData theme) {
     final params = ref.watch(generationParamsNotifierProvider);
@@ -202,7 +200,7 @@ class _PreciseReferencePanelState
           vertical: 12,
         ),
       ),
-          items: PreciseRefType.values.map((type) {
+      items: PreciseRefType.values.map((type) {
         return DropdownMenuItem<PreciseRefType>(
           value: type,
           child: Row(

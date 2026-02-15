@@ -1,8 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
-import '../../../../core/utils/localization_extension.dart';
 
 /// 进度通知状态
 enum ProgressNotificationState {
@@ -332,13 +331,11 @@ class _ProgressNotificationCard extends StatelessWidget {
             ? const Color(0xFF4CAF50)
             : theme.colorScheme.surfaceContainerHigh;
 
-    final textColor = isError || isSuccess
-        ? Colors.white
-        : theme.colorScheme.onSurface;
+    final textColor =
+        isError || isSuccess ? Colors.white : theme.colorScheme.onSurface;
 
-    final iconColor = isError || isSuccess
-        ? Colors.white
-        : theme.colorScheme.primary;
+    final iconColor =
+        isError || isSuccess ? Colors.white : theme.colorScheme.primary;
 
     return Material(
       color: Colors.transparent,
@@ -350,9 +347,7 @@ class _ProgressNotificationCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: (isError || isSuccess
-                      ? backgroundColor
-                      : Colors.black)
+              color: (isError || isSuccess ? backgroundColor : Colors.black)
                   .withOpacity(0.25),
               blurRadius: 12,
               offset: const Offset(0, 4),
@@ -384,9 +379,7 @@ class _ProgressNotificationCard extends StatelessWidget {
                   )
                 else
                   Icon(
-                    isError
-                        ? Icons.cancel_rounded
-                        : Icons.check_circle_rounded,
+                    isError ? Icons.cancel_rounded : Icons.check_circle_rounded,
                     color: iconColor,
                     size: 20,
                   ),
@@ -517,7 +510,8 @@ class ProgressTaskWrapper<T> {
   });
 
   /// 执行任务
-  Future<T?> run(Future<T> Function(ProgressNotificationController) task) async {
+  Future<T?> run(
+      Future<T> Function(ProgressNotificationController) task) async {
     // 在异步操作前获取本地化字符串
     final l10n = context.l10n;
 

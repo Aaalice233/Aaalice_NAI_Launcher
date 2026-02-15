@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,7 +11,6 @@ import 'package:path/path.dart' as path;
 
 import '../../../core/cache/danbooru_image_cache_manager.dart';
 import '../../../core/services/date_formatting_service.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
@@ -867,7 +867,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            isFavorites ? Icons.favorite_border : Icons.image_not_supported_outlined,
+            isFavorites
+                ? Icons.favorite_border
+                : Icons.image_not_supported_outlined,
             size: 48,
             color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
@@ -896,13 +898,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       crossAxisCount: columnCount,
       mainAxisSpacing: 6,
       crossAxisSpacing: 6,
-      itemCount: state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
-      itemBuilder: (context, index) => _buildGridItem(theme, state, index, itemWidth),
+      itemCount:
+          state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
+      itemBuilder: (context, index) =>
+          _buildGridItem(theme, state, index, itemWidth),
     );
   }
 
   /// 构建网格项
-  Widget _buildGridItem(ThemeData theme, OnlineGalleryState state, int index, double itemWidth) {
+  Widget _buildGridItem(
+      ThemeData theme, OnlineGalleryState state, int index, double itemWidth) {
     // 加载更多指示器/错误重试
     if (index >= state.posts.length) {
       return _buildLoadMoreIndicator(theme, state);

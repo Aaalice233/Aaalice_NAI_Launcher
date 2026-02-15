@@ -7,10 +7,10 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'NAI 启动器';
+  String get app_title => 'NAI 启动器';
 
   @override
-  String get appSubtitle => 'NovelAI 第三方客户端';
+  String get app_subtitle => 'NovelAI 第三方客户端';
 
   @override
   String get common_cancel => '取消';
@@ -1326,6 +1326,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_description => '改变图像，保留视觉风格';
 
   @override
+  String get vibe_addFromFileTitle => '从文件添加';
+
+  @override
+  String get vibe_addFromFileSubtitle => 'PNG、JPG、Vibe 文件';
+
+  @override
+  String get vibe_addFromLibraryTitle => '从库导入';
+
+  @override
+  String get vibe_addFromLibrarySubtitle => '从 Vibe 库中选择';
+
+  @override
   String get vibe_addReference => '添加参考图';
 
   @override
@@ -1375,6 +1387,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibe_sourceType_image => '图片';
+
+  @override
+  String get vibe_sourceType => '数据源';
+
+  @override
+  String get vibe_reuseButton => '一键复用';
+
+  @override
+  String get vibe_reuseSuccess => 'Vibe 已添加到生成参数';
+
+  @override
+  String get vibe_info => 'Vibe 信息';
+
+  @override
+  String get vibe_name => '名称';
+
+  @override
+  String get vibe_strength => '强度';
+
+  @override
+  String get vibe_infoExtracted => '信息提取';
 
   @override
   String get characterRef_title => '角色参考';
@@ -2559,6 +2592,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get warmup_loadingTranslation => '加载翻译数据...';
 
   @override
+  String get warmup_initUnifiedDatabase => '初始化标签数据库...';
+
+  @override
   String get warmup_initTagSystem => '初始化标签系统...';
 
   @override
@@ -2789,7 +2825,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drop_vibeTransfer => '风格迁移';
 
   @override
-  String get drop_characterReference => '角色参考';
+  String get drop_characterReference => '精准参考';
 
   @override
   String get drop_unsupportedFormat => '不支持的文件格式';
@@ -2806,7 +2842,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get drop_addedToCharacterRef => '已添加到角色参考';
+  String get drop_addedToCharacterRef => '已添加到精准参考';
 
   @override
   String get characterEditor_title => '多人角色提示词';
@@ -6700,4 +6736,234 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcut_help_customize => '自定义快捷键';
+
+  @override
+  String get drop_extractMetadata => '提取元数据';
+
+  @override
+  String get drop_extractMetadataSubtitle => '读取图片中的 Prompt、Seed 等参数';
+
+  @override
+  String get drop_addToQueue => '加入队列';
+
+  @override
+  String get drop_addToQueueSubtitle => '提取正面提示词并加入生成队列';
+
+  @override
+  String get drop_vibeDetected => '检测到预编码 Vibe（可节省 2 Anlas）';
+
+  @override
+  String drop_vibeStrength(Object value) {
+    return '强度: $value%';
+  }
+
+  @override
+  String drop_vibeInfoExtracted(Object value) {
+    return '信息提取: $value%';
+  }
+
+  @override
+  String get drop_reuseVibe => '复用 Vibe';
+
+  @override
+  String get drop_reuseVibeSubtitle => '直接使用预编码数据（免费）';
+
+  @override
+  String get drop_useAsRawImage => '作为原始图片';
+
+  @override
+  String get drop_useAsRawImageSubtitle => '重新编码（消耗 2 Anlas）';
+
+  @override
+  String get preciseRef_title => '精准参考';
+
+  @override
+  String get preciseRef_description => '添加参考图并设置类型和参数，可同时使用多个参考。';
+
+  @override
+  String get preciseRef_addReference => '添加参考图';
+
+  @override
+  String get preciseRef_clearAll => '清空全部';
+
+  @override
+  String get preciseRef_remove => '移除';
+
+  @override
+  String get preciseRef_referenceType => '参考类型';
+
+  @override
+  String get preciseRef_strength => '参考强度';
+
+  @override
+  String get preciseRef_fidelity => '保真度';
+
+  @override
+  String get preciseRef_v4Only => '此功能需要 V4+ 模型';
+
+  @override
+  String get preciseRef_typeCharacter => '角色';
+
+  @override
+  String get preciseRef_typeStyle => '风格';
+
+  @override
+  String get preciseRef_typeCharacterAndStyle => '角色+风格';
+
+  @override
+  String get vibeLibrary_title => 'Vibe 库';
+
+  @override
+  String get vibeLibrary_save => '保存到库';
+
+  @override
+  String get vibeLibrary_import => '导入 Vibe';
+
+  @override
+  String get vibeLibrary_searchHint => '搜索名称、标签...';
+
+  @override
+  String get vibeLibrary_empty => 'Vibe 库为空';
+
+  @override
+  String get vibeLibrary_emptyHint => '先去 Vibe 库添加一些条目吧';
+
+  @override
+  String get vibe_export_title => '导出 Vibe';
+
+  @override
+  String get vibe_export_format => '导出格式';
+
+  @override
+  String get vibe_selector_title => '选择 Vibe';
+
+  @override
+  String get vibe_selector_recent => '最近使用';
+
+  @override
+  String get vibe_category_add => '添加分类';
+
+  @override
+  String get vibe_category_rename => '重命名分类';
+
+  @override
+  String get drop_vibe_detected => '检测到 Vibe 图片';
+
+  @override
+  String get drop_reuse_vibe => '复用 Vibe';
+
+  @override
+  String drop_save_anlas(int cost) {
+    return '节省 $cost Anlas';
+  }
+
+  @override
+  String get vibe_export_include_thumbnails => '包含缩略图';
+
+  @override
+  String get vibe_export_include_thumbnails_subtitle => '导出文件中包含缩略图预览';
+
+  @override
+  String get vibe_import_skip => '跳过';
+
+  @override
+  String get vibe_import_confirm => '确认';
+
+  @override
+  String get bundle_internalVibes => '内部 Vibes';
+
+  @override
+  String get shortcuts_customize => '自定义快捷键';
+
+  @override
+  String get gallery_send_to => '发送到';
+
+  @override
+  String get image_editor_select_tool => '选择工具';
+
+  @override
+  String get selection_clear_selection => '清除选区';
+
+  @override
+  String get selection_invert_selection => '反转选区';
+
+  @override
+  String get search_results => '搜索结果';
+
+  @override
+  String get search_noResults => '未找到匹配结果';
+
+  @override
+  String get addToCurrent => '添加到当前';
+
+  @override
+  String get replaceExisting => '替换现有';
+
+  @override
+  String get confirmSelection => '确认选择';
+
+  @override
+  String get selectAll => '全选';
+
+  @override
+  String get clearSelection => '清空';
+
+  @override
+  String get clearFilters => '清除筛选';
+
+  @override
+  String get shortcut_context_vibe_detail => 'Vibe 详情';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => '发送到生成';
+
+  @override
+  String get shortcut_action_vibe_detail_export => '导出';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '重命名';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => '删除';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => '切换收藏';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => '上一个子 Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => '下一个子 Vibe';
+
+  @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe 库';
+
+  @override
+  String get shortcut_action_vibe_import => '导入 Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => '导出 Vibe';
+
+  @override
+  String get vibeSelectorFilterFavorites => '收藏';
+
+  @override
+  String get vibeSelectorFilterSourceAll => '全部类型';
+
+  @override
+  String get vibeSelectorSortCreated => '创建时间';
+
+  @override
+  String get vibeSelectorSortLastUsed => '最近使用';
+
+  @override
+  String get vibeSelectorSortUsedCount => '使用次数';
+
+  @override
+  String get vibeSelectorSortName => '名称';
+
+  @override
+  String vibeSelectorItemsCount(int count) {
+    return '$count 项';
+  }
 }

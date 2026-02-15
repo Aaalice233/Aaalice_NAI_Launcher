@@ -7,10 +7,10 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'NAI Launcher';
+  String get app_title => 'NAI Launcher';
 
   @override
-  String get appSubtitle => 'NovelAI Third-party Client';
+  String get app_subtitle => 'NovelAI Third-party Client';
 
   @override
   String get common_cancel => 'Cancel';
@@ -1326,6 +1326,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_description => 'Change the image, keep the vision.';
 
   @override
+  String get vibe_addFromFileTitle => 'Add from File';
+
+  @override
+  String get vibe_addFromFileSubtitle => 'PNG, JPG, Vibe files';
+
+  @override
+  String get vibe_addFromLibraryTitle => 'Import from Library';
+
+  @override
+  String get vibe_addFromLibrarySubtitle => 'Select from Vibe Library';
+
+  @override
   String get vibe_addReference => 'Add Reference';
 
   @override
@@ -1375,6 +1387,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibe_sourceType_image => 'Image';
+
+  @override
+  String get vibe_sourceType => 'Source';
+
+  @override
+  String get vibe_reuseButton => 'Reuse';
+
+  @override
+  String get vibe_reuseSuccess => 'Vibe added to generation params';
+
+  @override
+  String get vibe_info => 'Vibe Info';
+
+  @override
+  String get vibe_name => 'Name';
+
+  @override
+  String get vibe_strength => 'Strength';
+
+  @override
+  String get vibe_infoExtracted => 'Info Extracted';
 
   @override
   String get characterRef_title => 'Character Reference';
@@ -2559,6 +2592,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warmup_loadingTranslation => 'Loading translation data...';
 
   @override
+  String get warmup_initUnifiedDatabase => 'Initializing tag database...';
+
+  @override
   String get warmup_initTagSystem => 'Initializing tag system...';
 
   @override
@@ -2777,25 +2813,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get drop_dialogTitle => 'What do you want to do with this image?';
+  String get drop_dialogTitle => 'How to use this image?';
 
   @override
   String get drop_hint => 'Drop image here';
 
   @override
-  String get drop_img2img => 'Image2Image';
+  String get drop_img2img => 'Image to Image';
 
   @override
   String get drop_vibeTransfer => 'Vibe Transfer';
 
   @override
-  String get drop_characterReference => 'Character Reference';
+  String get drop_characterReference => 'Precise Reference';
 
   @override
   String get drop_unsupportedFormat => 'Unsupported file format';
 
   @override
-  String get drop_addedToImg2Img => 'Added to Image2Image';
+  String get drop_addedToImg2Img => 'Added to Image to Image';
 
   @override
   String get drop_addedToVibe => 'Added to Vibe Transfer';
@@ -2806,7 +2842,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get drop_addedToCharacterRef => 'Added to Character Reference';
+  String get drop_addedToCharacterRef => 'Added to Precise Reference';
 
   @override
   String get characterEditor_title => 'Multi-Character Prompts';
@@ -6700,4 +6736,234 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shortcut_help_customize => 'Customize Shortcuts';
+
+  @override
+  String get drop_extractMetadata => 'Extract Metadata';
+
+  @override
+  String get drop_extractMetadataSubtitle => 'Read Prompt, Seed and other parameters from image';
+
+  @override
+  String get drop_addToQueue => 'Add to Queue';
+
+  @override
+  String get drop_addToQueueSubtitle => 'Extract positive prompt and add to generation queue';
+
+  @override
+  String get drop_vibeDetected => 'Pre-encoded Vibe detected (saves 2 Anlas)';
+
+  @override
+  String drop_vibeStrength(Object value) {
+    return 'Strength: $value%';
+  }
+
+  @override
+  String drop_vibeInfoExtracted(Object value) {
+    return 'Info Extracted: $value%';
+  }
+
+  @override
+  String get drop_reuseVibe => 'Reuse Vibe';
+
+  @override
+  String get drop_reuseVibeSubtitle => 'Use pre-encoded data directly (free)';
+
+  @override
+  String get drop_useAsRawImage => 'Use as Raw Image';
+
+  @override
+  String get drop_useAsRawImageSubtitle => 'Re-encode (costs 2 Anlas)';
+
+  @override
+  String get preciseRef_title => 'Precise Reference';
+
+  @override
+  String get preciseRef_description => 'Add reference images and set type and parameters. Multiple references can be used simultaneously.';
+
+  @override
+  String get preciseRef_addReference => 'Add Reference';
+
+  @override
+  String get preciseRef_clearAll => 'Clear All';
+
+  @override
+  String get preciseRef_remove => 'Remove';
+
+  @override
+  String get preciseRef_referenceType => 'Reference Type';
+
+  @override
+  String get preciseRef_strength => 'Strength';
+
+  @override
+  String get preciseRef_fidelity => 'Fidelity';
+
+  @override
+  String get preciseRef_v4Only => 'This feature requires V4+ models';
+
+  @override
+  String get preciseRef_typeCharacter => 'Character';
+
+  @override
+  String get preciseRef_typeStyle => 'Style';
+
+  @override
+  String get preciseRef_typeCharacterAndStyle => 'Character + Style';
+
+  @override
+  String get vibeLibrary_title => 'Vibe Library';
+
+  @override
+  String get vibeLibrary_save => 'Save to Library';
+
+  @override
+  String get vibeLibrary_import => 'Import Vibe';
+
+  @override
+  String get vibeLibrary_searchHint => 'Search name, tags...';
+
+  @override
+  String get vibeLibrary_empty => 'Vibe Library is empty';
+
+  @override
+  String get vibeLibrary_emptyHint => 'Add some entries to Vibe Library first';
+
+  @override
+  String get vibe_export_title => 'Export Vibe';
+
+  @override
+  String get vibe_export_format => 'Export Format';
+
+  @override
+  String get vibe_selector_title => 'Select Vibe';
+
+  @override
+  String get vibe_selector_recent => 'Recent';
+
+  @override
+  String get vibe_category_add => 'Add Category';
+
+  @override
+  String get vibe_category_rename => 'Rename Category';
+
+  @override
+  String get drop_vibe_detected => 'Vibe image detected';
+
+  @override
+  String get drop_reuse_vibe => 'Reuse Vibe';
+
+  @override
+  String drop_save_anlas(int cost) {
+    return 'Save $cost Anlas';
+  }
+
+  @override
+  String get vibe_export_include_thumbnails => 'Include Thumbnails';
+
+  @override
+  String get vibe_export_include_thumbnails_subtitle => 'Include thumbnail preview in export file';
+
+  @override
+  String get vibe_import_skip => 'Skip';
+
+  @override
+  String get vibe_import_confirm => 'Confirm';
+
+  @override
+  String get bundle_internalVibes => 'Internal Vibes';
+
+  @override
+  String get shortcuts_customize => 'Customize Shortcuts';
+
+  @override
+  String get gallery_send_to => 'Send To';
+
+  @override
+  String get image_editor_select_tool => 'Select Tool';
+
+  @override
+  String get selection_clear_selection => 'Clear Selection';
+
+  @override
+  String get selection_invert_selection => 'Invert Selection';
+
+  @override
+  String get search_results => 'Search Results';
+
+  @override
+  String get search_noResults => 'No matching results';
+
+  @override
+  String get addToCurrent => 'Add to Current';
+
+  @override
+  String get replaceExisting => 'Replace Existing';
+
+  @override
+  String get confirmSelection => 'Confirm Selection';
+
+  @override
+  String get selectAll => 'Select All';
+
+  @override
+  String get clearSelection => 'Clear';
+
+  @override
+  String get clearFilters => 'Clear Filters';
+
+  @override
+  String get shortcut_context_vibe_detail => 'Vibe Detail';
+
+  @override
+  String get shortcut_action_vibe_detail_send_to_generation => 'Send to Generation';
+
+  @override
+  String get shortcut_action_vibe_detail_export => 'Export';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => 'Rename';
+
+  @override
+  String get shortcut_action_vibe_detail_delete => 'Delete';
+
+  @override
+  String get shortcut_action_vibe_detail_toggle_favorite => 'Toggle Favorite';
+
+  @override
+  String get shortcut_action_vibe_detail_prev_sub_vibe => 'Previous Sub Vibe';
+
+  @override
+  String get shortcut_action_vibe_detail_next_sub_vibe => 'Next Sub Vibe';
+
+  @override
+  String get shortcut_action_navigate_to_vibe_library => 'Vibe Library';
+
+  @override
+  String get shortcut_action_vibe_import => 'Import Vibe';
+
+  @override
+  String get shortcut_action_vibe_export => 'Export Vibe';
+
+  @override
+  String get vibeSelectorFilterFavorites => 'Favorites';
+
+  @override
+  String get vibeSelectorFilterSourceAll => 'All Types';
+
+  @override
+  String get vibeSelectorSortCreated => 'Created';
+
+  @override
+  String get vibeSelectorSortLastUsed => 'Last Used';
+
+  @override
+  String get vibeSelectorSortUsedCount => 'Usage Count';
+
+  @override
+  String get vibeSelectorSortName => 'Name';
+
+  @override
+  String vibeSelectorItemsCount(int count) {
+    return '$count items';
+  }
 }

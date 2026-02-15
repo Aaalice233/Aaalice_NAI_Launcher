@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -10,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
@@ -97,14 +97,18 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   void _goToPreviousPage() {
     final state = ref.read(localGalleryNotifierProvider);
     if (state.currentPage > 0) {
-      ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage - 1);
+      ref
+          .read(localGalleryNotifierProvider.notifier)
+          .loadPage(state.currentPage - 1);
     }
   }
 
   void _goToNextPage() {
     final state = ref.read(localGalleryNotifierProvider);
     if (state.currentPage < state.totalPages - 1) {
-      ref.read(localGalleryNotifierProvider.notifier).loadPage(state.currentPage + 1);
+      ref
+          .read(localGalleryNotifierProvider.notifier)
+          .loadPage(state.currentPage + 1);
     }
   }
 
@@ -238,7 +242,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               onCategoryReorder: (parentId, oldIndex, newIndex) => ref
                   .read(galleryCategoryNotifierProvider.notifier)
                   .reorderCategories(parentId, oldIndex, newIndex),
-              onImageDrop: (imagePath, categoryId) => _handleImageDrop(imagePath, categoryId!),
+              onImageDrop: (imagePath, categoryId) =>
+                  _handleImageDrop(imagePath, categoryId!),
               onSyncWithFileSystem: _handleSyncWithFileSystem,
             ),
           ),
@@ -359,7 +364,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Future<void> _handleRebuildIndex() async {
     final notifier = ref.read(localGalleryNotifierProvider.notifier);
     final state = ref.read(localGalleryNotifierProvider);
-    
+
     // 如果已经在更新中，则取消
     if (state.isRebuildingIndex) {
       await notifier.performFullScan(); // 这会触发取消
@@ -368,12 +373,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       }
       return;
     }
-    
+
     // 开始更新
     final result = await notifier.performFullScan();
-    
+
     if (!mounted) return;
-    
+
     if (result == null) {
       // 可能是取消或失败
       final currentState = ref.read(localGalleryNotifierProvider);
@@ -383,8 +388,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       }
       return;
     }
-    
-    if (result.filesAdded == 0 && result.filesUpdated == 0 && result.filesDeleted == 0) {
+
+    if (result.filesAdded == 0 &&
+        result.filesUpdated == 0 &&
+        result.filesDeleted == 0) {
       // 没有变化
       AppToast.info(context, '索引已是最新，无需更新');
     } else {
@@ -393,7 +400,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       if (result.filesAdded > 0) parts.add('新增 ${result.filesAdded} 张');
       if (result.filesUpdated > 0) parts.add('更新 ${result.filesUpdated} 张');
       if (result.filesDeleted > 0) parts.add('删除 ${result.filesDeleted} 张');
-      
+
       AppToast.success(context, '索引更新完成：${parts.join('，')}');
     }
   }
@@ -853,7 +860,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
 
     // 只有在勾选导入多角色提示词时才清空
-    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
       final characterNotifier =
           ref.read(characterPromptNotifierProvider.notifier);
       characterNotifier.clearAllCharacters();
@@ -868,29 +876,42 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
-      paramsNotifier.updateNegativePrompt(_formatPrompt(metadata.negativePrompt));
+      paramsNotifier
+          .updateNegativePrompt(_formatPrompt(metadata.negativePrompt));
       appliedCount++;
     }
 
-    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
       _applyCharacterPrompts(metadata);
       appliedCount++;
     }
 
     // 应用单个参数
     _applyParam(options.importSeed, metadata.seed, paramsNotifier.updateSeed);
-    _applyParam(options.importSteps, metadata.steps, paramsNotifier.updateSteps);
-    _applyParam(options.importScale, metadata.scale, paramsNotifier.updateScale);
-    _applyParam(options.importSampler, metadata.sampler, paramsNotifier.updateSampler);
-    _applyParam(options.importModel, metadata.model, paramsNotifier.updateModel);
+    _applyParam(
+        options.importSteps, metadata.steps, paramsNotifier.updateSteps);
+    _applyParam(
+        options.importScale, metadata.scale, paramsNotifier.updateScale);
+    _applyParam(
+        options.importSampler, metadata.sampler, paramsNotifier.updateSampler);
+    _applyParam(
+        options.importModel, metadata.model, paramsNotifier.updateModel);
     _applyParam(options.importSmea, metadata.smea, paramsNotifier.updateSmea);
-    _applyParam(options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn);
-    _applyParam(options.importNoiseSchedule, metadata.noiseSchedule, paramsNotifier.updateNoiseSchedule);
-    _applyParam(options.importCfgRescale, metadata.cfgRescale, paramsNotifier.updateCfgRescale);
-    _applyParam(options.importQualityToggle, metadata.qualityToggle, paramsNotifier.updateQualityToggle);
-    _applyParam(options.importUcPreset, metadata.ucPreset, paramsNotifier.updateUcPreset);
+    _applyParam(
+        options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn);
+    _applyParam(options.importNoiseSchedule, metadata.noiseSchedule,
+        paramsNotifier.updateNoiseSchedule);
+    _applyParam(options.importCfgRescale, metadata.cfgRescale,
+        paramsNotifier.updateCfgRescale);
+    _applyParam(options.importQualityToggle, metadata.qualityToggle,
+        paramsNotifier.updateQualityToggle);
+    _applyParam(options.importUcPreset, metadata.ucPreset,
+        paramsNotifier.updateUcPreset);
 
-    if (options.importSize && metadata.width != null && metadata.height != null) {
+    if (options.importSize &&
+        metadata.width != null &&
+        metadata.height != null) {
       paramsNotifier.updateSize(metadata.width!, metadata.height!);
       appliedCount++;
     }
@@ -898,7 +919,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (!mounted) return;
 
     if (appliedCount > 0) {
-      AppToast.info(context, context.l10n.metadataImport_appliedToMain(appliedCount));
+      AppToast.info(
+          context, context.l10n.metadataImport_appliedToMain(appliedCount));
     } else {
       AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
     }
@@ -988,7 +1010,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   /// 应用多角色提示词
   void _applyCharacterPrompts(dynamic metadata) {
-    final characterNotifier = ref.read(characterPromptNotifierProvider.notifier);
+    final characterNotifier =
+        ref.read(characterPromptNotifierProvider.notifier);
     final characters = <char.CharacterPrompt>[];
 
     for (var i = 0; i < metadata.characterPrompts.length; i++) {

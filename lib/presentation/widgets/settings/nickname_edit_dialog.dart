@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../common/inset_shadow_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';

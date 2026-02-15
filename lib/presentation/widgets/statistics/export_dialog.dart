@@ -1,12 +1,12 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
 
 import '../common/app_toast.dart';

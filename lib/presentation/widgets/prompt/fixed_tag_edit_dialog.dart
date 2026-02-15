@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_encoding_utils.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../core/utils/vibe_image_embedder.dart';
@@ -25,7 +25,8 @@ class VibeExportDialogAdvanced extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<VibeExportDialogAdvanced> createState() => _VibeExportDialogAdvancedState();
+  ConsumerState<VibeExportDialogAdvanced> createState() =>
+      _VibeExportDialogAdvancedState();
 }
 
 /// 导出验证结果
@@ -36,7 +37,8 @@ class _ValidationResult {
   const _ValidationResult({required this.isValid, this.errorMessage});
 }
 
-class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvanced> {
+class _VibeExportDialogAdvancedState
+    extends ConsumerState<VibeExportDialogAdvanced> {
   // 导出选项状态
   bool _exportBundle = true;
   bool _embedIntoImage = false;
@@ -199,7 +201,8 @@ class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvan
                     ),
                     const SizedBox(width: 12),
                     FilledButton.icon(
-                      onPressed: _validateExportOptions().isValid ? _export : null,
+                      onPressed:
+                          _validateExportOptions().isValid ? _export : null,
                       icon: const Icon(Icons.file_upload),
                       label: const Text('导出'),
                     ),
@@ -342,7 +345,8 @@ class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvan
               itemCount: names.length,
               itemBuilder: (context, index) {
                 final name = names[index];
-                final preview = index < previews.length ? previews[index] : null;
+                final preview =
+                    index < previews.length ? previews[index] : null;
                 final isSelected = _selectedInternalVibes[index];
 
                 return CheckboxListTile(
@@ -398,8 +402,7 @@ class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvan
               },
             ),
           ),
-          if (_errorMessage != null &&
-              _errorMessage!.contains('请至少选择一个')) ...[
+          if (_errorMessage != null && _errorMessage!.contains('请至少选择一个')) ...[
             const SizedBox(height: 8),
             Text(
               _errorMessage!,
@@ -491,9 +494,7 @@ class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvan
       title: 'Embed Into Image',
       subtitle: isBundleInternalExport
           ? '从 bundle 导出单个 vibe 时不支持嵌入图片'
-          : (isMultiSelect
-              ? '嵌入到图片功能仅支持单个 Vibe'
-              : '将 Vibe 数据嵌入到现有 PNG 图片中'),
+          : (isMultiSelect ? '嵌入到图片功能仅支持单个 Vibe' : '将 Vibe 数据嵌入到现有 PNG 图片中'),
       child: _embedIntoImage && !isMultiSelect
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +541,9 @@ class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvan
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _selectedImagePath!.split(Platform.pathSeparator).last,
+                              _selectedImagePath!
+                                  .split(Platform.pathSeparator)
+                                  .last,
                               style: theme.textTheme.bodySmall,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -916,8 +919,10 @@ class _VibeExportDialogAdvancedState extends ConsumerState<VibeExportDialogAdvan
 
     for (var i = 0; i < selectedIndices.length; i++) {
       final index = selectedIndices[i];
-      setState(() => _statusMessage =
-          '正在提取 vibe ${i + 1}/${selectedIndices.length}...',);
+      setState(
+        () =>
+            _statusMessage = '正在提取 vibe ${i + 1}/${selectedIndices.length}...',
+      );
 
       final vibe = await storageService.extractVibeFromBundle(filePath, index);
       if (vibe == null) {
@@ -1140,7 +1145,8 @@ class _OptionCard extends StatelessWidget {
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isDisabled
-                                    ? theme.colorScheme.onSurface.withOpacity(0.5)
+                                    ? theme.colorScheme.onSurface
+                                        .withOpacity(0.5)
                                     : isSelected
                                         ? theme.colorScheme.primary
                                         : theme.colorScheme.onSurface,

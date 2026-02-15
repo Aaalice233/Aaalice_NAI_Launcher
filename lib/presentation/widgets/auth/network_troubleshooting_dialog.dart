@@ -1,6 +1,5 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
-
-import '../../../core/utils/localization_extension.dart';
 
 /// 网络故障排除对话框
 ///

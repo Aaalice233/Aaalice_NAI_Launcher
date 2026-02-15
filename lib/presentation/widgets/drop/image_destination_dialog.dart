@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -326,13 +326,15 @@ class ImageDestinationDialog extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          context.l10n.drop_vibeStrength((vibe.strength * 100).toStringAsFixed(0)),
+                          context.l10n.drop_vibeStrength(
+                              (vibe.strength * 100).toStringAsFixed(0)),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
-                          context.l10n.drop_vibeInfoExtracted((vibe.infoExtracted * 100).toStringAsFixed(0)),
+                          context.l10n.drop_vibeInfoExtracted(
+                              (vibe.infoExtracted * 100).toStringAsFixed(0)),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),

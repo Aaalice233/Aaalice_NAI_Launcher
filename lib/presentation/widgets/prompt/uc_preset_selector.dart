@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/uc_preset_provider.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
@@ -363,4 +363,3 @@ class _UcPresetSelectorState extends ConsumerState<UcPresetSelector> {
     );
   }
 }
-

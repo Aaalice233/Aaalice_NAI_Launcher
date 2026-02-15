@@ -1,12 +1,13 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/utils/localization_extension.dart';
 import '../../data/services/danbooru_auth_service.dart';
 
 import 'common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
+
 /// Danbooru 登录对话框
 class DanbooruLoginDialog extends ConsumerStatefulWidget {
   const DanbooruLoginDialog({super.key});

@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';

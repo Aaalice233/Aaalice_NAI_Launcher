@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 
 /// 批量转移分类对话框
@@ -17,8 +17,6 @@ class BulkMoveCategoryDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-
 
     return AlertDialog(
       title: Row(
@@ -84,12 +82,11 @@ class BulkMoveCategoryDialog extends StatelessWidget {
   }
 
   /// 递归构建分类树
-  List<Widget> _buildCategoryTree(BuildContext context, String? parentId, {int depth = 0}) {
+  List<Widget> _buildCategoryTree(BuildContext context, String? parentId,
+      {int depth = 0}) {
     final result = <Widget>[];
 
-    final children = categories
-        .where((c) => c.parentId == parentId)
-        .toList()
+    final children = categories.where((c) => c.parentId == parentId).toList()
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     for (final category in children) {

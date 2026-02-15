@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/bulk_action_bar.dart';
@@ -189,8 +189,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
               _CompactIconButton(
                 icon: Icons.file_download_outlined,
                 label: '导出',
-                onPressed:
-                    state.entries.isEmpty ? null : widget.onExport,
+                onPressed: state.entries.isEmpty ? null : widget.onExport,
               ),
             ],
           ),
@@ -278,7 +277,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       ),
     );
   }
-
 }
 
 /// 视图模式切换按钮

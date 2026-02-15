@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -6,7 +7,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/local_gallery_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
@@ -181,7 +181,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               enableSelection: false,
               onTap: () => _showFullscreenImage(imageBytes),
               onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
-              onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
+              onSaveToLibrary: (bytes, _) =>
+                  _showSaveToLibraryDialog(context, bytes),
             );
           },
         );
@@ -241,7 +242,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               enableSelection: false,
               onTap: () => _showFullscreenImage(imageBytes),
               onUpscale: () => UpscaleDialog.show(context, image: imageBytes),
-              onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
+              onSaveToLibrary: (bytes, _) =>
+                  _showSaveToLibraryDialog(context, bytes),
             );
           },
         );
@@ -445,7 +447,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
             enableSelection: false,
             onTap: () => _showFullscreenImage(image.bytes),
             onUpscale: () => UpscaleDialog.show(context, image: image.bytes),
-            onSaveToLibrary: (bytes, _) => _showSaveToLibraryDialog(context, bytes),
+            onSaveToLibrary: (bytes, _) =>
+                _showSaveToLibraryDialog(context, bytes),
           ),
         ),
       ),

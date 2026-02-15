@@ -1,12 +1,12 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/local_storage_service.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../providers/floating_button_position_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -173,7 +173,8 @@ class _FloatingQueueButtonState extends ConsumerState<FloatingQueueButton>
         onEnter: (_) => _onHoverEnter(),
         onExit: (_) => _onHoverExit(),
         child: Tooltip(
-          richMessage: _buildTooltipMessage(l10n, queueState, executionState, theme),
+          richMessage:
+              _buildTooltipMessage(l10n, queueState, executionState, theme),
           preferBelow: false,
           verticalOffset: _ballSize / 2 + 12,
           decoration: _tooltipDecoration(theme),

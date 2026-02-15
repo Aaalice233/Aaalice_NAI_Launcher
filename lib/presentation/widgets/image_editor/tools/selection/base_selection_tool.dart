@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../tool_base.dart';
 import '../../../../widgets/common/themed_divider.dart';

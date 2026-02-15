@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:ui';
 
@@ -5,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../providers/image_generation_provider.dart';

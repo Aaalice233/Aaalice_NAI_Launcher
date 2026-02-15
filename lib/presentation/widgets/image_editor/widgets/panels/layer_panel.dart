@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/app_logger.dart';
-import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
 import '../../../../widgets/common/themed_divider.dart';

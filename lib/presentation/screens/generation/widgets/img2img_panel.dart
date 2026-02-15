@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -5,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -16,7 +16,6 @@ import '../../../widgets/common/collapsible_image_panel.dart';
 
 /// Img2Img 面板组件
 class Img2ImgPanel extends ConsumerStatefulWidget {
-
   const Img2ImgPanel({super.key});
 
   @override
@@ -32,7 +31,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final params = ref.watch(generationParamsNotifierProvider);
     final hasSourceImage = params.sourceImage != null;
     final showBackground = hasSourceImage && !_isExpanded;
-
 
     return CollapsibleImagePanel(
       title: context.l10n.img2img_title,
@@ -100,7 +98,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       ),
     );
   }
-
 
   Widget _buildSourceImageSection(ThemeData theme, ImageParams params) {
     final hasSourceImage = params.sourceImage != null;

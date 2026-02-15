@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
@@ -15,6 +15,7 @@ import '../../widgets/common/anlas_cost_badge.dart';
 import 'widgets/parameter_panel.dart';
 
 import '../../widgets/common/app_toast.dart';
+
 /// 移动端单栏布局
 class MobileGenerationLayout extends ConsumerStatefulWidget {
   const MobileGenerationLayout({super.key});
@@ -259,11 +260,8 @@ class _MobileGenerateButton extends ConsumerWidget {
           AnlasCostBadge(isGenerating: isGenerating),
         ],
       ),
-      style: isGenerating
-          ? ThemedButtonStyle.outlined
-          : ThemedButtonStyle.filled,
+      style:
+          isGenerating ? ThemedButtonStyle.outlined : ThemedButtonStyle.filled,
     );
   }
-
-
 }

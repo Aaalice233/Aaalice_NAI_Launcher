@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -7,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -24,7 +24,6 @@ import '../../vibe_library/widgets/vibe_selector_dialog.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 
 extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
-
   List<VibeLibraryEntry> deduplicateByEncodingAndThumbnail({int limit = 5}) {
     final seenEncodings = <String>{};
     final seenImageHashes = <String>{};
@@ -245,7 +244,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       ),
     );
   }
-
 
   /// 构建背景图片
   Widget _buildBackgroundImage(List<VibeReferenceV4> vibes) {
@@ -1250,8 +1248,11 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       final fileStorage = VibeFileStorageService();
       final extractedVibes = <VibeReferenceV4>[];
 
-      for (int i = 0; i < entry.bundledVibeCount.clamp(0, availableSlots); i++) {
-        final vibe = await fileStorage.extractVibeFromBundle(entry.filePath!, i);
+      for (int i = 0;
+          i < entry.bundledVibeCount.clamp(0, availableSlots);
+          i++) {
+        final vibe =
+            await fileStorage.extractVibeFromBundle(entry.filePath!, i);
         if (vibe != null) extractedVibes.add(vibe);
       }
 

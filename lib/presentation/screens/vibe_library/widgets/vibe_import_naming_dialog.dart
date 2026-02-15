@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/localization_extension.dart';
 
 /// Vibe 导入命名结果
 class VibeImportResult {
@@ -64,8 +64,7 @@ class VibeImportNamingDialog extends StatefulWidget {
   }
 
   @override
-  State<VibeImportNamingDialog> createState() =>
-      _VibeImportNamingDialogState();
+  State<VibeImportNamingDialog> createState() => _VibeImportNamingDialogState();
 }
 
 class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
@@ -140,8 +139,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
 
   /// 处理键盘事件
   void _handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.enter) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
       _confirm();
     }
   }

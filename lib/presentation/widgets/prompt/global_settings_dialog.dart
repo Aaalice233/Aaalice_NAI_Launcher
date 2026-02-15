@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../common/themed_checkbox.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
@@ -718,8 +718,10 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                             final value = controller.text.trim();
                             if (value.isEmpty) return;
                             if (_config.customSlotOptions.contains(value)) {
-                              AppToast.warning(context,
-                                  l10n.characterCountConfig_slotExists,);
+                              AppToast.warning(
+                                context,
+                                l10n.characterCountConfig_slotExists,
+                              );
                               return;
                             }
                             setState(() {

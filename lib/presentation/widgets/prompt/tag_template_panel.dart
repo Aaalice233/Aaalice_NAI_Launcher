@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../../data/models/prompt/tag_template.dart';
@@ -74,7 +74,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
 
     // 显示提示
     AppToast.info(
-        context, context.l10n.tag_templateInserted(template.displayName),);
+      context,
+      context.l10n.tag_templateInserted(template.displayName),
+    );
   }
 
   /// 创建新模板

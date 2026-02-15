@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../presentation/providers/pending_prompt_provider.dart';
@@ -45,8 +45,7 @@ class SendToHomeDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SendToHomeDialog> createState() =>
-      _SendToHomeDialogState();
+  ConsumerState<SendToHomeDialog> createState() => _SendToHomeDialogState();
 }
 
 class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
@@ -206,7 +205,8 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
             ? '发送完整内容到主提示词（包含竖线）'
             : context.l10n.sendToHome_mainPromptSubtitle,
         isSelected: _selectedTarget == SendTargetType.mainPrompt,
-        onTap: () => setState(() => _selectedTarget = SendTargetType.mainPrompt),
+        onTap: () =>
+            setState(() => _selectedTarget = SendTargetType.mainPrompt),
       ),
     );
 
@@ -220,7 +220,8 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
           title: '智能分解',
           subtitle: '主提示词 + ${_parsedResult.characters.length}个角色',
           isSelected: _selectedTarget == SendTargetType.smartDecompose,
-          onTap: () => setState(() => _selectedTarget = SendTargetType.smartDecompose),
+          onTap: () =>
+              setState(() => _selectedTarget = SendTargetType.smartDecompose),
           isRecommended: true,
         ),
       );
@@ -235,7 +236,8 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
         title: context.l10n.sendToHome_replaceCharacter,
         subtitle: context.l10n.sendToHome_replaceCharacterSubtitle,
         isSelected: _selectedTarget == SendTargetType.replaceCharacter,
-        onTap: () => setState(() => _selectedTarget = SendTargetType.replaceCharacter),
+        onTap: () =>
+            setState(() => _selectedTarget = SendTargetType.replaceCharacter),
       ),
     );
 
@@ -247,7 +249,8 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
         title: context.l10n.sendToHome_appendCharacter,
         subtitle: context.l10n.sendToHome_appendCharacterSubtitle,
         isSelected: _selectedTarget == SendTargetType.appendCharacter,
-        onTap: () => setState(() => _selectedTarget = SendTargetType.appendCharacter),
+        onTap: () =>
+            setState(() => _selectedTarget = SendTargetType.appendCharacter),
       ),
     );
 
@@ -350,7 +353,9 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
       final label = switch (_selectedTarget) {
         SendTargetType.mainPrompt => '主提示词',
         SendTargetType.smartDecompose => '智能分解',
-        SendTargetType.replaceCharacter || SendTargetType.appendCharacter => '角色提示词',
+        SendTargetType.replaceCharacter ||
+        SendTargetType.appendCharacter =>
+          '角色提示词',
       };
       return _PreviewItem(
         label: label,
@@ -477,7 +482,8 @@ class _TargetOptionTile extends StatelessWidget {
                       top: 0,
                       right: 0,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 2),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary,
                           borderRadius: BorderRadius.circular(4),

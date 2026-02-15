@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/services/warmup_metrics_service.dart';
 import '../../../data/models/warmup/warmup_metrics.dart';
 import '../../widgets/common/app_toast.dart';
@@ -34,7 +34,7 @@ class _PerformanceReportScreenState
   Future<void> _loadData() async {
     final metricsService = ref.read(warmupMetricsServiceProvider);
     final sessions = await metricsService.getRecentSessions(10);
-    
+
     // 预加载所有任务统计数据
     final taskStats = <String, Map<String, int>?>{};
     final taskNames = <String>{};
@@ -46,7 +46,7 @@ class _PerformanceReportScreenState
     for (final taskName in taskNames) {
       taskStats[taskName] = await metricsService.getStatsForTask(taskName);
     }
-    
+
     if (mounted) {
       setState(() {
         _sessions = sessions;
@@ -60,7 +60,7 @@ class _PerformanceReportScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final metricsService = ref.watch(warmupMetricsServiceProvider);
-    
+
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -71,7 +71,7 @@ class _PerformanceReportScreenState
         ),
       );
     }
-    
+
     final sessions = _sessions;
 
     return Scaffold(

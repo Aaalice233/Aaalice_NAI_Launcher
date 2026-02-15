@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_status.dart';
 import '../../providers/image_generation_provider.dart';
@@ -170,7 +170,8 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                                   borderRadius: BorderRadius.circular(11),
                                   child: FractionallySizedBox(
                                     alignment: Alignment.centerLeft,
-                                    widthFactor: generationProgress.clamp(0.0, 1.0),
+                                    widthFactor:
+                                        generationProgress.clamp(0.0, 1.0),
                                     child: _AnimatedStripeProgress(
                                       color: theme.colorScheme.primary,
                                     ),
@@ -473,7 +474,9 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   Future<void> _handleDelete(dynamic l10n) async {
     final confirmed = await _confirmDelete(context, l10n);
     if (confirmed) {
-      ref.read(replicationQueueNotifierProvider.notifier).remove(widget.task.id);
+      ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .remove(widget.task.id);
     }
   }
 
@@ -896,7 +899,8 @@ class _AnimatedStripeProgress extends StatefulWidget {
   const _AnimatedStripeProgress({required this.color});
 
   @override
-  State<_AnimatedStripeProgress> createState() => _AnimatedStripeProgressState();
+  State<_AnimatedStripeProgress> createState() =>
+      _AnimatedStripeProgressState();
 }
 
 class _AnimatedStripeProgressState extends State<_AnimatedStripeProgress>

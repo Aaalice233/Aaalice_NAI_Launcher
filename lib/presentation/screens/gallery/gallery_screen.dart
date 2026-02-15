@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
 import '../../../data/models/vibe/vibe_reference_v4.dart';
 import '../../providers/gallery_provider.dart';
@@ -322,7 +322,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         // 优先使用用户设置的列数，否则根据宽度自动计算
-        final crossAxisCount = state.gridColumnCount ?? 
+        final crossAxisCount = state.gridColumnCount ??
             (constraints.maxWidth > 1200
                 ? 6
                 : constraints.maxWidth > 800
@@ -341,10 +341,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                 final delta = pointerSignal.scrollDelta.dy;
                 if (delta > 0) {
                   // 向下滚动：增加列数（缩小卡片）
-                  ref.read(galleryNotifierProvider.notifier).increaseGridColumns();
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .increaseGridColumns();
                 } else if (delta < 0) {
                   // 向上滚动：减少列数（放大卡片）
-                  ref.read(galleryNotifierProvider.notifier).decreaseGridColumns();
+                  ref
+                      .read(galleryNotifierProvider.notifier)
+                      .decreaseGridColumns();
                 }
               }
             }

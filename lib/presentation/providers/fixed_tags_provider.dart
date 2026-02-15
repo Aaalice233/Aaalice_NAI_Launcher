@@ -52,6 +52,31 @@ class FixedTagsState {
   List<FixedTagEntry> get enabledSuffixes => entries
       .where((e) => e.enabled && e.position == FixedTagPosition.suffix)
       .toList();
+
+  /// 应用固定词到提示词
+  ///
+  /// 将所有启用的固定词按位置应用到用户提示词
+  String applyToPrompt(String userPrompt) {
+    final enabledPrefixContents = enabledPrefixes
+        .sortedByOrder()
+        .map((e) => e.weightedContent)
+        .where((c) => c.isNotEmpty)
+        .toList();
+
+    final enabledSuffixContents = enabledSuffixes
+        .sortedByOrder()
+        .map((e) => e.weightedContent)
+        .where((c) => c.isNotEmpty)
+        .toList();
+
+    final parts = <String>[
+      ...enabledPrefixContents,
+      userPrompt,
+      ...enabledSuffixContents,
+    ].where((s) => s.isNotEmpty).toList();
+
+    return parts.join(', ');
+  }
 }
 
 /// 固定词 Provider
@@ -226,7 +251,7 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
   ///
   /// 将所有启用的固定词按位置应用到用户提示词
   String applyToPrompt(String userPrompt) {
-    return state.entries.applyToPrompt(userPrompt);
+    return state.applyToPrompt(userPrompt);
   }
 
   /// 根据ID获取条目

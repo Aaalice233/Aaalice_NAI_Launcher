@@ -1,10 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/import_models.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 import '../../../providers/tag_library_page_provider.dart';
@@ -326,8 +326,8 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 ),
               );
               final isConflict = conflict.importId.isNotEmpty;
-              final resolution = _conflictResolutions[category.id] ??
-                  ConflictResolution.skip;
+              final resolution =
+                  _conflictResolutions[category.id] ?? ConflictResolution.skip;
 
               return _buildConflictItem(
                 theme: theme,
@@ -375,8 +375,8 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 ),
               );
               final isConflict = conflict.importId.isNotEmpty;
-              final resolution = _conflictResolutions[entry.id] ??
-                  ConflictResolution.skip;
+              final resolution =
+                  _conflictResolutions[entry.id] ?? ConflictResolution.skip;
 
               return _buildConflictItem(
                 theme: theme,
@@ -745,7 +745,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       final categoryNameSuffix = categoriesToImport.any((c) {
         final resolution = _conflictResolutions[c.id];
         return resolution == ConflictResolution.rename;
-      }) ? ' (导入)' : null;
+      })
+          ? ' (导入)'
+          : null;
 
       // 导入分类并获取 ID 映射
       final categoryIdMapping = await notifier.importCategories(
@@ -771,7 +773,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       final entryNameSuffix = entriesToImport.any((e) {
         final resolution = _conflictResolutions[e.id];
         return resolution == ConflictResolution.rename;
-      }) ? ' (导入)' : null;
+      })
+          ? ' (导入)'
+          : null;
 
       // 导入条目
       await notifier.importEntries(

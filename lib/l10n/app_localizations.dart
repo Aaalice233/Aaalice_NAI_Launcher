@@ -95,17 +95,17 @@ abstract class AppLocalizations {
     Locale('zh')
   ];
 
-  /// No description provided for @appTitle.
+  /// No description provided for @app_title.
   ///
   /// In en, this message translates to:
   /// **'NAI Launcher'**
-  String get appTitle;
+  String get app_title;
 
-  /// No description provided for @appSubtitle.
+  /// No description provided for @app_subtitle.
   ///
   /// In en, this message translates to:
   /// **'NovelAI Third-party Client'**
-  String get appSubtitle;
+  String get app_subtitle;
 
   /// No description provided for @common_cancel.
   ///
@@ -2585,6 +2585,30 @@ abstract class AppLocalizations {
   /// **'Change the image, keep the vision.'**
   String get vibe_description;
 
+  /// No description provided for @vibe_addFromFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add from File'**
+  String get vibe_addFromFileTitle;
+
+  /// No description provided for @vibe_addFromFileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG, JPG, Vibe files'**
+  String get vibe_addFromFileSubtitle;
+
+  /// No description provided for @vibe_addFromLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Library'**
+  String get vibe_addFromLibraryTitle;
+
+  /// No description provided for @vibe_addFromLibrarySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select from Vibe Library'**
+  String get vibe_addFromLibrarySubtitle;
+
   /// No description provided for @vibe_addReference.
   ///
   /// In en, this message translates to:
@@ -2674,6 +2698,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image'**
   String get vibe_sourceType_image;
+
+  /// No description provided for @vibe_sourceType.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get vibe_sourceType;
+
+  /// No description provided for @vibe_reuseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reuse'**
+  String get vibe_reuseButton;
+
+  /// No description provided for @vibe_reuseSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe added to generation params'**
+  String get vibe_reuseSuccess;
+
+  /// No description provided for @vibe_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Info'**
+  String get vibe_info;
+
+  /// No description provided for @vibe_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get vibe_name;
+
+  /// No description provided for @vibe_strength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get vibe_strength;
+
+  /// No description provided for @vibe_infoExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'Info Extracted'**
+  String get vibe_infoExtracted;
 
   /// No description provided for @characterRef_title.
   ///
@@ -4883,6 +4949,12 @@ abstract class AppLocalizations {
   /// **'Loading translation data...'**
   String get warmup_loadingTranslation;
 
+  /// No description provided for @warmup_initUnifiedDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'Initializing tag database...'**
+  String get warmup_initUnifiedDatabase;
+
   /// No description provided for @warmup_initTagSystem.
   ///
   /// In en, this message translates to:
@@ -5318,7 +5390,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_dialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'What do you want to do with this image?'**
+  /// **'How to use this image?'**
   String get drop_dialogTitle;
 
   /// No description provided for @drop_hint.
@@ -5330,7 +5402,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_img2img.
   ///
   /// In en, this message translates to:
-  /// **'Image2Image'**
+  /// **'Image to Image'**
   String get drop_img2img;
 
   /// No description provided for @drop_vibeTransfer.
@@ -5342,7 +5414,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_characterReference.
   ///
   /// In en, this message translates to:
-  /// **'Character Reference'**
+  /// **'Precise Reference'**
   String get drop_characterReference;
 
   /// No description provided for @drop_unsupportedFormat.
@@ -5354,7 +5426,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_addedToImg2Img.
   ///
   /// In en, this message translates to:
-  /// **'Added to Image2Image'**
+  /// **'Added to Image to Image'**
   String get drop_addedToImg2Img;
 
   /// No description provided for @drop_addedToVibe.
@@ -5372,7 +5444,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_addedToCharacterRef.
   ///
   /// In en, this message translates to:
-  /// **'Added to Character Reference'**
+  /// **'Added to Precise Reference'**
   String get drop_addedToCharacterRef;
 
   /// No description provided for @characterEditor_title.
@@ -12604,6 +12676,450 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Customize Shortcuts'**
   String get shortcut_help_customize;
+
+  /// No description provided for @drop_extractMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract Metadata'**
+  String get drop_extractMetadata;
+
+  /// No description provided for @drop_extractMetadataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read Prompt, Seed and other parameters from image'**
+  String get drop_extractMetadataSubtitle;
+
+  /// No description provided for @drop_addToQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Queue'**
+  String get drop_addToQueue;
+
+  /// No description provided for @drop_addToQueueSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract positive prompt and add to generation queue'**
+  String get drop_addToQueueSubtitle;
+
+  /// No description provided for @drop_vibeDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-encoded Vibe detected (saves 2 Anlas)'**
+  String get drop_vibeDetected;
+
+  /// No description provided for @drop_vibeStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength: {value}%'**
+  String drop_vibeStrength(Object value);
+
+  /// No description provided for @drop_vibeInfoExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'Info Extracted: {value}%'**
+  String drop_vibeInfoExtracted(Object value);
+
+  /// No description provided for @drop_reuseVibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Reuse Vibe'**
+  String get drop_reuseVibe;
+
+  /// No description provided for @drop_reuseVibeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use pre-encoded data directly (free)'**
+  String get drop_reuseVibeSubtitle;
+
+  /// No description provided for @drop_useAsRawImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Use as Raw Image'**
+  String get drop_useAsRawImage;
+
+  /// No description provided for @drop_useAsRawImageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encode (costs 2 Anlas)'**
+  String get drop_useAsRawImageSubtitle;
+
+  /// No description provided for @preciseRef_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Precise Reference'**
+  String get preciseRef_title;
+
+  /// No description provided for @preciseRef_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Add reference images and set type and parameters. Multiple references can be used simultaneously.'**
+  String get preciseRef_description;
+
+  /// No description provided for @preciseRef_addReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Reference'**
+  String get preciseRef_addReference;
+
+  /// No description provided for @preciseRef_clearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get preciseRef_clearAll;
+
+  /// No description provided for @preciseRef_remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get preciseRef_remove;
+
+  /// No description provided for @preciseRef_referenceType.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference Type'**
+  String get preciseRef_referenceType;
+
+  /// No description provided for @preciseRef_strength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get preciseRef_strength;
+
+  /// No description provided for @preciseRef_fidelity.
+  ///
+  /// In en, this message translates to:
+  /// **'Fidelity'**
+  String get preciseRef_fidelity;
+
+  /// No description provided for @preciseRef_v4Only.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature requires V4+ models'**
+  String get preciseRef_v4Only;
+
+  /// No description provided for @preciseRef_typeCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Character'**
+  String get preciseRef_typeCharacter;
+
+  /// No description provided for @preciseRef_typeStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Style'**
+  String get preciseRef_typeStyle;
+
+  /// No description provided for @preciseRef_typeCharacterAndStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Character + Style'**
+  String get preciseRef_typeCharacterAndStyle;
+
+  /// No description provided for @vibeLibrary_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Library'**
+  String get vibeLibrary_title;
+
+  /// No description provided for @vibeLibrary_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Library'**
+  String get vibeLibrary_save;
+
+  /// No description provided for @vibeLibrary_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Vibe'**
+  String get vibeLibrary_import;
+
+  /// No description provided for @vibeLibrary_searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search name, tags...'**
+  String get vibeLibrary_searchHint;
+
+  /// No description provided for @vibeLibrary_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Library is empty'**
+  String get vibeLibrary_empty;
+
+  /// No description provided for @vibeLibrary_emptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add some entries to Vibe Library first'**
+  String get vibeLibrary_emptyHint;
+
+  /// No description provided for @vibe_export_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Vibe'**
+  String get vibe_export_title;
+
+  /// No description provided for @vibe_export_format.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Format'**
+  String get vibe_export_format;
+
+  /// No description provided for @vibe_selector_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Vibe'**
+  String get vibe_selector_title;
+
+  /// No description provided for @vibe_selector_recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get vibe_selector_recent;
+
+  /// No description provided for @vibe_category_add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Category'**
+  String get vibe_category_add;
+
+  /// No description provided for @vibe_category_rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Category'**
+  String get vibe_category_rename;
+
+  /// No description provided for @drop_vibe_detected.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe image detected'**
+  String get drop_vibe_detected;
+
+  /// No description provided for @drop_reuse_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Reuse Vibe'**
+  String get drop_reuse_vibe;
+
+  /// No description provided for @drop_save_anlas.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {cost} Anlas'**
+  String drop_save_anlas(int cost);
+
+  /// No description provided for @vibe_export_include_thumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Include Thumbnails'**
+  String get vibe_export_include_thumbnails;
+
+  /// No description provided for @vibe_export_include_thumbnails_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Include thumbnail preview in export file'**
+  String get vibe_export_include_thumbnails_subtitle;
+
+  /// No description provided for @vibe_import_skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get vibe_import_skip;
+
+  /// No description provided for @vibe_import_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get vibe_import_confirm;
+
+  /// No description provided for @bundle_internalVibes.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal Vibes'**
+  String get bundle_internalVibes;
+
+  /// No description provided for @shortcuts_customize.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize Shortcuts'**
+  String get shortcuts_customize;
+
+  /// No description provided for @gallery_send_to.
+  ///
+  /// In en, this message translates to:
+  /// **'Send To'**
+  String get gallery_send_to;
+
+  /// No description provided for @image_editor_select_tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Tool'**
+  String get image_editor_select_tool;
+
+  /// No description provided for @selection_clear_selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Selection'**
+  String get selection_clear_selection;
+
+  /// No description provided for @selection_invert_selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert Selection'**
+  String get selection_invert_selection;
+
+  /// No description provided for @search_results.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Results'**
+  String get search_results;
+
+  /// No description provided for @search_noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching results'**
+  String get search_noResults;
+
+  /// No description provided for @addToCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Current'**
+  String get addToCurrent;
+
+  /// No description provided for @replaceExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace Existing'**
+  String get replaceExisting;
+
+  /// No description provided for @confirmSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Selection'**
+  String get confirmSelection;
+
+  /// No description provided for @selectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get selectAll;
+
+  /// No description provided for @clearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearSelection;
+
+  /// No description provided for @clearFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Filters'**
+  String get clearFilters;
+
+  /// No description provided for @shortcut_context_vibe_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Detail'**
+  String get shortcut_context_vibe_detail;
+
+  /// No description provided for @shortcut_action_vibe_detail_send_to_generation.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Generation'**
+  String get shortcut_action_vibe_detail_send_to_generation;
+
+  /// No description provided for @shortcut_action_vibe_detail_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get shortcut_action_vibe_detail_export;
+
+  /// No description provided for @shortcut_action_vibe_detail_rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get shortcut_action_vibe_detail_rename;
+
+  /// No description provided for @shortcut_action_vibe_detail_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get shortcut_action_vibe_detail_delete;
+
+  /// No description provided for @shortcut_action_vibe_detail_toggle_favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle Favorite'**
+  String get shortcut_action_vibe_detail_toggle_favorite;
+
+  /// No description provided for @shortcut_action_vibe_detail_prev_sub_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Sub Vibe'**
+  String get shortcut_action_vibe_detail_prev_sub_vibe;
+
+  /// No description provided for @shortcut_action_vibe_detail_next_sub_vibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Sub Vibe'**
+  String get shortcut_action_vibe_detail_next_sub_vibe;
+
+  /// No description provided for @shortcut_action_navigate_to_vibe_library.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Library'**
+  String get shortcut_action_navigate_to_vibe_library;
+
+  /// No description provided for @shortcut_action_vibe_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Vibe'**
+  String get shortcut_action_vibe_import;
+
+  /// No description provided for @shortcut_action_vibe_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Vibe'**
+  String get shortcut_action_vibe_export;
+
+  /// No description provided for @vibeSelectorFilterFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get vibeSelectorFilterFavorites;
+
+  /// No description provided for @vibeSelectorFilterSourceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All Types'**
+  String get vibeSelectorFilterSourceAll;
+
+  /// No description provided for @vibeSelectorSortCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get vibeSelectorSortCreated;
+
+  /// No description provided for @vibeSelectorSortLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Used'**
+  String get vibeSelectorSortLastUsed;
+
+  /// No description provided for @vibeSelectorSortUsedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage Count'**
+  String get vibeSelectorSortUsedCount;
+
+  /// No description provided for @vibeSelectorSortName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get vibeSelectorSortName;
+
+  /// No description provided for @vibeSelectorItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String vibeSelectorItemsCount(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

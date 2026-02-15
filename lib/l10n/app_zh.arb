@@ -3104,6 +3104,9 @@
   "vibeLibrary_title": "Vibe 库",
   "vibeLibrary_save": "保存到库",
   "vibeLibrary_import": "导入 Vibe",
+  "vibeLibrary_searchHint": "搜索名称、标签...",
+  "vibeLibrary_empty": "Vibe 库为空",
+  "vibeLibrary_emptyHint": "先去 Vibe 库添加一些条目吧",
   "vibe_export_title": "导出 Vibe",
   "vibe_export_format": "导出格式",
   "vibe_selector_title": "选择 Vibe",
@@ -3123,10 +3126,44 @@
   "vibe_export_include_thumbnails_subtitle": "导出文件中包含缩略图预览",
   "vibe_import_skip": "跳过",
   "vibe_import_confirm": "确认",
+  "bundle_internalVibes": "内部 Vibes",
   "shortcuts_customize": "自定义快捷键",
   "gallery_send_to": "发送到",
   "image_editor_select_tool": "选择工具",
   "selection_clear_selection": "清除选区",
-  "selection_invert_selection": "反转选区"
+  "selection_invert_selection": "反转选区",
+  "search_results": "搜索结果",
+  "search_noResults": "未找到匹配结果",
+  "addToCurrent": "添加到当前",
+  "replaceExisting": "替换现有",
+  "confirmSelection": "确认选择",
+  "selectAll": "全选",
+  "clearSelection": "清空",
+  "clearFilters": "清除筛选",
+
+  "shortcut_context_vibe_detail": "Vibe 详情",
+  "shortcut_action_vibe_detail_send_to_generation": "发送到生成",
+  "shortcut_action_vibe_detail_export": "导出",
+  "shortcut_action_vibe_detail_rename": "重命名",
+  "shortcut_action_vibe_detail_delete": "删除",
+  "shortcut_action_vibe_detail_toggle_favorite": "切换收藏",
+  "shortcut_action_vibe_detail_prev_sub_vibe": "上一个子 Vibe",
+  "shortcut_action_vibe_detail_next_sub_vibe": "下一个子 Vibe",
+  "shortcut_action_navigate_to_vibe_library": "Vibe 库",
+  "shortcut_action_vibe_import": "导入 Vibe",
+  "shortcut_action_vibe_export": "导出 Vibe",
+
+  "vibeSelectorFilterFavorites": "收藏",
+  "vibeSelectorFilterSourceAll": "全部类型",
+  "vibeSelectorSortCreated": "创建时间",
+  "vibeSelectorSortLastUsed": "最近使用",
+  "vibeSelectorSortUsedCount": "使用次数",
+  "vibeSelectorSortName": "名称",
+  "vibeSelectorItemsCount": "{count} 项",
+  "@vibeSelectorItemsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 
 }

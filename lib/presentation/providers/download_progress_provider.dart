@@ -106,7 +106,6 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
     _context = context;
   }
 
-
   /// 上次报告的进度里程碑（用于去重）
   int _lastReportedProgressMilestone = -1;
 
@@ -116,17 +115,21 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
   Future<bool> downloadCooccurrenceData({bool force = false}) async {
     final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
 
-    AppLogger.i('downloadCooccurrenceData called: isDownloading=${cooccurrenceService.isDownloading}, isLoaded=${cooccurrenceService.isLoaded}, force=$force', 'DownloadProgress');
+    AppLogger.i(
+        'downloadCooccurrenceData called: isDownloading=${cooccurrenceService.isDownloading}, isLoaded=${cooccurrenceService.isLoaded}, force=$force',
+        'DownloadProgress');
 
     if (cooccurrenceService.isDownloading) {
-      AppLogger.w('Cooccurrence is already downloading, skip', 'DownloadProgress');
+      AppLogger.w(
+          'Cooccurrence is already downloading, skip', 'DownloadProgress');
       return false;
     }
 
     // 启动期默认使用懒加载 + SQLite 模式。
     // 该模式下若立即触发完整缓存加载，会在进入主页时出现明显卡顿。
     // 非强制刷新时直接跳过，由用户手动刷新（force=true）或后续后台策略触发。
-    final isLazyMode = cooccurrenceService.loadMode == CooccurrenceLoadMode.lazy;
+    final isLazyMode =
+        cooccurrenceService.loadMode == CooccurrenceLoadMode.lazy;
     if (!force && isLazyMode) {
       AppLogger.i(
         'Skip cooccurrence full bootstrap in lazy mode to avoid UI freeze on startup',
@@ -140,16 +143,19 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       // 1. 如果已经加载且不需要刷新，跳过
       if (cooccurrenceService.isLoaded) {
         final needsRefresh = await cooccurrenceService.shouldRefresh();
-        AppLogger.i('Cooccurrence isLoaded=true, needsRefresh=$needsRefresh', 'DownloadProgress');
+        AppLogger.i('Cooccurrence isLoaded=true, needsRefresh=$needsRefresh',
+            'DownloadProgress');
         if (!needsRefresh) {
           return true; // 数据新鲜，无需刷新
         }
       }
 
       // 2. 尝试从缓存加载
-      AppLogger.i('Trying to load cooccurrence from cache...', 'DownloadProgress');
+      AppLogger.i(
+          'Trying to load cooccurrence from cache...', 'DownloadProgress');
       final cacheLoaded = await cooccurrenceService.initialize();
-      AppLogger.i('Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress');
+      AppLogger.i(
+          'Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress');
       if (cacheLoaded) {
         // 缓存加载成功，检查是否需要刷新
         final needsRefresh = await cooccurrenceService.shouldRefresh();

@@ -6,7 +6,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
-import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
@@ -324,7 +323,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   void _fillPrompt(ReplicationTask task) {
     // 1. 应用固定词到队列任务的正面提示词
     final fixedTagsState = ref.read(fixedTagsNotifierProvider);
-    var finalPrompt = fixedTagsState.entries.applyToPrompt(task.prompt);
+    var finalPrompt = fixedTagsState.applyToPrompt(task.prompt);
 
     // 2. 应用质量词（如果启用）
     final model = ref.read(generationParamsNotifierProvider).model;
@@ -451,9 +450,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 更新任务状态为 completed
     if (currentTaskId != null) {
       ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
-        currentTaskId,
-        ReplicationTaskStatus.completed,
-      );
+            currentTaskId,
+            ReplicationTaskStatus.completed,
+          );
     }
 
     // 从队列移除已完成的任务
@@ -657,7 +656,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     );
     _saveToStorage();
   }
-
 }
 
 /// 队列设置 Provider（从本地存储读取）

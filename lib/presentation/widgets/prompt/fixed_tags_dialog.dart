@@ -1,10 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/fixed_tags_provider.dart';
@@ -458,7 +458,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   }
 }
 
-
 /// 词库选择对话框
 class _LibraryPickerDialog extends StatefulWidget {
   final List<TagLibraryEntry> entries;
@@ -806,7 +805,9 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                     // 位置标签
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 3,),
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: entry.enabled
                             ? posColor.withOpacity(0.15)
@@ -846,7 +847,9 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                       const SizedBox(width: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3,),
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: entry.enabled
                               ? theme.colorScheme.secondary.withOpacity(0.15)

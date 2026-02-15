@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../themes/theme_extension.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
@@ -310,8 +310,50 @@ class _VibeCard3DState extends State<VibeCard3D>
                       child: _buildFavoriteButton(),
                     ),
 
-                  // 6. 预编码标识
-                  if (widget.entry.isPreEncoded)
+                  // 6. Bundle 合集标识（优先级更高，显示在左侧）
+                  if (widget.entry.isBundle)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.folder_copy,
+                              size: 10,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              '合集 · ${widget.entry.bundledVibeCount}个',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  // 7. 预编码标识（仅在非 Bundle 时显示在左侧，否则显示在右侧）
+                  else if (widget.entry.isPreEncoded)
                     Positioned(
                       top: 8,
                       left: 8,
@@ -346,7 +388,43 @@ class _VibeCard3DState extends State<VibeCard3D>
                       ),
                     ),
 
-                  // 7. 选中状态指示器
+                  // 8. Bundle 的预编码标识（显示在右侧）
+                  if (widget.entry.isBundle && widget.entry.isPreEncoded)
+                    Positioned(
+                      top: 8,
+                      right: 48, // 为收藏按钮留出空间
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 10,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 2),
+                            Text(
+                              '预编码',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // 9. 选中状态指示器
                   if (widget.isSelected)
                     Positioned(
                       top: 8,
@@ -354,7 +432,7 @@ class _VibeCard3DState extends State<VibeCard3D>
                       child: _buildSelectionIndicator(colorScheme),
                     ),
 
-                  // 8. 选中覆盖层（使用 IgnorePointer 让点击穿透）
+                  // 10. 选中覆盖层（使用 IgnorePointer 让点击穿透）
                   if (widget.isSelected)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -367,7 +445,7 @@ class _VibeCard3DState extends State<VibeCard3D>
                       ),
                     ),
 
-                  // 9. 悬停时显示操作按钮
+                  // 11. 悬停时显示操作按钮
                   if (_isHovered && !widget.isSelected)
                     Positioned(
                       top: 8,
@@ -399,7 +477,8 @@ class _VibeCard3DState extends State<VibeCard3D>
                 return Container(
                   color: Colors.grey[300],
                   child: const Center(
-                    child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                    child:
+                        Icon(Icons.broken_image, size: 48, color: Colors.grey),
                   ),
                 );
               },
@@ -420,7 +499,7 @@ class _VibeCard3DState extends State<VibeCard3D>
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Center(
                 child: Icon(
-                  Icons.auto_fix_high,
+                  widget.entry.isBundle ? Icons.style : Icons.auto_fix_high,
                   size: 32,
                   color: Theme.of(context).colorScheme.outline,
                 ),
@@ -807,12 +886,8 @@ class _ActionButtonState extends State<_ActionButton> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final backgroundColor = widget.isDanger
-        ? (_isHovered
-            ? colorScheme.error
-            : colorScheme.error.withOpacity(0.9))
-        : (_isHovered
-            ? Colors.white
-            : Colors.white.withOpacity(0.9));
+        ? (_isHovered ? colorScheme.error : colorScheme.error.withOpacity(0.9))
+        : (_isHovered ? Colors.white : Colors.white.withOpacity(0.9));
     final iconColor = widget.isDanger
         ? colorScheme.onError
         : (_isHovered ? Colors.black : Colors.black.withOpacity(0.65));
@@ -843,7 +918,8 @@ class _ActionButtonState extends State<_ActionButton> {
                     color: backgroundColor,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(_isHovered ? 0.28 : 0.2),
+                        color:
+                            Colors.black.withOpacity(_isHovered ? 0.28 : 0.2),
                         blurRadius: _isHovered ? 8 : 4,
                         offset: Offset(0, _isHovered ? 3 : 2),
                       ),

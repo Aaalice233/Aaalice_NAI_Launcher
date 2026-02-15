@@ -1226,7 +1226,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }) async {
     final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
     final repository = _VibeLibraryNotifierImportRepository(
-      onGetAllEntries: () async => ref.read(vibeLibraryNotifierProvider).entries,
+      onGetAllEntries: () async =>
+          ref.read(vibeLibraryNotifierProvider).entries,
       onSaveEntry: notifier.saveEntry,
     );
     final importService = VibeImportService(repository: repository);
@@ -2788,6 +2789,7 @@ class _VibeLibraryContentViewState
       case null:
         return '重命名失败，请稍后重试';
     }
+    return null;
   }
 
   /// 更新条目参数

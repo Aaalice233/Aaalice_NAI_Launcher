@@ -1,7 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
 import '../../core/prompt_tag_config.dart';

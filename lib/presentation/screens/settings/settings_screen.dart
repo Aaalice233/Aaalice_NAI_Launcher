@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -10,7 +11,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/network/proxy_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/hive_storage_helper.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../data/models/settings/proxy_settings.dart';
@@ -33,7 +33,8 @@ import 'widgets/data_source_cache_settings.dart';
 import 'widgets/shortcut_settings_panel.dart';
 
 /// 构建标准输入框装饰
-InputDecoration _buildSettingsInputDecoration(ThemeData theme, {String? labelText, String? hintText}) {
+InputDecoration _buildSettingsInputDecoration(ThemeData theme,
+    {String? labelText, String? hintText}) {
   return InputDecoration(
     labelText: labelText,
     hintText: hintText,
@@ -170,7 +171,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.folder_outlined),
             title: Text(context.l10n.settings_imageSavePath),
             subtitle: Text(
-              saveSettings.getDisplayPath('默认 (Documents/NAI_Launcher/images/)'),
+              saveSettings
+                  .getDisplayPath('默认 (Documents/NAI_Launcher/images/)'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -187,7 +189,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         path = saveSettings.customPath!;
                       } else {
                         final docDir = await getApplicationDocumentsDirectory();
-                        path = '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
+                        path =
+                            '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
                       }
                       await launchUrl(
                         Uri.directory(path),
@@ -296,7 +299,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-
 
   void _showThemeDialog(
     BuildContext context,
@@ -812,7 +814,8 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                     value: retryInterval,
                     min: 0.5,
                     max: 10.0,
-                    onChanged: (value) => _updateRetryInterval((value * 2).round() / 2),
+                    onChanged: (value) =>
+                        _updateRetryInterval((value * 2).round() / 2),
                   ),
                 ),
               ),
@@ -830,7 +833,8 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                 width: 56,
                 child: ThemedInput(
                   controller: _retryIntervalController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   textAlign: TextAlign.center,
                   decoration: _buildSettingsInputDecoration(theme),
                   onSubmitted: (value) {
@@ -838,7 +842,8 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                     if (parsed != null) {
                       _updateRetryInterval(parsed);
                     } else {
-                      _retryIntervalController.text = retryInterval.toStringAsFixed(1);
+                      _retryIntervalController.text =
+                          retryInterval.toStringAsFixed(1);
                     }
                   },
                 ),

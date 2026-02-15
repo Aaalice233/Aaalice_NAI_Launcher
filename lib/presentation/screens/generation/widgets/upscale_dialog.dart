@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,7 +8,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 
@@ -414,7 +414,9 @@ class _UpscaleDialogState extends ConsumerState<UpscaleDialog> {
     } catch (e) {
       if (mounted) {
         AppToast.error(
-            context, context.l10n.upscale_selectFailed(e.toString()),);
+          context,
+          context.l10n.upscale_selectFailed(e.toString()),
+        );
       }
     }
   }

@@ -1,9 +1,8 @@
-
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/quality_preset_provider.dart';
@@ -391,4 +390,3 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     _previewOverlay = null;
   }
 }
-

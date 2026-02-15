@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/image/resolution_preset.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -18,6 +18,7 @@ import 'precise_reference_panel.dart';
 import 'prompt_input.dart';
 
 import '../../../widgets/common/app_toast.dart';
+
 /// 参数面板组件
 class ParameterPanel extends ConsumerStatefulWidget {
   final bool inBottomSheet;
@@ -83,7 +84,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                       .cancel()
                   : () {
                       if (params.prompt.isEmpty) {
-                        AppToast.info(context, context.l10n.generation_pleaseInputPrompt);
+                        AppToast.info(
+                            context, context.l10n.generation_pleaseInputPrompt);
                         return;
                       }
                       ref
@@ -309,7 +311,8 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                               Clipboard.setData(
                                 ClipboardData(text: params.seed.toString()),
                               );
-                              AppToast.success(context, context.l10n.common_copied);
+                              AppToast.success(
+                                  context, context.l10n.common_copied);
                             },
                           ),
                           // 清空按钮

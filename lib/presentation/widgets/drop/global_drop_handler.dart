@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -5,13 +6,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
@@ -221,7 +221,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
 
     // 检测当前是否为词库页面
-    final currentPath = GoRouter.of(context).routeInformationProvider.value.uri.path;
+    final currentPath =
+        GoRouter.of(context).routeInformationProvider.value.uri.path;
     final isTagLibraryPage = currentPath == AppRoutes.tagLibraryPage;
 
     // 如果是词库页面，使用词库专属拖拽处理
@@ -257,10 +258,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
 
-    await _handleDestination(destination, fileName, bytes, detectedVibe, notifier, l10n);
+    await _handleDestination(
+        destination, fileName, bytes, detectedVibe, notifier, l10n);
   }
 
-  Future<VibeReferenceV4?> _detectVibeMetadata(String fileName, Uint8List bytes) async {
+  Future<VibeReferenceV4?> _detectVibeMetadata(
+      String fileName, Uint8List bytes) async {
     if (!fileName.toLowerCase().endsWith('.png')) return null;
 
     try {
@@ -303,7 +306,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         break;
 
       case ImageDestination.vibeTransferRaw:
-        await _handleVibeTransfer(fileName, bytes, notifier, l10n, forceRaw: true);
+        await _handleVibeTransfer(fileName, bytes, notifier, l10n,
+            forceRaw: true);
         break;
 
       case ImageDestination.characterReference:
@@ -320,7 +324,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
-  void _handleImg2Img(Uint8List bytes, GenerationParamsNotifier notifier, AppLocalizations l10n) {
+  void _handleImg2Img(Uint8List bytes, GenerationParamsNotifier notifier,
+      AppLocalizations l10n) {
     notifier.setSourceImage(bytes);
     notifier.updateAction(ImageGenerationAction.img2img);
 
@@ -373,11 +378,14 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
-  String _buildVibeMessage(int currentCount, int addedCount, AppLocalizations l10n) {
+  String _buildVibeMessage(
+      int currentCount, int addedCount, AppLocalizations l10n) {
     if (currentCount > 0) {
       return '已追加 $addedCount 个风格参考';
     }
-    return addedCount == 1 ? l10n.drop_addedToVibe : l10n.drop_addedMultipleToVibe(addedCount);
+    return addedCount == 1
+        ? l10n.drop_addedToVibe
+        : l10n.drop_addedMultipleToVibe(addedCount);
   }
 
   Future<void> _handleVibeReuse(
@@ -448,15 +456,18 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
 
       if (!mounted) return;
-      final options = await MetadataImportDialog.show(context, metadata: metadata);
+      final options =
+          await MetadataImportDialog.show(context, metadata: metadata);
       if (options == null || !mounted) return;
 
-      final appliedCount = await _applyMetadataWithOptions(metadata, options, notifier);
+      final appliedCount =
+          await _applyMetadataWithOptions(metadata, options, notifier);
 
       if (!mounted) return;
 
       if (appliedCount > 0) {
-        AppToast.success(context, l10n.metadataImport_appliedCount(appliedCount));
+        AppToast.success(
+            context, l10n.metadataImport_appliedCount(appliedCount));
         _showMetadataAppliedDialog(metadata, options, l10n);
       } else {
         AppToast.warning(context, l10n.metadataImport_noParamsSelected);
@@ -478,7 +489,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     var appliedCount = 0;
 
     // 只有在勾选导入多角色提示词时才清空
-    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
       ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
     }
 
@@ -486,7 +498,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     appliedCount += _applyBasicParams(metadata, options, notifier);
 
     // 应用多角色提示词
-    if (options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty) {
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
       _applyCharacterPrompts(metadata);
       appliedCount++;
     }
@@ -529,7 +542,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       count++;
     }
 
-    if (options.importSize && metadata.width != null && metadata.height != null) {
+    if (options.importSize &&
+        metadata.width != null &&
+        metadata.height != null) {
       notifier.updateSize(metadata.width!, metadata.height!);
       count++;
     }
@@ -569,9 +584,21 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       (options.importModel, metadata.model, notifier.updateModel),
       (options.importSmea, metadata.smea, notifier.updateSmea),
       (options.importSmeaDyn, metadata.smeaDyn, notifier.updateSmeaDyn),
-      (options.importNoiseSchedule, metadata.noiseSchedule, notifier.updateNoiseSchedule),
-      (options.importCfgRescale, metadata.cfgRescale, notifier.updateCfgRescale),
-      (options.importQualityToggle, metadata.qualityToggle, notifier.updateQualityToggle),
+      (
+        options.importNoiseSchedule,
+        metadata.noiseSchedule,
+        notifier.updateNoiseSchedule
+      ),
+      (
+        options.importCfgRescale,
+        metadata.cfgRescale,
+        notifier.updateCfgRescale
+      ),
+      (
+        options.importQualityToggle,
+        metadata.qualityToggle,
+        notifier.updateQualityToggle
+      ),
       (options.importUcPreset, metadata.ucPreset, notifier.updateUcPreset),
     ];
 
@@ -692,9 +719,24 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         '${metadata.characterPrompts.length} ${l10n.metadataImport_charactersCount}',
         1,
       ),
-      (options.importSeed && metadata.seed != null, l10n.metadataImport_seed, metadata.seed?.toString(), 1),
-      (options.importSteps && metadata.steps != null, l10n.metadataImport_steps, metadata.steps?.toString(), 1),
-      (options.importScale && metadata.scale != null, l10n.metadataImport_scale, metadata.scale?.toString(), 1),
+      (
+        options.importSeed && metadata.seed != null,
+        l10n.metadataImport_seed,
+        metadata.seed?.toString(),
+        1
+      ),
+      (
+        options.importSteps && metadata.steps != null,
+        l10n.metadataImport_steps,
+        metadata.steps?.toString(),
+        1
+      ),
+      (
+        options.importScale && metadata.scale != null,
+        l10n.metadataImport_scale,
+        metadata.scale?.toString(),
+        1
+      ),
       (
         options.importSize && metadata.width != null && metadata.height != null,
         l10n.metadataImport_size,
@@ -707,9 +749,24 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         metadata.displaySampler,
         1,
       ),
-      (options.importModel && metadata.model != null, l10n.metadataImport_model, metadata.model?.toString(), 1),
-      (options.importSmea && metadata.smea != null, l10n.metadataImport_smea, metadata.smea?.toString(), 1),
-      (options.importSmeaDyn && metadata.smeaDyn != null, l10n.metadataImport_smeaDyn, metadata.smeaDyn?.toString(), 1),
+      (
+        options.importModel && metadata.model != null,
+        l10n.metadataImport_model,
+        metadata.model?.toString(),
+        1
+      ),
+      (
+        options.importSmea && metadata.smea != null,
+        l10n.metadataImport_smea,
+        metadata.smea?.toString(),
+        1
+      ),
+      (
+        options.importSmeaDyn && metadata.smeaDyn != null,
+        l10n.metadataImport_smeaDyn,
+        metadata.smeaDyn?.toString(),
+        1
+      ),
       (
         options.importNoiseSchedule && metadata.noiseSchedule != null,
         l10n.metadataImport_noiseSchedule,

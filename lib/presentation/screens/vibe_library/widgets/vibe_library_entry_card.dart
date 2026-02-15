@@ -461,7 +461,13 @@ class _VibeLibraryEntryCardState extends State<VibeLibraryEntryCard>
                   ? Image.memory(thumbnailData, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
                   : Container(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      child: Center(child: Icon(Icons.auto_fix_high, size: 32, color: theme.colorScheme.outline)),
+                      child: Center(
+                        child: Icon(
+                          widget.entry.isBundle ? Icons.style : Icons.auto_fix_high,
+                          size: 32,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
                     ),
               Positioned(
                 left: 0,

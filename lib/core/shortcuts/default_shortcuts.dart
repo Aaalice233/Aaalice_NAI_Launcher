@@ -83,6 +83,17 @@ class ShortcutIds {
   // Vibe库快捷键
   static const String vibeImport = 'vibe_import';
   static const String vibeExport = 'vibe_export';
+
+  // Vibe详情页快捷键
+  static const String vibeDetailSendToGeneration =
+      'vibe_detail_send_to_generation';
+  static const String vibeDetailExport = 'vibe_detail_export';
+  static const String vibeDetailRename = 'vibe_detail_rename';
+  static const String vibeDetailDelete = 'vibe_detail_delete';
+  static const String vibeDetailToggleFavorite =
+      'vibe_detail_toggle_favorite';
+  static const String vibeDetailPrevSubVibe = 'vibe_detail_prev_sub_vibe';
+  static const String vibeDetailNextSubVibe = 'vibe_detail_next_sub_vibe';
 }
 
 /// 快捷键上下文枚举
@@ -95,6 +106,7 @@ enum ShortcutContext {
   randomConfig, // 随机配置
   settings, // 设置
   input, // 输入框（编辑状态）
+  vibeDetail, // Vibe 详情页
 }
 
 /// 快捷键上下文扩展
@@ -117,6 +129,8 @@ extension ShortcutContextExtension on ShortcutContext {
         return '设置';
       case ShortcutContext.input:
         return '输入框';
+      case ShortcutContext.vibeDetail:
+        return 'Vibe 详情';
     }
   }
 
@@ -138,6 +152,8 @@ extension ShortcutContextExtension on ShortcutContext {
         return 'shortcut_context_settings';
       case ShortcutContext.input:
         return 'shortcut_context_input';
+      case ShortcutContext.vibeDetail:
+        return 'shortcut_context_vibe_detail';
     }
   }
 }
@@ -229,6 +245,15 @@ class DefaultShortcuts {
         // Vibe库
         ShortcutIds.vibeImport: 'ctrl+i',
         ShortcutIds.vibeExport: 'ctrl+e',
+
+        // Vibe详情页
+        ShortcutIds.vibeDetailSendToGeneration: 'enter',
+        ShortcutIds.vibeDetailExport: 'ctrl+e',
+        ShortcutIds.vibeDetailRename: 'f2',
+        ShortcutIds.vibeDetailDelete: 'delete',
+        ShortcutIds.vibeDetailToggleFavorite: 'f',
+        ShortcutIds.vibeDetailPrevSubVibe: 'arrowleft',
+        ShortcutIds.vibeDetailNextSubVibe: 'arrowright',
       };
 
   /// 获取快捷键的上下文
@@ -321,6 +346,16 @@ class DefaultShortcuts {
       case ShortcutIds.vibeImport:
       case ShortcutIds.vibeExport:
         return ShortcutContext.global;
+
+      // Vibe详情页
+      case ShortcutIds.vibeDetailSendToGeneration:
+      case ShortcutIds.vibeDetailExport:
+      case ShortcutIds.vibeDetailRename:
+      case ShortcutIds.vibeDetailDelete:
+      case ShortcutIds.vibeDetailToggleFavorite:
+      case ShortcutIds.vibeDetailPrevSubVibe:
+      case ShortcutIds.vibeDetailNextSubVibe:
+        return ShortcutContext.vibeDetail;
 
       default:
         return ShortcutContext.global;

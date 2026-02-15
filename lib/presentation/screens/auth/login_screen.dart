@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,7 +6,6 @@ import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
 import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -44,7 +44,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
-      AppLogger.w('[LoginScreen] Cannot show loading overlay: no overlay found');
+      AppLogger.w(
+          '[LoginScreen] Cannot show loading overlay: no overlay found');
       return;
     }
 
@@ -94,7 +95,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   _Header(theme: theme),
                   const SizedBox(height: 32),
-                  _buildMainContent(context, theme, isWideScreen, isLoading, accounts),
+                  _buildMainContent(
+                      context, theme, isWideScreen, isLoading, accounts),
                   const SizedBox(height: 16),
                   if (_showTroubleshootingButton) _TroubleshootingButton(),
                   const SizedBox(height: 24),
@@ -131,7 +133,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isWideScreen: isWideScreen,
       accounts: accounts,
       onAvatarTap: (account) => _showAvatarOptions(context, ref, account),
-      onAccountSelectorTap: (accounts, current) => _showAccountSelector(context, ref, accounts, current),
+      onAccountSelectorTap: (accounts, current) =>
+          _showAccountSelector(context, ref, accounts, current),
       onQuickLogin: (account) => _handleQuickLogin(context, ref, account),
       onAddAccount: () => _showAddAccountDialog(context),
     );
@@ -158,7 +161,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _handleAuthError(AuthState state) {
-    AppLogger.d('[LoginScreen] Showing error Toast: ${state.errorCode}', 'LOGIN');
+    AppLogger.d(
+        '[LoginScreen] Showing error Toast: ${state.errorCode}', 'LOGIN');
 
     final l10n = context.l10n;
     final errorText = _authErrorService.getErrorText(
@@ -264,22 +268,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ...accounts.map((account) => _AccountListItem(
-                account: account,
-                isSelected: account.id == currentAccount.id,
-                isDefault: account.id == defaultAccount.id,
-                createdDate: _dateFormattingService.formatDate(account.createdAt),
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _handleQuickLogin(context, ref, account);
-                },
-                onDelete: () => _showDeleteAccountDialog(context, ref, account),
-              ),),
+              ...accounts.map(
+                (account) => _AccountListItem(
+                  account: account,
+                  isSelected: account.id == currentAccount.id,
+                  isDefault: account.id == defaultAccount.id,
+                  createdDate:
+                      _dateFormattingService.formatDate(account.createdAt),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _handleQuickLogin(context, ref, account);
+                  },
+                  onDelete: () =>
+                      _showDeleteAccountDialog(context, ref, account),
+                ),
+              ),
               const ThemedDivider(),
               ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(Icons.add,
+                      color: Theme.of(context).colorScheme.primary),
                 ),
                 title: Text(context.l10n.auth_addAccount),
                 onTap: () {
@@ -305,16 +315,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.auth_deleteAccount),
-        content: Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
+        content:
+            Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(context.l10n.common_cancel),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
+            style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.error),
             onPressed: () {
-              ref.read(accountManagerNotifierProvider.notifier).removeAccount(account.id);
+              ref
+                  .read(accountManagerNotifierProvider.notifier)
+                  .removeAccount(account.id);
               Navigator.pop(dialogContext);
               Navigator.pop(context);
             },
@@ -350,7 +364,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
-                LoginFormContainer(onLoginSuccess: () => Navigator.pop(dialogContext)),
+                LoginFormContainer(
+                    onLoginSuccess: () => Navigator.pop(dialogContext)),
               ],
             ),
           ),
@@ -414,13 +429,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (result.isSuccess && result.path != null) {
         final updatedAccount = account.copyWith(avatarPath: result.path);
-        await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+        await ref
+            .read(accountManagerNotifierProvider.notifier)
+            .updateAccount(updatedAccount);
 
         if (context.mounted) {
           AppToast.success(context, context.l10n.common_success);
         }
       } else if (result.isFailure && context.mounted) {
-        AppToast.error(context, result.errorMessage ?? context.l10n.common_error);
+        AppToast.error(
+            context, result.errorMessage ?? context.l10n.common_error);
       }
     } catch (e) {
       if (context.mounted) {
@@ -437,7 +455,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await _avatarService.removeAvatar(account);
       final updatedAccount = account.copyWith(avatarPath: null);
-      await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+      await ref
+          .read(accountManagerNotifierProvider.notifier)
+          .updateAccount(updatedAccount);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.common_success);
@@ -467,12 +487,14 @@ class _Header extends StatelessWidget {
             color: theme.colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Icon(Icons.auto_awesome, size: 40, color: theme.colorScheme.primary),
+          child: Icon(Icons.auto_awesome,
+              size: 40, color: theme.colorScheme.primary),
         ),
         const SizedBox(height: 20),
         Text(
           context.l10n.app_title,
-          style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
@@ -566,7 +588,11 @@ class _AccountSwitcherSkeleton extends StatelessWidget {
               const SizedBox(height: 4),
               _ShimmerBox(width: 80, height: 14, theme: theme),
               const SizedBox(height: 16),
-              _ShimmerBox(width: double.infinity, height: 48, theme: theme, color: theme.colorScheme.primary),
+              _ShimmerBox(
+                  width: double.infinity,
+                  height: 48,
+                  theme: theme,
+                  color: theme.colorScheme.primary),
               const SizedBox(height: 16),
               const ThemedDivider(),
               const SizedBox(height: 8),
@@ -588,7 +614,11 @@ class _AccountSwitcherSkeleton extends StatelessWidget {
         const SizedBox(height: 4),
         Center(child: _ShimmerBox(width: 80, height: 14, theme: theme)),
         const SizedBox(height: 24),
-        _ShimmerBox(width: double.infinity, height: 48, theme: theme, color: theme.colorScheme.primary),
+        _ShimmerBox(
+            width: double.infinity,
+            height: 48,
+            theme: theme,
+            color: theme.colorScheme.primary),
         const SizedBox(height: 16),
         const ThemedDivider(),
         const SizedBox(height: 8),
@@ -646,7 +676,8 @@ class _QuickLoginView extends ConsumerWidget {
     );
   }
 
-  Widget _buildWideLayout(BuildContext context, WidgetRef ref, SavedAccount account) {
+  Widget _buildWideLayout(
+      BuildContext context, WidgetRef ref, SavedAccount account) {
     return Row(
       children: [
         AccountAvatar(
@@ -675,7 +706,8 @@ class _QuickLoginView extends ConsumerWidget {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: _QuickLoginButton(account: account, onLogin: onQuickLogin),
+                child:
+                    _QuickLoginButton(account: account, onLogin: onQuickLogin),
               ),
               const SizedBox(height: 16),
               const ThemedDivider(),
@@ -692,7 +724,8 @@ class _QuickLoginView extends ConsumerWidget {
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context, WidgetRef ref, SavedAccount account) {
+  Widget _buildMobileLayout(
+      BuildContext context, WidgetRef ref, SavedAccount account) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -759,7 +792,8 @@ class _AccountSelectorButton extends StatelessWidget {
             Flexible(
               child: Text(
                 account.displayName,
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -795,11 +829,13 @@ class _QuickLoginButton extends ConsumerWidget {
           ? const SizedBox(
               height: 18,
               width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
             )
           : const Icon(Icons.login),
       label: Text(context.l10n.auth_quickLogin),
-      style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+      style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16)),
     );
   }
 }
@@ -847,13 +883,15 @@ class _AccountListItem extends StatelessWidget {
               ),
               child: Text(
                 context.l10n.common_default,
-                style: TextStyle(fontSize: 10, color: theme.colorScheme.primary),
+                style:
+                    TextStyle(fontSize: 10, color: theme.colorScheme.primary),
               ),
             ),
           if (isSelected)
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child: Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+              child:
+                  Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
             ),
         ],
       ),
@@ -864,7 +902,8 @@ class _AccountListItem extends StatelessWidget {
         ),
       ),
       trailing: IconButton(
-        icon: Icon(Icons.delete_outline, color: theme.colorScheme.onSurfaceVariant),
+        icon: Icon(Icons.delete_outline,
+            color: theme.colorScheme.onSurfaceVariant),
         onPressed: onDelete,
       ),
       onTap: onTap,
@@ -919,7 +958,8 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
           child: Center(
             child: Card(
               elevation: 8,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -933,7 +973,8 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
                     const SizedBox(height: 16),
                     Text(
                       context.l10n.auth_loggingIn,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -998,8 +1039,8 @@ class _ShimmerBoxState extends State<_ShimmerBox>
   Widget build(BuildContext context) {
     final baseColor = widget.color?.withOpacity(0.3) ??
         widget.theme.colorScheme.surfaceContainerHighest;
-    final highlightColor = widget.color?.withOpacity(0.1) ??
-        widget.theme.colorScheme.surface;
+    final highlightColor =
+        widget.color?.withOpacity(0.1) ?? widget.theme.colorScheme.surface;
 
     return AnimatedBuilder(
       animation: _animation,

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -8,7 +9,6 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../providers/image_generation_provider.dart';

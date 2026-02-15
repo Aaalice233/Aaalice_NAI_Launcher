@@ -325,10 +325,6 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     GalleryCategory? category;
     if (categoryId != null && categoryId != 'favorites') {
       category = state.categories.findById(categoryId);
-      if (category == null) {
-        state = state.copyWith(error: '分类不存在');
-        return null;
-      }
     }
 
     try {
@@ -358,10 +354,6 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     GalleryCategory? category;
     if (categoryId != null && categoryId != 'favorites') {
       category = state.categories.findById(categoryId);
-      if (category == null) {
-        state = state.copyWith(error: '分类不存在');
-        return 0;
-      }
     }
 
     try {

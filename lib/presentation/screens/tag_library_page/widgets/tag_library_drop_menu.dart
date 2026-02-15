@@ -1,6 +1,5 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
-
-import '../../../../core/utils/localization_extension.dart';
 
 /// 词库拖拽操作类型
 enum TagLibraryDropAction {
@@ -116,7 +115,8 @@ class TagLibraryDropMenu extends StatelessWidget {
                 subtitle: promptPreview != null
                     ? '提示词已提取: "$promptPreview"'
                     : '从图片创建新词条',
-                onTap: () => Navigator.of(context).pop(TagLibraryDropAction.create),
+                onTap: () =>
+                    Navigator.of(context).pop(TagLibraryDropAction.create),
               ),
 
               const SizedBox(height: 12),
@@ -125,14 +125,16 @@ class TagLibraryDropMenu extends StatelessWidget {
                 icon: Icons.image_search_outlined,
                 title: '更新现有词条预览图',
                 subtitle: '选择词条并替换其预览图',
-                onTap: () => Navigator.of(context).pop(TagLibraryDropAction.updateThumbnail),
+                onTap: () => Navigator.of(context)
+                    .pop(TagLibraryDropAction.updateThumbnail),
               ),
 
               const SizedBox(height: 20),
 
               // 取消按钮
               OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(TagLibraryDropAction.cancel),
+                onPressed: () =>
+                    Navigator.of(context).pop(TagLibraryDropAction.cancel),
                 icon: const Icon(Icons.close, size: 18),
                 label: Text(l10n.common_cancel),
                 style: OutlinedButton.styleFrom(

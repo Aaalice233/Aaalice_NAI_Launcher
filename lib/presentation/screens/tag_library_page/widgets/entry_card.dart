@@ -1,10 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -128,9 +128,8 @@ class _EntryCardState extends State<EntryCard> {
         },
         child: GestureDetector(
           // 选择模式下点击切换选择，否则打开详情
-          onTap: widget.isSelectionMode
-              ? widget.onToggleSelection
-              : widget.onTap,
+          onTap:
+              widget.isSelectionMode ? widget.onToggleSelection : widget.onTap,
           // 长按进入选择模式并选中
           onLongPress: widget.isSelectionMode
               ? null

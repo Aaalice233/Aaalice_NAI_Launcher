@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
 import '../common/app_toast.dart';

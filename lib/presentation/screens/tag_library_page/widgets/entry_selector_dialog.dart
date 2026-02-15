@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 
@@ -40,7 +40,8 @@ class EntrySelectorDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<EntrySelectorDialog> createState() => _EntrySelectorDialogState();
+  ConsumerState<EntrySelectorDialog> createState() =>
+      _EntrySelectorDialogState();
 }
 
 class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
@@ -233,9 +234,8 @@ class _EntryListTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color: isSelected
-          ? theme.colorScheme.primaryContainer
-          : Colors.transparent,
+      color:
+          isSelected ? theme.colorScheme.primaryContainer : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,

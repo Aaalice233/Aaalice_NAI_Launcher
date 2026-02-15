@@ -1,10 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
@@ -230,9 +230,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 显示提示
     if (mounted) {
       final charCount = result.characters.length;
-      final message = charCount > 0
-          ? '已分解：主提示词 + $charCount个角色'
-          : '已应用到主提示词';
+      final message = charCount > 0 ? '已分解：主提示词 + $charCount个角色' : '已应用到主提示词';
       AppToast.success(context, message);
     }
   }

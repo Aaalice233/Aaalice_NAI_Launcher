@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +6,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/shortcuts/default_shortcuts.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/localization_extension.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
 import '../providers/download_progress_provider.dart';
 import '../screens/auth/login_screen.dart';
@@ -49,9 +49,9 @@ final _onlineGalleryKey =
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
 final _statisticsKey = GlobalKey<NavigatorState>(debugLabel: 'statistics');
-  final _tagLibraryPageKey =
+final _tagLibraryPageKey =
     GlobalKey<NavigatorState>(debugLabel: 'tagLibraryPage');
-  final _vibeLibraryKey = GlobalKey<NavigatorState>(debugLabel: 'vibeLibrary');
+final _vibeLibraryKey = GlobalKey<NavigatorState>(debugLabel: 'vibeLibrary');
 
 /// 路由路径常量
 class AppRoutes {
@@ -367,7 +367,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       try {
         await downloadNotifier.downloadCooccurrenceData();
       } catch (e) {
-        AppLogger.e('Failed to download cooccurrence data', e, null, 'AppRouter');
+        AppLogger.e(
+            'Failed to download cooccurrence data', e, null, 'AppRouter');
       }
     }
   }
@@ -656,7 +657,8 @@ CustomTransitionPage<void> _buildFadeSlidePage({
     child: child,
     transitionDuration: duration,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final curvedAnimation = CurveTween(curve: _defaultCurve).animate(animation);
+      final curvedAnimation =
+          CurveTween(curve: _defaultCurve).animate(animation);
       return FadeTransition(
         opacity: curvedAnimation,
         child: SlideTransition(
@@ -701,7 +703,9 @@ class _QueuePanel extends ConsumerWidget {
             if (isVisible)
               Positioned.fill(
                 child: GestureDetector(
-                  onTap: () => ref.read(queueManagementVisibleProvider.notifier).state = false,
+                  onTap: () => ref
+                      .read(queueManagementVisibleProvider.notifier)
+                      .state = false,
                   child: Container(color: Colors.black54),
                 ),
               ),
@@ -728,7 +732,8 @@ class _QueuePanel extends ConsumerWidget {
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: Material(
                     color: theme.scaffoldBackgroundColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
                     clipBehavior: Clip.antiAlias,
                     child: SafeArea(
                       top: false,

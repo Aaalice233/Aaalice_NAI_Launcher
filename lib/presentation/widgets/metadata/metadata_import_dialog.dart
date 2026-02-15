@@ -1,6 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 
@@ -74,8 +74,8 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 value: _options.importNegativePrompt,
                 hasData: widget.metadata.negativePrompt.isNotEmpty,
                 onChanged: (value) => setState(
-                  () => _options =
-                      _options.copyWith(importNegativePrompt: value),
+                  () =>
+                      _options = _options.copyWith(importNegativePrompt: value),
                 ),
               ),
               if (widget.metadata.characterPrompts.isNotEmpty)
@@ -122,8 +122,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
               _buildCheckbox(
                 label: l10n.metadataImport_size,
                 value: _options.importSize,
-                hasData:
-                    widget.metadata.width != null &&
+                hasData: widget.metadata.width != null &&
                     widget.metadata.height != null,
                 onChanged: (value) => setState(
                   () => _options = _options.copyWith(importSize: value),
@@ -186,8 +185,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.importCfgRescale,
                   hasData: true,
                   onChanged: (value) => setState(
-                    () => _options =
-                        _options.copyWith(importCfgRescale: value),
+                    () => _options = _options.copyWith(importCfgRescale: value),
                   ),
                 ),
               if (widget.metadata.qualityToggle != null)
@@ -230,10 +228,9 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           child: Text(l10n.common_cancel),
         ),
         FilledButton(
-          onPressed:
-              _options.isNoneSelected
-                  ? null
-                  : () => Navigator.of(context).pop(_options),
+          onPressed: _options.isNoneSelected
+              ? null
+              : () => Navigator.of(context).pop(_options),
           child: Text(l10n.common_confirm),
         ),
       ],
@@ -252,36 +249,32 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         ActionChip(
           label: Text(l10n.metadataImport_selectAll),
           avatar: const Icon(Icons.select_all, size: 18),
-          onPressed:
-              () => setState(
-                () => _options = MetadataImportOptions.all(),
-              ),
+          onPressed: () => setState(
+            () => _options = MetadataImportOptions.all(),
+          ),
           backgroundColor: theme.colorScheme.primaryContainer,
           side: BorderSide.none,
         ),
         ActionChip(
           label: Text(l10n.metadataImport_deselectAll),
           avatar: const Icon(Icons.deselect, size: 18),
-          onPressed:
-              () => setState(
-                () => _options = MetadataImportOptions.none(),
-              ),
+          onPressed: () => setState(
+            () => _options = MetadataImportOptions.none(),
+          ),
         ),
         ActionChip(
           label: Text(l10n.metadataImport_promptsOnly),
           avatar: const Icon(Icons.text_fields, size: 18),
-          onPressed:
-              () => setState(
-                () => _options = MetadataImportOptions.promptsOnly(),
-              ),
+          onPressed: () => setState(
+            () => _options = MetadataImportOptions.promptsOnly(),
+          ),
         ),
         ActionChip(
           label: Text(l10n.metadataImport_generationOnly),
           avatar: const Icon(Icons.tune, size: 18),
-          onPressed:
-              () => setState(
-                () => _options = MetadataImportOptions.generationOnly(),
-              ),
+          onPressed: () => setState(
+            () => _options = MetadataImportOptions.generationOnly(),
+          ),
         ),
       ],
     );
@@ -319,15 +312,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           color: hasData ? null : theme.colorScheme.onSurfaceVariant,
         ),
       ),
-      subtitle:
-          hasData
-              ? null
-              : Text(
-                context.l10n.metadataImport_noData,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
+      subtitle: hasData
+          ? null
+          : Text(
+              context.l10n.metadataImport_noData,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
               ),
+            ),
       value: value && hasData,
       onChanged: hasData ? (v) => onChanged(v ?? false) : null,
       dense: true,
