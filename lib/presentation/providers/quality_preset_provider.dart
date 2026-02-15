@@ -174,7 +174,6 @@ class QualityPresetNotifier extends _$QualityPresetNotifier {
             );
         return entry?.content;
     }
-    return null;
   }
 }
 

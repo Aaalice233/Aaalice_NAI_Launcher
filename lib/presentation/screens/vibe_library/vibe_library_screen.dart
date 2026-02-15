@@ -2789,7 +2789,6 @@ class _VibeLibraryContentViewState
       case null:
         return '重命名失败，请稍后重试';
     }
-    return null;
   }
 
   /// 更新条目参数

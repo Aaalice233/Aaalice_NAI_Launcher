@@ -260,7 +260,9 @@ class _DataSourceCacheSettingsState
       ref.invalidate(danbooruTagsCacheNotifierProvider);
 
       // 关闭进度对话框并延迟显示成功提示
-      _closeDialog(dialogContextOrNull);
+      if (dialogContextOrNull != null && dialogContextOrNull!.mounted) {
+        _closeDialog(dialogContextOrNull);
+      }
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {
@@ -268,7 +270,9 @@ class _DataSourceCacheSettingsState
       }
     } catch (e) {
       // 关闭进度对话框并延迟显示错误提示
-      _closeDialog(dialogContextOrNull);
+      if (dialogContextOrNull != null && dialogContextOrNull!.mounted) {
+        _closeDialog(dialogContextOrNull);
+      }
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {
