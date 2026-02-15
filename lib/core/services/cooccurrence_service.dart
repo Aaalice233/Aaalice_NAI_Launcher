@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
-import '../utils/download_message_keys.dart';
 import '../utils/file_hash_utils.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 import 'lazy_data_source_service.dart';
@@ -24,20 +22,6 @@ part 'cooccurrence_service.g.dart';
 // =============================================================================
 // 新方案：Isolate.spawn 参数类和入口函数
 // =============================================================================
-
-/// 用于 Isolate 通信的参数类
-class _LoadFromFileParams {
-  final String filePath;
-  final SendPort sendPort;
-
-  _LoadFromFileParams(this.filePath, this.sendPort);
-}
-
-/// Isolate 入口函数（必须是顶层函数）
-void _loadFromFileIsolateEntry(_LoadFromFileParams params) async {
-  final result = await _loadFromFileInIsolate(params.filePath, params.sendPort);
-  params.sendPort.send(result);
-}
 
 /// 虚拟 SendPort，用于不需要进度报告的 Isolate 解析
 class _DummySendPort implements SendPort {
@@ -51,18 +35,6 @@ class _DummySendPort implements SendPort {
 
   @override
   bool operator ==(Object other) => other is _DummySendPort;
-}
-
-/// 在 Isolate 中执行的实际加载逻辑
-Future<Map<String, Map<String, int>>> _loadFromFileInIsolate(
-  String filePath,
-  SendPort sendPort,
-) async {
-  sendPort.send({'type': 'progress', 'stage': 'reading', 'progress': 0.0});
-  final content = await File(filePath).readAsString();
-  sendPort.send({'type': 'progress', 'stage': 'reading', 'progress': 1.0, 'size': content.length});
-
-  return _parseCooccurrenceDataWithProgressIsolate(content, sendPort);
 }
 
 /// 在 Isolate 中解析共现数据（带进度报告）
@@ -459,12 +431,6 @@ class RelatedTag {
   }
 }
 
-/// 下载进度回调
-typedef CooccurrenceDownloadCallback = void Function(
-  double progress,
-  String? message,
-);
-
 /// 加载阶段
 enum CooccurrenceLoadStage {
   reading,
@@ -501,32 +467,26 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   bool get isInitialized => _data.isLoaded;
 
   @override
-  bool get isRefreshing => _isDownloading;
+  bool get isRefreshing => false;
 
   @override
   DataSourceProgressCallback? onProgress;
 
-  static const String _baseUrl =
-      'https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv/resolve/main';
-  static const String _fileName = 'danbooru_tags_cooccurrence.csv';
   static const String _binaryCacheFileName = 'cooccurrence_cache.bin';
   static const int _binaryCacheVersion = 1;
   static const int _binaryCacheMagic = 0x434F4F43;
 
-  final Dio _dio;
   final CooccurrenceData _data = CooccurrenceData();
   UnifiedTagDatabase? _unifiedDb;
 
   CooccurrenceLoadMode _loadMode = CooccurrenceLoadMode.full;
-  bool _isDownloading = false;
-  CooccurrenceDownloadCallback? onDownloadProgress;
   CooccurrenceLoadCallback? onLoadProgress;
   DateTime? _lastUpdate;
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
 
   static const String _metaFileName = 'cooccurrence_meta.json';
 
-  CooccurrenceService(this._dio) {
+  CooccurrenceService() {
     unawaited(_loadMeta());
   }
 
@@ -534,7 +494,7 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
   bool get isUsingUnifiedDb => _unifiedDb != null;
   bool get isLoaded => _data.isLoaded;
   bool get hasData => _data.mapSize > 0;
-  bool get isDownloading => _isDownloading;
+  bool get isDownloading => false;
   DateTime? get lastUpdate => _lastUpdate;
   AutoRefreshInterval get refreshInterval => _refreshInterval;
 
@@ -621,209 +581,7 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
       }
     }
 
-    final cacheFile = await _getCacheFile();
-
-    if (await cacheFile.exists()) {
-      final size = await cacheFile.length();
-      const chunkedThreshold = 50 * 1024 * 1024;
-
-      if (size > chunkedThreshold) {
-        onLoadProgress?.call(
-          CooccurrenceLoadStage.reading,
-          0.0,
-          0.0,
-          '文件较大 (${(size / 1024 / 1024).toStringAsFixed(1)} MB)，使用分块加载...',
-        );
-        await _loadFromFileChunked(cacheFile);
-      } else {
-        await _loadFromFile(cacheFile);
-      }
-
-      unawaited(_generateBinaryCache());
-
-      return true;
-    }
     return false;
-  }
-
-  Future<bool> download() async {
-    if (_isDownloading) return false;
-    _isDownloading = true;
-
-    try {
-      onDownloadProgress?.call(0, DownloadMessageKeys.downloadingCooccurrence);
-
-      final cacheFile = await _getCacheFile();
-
-      await _dio.download(
-        '$_baseUrl/$_fileName',
-        cacheFile.path,
-        onReceiveProgress: (received, total) {
-          if (total > 0) {
-            final progress = received / total;
-            onDownloadProgress?.call(progress, null);
-          }
-        },
-        options: Options(
-          receiveTimeout: const Duration(minutes: 10),
-        ),
-      );
-
-      onLoadProgress = (stage, progress, stageProgress, message) {
-        String? displayMessage;
-
-        switch (stage) {
-          case CooccurrenceLoadStage.reading:
-            displayMessage = '读取文件...';
-          case CooccurrenceLoadStage.parsing:
-            displayMessage = '解析数据...';
-          case CooccurrenceLoadStage.merging:
-            displayMessage = '合并数据...';
-          case CooccurrenceLoadStage.complete:
-            displayMessage = '解析完成';
-          case CooccurrenceLoadStage.error:
-            displayMessage = message;
-        }
-
-        onDownloadProgress?.call(1.0, displayMessage);
-      };
-
-      await _loadFromFile(cacheFile);
-
-      if (_unifiedDb != null) {
-        onDownloadProgress?.call(1.0, '导入数据库...');
-        await _importToUnifiedDb();
-      }
-
-      onDownloadProgress?.call(1.0, '生成二进制缓存...');
-      await _generateBinaryCache();
-      onDownloadProgress?.call(1.0, '缓存生成完成');
-
-      await _saveMeta();
-
-      AppLogger.i('Cooccurrence data downloaded and cached', 'Cooccurrence');
-      return true;
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to download cooccurrence data',
-        e,
-        stack,
-        'Cooccurrence',
-      );
-      onDownloadProgress?.call(0.0, '下载失败: $e');
-      return false;
-    } finally {
-      _isDownloading = false;
-    }
-  }
-
-  Future<void> _loadFromFileChunked(File file) async {
-    onLoadProgress?.call(
-      CooccurrenceLoadStage.reading,
-      0.0,
-      0.0,
-      '使用分块加载策略...',
-    );
-
-    final loader = ChunkedCooccurrenceLoader(onProgress: onLoadProgress);
-    final result = await loader.loadInChunks(file);
-
-    onLoadProgress?.call(
-      CooccurrenceLoadStage.merging,
-      0.8,
-      0.0,
-      '合并数据到内存...',
-    );
-
-    for (final entry in result.entries) {
-      for (final related in entry.value.entries) {
-        _data.addCooccurrence(entry.key, related.key, related.value);
-      }
-    }
-
-    _data.markLoaded();
-    onLoadProgress?.call(
-      CooccurrenceLoadStage.complete,
-      1.0,
-      1.0,
-      '加载完成: ${result.length} 个标签',
-    );
-    AppLogger.d('Loaded cooccurrence data using chunked strategy', 'Cooccurrence');
-  }
-
-  Future<void> _loadFromFile(File file) async {
-    onLoadProgress?.call(CooccurrenceLoadStage.reading, 0.0, 0.0, '开始读取文件');
-
-    final receivePort = ReceivePort();
-    Map<String, Map<String, int>>? result;
-
-    try {
-      final isolate = await Isolate.spawn(
-        _loadFromFileIsolateEntry,
-        _LoadFromFileParams(file.path, receivePort.sendPort),
-      );
-
-      await for (final message in receivePort) {
-        if (message is Map<String, dynamic>) {
-          if (message['type'] == 'progress') {
-            final stage = message['stage'] as String?;
-            final progress = message['progress'] as double?;
-            final count = message['count'] as int?;
-
-            if (stage == 'parsing') {
-              onLoadProgress?.call(
-                CooccurrenceLoadStage.parsing,
-                0.3 + (progress ?? 0) * 0.4,
-                progress,
-                count != null ? '已解析 $count 行' : '解析中...',
-              );
-            } else if (stage == 'reading') {
-              onLoadProgress?.call(
-                CooccurrenceLoadStage.reading,
-                (progress ?? 0) * 0.3,
-                progress,
-                '读取文件...',
-              );
-            }
-          }
-        } else if (message is Map<String, Map<String, int>>) {
-          result = message;
-          break;
-        }
-      }
-
-      isolate.kill(priority: Isolate.immediate);
-
-      if (result != null) {
-        onLoadProgress?.call(
-          CooccurrenceLoadStage.merging,
-          0.7,
-          0.0,
-          '合并数据...',
-        );
-
-        _data.replaceAllData(result);
-
-        onLoadProgress?.call(
-          CooccurrenceLoadStage.complete,
-          1.0,
-          1.0,
-          '加载完成: ${result.length} 个标签',
-        );
-        AppLogger.d('Loaded cooccurrence data from cache', 'Cooccurrence');
-      }
-    } catch (e, stack) {
-      AppLogger.e('Failed to load cooccurrence file', e, stack, 'Cooccurrence');
-      onLoadProgress?.call(
-        CooccurrenceLoadStage.error,
-        0.0,
-        0.0,
-        '解析失败: $e',
-      );
-      rethrow;
-    } finally {
-      receivePort.close();
-    }
   }
 
   Future<Directory> _getCacheDir() async {
@@ -835,27 +593,9 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
     return cacheDir;
   }
 
-  Future<File> _getCacheFile() async {
-    final cacheDir = await _getCacheDir();
-    return File('${cacheDir.path}/$_fileName');
-  }
-
   Future<File> _getBinaryCacheFile() async {
     final cacheDir = await _getCacheDir();
     return File('${cacheDir.path}/$_binaryCacheFileName');
-  }
-
-  Future<bool> hasCachedData() async {
-    final cacheFile = await _getCacheFile();
-    return cacheFile.exists();
-  }
-
-  Future<int> getCacheFileSize() async {
-    final cacheFile = await _getCacheFile();
-    if (await cacheFile.exists()) {
-      return cacheFile.length();
-    }
-    return 0;
   }
 
   static Future<void> _saveToBinaryCache(
@@ -1047,7 +787,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
             final progress = processedCount / totalRecords;
             if (progress - lastProgress >= 0.1) {
               lastProgress = progress;
-              onDownloadProgress?.call(1.0, '导入数据库 ${(progress * 100).toInt()}%');
               AppLogger.d('Unified DB import: ${(progress * 100).toInt()}%', 'Cooccurrence');
             }
           }
@@ -1071,11 +810,6 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
       if (_unifiedDb != null) {
         await _unifiedDb!.clearCooccurrences();
         _unifiedDb = null;
-      }
-
-      final cacheFile = await _getCacheFile();
-      if (await cacheFile.exists()) {
-        await cacheFile.delete();
       }
 
       final binaryCacheFile = await _getBinaryCacheFile();
@@ -1267,25 +1001,11 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
       final counts = await unifiedDb.getRecordCounts();
       final hasData = counts.cooccurrences > 0;
       if (!hasData) {
-        AppLogger.i('Cooccurrence database is empty, trying to load from assets...', 'Cooccurrence');
-
-        // 先尝试从本地 assets 加载
-        final loadedFromAssets = await _loadFromAssets();
-        if (loadedFromAssets) {
-          _unifiedDb = unifiedDb;
-          _loadMode = CooccurrenceLoadMode.lazy;
-          onProgress?.call(1.0, '共现数据加载完成');
-          AppLogger.i('Cooccurrence data loaded from assets successfully', 'Cooccurrence');
-          return;
-        }
-
-        // Assets 加载失败，标记为需要下载
-        AppLogger.i('No local cooccurrence data available, will download after entering main screen', 'Cooccurrence');
+        AppLogger.i('Cooccurrence database is empty, needs import', 'Cooccurrence');
         _unifiedDb = unifiedDb;
         _loadMode = CooccurrenceLoadMode.lazy;
-        onProgress?.call(1.0, '需要下载共现数据');
+        onProgress?.call(1.0, '需要导入共现数据');
         _lastUpdate = null;
-        AppLogger.i('Cooccurrence lastUpdate reset to null, shouldRefresh will return true', 'Cooccurrence');
         return;
       }
 
@@ -1348,16 +1068,16 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
     try {
       onProgress?.call(0.0, '开始加载共现数据...');
 
-      // 尝试从本地加载（assets 或缓存文件）
-      final loaded = await _loadFromLocal();
+      // 尝试从本地 assets 加载
+      final loaded = await _loadFromAssets();
 
       if (loaded) {
         onProgress?.call(0.5, '加载热标签数据...');
         await _data.preloadHotData(); // 预加载热标签
         onProgress?.call(1.0, '共现数据加载完成');
       } else {
-        // 本地无数据，需要下载
-        onProgress?.call(1.0, '需要下载共现数据');
+        // 本地无数据，需要导入
+        onProgress?.call(1.0, '需要导入共现数据');
         _lastUpdate = null;
       }
     } catch (e, stack) {
@@ -1366,7 +1086,7 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
     }
   }
 
-  /// 从本地加载（assets 或缓存文件）
+  /// 从本地加载（assets）
   Future<bool> _loadFromLocal() async {
     // 1. 尝试二进制缓存
     final binaryCacheFile = await _getBinaryCacheFile();
@@ -1375,14 +1095,7 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
       if (success) return true;
     }
 
-    // 2. 尝试 CSV 缓存
-    final cacheFile = await _getCacheFile();
-    if (await cacheFile.exists()) {
-      await _loadFromFile(cacheFile);
-      return true;
-    }
-
-    // 3. 尝试 assets
+    // 2. 尝试 assets
     return await _loadFromAssets();
   }
 
@@ -1614,30 +1327,16 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
 
   @override
   Future<void> refresh() async {
-    if (_isDownloading) return;
-
-    _isDownloading = true;
-    onProgress?.call(0.0, '开始下载共现数据...');
+    // 重新导入 CSV 到 SQLite
+    onProgress?.call(0.0, '开始重新导入共现数据...');
 
     try {
-      onDownloadProgress = (progress, message) {
-        final normalizedProgress = (progress / 2.0).clamp(0.0, 1.0);
-        onProgress?.call(normalizedProgress, message ?? '下载中...');
-      };
-
-      final success = await download();
-      if (success) {
-        onProgress?.call(1.0, '共现数据刷新完成');
-      } else {
-        onProgress?.call(1.0, '共现数据刷新失败');
-      }
+      await performBackgroundImport(onProgress: onProgress);
+      onProgress?.call(1.0, '共现数据刷新完成');
     } catch (e) {
       AppLogger.e('Failed to refresh cooccurrence data', e, null, 'Cooccurrence');
       onProgress?.call(1.0, '刷新失败: $e');
       rethrow;
-    } finally {
-      _isDownloading = false;
-      onDownloadProgress = null;
     }
   }
 
@@ -1660,7 +1359,7 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
 
   @override
   void cancelBackgroundOperation() {
-    _isDownloading = false;
+    // 取消后台操作
   }
 }
 
@@ -1874,13 +1573,5 @@ Future<void> _processChunk(
 /// CooccurrenceService Provider
 @Riverpod(keepAlive: true)
 CooccurrenceService cooccurrenceService(Ref ref) {
-  final dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(minutes: 10),
-      sendTimeout: const Duration(seconds: 30),
-    ),
-  );
-
-  return CooccurrenceService(dio);
+  return CooccurrenceService();
 }
