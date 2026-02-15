@@ -270,7 +270,7 @@ class CooccurrenceService {
           // 数据最新，直接使用
           _data.markLoaded();
           // 从数据库读取上次更新时间（毫秒时间戳）
-          final versionInfo = await _unifiedDb!.getDataSourceVersion('cooccurrence_csv');
+          final versionInfo = await _unifiedDb!.getDataSourceVersion('cooccurrences');
           if (versionInfo != null && versionInfo['lastUpdated'] != null) {
             final timestamp = int.tryParse(versionInfo['lastUpdated'] as String);
             if (timestamp != null) {
@@ -320,19 +320,19 @@ class CooccurrenceService {
         'assets/translations/hf_danbooru_cooccurrence.csv',
       );
 
-      onProgress?.call(0.1, '解析数据...');
+      onProgress?.call(0.1, '读取共现标签数据...');
 
       // 2. 解析 CSV（直接解析，避免 Isolate 跨边界问题）
       final lines = csvContent.split('\n');
       final totalLines = lines.length;
 
-      onProgress?.call(0.2, '准备导入...');
+      onProgress?.call(0.2, '准备导入共现标签...');
 
       // 3. 清空旧数据
       await _unifiedDb!.clearCooccurrences();
 
       // 4. 解析所有记录到内存（一次性）
-      onProgress?.call(0.25, '解析数据...');
+      onProgress?.call(0.25, '解析共现标签数据...');
       final records = <CooccurrenceRecord>[];
 
       for (var i = 0; i < lines.length; i++) {
@@ -385,7 +385,7 @@ class CooccurrenceService {
         },
       );
 
-      onProgress?.call(1.0, '导入完成');
+      onProgress?.call(1.0, '共现标签数据导入完成');
 
       stopwatch.stop();
       AppLogger.i(
@@ -396,7 +396,7 @@ class CooccurrenceService {
       return importedCount;
     } catch (e, stack) {
       AppLogger.e('Failed to import CSV to SQLite', e, stack, 'Cooccurrence');
-      onProgress?.call(1.0, '导入失败');
+      onProgress?.call(1.0, '共现标签数据导入失败');
       return -1;
     }
   }
@@ -411,18 +411,9 @@ class CooccurrenceService {
 
       if (imported > 0) {
         // 2. 更新版本信息
-        final csvHash = await FileHashUtils.calculateAssetHash(
-          'assets/translations/hf_danbooru_cooccurrence.csv',
-        );
-
         await _unifiedDb!.updateDataSourceVersion(
-          'cooccurrence_csv',
+          'cooccurrences',
           1, // 版本号
-          hash: csvHash,
-          extraData: {
-            'importedAt': DateTime.now().toIso8601String(),
-            'recordCount': imported,
-          },
         );
 
         _data.markLoaded();

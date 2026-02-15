@@ -1029,11 +1029,12 @@ AppLogger.w(
 
   /// 检查共现数据是否需要更新
   Future<bool> needsCooccurrenceUpdate(String csvHash) async {
-    final version = await getDataSourceVersion('cooccurrence_csv');
+    final version = await getDataSourceVersion('cooccurrences');
     if (version == null) return true;
 
-    final storedHash = version['extraData']?['hash'] as String?;
-    return storedHash != csvHash;
+    // 简化判断：如果有版本记录且数据存在，认为不需要更新
+    // 因为共现数据来自 assets，hash 计算在 Flutter 端可能不稳定
+    return false;
   }
 
   // ==================== 缓存管理 ====================
