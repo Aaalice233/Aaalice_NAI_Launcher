@@ -237,7 +237,7 @@ class FloatingButtonLongPressMenu extends ConsumerWidget {
 
   /// 安全地 watch provider 状态
   T _watchState<T>(
-      WidgetRef ref, ProviderListenable<T> provider, T defaultValue) {
+      WidgetRef ref, ProviderListenable<T> provider, T defaultValue,) {
     try {
       return ref.watch(provider);
     } catch (e) {

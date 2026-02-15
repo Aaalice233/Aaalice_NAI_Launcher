@@ -907,7 +907,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 构建网格项
   Widget _buildGridItem(
-      ThemeData theme, OnlineGalleryState state, int index, double itemWidth) {
+      ThemeData theme, OnlineGalleryState state, int index, double itemWidth,) {
     // 加载更多指示器/错误重试
     if (index >= state.posts.length) {
       return _buildLoadMoreIndicator(theme, state);

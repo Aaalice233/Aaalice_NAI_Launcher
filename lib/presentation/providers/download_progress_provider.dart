@@ -117,11 +117,11 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
     AppLogger.i(
         'downloadCooccurrenceData called: isDownloading=${cooccurrenceService.isDownloading}, isLoaded=${cooccurrenceService.isLoaded}, force=$force',
-        'DownloadProgress');
+        'DownloadProgress',);
 
     if (cooccurrenceService.isDownloading) {
       AppLogger.w(
-          'Cooccurrence is already downloading, skip', 'DownloadProgress');
+          'Cooccurrence is already downloading, skip', 'DownloadProgress',);
       return false;
     }
 
@@ -144,7 +144,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       if (cooccurrenceService.isLoaded) {
         final needsRefresh = await cooccurrenceService.shouldRefresh();
         AppLogger.i('Cooccurrence isLoaded=true, needsRefresh=$needsRefresh',
-            'DownloadProgress');
+            'DownloadProgress',);
         if (!needsRefresh) {
           return true; // 数据新鲜，无需刷新
         }
@@ -152,10 +152,10 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
       // 2. 尝试从缓存加载
       AppLogger.i(
-          'Trying to load cooccurrence from cache...', 'DownloadProgress');
+          'Trying to load cooccurrence from cache...', 'DownloadProgress',);
       final cacheLoaded = await cooccurrenceService.initialize();
       AppLogger.i(
-          'Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress');
+          'Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress',);
       if (cacheLoaded) {
         // 缓存加载成功，检查是否需要刷新
         final needsRefresh = await cooccurrenceService.shouldRefresh();

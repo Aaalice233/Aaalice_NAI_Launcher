@@ -83,7 +83,7 @@ class BulkMoveCategoryDialog extends StatelessWidget {
 
   /// 递归构建分类树
   List<Widget> _buildCategoryTree(BuildContext context, String? parentId,
-      {int depth = 0}) {
+      {int depth = 0,}) {
     final result = <Widget>[];
 
     final children = categories.where((c) => c.parentId == parentId).toList()

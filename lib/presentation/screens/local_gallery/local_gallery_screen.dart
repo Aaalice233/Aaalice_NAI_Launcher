@@ -890,24 +890,24 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     // 应用单个参数
     _applyParam(options.importSeed, metadata.seed, paramsNotifier.updateSeed);
     _applyParam(
-        options.importSteps, metadata.steps, paramsNotifier.updateSteps);
+        options.importSteps, metadata.steps, paramsNotifier.updateSteps,);
     _applyParam(
-        options.importScale, metadata.scale, paramsNotifier.updateScale);
+        options.importScale, metadata.scale, paramsNotifier.updateScale,);
     _applyParam(
-        options.importSampler, metadata.sampler, paramsNotifier.updateSampler);
+        options.importSampler, metadata.sampler, paramsNotifier.updateSampler,);
     _applyParam(
-        options.importModel, metadata.model, paramsNotifier.updateModel);
+        options.importModel, metadata.model, paramsNotifier.updateModel,);
     _applyParam(options.importSmea, metadata.smea, paramsNotifier.updateSmea);
     _applyParam(
-        options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn);
+        options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn,);
     _applyParam(options.importNoiseSchedule, metadata.noiseSchedule,
-        paramsNotifier.updateNoiseSchedule);
+        paramsNotifier.updateNoiseSchedule,);
     _applyParam(options.importCfgRescale, metadata.cfgRescale,
-        paramsNotifier.updateCfgRescale);
+        paramsNotifier.updateCfgRescale,);
     _applyParam(options.importQualityToggle, metadata.qualityToggle,
-        paramsNotifier.updateQualityToggle);
+        paramsNotifier.updateQualityToggle,);
     _applyParam(options.importUcPreset, metadata.ucPreset,
-        paramsNotifier.updateUcPreset);
+        paramsNotifier.updateUcPreset,);
 
     if (options.importSize &&
         metadata.width != null &&
@@ -920,7 +920,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (appliedCount > 0) {
       AppToast.info(
-          context, context.l10n.metadataImport_appliedToMain(appliedCount));
+          context, context.l10n.metadataImport_appliedToMain(appliedCount),);
     } else {
       AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
     }

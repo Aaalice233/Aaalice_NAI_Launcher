@@ -368,7 +368,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         await downloadNotifier.downloadCooccurrenceData();
       } catch (e) {
         AppLogger.e(
-            'Failed to download cooccurrence data', e, null, 'AppRouter');
+            'Failed to download cooccurrence data', e, null, 'AppRouter',);
       }
     }
   }

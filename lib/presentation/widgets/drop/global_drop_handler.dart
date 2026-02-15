@@ -259,11 +259,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
 
     await _handleDestination(
-        destination, fileName, bytes, detectedVibe, notifier, l10n);
+        destination, fileName, bytes, detectedVibe, notifier, l10n,);
   }
 
   Future<VibeReferenceV4?> _detectVibeMetadata(
-      String fileName, Uint8List bytes) async {
+      String fileName, Uint8List bytes,) async {
     if (!fileName.toLowerCase().endsWith('.png')) return null;
 
     try {
@@ -307,7 +307,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       case ImageDestination.vibeTransferRaw:
         await _handleVibeTransfer(fileName, bytes, notifier, l10n,
-            forceRaw: true);
+            forceRaw: true,);
         break;
 
       case ImageDestination.characterReference:
@@ -325,7 +325,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   void _handleImg2Img(Uint8List bytes, GenerationParamsNotifier notifier,
-      AppLocalizations l10n) {
+      AppLocalizations l10n,) {
     notifier.setSourceImage(bytes);
     notifier.updateAction(ImageGenerationAction.img2img);
 
@@ -379,7 +379,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   String _buildVibeMessage(
-      int currentCount, int addedCount, AppLocalizations l10n) {
+      int currentCount, int addedCount, AppLocalizations l10n,) {
     if (currentCount > 0) {
       return '已追加 $addedCount 个风格参考';
     }
@@ -467,7 +467,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       if (appliedCount > 0) {
         AppToast.success(
-            context, l10n.metadataImport_appliedCount(appliedCount));
+            context, l10n.metadataImport_appliedCount(appliedCount),);
         _showMetadataAppliedDialog(metadata, options, l10n);
       } else {
         AppToast.warning(context, l10n.metadataImport_noParamsSelected);

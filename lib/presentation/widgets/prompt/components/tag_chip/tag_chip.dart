@@ -336,7 +336,7 @@ class _TagChipState extends ConsumerState<TagChip>
 
   /// 构建带语法高亮的文本组件
   Widget _buildSyntaxHighlightedText(
-      ThemeData theme, Color effectiveColor, bool isEnabled) {
+      ThemeData theme, Color effectiveColor, bool isEnabled,) {
     final displayText = _displayText;
     final name = widget.tag.displayName;
     final weight = _currentWeight;
@@ -608,18 +608,18 @@ class _TagChipState extends ConsumerState<TagChip>
 
     final shadowOffset = widget.isDragging
         ? const Offset(
-            TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY)
+            TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY,)
         : _isHovering
             ? const Offset(
-                TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY)
+                TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY,)
             : isSelected
                 ? const Offset(TagShadowConfig.selectedOffsetX,
-                    TagShadowConfig.selectedOffsetY)
+                    TagShadowConfig.selectedOffsetY,)
                 : isEnabled
                     ? const Offset(TagShadowConfig.normalOffsetX,
-                        TagShadowConfig.normalOffsetY)
+                        TagShadowConfig.normalOffsetY,)
                     : const Offset(TagShadowConfig.disabledOffsetX,
-                        TagShadowConfig.disabledOffsetY);
+                        TagShadowConfig.disabledOffsetY,);
 
     final shadowOpacity = widget.isDragging
         ? TagShadowConfig.draggingOpacity

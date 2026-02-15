@@ -773,7 +773,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       if (result.exitCode != 0) {
         final errorOutput = result.stderr.toString();
         throw Exception(
-            'PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput');
+            'PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput',);
       }
 
       // 延迟删除临时文件，确保 PowerShell 完成读取

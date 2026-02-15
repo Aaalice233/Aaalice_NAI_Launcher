@@ -34,7 +34,7 @@ import 'widgets/shortcut_settings_panel.dart';
 
 /// 构建标准输入框装饰
 InputDecoration _buildSettingsInputDecoration(ThemeData theme,
-    {String? labelText, String? hintText}) {
+    {String? labelText, String? hintText,}) {
   return InputDecoration(
     labelText: labelText,
     hintText: hintText,

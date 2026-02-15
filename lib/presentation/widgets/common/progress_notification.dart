@@ -511,7 +511,7 @@ class ProgressTaskWrapper<T> {
 
   /// 执行任务
   Future<T?> run(
-      Future<T> Function(ProgressNotificationController) task) async {
+      Future<T> Function(ProgressNotificationController) task,) async {
     // 在异步操作前获取本地化字符串
     final l10n = context.l10n;
 

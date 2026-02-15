@@ -518,7 +518,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
           UpscaleDialog.show(context,
-              image: generationState.displayImages.first.bytes);
+              image: generationState.displayImages.first.bytes,);
         }
       },
       // 复制图像（复制到剪贴板）
@@ -526,7 +526,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
           _copyImageToClipboard(
-              context, ref, generationState.displayImages.first.bytes);
+              context, ref, generationState.displayImages.first.bytes,);
         }
       },
       // 全屏预览

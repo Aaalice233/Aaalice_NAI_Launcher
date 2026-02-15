@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/widgets.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 

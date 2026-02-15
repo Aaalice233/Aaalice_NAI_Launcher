@@ -327,14 +327,14 @@ class ImageDestinationDialog extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(
                           context.l10n.drop_vibeStrength(
-                              (vibe.strength * 100).toStringAsFixed(0)),
+                              (vibe.strength * 100).toStringAsFixed(0),),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
                           context.l10n.drop_vibeInfoExtracted(
-                              (vibe.infoExtracted * 100).toStringAsFixed(0)),
+                              (vibe.infoExtracted * 100).toStringAsFixed(0),),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),

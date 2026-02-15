@@ -184,7 +184,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                 CheckboxListTile(
                   title: Text(context.l10n.vibe_export_include_thumbnails),
                   subtitle: Text(
-                      context.l10n.vibe_export_include_thumbnails_subtitle),
+                      context.l10n.vibe_export_include_thumbnails_subtitle,),
                   value: _includeThumbnails,
                   onChanged: (value) {
                     setState(() => _includeThumbnails = value ?? true);

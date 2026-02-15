@@ -85,7 +85,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 // 进度区域
                 _buildProgressSection(
-                    theme, primaryColor, progress, warmupState.subTaskMessage),
+                    theme, primaryColor, progress, warmupState.subTaskMessage,),
 
                 const SizedBox(height: 48),
               ],

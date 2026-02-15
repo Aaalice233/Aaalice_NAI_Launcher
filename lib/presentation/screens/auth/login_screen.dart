@@ -45,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
       AppLogger.w(
-          '[LoginScreen] Cannot show loading overlay: no overlay found');
+          '[LoginScreen] Cannot show loading overlay: no overlay found',);
       return;
     }
 
@@ -96,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _Header(theme: theme),
                   const SizedBox(height: 32),
                   _buildMainContent(
-                      context, theme, isWideScreen, isLoading, accounts),
+                      context, theme, isWideScreen, isLoading, accounts,),
                   const SizedBox(height: 16),
                   if (_showTroubleshootingButton) _TroubleshootingButton(),
                   const SizedBox(height: 24),
@@ -162,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _handleAuthError(AuthState state) {
     AppLogger.d(
-        '[LoginScreen] Showing error Toast: ${state.errorCode}', 'LOGIN');
+        '[LoginScreen] Showing error Toast: ${state.errorCode}', 'LOGIN',);
 
     final l10n = context.l10n;
     final errorText = _authErrorService.getErrorText(
@@ -289,7 +289,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   backgroundColor:
                       Theme.of(context).colorScheme.primaryContainer,
                   child: Icon(Icons.add,
-                      color: Theme.of(context).colorScheme.primary),
+                      color: Theme.of(context).colorScheme.primary,),
                 ),
                 title: Text(context.l10n.auth_addAccount),
                 onTap: () {
@@ -324,7 +324,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.error),
+                backgroundColor: theme.colorScheme.error,),
             onPressed: () {
               ref
                   .read(accountManagerNotifierProvider.notifier)
@@ -365,7 +365,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
                 LoginFormContainer(
-                    onLoginSuccess: () => Navigator.pop(dialogContext)),
+                    onLoginSuccess: () => Navigator.pop(dialogContext),),
               ],
             ),
           ),
@@ -438,7 +438,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } else if (result.isFailure && context.mounted) {
         AppToast.error(
-            context, result.errorMessage ?? context.l10n.common_error);
+            context, result.errorMessage ?? context.l10n.common_error,);
       }
     } catch (e) {
       if (context.mounted) {
@@ -488,7 +488,7 @@ class _Header extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Icon(Icons.auto_awesome,
-              size: 40, color: theme.colorScheme.primary),
+              size: 40, color: theme.colorScheme.primary,),
         ),
         const SizedBox(height: 20),
         Text(
@@ -592,7 +592,7 @@ class _AccountSwitcherSkeleton extends StatelessWidget {
                   width: double.infinity,
                   height: 48,
                   theme: theme,
-                  color: theme.colorScheme.primary),
+                  color: theme.colorScheme.primary,),
               const SizedBox(height: 16),
               const ThemedDivider(),
               const SizedBox(height: 8),
@@ -618,7 +618,7 @@ class _AccountSwitcherSkeleton extends StatelessWidget {
             width: double.infinity,
             height: 48,
             theme: theme,
-            color: theme.colorScheme.primary),
+            color: theme.colorScheme.primary,),
         const SizedBox(height: 16),
         const ThemedDivider(),
         const SizedBox(height: 8),
@@ -677,7 +677,7 @@ class _QuickLoginView extends ConsumerWidget {
   }
 
   Widget _buildWideLayout(
-      BuildContext context, WidgetRef ref, SavedAccount account) {
+      BuildContext context, WidgetRef ref, SavedAccount account,) {
     return Row(
       children: [
         AccountAvatar(
@@ -725,7 +725,7 @@ class _QuickLoginView extends ConsumerWidget {
   }
 
   Widget _buildMobileLayout(
-      BuildContext context, WidgetRef ref, SavedAccount account) {
+      BuildContext context, WidgetRef ref, SavedAccount account,) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -830,12 +830,12 @@ class _QuickLoginButton extends ConsumerWidget {
               height: 18,
               width: 18,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
+                  strokeWidth: 2, color: Colors.white,),
             )
           : const Icon(Icons.login),
       label: Text(context.l10n.auth_quickLogin),
       style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16)),
+          padding: const EdgeInsets.symmetric(vertical: 16),),
     );
   }
 }
@@ -903,7 +903,7 @@ class _AccountListItem extends StatelessWidget {
       ),
       trailing: IconButton(
         icon: Icon(Icons.delete_outline,
-            color: theme.colorScheme.onSurfaceVariant),
+            color: theme.colorScheme.onSurfaceVariant,),
         onPressed: onDelete,
       ),
       onTap: onTap,
@@ -959,7 +959,7 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
             child: Card(
               elevation: 8,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(

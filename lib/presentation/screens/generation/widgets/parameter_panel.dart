@@ -85,7 +85,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                   : () {
                       if (params.prompt.isEmpty) {
                         AppToast.info(
-                            context, context.l10n.generation_pleaseInputPrompt);
+                            context, context.l10n.generation_pleaseInputPrompt,);
                         return;
                       }
                       ref
@@ -312,7 +312,7 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
                                 ClipboardData(text: params.seed.toString()),
                               );
                               AppToast.success(
-                                  context, context.l10n.common_copied);
+                                  context, context.l10n.common_copied,);
                             },
                           ),
                           // 清空按钮
