@@ -1,46 +1,30 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
-import '../../core/network/dio_client.dart';
 import '../../core/network/proxy_service.dart';
-import '../../core/network/system_proxy_http_overrides.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
-import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/translation_lazy_service.dart';
 import '../../core/services/unified_tag_database.dart';
-import '../../core/services/warmup_metrics_service.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/datasources/remote/nai_auth_api_service.dart';
-import '../../data/datasources/remote/nai_user_info_api_service.dart';
-import '../../data/models/settings/proxy_settings.dart';
 import '../../data/repositories/local_gallery_repository.dart';
-import '../../data/services/danbooru_auth_service.dart';
-import '../screens/statistics/statistics_state.dart';
 import 'auth_provider.dart';
-import 'data_source_cache_provider.dart';
 import 'font_provider.dart';
 import 'prompt_config_provider.dart';
-import 'proxy_settings_provider.dart';
 import 'subscription_provider.dart';
 import '../../data/services/vibe_library_migration_service.dart';
 
 part 'warmup_provider.g.dart';
-
-/// 进度回调类型定义
-typedef WarmupTaskRef = void Function(double progress, String? message);
 
 /// 预加载状态
 class WarmupState {
@@ -85,7 +69,6 @@ class WarmupState {
 @riverpod
 class WarmupNotifier extends _$WarmupNotifier {
   late WarmupTaskScheduler _scheduler;
-  late WarmupMetricsService _metricsService;
   StreamSubscription<PhaseProgress>? _phaseSubscription;
   final _completer = Completer<void>();
 
@@ -96,63 +79,14 @@ class WarmupNotifier extends _$WarmupNotifier {
     });
 
     _scheduler = WarmupTaskScheduler();
-    _metricsService = ref.read(warmupMetricsServiceProvider);
-    _registerTasksV2();
-    _startWarmupV2();
+    _registerTasks();
+    _startWarmup();
 
     return WarmupState.initial();
   }
 
   /// 等待预热完成
   Future<void> get whenComplete => _completer.future;
-
-  /// 创建带进度回调的数据源初始化任务
-  WarmupTask _createDataSourceTask({
-    required String name,
-    required String label,
-    required int weight,
-    required Duration timeout,
-    required Future<void> Function(WarmupTaskRef) task,
-  }) {
-    return WarmupTask(
-      name: name,
-      weight: weight,
-      timeout: timeout,
-      task: () async {
-        try {
-          AppLogger.i('Initializing $label...', 'Warmup');
-          await task((progress, message) {
-            final msg = message ?? '${(progress * 100).toInt()}%';
-            state = state.copyWith(subTaskMessage: '$label: $msg');
-          });
-          state = state.copyWith(subTaskMessage: null);
-          AppLogger.i('$label initialized', 'Warmup');
-        } catch (e) {
-          state = state.copyWith(subTaskMessage: null);
-          AppLogger.w('$label initialization failed: $e', 'Warmup');
-        }
-      },
-    );
-  }
-
-  /// 创建简单的 Provider 读取任务
-  WarmupTask _createProviderTask<T>(
-    String name, {
-    required int weight,
-    required ProviderListenable<T> provider,
-    String? logMessage,
-  }) {
-    return WarmupTask(
-      name: name,
-      weight: weight,
-      task: () async {
-        ref.read(provider);
-        if (logMessage != null) {
-          AppLogger.i(logMessage, 'Warmup');
-        }
-      },
-    );
-  }
 
   // ===== 任务实现方法 =====
 
@@ -229,233 +163,16 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  WarmupTask _createNetworkWarmupTask() {
-    return WarmupTask(
-      name: 'warmup_network',
-      weight: 1,
-      timeout: AppWarmupService.networkTimeout,
-      task: () async {
-        AppLogger.i('Network service warmup started', 'Warmup');
-        try {
-          await Future.delayed(const Duration(milliseconds: 100))
-              .timeout(AppWarmupService.networkTimeout);
-          AppLogger.i('Network service warmup completed', 'Warmup');
-        } on TimeoutException {
-          AppLogger.w('Network service warmup timed out', 'Warmup');
-        } catch (e) {
-          AppLogger.w('Network service warmup failed: $e', 'Warmup');
-        }
-      },
-    );
-  }
-
-  WarmupTask _createSubscriptionTask() {
-    return WarmupTask(
-      name: 'warmup_subscription',
-      weight: 2,
-      timeout: const Duration(seconds: 10),
-      task: () async {
-        try {
-          final authState = ref.read(authNotifierProvider);
-          if (!authState.isAuthenticated) {
-            AppLogger.i('User not authenticated, skip subscription preload', 'Warmup');
-            return;
-          }
-
-          AppLogger.i('Preloading subscription info...', 'Warmup');
-          await _fetchSubscriptionWithRetry();
-          AppLogger.i('Subscription preloaded successfully', 'Warmup');
-        } catch (e) {
-          AppLogger.w('Subscription preload failed: $e', 'Warmup');
-        }
-      },
-    );
-  }
-
-  Future<void> _fetchSubscriptionWithRetry() async {
-    final notifier = ref.read(subscriptionNotifierProvider.notifier);
-
-    await notifier.fetchSubscription().timeout(const Duration(seconds: 4));
-
-    final subState = ref.read(subscriptionNotifierProvider);
-    if (!subState.isError) return;
-
-    AppLogger.w('Subscription preload failed, refreshing network and retrying...', 'Warmup');
-    ref.invalidate(dioClientProvider);
-    ref.invalidate(naiUserInfoApiServiceProvider);
-    await Future.delayed(const Duration(milliseconds: 200));
-
-    await ref.read(subscriptionNotifierProvider.notifier)
-        .fetchSubscription()
-        .timeout(const Duration(seconds: 4));
-  }
-
-  WarmupTask _createCacheServiceTask() {
-    return WarmupTask(
-      name: 'warmup_dataSourceCache',
-      weight: 1,
-      timeout: const Duration(seconds: 3),
-      task: () async {
-        try {
-          AppLogger.i('Preloading data source cache services...', 'Warmup');
-          ref.read(hFTranslationCacheNotifierProvider);
-          ref.read(danbooruTagsCacheNotifierProvider);
-          AppLogger.i('Data source cache services preloaded', 'Warmup');
-        } catch (e) {
-          AppLogger.w('Data source cache preload failed: $e', 'Warmup');
-        }
-      },
-    );
-  }
-
-  WarmupTask _createGalleryCountTask() {
-    return WarmupTask(
-      name: 'warmup_galleryFileCount',
-      weight: 1,
-      timeout: const Duration(seconds: 3),
-      task: () async {
-        try {
-          AppLogger.i('Counting gallery files...', 'Warmup');
-          final files = await LocalGalleryRepository.instance.getAllImageFiles();
-          AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
-        } catch (e) {
-          AppLogger.w('Gallery file count failed: $e', 'Warmup');
-        }
-      },
-    );
-  }
-
   /// 重试预加载
   void retry() {
     _phaseSubscription?.cancel();
     _scheduler.clear();
     state = WarmupState.initial();
-    _registerTasksV2();
-    _startWarmupV2();
+    _registerTasks();
+    _startWarmup();
   }
 
-  /// 确保网络服务 Provider 已完全重建
-  /// 
-  /// 在代理配置变化后调用，通过监听 Provider 状态确保新的 DioClient 实例已创建
-  /// 避免自动登录使用旧的网络配置导致连接失败
-  Future<void> _ensureNetworkProvidersReady() async {
-    AppLogger.i('Waiting for network providers to rebuild...', 'Warmup');
-
-    // 方法1：通过读取 Provider 触发重建并等待完成
-    // 使用 listen 获取最新的 Provider 实例，确保已重建
-    // 读取 dioClientProvider 确保 DioClient 已重建
-    ref.read(dioClientProvider);
-    final authApiService = ref.read(naiAuthApiServiceProvider);
-
-    // 验证 DioClient 是否使用了新的代理配置
-    // 通过发送一个简单的请求来验证连接是否正常工作
-    try {
-      // 发送一个轻量级的请求来预热连接
-      await authApiService.validateToken('').timeout(
-        const Duration(seconds: 2),
-        onTimeout: () => {}, // 超时也没关系，只是验证连接可用
-      );
-    } catch (e) {
-      // 预期会失败（token为空），但连接层应该正常工作
-      // 如果是连接错误，说明 Provider 还未准备好
-      if (e.toString().contains('connection') ||
-          e.toString().contains('SocketException')) {
-        AppLogger.w('Network providers not ready yet, waiting...', 'Warmup');
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-    }
-
-    AppLogger.i('Network providers ready', 'Warmup');
-  }
-
-  /// 检查网络环境
-  Future<void> _checkNetworkEnvironment() async {
-    String? lastProxyAddress;
-
-    while (true) {
-      final proxySettings = ref.read(proxySettingsNotifierProvider);
-      final currentProxyAddress = proxySettings.effectiveProxyAddress;
-
-      if (currentProxyAddress != lastProxyAddress) {
-        await _updateProxyConfiguration(currentProxyAddress);
-        lastProxyAddress = currentProxyAddress;
-      }
-
-      // 尝试直接连接
-      state = state.copyWith(subTaskMessage: '正在检测网络连接...');
-      final directResult = await ProxyService.testNovelAIConnection();
-
-      if (directResult.success) {
-        await _onNetworkReady(directResult.latencyMs ?? 0, useProxy: false);
-        break;
-      }
-
-      AppLogger.w('Direct connection failed: ${directResult.errorMessage}', 'Warmup');
-
-      // 检查代理设置
-      if (!proxySettings.enabled) {
-        await _waitForUserAction('无法连接到 NovelAI，请开启VPN或启用代理设置');
-        continue;
-      }
-
-      final proxyAddress = proxySettings.effectiveProxyAddress;
-      if (proxyAddress == null || proxyAddress.isEmpty) {
-        final message = proxySettings.mode == ProxyMode.auto
-            ? '已启用代理但未检测到系统代理，请开启VPN'
-            : '手动代理配置不完整，请检查设置';
-        await _waitForUserAction(message);
-        continue;
-      }
-
-      // 尝试代理连接
-      state = state.copyWith(subTaskMessage: '正在通过代理检测网络...');
-      final proxyResult = await ProxyService.testNovelAIConnection(proxyAddress: proxyAddress);
-
-      if (proxyResult.success) {
-        await _onNetworkReady(proxyResult.latencyMs ?? 0, useProxy: true);
-        break;
-      }
-
-      AppLogger.w('NovelAI connection via proxy failed: ${proxyResult.errorMessage}', 'Warmup');
-      await _waitForUserAction('网络连接失败: ${proxyResult.errorMessage}，请检查VPN');
-    }
-  }
-
-  Future<void> _updateProxyConfiguration(String? proxyAddress) async {
-    AppLogger.i('Proxy configuration changed to: $proxyAddress, refreshing network services', 'Warmup');
-
-    HttpOverrides.global = (proxyAddress != null && proxyAddress.isNotEmpty)
-        ? SystemProxyHttpOverrides('PROXY $proxyAddress')
-        : null;
-
-    ref.invalidate(dioClientProvider);
-    ref.invalidate(naiAuthApiServiceProvider);
-    ref.invalidate(naiUserInfoApiServiceProvider);
-
-    await Future.delayed(const Duration(milliseconds: 100));
-  }
-
-  Future<void> _onNetworkReady(int latencyMs, {required bool useProxy}) async {
-    AppLogger.i('NovelAI connection ${useProxy ? 'via proxy ' : ''}successful: ${latencyMs}ms', 'Warmup');
-    state = state.copyWith(subTaskMessage: '网络连接正常 (${latencyMs}ms)');
-    await Future.delayed(const Duration(milliseconds: 500));
-    state = state.copyWith(subTaskMessage: null);
-
-    final authState = ref.read(authNotifierProvider);
-    if (authState.status == AuthStatus.unauthenticated ||
-        authState.status == AuthStatus.loading) {
-      AppLogger.i('Network ready but user not authenticated (status: ${authState.status}), triggering auto-login retry', 'Warmup');
-      await _ensureNetworkProvidersReady();
-      await ref.read(authNotifierProvider.notifier).retryAutoLogin();
-    }
-  }
-
-  Future<void> _waitForUserAction(String message) async {
-    state = state.copyWith(subTaskMessage: message);
-    await Future.delayed(const Duration(seconds: 2));
-  }
-
-  /// 检查网络环境（带超时）- V2优化版
+  /// 检查网络环境（带超时）
   Future<void> _checkNetworkEnvironmentWithTimeout() async {
     const timeout = Duration(seconds: 30);
     const checkInterval = Duration(seconds: 2);
@@ -496,11 +213,11 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   // ===========================================================================
-  // V2: 三阶段预热架构
+  // 三阶段预热架构
   // ===========================================================================
 
-  /// 注册所有预热任务（新架构）
-  void _registerTasksV2() {
+  /// 注册所有预热任务
+  void _registerTasks() {
     // ==== 阶段 1: Critical ====
     _registerCriticalPhaseTasks();
 
@@ -637,8 +354,8 @@ class WarmupNotifier extends _$WarmupNotifier {
     );
   }
 
-  /// 开始新的预热流程
-  Future<void> _startWarmupV2() async {
+  /// 开始预热流程
+  Future<void> _startWarmup() async {
     try {
       // 阶段 1: Critical
       await for (final progress in _scheduler.runPhase(WarmupPhase.critical)) {
