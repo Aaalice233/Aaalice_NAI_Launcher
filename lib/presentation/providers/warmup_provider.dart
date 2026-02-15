@@ -80,6 +80,10 @@ class WarmupNotifier extends _$WarmupNotifier {
 
     _scheduler = WarmupTaskScheduler();
     _registerTasks();
+
+    // 延迟后台任务注册到 build 完成后，避免修改其他 provider
+    Future.microtask(_registerBackgroundPhaseTasks);
+
     _startWarmup();
 
     return WarmupState.initial();
@@ -224,8 +228,8 @@ class WarmupNotifier extends _$WarmupNotifier {
     // ==== 阶段 2: Quick ====
     _registerQuickPhaseTasks();
 
-    // ==== 阶段 3: Background ====
-    _registerBackgroundPhaseTasks();
+    // 注意: 阶段 3 (Background) 在 build() 完成后通过 Future.microtask 注册
+    // 避免在 build() 中修改其他 provider
   }
 
   void _registerCriticalPhaseTasks() {
@@ -282,7 +286,18 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   void _registerQuickPhaseTasks() {
-    // 1. 轻量级网络检测（带超时）
+    // 1. 共现数据初始化（轻量级检查）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_cooccurrenceInit',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        timeout: const Duration(seconds: 10),
+        task: _initCooccurrenceData,
+      ),
+    );
+
+    // 2. 轻量级网络检测（带超时）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_networkCheck',
@@ -332,11 +347,11 @@ class WarmupNotifier extends _$WarmupNotifier {
     // 实际执行在进入主界面后
     final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
-    // 共现数据后台加载
+    // 共现数据导入/更新（如果需要）
     backgroundNotifier.registerTask(
-      'cooccurrence_preload',
-      '共现数据',
-      () => _preloadCooccurrenceInBackground(),
+      'cooccurrence_import',
+      '共现数据导入',
+      () => _checkAndImportCooccurrence(),
     );
 
     // 翻译数据后台加载
@@ -447,15 +462,46 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   // ==== 后台任务方法 ====
 
-  Future<void> _preloadCooccurrenceInBackground() async {
+  Future<void> _initCooccurrenceData() async {
+    AppLogger.i('开始初始化共现数据...', 'Warmup');
+
     final service = ref.read(cooccurrenceServiceProvider);
+    final unifiedDb = ref.read(unifiedTagDatabaseProvider);
+
+    try {
+      // 设置数据库连接
+      service.setUnifiedDatabase(unifiedDb);
+
+      // 统一初始化流程
+      final isReady = await service.initializeUnified().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          AppLogger.w('共现数据初始化超时', 'Warmup');
+          return false;
+        },
+      );
+
+      if (isReady) {
+        AppLogger.i('共现数据已就绪（SQLite）', 'Warmup');
+      } else {
+        AppLogger.i('共现数据需要后台导入', 'Warmup');
+      }
+    } catch (e, stack) {
+      AppLogger.e('共现数据初始化失败', e, stack, 'Warmup');
+    }
+  }
+
+  Future<void> _checkAndImportCooccurrence() async {
+    final service = ref.read(cooccurrenceServiceProvider);
+
     service.onProgress = (progress, message) {
       ref
           .read(backgroundTaskNotifierProvider.notifier)
-          .updateProgress('cooccurrence_preload', progress, message: message);
+          .updateProgress('cooccurrence_import', progress, message: message);
     };
-    await service.initializeLightweight();
-    await service.preloadHotDataInBackground();
+
+    await service.performBackgroundImport(onProgress: service.onProgress);
+
     service.onProgress = null;
   }
 
