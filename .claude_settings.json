@@ -28,7 +28,7 @@
       "WebFetch(*)",
       "WebSearch(*)",
       "mcp__context7__resolve-library-id(*)",
-      "mcp__context7__get-library-docs(*)",
+      "mcp__context7__query-docs(*)",
       "mcp__graphiti-memory__search_nodes(*)",
       "mcp__graphiti-memory__search_facts(*)",
       "mcp__graphiti-memory__add_episode(*)",

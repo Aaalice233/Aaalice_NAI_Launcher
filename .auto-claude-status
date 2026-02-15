@@ -3,23 +3,23 @@
   "spec": "001-",
   "state": "building",
   "subtasks": {
-    "completed": 7,
-    "total": 17,
+    "completed": 0,
+    "total": 2,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "UI Discovery",
-    "id": 3,
-    "total": 4
+    "current": "Add Missing Localizations",
+    "id": 1,
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 8,
-    "started_at": "2026-01-24T00:04:22.605035"
+    "number": 1,
+    "started_at": "2026-02-15T19:23:28.572020"
   },
-  "last_update": "2026-01-24T00:23:26.430473"
+  "last_update": "2026-02-15T19:23:28.634352"
 }
