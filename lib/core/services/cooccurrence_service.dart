@@ -828,6 +828,8 @@ class CooccurrenceService implements LazyDataSourceServiceV2<List<RelatedTag>> {
           },
         );
 
+        // 关键：设置加载模式为 sqlite，确保查询时使用 SQLite
+        _loadMode = CooccurrenceLoadMode.sqlite;
         _data.markLoaded();
         AppLogger.i('Cooccurrence background import completed', 'Cooccurrence');
       }

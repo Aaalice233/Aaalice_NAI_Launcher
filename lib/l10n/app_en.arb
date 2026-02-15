@@ -1247,6 +1247,14 @@
       "latency": {}
     }
   },
+  "warmup_networkCheck_timeout": "Network check timeout, continuing offline",
+  "warmup_networkCheck_attempt": "Checking network... (attempt {attempt}/{maxAttempts})",
+  "@warmup_networkCheck_attempt": {
+    "placeholders": {
+      "attempt": {},
+      "maxAttempts": {}
+    }
+  },
 
   "warmup_preparing": "Preparing...",
   "warmup_complete": "Complete",

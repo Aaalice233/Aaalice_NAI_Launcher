@@ -2580,6 +2580,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get warmup_networkCheck_timeout => '网络检测超时，继续离线启动';
+
+  @override
+  String warmup_networkCheck_attempt(Object attempt, Object maxAttempts) {
+    return '正在检测网络连接... (尝试 $attempt/$maxAttempts)';
+  }
+
+  @override
   String get warmup_preparing => '准备中...';
 
   @override

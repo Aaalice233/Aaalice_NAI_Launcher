@@ -913,6 +913,14 @@
       "latency": {}
     }
   },
+  "warmup_networkCheck_timeout": "网络检测超时，继续离线启动",
+  "warmup_networkCheck_attempt": "正在检测网络连接... (尝试 {attempt}/{maxAttempts})",
+  "@warmup_networkCheck_attempt": {
+    "placeholders": {
+      "attempt": {},
+      "maxAttempts": {}
+    }
+  },
 
   "warmup_preparing": "准备中...",
   "warmup_complete": "完成",

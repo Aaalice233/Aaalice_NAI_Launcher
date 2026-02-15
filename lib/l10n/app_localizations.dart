@@ -4925,6 +4925,18 @@ abstract class AppLocalizations {
   /// **'Network connection OK ({latency}ms)'**
   String warmup_networkCheck_success(Object latency);
 
+  /// No description provided for @warmup_networkCheck_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Network check timeout, continuing offline'**
+  String get warmup_networkCheck_timeout;
+
+  /// No description provided for @warmup_networkCheck_attempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking network... (attempt {attempt}/{maxAttempts})'**
+  String warmup_networkCheck_attempt(Object attempt, Object maxAttempts);
+
   /// No description provided for @warmup_preparing.
   ///
   /// In en, this message translates to:

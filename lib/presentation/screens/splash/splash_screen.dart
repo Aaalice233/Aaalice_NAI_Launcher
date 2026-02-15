@@ -262,6 +262,36 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
   }
 
+  /// 翻译子任务消息（处理 provider 中的硬编码中文）
+  String _translateSubTaskMessage(BuildContext context, String message) {
+    final l10n = context.l10n;
+
+    // 网络检测相关消息
+    if (message.contains('正在检测网络连接')) {
+      final match = RegExp(r'\(尝试 (\d+)/(\d+)\)').firstMatch(message);
+      if (match != null) {
+        final attempt = match.group(1)!;
+        final maxAttempts = match.group(2)!;
+        return l10n.warmup_networkCheck_attempt(attempt, maxAttempts);
+      }
+      return l10n.warmup_networkCheck_testing;
+    }
+    if (message.contains('网络连接正常')) {
+      final match = RegExp(r'\((\d+)ms\)').firstMatch(message);
+      if (match != null) {
+        final latency = match.group(1)!;
+        return l10n.warmup_networkCheck_success(latency);
+      }
+      return l10n.warmup_networkCheck_success('');
+    }
+    if (message.contains('网络检测超时') || message.contains('继续离线启动')) {
+      return l10n.warmup_networkCheck_timeout;
+    }
+
+    // 如果无法识别，直接返回原消息
+    return message;
+  }
+
   Widget _buildProgressSection(
     ThemeData theme,
     Color primaryColor,
@@ -340,7 +370,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           if (subTaskMessage != null && !progress.isComplete) ...[
             const SizedBox(height: 8),
             Text(
-              subTaskMessage,
+              _translateSubTaskMessage(context, subTaskMessage),
               style: TextStyle(
                 fontSize: 11,
                 color: theme.colorScheme.onSurface.withOpacity(0.4),

@@ -2580,6 +2580,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get warmup_networkCheck_timeout => 'Network check timeout, continuing offline';
+
+  @override
+  String warmup_networkCheck_attempt(Object attempt, Object maxAttempts) {
+    return 'Checking network... (attempt $attempt/$maxAttempts)';
+  }
+
+  @override
   String get warmup_preparing => 'Preparing...';
 
   @override
