@@ -578,6 +578,18 @@ class SettingsScreen extends ConsumerWidget {
 
   /// 构建备份设置
   Widget _buildBackupSettings(BuildContext context, WidgetRef ref) {
+    final storage = ref.watch(localStorageServiceProvider);
+    final autoBackupEnabled = storage.getSetting<bool>(
+          StorageKeys.autoBackupEnabled,
+          defaultValue: false,
+        ) ??
+        false;
+    final autoBackupInterval = storage.getSetting<int>(
+          StorageKeys.autoBackupInterval,
+          defaultValue: 7,
+        ) ??
+        7;
+
     return Column(
       children: [
         ListTile(
@@ -594,6 +606,55 @@ class SettingsScreen extends ConsumerWidget {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => _handleRestore(context, ref),
         ),
+        SwitchListTile(
+          secondary: const Icon(Icons.schedule_outlined),
+          title: const Text('自动备份'),
+          subtitle: const Text('定期自动备份数据'),
+          value: autoBackupEnabled,
+          onChanged: (value) async {
+            await storage.setSetting(
+              StorageKeys.autoBackupEnabled,
+              value,
+            );
+            ref.invalidate(localStorageServiceProvider);
+          },
+        ),
+        if (autoBackupEnabled)
+          ListTile(
+            leading: const Icon(Icons.timelapse_outlined),
+            title: const Text('备份间隔'),
+            subtitle: Text('每 $autoBackupInterval 天自动备份'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: autoBackupInterval > 1
+                      ? () async {
+                          await storage.setSetting(
+                            StorageKeys.autoBackupInterval,
+                            autoBackupInterval - 1,
+                          );
+                          ref.invalidate(localStorageServiceProvider);
+                        }
+                      : null,
+                ),
+                Text('$autoBackupInterval'),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: autoBackupInterval < 30
+                      ? () async {
+                          await storage.setSetting(
+                            StorageKeys.autoBackupInterval,
+                            autoBackupInterval + 1,
+                          );
+                          ref.invalidate(localStorageServiceProvider);
+                        }
+                      : null,
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
