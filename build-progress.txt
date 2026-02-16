@@ -1,0 +1,28 @@
+# Build Progress: subtask-4-2
+
+## Evaluation: generation_settings_notifiers
+
+### Providers Found: 9
+
+All providers correctly use `keepAlive: true`:
+
+1. **QualityTagsSettings** - 质量标签设置
+2. **AutocompleteSettings** - 自动补全设置
+3. **AutoFormatPromptSettings** - 自动格式化设置
+4. **HighlightEmphasisSettings** - 高亮强调设置
+5. **SdSyntaxAutoConvertSettings** - SD语法自动转换设置
+6. **CooccurrenceSettings** - 标签共现推荐设置
+7. **UcPresetSettings** - 负面提示词预设设置
+8. **RandomPromptMode** - 抽卡模式设置
+9. **ImagesPerRequest** - 每次请求生成图片数量设置
+
+### keepAlive Retention Justification
+
+These are **user preference settings** that:
+- Persist to local storage via `LocalStorageService`
+- Are accessed across multiple screens
+- Should maintain state throughout app lifecycle
+- Are lightweight values (bool/int/enum) with no resource concerns
+
+### Verdict
+✅ All providers correctly use `keepAlive: true`. No modifications needed.

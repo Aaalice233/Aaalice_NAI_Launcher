@@ -287,8 +287,9 @@
             "command": "flutter analyze lib/presentation/providers/random_preset_provider.dart",
             "expected": "No issues found"
           },
-          "status": "pending",
-          "notes": "随机预设Provider"
+          "status": "completed",
+          "notes": "Removed keepAlive from @Riverpod annotation in RandomPresetNotifier provider. The provider will now auto-dispose when no longer listened to, improving memory management.",
+          "updated_at": "2026-02-16T13:34:50.793719+00:00"
         }
       ]
     },
@@ -315,8 +316,9 @@
             "type": "manual",
             "instructions": "Review generation_params_notifier - this is core generation state that should keep keepAlive"
           },
-          "status": "pending",
-          "notes": "生成参数是核心状态，保留keepAlive"
+          "status": "completed",
+          "completed_at": "2026-02-16T23:10:00Z",
+          "notes": "评估完成：保留keepAlive: true。理由：\n1. 核心生成参数状态 - 管理ImageParams，包含提示词、模型、尺寸等所有生成参数\n2. 内存缓存 - 维护_vibeEncodingCache(Vibe编码缓存)和_recentVibes，重建成本高\n3. Timer管理 - 使用_generationStateSaveDebounceTimer进行状态保存防抖\n4. 状态恢复 - restoreGenerationState()从持久存储恢复Vibe和精准参考，不应频繁执行\n5. 用户期望 - 生成参数应在整个应用会话中持续保持，无论当前页面\n当前配置正确，无需修改。"
         },
         {
           "id": "subtask-4-2",
@@ -331,8 +333,9 @@
             "type": "manual",
             "instructions": "Review generation_settings_notifiers - contains 8 providers that manage generation settings"
           },
-          "status": "pending",
-          "notes": "生成设置包含多个Provider，都是核心状态"
+          "status": "completed",
+          "completed_at": "2026-02-16T23:15:00Z",
+          "notes": "评估完成：保留keepAlive: true。共9个设置类Provider（1.质量标签 2.自动补全 3.自动格式化 4.高亮强调 5.SD语法转换 6.标签共现 7.UC预设 8.随机提示词模式 9.每请求图片数）。这些全是用户偏好设置，通过LocalStorageService持久化，应在整个应用会话中保持状态。当前配置正确，无需修改。"
         },
         {
           "id": "subtask-4-3",
@@ -785,7 +788,7 @@
   "executionPhase": "coding",
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-02-16T13:34:13.927Z",
+  "updated_at": "2026-02-16T13:35:57.688Z",
   "xstateState": "backlog",
-  "last_updated": "2026-02-16T13:25:54.665841+00:00"
+  "last_updated": "2026-02-16T13:34:50.793719+00:00"
 }
