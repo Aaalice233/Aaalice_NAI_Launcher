@@ -3171,6 +3171,11 @@
   "settings_queueRetryIntervalSubtitle": "Time to wait between retries",
   "unit_times": "times",
   "unit_seconds": "seconds",
+  "settings_floatingButtonBackground": "Floating Button Background",
+  "settings_floatingButtonBackgroundCustom": "Custom background set",
+  "settings_floatingButtonBackgroundDefault": "Default style",
+  "settings_clearBackground": "Clear background",
+  "settings_selectImage": "Select Image",
   "queue_currentQueueInfo": "Current queue contains {count} tasks",
   "@queue_currentQueueInfo": {
     "placeholders": {

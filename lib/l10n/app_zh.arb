@@ -2879,6 +2879,11 @@
   "settings_queueRetryIntervalSubtitle": "重试之间的等待时间",
   "unit_times": "次",
   "unit_seconds": "秒",
+  "settings_floatingButtonBackground": "悬浮球背景",
+  "settings_floatingButtonBackgroundCustom": "已设置自定义背景",
+  "settings_floatingButtonBackgroundDefault": "默认样式",
+  "settings_clearBackground": "清除背景",
+  "settings_selectImage": "选择图片",
   "queue_currentQueueInfo": "当前队列包含 {count} 个任务",
   "@queue_currentQueueInfo": {
     "placeholders": {
