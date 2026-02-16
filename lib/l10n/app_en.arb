@@ -3580,6 +3580,44 @@
   "settings_openFolder": "Open folder",
   "settings_openFolderFailed": "Failed to open folder",
   "settings_dataSourceCacheTitle": "Data source cache management",
+  "settings_imageCacheTitle": "Image Cache",
+  "imageCache_clearCacheTitle": "Clear Image Cache",
+  "imageCache_clearCacheMessage": "Are you sure you want to clear all image cache?\n\nThis will delete all cached image files and free up storage space. Images will need to be re-downloaded after clearing.",
+  "imageCache_cacheCleared": "Image cache cleared",
+  "imageCache_clearFailed": "Failed to clear cache: {error}",
+  "@imageCache_clearFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "imageCache_statisticsReset": "Statistics reset",
+  "imageCache_resetFailed": "Failed to reset statistics: {error}",
+  "@imageCache_resetFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "imageCache_cacheStatus": "Cache Status",
+  "imageCache_refreshStatistics": "Refresh Statistics",
+  "imageCache_memoryUsage": "Memory Usage",
+  "imageCache_cachedObjects": "Cached Objects",
+  "imageCache_hitRate": "Hit Rate",
+  "imageCache_usageRate": "Usage Rate",
+  "imageCache_cacheConfiguration": "Cache Configuration",
+  "imageCache_maxMemoryLimit": "Max Memory Limit",
+  "imageCache_maxCacheCount": "Max Cache Count",
+  "imageCache_evictionPolicy": "Eviction Policy",
+  "imageCache_policyLru": "Least Recently Used",
+  "imageCache_policyFifo": "First In First Out",
+  "imageCache_policyLfu": "Least Frequently Used",
+  "imageCache_autoMemoryMonitoring": "Auto Memory Monitoring",
+  "imageCache_autoCleanSubtitle": "Auto clean cache when exceeding threshold",
+  "imageCache_cleanupThreshold": "Cleanup Threshold",
+  "imageCache_thresholdDescription": "Auto cleanup when memory usage exceeds this threshold",
+  "imageCache_resetStatistics": "Reset Statistics",
+  "imageCache_clearCache": "Clear Cache",
+  "imageCache_cancel": "Cancel",
+  "imageCache_confirmClear": "Confirm Clear",
   "settings_pleaseLoginFirst": "Please login first",
   "settings_accountNotFound": "Account information not found",
   "settings_goToLoginPage": "Go to login page",
