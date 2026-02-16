@@ -7,11 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../../core/services/smart_folder_suggestion_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_folder.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'smart_folder_suggestions.dart';
 
 /// 拖拽位置枚举
 enum _DragPosition {
@@ -42,6 +44,10 @@ class FolderTreeView extends StatefulWidget {
   final void Function(String? parentId, int oldIndex, int newIndex)?
       onFolderReorder;
   final void Function(String imagePath, String? folderId)? onImageDrop;
+  final VoidCallback? onAutoCategorizeAll;
+  final void Function(String folderId, List<String> imagePaths)?
+      onAutoCategorizeToFolder;
+  final SmartFolderSuggestionService? suggestionService;
 
   const FolderTreeView({
     super.key,
@@ -56,6 +62,9 @@ class FolderTreeView extends StatefulWidget {
     this.onFolderMove,
     this.onFolderReorder,
     this.onImageDrop,
+    this.onAutoCategorizeAll,
+    this.onAutoCategorizeToFolder,
+    this.suggestionService,
   });
 
   @override
@@ -134,9 +143,85 @@ class _FolderTreeViewState extends State<FolderTreeView> {
           ...widget.folders.rootFolders.sortedByOrder().map(
                 (folder) => _buildFolderNode(theme, folder, 0),
               ),
+
+          // 智能分类按钮
+          if (widget.onAutoCategorizeAll != null && widget.folders.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: _buildAutoCategorizeButton(theme),
+            ),
         ],
       ),
     );
+  }
+
+  Widget _buildAutoCategorizeButton(ThemeData theme) {
+    return Material(
+      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: widget.onAutoCategorizeAll,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '智能分类全部图片',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
+                color: theme.colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 显示智能分类对话框
+  void _showAutoCategorizeDialog(GalleryFolder folder) async {
+    if (widget.suggestionService == null || widget.onAutoCategorizeToFolder == null) {
+      return;
+    }
+
+    // 显示确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('智能分类'),
+        content: Text('是否对 "${folder.displayName}" 中的图片进行智能分类？\n\n'
+            '系统将根据图片标签自动移动到最合适的子文件夹。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('开始分类'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      widget.onAutoCategorizeToFolder!(folder.id, []);
+    }
   }
 
   void _showEmptyAreaContextMenu(BuildContext context, Offset position) {
@@ -159,6 +244,20 @@ class _FolderTreeViewState extends State<FolderTreeView> {
             ],
           ),
         ),
+        if (widget.onAutoCategorizeAll != null)
+          PopupMenuItem(
+            onTap: widget.onAutoCategorizeAll,
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  '智能分类全部',
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -205,6 +304,9 @@ class _FolderTreeViewState extends State<FolderTreeView> {
           : null,
       onMoveToRoot: folder.parentId != null && widget.onFolderMove != null
           ? () => widget.onFolderMove!(folder.id, null)
+          : null,
+      onAutoCategorize: widget.onAutoCategorizeToFolder != null && folder.imageCount > 0
+          ? () => _showAutoCategorizeDialog(folder)
           : null,
     );
 
@@ -582,6 +684,7 @@ class _FolderItem extends StatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onAddSubFolder;
   final VoidCallback? onMoveToRoot;
+  final VoidCallback? onAutoCategorize;
 
   const _FolderItem({
     required this.icon,
@@ -598,6 +701,7 @@ class _FolderItem extends StatefulWidget {
     this.onDelete,
     this.onAddSubFolder,
     this.onMoveToRoot,
+    this.onAutoCategorize,
   });
 
   @override
@@ -804,6 +908,20 @@ class _FolderItemState extends State<_FolderItem> {
                 Icon(Icons.drive_file_move_outline, size: 18),
                 SizedBox(width: 8),
                 Text('移至根目录'),
+              ],
+            ),
+          ),
+        if (widget.onAutoCategorize != null)
+          PopupMenuItem(
+            onTap: widget.onAutoCategorize,
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  '智能分类',
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                ),
               ],
             ),
           ),
