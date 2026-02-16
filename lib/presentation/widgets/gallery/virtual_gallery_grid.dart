@@ -118,7 +118,7 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
           children: [
             Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            const Text(
+            Text(
               '暂无图片',
               style: TextStyle(color: Colors.grey, fontSize: 16),
             ),

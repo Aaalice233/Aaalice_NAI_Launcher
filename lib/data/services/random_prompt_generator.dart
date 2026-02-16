@@ -19,7 +19,6 @@ import '../models/prompt/tag_group.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
-import '../models/prompt/wordlist_entry.dart';
 import 'bracket_formatter.dart';
 import 'character_count_resolver.dart';
 import 'sequential_state_service.dart';

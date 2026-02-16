@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_folder.dart';
 import '../../providers/gallery_folder_provider.dart';
 import '../common/app_toast.dart';
@@ -339,7 +336,7 @@ class _FolderTabState extends ConsumerState<_FolderTab> {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    Widget tabContent = MouseRegion(
+    final Widget tabContent = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,

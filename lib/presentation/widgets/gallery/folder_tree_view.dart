@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +12,6 @@ import '../../../data/models/gallery/gallery_folder.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
-import 'smart_folder_suggestions.dart';
 
 /// 拖拽位置枚举
 enum _DragPosition {
