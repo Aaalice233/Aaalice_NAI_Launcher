@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/storage/app_state_storage.dart';
+import '../../core/storage/crash_recovery_service.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/models/queue/replication_task.dart';
 import 'image_generation_provider.dart';
@@ -98,8 +100,18 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   // 用于跟踪上一次的生成状态，以检测状态变化
   ImageGenerationState? _lastGenerationState;
 
+  late final AppStateStorage _appStateStorage;
+  late final CrashRecoveryService _crashRecoveryService;
+
   @override
   QueueExecutionState build() {
+    // 初始化存储服务
+    _appStateStorage = ref.read(appStateStorageProvider);
+    _crashRecoveryService = ref.read(crashRecoveryServiceProvider);
+
+    // 异步加载会话状态
+    _initializeSessionState();
+
     // 使用 ref.watch 监听生成状态变化
     // 当状态变化时，provider 会重建，我们会检测到变化并处理
     final generationState = ref.watch(imageGenerationNotifierProvider);
@@ -111,6 +123,84 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
 
     return const QueueExecutionState();
+  }
+
+  /// 初始化会话状态
+  ///
+  /// 从存储加载上次会话的状态，用于崩溃恢复
+  Future<void> _initializeSessionState() async {
+    try {
+      // 检查是否需要恢复（异常退出后）
+      final shouldRecover = await _appStateStorage.shouldRecover();
+      if (!shouldRecover) return;
+
+      // 分析崩溃情况
+      final analysis = await _crashRecoveryService.analyzeCrash();
+
+      if (!analysis.hasCrashDetected || !analysis.canRecover) {
+        // 清除过期的会话状态
+        await _appStateStorage.clearQueueExecutionState();
+        return;
+      }
+
+      final recoveryPoint = analysis.recoveryPoint;
+      final sessionState = recoveryPoint?.sessionState;
+      if (sessionState == null) return;
+
+      // 如果有活跃的队列执行，恢复状态
+      if (sessionState.hasActiveQueueExecution) {
+        // 记录恢复尝试
+        await _crashRecoveryService.logRecoveryAttempt(
+          success: false,
+          recoveredState: sessionState,
+        );
+
+        // 恢复执行状态
+        state = state.copyWith(
+          status: QueueExecutionStatus.ready,
+          currentTaskId: sessionState.currentTaskId,
+          completedCount: sessionState.currentQueueIndex,
+        );
+
+        // 填充当前任务的提示词
+        if (sessionState.currentTaskId != null) {
+          await _recoverCurrentTask(sessionState.currentTaskId!);
+        }
+
+        // 记录恢复成功
+        await _crashRecoveryService.logRecoveryAttempt(
+          success: true,
+          recoveredState: sessionState,
+        );
+      }
+    } catch (e) {
+      // 初始化失败时静默处理，不影响主流程
+    }
+  }
+
+  /// 恢复当前任务的提示词
+  ///
+  /// 在会话恢复时，根据任务ID填充对应的提示词到主界面
+  Future<void> _recoverCurrentTask(String taskId) async {
+    try {
+      final queueState = ref.read(replicationQueueNotifierProvider);
+
+      // 查找当前任务在队列中的位置
+      final taskIndex = queueState.tasks.indexWhere((t) => t.id == taskId);
+
+      if (taskIndex != -1) {
+        // 任务仍在队列中，填充提示词
+        final task = queueState.tasks[taskIndex];
+        _fillPrompt(task);
+      } else if (queueState.tasks.isNotEmpty) {
+        // 任务可能已完成，填充下一个任务的提示词
+        final nextTask = queueState.tasks.first;
+        _fillPrompt(nextTask);
+        state = state.copyWith(currentTaskId: nextTask.id);
+      }
+    } catch (e) {
+      // 恢复失败时静默处理
+    }
   }
 
   /// 获取队列设置
@@ -169,18 +259,24 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   /// 开始执行队列
   ///
   /// 当用户点击生成按钮后，由生成状态监听器自动触发
-  void startExecution() {
+  Future<void> startExecution() async {
     if (state.status != QueueExecutionStatus.ready) return;
 
     state = state.copyWith(status: QueueExecutionStatus.running);
+
+    // 记录队列执行开始，用于崩溃恢复
+    await _recordQueueExecutionStart();
   }
 
   /// 停止执行队列
-  void stopExecution() {
+  Future<void> stopExecution() async {
     state = state.copyWith(
       status: QueueExecutionStatus.idle,
       currentTaskId: null,
     );
+
+    // 清除队列执行状态
+    await _recordQueueExecutionEnd(success: false);
   }
 
   /// 监听生成状态变化
@@ -233,6 +329,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       retryCount: 0,
     );
 
+    // 记录队列执行进度
+    await _recordQueueProgress();
+
     // 处理下一个任务
     _processNextTask();
   }
@@ -269,13 +368,16 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         );
       }
 
+      // 记录队列执行进度（包含失败）
+      await _recordQueueProgress();
+
       // 处理下一个任务
       _processNextTask();
     }
   }
 
   /// 处理下一个任务
-  void _processNextTask() {
+  Future<void> _processNextTask() async {
     final queueState = ref.read(replicationQueueNotifierProvider);
 
     if (queueState.isEmpty) {
@@ -284,6 +386,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         status: QueueExecutionStatus.completed,
         currentTaskId: null,
       );
+
+      // 记录队列执行完成
+      await _recordQueueExecutionEnd(success: true);
       return;
     }
 
@@ -296,11 +401,139 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       currentTaskId: nextTask.id,
       retryCount: 0,
     );
+
+    // 记录队列执行进度
+    await _recordQueueProgress();
   }
 
   /// 重置执行状态
-  void reset() {
+  Future<void> reset() async {
     state = const QueueExecutionState();
+
+    // 清除队列执行状态
+    await _recordQueueExecutionEnd(success: false);
+  }
+
+  // ==================== 会话状态持久化方法 ====================
+
+  /// 记录队列执行开始
+  ///
+  /// 在队列开始执行时调用，用于崩溃恢复
+  Future<void> _recordQueueExecutionStart() async {
+    try {
+      final currentTaskId = state.currentTaskId;
+      if (currentTaskId == null) return;
+
+      final queueState = ref.read(replicationQueueNotifierProvider);
+
+      // 更新应用状态存储
+      await _appStateStorage.recordQueueExecutionStart(
+        taskId: currentTaskId,
+        currentIndex: state.completedCount,
+        totalTasks: queueState.count + state.completedCount,
+      );
+
+      // 创建崩溃恢复日志
+      final sessionState = await _appStateStorage.loadSessionState();
+      if (sessionState != null) {
+        await _crashRecoveryService.logQueueStart(sessionState);
+      }
+    } catch (e) {
+      // 静默处理，不影响主流程
+    }
+  }
+
+  /// 记录队列执行进度
+  ///
+  /// 在每个任务完成时调用
+  Future<void> _recordQueueProgress() async {
+    try {
+      // 更新应用状态存储
+      await _appStateStorage.updateQueueExecutionProgress(
+        currentIndex: state.completedCount,
+        currentTaskId: state.currentTaskId,
+      );
+
+      // 记录进度到崩溃恢复日志
+      final sessionState = await _appStateStorage.loadSessionState();
+      if (sessionState != null) {
+        await _crashRecoveryService.logQueueProgress(
+          sessionState,
+          message: 'Task ${state.completedCount} completed',
+        );
+      }
+    } catch (e) {
+      // 静默处理
+    }
+  }
+
+  /// 记录队列执行结束
+  ///
+  /// 在队列执行完成或出错时调用
+  Future<void> _recordQueueExecutionEnd({required bool success}) async {
+    try {
+      if (success) {
+        await _appStateStorage.clearQueueExecutionState();
+
+        // 记录完成到崩溃恢复日志
+        final sessionState = await _appStateStorage.loadSessionState();
+        if (sessionState != null) {
+          await _crashRecoveryService.logQueueComplete(sessionState);
+        }
+      }
+    } catch (e) {
+      // 静默处理
+    }
+  }
+
+  /// 检查并恢复崩溃前的执行状态
+  ///
+  /// 在应用启动时调用，检测是否有未完成的队列任务需要恢复
+  /// 返回 true 表示成功恢复，false 表示没有可恢复的状态
+  Future<bool> checkAndRecover() async {
+    try {
+      // 分析崩溃情况
+      final analysis = await _crashRecoveryService.analyzeCrash();
+
+      if (!analysis.hasCrashDetected || !analysis.canRecover) {
+        return false;
+      }
+
+      final recoveryPoint = analysis.recoveryPoint;
+      final sessionState = recoveryPoint?.sessionState;
+      if (sessionState == null) {
+        return false;
+      }
+
+      // 如果有活跃的队列执行，恢复状态
+      if (sessionState.hasActiveQueueExecution) {
+        // 记录恢复尝试
+        await _crashRecoveryService.logRecoveryAttempt(
+          success: false,
+          recoveredState: sessionState,
+        );
+
+        // 恢复执行状态
+        state = state.copyWith(
+          status: QueueExecutionStatus.ready,
+          currentTaskId: sessionState.currentTaskId,
+          completedCount: sessionState.currentQueueIndex,
+        );
+
+        // 记录恢复成功
+        await _crashRecoveryService.logRecoveryAttempt(
+          success: true,
+          recoveredState: sessionState,
+        );
+
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      // 恢复失败时返回 false
+      return false;
+    }
   }
 }
 
