@@ -46,6 +46,7 @@ class VibeLibraryMigrationResult {
   final String? backupPath;
 }
 
+@Deprecated('VibeLibraryMigrationService 已弃用，迁移功能已整合到 VibeLibraryEntryRepository')
 class VibeLibraryMigrationService {
   VibeLibraryMigrationService({VibeFileStorageService? fileStorage})
       : _fileStorage = fileStorage ?? VibeFileStorageService();
