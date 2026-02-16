@@ -67,7 +67,7 @@ class RandomPresetState {
 }
 
 /// 随机预设管理器
-@Riverpod(keepAlive: true)
+@Riverpod()
 class RandomPresetNotifier extends _$RandomPresetNotifier {
   static const String _boxName = 'random_presets';
   static const String _selectedIdKey = 'selected_preset_id';
