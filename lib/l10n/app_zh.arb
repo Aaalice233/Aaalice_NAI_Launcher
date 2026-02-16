@@ -3179,6 +3179,9 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "tray_show": "显示窗口",
+  "tray_exit": "退出"
 
 }

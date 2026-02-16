@@ -3526,6 +3526,9 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "tray_show": "Show Window",
+  "tray_exit": "Exit"
 
 }
