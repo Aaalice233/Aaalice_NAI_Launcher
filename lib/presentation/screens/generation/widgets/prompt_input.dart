@@ -1195,75 +1195,12 @@ class _NegativePromptTooltip extends StatelessWidget {
   }
 
   Widget _buildFinalSection(String prompt, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.errorContainer.withOpacity(isDark ? 0.3 : 0.4),
-            theme.colorScheme.surfaceContainerHighest
-                .withOpacity(isDark ? 0.2 : 0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.error.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.output_rounded,
-                size: 12,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                l10n.prompt_finalNegative,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.error,
-                ),
-              ),
-              const Spacer(),
-              // 复制按钮
-              if (prompt.isNotEmpty)
-                _CopyIconButton(
-                  content: prompt,
-                  color: theme.colorScheme.error,
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 150),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  prompt.isEmpty ? '-' : prompt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return TooltipFinalPromptSection(
+      theme: theme,
+      prompt: prompt,
+      isDark: isDark,
+      label: l10n.prompt_finalNegative,
+      isNegative: true,
     );
   }
 
