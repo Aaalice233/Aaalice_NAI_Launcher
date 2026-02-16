@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/cache/memory_aware_cache_config.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/cache_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 
@@ -145,11 +146,9 @@ class _ImageCacheSettingsWidgetState
             size: 28,
           ),
         ),
-        title: const Text('清除图片缓存'),
+        title: Text(context.l10n.imageCache_clearCacheTitle),
         content: Text(
-          '确定要清除所有图片缓存吗？\n\n'
-          '这将删除所有已缓存的图片文件，释放存储空间。\n'
-          '清除后图片将需要重新下载。',
+          context.l10n.imageCache_clearCacheMessage,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -166,12 +165,12 @@ class _ImageCacheSettingsWidgetState
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('取消'),
+            child: Text(context.l10n.imageCache_cancel),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.of(context).pop(true),
             icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('确认清除'),
+            label: Text(context.l10n.imageCache_confirmClear),
             style: FilledButton.styleFrom(
               backgroundColor: theme.colorScheme.error,
               foregroundColor: theme.colorScheme.onError,
@@ -198,11 +197,11 @@ class _ImageCacheSettingsWidgetState
     try {
       await ref.read(cacheStatisticsNotifierProvider.notifier).clearCache();
       if (context.mounted) {
-        AppToast.success(context, '图片缓存已清除');
+        AppToast.success(context, context.l10n.imageCache_cacheCleared);
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '清除缓存失败: $e');
+        AppToast.error(context, context.l10n.imageCache_clearFailed(e.toString()));
       }
     }
   }
@@ -212,11 +211,11 @@ class _ImageCacheSettingsWidgetState
     try {
       ref.read(cacheStatisticsNotifierProvider.notifier).resetStatistics();
       if (context.mounted) {
-        AppToast.success(context, '统计信息已重置');
+        AppToast.success(context, context.l10n.imageCache_statisticsReset);
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '重置统计失败: $e');
+        AppToast.error(context, context.l10n.imageCache_resetFailed(e.toString()));
       }
     }
   }
@@ -263,7 +262,7 @@ class _CacheStatisticsSection extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '缓存状态',
+                    context.l10n.imageCache_cacheStatus,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -277,7 +276,7 @@ class _CacheStatisticsSection extends StatelessWidget {
                   size: 20,
                   color: theme.colorScheme.outline,
                 ),
-                tooltip: '刷新统计',
+                tooltip: context.l10n.imageCache_refreshStatistics,
               ),
             ],
           ),
@@ -309,7 +308,7 @@ class _CacheStatisticsSection extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '内存使用',
+                      context.l10n.imageCache_memoryUsage,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                         fontWeight: FontWeight.w500,
@@ -344,21 +343,21 @@ class _CacheStatisticsSection extends StatelessWidget {
                   children: [
                     _StatItem(
                       icon: Icons.photo_library_outlined,
-                      label: '缓存对象',
+                      label: context.l10n.imageCache_cachedObjects,
                       value: '$objectCount',
                       theme: theme,
                     ),
                     const SizedBox(width: 24),
                     _StatItem(
                       icon: Icons.speed_outlined,
-                      label: '命中率',
+                      label: context.l10n.imageCache_hitRate,
                       value: '${(hitRate * 100).toStringAsFixed(1)}%',
                       theme: theme,
                     ),
                     const SizedBox(width: 24),
                     _StatItem(
                       icon: Icons.data_usage_outlined,
-                      label: '使用率',
+                      label: context.l10n.imageCache_usageRate,
                       value: '${usagePercentage.toStringAsFixed(1)}%',
                       theme: theme,
                     ),
@@ -486,7 +485,7 @@ class _CacheSettingsSection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '缓存配置',
+                context.l10n.imageCache_cacheConfiguration,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -565,7 +564,7 @@ class _MemoryLimitSlider extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '最大内存限制',
+                  context.l10n.imageCache_maxMemoryLimit,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                     fontWeight: FontWeight.w600,
@@ -666,7 +665,7 @@ class _ObjectCountSlider extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '最大缓存数量',
+                  context.l10n.imageCache_maxCacheCount,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                     fontWeight: FontWeight.w600,
@@ -738,7 +737,7 @@ class _EvictionPolicySelector extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              '淘汰策略',
+              context.l10n.imageCache_evictionPolicy,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
                 fontWeight: FontWeight.w600,
@@ -754,7 +753,7 @@ class _EvictionPolicySelector extends StatelessWidget {
             final isSelected = policy == value;
             return _PresetChip(
               label: policy.displayName,
-              sublabel: _getPolicyDescription(policy),
+              sublabel: _getPolicyDescription(context, policy),
               isSelected: isSelected,
               onSelected: () => onChanged(policy),
             );
@@ -764,14 +763,14 @@ class _EvictionPolicySelector extends StatelessWidget {
     );
   }
 
-  String _getPolicyDescription(EvictionPolicy policy) {
+  String _getPolicyDescription(BuildContext context, EvictionPolicy policy) {
     switch (policy) {
       case EvictionPolicy.lru:
-        return '最近最少使用';
+        return context.l10n.imageCache_policyLru;
       case EvictionPolicy.fifo:
-        return '先进先出';
+        return context.l10n.imageCache_policyFifo;
       case EvictionPolicy.lfu:
-        return '最少使用频率';
+        return context.l10n.imageCache_policyLfu;
     }
   }
 }
@@ -826,13 +825,13 @@ class _MemoryMonitoringSwitch extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '自动内存监控',
+                      context.l10n.imageCache_autoMemoryMonitoring,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      '自动清理超出阈值的缓存',
+                      context.l10n.imageCache_autoCleanSubtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -882,7 +881,7 @@ class _MemoryThresholdSlider extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '清理阈值',
+                context.l10n.imageCache_cleanupThreshold,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
@@ -921,7 +920,7 @@ class _MemoryThresholdSlider extends StatelessWidget {
             ),
           ),
           Text(
-            '当内存使用超过此阈值时自动清理',
+            context.l10n.imageCache_thresholdDescription,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -1052,7 +1051,7 @@ class _CacheActionButtons extends StatelessWidget {
           Expanded(
             child: _ActionButton(
               icon: Icons.restart_alt_outlined,
-              label: '重置统计',
+              label: context.l10n.imageCache_resetStatistics,
               onPressed: onResetStats,
             ),
           ),
@@ -1061,7 +1060,7 @@ class _CacheActionButtons extends StatelessWidget {
           Expanded(
             child: _ActionButton(
               icon: Icons.delete_sweep_outlined,
-              label: '清除缓存',
+              label: context.l10n.imageCache_clearCache,
               isDestructive: true,
               onPressed: onClearCache,
             ),
