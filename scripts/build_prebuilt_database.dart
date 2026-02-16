@@ -202,10 +202,11 @@ Future<void> _createTables(Database db) async {
   // metadata 表
   await db.execute('''
     CREATE TABLE IF NOT EXISTS metadata (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      last_updated INTEGER NOT NULL
-    )
+      source TEXT NOT NULL PRIMARY KEY
+        CHECK (source IN ('translations', 'danbooru_tags', 'cooccurrences', 'unified')),
+      last_update INTEGER NOT NULL,
+      data_version TEXT NOT NULL
+    ) WITHOUT ROWID
   ''');
 
   // 创建索引
@@ -494,29 +495,9 @@ Future<void> _addMetadata(Database db) async {
   await db.insert(
     'metadata',
     {
-      'key': 'version',
-      'value': _databaseVersion.toString(),
-      'last_updated': now,
-    },
-    conflictAlgorithm: ConflictAlgorithm.replace,
-  );
-
-  await db.insert(
-    'metadata',
-    {
-      'key': 'created_at',
-      'value': now.toString(),
-      'last_updated': now,
-    },
-    conflictAlgorithm: ConflictAlgorithm.replace,
-  );
-
-  await db.insert(
-    'metadata',
-    {
-      'key': 'source',
-      'value': 'huggingface/newtextdoc1111/danbooru-tag-csv',
-      'last_updated': now,
+      'source': 'unified',
+      'last_update': now,
+      'data_version': _databaseVersion.toString(),
     },
     conflictAlgorithm: ConflictAlgorithm.replace,
   );
