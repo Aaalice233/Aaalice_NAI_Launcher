@@ -34,8 +34,10 @@ import 'widgets/vibe_detail_viewer.dart';
 import 'widgets/vibe_export_dialog.dart';
 import 'widgets/vibe_export_dialog_advanced.dart';
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
-import 'widgets/import_menu_route.dart';
+import 'widgets/category_item.dart';
 import 'widgets/context_menu_route.dart';
+import 'widgets/import_menu_route.dart';
+import 'widgets/vibe_category_tree_view.dart';
 import 'widgets/vibe_library_empty_view.dart';
 import 'widgets/vibe_library_content_view.dart';
 import 'models/import_progress.dart';
@@ -222,12 +224,22 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                             ),
                             // 分类树
                             Expanded(
-                              child: _VibeCategoryTreeView(
+                              child: VibeCategoryTreeView(
                                 categories: categoryState.categories,
-                                totalEntryCount: state.entries.length,
-                                favoriteCount: state.favoriteCount,
                                 selectedCategoryId:
                                     categoryState.selectedCategoryId,
+                                categoryEntryCounts: {
+                                  for (final category
+                                      in categoryState.categories)
+                                    category.id: state.entries
+                                        .where(
+                                          (e) => e.categoryIds.contains(
+                                            category.id,
+                                          ),
+                                        )
+                                        .length,
+                                },
+                                allEntriesCount: state.entries.length,
                                 onCategorySelected: (id) {
                                   ref
                                       .read(
@@ -255,7 +267,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                         .setCategoryFilter(id);
                                   }
                                 },
-                                onCategoryRename: (id, newName) async {
+                                onRename: (id, newName) async {
                                   await ref
                                       .read(
                                         vibeLibraryCategoryNotifierProvider
@@ -263,7 +275,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                       )
                                       .renameCategory(id, newName);
                                 },
-                                onCategoryDelete: (id) async {
+                                onDelete: (id) async {
                                   final confirmed =
                                       await ThemedConfirmDialog.show(
                                     context: context,
@@ -305,15 +317,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                           parentId: parentId,
                                         );
                                   }
-                                },
-                                onCategoryMove:
-                                    (categoryId, newParentId) async {
-                                  await ref
-                                      .read(
-                                        vibeLibraryCategoryNotifierProvider
-                                            .notifier,
-                                      )
-                                      .moveCategory(categoryId, newParentId);
                                 },
                               ),
                             ),
