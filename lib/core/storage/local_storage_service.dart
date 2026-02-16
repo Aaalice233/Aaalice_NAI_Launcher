@@ -391,6 +391,39 @@ class LocalStorageService {
     }
   }
 
+  // ==================== Auto Backup ====================
+
+  /// 获取是否启用自动备份 (默认关闭)
+  bool getAutoBackupEnabled() {
+    return getSetting<bool>(
+          StorageKeys.autoBackupEnabled,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存自动备份开关
+  Future<void> setAutoBackupEnabled(bool value) async {
+    await setSetting(StorageKeys.autoBackupEnabled, value);
+  }
+
+  /// 获取自动备份间隔（小时，默认24小时）
+  int getAutoBackupInterval() {
+    return getSetting<int>(
+          StorageKeys.autoBackupInterval,
+          defaultValue: 24,
+        ) ??
+        24;
+  }
+
+  /// 保存自动备份间隔
+  Future<void> setAutoBackupInterval(int hours) async {
+    await setSetting(
+      StorageKeys.autoBackupInterval,
+      hours.clamp(1, 168), // 限制在 1-168 小时（1小时到7天）
+    );
+  }
+
   // ==================== Lifecycle ====================
 
   /// 关闭存储
