@@ -12,8 +12,6 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
-import '../../../providers/generation/generation_params_notifier.dart';
-import '../../../providers/generation/reference_panel_notifier.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
@@ -134,7 +132,6 @@ class UnifiedReferencePanel extends ConsumerWidget {
   ) {
     final vibes = params.vibeReferencesV4;
     final hasVibes = vibes.isNotEmpty;
-    final panelNotifier = ref.read(referencePanelNotifierProvider.notifier);
 
     // 构建 Vibe 列表或空状态内容
     return Column(
@@ -677,7 +674,7 @@ class UnifiedReferencePanel extends ConsumerWidget {
                     // 编码成功后自动保存到库
                     if (autoSaveToLibrary && context.mounted) {
                       await _saveEncodedVibesToLibrary(
-                        context, ref, encodedVibes, fileName);
+                        context, ref, encodedVibes, fileName,);
                     }
                   } else {
                     // 编码失败，询问是否继续添加未编码的

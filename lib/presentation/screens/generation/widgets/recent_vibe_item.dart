@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../../data/models/vibe/vibe_reference.dart';
 
 /// 最近 Vibe 条目组件
 ///
