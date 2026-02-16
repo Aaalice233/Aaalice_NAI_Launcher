@@ -30,6 +30,7 @@ import '../../widgets/settings/account_detail_tile.dart';
 import '../../widgets/settings/account_profile_sheet.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'widgets/data_source_cache_settings.dart';
+import 'widgets/image_cache_settings.dart';
 import 'widgets/shortcut_settings_panel.dart';
 
 /// 构建标准输入框装饰
@@ -249,6 +250,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // 网络数据缓存
           _buildSectionHeader(theme, context.l10n.settings_dataSourceCacheTitle),
           const DataSourceCacheSettings(),
+          const ThemedDivider(),
+
+          // 图片缓存设置
+          _buildSectionHeader(theme, context.l10n.settings_imageCacheTitle),
+          const ImageCacheSettingsWidget(),
           const ThemedDivider(),
 
           // 队列设置
