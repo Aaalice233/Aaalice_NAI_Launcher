@@ -121,6 +121,22 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       // 等待元数据加载完成，避免竞争条件
       await _metaLoadFuture;
 
+      // 验证缓存状态：检查数据库计数是否与元数据匹配
+      final validationResult = await _validateCacheState();
+      AppLogger.i(
+        '[DanbooruTagsLazy] 缓存状态验证: ${validationResult.reason}',
+        'DanbooruTagsLazy',
+      );
+
+      // 如果缓存状态无效，强制刷新
+      if (!validationResult.isValid) {
+        AppLogger.w(
+          '[DanbooruTagsLazy] 缓存状态无效，需要重新下载: ${validationResult.reason}',
+          'DanbooruTagsLazy',
+        );
+        _lastUpdate = null;
+      }
+
       // 如果数据库为空，强制下载
       var needsDownload = await shouldRefresh();
       if (tagCount == 0) {
@@ -932,6 +948,122 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   /// 获取当前标签数量
   Future<int> getTagCount() async {
     return await _unifiedDb.getDanbooruTagCount();
+  }
+
+  /// 验证缓存状态：检查数据库计数是否与元数据匹配
+  ///
+  /// 返回验证结果，包含是否有效以及详细诊断信息
+  Future<CacheValidationResult> _validateCacheState() async {
+    try {
+      // 等待元数据加载完成
+      await _metaLoadFuture;
+
+      // 获取实际数据库计数
+      final actualCount = await _unifiedDb.getDanbooruTagCount();
+      final metadataCount = _totalTags;
+
+      // 诊断日志
+      AppLogger.d(
+        '[DanbooruTagsLazy] _validateCacheState: '
+        'actualCount=$actualCount, '
+        'metadataCount=$metadataCount, '
+        'lastUpdate=$_lastUpdate',
+        'DanbooruTagsLazy',
+      );
+
+      // 情况1：元数据不存在（从未同步过）
+      if (_lastUpdate == null) {
+        return CacheValidationResult(
+          isValid: false,
+          reason: '无缓存元数据（从未同步）',
+          actualCount: actualCount,
+          metadataCount: 0,
+        );
+      }
+
+      // 情况2：数据库为空但元数据显示有数据
+      if (actualCount == 0 && metadataCount > 0) {
+        return CacheValidationResult(
+          isValid: false,
+          reason: '数据库为空但元数据显示有 $metadataCount 条记录',
+          actualCount: 0,
+          metadataCount: metadataCount,
+        );
+      }
+
+      // 情况3：数据库有数据但元数据计数为0（异常情况）
+      if (actualCount > 0 && metadataCount == 0) {
+        AppLogger.w(
+          '[DanbooruTagsLazy] 数据库有 $actualCount 条记录但元数据计数为0，'
+          '可能使用了旧版本元数据',
+          'DanbooruTagsLazy',
+        );
+        // 这种情况下认为缓存有效，但记录警告
+        return CacheValidationResult(
+          isValid: true,
+          reason: '数据库有数据但元数据计数为0（旧版本兼容）',
+          actualCount: actualCount,
+          metadataCount: metadataCount,
+        );
+      }
+
+      // 情况4：计数不匹配（允许小范围差异，可能是后台同步中断导致）
+      const tolerancePercent = 0.05; // 5%容差
+      final difference = (actualCount - metadataCount).abs();
+      final maxAllowedDifference = (metadataCount * tolerancePercent).ceil();
+
+      if (difference > maxAllowedDifference && metadataCount > 0) {
+        return CacheValidationResult(
+          isValid: false,
+          reason: '数据库计数($actualCount)与元数据($metadataCount)不匹配，'
+              '差异 $difference 超过容差($maxAllowedDifference)',
+          actualCount: actualCount,
+          metadataCount: metadataCount,
+        );
+      }
+
+      // 缓存状态有效
+      return CacheValidationResult(
+        isValid: true,
+        reason: '缓存状态正常',
+        actualCount: actualCount,
+        metadataCount: metadataCount,
+      );
+    } catch (e, stack) {
+      AppLogger.e(
+        '[DanbooruTagsLazy] 缓存状态验证失败',
+        e,
+        stack,
+        'DanbooruTagsLazy',
+      );
+      return CacheValidationResult(
+        isValid: false,
+        reason: '验证过程出错: $e',
+        actualCount: 0,
+        metadataCount: _totalTags,
+      );
+    }
+  }
+}
+
+/// 缓存状态验证结果
+class CacheValidationResult {
+  final bool isValid;
+  final String reason;
+  final int actualCount;
+  final int metadataCount;
+
+  const CacheValidationResult({
+    required this.isValid,
+    required this.reason,
+    required this.actualCount,
+    required this.metadataCount,
+  });
+
+  @override
+  String toString() {
+    return 'CacheValidationResult(isValid=$isValid, reason=$reason, '
+        'actualCount=$actualCount, metadataCount=$metadataCount)';
   }
 }
 
