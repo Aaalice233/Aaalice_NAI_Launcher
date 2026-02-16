@@ -184,7 +184,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: const Icon(Icons.folder_open, size: 20),
                   tooltip: context.l10n.settings_openFolder,
                   onPressed: () async {
-                    final l10n = context.l10n;
                     try {
                       String path;
                       if (saveSettings.hasCustomPath) {
@@ -199,7 +198,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         mode: LaunchMode.externalApplication,
                       );
                     } catch (e) {
-                      AppLogger.e(l10n.settings_openFolderFailed, e);
+                      AppLogger.e(context.l10n.settings_openFolderFailed, e);
                     }
                   },
                 ),
@@ -1253,8 +1252,10 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context,
-            '${context.l10n.settings_selectFolderFailed}: ${e.toString()}',);
+        AppToast.error(
+          context,
+          '${context.l10n.settings_selectFolderFailed}: ${e.toString()}',
+        );
       }
     }
   }
@@ -1298,7 +1299,6 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
             icon: const Icon(Icons.folder_open, size: 20),
             tooltip: context.l10n.settings_openFolder,
             onPressed: () async {
-              final l10n = context.l10n;
               try {
                 final path = await _pathHelper.getPath();
                 await launchUrl(
@@ -1306,7 +1306,7 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
                   mode: LaunchMode.externalApplication,
                 );
               } catch (e) {
-                AppLogger.e(l10n.settings_openFolderFailed, e);
+                AppLogger.e(context.l10n.settings_openFolderFailed, e);
               }
             },
           ),
@@ -1373,8 +1373,10 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context,
-            '${context.l10n.settings_selectFolderFailed}: ${e.toString()}',);
+        AppToast.error(
+          context,
+          '${context.l10n.settings_selectFolderFailed}: ${e.toString()}',
+        );
       }
     }
   }
@@ -1428,7 +1430,6 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
             icon: const Icon(Icons.folder_open, size: 20),
             tooltip: context.l10n.settings_openFolder,
             onPressed: () async {
-              final l10n = context.l10n;
               try {
                 final path = await _hiveHelper.getPath();
                 await launchUrl(
@@ -1436,7 +1437,7 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
                   mode: LaunchMode.externalApplication,
                 );
               } catch (e) {
-                AppLogger.e(l10n.settings_openFolderFailed, e);
+                AppLogger.e(context.l10n.settings_openFolderFailed, e);
               }
             },
           ),

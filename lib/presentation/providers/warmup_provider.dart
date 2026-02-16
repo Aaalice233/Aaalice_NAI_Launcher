@@ -436,63 +436,49 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   /// 预热阶段：初始化 Danbooru 标签数据（仅普通标签，不包含画师）
   Future<void> _initDanbooruTags() async {
-    AppLogger.i('[Warmup._initDanbooruTags] Starting Danbooru tags initialization (general tags only)', 'Warmup');
+    AppLogger.i('开始初始化 Danbooru 标签数据（仅普通标签）...', 'Warmup');
 
     try {
       final service = ref.read(danbooruTagsLazyServiceProvider);
-      AppLogger.d('[Warmup._initDanbooruTags] DanbooruTagsLazyService retrieved from provider', 'Warmup');
 
       // 先显示初始进度
       state = state.copyWith(subTaskMessage: '正在检查标签数据...');
-      AppLogger.d('[Warmup._initDanbooruTags] Set initial subTaskMessage: checking tag data', 'Warmup');
 
       // 设置进度回调
       service.onProgress = (progress, message) {
-        AppLogger.d('[Warmup._initDanbooruTags] Progress update: progress=$progress, message=$message', 'Warmup');
         state = state.copyWith(subTaskMessage: message);
       };
 
-      // 检查数据库中是否已有数据
-      AppLogger.d('[Warmup._initDanbooruTags] Calling service.getTagCount()...', 'Warmup');
-      final tagCount = await service.getTagCount();
-      AppLogger.i('[Warmup._initDanbooruTags] Tag count retrieved: $tagCount', 'Warmup');
+      // 先初始化服务，确保数据库连接就绪
+      await service.initialize();
 
+      // 检查数据库中是否已有数据
+      final tagCount = await service.getTagCount();
       final isPrebuiltDatabase = tagCount >= 30000;
-      AppLogger.d('[Warmup._initDanbooruTags] isPrebuiltDatabase check: tagCount=$tagCount >= 30000 = $isPrebuiltDatabase', 'Warmup');
 
       if (isPrebuiltDatabase) {
-        // 预构建数据库：只需加载热数据
-        AppLogger.i('[Warmup._initDanbooruTags] Prebuilt database detected (tagCount=$tagCount >= 30000), skipping download', 'Warmup');
-        await service.initialize().timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            AppLogger.w('[Warmup._initDanbooruTags] Prebuilt database initialization timeout', 'Warmup');
-            throw TimeoutException('标签数据加载超时');
-          },
-        );
-        AppLogger.i('[Warmup._initDanbooruTags] Prebuilt database initialization completed', 'Warmup');
+        // 预构建数据库：数据已加载，无需额外操作
+        AppLogger.i('检测到预构建数据库（$tagCount 条标签），跳过下载', 'Warmup');
       } else {
         // 需要下载：只下载普通标签，画师标签留给后台任务
-        AppLogger.i('[Warmup._initDanbooruTags] Database empty or insufficient (tagCount=$tagCount < 30000), starting general tags download...', 'Warmup');
+        AppLogger.i('数据库为空或数据不足（仅 $tagCount 条），开始下载普通标签...', 'Warmup');
         await service.refreshGeneralOnly().timeout(
           const Duration(seconds: 120),
           onTimeout: () {
-            AppLogger.w('[Warmup._initDanbooruTags] Danbooru general tags download timeout', 'Warmup');
+            AppLogger.w('Danbooru 普通标签下载超时', 'Warmup');
             throw TimeoutException('标签数据下载超时');
           },
         );
-        AppLogger.i('[Warmup._initDanbooruTags] General tags download completed', 'Warmup');
       }
 
       service.onProgress = null;
       state = state.copyWith(subTaskMessage: null);
 
-      AppLogger.i('[Warmup._initDanbooruTags] Danbooru general tags initialization completed successfully', 'Warmup');
-    } on TimeoutException catch (e) {
-      AppLogger.w('[Warmup._initDanbooruTags] TimeoutException caught: $e', 'Warmup');
+      AppLogger.i('Danbooru 普通标签初始化完成', 'Warmup');
+    } on TimeoutException {
       rethrow;
     } catch (e, stack) {
-      AppLogger.e('[Warmup._initDanbooruTags] Danbooru tags initialization failed', e, stack, 'Warmup');
+      AppLogger.e('Danbooru 标签初始化失败', e, stack, 'Warmup');
       // 标签初始化失败不应阻塞启动
     }
   }

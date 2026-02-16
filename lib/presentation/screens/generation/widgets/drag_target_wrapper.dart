@@ -240,7 +240,11 @@ class DragTargetWrapper extends ConsumerWidget {
                     vibes = encodedVibes;
                     if (autoSaveToLibrary && context.mounted) {
                       await _saveEncodedVibesToLibrary(
-                        context, ref, encodedVibes, fileName,);
+                        context,
+                        ref,
+                        encodedVibes,
+                        fileName,
+                      );
                     }
                   } else {
                     final continueAnyway = await showDialog<bool>(
