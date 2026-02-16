@@ -36,6 +36,8 @@ import 'widgets/vibe_export_dialog_advanced.dart';
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
 import 'widgets/import_menu_route.dart';
 import 'widgets/context_menu_route.dart';
+import 'widgets/vibe_library_empty_view.dart';
+import 'widgets/vibe_library_content_view.dart';
 import 'models/import_progress.dart';
 import 'vibe_intents.dart';
 
@@ -778,6 +780,235 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     );
   }
 
+  /// 显示 Vibe 详情
+  void _showVibeDetail(BuildContext context, VibeLibraryEntry entry) {
+    VibeDetailViewer.show(
+      context,
+      entry: entry,
+      heroTag: 'vibe_${entry.id}',
+      callbacks: VibeDetailCallbacks(
+        onSendToGeneration: (entry, strength, infoExtracted) {
+          _sendEntryToGenerationWithParams(
+            context,
+            entry,
+            strength,
+            infoExtracted,
+          );
+        },
+        onExport: (entry) {
+          _exportSingleEntry(context, entry);
+        },
+        onDelete: (entry) {
+          _deleteSingleEntry(context, entry);
+        },
+        onRename: (entry, newName) {
+          return _renameSingleEntry(context, entry, newName);
+        },
+        onParamsChanged: (entry, strength, infoExtracted) {
+          _updateEntryParams(context, entry, strength, infoExtracted);
+        },
+      ),
+    );
+  }
+
+  /// 显示上下文菜单
+  void _showContextMenuForEntry(
+    BuildContext context,
+    VibeLibraryEntry entry,
+    Offset position,
+  ) {
+    final items = <ProMenuItem>[
+      ProMenuItem(
+        id: 'send_to_generation',
+        label: '发送到生成',
+        icon: Icons.send,
+        onTap: () => _sendEntryToGeneration(context, entry),
+      ),
+      ProMenuItem(
+        id: 'export',
+        label: '导出',
+        icon: Icons.download,
+        onTap: () => _exportSingleEntry(context, entry),
+      ),
+      ProMenuItem(
+        id: 'edit',
+        label: '编辑',
+        icon: Icons.edit,
+        onTap: () => _showVibeDetail(context, entry),
+      ),
+      const ProMenuItem.divider(),
+      ProMenuItem(
+        id: 'toggle_favorite',
+        label: entry.isFavorite ? '取消收藏' : '收藏',
+        icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
+        onTap: () {
+          ref
+              .read(vibeLibraryNotifierProvider.notifier)
+              .toggleFavorite(entry.id);
+        },
+      ),
+      ProMenuItem(
+        id: 'delete',
+        label: '删除',
+        icon: Icons.delete_outline,
+        isDanger: true,
+        onTap: () => _deleteSingleEntry(context, entry),
+      ),
+    ];
+
+    Navigator.of(context).push(
+      ContextMenuRoute(
+        position: position,
+        items: items,
+        onSelect: (item) {
+          // Item onTap is already called
+        },
+      ),
+    );
+  }
+
+  /// 发送单个条目到生成页面
+  void _sendEntryToGeneration(BuildContext context, VibeLibraryEntry entry) {
+    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
+    final currentParams = ref.read(generationParamsNotifierProvider);
+
+    // 检查是否超过16个限制
+    if (currentParams.vibeReferencesV4.length >= 16) {
+      AppToast.warning(context, 'Vibe 数量已达到上限 (16个)');
+      return;
+    }
+
+    // 检查是否已存在
+    final exists = currentParams.vibeReferencesV4.any(
+      (v) => v.vibeImagePath == entry.imagePath,
+    );
+    if (exists) {
+      AppToast.info(context, '该 Vibe 已存在于生成参数中');
+      return;
+    }
+
+    paramsNotifier.addVibeReference(entry.toVibeReference());
+    AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
+  }
+
+  /// 发送单个条目到生成页面（带参数）
+  void _sendEntryToGenerationWithParams(
+    BuildContext context,
+    VibeLibraryEntry entry,
+    double strength,
+    double infoExtracted,
+  ) {
+    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
+    final currentParams = ref.read(generationParamsNotifierProvider);
+
+    // 检查是否超过16个限制
+    if (currentParams.vibeReferencesV4.length >= 16) {
+      AppToast.warning(context, 'Vibe 数量已达到上限 (16个)');
+      return;
+    }
+
+    // 检查是否已存在
+    final exists = currentParams.vibeReferencesV4.any(
+      (v) => v.vibeImagePath == entry.imagePath,
+    );
+    if (exists) {
+      AppToast.info(context, '该 Vibe 已存在于生成参数中');
+      return;
+    }
+
+    final updatedEntry =
+        entry.updateStrength(strength).updateInfoExtracted(infoExtracted);
+    paramsNotifier.addVibeReference(updatedEntry.toVibeReference());
+    AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
+  }
+
+  /// 导出单个条目
+  Future<void> _exportSingleEntry(
+    BuildContext context,
+    VibeLibraryEntry entry,
+  ) async {
+    final result = await VibeExportDialog.show(
+      context: context,
+      entries: [entry],
+    );
+
+    if (result != null && result.isNotEmpty && context.mounted) {
+      AppToast.success(context, '导出成功: ${entry.displayName}');
+    }
+  }
+
+  /// 删除单个条目
+  Future<void> _deleteSingleEntry(
+    BuildContext context,
+    VibeLibraryEntry entry,
+  ) async {
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: '确认删除',
+      content: '确定要删除 "${entry.displayName}" 吗？此操作无法撤销。',
+      confirmText: '删除',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_forever_outlined,
+    );
+
+    if (confirmed) {
+      await ref
+          .read(vibeLibraryNotifierProvider.notifier)
+          .deleteEntries([entry.id]);
+      if (context.mounted) {
+        AppToast.success(context, '已删除: ${entry.displayName}');
+      }
+    }
+  }
+
+  /// 重命名单个条目
+  Future<String?> _renameSingleEntry(
+    BuildContext context,
+    VibeLibraryEntry entry,
+    String newName,
+  ) async {
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) {
+      return '名称不能为空';
+    }
+
+    final result = await ref
+        .read(vibeLibraryNotifierProvider.notifier)
+        .renameEntry(entry.id, trimmedName);
+    if (result.isSuccess) {
+      return null;
+    }
+
+    switch (result.error) {
+      case VibeEntryRenameError.invalidName:
+        return '名称不能为空';
+      case VibeEntryRenameError.nameConflict:
+        return '名称已存在，请使用其他名称';
+      case VibeEntryRenameError.entryNotFound:
+        return '条目不存在，可能已被删除';
+      case VibeEntryRenameError.filePathMissing:
+        return '该条目缺少文件路径，无法重命名';
+      case VibeEntryRenameError.fileRenameFailed:
+        return '重命名文件失败，请稍后重试';
+      case null:
+        return '重命名失败，请稍后重试';
+    }
+  }
+
+  /// 更新条目参数
+  void _updateEntryParams(
+    BuildContext context,
+    VibeLibraryEntry entry,
+    double strength,
+    double infoExtracted,
+  ) {
+    final updatedEntry =
+        entry.updateStrength(strength).updateInfoExtracted(infoExtracted);
+
+    ref.read(vibeLibraryNotifierProvider.notifier).saveEntry(updatedEntry);
+  }
+
   /// 构建主体内容
   Widget _buildBody(
     VibeLibraryState state,
@@ -799,12 +1030,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
 
     if (state.entries.isEmpty) {
-      return const _VibeLibraryEmptyView();
+      return const VibeLibraryEmptyView();
     }
 
-    return _VibeLibraryContentView(
+    return VibeLibraryContentView(
       columns: columns,
       itemWidth: itemWidth,
+      onShowDetail: _showVibeDetail,
+      onShowContextMenu: _showContextMenuForEntry,
+      onSendToGeneration: _sendEntryToGeneration,
+      onExport: _exportSingleEntry,
+      onDelete: _deleteSingleEntry,
     );
   }
 
