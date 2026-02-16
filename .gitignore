@@ -229,3 +229,4 @@ SUBTASK_*.md
 VERIFICATION_*.md
 mask_upload_*.mdflutter/
 flutter_windows.zip
+.claude_settings.json
