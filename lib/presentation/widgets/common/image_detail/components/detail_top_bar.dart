@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../../core/shortcuts/shortcut_config.dart';
+import '../../../widgets/shortcuts/shortcut_help_dialog.dart';
 import '../../../widgets/shortcuts/shortcut_tooltip.dart';
 import '../../animated_favorite_button.dart';
 import '../image_detail_data.dart';
@@ -61,6 +63,18 @@ class DetailTopBar extends StatelessWidget {
               icon: const Icon(Icons.close, color: Colors.white),
               onPressed: onClose,
             ),
+          ),
+
+          // 帮助按钮
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            tooltip: '快捷键帮助',
+            onPressed: () {
+              ShortcutHelpDialog.show(
+                context,
+                initialContext: ShortcutContext.viewer,
+              );
+            },
           ),
 
           const SizedBox(width: 16),
