@@ -56,7 +56,7 @@ class GalleryFolderRepository {
         path: dir.path,
         imageCount: await _countImagesInFolder(dir.path),
         createdAt: stat.changed,
-        modifiedAt: stat.modified,
+        updatedAt: stat.modified,
       );
     } catch (e) {
       AppLogger.e('创建文件夹对象失败: ${dir.path}', e);
