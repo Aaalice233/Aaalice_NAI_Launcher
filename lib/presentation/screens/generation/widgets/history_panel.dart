@@ -230,7 +230,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                     icon: Icons.clear_all,
                     title: context.l10n.generation_clearPrompt,
                     subtitle: context.l10n.generation_clearPromptSubtitle,
-                    onTap: () => _clearPrompt(),
+                    onTap: _clearPrompt,
                   ),
                 ),
               ],
@@ -275,7 +275,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   /// 清空提示词
-  void _clearPrompt() {
+  Future<void> _clearPrompt() async {
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
     // 同时清空角色提示词
     ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
