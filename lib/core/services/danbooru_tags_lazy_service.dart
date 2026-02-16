@@ -80,10 +80,13 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<void> initialize() async {
+    // 决策点1: 检查是否已经初始化且热数据已加载
     if (_isInitialized && _hotDataCache.isNotEmpty) {
+      AppLogger.d('[DanbooruTagsLazy] cache decision: ALREADY INITIALIZED - isInitialized=$_isInitialized, hotCacheSize=${_hotDataCache.length}', 'DanbooruTagsLazy');
       _onProgress?.call(1.0, '标签数据已就绪');
       return;
     }
+    AppLogger.d('[DanbooruTagsLazy] cache decision: STARTING INIT - isInitialized=$_isInitialized, hotCacheSize=${_hotDataCache.length}', 'DanbooruTagsLazy');
 
     try {
       _onProgress?.call(0.0, '初始化标签数据...');
@@ -97,17 +100,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
       // 检查数据库中实际有多少记录
       final tagCount = await _unifiedDb.getDanbooruTagCount();
-      AppLogger.i('Danbooru tag count in database: $tagCount', 'DanbooruTagsLazy');
+      AppLogger.d('[DanbooruTagsLazy] cache decision: DB CHECK - tagCount=$tagCount', 'DanbooruTagsLazy');
 
       // 预构建数据库检测：如果有足够的标签（>30000条），视为预构建数据库
       const prebuiltThreshold = 30000;
       final isPrebuiltDatabase = tagCount >= prebuiltThreshold;
 
       if (isPrebuiltDatabase) {
-        AppLogger.i(
-          'Detected prebuilt database with $tagCount Danbooru tags, skipping download',
-          'DanbooruTagsLazy',
-        );
+        AppLogger.d('[DanbooruTagsLazy] cache decision: USING PREBUILT DB - tagCount=$tagCount >= threshold=$prebuiltThreshold', 'DanbooruTagsLazy');
         _onProgress?.call(0.5, '使用预构建标签数据 ($tagCount 个)');
         await _loadHotData();
         _onProgress?.call(1.0, '标签数据初始化完成');
@@ -122,13 +122,13 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       // 如果数据库为空，强制下载
       var needsDownload = await shouldRefresh();
       if (tagCount == 0) {
-        AppLogger.w('Database is empty, forcing download', 'DanbooruTagsLazy');
+        AppLogger.d('[DanbooruTagsLazy] cache decision: EMPTY DB FORCING DOWNLOAD - tagCount=0', 'DanbooruTagsLazy');
         needsDownload = true;
         _lastUpdate = null;
       }
 
-      AppLogger.i(
-        'Danbooru tags shouldRefresh: $needsDownload, lastUpdate: $_lastUpdate',
+      AppLogger.d(
+        '[DanbooruTagsLazy] cache decision: DOWNLOAD CHECK - needsDownload=$needsDownload, lastUpdate=$_lastUpdate',
         'DanbooruTagsLazy',
       );
 
@@ -172,7 +172,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   Future<void> _loadHotData() async {
     _onProgress?.call(0.0, '加载热数据...');
 
+    // 决策点: 从数据库加载热数据
     final records = await _unifiedDb.getDanbooruTags(hotKeys.toList());
+    AppLogger.d(
+      '[DanbooruTagsLazy] cache decision: HOT DATA LOAD - requested=${hotKeys.length} keys, '
+      'found=${records.length} records in DB',
+      'DanbooruTagsLazy',
+    );
+
     final tags = records
         .map(
           (r) => LocalTag(
@@ -189,17 +196,28 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         tags.map((t) => t.tag).toList(),
       );
 
+      var translatedCount = 0;
       for (final tag in tags) {
         // 统一使用标准化标签作为 key 查找翻译
         final normalizedTag = TagNormalizer.normalize(tag.tag);
         final translation = translations[normalizedTag];
-        AppLogger.d('[_loadHotData] tag="${tag.tag}", normalized="$normalizedTag", translation="$translation"', 'DanbooruTagsLazy');
         if (translation != null) {
           _hotDataCache[tag.tag] = tag.copyWith(translation: translation);
+          translatedCount++;
         } else {
           _hotDataCache[tag.tag] = tag;
         }
       }
+      AppLogger.d(
+        '[DanbooruTagsLazy] cache decision: HOT DATA POPULATED - loaded=${tags.length} tags, '
+        'withTranslation=$translatedCount, cacheSize=${_hotDataCache.length}',
+        'DanbooruTagsLazy',
+      );
+    } else {
+      AppLogger.w(
+        '[DanbooruTagsLazy] cache decision: HOT DATA EMPTY - no records found in DB for hot keys',
+        'DanbooruTagsLazy',
+      );
     }
 
     _onProgress?.call(1.0, '热数据加载完成');
@@ -215,19 +233,20 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     final normalizedKey = TagNormalizer.normalize(key);
     AppLogger.d('[DanbooruTagsLazy] get("$key") -> normalizedKey="$normalizedKey"', 'DanbooruTagsLazy');
 
-    // 尝试精确匹配
+    // 决策点1: 检查热数据缓存 (内存缓存)
     if (_hotDataCache.containsKey(normalizedKey)) {
       final cached = _hotDataCache[normalizedKey];
-      AppLogger.d('[DanbooruTagsLazy] cache hit: translation="${cached?.translation}"', 'DanbooruTagsLazy');
+      AppLogger.d('[DanbooruTagsLazy] cache decision: HOT CACHE HIT - key="$normalizedKey", translation="${cached?.translation}"', 'DanbooruTagsLazy');
       return cached;
     }
+    AppLogger.d('[DanbooruTagsLazy] cache decision: HOT CACHE MISS - key="$normalizedKey", cacheSize=${_hotDataCache.length}', 'DanbooruTagsLazy');
 
+    // 决策点2: 查询数据库 (持久化缓存)
     final record = await _unifiedDb.getDanbooruTag(normalizedKey);
-    AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
     if (record != null) {
       // 获取翻译
       final translation = await _unifiedDb.getTranslation(normalizedKey);
-      AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
+      AppLogger.d('[DanbooruTagsLazy] cache decision: DB CACHE HIT - key="$normalizedKey", translation="$translation"', 'DanbooruTagsLazy');
       return LocalTag(
         tag: record.tag,
         category: record.category,
@@ -236,6 +255,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       );
     }
 
+    // 决策点3: 缓存未命中
+    AppLogger.d('[DanbooruTagsLazy] cache decision: CACHE MISS - key="$normalizedKey" not found in any cache layer', 'DanbooruTagsLazy');
     return null;
   }
 
@@ -322,7 +343,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<bool> shouldRefresh() async {
+    // 决策点: 检查元数据是否已加载
     if (_lastUpdate == null) {
+      AppLogger.d('[DanbooruTagsLazy] cache decision: LOADING META - _lastUpdate is null, loading metadata...', 'DanbooruTagsLazy');
       await _loadMeta();
     }
 
@@ -330,7 +353,15 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     final days = prefs.getInt(StorageKeys.danbooruTagsRefreshIntervalDays);
     final interval = AutoRefreshInterval.fromDays(days ?? 30);
 
-    return interval.shouldRefresh(_lastUpdate);
+    // 决策点: 计算是否需要刷新
+    final needsRefresh = interval.shouldRefresh(_lastUpdate);
+    AppLogger.d(
+      '[DanbooruTagsLazy] cache decision: REFRESH CHECK - lastUpdate=$_lastUpdate, '
+      'interval=${interval.days}days, needsRefresh=$needsRefresh',
+      'DanbooruTagsLazy',
+    );
+
+    return needsRefresh;
   }
 
   @override
@@ -709,9 +740,17 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<void> clearCache() async {
+    final cacheSizeBefore = _hotDataCache.length;
+
+    // 决策点: 清除缓存
     _hotDataCache.clear();
     _lastUpdate = null;
     _isInitialized = false;
+
+    AppLogger.d(
+      '[DanbooruTagsLazy] cache decision: CACHE CLEARED - hotCacheSizeBefore=$cacheSizeBefore, hotCacheSizeAfter=${_hotDataCache.length}',
+      'DanbooruTagsLazy',
+    );
 
     try {
       // 清除元数据文件
@@ -719,6 +758,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       final metaFile = File('${cacheDir.path}/$_metaFileName');
       if (await metaFile.exists()) {
         await metaFile.delete();
+        AppLogger.d('[DanbooruTagsLazy] cache decision: META FILE DELETED', 'DanbooruTagsLazy');
       }
 
       // 清除 SharedPreferences
@@ -795,10 +835,19 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   /// 是否应该后台刷新（不阻塞启动）
   Future<bool> shouldRefreshInBackground() async {
+    // 决策点: 检查是否需要后台刷新
     if (_lastUpdate == null) {
+      AppLogger.d('[DanbooruTagsLazy] cache decision: BG REFRESH CHECK - _lastUpdate is null, loading metadata', 'DanbooruTagsLazy');
       await _loadMeta();
     }
-    return _refreshInterval.shouldRefresh(_lastUpdate);
+
+    final needsRefresh = _refreshInterval.shouldRefresh(_lastUpdate);
+    AppLogger.d(
+      '[DanbooruTagsLazy] cache decision: BG REFRESH CHECK - lastUpdate=$_lastUpdate, '
+      'interval=${_refreshInterval.days}days, needsBackgroundRefresh=$needsRefresh',
+      'DanbooruTagsLazy',
+    );
+    return needsRefresh;
   }
 
   /// V2: 后台进度回调
