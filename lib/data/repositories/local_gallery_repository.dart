@@ -320,51 +320,55 @@ class LocalGalleryRepository {
   /// 优先级：
   /// 1. 数据库（已索引）- 最快
   /// 2. 实时解析（未索引）- 解析并存入数据库
+  ///
+  /// 优化：使用批量查询替代N+1查询，单次SQL查询所有记录
   Future<List<LocalImageRecord>> loadRecords(List<File> files) async {
     final stopwatch = Stopwatch()..start();
     final records = <LocalImageRecord>[];
 
-    // 并行处理
-    final futures = files.map((file) => _loadSingleRecord(file));
-    final results = await Future.wait(futures, eagerError: false);
-
-    for (final record in results) {
-      if (record != null) records.add(record);
-    }
-
-    stopwatch.stop();
-    AppLogger.d(
-      'Loaded ${records.length} records in ${stopwatch.elapsedMilliseconds}ms',
-      'LocalGalleryRepo',
-    );
-    return records;
-  }
-
-  /// 加载单个记录
-  Future<LocalImageRecord?> _loadSingleRecord(File file) async {
     try {
-      if (!await file.exists()) return null;
-
-      final filePath = file.path;
-      final modified = await file.lastModified();
-
-      // 1. 尝试从数据库获取（已索引）
+      // 1. 尝试从数据库批量获取（已索引）
       if (_initialized) {
-        final imageId = await _db.getImageIdByPath(filePath);
-        if (imageId != null) {
-          final row = await _db.getImageById(imageId);
-          if (row != null) {
-            return _db.mapToLocalImageRecord(row);
+        final filePaths = files.map((f) => f.path).toList();
+        final rows = await _db.queryImagesByPaths(filePaths);
+
+        // 构建路径到数据库记录的映射
+        final dbRecordMap = <String, LocalImageRecord>{};
+        for (final row in rows) {
+          final path = row['file_path'] as String;
+          dbRecordMap[path] = _db.mapToLocalImageRecord(row);
+        }
+
+        // 2. 对于数据库中不存在的记录，实时解析
+        for (final file in files) {
+          final dbRecord = dbRecordMap[file.path];
+          if (dbRecord != null) {
+            records.add(dbRecord);
+          } else {
+            final modified = await file.lastModified();
+            final basicRecord = await _parseBasicInfo(file, modified);
+            records.add(basicRecord);
           }
         }
+      } else {
+        // 数据库未初始化，全部实时解析
+        final futures = files.map((file) async {
+          final modified = await file.lastModified();
+          return _parseBasicInfo(file, modified);
+        });
+        final results = await Future.wait(futures, eagerError: false);
+        records.addAll(results.whereType<LocalImageRecord>());
       }
 
-      // 2. 实时解析（未索引）- 只返回基本信息，不阻塞
-      return await _parseBasicInfo(file, modified);
-
-    } catch (e) {
-      AppLogger.w('Failed to load: ${file.path}', 'LocalGalleryRepo');
-      return null;
+      stopwatch.stop();
+      AppLogger.d(
+        'Loaded ${records.length} records in ${stopwatch.elapsedMilliseconds}ms',
+        'LocalGalleryRepo',
+      );
+      return records;
+    } catch (e, stack) {
+      AppLogger.e('Failed to load records', e, stack, 'LocalGalleryRepo');
+      return records;
     }
   }
 
