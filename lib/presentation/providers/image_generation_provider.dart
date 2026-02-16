@@ -304,6 +304,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
 
     // 完成（不再随机，保持图像和提示词对应）
+    // 先刷新节流器，确保最终状态被正确应用
+    _batchStateThrottler.flush();
     state = state.copyWith(
       status: _isCancelled
           ? GenerationStatus.cancelled
