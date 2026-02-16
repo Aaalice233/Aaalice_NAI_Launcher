@@ -59,6 +59,11 @@ class TagLibraryState {
 }
 
 /// 词库管理 Provider
+///
+/// 使用 [keepAlive: true] 理由：
+/// 1. 核心数据 Provider - 词库数据在多个功能模块中被频繁使用（生成页标签建议、词库管理页等）
+/// 2. 初始化成本高 - 需要加载和解析大型 JSON 文件，重新加载会造成明显延迟
+/// 3. 内存占用合理 - 词库数据是应用核心功能所需，保持常驻内存的收益大于成本
 @Riverpod(keepAlive: true)
 class TagLibraryNotifier extends _$TagLibraryNotifier {
   TagLibraryService? _service;

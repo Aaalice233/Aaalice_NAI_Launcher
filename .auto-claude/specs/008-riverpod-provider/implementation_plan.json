@@ -95,8 +95,9 @@
             "command": "flutter analyze lib/presentation/providers/tag_library_page_provider.dart",
             "expected": "No issues found"
           },
-          "status": "pending",
-          "notes": "TagLibraryPageProvider管理词库页面状态，页面关闭后可以清理"
+          "status": "completed",
+          "completed_at": "2026-02-16T22:30:00Z",
+          "notes": "成功将@Riverpod(keepAlive: true)改为@riverpod，允许页面关闭后自动清理"
         },
         {
           "id": "subtask-2-2",
@@ -775,6 +776,6 @@
   "executionPhase": "coding",
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-02-16T13:12:19.156Z",
+  "updated_at": "2026-02-16T13:16:21.880Z",
   "xstateState": "backlog"
 }
