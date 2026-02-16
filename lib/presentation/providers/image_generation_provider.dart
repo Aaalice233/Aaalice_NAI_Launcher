@@ -47,8 +47,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   /// 流式预览更新节流间隔 (毫秒)
   static const int _streamPreviewThrottleMs = 100;
 
+  /// 批量状态更新节流间隔 (毫秒)
+  static const int _batchStateThrottleMs = 50;
+
   /// 流式预览更新节流器
   late final StateUpdateThrottler<Uint8List> _streamPreviewThrottler;
+
+  /// 批量状态更新节流器
+  late final StateUpdateThrottler<_BatchStateUpdate> _batchStateThrottler;
 
   bool _isCancelled = false;
 
@@ -60,6 +66,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       trailing: true,
       onUpdate: (value) {
         state = state.copyWith(streamPreview: value);
+      },
+    );
+    _batchStateThrottler = StateUpdateThrottler<_BatchStateUpdate>(
+      throttleInterval: const Duration(milliseconds: _batchStateThrottleMs),
+      leading: true,
+      trailing: true,
+      onUpdate: (update) {
+        state = state.copyWith(
+          currentImage: update.currentImage,
+          progress: update.progress,
+          streamPreview: update.streamPreview,
+        );
       },
     );
     return const ImageGenerationState();
@@ -544,15 +562,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final images = <Uint8List>[];
     bool useNonStreamFallback = false; // 记录是否需要回退到非流式
 
+    // 重置批量状态节流器
+    _batchStateThrottler.reset();
+
     // 逐张生成以支持流式预览
     for (int i = 0; i < batchSize; i++) {
       if (_isCancelled) break;
 
-      // 更新当前进度
-      state = state.copyWith(
-        currentImage: currentStart + i,
-        progress: (currentStart + i - 1) / total,
-        clearStreamPreview: true,
+      // 使用节流器批量更新状态
+      _batchStateThrottler.throttle(
+        _BatchStateUpdate(
+          currentImage: currentStart + i,
+          progress: (currentStart + i - 1) / total,
+          streamPreview: null,
+        ),
       );
 
       // 为每张图使用不同的种子
@@ -606,10 +629,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             }
 
             if (chunk.hasPreview) {
-              // 更新流式预览
-              state = state.copyWith(
-                progress: (currentStart + i - 1 + chunk.progress) / total,
-                streamPreview: chunk.previewImage,
+              // 使用节流器批量更新状态和流式预览
+              _batchStateThrottler.throttle(
+                _BatchStateUpdate(
+                  currentImage: currentStart + i,
+                  progress: (currentStart + i - 1 + chunk.progress) / total,
+                  streamPreview: chunk.previewImage,
+                ),
               );
             }
 
@@ -1056,4 +1082,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     return result.mainPrompt;
   }
+}
+
+/// 批量状态更新数据类
+///
+/// 用于将多个状态更新打包，通过节流器批量处理
+class _BatchStateUpdate {
+  final int currentImage;
+  final double progress;
+  final Uint8List? streamPreview;
+
+  const _BatchStateUpdate({
+    required this.currentImage,
+    required this.progress,
+    this.streamPreview,
+  });
 }
