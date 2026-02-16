@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -698,5 +699,239 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
   /// 获取分类树结构
   Map<String?, List<VibeLibraryCategory>> get categoryTree {
     return state.categories.buildTree();
+  }
+
+  // ============================================================
+  // 批量操作
+  // ============================================================
+
+  /// 批量删除条目（带进度更新）
+  Future<int> bulkDeleteEntries(
+    List<String> ids, {
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (ids.isEmpty) return 0;
+
+    _startBulkOperation(VibeLibraryBulkOperationType.delete);
+
+    try {
+      var completed = 0;
+      final total = ids.length;
+
+      for (final id in ids) {
+        await deleteEntry(id);
+        completed++;
+        _updateBulkProgress(completed / total);
+        onProgress?.call(completed, total);
+
+        // 小延迟以避免UI阻塞
+        if (completed % 10 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      AppLogger.i('批量删除完成: $completed/$total', 'VibeLibrary');
+      return completed;
+    } catch (e, stackTrace) {
+      AppLogger.e('批量删除失败', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return 0;
+    } finally {
+      _endBulkOperation();
+    }
+  }
+
+  /// 批量移动到分类
+  Future<int> bulkMoveToCategory(
+    List<String> entryIds,
+    String? categoryId, {
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (entryIds.isEmpty) return 0;
+
+    _startBulkOperation(VibeLibraryBulkOperationType.moveCategory);
+
+    try {
+      var completed = 0;
+      final total = entryIds.length;
+
+      for (final id in entryIds) {
+        await _storage.updateEntryCategory(id, categoryId);
+        completed++;
+        _updateBulkProgress(completed / total);
+        onProgress?.call(completed, total);
+
+        if (completed % 10 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      // 重新加载数据以更新状态
+      await reload();
+
+      AppLogger.i('批量移动完成: $completed/$total', 'VibeLibrary');
+      return completed;
+    } catch (e, stackTrace) {
+      AppLogger.e('批量移动失败', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return 0;
+    } finally {
+      _endBulkOperation();
+    }
+  }
+
+  /// 批量导出条目到文件
+  ///
+  /// [entryIds] 要导出的条目ID列表
+  /// [exportDirectory] 导出目录路径，如果为null则导出到默认vibes目录
+  /// [onProgress] 进度回调 (completed, total)
+  Future<List<String>> bulkExportEntries(
+    List<String> entryIds, {
+    String? exportDirectory,
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (entryIds.isEmpty) return [];
+
+    _startBulkOperation(VibeLibraryBulkOperationType.export);
+
+    final exportedPaths = <String>[];
+
+    try {
+      var completed = 0;
+      final total = entryIds.length;
+
+      for (final id in entryIds) {
+        final entry = getEntryById(id);
+        if (entry != null && entry.filePath != null) {
+          // 如果指定了导出目录，复制文件到该目录
+          if (exportDirectory != null && exportDirectory.isNotEmpty) {
+            final filePath = entry.filePath!;
+            final fileName = filePath.split('/').last.split('\\').last;
+            final targetPath = '$exportDirectory${Platform.pathSeparator}$fileName';
+
+            try {
+              final sourceFile = File(filePath);
+              if (await sourceFile.exists()) {
+                await sourceFile.copy(targetPath);
+                exportedPaths.add(targetPath);
+              }
+            } catch (e) {
+              AppLogger.w('导出条目失败: $filePath', 'VibeLibrary');
+            }
+          } else {
+            // 未指定目录，只是确认条目存在
+            exportedPaths.add(entry.filePath!);
+          }
+        }
+
+        completed++;
+        _updateBulkProgress(completed / total);
+        onProgress?.call(completed, total);
+
+        if (completed % 5 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      AppLogger.i('批量导出完成: ${exportedPaths.length}/$total', 'VibeLibrary');
+      return exportedPaths;
+    } catch (e, stackTrace) {
+      AppLogger.e('批量导出失败', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return exportedPaths;
+    } finally {
+      _endBulkOperation();
+    }
+  }
+
+  /// 批量编辑标签
+  ///
+  /// [entryIds] 要编辑的条目ID列表
+  /// [tagsToAdd] 要添加的标签列表
+  /// [tagsToRemove] 要移除的标签列表
+  /// [replaceAll] 是否替换所有标签（为true时忽略tagsToRemove，使用tagsToAdd作为新标签）
+  /// [onProgress] 进度回调 (completed, total)
+  Future<int> bulkEditTags(
+    List<String> entryIds, {
+    List<String> tagsToAdd = const [],
+    List<String> tagsToRemove = const [],
+    bool replaceAll = false,
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (entryIds.isEmpty) return 0;
+
+    _startBulkOperation(VibeLibraryBulkOperationType.updateTags);
+
+    try {
+      var completed = 0;
+      final total = entryIds.length;
+
+      for (final id in entryIds) {
+        final entry = getEntryById(id);
+        if (entry != null) {
+          late final List<String> newTags;
+
+          if (replaceAll) {
+            // 完全替换标签
+            newTags = List<String>.from(tagsToAdd);
+          } else {
+            // 合并添加和移除操作
+            final currentTags = Set<String>.from(entry.tags);
+            currentTags.addAll(tagsToAdd);
+            currentTags.removeAll(tagsToRemove);
+            newTags = currentTags.toList();
+          }
+
+          await _storage.updateEntryTags(id, newTags);
+        }
+
+        completed++;
+        _updateBulkProgress(completed / total);
+        onProgress?.call(completed, total);
+
+        if (completed % 10 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      // 重新加载数据以更新状态
+      await reload();
+
+      AppLogger.i('批量编辑标签完成: $completed/$total', 'VibeLibrary');
+      return completed;
+    } catch (e, stackTrace) {
+      AppLogger.e('批量编辑标签失败', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return 0;
+    } finally {
+      _endBulkOperation();
+    }
+  }
+
+  // ============================================================
+  // 批量操作辅助方法
+  // ============================================================
+
+  void _startBulkOperation(VibeLibraryBulkOperationType type) {
+    state = state.copyWith(
+      isBulkOperating: true,
+      bulkOperationType: type,
+      bulkOperationProgress: 0.0,
+      error: null,
+    );
+  }
+
+  void _updateBulkProgress(double progress) {
+    state = state.copyWith(
+      bulkOperationProgress: progress.clamp(0.0, 1.0),
+    );
+  }
+
+  void _endBulkOperation() {
+    state = state.copyWith(
+      isBulkOperating: false,
+      bulkOperationType: VibeLibraryBulkOperationType.none,
+      bulkOperationProgress: 0.0,
+    );
   }
 }
