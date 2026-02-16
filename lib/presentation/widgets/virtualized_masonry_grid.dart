@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
@@ -43,9 +44,6 @@ class VirtualizedMasonryGrid extends StatelessWidget {
 
   /// 是否添加语义索引
   final bool addSemanticIndexes;
-
-  /// 语义索引回调
-  final SemanticIndexCallback? semanticIndexCallback;
 
   /// 语义索引偏移
   final int semanticChildCount;
@@ -93,7 +91,6 @@ class VirtualizedMasonryGrid extends StatelessWidget {
     this.addAutomaticKeepAlives = true,
     this.addRepaintBoundaries = true,
     this.addSemanticIndexes = true,
-    this.semanticIndexCallback,
     this.semanticChildCount = 0,
     this.reverse = false,
     this.scrollDirection = Axis.vertical,
@@ -130,7 +127,6 @@ class VirtualizedMasonryGrid extends StatelessWidget {
       addAutomaticKeepAlives: addAutomaticKeepAlives,
       addRepaintBoundaries: addRepaintBoundaries,
       addSemanticIndexes: addSemanticIndexes,
-      semanticIndexCallback: semanticIndexCallback,
       semanticChildCount: semanticChildCount,
       reverse: reverse,
       scrollDirection: scrollDirection,
