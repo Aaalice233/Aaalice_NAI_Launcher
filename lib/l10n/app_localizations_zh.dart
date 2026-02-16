@@ -7034,4 +7034,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tray_exit => '退出';
+
+  @override
+  String get viewer_help_button_tooltip => '快捷键帮助';
+
+  @override
+  String get viewer_tooltip_close => '关闭';
+
+  @override
+  String get viewer_tooltip_save => '保存';
+
+  @override
+  String get viewer_tooltip_reuse_params => '复用参数';
+
+  @override
+  String get viewer_tooltip_copy_image => '复制图像';
+
+  @override
+  String get viewer_tooltip_favorite => '收藏';
 }

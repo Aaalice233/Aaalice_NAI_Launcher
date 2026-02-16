@@ -13240,6 +13240,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit'**
   String get tray_exit;
+
+  /// No description provided for @viewer_help_button_tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcut Help'**
+  String get viewer_help_button_tooltip;
+
+  /// No description provided for @viewer_tooltip_close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get viewer_tooltip_close;
+
+  /// No description provided for @viewer_tooltip_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get viewer_tooltip_save;
+
+  /// No description provided for @viewer_tooltip_reuse_params.
+  ///
+  /// In en, this message translates to:
+  /// **'Reuse Parameters'**
+  String get viewer_tooltip_reuse_params;
+
+  /// No description provided for @viewer_tooltip_copy_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Image'**
+  String get viewer_tooltip_copy_image;
+
+  /// No description provided for @viewer_tooltip_favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get viewer_tooltip_favorite;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

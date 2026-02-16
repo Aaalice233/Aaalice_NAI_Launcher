@@ -7034,4 +7034,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tray_exit => 'Exit';
+
+  @override
+  String get viewer_help_button_tooltip => 'Shortcut Help';
+
+  @override
+  String get viewer_tooltip_close => 'Close';
+
+  @override
+  String get viewer_tooltip_save => 'Save';
+
+  @override
+  String get viewer_tooltip_reuse_params => 'Reuse Parameters';
+
+  @override
+  String get viewer_tooltip_copy_image => 'Copy Image';
+
+  @override
+  String get viewer_tooltip_favorite => 'Favorite';
 }
