@@ -403,3 +403,74 @@ auto-claude: subtask-6-2 - 评估account_manager_provider - 保留keepAlive
 
 ---
 
+## Subtask 6-4: 评估vibe_library_provider - 保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true** - 无需修改
+
+理由：
+1. **App-wide Service Nature** - VibeLibraryNotifier管理整个Vibe库，这是一个持久的用户数据仓库，类似于本地数据库，管理条目、分类、搜索过滤、排序和分页状态
+2. **状态持久化要求** - 用户期望在离开并返回Vibe库时，搜索查询、分页位置、过滤器设置保持不变
+3. **性能考虑** - 从VibeLibraryStorageService加载数据需要I/O操作，如果没有keepAlive，每次导航离开再返回时都需要重新加载，造成不必要的开销
+4. **复杂操作支持** - 支持长时间运行的批量操作（删除、导出、移动、标签编辑），这些操作不应因导航而中断
+5. **单例模式** - 代码中的`initialize()`已有守卫逻辑防止重复加载，表明设计上预期为长期存在的Provider
+
+### 管理的状态 (VibeLibraryState)
+
+- `List<VibeLibraryEntry> entries` - 所有条目
+- `List<VibeLibraryEntry> filteredEntries` - 过滤后的条目
+- `List<VibeLibraryCategory> categories` - 所有分类
+- `List<VibeLibraryEntry> currentEntries` - 当前页显示的条目
+- `String searchQuery` - 搜索关键词
+- `String? selectedCategoryId` - 选中的分类ID
+- `bool favoritesOnly` - 是否只显示收藏
+- `VibeLibrarySortOrder sortOrder` - 排序方式
+- `bool sortDescending` - 是否降序排列
+- 批量操作状态：isBulkOperating, bulkOperationProgress, bulkOperationType
+
+### 关键方法
+
+- `initialize()` - 初始化Vibe库，有守卫防止重复加载
+- `reload()` - 重新加载数据
+- `loadPage()` - 分页加载
+- `_applyFilters()` - 应用搜索和过滤
+- `saveEntry()` / `deleteEntry()` - 条目CRUD操作
+- `saveCategory()` / `deleteCategory()` - 分类CRUD操作
+- 批量操作方法：bulkDelete, bulkMove, bulkExport, bulkEditTags
+
+### Provider结构
+
+```dart
+@Riverpod(keepAlive: true)  // ✅ 正确，需要全局保持
+class VibeLibraryNotifier extends _$VibeLibraryNotifier {
+  late final VibeLibraryStorageService _storage;
+
+  @override
+  VibeLibraryState build() {
+    _storage = ref.watch(vibeLibraryStorageServiceProvider);
+    return const VibeLibraryState();
+  }
+  // ...
+}
+```
+
+### 结论
+
+这是Riverpod中`keepAlive`的典型用例：
+- 活跃/进行中的工作 - 支持批量操作
+- 重要的用户数据 - Vibe库是用户资产
+- 昂贵的初始化 - 需要从存储加载数据
+- 状态持续性 - 用户期望过滤器/搜索保持
+
+**状态**: 已验证，当前配置正确，无需代码修改。
+
+### 提交信息
+```
+auto-claude: subtask-6-4 - 评估vibe_library_provider - 保留keepAlive
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
