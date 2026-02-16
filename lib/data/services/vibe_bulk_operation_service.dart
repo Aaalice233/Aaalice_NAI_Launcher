@@ -8,9 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_export_format.dart';
-import '../models/vibe/vibe_export_options.dart';
 import '../models/vibe/vibe_library_entry.dart';
-import '../models/vibe/vibe_reference.dart';
 import 'vibe_export_service.dart';
 import 'vibe_library_storage_service.dart';
 
@@ -559,7 +557,11 @@ class VibeBulkOperationService {
           exportedFilePath = await _exportService.exportAsBundle(
             entries,
             options: options,
-            onProgress: (current, total, currentItem) {
+            onProgress: ({
+              required int current,
+              required int total,
+              required String currentItem,
+            }) {
               onProgress?.call(
                 current: current,
                 total: total,
@@ -583,7 +585,11 @@ class VibeBulkOperationService {
           exportedFilePath = await _exportService.exportAsEncoding(
             entries,
             options: options,
-            onProgress: (current, total, currentItem) {
+            onProgress: ({
+              required int current,
+              required int total,
+              required String currentItem,
+            }) {
               onProgress?.call(
                 current: current,
                 total: total,

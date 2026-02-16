@@ -8,7 +8,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/vibe/vibe_export_format.dart';
-import '../models/vibe/vibe_export_options.dart';
 import '../models/vibe/vibe_library_entry.dart';
 
 part 'vibe_export_service.g.dart';

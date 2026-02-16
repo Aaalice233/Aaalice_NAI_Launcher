@@ -159,8 +159,8 @@ class _VibeBulkCategoryDialogState
     // 构建分类树结构
     final rootCategories = widget.categories
         .where((c) => c.parentId == null)
-        .sortedByOrder()
-        .toList();
+        .toList()
+        .sortedByOrder();
 
     return ListView.builder(
       itemCount: rootCategories.length + 1, // +1 为未分类选项
@@ -246,8 +246,8 @@ class _VibeBulkCategoryDialogState
     // 获取子分类
     final childCategories = widget.categories
         .where((c) => c.parentId == category.id)
-        .sortedByOrder()
-        .toList();
+        .toList()
+        .sortedByOrder();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

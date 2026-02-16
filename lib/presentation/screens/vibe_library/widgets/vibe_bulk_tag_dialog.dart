@@ -220,7 +220,6 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
               itemBuilder: (context, index) {
                 final tag = currentTags.elementAt(index);
                 final isNew = _tagsToAdd.contains(tag);
-                final isRemoved = _tagsToRemove.contains(tag);
 
                 return _buildTagItem(theme, tag, isNew: isNew);
               },
