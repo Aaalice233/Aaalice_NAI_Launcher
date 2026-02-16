@@ -150,6 +150,7 @@ class GalleryDatabaseSchema {
     'CREATE INDEX IF NOT EXISTS idx_images_file_hash ON images(file_hash)',
     'CREATE INDEX IF NOT EXISTS idx_images_resolution ON images(resolution_key)',
     'CREATE INDEX IF NOT EXISTS idx_images_is_deleted ON images(is_deleted)',
+    'CREATE INDEX IF NOT EXISTS idx_metadata_image_id ON metadata(image_id)',
     'CREATE INDEX IF NOT EXISTS idx_metadata_model ON metadata(model)',
     'CREATE INDEX IF NOT EXISTS idx_metadata_sampler ON metadata(sampler)',
     'CREATE INDEX IF NOT EXISTS idx_metadata_steps ON metadata(steps)',
