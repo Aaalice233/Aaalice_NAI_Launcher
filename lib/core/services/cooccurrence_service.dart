@@ -324,7 +324,6 @@ class CooccurrenceService {
 
       // 2. 解析 CSV（直接解析，避免 Isolate 跨边界问题）
       final lines = csvContent.split('\n');
-      final totalLines = lines.length;
 
       onProgress?.call(0.2, '准备导入共现标签...');
 

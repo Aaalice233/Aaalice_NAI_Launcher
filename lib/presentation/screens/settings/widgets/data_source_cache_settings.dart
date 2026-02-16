@@ -10,7 +10,8 @@ import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Provider for TagDatabaseConnection
-final tagDatabaseConnectionProvider = Provider((ref) => TagDatabaseConnection());
+final tagDatabaseConnectionProvider =
+    Provider((ref) => TagDatabaseConnection());
 
 /// 标签补全数据源管理设置组件
 ///
@@ -201,8 +202,8 @@ class _DataSourceCacheSettingsState
                   Text(
                     '正在清除缓存...',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                 ],
               ),
@@ -221,9 +222,7 @@ class _DataSourceCacheSettingsState
       await dbConnection.deleteDatabase();
 
       // 清除 Danbooru 标签缓存
-      await ref
-          .read(danbooruTagsCacheNotifierProvider.notifier)
-          .clearCache();
+      await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
 
       // 刷新状态
       ref.invalidate(danbooruTagsCacheNotifierProvider);
@@ -269,7 +268,7 @@ class _TagCompletionDataSection extends ConsumerWidget {
           _buildHeader(context, state),
           const SizedBox(height: 20),
 
-            // 热度档位选择 + 自动刷新间隔（横向并排，顶部对齐）
+          // 热度档位选择 + 自动刷新间隔（横向并排，顶部对齐）
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -416,12 +415,13 @@ class _TagCompletionDataSection extends ConsumerWidget {
 
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref, DanbooruTagsCacheState state) {
+  Widget _buildActionButtons(
+      BuildContext context, WidgetRef ref, DanbooruTagsCacheState state,) {
     final isSyncing = state.isRefreshing;
     final theme = Theme.of(context);
 
@@ -458,7 +458,8 @@ class _TagCompletionDataSection extends ConsumerWidget {
                       .setSyncArtists(!state.syncArtists),
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: state.syncArtists
@@ -499,145 +500,6 @@ class _TagCompletionDataSection extends ConsumerWidget {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-/// 热度档位选择器（带画师同步开关）
-class _HotPresetWithArtistsToggle extends StatelessWidget {
-  final TagHotPreset preset;
-  final int customThreshold;
-  final bool syncArtists;
-  final void Function(TagHotPreset preset, int? customThreshold) onPresetChanged;
-  final ValueChanged<bool> onSyncArtistsChanged;
-
-  const _HotPresetWithArtistsToggle({
-    required this.preset,
-    required this.customThreshold,
-    required this.syncArtists,
-    required this.onPresetChanged,
-    required this.onSyncArtistsChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 标签行：热度筛选 + 同步画师开关
-        Row(
-          children: [
-            Icon(
-              Icons.local_fire_department_outlined,
-              size: 16,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '热度筛选',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            // 同步画师开关
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Checkbox(
-                  value: syncArtists,
-                  onChanged: (v) => onSyncArtistsChanged(v ?? false),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  '同步画师',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: TagHotPreset.values.map((p) {
-            final isSelected = p == preset;
-            return _PresetChip(
-              label: p.displayName,
-              isSelected: isSelected,
-              onSelected: () => onPresetChanged(p, null),
-            );
-          }).toList(),
-        ),
-        if (preset == TagHotPreset.custom) ...[
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '自定义阈值',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        customThreshold.toString(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: theme.colorScheme.primary,
-                    inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
-                    thumbColor: theme.colorScheme.primary,
-                    overlayColor: theme.colorScheme.primary.withOpacity(0.1),
-                    trackHeight: 4,
-                  ),
-                  child: Slider(
-                    value: customThreshold.toDouble(),
-                    min: 10,
-                    max: 50000,
-                    divisions: 100,
-                    onChanged: (v) => onPresetChanged(preset, v.toInt()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -736,7 +598,8 @@ class _HotPresetSelector extends StatelessWidget {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     activeTrackColor: theme.colorScheme.primary,
-                    inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
+                    inactiveTrackColor:
+                        theme.colorScheme.surfaceContainerHighest,
                     thumbColor: theme.colorScheme.primary,
                     overlayColor: theme.colorScheme.primary.withOpacity(0.1),
                     trackHeight: 4,
@@ -980,67 +843,19 @@ class _ErrorMessage extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final bool isLoading;
   final bool isPrimary;
-  final bool isDestructive;
   final VoidCallback? onPressed;
 
   const _ActionButton({
     required this.icon,
     required this.label,
-    this.isLoading = false,
     this.isPrimary = false,
-    this.isDestructive = false,
     this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    if (isDestructive) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: onPressed == null
-                    ? theme.colorScheme.outline.withOpacity(0.3)
-                    : theme.colorScheme.error.withOpacity(0.5),
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: onPressed == null
-                      ? theme.colorScheme.outline
-                      : theme.colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: onPressed == null
-                        ? theme.colorScheme.outline
-                        : theme.colorScheme.error,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return Material(
       color: isPrimary
@@ -1055,24 +870,13 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              isLoading
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: isPrimary
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.primary,
-                      ),
-                    )
-                  : Icon(
-                      icon,
-                      size: 18,
-                      color: isPrimary
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.primary,
-                    ),
+              Icon(
+                icon,
+                size: 18,
+                color: isPrimary
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Text(
                 label,

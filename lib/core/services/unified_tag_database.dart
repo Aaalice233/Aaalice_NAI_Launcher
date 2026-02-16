@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -173,7 +172,7 @@ class UnifiedTagDatabase {
   /// 获取数据库实例（内部使用，自动处理连接问题）
   Future<Database> _getDb() async {
     if (!await _connection.checkHealth()) {
-AppLogger.w(
+      AppLogger.w(
         'Database connection unhealthy, reconnecting...',
         'UnifiedTagDatabase',
       );
@@ -206,7 +205,8 @@ AppLogger.w(
       final versionStr = result.first['data_version'] as String;
       return int.tryParse(versionStr) ?? -1;
     } catch (e) {
-      AppLogger.w('Failed to get translation cache version: $e', 'UnifiedTagDatabase');
+      AppLogger.w(
+          'Failed to get translation cache version: $e', 'UnifiedTagDatabase',);
       return -1;
     }
   }
@@ -225,7 +225,8 @@ AppLogger.w(
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (e) {
-      AppLogger.w('Failed to set translation cache version: $e', 'UnifiedTagDatabase');
+      AppLogger.w(
+          'Failed to set translation cache version: $e', 'UnifiedTagDatabase',);
     }
   }
 
@@ -233,7 +234,8 @@ AppLogger.w(
   Future<int> getTranslationCount() async {
     try {
       final db = await _getDb();
-      final result = await db.rawQuery('SELECT COUNT(*) as count FROM translations');
+      final result =
+          await db.rawQuery('SELECT COUNT(*) as count FROM translations');
       return (result.first['count'] as num?)?.toInt() ?? 0;
     } catch (e) {
       AppLogger.w('Failed to get translation count: $e', 'UnifiedTagDatabase');
@@ -408,11 +410,14 @@ AppLogger.w(
   Future<String?> getTranslation(String tag) async {
     // 统一标准化标签
     final normalizedTag = TagNormalizer.normalize(tag);
-    AppLogger.d('[UnifiedTagDatabase] getTranslation("$tag") -> normalized="$normalizedTag"', 'UnifiedTagDatabase');
+    AppLogger.d(
+        '[UnifiedTagDatabase] getTranslation("$tag") -> normalized="$normalizedTag"',
+        'UnifiedTagDatabase',);
 
     if (_translationCache.containsKey(normalizedTag)) {
       final cached = _translationCache[normalizedTag];
-      AppLogger.d('[UnifiedTagDatabase] cache hit: "$cached"', 'UnifiedTagDatabase');
+      AppLogger.d(
+          '[UnifiedTagDatabase] cache hit: "$cached"', 'UnifiedTagDatabase',);
       return cached;
     }
 
@@ -426,14 +431,19 @@ AppLogger.w(
         limit: 1,
       );
 
-      AppLogger.d('[UnifiedTagDatabase] DB query results: ${results.length} rows', 'UnifiedTagDatabase');
+      AppLogger.d(
+          '[UnifiedTagDatabase] DB query results: ${results.length} rows',
+          'UnifiedTagDatabase',);
       if (results.isEmpty) {
-        AppLogger.d('[UnifiedTagDatabase] no translation found for "$normalizedTag"', 'UnifiedTagDatabase');
+        AppLogger.d(
+            '[UnifiedTagDatabase] no translation found for "$normalizedTag"',
+            'UnifiedTagDatabase',);
         return null;
       }
 
       final translation = results.first['zh_translation'] as String;
-      AppLogger.d('[UnifiedTagDatabase] found translation: "$translation"', 'UnifiedTagDatabase');
+      AppLogger.d('[UnifiedTagDatabase] found translation: "$translation"',
+          'UnifiedTagDatabase',);
       _addToTranslationCache(normalizedTag, translation);
       return translation;
     } catch (e) {
@@ -572,7 +582,7 @@ AppLogger.w(
       _addToDanbooruTagCache(normalizedTag, record);
       return record;
     } catch (e) {
-AppLogger.w(
+      AppLogger.w(
         'Failed to get danbooru tag "$tag": $e',
         'UnifiedTagDatabase',
       );
@@ -656,9 +666,8 @@ AppLogger.w(
         }
 
         // 获取对应的英文标签
-        final enTags = translationResults
-            .map((r) => r['en_tag'] as String)
-            .toList();
+        final enTags =
+            translationResults.map((r) => r['en_tag'] as String).toList();
 
         // 在 danbooru_tags 表中查询这些标签
         final placeholders = List.filled(enTags.length, '?').join(',');
@@ -807,7 +816,8 @@ AppLogger.w(
 
     try {
       // 1. 删除索引以加速插入
-      await db.execute('DROP INDEX IF EXISTS idx_cooccurrences_tag1_count_desc');
+      await db
+          .execute('DROP INDEX IF EXISTS idx_cooccurrences_tag1_count_desc');
       await db.execute('DROP INDEX IF EXISTS idx_cooccurrences_count_desc');
 
       // 2. 大事务批量插入（每批50000条）
@@ -895,7 +905,7 @@ AppLogger.w(
       _addToCooccurrenceCache(normalizedTag, relatedTags);
       return relatedTags;
     } catch (e) {
-AppLogger.w(
+      AppLogger.w(
         'Failed to get related tags for "$tag": $e',
         'UnifiedTagDatabase',
       );
@@ -923,7 +933,7 @@ AppLogger.w(
           )
           .toList();
     } catch (e) {
-AppLogger.w(
+      AppLogger.w(
         'Failed to get popular cooccurrences: $e',
         'UnifiedTagDatabase',
       );
@@ -996,7 +1006,8 @@ AppLogger.w(
         'extraData': null,
       };
     } catch (e) {
-      AppLogger.w('Failed to get data source version: $e', 'UnifiedTagDatabase');
+      AppLogger.w(
+          'Failed to get data source version: $e', 'UnifiedTagDatabase',);
       return null;
     }
   }
@@ -1021,9 +1032,11 @@ AppLogger.w(
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
-      AppLogger.i('Updated $sourceName version to $version', 'UnifiedTagDatabase');
+      AppLogger.i(
+          'Updated $sourceName version to $version', 'UnifiedTagDatabase',);
     } catch (e) {
-      AppLogger.w('Failed to update data source version: $e', 'UnifiedTagDatabase');
+      AppLogger.w(
+          'Failed to update data source version: $e', 'UnifiedTagDatabase',);
     }
   }
 
