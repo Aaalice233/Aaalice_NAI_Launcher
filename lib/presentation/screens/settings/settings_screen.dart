@@ -7,6 +7,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../../core/storage/backup_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -126,6 +127,11 @@ class SettingsScreen extends ConsumerWidget {
           // 队列设置
           _buildSectionHeader(theme, '队列'),
           _buildQueueSettings(context, ref),
+          const ThemedDivider(),
+
+          // 数据备份
+          _buildSectionHeader(theme, '数据备份'),
+          _buildBackupSettings(context, ref),
           const ThemedDivider(),
 
           // 关于
@@ -568,5 +574,119 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// 构建备份设置
+  Widget _buildBackupSettings(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.backup_outlined),
+          title: const Text('备份数据'),
+          subtitle: const Text('导出所有数据到备份文件'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _handleBackup(context, ref),
+        ),
+        ListTile(
+          leading: const Icon(Icons.restore_outlined),
+          title: const Text('恢复数据'),
+          subtitle: const Text('从备份文件恢复数据'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _handleRestore(context, ref),
+        ),
+      ],
+    );
+  }
+
+  /// 处理备份操作
+  Future<void> _handleBackup(BuildContext context, WidgetRef ref) async {
+    try {
+      final backupService = ref.read(backupServiceProvider);
+      final result = await backupService.exportBackup();
+
+      if (!context.mounted) return;
+
+      if (result.success) {
+        AppToast.success(
+          context,
+          '备份成功：${result.metadata?.itemCount ?? 0} 项数据已导出',
+        );
+      } else {
+        AppToast.error(
+          context,
+          '备份失败：${result.error ?? '未知错误'}',
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.error(context, '备份失败：$e');
+    }
+  }
+
+  /// 处理恢复操作
+  Future<void> _handleRestore(BuildContext context, WidgetRef ref) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        dialogTitle: '选择备份文件',
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final filePath = result.files.first.path;
+      if (filePath == null) {
+        if (!context.mounted) return;
+        AppToast.error(context, '无法访问所选文件');
+        return;
+      }
+
+      if (!context.mounted) return;
+
+      // 显示确认对话框
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('确认恢复'),
+            content: const Text(
+              '恢复数据将覆盖当前的所有设置和数据。\n\n建议在恢复前先备份当前数据。\n\n是否继续？',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(context.l10n.common_cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('恢复'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed != true || !context.mounted) return;
+
+      final backupService = ref.read(backupServiceProvider);
+      final restoreResult = await backupService.importBackup(filePath);
+
+      if (!context.mounted) return;
+
+      if (restoreResult.success) {
+        AppToast.success(
+          context,
+          '恢复成功：${restoreResult.restoredItems} 项数据已恢复',
+        );
+      } else {
+        AppToast.error(
+          context,
+          '恢复失败：${restoreResult.error ?? '未知错误'}',
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.error(context, '恢复失败：$e');
+    }
   }
 }
