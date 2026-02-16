@@ -3616,6 +3616,20 @@
   "viewer_tooltip_save": "Save",
   "viewer_tooltip_reuse_params": "Reuse Parameters",
   "viewer_tooltip_copy_image": "Copy Image",
-  "viewer_tooltip_favorite": "Favorite"
+  "viewer_tooltip_favorite": "Favorite",
+
+  "backgroundTask_downloadedCount": "Downloaded {count} tags",
+  "@backgroundTask_downloadedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "backgroundTask_downloadedCountWithTotal": "Downloaded {count}/{total} tags",
+  "@backgroundTask_downloadedCountWithTotal": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 
 }
