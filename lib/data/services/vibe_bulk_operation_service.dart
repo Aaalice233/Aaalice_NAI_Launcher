@@ -14,6 +14,8 @@ import '../models/vibe/vibe_reference.dart';
 import 'vibe_export_service.dart';
 import 'vibe_library_storage_service.dart';
 
+export 'vibe_export_service.dart' show vibeExportServiceProvider;
+
 part 'vibe_bulk_operation_service.g.dart';
 
 /// Vibe 批量操作类型
@@ -1047,5 +1049,9 @@ class BulkOperationConfig {
 @riverpod
 VibeBulkOperationService vibeBulkOperationService(Ref ref) {
   final storageService = ref.watch(vibeLibraryStorageServiceProvider);
-  return VibeBulkOperationService(storageService: storageService);
+  final exportService = ref.watch(vibeExportServiceProvider);
+  return VibeBulkOperationService(
+    storageService: storageService,
+    exportService: exportService,
+  );
 }

@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/vibe/vibe_export_format.dart';
 import '../models/vibe/vibe_export_options.dart';
 import '../models/vibe/vibe_library_entry.dart';
+
+part 'vibe_export_service.g.dart';
 
 /// Vibe 导出进度回调
 typedef ExportProgressCallback = void Function({
@@ -292,4 +296,10 @@ class VibeExportService {
 
   /// 将数字格式化为两位字符串
   String _twoDigits(int n) => n.toString().padLeft(2, '0');
+}
+
+/// VibeExportService Provider
+@riverpod
+VibeExportService vibeExportService(Ref ref) {
+  return VibeExportService();
 }
