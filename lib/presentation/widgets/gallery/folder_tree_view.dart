@@ -378,7 +378,7 @@ class _FolderTreeViewState extends State<FolderTreeView> {
           ),
         ),
       ),
-      childWhenDragging: Opacity(opacity: 0.4, child: child),
+      childWhenDragging: const Opacity(opacity: 0.4, child: child),
       onDragStarted: () => HapticFeedback.mediumImpact(),
       onDragEnd: (_) {
         _cancelAutoExpandTimer();

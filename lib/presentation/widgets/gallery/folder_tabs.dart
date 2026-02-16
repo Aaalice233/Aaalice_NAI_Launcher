@@ -139,11 +139,16 @@ class FolderTabs extends ConsumerWidget {
         PopupMenuItem(
           child: Row(
             children: [
-              Icon(Icons.delete_outline,
-                  size: 18, color: Theme.of(context).colorScheme.error,),
+              Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.error,
+              ),
               const SizedBox(width: 8),
-              Text('删除',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),),
+              Text(
+                '删除',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ),
           onTap: () => _showDeleteFolderDialog(context, ref, folder),

@@ -50,7 +50,7 @@ class GalleryFolderRepository {
   Future<GalleryFolder?> _createFolderFromDirectory(Directory dir) async {
     try {
       final stat = await dir.stat();
-      return GalleryFolder(
+      return const GalleryFolder(
         id: _generateFolderId(dir.path),
         name: p.basename(dir.path),
         path: dir.path,
@@ -211,7 +211,7 @@ class GalleryFolderRepository {
     try {
       final stat = await dir.stat();
       final imageCount = await _countImagesInFolder(dir.path, recursive: true);
-      return GalleryFolder(
+      return const GalleryFolder(
         id: _generateFolderId(dir.path),
         name: p.basename(dir.path),
         path: relativePath,
