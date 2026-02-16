@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../../../core/shortcuts/shortcut_config.dart';
 import '../../../../../core/shortcuts/shortcut_manager.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../providers/shortcuts_provider.dart';

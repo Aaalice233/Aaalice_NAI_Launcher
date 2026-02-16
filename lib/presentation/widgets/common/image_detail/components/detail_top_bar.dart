@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/shortcuts/default_shortcuts.dart';
-import '../../../../core/shortcuts/shortcut_config.dart';
-import '../../../../core/utils/localization_extension.dart';
-import '../../../widgets/shortcuts/shortcut_help_dialog.dart';
-import '../../../widgets/shortcuts/shortcut_tooltip.dart';
+import '../../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../../../core/utils/localization_extension.dart';
+import '../../../../widgets/shortcuts/shortcut_help_dialog.dart';
+import '../../../../widgets/shortcuts/shortcut_tooltip.dart';
 import '../../animated_favorite_button.dart';
 import '../image_detail_data.dart';
 

@@ -111,6 +111,87 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get common_undo => '撤销';
+
+  @override
+  String get common_redo => '重做';
+
+  @override
+  String get common_refresh => '刷新';
+
+  @override
+  String get common_download => '下载';
+
+  @override
+  String get common_upload => '上传';
+
+  @override
+  String get common_apply => '应用';
+
+  @override
+  String get common_preview => '预览';
+
+  @override
+  String get common_done => '完成';
+
+  @override
+  String get common_view => '查看';
+
+  @override
+  String get common_info => '信息';
+
+  @override
+  String get common_warning => '警告';
+
+  @override
+  String get common_show => '显示';
+
+  @override
+  String get common_hide => '隐藏';
+
+  @override
+  String get common_move => '移动';
+
+  @override
+  String get common_duplicate => '复制';
+
+  @override
+  String get common_favorite => '收藏';
+
+  @override
+  String get common_unfavorite => '取消收藏';
+
+  @override
+  String get common_share => '分享';
+
+  @override
+  String get common_open => '打开';
+
+  @override
+  String get common_ok => '确定';
+
+  @override
+  String get common_submit => '提交';
+
+  @override
+  String get common_discard => '放弃';
+
+  @override
+  String get common_keep => '保留';
+
+  @override
+  String get common_replace => '替换';
+
+  @override
+  String get common_skip => '跳过';
+
+  @override
+  String get common_yes => '是';
+
+  @override
+  String get common_no => '否';
+
+  @override
   String get nav_canvas => '画布';
 
   @override
@@ -465,6 +546,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_selectFolder => '选择保存文件夹';
 
   @override
+  String get settings_vibeLibraryPath => 'Vibe库路径';
+
+  @override
+  String get settings_hiveStoragePath => '数据存储路径';
+
+  @override
+  String get settings_selectVibeLibraryFolder => '选择Vibe库文件夹';
+
+  @override
+  String get settings_selectHiveFolder => '选择数据存储文件夹';
+
+  @override
+  String get settings_restartRequired => '需要重启';
+
+  @override
+  String get settings_restartRequiredContent => '应用需要重启才能应用新的存储路径。请手动重启应用。';
+
+  @override
+  String get settings_pathSavedRestartRequired => '路径已更新，重启后生效';
+
+  @override
   String get settings_accountProfile => '账号资料';
 
   @override
@@ -601,6 +703,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_clearHistoryConfirm => '确定要清除所有历史记录吗？此操作不可撤销。';
+
+  @override
+  String get generation_startCreating => '开始创作';
+
+  @override
+  String get generation_noHistoryGuide => '您的生成历史将显示在这里。输入提示词并点击生成按钮开始创作吧！';
+
+  @override
+  String get generation_randomPrompt => '随机提示词';
+
+  @override
+  String get generation_randomPromptSubtitle => '生成随机提示词以获取灵感';
+
+  @override
+  String get generation_clearPrompt => '清空提示词';
+
+  @override
+  String get generation_clearPromptSubtitle => '清空当前提示词输入';
+
+  @override
+  String get generation_promptCleared => '提示词已清空';
 
   @override
   String get generation_model => '模型';
@@ -2685,6 +2808,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get warmup_group_dataSourceInitialization_complete => '数据源服务就绪';
+
+  @override
+  String get warmup_unifiedDbInit => '初始化统一数据库...';
+
+  @override
+  String get warmup_dataMigration => '数据迁移...';
 
   @override
   String get performanceReport_title => '启动性能';
@@ -6209,6 +6338,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_settings => '队列设置';
 
   @override
+  String get settings_queueRetryCount => '重试次数';
+
+  @override
+  String get settings_queueRetryInterval => '重试间隔';
+
+  @override
+  String get settings_queueRetryCountSubtitle => '失败任务的最大重试次数';
+
+  @override
+  String get settings_queueRetryIntervalSubtitle => '重试之间的等待时间';
+
+  @override
+  String get unit_times => '次';
+
+  @override
+  String get unit_seconds => '秒';
+
+  @override
+  String get settings_floatingButtonBackground => '悬浮球背景';
+
+  @override
+  String get settings_floatingButtonBackgroundCustom => '已设置自定义背景';
+
+  @override
+  String get settings_floatingButtonBackgroundDefault => '默认样式';
+
+  @override
+  String get settings_clearBackground => '清除背景';
+
+  @override
+  String get settings_selectImage => '选择图片';
+
+  @override
   String queue_currentQueueInfo(Object count) {
     return '当前队列包含 $count 个任务';
   }
@@ -6981,6 +7143,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get tray_show => '显示窗口';
+
+  @override
+  String get tray_exit => '退出';
+
+  @override
   String get settings_shortcutsSubtitle => '自定义键盘快捷键';
 
   @override
@@ -7024,16 +7192,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_restartRequiredTitle => '需要重启应用';
 
   @override
-  String get settings_changePathConfirm => '更改数据存储路径后，需要重启应用才能生效。\n\n新路径将在下次启动时生效。是否继续？';
+  String get settings_changePathConfirm => '更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？';
 
   @override
-  String get settings_resetPathConfirm => '重置数据存储路径后，需要重启应用才能生效。\n\n默认路径将在下次启动时生效。是否继续？';
-
-  @override
-  String get tray_show => '显示窗口';
-
-  @override
-  String get tray_exit => '退出';
+  String get settings_resetPathConfirm => '重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？';
 
   @override
   String get viewer_help_button_tooltip => '快捷键帮助';

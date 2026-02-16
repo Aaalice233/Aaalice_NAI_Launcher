@@ -88,6 +88,34 @@ dependencies:
   device_info_plus: ^10.1.0
   timeago: ^3.7.1
 
+  # SQLite FFI 支持
+  sqflite_common_ffi: ^2.3.4
+
+  # 音频播放
+  audioplayers: ^6.0.0
+
+  # 图表
+  fl_chart: ^0.68.0
+
+  # Crypto 支持
+  crypto: ^3.0.3
+
+  # 互斥锁
+  mutex: ^3.1.0
+
+  # CSV 解析
+  csv: ^6.0.0
+
+  # 包信息
+  package_info_plus: ^8.0.0
+
+  # 视频播放
+  video_player: ^2.8.0
+  video_player_media_kit: ^1.0.7
+
+  # 剪贴板
+  super_clipboard: ^0.8.24
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
