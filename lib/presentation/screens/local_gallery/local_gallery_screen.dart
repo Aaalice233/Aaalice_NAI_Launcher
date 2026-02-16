@@ -23,7 +23,6 @@ import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/collection_provider.dart';
-import '../../providers/gallery_category_provider.dart';
 import '../../providers/gallery_folder_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -34,7 +33,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
-import '../../widgets/gallery/gallery_category_tree_view.dart';
+import '../../widgets/gallery/folder_tree_view.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/image_send_destination_dialog.dart';
@@ -142,7 +141,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(localGalleryNotifierProvider);
     final bulkOpState = ref.watch(bulkOperationNotifierProvider);
-    final categoryState = ref.watch(galleryCategoryNotifierProvider);
+    final folderState = ref.watch(galleryFolderNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
@@ -163,7 +162,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           body: Row(
             children: [
               if (_showCategoryPanel && screenWidth > 800)
-                _buildCategoryPanel(theme, state, categoryState),
+                _buildCategoryPanel(theme, state, folderState),
               Expanded(
                 child: Column(
                   children: [
@@ -202,7 +201,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Widget _buildCategoryPanel(
     ThemeData theme,
     LocalGalleryState state,
-    GalleryCategoryState categoryState,
+    GalleryFolderState folderState,
   ) {
     return Container(
       width: 250,
@@ -223,28 +222,29 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           ),
           Expanded(
-            child: GalleryCategoryTreeView(
-              categories: categoryState.categories,
+            child: FolderTreeView(
+              folders: folderState.folders,
               totalImageCount: state.allFiles.length,
               favoriteCount: ref
                   .read(localGalleryNotifierProvider.notifier)
                   .getTotalFavoriteCount(),
-              selectedCategoryId: categoryState.selectedCategoryId,
-              onCategorySelected: _handleCategorySelected,
-              onCategoryRename: (id, newName) => ref
-                  .read(galleryCategoryNotifierProvider.notifier)
-                  .renameCategory(id, newName),
-              onCategoryDelete: _handleCategoryDelete,
-              onAddSubCategory: _handleAddSubCategory,
-              onCategoryMove: (categoryId, newParentId) => ref
-                  .read(galleryCategoryNotifierProvider.notifier)
-                  .moveCategory(categoryId, newParentId),
-              onCategoryReorder: (parentId, oldIndex, newIndex) => ref
-                  .read(galleryCategoryNotifierProvider.notifier)
-                  .reorderCategories(parentId, oldIndex, newIndex),
-              onImageDrop: (imagePath, categoryId) =>
-                  _handleImageDrop(imagePath, categoryId!),
-              onSyncWithFileSystem: _handleSyncWithFileSystem,
+              selectedFolderId: folderState.selectedFolderId,
+              onFolderSelected: _handleFolderSelected,
+              onFolderRename: (id, newName) => ref
+                  .read(galleryFolderNotifierProvider.notifier)
+                  .renameFolder(id, newName),
+              onFolderDelete: _handleFolderDelete,
+              onAddSubFolder: _handleAddSubFolder,
+              onFolderMove: (folderId, newParentId) => ref
+                  .read(galleryFolderNotifierProvider.notifier)
+                  .moveFolder(folderId, newParentId),
+              onFolderReorder: (parentId, oldIndex, newIndex) => ref
+                  .read(galleryFolderNotifierProvider.notifier)
+                  .reorderFolders(parentId, oldIndex, newIndex),
+              onImageDrop: (imagePath, folderId) =>
+                  _handleImageDrop(imagePath, folderId),
+              onAutoCategorizeAll: _handleAutoCategorizeAll,
+              onAutoCategorizeToFolder: _handleAutoCategorizeToFolder,
             ),
           ),
         ],
@@ -266,14 +266,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '分类',
+              '文件夹',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           FilledButton.tonalIcon(
-            onPressed: _createCategory,
+            onPressed: _createFolder,
             icon: const Icon(Icons.add, size: 18),
             label: const Text('新建', style: TextStyle(fontSize: 13)),
             style: FilledButton.styleFrom(
@@ -285,33 +285,33 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
   }
 
-  Future<void> _createCategory() async {
+  Future<void> _createFolder() async {
     final name = await ThemedInputDialog.show(
       context: context,
-      title: '新建分类',
-      hintText: '请输入分类名称',
+      title: '新建文件夹',
+      hintText: '请输入文件夹名称',
       confirmText: '创建',
       cancelText: '取消',
     );
     if (name != null && name.isNotEmpty) {
       await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .createCategory(name, parentId: null);
+          .read(galleryFolderNotifierProvider.notifier)
+          .createFolder(name, parentId: null);
     }
   }
 
-  void _handleCategorySelected(String? id) {
-    ref.read(galleryCategoryNotifierProvider.notifier).selectCategory(id);
+  void _handleFolderSelected(String? id) {
+    ref.read(galleryFolderNotifierProvider.notifier).selectFolder(id);
     ref
         .read(localGalleryNotifierProvider.notifier)
         .setShowFavoritesOnly(id == 'favorites');
   }
 
-  Future<void> _handleCategoryDelete(String id) async {
+  Future<void> _handleFolderDelete(String id) async {
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
       title: '确认删除',
-      content: '确定要删除此分类吗？文件夹及其内容将被保留。',
+      content: '确定要删除此文件夹吗？文件夹及其内容将被保留。',
       confirmText: '删除',
       cancelText: '取消',
       type: ThemedConfirmDialogType.danger,
@@ -319,44 +319,64 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
     if (confirmed) {
       await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .deleteCategory(id, deleteFolder: false);
+          .read(galleryFolderNotifierProvider.notifier)
+          .deleteFolder(id, deleteFolder: false);
     }
   }
 
-  Future<void> _handleAddSubCategory(String? parentId) async {
+  Future<void> _handleAddSubFolder(String? parentId) async {
     final name = await ThemedInputDialog.show(
       context: context,
-      title: parentId == null ? '新建分类' : '新建子分类',
-      hintText: '请输入分类名称',
+      title: parentId == null ? '新建文件夹' : '新建子文件夹',
+      hintText: '请输入文件夹名称',
       confirmText: '创建',
       cancelText: '取消',
     );
     if (name != null && name.isNotEmpty) {
       await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .createCategory(name, parentId: parentId);
+          .read(galleryFolderNotifierProvider.notifier)
+          .createFolder(name, parentId: parentId);
     }
   }
 
-  Future<void> _handleImageDrop(String imagePath, String categoryId) async {
+  Future<void> _handleImageDrop(String imagePath, String? folderId) async {
     final newPath = await ref
-        .read(galleryCategoryNotifierProvider.notifier)
-        .moveImageToCategory(imagePath, categoryId);
+        .read(galleryFolderNotifierProvider.notifier)
+        .moveImageToFolder(imagePath, folderId);
     if (newPath != null) {
       ref.read(localGalleryNotifierProvider.notifier).refresh();
       if (mounted) {
-        AppToast.success(context, '图片已移动到分类');
+        AppToast.success(context, '图片已移动到文件夹');
       }
     }
   }
 
-  Future<void> _handleSyncWithFileSystem() async {
-    await ref
-        .read(galleryCategoryNotifierProvider.notifier)
-        .syncWithFileSystem();
+  Future<void> _handleAutoCategorizeAll() async {
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: '智能分类',
+      content: '是否对所有未分类图片进行智能分类？\n\n'
+          '系统将根据图片标签自动移动到最合适的文件夹。',
+      confirmText: '开始分类',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.info,
+      icon: Icons.auto_awesome,
+    );
+    if (confirmed) {
+      // TODO: Implement auto-categorization logic
+      if (mounted) {
+        AppToast.info(context, '智能分类功能开发中');
+      }
+    }
+  }
+
+  Future<void> _handleAutoCategorizeToFolder(
+    String folderId,
+    List<String> imagePaths,
+  ) async {
+    // TODO: Implement auto-categorization to specific folder
     if (mounted) {
-      AppToast.success(context, '分类已与文件夹同步');
+      AppToast.info(context, '智能分类功能开发中');
     }
   }
 
