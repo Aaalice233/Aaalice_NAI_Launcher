@@ -1,0 +1,776 @@
+{
+  "feature": "优化Riverpod Provider生命周期管理，减少不必要的内存常驻",
+  "workflow_type": "refactor",
+  "workflow_rationale": "这是一个重构任务，需要逐步审查和修改现有Provider的keepAlive策略，同时确保功能不中断。采用分阶段迁移策略：分析→修改→验证→清理。",
+  "phases": [
+    {
+      "id": "phase-1-analysis",
+      "name": "分析阶段 - Provider分类与评估",
+      "type": "investigation",
+      "description": "对所有使用@Riverpod(keepAlive: true)的Provider进行分类，识别哪些可以安全移除keepAlive，哪些需要保留",
+      "depends_on": [],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "扫描并分类所有presentation层的keepAlive Provider",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [
+            ".auto-claude/specs/008-riverpod-provider/provider_analysis.md"
+          ],
+          "patterns_from": [
+            "lib/presentation/providers/tag_library_page_provider.dart",
+            "lib/presentation/providers/tag_library_provider.dart",
+            "lib/presentation/providers/auth_provider.dart",
+            "lib/presentation/providers/queue_execution_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review provider_analysis.md for completeness - should list all 42 keepAlive providers in presentation layer with categorization"
+          },
+          "status": "completed",
+          "completed_at": "2026-02-16T21:06:00Z",
+          "notes": "Successfully identified and categorized all 42 keepAlive providers in presentation layer across 11 categories"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "扫描并分类data层和core层的keepAlive Provider",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/data/services/tag_library_service.dart",
+            "lib/data/services/danbooru_auth_service.dart",
+            "lib/core/services/danbooru_tags_lazy_service.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Extend provider_analysis.md with data/core layer providers - should include 21 additional providers"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-1-3",
+          "description": "创建Provider分类标准文档",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [
+            ".auto-claude/specs/008-riverpod-provider/provider_categorization_guide.md"
+          ],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review provider_categorization_guide.md defines 5 categories: Core(keep), PageState(remove), Service(keep), Cache(conditional), Queue(keep)"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-page-providers",
+      "name": "页面级Provider优化",
+      "type": "implementation",
+      "description": "优化页面级Provider，这些Provider在页面关闭后应该自动清理",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "优化tag_library_page_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/tag_library_page_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/tag_library_page_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "TagLibraryPageProvider管理词库页面状态，页面关闭后可以清理"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "优化tag_library_provider - 评估是否保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/tag_library_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/tag_library_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "TagLibraryNotifier管理全局词库数据，需要在应用生命周期保持，考虑保留keepAlive"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "优化bulk_operation_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/bulk_operation_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/bulk_operation_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "批量操作状态在操作完成后应该清理"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "优化character_prompt_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/character_prompt_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/character_prompt_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "角色提示词管理，非核心功能"
+        },
+        {
+          "id": "subtask-2-5",
+          "description": "优化collection_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/collection_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/collection_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "合集管理Provider"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-settings-providers",
+      "name": "设置类Provider优化",
+      "type": "implementation",
+      "description": "优化设置类Provider，需要确保持久化逻辑正确",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "优化fixed_tags_provider - 保留keepAlive但评估必要性",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/fixed_tags_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/fixed_tags_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "固定标签在生成页面使用频繁，考虑保留"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "优化image_save_settings_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/image_save_settings_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/image_save_settings_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "图片保存设置全局使用，保留keepAlive"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "优化notification_settings_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/notification_settings_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/notification_settings_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "通知设置已持久化到存储，可以移除keepAlive"
+        },
+        {
+          "id": "subtask-3-4",
+          "description": "优化quality_preset_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/quality_preset_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/quality_preset_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "质量预设Provider"
+        },
+        {
+          "id": "subtask-3-5",
+          "description": "优化uc_preset_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/uc_preset_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/uc_preset_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "UC预设Provider"
+        },
+        {
+          "id": "subtask-3-6",
+          "description": "优化random_preset_provider - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/random_preset_provider.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/random_preset_provider.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "随机预设Provider"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-generation-providers",
+      "name": "生成相关Provider优化",
+      "type": "implementation",
+      "description": "优化图像生成相关Provider，这些是核心功能需要谨慎处理",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "评估generation_params_notifier - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/generation/generation_params_notifier.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review generation_params_notifier - this is core generation state that should keep keepAlive"
+          },
+          "status": "pending",
+          "notes": "生成参数是核心状态，保留keepAlive"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "评估generation_settings_notifiers - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/generation/generation_settings_notifiers.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review generation_settings_notifiers - contains 8 providers that manage generation settings"
+          },
+          "status": "pending",
+          "notes": "生成设置包含多个Provider，都是核心状态"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "评估image_generation_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/image_generation_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review image_generation_provider - this manages active generation state"
+          },
+          "status": "pending",
+          "notes": "图像生成状态管理，核心Provider保留keepAlive"
+        },
+        {
+          "id": "subtask-4-4",
+          "description": "评估reference_panel_notifier - 移除keepAlive",
+          "service": "frontend",
+          "files_to_modify": [
+            "lib/presentation/providers/generation/reference_panel_notifier.dart"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze lib/presentation/providers/generation/reference_panel_notifier.dart",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "参考面板状态，可考虑移除keepAlive"
+        },
+        {
+          "id": "subtask-4-5",
+          "description": "评估pending_prompt_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/pending_prompt_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review pending_prompt_provider - manages pending prompts for generation"
+          },
+          "status": "pending",
+          "notes": "待处理提示词，与应用生命周期相关，保留keepAlive"
+        }
+      ]
+    },
+    {
+      "id": "phase-5-queue-providers",
+      "name": "队列相关Provider评估",
+      "type": "implementation",
+      "description": "评估队列相关Provider，这些是后台功能需要保持状态",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "description": "评估queue_execution_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/queue_execution_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review queue_execution_provider - manages active queue execution state"
+          },
+          "status": "pending",
+          "notes": "队列执行引擎，后台运行需要keepAlive"
+        },
+        {
+          "id": "subtask-5-2",
+          "description": "评估replication_queue_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/replication_queue_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review replication_queue_provider - manages replication task queue"
+          },
+          "status": "pending",
+          "notes": "复刻队列管理，后台功能保留keepAlive"
+        },
+        {
+          "id": "subtask-5-3",
+          "description": "评估background_task_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/background_task_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review background_task_provider - manages background tasks"
+          },
+          "status": "pending",
+          "notes": "后台任务管理，保留keepAlive"
+        }
+      ]
+    },
+    {
+      "id": "phase-6-core-providers",
+      "name": "核心Provider评估",
+      "type": "implementation",
+      "description": "评估核心功能Provider，这些通常需要保留keepAlive",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-6-1",
+          "description": "评估auth_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/auth_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review auth_provider - manages authentication state"
+          },
+          "status": "pending",
+          "notes": "认证状态管理，核心Provider保留keepAlive"
+        },
+        {
+          "id": "subtask-6-2",
+          "description": "评估account_manager_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/account_manager_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review account_manager_provider - manages multiple accounts"
+          },
+          "status": "pending",
+          "notes": "账号管理，核心Provider保留keepAlive"
+        },
+        {
+          "id": "subtask-6-3",
+          "description": "评估local_gallery_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/local_gallery_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review local_gallery_provider - manages local gallery state"
+          },
+          "status": "pending",
+          "notes": "本地画廊状态管理，保活页面需要keepAlive"
+        },
+        {
+          "id": "subtask-6-4",
+          "description": "评估vibe_library_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/vibe_library_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review vibe_library_provider - manages vibe library state"
+          },
+          "status": "pending",
+          "notes": "Vibe库管理，核心功能保留keepAlive"
+        },
+        {
+          "id": "subtask-6-5",
+          "description": "评估data_source_cache_provider - 保留keepAlive",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/presentation/providers/data_source_cache_provider.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review data_source_cache_provider - manages data source cache"
+          },
+          "status": "pending",
+          "notes": "数据源缓存管理，保留keepAlive"
+        }
+      ]
+    },
+    {
+      "id": "phase-7-service-providers",
+      "name": "Service层Provider优化",
+      "type": "implementation",
+      "description": "优化data/services和core/services中的Provider",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-7-1",
+          "description": "评估data/services中的keepAlive Provider",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/data/services/tag_library_service.dart",
+            "lib/data/services/tag_translation_service.dart",
+            "lib/data/services/statistics_service.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review all data/services providers - most are service singletons that should keep keepAlive"
+          },
+          "status": "pending",
+          "notes": "数据服务层Provider通常是单例服务，保留keepAlive"
+        },
+        {
+          "id": "subtask-7-2",
+          "description": "评估core/services中的keepAlive Provider",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "lib/core/services/danbooru_tags_lazy_service.dart",
+            "lib/core/services/cooccurrence_service.dart",
+            "lib/core/services/translation/translation_providers.dart"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review core/services providers - these are core services that should keep keepAlive"
+          },
+          "status": "pending",
+          "notes": "核心服务层Provider，保留keepAlive"
+        }
+      ]
+    },
+    {
+      "id": "phase-8-generation",
+      "name": "代码生成与验证",
+      "type": "implementation",
+      "description": "运行build_runner生成代码，并执行完整验证",
+      "depends_on": [
+        "phase-2-page-providers",
+        "phase-3-settings-providers",
+        "phase-4-generation-providers",
+        "phase-5-queue-providers",
+        "phase-6-core-providers",
+        "phase-7-service-providers"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-8-1",
+          "description": "运行build_runner生成代码",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "dart run build_runner build --delete-conflicting-outputs",
+            "expected": "Succeeded"
+          },
+          "status": "pending",
+          "notes": "重新生成所有.g.dart文件"
+        },
+        {
+          "id": "subtask-8-2",
+          "description": "运行flutter analyze检查代码",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "flutter analyze",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "确保没有分析错误"
+        },
+        {
+          "id": "subtask-8-3",
+          "description": "运行dart fix自动修复问题",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "dart fix --apply && flutter analyze",
+            "expected": "No issues found"
+          },
+          "status": "pending",
+          "notes": "自动修复可修复的问题"
+        }
+      ]
+    },
+    {
+      "id": "phase-9-documentation",
+      "name": "文档与清理",
+      "type": "cleanup",
+      "description": "创建最终文档，记录变更和优化效果",
+      "depends_on": [
+        "phase-8-generation"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-9-1",
+          "description": "创建优化报告文档",
+          "service": "frontend",
+          "files_to_modify": [],
+          "files_to_create": [
+            ".auto-claude/specs/008-riverpod-provider/optimization_report.md"
+          ],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review optimization_report.md includes: before/after provider counts, memory impact estimate, lessons learned"
+          },
+          "status": "pending",
+          "notes": "记录优化结果和经验"
+        },
+        {
+          "id": "subtask-9-2",
+          "description": "更新CLAUDE.md中的Riverpod最佳实践",
+          "service": "frontend",
+          "files_to_modify": [
+            "CLAUDE.md"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review CLAUDE.md includes updated Riverpod keepAlive guidance section"
+          },
+          "status": "pending",
+          "notes": "更新项目文档"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 9,
+    "total_subtasks": 32,
+    "services_involved": [
+      "frontend"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 3,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-2-page-providers",
+            "phase-3-settings-providers",
+            "phase-6-core-providers"
+          ],
+          "reason": "这些阶段修改不同的Provider文件，没有文件冲突"
+        }
+      ],
+      "recommended_workers": 2,
+      "speedup_estimate": "1.5x faster than sequential"
+    },
+    "startup_command": "cd /e/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/008-riverpod-provider && flutter pub get"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "static_analysis"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "所有flutter analyze检查通过",
+      "build_runner生成代码成功",
+      "移除keepAlive的Provider在页面关闭后能正确清理"
+    ],
+    "verification_steps": [
+      {
+        "name": "Flutter Analyze",
+        "command": "flutter analyze",
+        "expected_outcome": "No issues found",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Build Runner",
+        "command": "dart run build_runner build --delete-conflicting-outputs",
+        "expected_outcome": "Succeeded",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Riverpod Provider优化主要是编译时注解变更，依赖静态分析验证，不需要单元测试"
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": false,
+      "commands": [],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "static_analysis": {
+      "required": true,
+      "commands": [
+        "flutter analyze",
+        "dart run build_runner build --delete-conflicting-outputs"
+      ],
+      "checks": [
+        "no-analysis-errors",
+        "generated-code-valid"
+      ]
+    }
+  },
+  "qa_signoff": null,
+  "executionPhase": "coding",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "updated_at": "2026-02-16T13:04:01.499Z",
+  "xstateState": "backlog"
+}
