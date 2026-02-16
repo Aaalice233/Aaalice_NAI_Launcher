@@ -7214,4 +7214,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewer_tooltip_favorite => 'Favorite';
+
+  @override
+  String backgroundTask_downloadedCount(int count) {
+    return 'Downloaded $count tags';
+  }
+
+  @override
+  String backgroundTask_downloadedCountWithTotal(int count, int total) {
+    return 'Downloaded $count/$total tags';
+  }
 }

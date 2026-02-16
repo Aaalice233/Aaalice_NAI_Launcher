@@ -7214,4 +7214,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get viewer_tooltip_favorite => '收藏';
+
+  @override
+  String backgroundTask_downloadedCount(int count) {
+    return '已下载 $count 个标签';
+  }
+
+  @override
+  String backgroundTask_downloadedCountWithTotal(int count, int total) {
+    return '已下载 $count/$total 个标签';
+  }
 }
