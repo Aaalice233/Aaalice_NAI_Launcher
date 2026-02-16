@@ -140,7 +140,7 @@ class _PresetConflictDialogState extends State<PresetConflictDialog> {
         resolution: ConflictResolution.rename,
         newName: newName,
         applyToAll: _applyToAll,
-      ));
+      ),);
       return;
     }
 
@@ -152,7 +152,7 @@ class _PresetConflictDialogState extends State<PresetConflictDialog> {
     Navigator.of(context).pop(PresetConflictResult(
       resolution: _selectedResolution,
       applyToAll: _applyToAll,
-    ));
+    ),);
   }
 
   /// 跳过此预设
@@ -161,7 +161,7 @@ class _PresetConflictDialogState extends State<PresetConflictDialog> {
     Navigator.of(context).pop(PresetConflictResult(
       resolution: ConflictResolution.skip,
       applyToAll: _applyToAll,
-    ));
+    ),);
   }
 
   /// 处理键盘事件
@@ -366,7 +366,7 @@ class _PresetConflictDialogState extends State<PresetConflictDialog> {
                   ),
                   if (preset.isDefault) ...[
                     const SizedBox(width: 8),
-                    Icon(
+                    const Icon(
                       Icons.star,
                       size: 14,
                       color: Colors.amber,

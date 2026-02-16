@@ -11,7 +11,6 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/vibe_image_embedder.dart';
 import '../models/vibe/vibe_export_format.dart';
 import '../models/vibe/vibe_library_entry.dart';
-import '../models/vibe/vibe_reference.dart';
 
 part 'vibe_export_service.g.dart';
 
@@ -414,7 +413,7 @@ class VibeExportService {
           );
           return await file.readAsBytes();
         }
-      } catch (e, stackTrace) {
+      } catch (e) {
         AppLogger.w(
           'Failed to read image from entry filePath: ${entry.filePath}',
           _tag,
@@ -433,7 +432,7 @@ class VibeExportService {
           );
           return await file.readAsBytes();
         }
-      } catch (e, stackTrace) {
+      } catch (e) {
         AppLogger.w(
           'Failed to read image from targetImagePath: ${options.targetImagePath}',
           _tag,
