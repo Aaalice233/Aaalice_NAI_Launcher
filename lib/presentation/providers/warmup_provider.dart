@@ -625,11 +625,13 @@ class WarmupNotifier extends _$WarmupNotifier {
   }) async {
     final service = ref.read(danbooruTagsLazyServiceProvider);
 
-    service.onProgress = (progress, message) {
+    service.onProgress = (progress, message, {processedCount, totalCount}) {
       ref.read(backgroundTaskNotifierProvider.notifier).updateProgress(
         taskId,
         progress,
         message: message,
+        processedCount: processedCount,
+        totalCount: totalCount,
       );
     };
 
