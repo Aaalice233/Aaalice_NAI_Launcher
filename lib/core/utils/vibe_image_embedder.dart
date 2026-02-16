@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
@@ -106,6 +107,15 @@ class VibeImageEmbedder {
         throw VibeExtractException('Failed to extract vibe metadata: $e');
       }
     });
+  }
+
+  /// 在 isolate 中提取 vibe 元数据
+  ///
+  /// 对于大文件或需要避免阻塞 UI 线程的场景，使用此方法
+  static Future<VibeReference> extractVibeFromImageInIsolate(
+    Uint8List imageBytes,
+  ) async {
+    return Isolate.run(() => extractVibeFromImage(imageBytes)).then((result) => result);
   }
 
   static void _ensureValidPng(Uint8List imageBytes) {
