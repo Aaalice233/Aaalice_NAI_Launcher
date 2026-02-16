@@ -14,7 +14,17 @@ set "PFX_PATH=E:\Aaalice_NAI_Launcher\scripts\nai_launcher.pfx"
 set "PFX_PASSWORD=NaiLauncher2024"
 set "TIMESTAMP_URL=http://timestamp.digicert.com"
 
-echo [1/3] Building release version...
+echo [0/4] Building prebuilt database...
+echo.
+
+call E:\flutter\bin\dart.bat scripts\build_prebuilt_database.dart
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [WARNING] Prebuilt database generation failed, continuing with build...
+)
+
+echo.
+echo [1/4] Building release version...
 echo.
 call E:\flutter\bin\flutter.bat build windows --release
 
@@ -26,7 +36,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo [2/3] Checking for signing certificate...
+echo [2/4] Checking for signing certificate...
 
 if not exist "%PFX_PATH%" (
     echo.
@@ -38,7 +48,7 @@ if not exist "%PFX_PATH%" (
     goto :done
 )
 
-echo [3/3] Signing executable...
+echo [3/4] Signing executable...
 echo.
 
 :: 查找 signtool.exe

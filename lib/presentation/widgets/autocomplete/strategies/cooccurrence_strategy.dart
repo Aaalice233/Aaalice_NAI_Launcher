@@ -64,8 +64,10 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
     AppLogger.d('CooccurrenceStrategy: extracted previous tag: "$previousTag"', 'CooccurrenceStrategy');
 
-    // 检查共现数据是否可用
-    if (!_recommendationService.isDataAvailable) {
+    // 检查共现数据是否可用（使用异步检查更精确）
+    final isDataAvailable = await _recommendationService.checkDataAvailableAsync();
+    if (!isDataAvailable) {
+      AppLogger.d('CooccurrenceStrategy: data not available, skipping', 'CooccurrenceStrategy');
       clear();
       return;
     }

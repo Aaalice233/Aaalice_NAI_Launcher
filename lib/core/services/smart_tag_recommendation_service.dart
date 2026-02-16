@@ -199,10 +199,22 @@ class SmartTagRecommendationService {
     );
   }
 
-  /// 检查共现数据是否可用
+  /// 检查共现数据是否可用（同步快速检查）
   /// 不仅检查加载状态，还要验证数据是否真的有内容
-  bool get isDataAvailable =>
-      _cooccurrenceService.isLoaded && _cooccurrenceService.hasData;
+  /// 注意：实时查询，不缓存，确保后台导入完成后能立即使用
+  bool get isDataAvailable {
+    // 实时检查，确保后台导入完成后立即可用
+    final hasData = _cooccurrenceService.isLoaded && _cooccurrenceService.hasData;
+    AppLogger.d('[isDataAvailable] isLoaded=${_cooccurrenceService.isLoaded}, hasData=${_cooccurrenceService.hasData}, result=$hasData', 'SmartRec');
+    return hasData;
+  }
+
+  /// 异步检查共现数据是否可用（更精确，查询实际记录数）
+  Future<bool> checkDataAvailableAsync() async {
+    final hasData = _cooccurrenceService.isLoaded && await _cooccurrenceService.hasDataAsync();
+    AppLogger.d('[checkDataAvailableAsync] isLoaded=${_cooccurrenceService.isLoaded}, hasData=$hasData', 'SmartRec');
+    return hasData;
+  }
 }
 
 /// 候选标签分数（内部使用）

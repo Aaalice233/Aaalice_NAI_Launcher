@@ -142,6 +142,9 @@ class UnifiedTagDatabase {
 
   UnifiedTagDatabase() : _connection = TagDatabaseConnection();
 
+  /// 获取底层连接（用于清空表等操作）
+  TagDatabaseConnection get connection => _connection;
+
   /// 是否已连接
   bool get isConnected => _connection.isConnected;
 

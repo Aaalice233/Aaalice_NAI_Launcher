@@ -81,6 +81,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   @override
   Future<void> initialize() async {
     if (_isInitialized && _hotDataCache.isNotEmpty) {
+      _onProgress?.call(1.0, '标签数据已就绪');
       return;
     }
 
@@ -94,6 +95,26 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       // 检查数据库中实际有多少记录
       final tagCount = await _unifiedDb.getDanbooruTagCount();
       AppLogger.i('Danbooru tag count in database: $tagCount', 'DanbooruTagsLazy');
+
+      // 预构建数据库检测：如果有足够的标签（>30000条），视为预构建数据库
+      const prebuiltThreshold = 30000;
+      final isPrebuiltDatabase = tagCount >= prebuiltThreshold;
+
+      if (isPrebuiltDatabase) {
+        AppLogger.i(
+          'Detected prebuilt database with $tagCount Danbooru tags, skipping download',
+          'DanbooruTagsLazy',
+        );
+        _onProgress?.call(0.5, '使用预构建标签数据 ($tagCount 个)');
+        await _loadHotData();
+        _onProgress?.call(1.0, '标签数据初始化完成');
+        _isInitialized = true;
+        AppLogger.i(
+          'Danbooru tags lazy service initialized with ${_hotDataCache.length} hot tags (prebuilt)',
+          'DanbooruTagsLazy',
+        );
+        return;
+      }
 
       // 如果数据库为空，强制下载
       var needsDownload = await shouldRefresh();
@@ -311,118 +332,232 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<void> refresh() async {
+    await _executeRefresh(
+      fetchTags: (tags) async {
+        await _fetchGeneralTags(tags);
+        await _fetchArtistTags(tags);
+      },
+      logPrefix: '',
+      importProgress: 0.95,
+    );
+  }
+
+  /// 仅拉取普通标签（用于预热阶段，不包含画师标签）
+  Future<void> refreshGeneralOnly() async {
+    await _executeRefresh(
+      fetchTags: _fetchGeneralTags,
+      logPrefix: 'general ',
+      importProgress: 0.9,
+    );
+  }
+
+  /// 仅拉取画师标签（用于后台任务）
+  Future<void> refreshArtistsOnly() async {
+    await _executeRefresh(
+      fetchTags: _fetchArtistTags,
+      logPrefix: 'artist ',
+      importProgress: 0.95,
+      skipHotDataReload: true,
+    );
+  }
+
+  /// 执行刷新操作的通用模板
+  Future<void> _executeRefresh({
+    required Future<void> Function(List<LocalTag>) fetchTags,
+    required String logPrefix,
+    required double importProgress,
+    bool skipHotDataReload = false,
+  }) async {
     if (_isRefreshing) return;
 
     _isRefreshing = true;
     _isCancelled = false;
-    _onProgress?.call(0.0, '开始同步标签...');
+    _onProgress?.call(0.0, '开始同步$logPrefix标签...');
 
     try {
-      final allTags = <LocalTag>[];
-      var currentPage = 1;
-      var consecutiveEmpty = 0;
-      var estimatedTotalTags = _estimateTotalTags(_currentThreshold);
-      var downloadFailed = false;
+      final tags = <LocalTag>[];
+      await fetchTags(tags);
 
-      while (currentPage <= _maxPages && !_isCancelled) {
-        const batchSize = _concurrentRequests;
-        final remainingPages = _maxPages - currentPage + 1;
-        final actualBatchSize = batchSize < remainingPages ? batchSize : remainingPages;
-
-        final futures = List.generate(actualBatchSize, (i) {
-          final page = currentPage + i;
-          return _fetchTagsPage(page, _currentThreshold);
-        });
-
-        final results = await Future.wait(futures);
-
-        var batchHasData = false;
-        for (var i = 0; i < results.length; i++) {
-          final tags = results[i];
-
-          if (tags == null) {
-            AppLogger.w('Failed to fetch page, stopping', 'DanbooruTagsLazy');
-            downloadFailed = true;
-            _isCancelled = true;
-            break;
-          }
-
-          if (tags.isEmpty) {
-            consecutiveEmpty++;
-            if (consecutiveEmpty >= 2) {
-              AppLogger.i('No more tags available', 'DanbooruTagsLazy');
-              _isCancelled = true;
-              break;
-            }
-          } else {
-            consecutiveEmpty = 0;
-            batchHasData = true;
-            allTags.addAll(tags);
-          }
-        }
-
-        if (_isCancelled) break;
-
-        if (allTags.length >= estimatedTotalTags && batchHasData) {
-          estimatedTotalTags = allTags.length + _pageSize * 2;
-        }
-
-        final progress = (allTags.length / estimatedTotalTags).clamp(0.0, 0.95);
-        final percent = (progress * 100).toInt();
-        _onProgress?.call(progress, '拉取标签... $percent% (${allTags.length})');
-
-        currentPage += actualBatchSize;
-
-        if (currentPage <= _maxPages && !_isCancelled && batchHasData) {
-          await Future.delayed(
-            const Duration(milliseconds: _requestIntervalMs),
-          );
-        }
+      if (_isCancelled) {
+        throw Exception('用户取消同步');
       }
 
-      // 如果下载失败，抛出异常以确保不更新 _lastUpdate
-      if (downloadFailed) {
-        throw Exception('Danbooru 标签下载失败');
+      _onProgress?.call(importProgress, '导入数据库...');
+      await _importTags(tags);
+
+      if (!skipHotDataReload) {
+        _onProgress?.call(0.99, '更新热数据...');
+        await _loadHotData();
       }
-
-      _onProgress?.call(0.95, '导入数据库...');
-
-      // 导入数据 - UnifiedTagDatabase 会自动处理连接问题
-      final records = allTags
-          .map(
-            (t) => DanbooruTagRecord(
-              tag: t.tag,
-              category: t.category,
-              postCount: t.count,
-              lastUpdated: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            ),
-          )
-          .toList();
-
-      AppLogger.i('Preparing to import ${records.length} tags...', 'DanbooruTagsLazy');
-      await _unifiedDb.insertDanbooruTags(records);
-      AppLogger.i('Successfully imported ${records.length} tags', 'DanbooruTagsLazy');
-
-      _onProgress?.call(0.99, '更新热数据...');
-      await _loadHotData();
-      await _saveMeta(allTags.length);
-
+      await _saveMeta(tags.length);
       _lastUpdate = DateTime.now();
 
       _onProgress?.call(1.0, '完成');
       AppLogger.i(
-        'Danbooru tags refreshed: ${allTags.length} tags',
+        'Danbooru ${logPrefix}tags refreshed: ${tags.length} tags',
         'DanbooruTagsLazy',
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to refresh Danbooru tags', e, stack, 'DanbooruTagsLazy');
+      AppLogger.e('Failed to refresh ${logPrefix}tags', e, stack, 'DanbooruTagsLazy');
       _onProgress?.call(1.0, '刷新失败: $e');
-      // 下载失败时不更新 _lastUpdate，确保下次启动会重新尝试下载
       rethrow;
     } finally {
       _isRefreshing = false;
       _isCancelled = false;
     }
+  }
+
+  /// 将标签导入数据库
+  Future<void> _importTags(List<LocalTag> tags) async {
+    final records = tags
+        .map(
+          (t) => DanbooruTagRecord(
+            tag: t.tag,
+            category: t.category,
+            postCount: t.count,
+            lastUpdated: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          ),
+        )
+        .toList();
+
+    AppLogger.i('Preparing to import ${records.length} tags...', 'DanbooruTagsLazy');
+    await _unifiedDb.insertDanbooruTags(records);
+    AppLogger.i('Successfully imported ${records.length} tags', 'DanbooruTagsLazy');
+  }
+
+  /// 拉取普通标签（带热度阈值）
+  Future<void> _fetchGeneralTags(List<LocalTag> allTags) async {
+    var currentPage = 1;
+    var consecutiveEmpty = 0;
+    var estimatedTotalTags = _estimateTotalTags(_currentThreshold);
+    var downloadFailed = false;
+    var shouldStop = false;
+
+    while (currentPage <= _maxPages && !shouldStop && !_isCancelled) {
+      const batchSize = _concurrentRequests;
+      final remainingPages = _maxPages - currentPage + 1;
+      final actualBatchSize = batchSize < remainingPages ? batchSize : remainingPages;
+
+      final futures = List.generate(actualBatchSize, (i) {
+        final page = currentPage + i;
+        return _fetchTagsPage(page, _currentThreshold);
+      });
+
+      final results = await Future.wait(futures);
+
+      var batchHasData = false;
+      for (var i = 0; i < results.length; i++) {
+        final tags = results[i];
+
+        if (tags == null) {
+          AppLogger.w('Failed to fetch general tags page, stopping', 'DanbooruTagsLazy');
+          downloadFailed = true;
+          shouldStop = true;
+          break;
+        }
+
+        if (tags.isEmpty) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 3) {
+            AppLogger.i('No more general tags available after $currentPage pages', 'DanbooruTagsLazy');
+            shouldStop = true;
+            break;
+          }
+        } else {
+          consecutiveEmpty = 0;
+          batchHasData = true;
+          allTags.addAll(tags);
+        }
+      }
+
+      if (shouldStop) break;
+
+      if (allTags.length >= estimatedTotalTags && batchHasData) {
+        estimatedTotalTags = allTags.length + _pageSize * 2;
+      }
+
+      final progress = (allTags.length / estimatedTotalTags).clamp(0.0, 0.9);
+      _onProgress?.call(progress * 0.45, '拉取普通标签... ${allTags.length} 个 (第 $currentPage 页)');
+
+      currentPage += actualBatchSize;
+
+      if (currentPage <= _maxPages && !shouldStop && !_isCancelled && batchHasData) {
+        await Future.delayed(
+          const Duration(milliseconds: _requestIntervalMs),
+        );
+      }
+    }
+
+    if (downloadFailed) {
+      throw Exception('普通标签下载失败');
+    }
+
+    AppLogger.i('Fetched ${allTags.length} general tags', 'DanbooruTagsLazy');
+  }
+
+  /// 拉取画师标签（全部，无阈值）
+  Future<void> _fetchArtistTags(List<LocalTag> allTags) async {
+    const artistCategory = 1; // Danbooru: 1 = Artist
+    var currentPage = 1;
+    var consecutiveEmpty = 0;
+    var artistTagCount = 0;
+    var shouldStop = false;
+
+    while (currentPage <= _maxPages && !shouldStop && !_isCancelled) {
+      const batchSize = _concurrentRequests;
+      final remainingPages = _maxPages - currentPage + 1;
+      final actualBatchSize = batchSize < remainingPages ? batchSize : remainingPages;
+
+      final futures = List.generate(actualBatchSize, (i) {
+        final page = currentPage + i;
+        // 画师标签不设置热度阈值，拉取全部
+        return _fetchTagsPage(page, 0, category: artistCategory);
+      });
+
+      final results = await Future.wait(futures);
+
+      var batchHasData = false;
+      for (var i = 0; i < results.length; i++) {
+        final tags = results[i];
+
+        if (tags == null) {
+          AppLogger.w('Failed to fetch artist tags page $currentPage, skipping artists', 'DanbooruTagsLazy');
+          // 画师标签失败不阻断整体流程
+          shouldStop = true;
+          break;
+        }
+
+        if (tags.isEmpty) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 3) {
+            AppLogger.i('No more artist tags available', 'DanbooruTagsLazy');
+            shouldStop = true;
+            break;
+          }
+        } else {
+          consecutiveEmpty = 0;
+          batchHasData = true;
+          allTags.addAll(tags);
+          artistTagCount += tags.length;
+        }
+      }
+
+      if (shouldStop) break;
+
+      // 画师标签进度：45% ~ 90%
+      final progress = 0.45 + (currentPage / _maxPages * 0.45).clamp(0.0, 0.45);
+      _onProgress?.call(progress, '拉取画师标签... $artistTagCount 个 (第 $currentPage 页)');
+
+      currentPage += actualBatchSize;
+
+      if (currentPage <= _maxPages && !shouldStop && !_isCancelled && batchHasData) {
+        await Future.delayed(
+          const Duration(milliseconds: _requestIntervalMs),
+        );
+      }
+    }
+
+    AppLogger.i('Fetched $artistTagCount artist tags', 'DanbooruTagsLazy');
   }
 
   void cancelRefresh() {
@@ -437,7 +572,11 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     return 500000;
   }
 
-  Future<List<LocalTag>?> _fetchTagsPage(int page, int minPostCount) async {
+  Future<List<LocalTag>?> _fetchTagsPage(
+    int page,
+    int minPostCount, {
+    int? category,
+  }) async {
     try {
       final queryParams = <String, dynamic>{
         'search[order]': 'count',
@@ -448,6 +587,11 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
       if (minPostCount > 0) {
         queryParams['search[post_count]'] = '>=$minPostCount';
+      }
+
+      // 按类别过滤（0=general, 1=artist, 2=copyright, 3=character）
+      if (category != null) {
+        queryParams['search[category]'] = category.toString();
       }
 
       final response = await _dio.get(
@@ -563,7 +707,25 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   @override
   Future<void> clearCache() async {
     _hotDataCache.clear();
-    AppLogger.i('Danbooru tags cache cleared', 'DanbooruTagsLazy');
+    _lastUpdate = null;
+    _isInitialized = false;
+
+    try {
+      // 清除元数据文件
+      final cacheDir = await _getCacheDirectory();
+      final metaFile = File('${cacheDir.path}/$_metaFileName');
+      if (await metaFile.exists()) {
+        await metaFile.delete();
+      }
+
+      // 清除 SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(StorageKeys.danbooruTagsLastUpdate);
+
+      AppLogger.i('Danbooru tags cache cleared', 'DanbooruTagsLazy');
+    } catch (e) {
+      AppLogger.w('Failed to clear Danbooru tags cache metadata: $e', 'DanbooruTagsLazy');
+    }
   }
 
   // 兼容旧 API 的方法

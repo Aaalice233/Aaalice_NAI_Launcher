@@ -7,7 +7,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
 import '../../core/utils/app_logger.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
-import '../providers/download_progress_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
@@ -20,6 +19,7 @@ import '../screens/image_comparison_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
+import '../widgets/background/background_task_indicator.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
@@ -354,23 +354,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (_initialized) return;
     _initialized = true;
 
-    // 现在 Overlay 已经准备好了，可以安全地初始化下载服务
-    final downloadNotifier =
-        ref.read(downloadProgressNotifierProvider.notifier);
-
-    if (mounted) {
-      downloadNotifier.setContext(context);
-    }
-
-    // 下载共现标签数据（100MB）
-    if (mounted) {
-      try {
-        await downloadNotifier.downloadCooccurrenceData();
-      } catch (e) {
-        AppLogger.e(
-            'Failed to download cooccurrence data', e, null, 'AppRouter',);
-      }
-    }
+    // 所有数据加载已在预热阶段完成，这里无需额外操作
+    AppLogger.i('Download services initialization skipped - all data loaded in warmup', 'AppRouter');
   }
 
   @override
@@ -515,6 +500,8 @@ class DesktopShell extends ConsumerWidget {
                       maxWidth: 650,
                       heightFactor: 0.85,
                     ),
+                    // 后台任务进度指示器
+                    const DesktopBackgroundTaskIndicator(),
                   ],
                 );
               },
@@ -562,6 +549,8 @@ class MobileShell extends ConsumerWidget {
                 maxWidth: double.infinity,
                 heightFactor: 0.85,
               ),
+              // 后台任务进度指示器
+              const MobileBackgroundTaskIndicator(),
             ],
           );
         },

@@ -90,6 +90,9 @@ flutter analyze && dart run build_runner build --delete-conflicting-outputs && f
 # Windows 版本
 flutter build windows
 
+# 或使用打包脚本（自动预构建数据库并签名）
+scripts\build_release.bat
+
 # Android 版本
 flutter build apk
 flutter build appbundle

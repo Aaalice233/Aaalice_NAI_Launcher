@@ -233,10 +233,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_cooccurrenceData;
       case 'warmup_cooccurrenceInit':
         return l10n.warmup_cooccurrenceInit;
+      case 'warmup_danbooruTagsInit':
+        return '加载标签数据...';
       case 'warmup_translationInit':
         return l10n.warmup_translationInit;
-      case 'warmup_danbooruTagsInit':
-        return l10n.warmup_danbooruTagsInit;
       case 'warmup_group_dataSourceInitialization':
         return l10n.warmup_group_dataSourceInitialization;
       case 'warmup_group_dataSourceInitialization_complete':

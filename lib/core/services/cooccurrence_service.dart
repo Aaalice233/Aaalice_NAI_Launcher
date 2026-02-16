@@ -121,25 +121,6 @@ class RelatedTag {
   }
 }
 
-/// 加载进度回调
-@Deprecated('Use DataSourceProgressCallback from LazyDataSourceService')
-typedef CooccurrenceLoadCallback = void Function(
-  CooccurrenceLoadStage stage,
-  double progress,
-  double? stageProgress,
-  String? message,
-);
-
-/// 加载阶段
-@Deprecated('Loading stages are no longer used with SQLite-only mode')
-enum CooccurrenceLoadStage {
-  reading,
-  parsing,
-  merging,
-  complete,
-  error,
-}
-
 /// 共现标签服务
 class CooccurrenceService {
   final CooccurrenceData _data = CooccurrenceData();
@@ -152,6 +133,19 @@ class CooccurrenceService {
 
   bool get isInitialized => _data.isLoaded;
   bool get isLoaded => _data.isLoaded;
+
+  /// 检查是否有共现数据（异步，实时查询数据库）
+  Future<bool> hasDataAsync() async {
+    if (_unifiedDb == null || !_unifiedDb!.isInitialized) return false;
+    try {
+      final counts = await _unifiedDb!.getRecordCounts();
+      return counts.cooccurrences > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// 同步检查数据库是否初始化（快速检查）
   bool get hasData => _unifiedDb?.isInitialized == true;
   DateTime? get lastUpdate => _lastUpdate;
   AutoRefreshInterval get refreshInterval => _refreshInterval;
@@ -189,12 +183,6 @@ class CooccurrenceService {
           .toList();
     }
     return [];
-  }
-
-  @Deprecated('Use initializeUnified() instead')
-  Future<bool> initialize({Duration timeout = const Duration(seconds: 30)}) async {
-    // 旧的初始化方法已废弃，直接返回 false
-    return false;
   }
 
   Future<void> clearCache() async {
@@ -259,6 +247,39 @@ class CooccurrenceService {
       // 2. 检查 SQLite 中是否已有数据
       final counts = await _unifiedDb!.getRecordCounts();
       if (counts.cooccurrences > 0) {
+        // 预构建数据库检测：如果有足够的数据（>300万条），视为预构建数据库，跳过版本检查
+        const prebuiltThreshold = 1500000;
+        final isPrebuiltDatabase = counts.cooccurrences >= prebuiltThreshold;
+
+        // 检查数据完整性（共现数据是否达到完整水平 300万+）
+        const fullDatasetThreshold = 3000000;
+        final isCompleteDataset = counts.cooccurrences >= fullDatasetThreshold;
+
+        if (isPrebuiltDatabase && isCompleteDataset) {
+          AppLogger.i(
+            'Detected complete prebuilt database with ${counts.cooccurrences} cooccurrence records, skipping import',
+            'Cooccurrence',
+          );
+          _data.markLoaded();
+          _lastUpdate = DateTime.now();
+          stopwatch.stop();
+          AppLogger.i(
+            'Complete cooccurrence data ready (${counts.cooccurrences} records) in ${stopwatch.elapsedMilliseconds}ms',
+            'Cooccurrence',
+          );
+          return true;
+        } else if (isPrebuiltDatabase && !isCompleteDataset) {
+          // 预构建数据不完整，需要补充导入剩余数据
+          AppLogger.i(
+            'Prebuilt database has ${counts.cooccurrences} records (incomplete), need to import remaining ${fullDatasetThreshold - counts.cooccurrences} records',
+            'Cooccurrence',
+          );
+          // 标记已加载，让用户可以立即使用，但返回 false 让后台补充剩余数据
+          _data.markLoaded();
+          _lastUpdate = DateTime.now();
+          return false;
+        }
+
         // 有数据，检查版本
         final csvHash = await FileHashUtils.calculateAssetHash(
           'assets/translations/hf_danbooru_cooccurrence.csv',
@@ -287,6 +308,14 @@ class CooccurrenceService {
           // 需要更新，标记后后台处理
           AppLogger.i('Cooccurrence data needs update', 'Cooccurrence');
           _data.markLoaded();
+          // 从数据库读取上次更新时间（毫秒时间戳）
+          final versionInfo = await _unifiedDb!.getDataSourceVersion('cooccurrences');
+          if (versionInfo != null && versionInfo['lastUpdated'] != null) {
+            final timestamp = int.tryParse(versionInfo['lastUpdated'] as String);
+            if (timestamp != null) {
+              _lastUpdate = DateTime.fromMillisecondsSinceEpoch(timestamp);
+            }
+          }
           return false; // 需要后台更新
         }
       }
@@ -303,9 +332,11 @@ class CooccurrenceService {
 
   /// 将 Assets 中的 CSV 导入 SQLite（分批处理，避免阻塞）
   ///
+  /// [skipExisting] 如果为 true，则跳过已存在的记录（增量导入）
   /// 返回: 导入的记录数，-1 表示失败
   Future<int> importCsvToSQLite({
     void Function(double progress, String message)? onProgress,
+    bool skipExisting = false,
   }) async {
     if (_unifiedDb == null) {
       throw StateError('UnifiedTagDatabase not initialized');
@@ -327,12 +358,19 @@ class CooccurrenceService {
 
       onProgress?.call(0.2, '准备导入共现标签...');
 
-      // 3. 清空旧数据
-      await _unifiedDb!.clearCooccurrences();
+      // 3. 如果不跳过已存在，则清空旧数据
+      if (!skipExisting) {
+        await _unifiedDb!.clearCooccurrences();
+      }
 
       // 4. 解析所有记录到内存（一次性）
       onProgress?.call(0.25, '解析共现标签数据...');
       final records = <CooccurrenceRecord>[];
+
+      // 如果增量导入，获取已存在的记录数用于计算偏移
+      final existingCount = skipExisting
+          ? (await _unifiedDb!.getRecordCounts()).cooccurrences
+          : 0;
 
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
@@ -354,6 +392,19 @@ class CooccurrenceService {
           final count = double.tryParse(countStr)?.toInt() ?? 0;
 
           if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
+            // 增量导入：跳过前 existingCount 条（CSV 按 count 降序）
+            if (skipExisting && records.length < existingCount) {
+              records.add(
+                CooccurrenceRecord(
+                  tag1: tag1,
+                  tag2: tag2,
+                  count: count,
+                  cooccurrenceScore: 0.0,
+                ),
+              );
+              continue;
+            }
+
             records.add(
               CooccurrenceRecord(
                 tag1: tag1,
@@ -366,11 +417,26 @@ class CooccurrenceService {
         }
       }
 
+      // 增量导入：只取需要补充的部分
+      final recordsToImport = skipExisting && records.length > existingCount
+          ? records.sublist(existingCount)
+          : records;
+
+      if (recordsToImport.isEmpty) {
+        AppLogger.i('No new cooccurrence records to import', 'Cooccurrence');
+        return 0;
+      }
+
+      AppLogger.i(
+        'Importing ${recordsToImport.length} cooccurrence records (existing: $existingCount)',
+        'Cooccurrence',
+      );
+
       // 5. 高速批量导入（删除索引→插入→重建索引）
       onProgress?.call(0.3, '导入数据...');
       var importedCount = 0;
       await _unifiedDb!.insertCooccurrences(
-        records,
+        recordsToImport,
         onProgress: (processed, total) {
           importedCount = processed;
           // 每5%更新一次进度
@@ -400,24 +466,48 @@ class CooccurrenceService {
     }
   }
 
-  /// 后台执行 CSV 导入（带版本更新）
+  /// 后台执行 CSV 导入（带版本更新，支持增量导入）
   Future<void> performBackgroundImport({
     void Function(double progress, String message)? onProgress,
+    bool incremental = true, // 默认增量导入
   }) async {
     try {
-      // 1. 执行导入
-      final imported = await importCsvToSQLite(onProgress: onProgress);
+      // 1. 检查当前数据量
+      final currentCount = (await _unifiedDb!.getRecordCounts()).cooccurrences;
+      const targetCount = 3236960; // 完整数据集约 323万条
+
+      if (currentCount >= targetCount) {
+        AppLogger.i(
+          'Cooccurrence data already complete ($currentCount records), skipping import',
+          'Cooccurrence',
+        );
+        return;
+      }
+
+      AppLogger.i(
+        'Starting ${incremental ? "incremental" : "full"} cooccurrence import (current: $currentCount, target: $targetCount)',
+        'Cooccurrence',
+      );
+
+      // 2. 执行导入
+      final imported = await importCsvToSQLite(
+        onProgress: onProgress,
+        skipExisting: incremental,
+      );
 
       if (imported > 0) {
-        // 2. 更新版本信息
+        // 3. 更新版本信息
         await _unifiedDb!.updateDataSourceVersion(
           'cooccurrences',
           1, // 版本号
         );
 
         _data.markLoaded();
-        _lastUpdate = DateTime.now();  // 设置上次更新时间，避免重复导入
-        AppLogger.i('Cooccurrence background import completed', 'Cooccurrence');
+        _lastUpdate = DateTime.now(); // 设置上次更新时间，避免重复导入
+        AppLogger.i(
+          'Cooccurrence background import completed, imported $imported records',
+          'Cooccurrence',
+        );
       }
     } catch (e, stack) {
       AppLogger.e('Background import failed', e, stack, 'Cooccurrence');

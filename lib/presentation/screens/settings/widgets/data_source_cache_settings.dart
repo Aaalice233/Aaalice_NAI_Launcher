@@ -4,14 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../../core/services/tag_database_connection.dart';
+import '../../../../core/services/cooccurrence_service.dart';
+import '../../../../core/services/danbooru_tags_lazy_service.dart';
+import '../../../../core/services/unified_tag_database.dart';
 import '../../../../data/models/cache/data_source_cache_meta.dart';
 import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Provider for TagDatabaseConnection
+/// 使用 UnifiedTagDatabase 的连接，确保所有操作在同一连接上执行
 final tagDatabaseConnectionProvider =
-    Provider((ref) => TagDatabaseConnection());
+    Provider((ref) => ref.read(unifiedTagDatabaseProvider).connection);
 
 /// 标签补全数据源管理设置组件
 ///
@@ -212,11 +215,23 @@ class _DataSourceCacheSettingsState
     await Future.delayed(const Duration(milliseconds: 100));
 
     try {
+      // 1. 先清除服务缓存（删除元数据文件）
+      final danbooruService = ref.read(danbooruTagsLazyServiceProvider);
+      await danbooruService.clearCache();
+
+      final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
+      cooccurrenceService.clearCache();
+
+      // 2. 清空数据库表
       final dbConnection = ref.read(tagDatabaseConnectionProvider);
       await dbConnection.clearAllTables();
-      await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
-      ref.invalidate(danbooruTagsCacheNotifierProvider);
 
+      // 3. 更新 provider 状态（不 invalidate，避免异步加载旧数据）
+      await ref
+          .read(danbooruTagsCacheNotifierProvider.notifier)
+          .clearCache();
+
+      // ignore: use_build_context_synchronously
       _closeDialog(dialogContext);
       await Future.delayed(const Duration(milliseconds: 100));
 
@@ -224,6 +239,7 @@ class _DataSourceCacheSettingsState
         AppToast.success(rootContext, '标签数据已清除，下次启动时将重新加载');
       }
     } catch (e) {
+      // ignore: use_build_context_synchronously
       _closeDialog(dialogContext);
       await Future.delayed(const Duration(milliseconds: 100));
 

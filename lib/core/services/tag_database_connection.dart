@@ -122,12 +122,17 @@ class TagDatabaseConnection {
   /// 清空所有数据表（用于"清除缓存"功能）
   /// 相比删除文件，此方法避免 Windows 文件锁定问题
   Future<void> clearAllTables() async {
+    AppLogger.i('Clearing all database tables...', 'TagDatabaseConnection');
+
+    // 确保数据库已连接
+    if (_db == null) {
+      await initialize();
+    }
+
     if (_db == null) {
       AppLogger.w('Database not connected, nothing to clear', 'TagDatabaseConnection');
       return;
     }
-
-    AppLogger.i('Clearing all database tables...', 'TagDatabaseConnection');
 
     await _db!.transaction((txn) async {
       for (final table in _validTables) {

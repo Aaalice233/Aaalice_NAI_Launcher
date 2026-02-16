@@ -12,6 +12,7 @@ dart scripts/build_prebuilt_database.dart
 */
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -50,30 +51,44 @@ void main(List<String> args) async {
     final tempDir = await Directory.systemTemp.createTemp('tag_db_build_');
     print('  临时目录: ${tempDir.path}');
 
-    // 3. 下载数据
-    print('\n[3/6] 下载标签数据...');
-    final dio = Dio();
-    dio.options.headers = {
-      'User-Agent': 'NAI-Launcher-Build/1.0',
-    };
+    // 3. 准备数据文件（使用本地文件，避免下载）
+    print('\n[3/6] 准备标签数据文件...');
 
-    // 下载翻译数据
+    // 使用本地翻译数据
+    final localTranslationFile = File('assets/translations/hf_danbooru_tags.csv');
     final translationFile = File('${tempDir.path}/$_translationFileName');
-    await _downloadFile(
-      dio,
-      '$_baseUrl/$_translationFileName',
-      translationFile,
-      '翻译数据',
-    );
+    if (await localTranslationFile.exists()) {
+      print('  使用本地翻译数据: ${localTranslationFile.path}');
+      await localTranslationFile.copy(translationFile.path);
+    } else {
+      print('  警告: 未找到本地翻译数据，尝试下载...');
+      final dio = Dio();
+      dio.options.headers = {'User-Agent': 'NAI-Launcher-Build/1.0'};
+      await _downloadFile(
+        dio,
+        '$_baseUrl/$_translationFileName',
+        translationFile,
+        '翻译数据',
+      );
+    }
 
-    // 下载共现数据
+    // 使用本地共现数据
+    final localCooccurrenceFile = File('assets/translations/hf_danbooru_cooccurrence.csv');
     final cooccurrenceFile = File('${tempDir.path}/$_cooccurrenceFileName');
-    await _downloadFile(
-      dio,
-      '$_baseUrl/$_cooccurrenceFileName',
-      cooccurrenceFile,
-      '共现数据',
-    );
+    if (await localCooccurrenceFile.exists()) {
+      print('  使用本地共现数据: ${localCooccurrenceFile.path}');
+      await localCooccurrenceFile.copy(cooccurrenceFile.path);
+    } else {
+      print('  警告: 未找到本地共现数据，尝试下载...');
+      final dio = Dio();
+      dio.options.headers = {'User-Agent': 'NAI-Launcher-Build/1.0'};
+      await _downloadFile(
+        dio,
+        '$_baseUrl/$_cooccurrenceFileName',
+        cooccurrenceFile,
+        '共现数据',
+      );
+    }
 
     // 4. 创建数据库
     print('\n[4/6] 创建 SQLite 数据库...');
@@ -87,15 +102,19 @@ void main(List<String> args) async {
     );
 
     try {
-      // 5. 导入翻译数据
-      print('\n[5/6] 导入翻译数据...');
+      // 5. 导入 Danbooru 标签数据（新增）
+      print('\n[5/7] 导入 Danbooru 标签数据...');
+      await _importDanbooruTags(db);
+
+      // 6. 导入翻译数据
+      print('\n[6/7] 导入翻译数据...');
       await _importTranslations(db, translationFile);
 
-      // 6. 导入共现数据
-      print('\n[6/6] 导入共现数据...');
+      // 7. 导入共现数据
+      print('\n[7/7] 导入共现数据...');
       await _importCooccurrences(db, cooccurrenceFile);
 
-      // 7. 添加元数据
+      // 8. 添加元数据
       await _addMetadata(db);
 
       print('\n  正在优化数据库...');
@@ -159,6 +178,16 @@ Future<void> _createTables(Database db) async {
     )
   ''');
 
+  // danbooru_tags 表（新增）
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS danbooru_tags (
+      tag TEXT PRIMARY KEY,
+      category INTEGER NOT NULL DEFAULT 0,
+      post_count INTEGER NOT NULL DEFAULT 0,
+      last_updated INTEGER NOT NULL
+    )
+  ''');
+
   // cooccurrences 表
   await db.execute('''
     CREATE TABLE IF NOT EXISTS cooccurrences (
@@ -188,6 +217,17 @@ Future<void> _createTables(Database db) async {
   await db.execute('''
     CREATE INDEX IF NOT EXISTS idx_cooccurrences_count
     ON cooccurrences(count DESC)
+  ''');
+
+  // danbooru_tags 索引
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_danbooru_tags_post_count
+    ON danbooru_tags(post_count DESC)
+  ''');
+
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_danbooru_tags_category
+    ON danbooru_tags(category)
   ''');
 }
 
@@ -252,62 +292,55 @@ Future<void> _importTranslations(Database db, File file) async {
   print('\r  导入完成: $imported 条翻译记录');
 }
 
-/// 导入共现数据
-Future<void> _importCooccurrences(Database db, File file) async {
-  final content = await file.readAsString();
+/// 导入 Danbooru 标签数据
+Future<void> _importDanbooruTags(Database db) async {
+  // 从 assets 加载本地标签文件
+  final tagFile = File('assets/translations/hf_danbooru_tags.csv');
+
+  if (!await tagFile.exists()) {
+    print('  警告: 未找到 Danbooru 标签文件，跳过导入');
+    return;
+  }
+
+  final content = await tagFile.readAsString();
   final lines = content.split('\n');
 
   // 跳过标题行
-  final startIndex =
-      lines.isNotEmpty && lines[0].contains(',') ? 1 : 0;
+  final startIndex = lines.isNotEmpty && lines[0].contains('tag,') ? 1 : 0;
+  final total = lines.length - startIndex;
 
   var imported = 0;
   var lastProgress = 0;
 
-  // 限制导入数量（共现数据量很大，选择高频的）
-  const maxCooccurrences = 500000;
+  final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-  // 先解析并排序
-  print('  分析共现数据...');
-  final entries = <_CooccurrenceEntry>[];
-
-  for (var i = startIndex; i < lines.length; i++) {
-    final line = lines[i].trim();
-    if (line.isEmpty) continue;
-
-    final parts = line.split(',');
-    if (parts.length >= 3) {
-      final tag1 = parts[0].trim().toLowerCase();
-      final tag2 = parts[1].trim().toLowerCase();
-      final count = int.tryParse(parts[2].trim()) ?? 0;
-
-      if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
-        entries.add(_CooccurrenceEntry(tag1, tag2, count));
-      }
-    }
-  }
-
-  // 按计数排序，只保留高频数据
-  entries.sort((a, b) => b.count.compareTo(a.count));
-  final entriesToImport = entries.take(maxCooccurrences).toList();
-
-  print('  将导入前 ${entriesToImport.length} 条高频共现记录');
-
-  // 批量插入
   await db.transaction((txn) async {
     final batch = txn.batch();
 
-    for (final entry in entriesToImport) {
-      batch.insert(
-        'cooccurrences',
-        {
-          'tag1': entry.tag1,
-          'tag2': entry.tag2,
-          'count': entry.count,
-          'cooccurrence_score': 0.0,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+    for (var i = startIndex; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      // 解析 CSV，处理引号内的逗号
+      final parts = _parseCsvLine(line);
+      if (parts.length >= 3) {
+        final tag = parts[0].trim().toLowerCase();
+        final category = int.tryParse(parts[1].trim()) ?? 0;
+        final count = int.tryParse(parts[2].trim()) ?? 0;
+
+        if (tag.isNotEmpty) {
+          batch.insert(
+            'danbooru_tags',
+            {
+              'tag': tag,
+              'category': category,
+              'post_count': count,
+              'last_updated': now,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      }
 
       imported++;
 
@@ -315,9 +348,9 @@ Future<void> _importCooccurrences(Database db, File file) async {
       if (imported % 10000 == 0) {
         await batch.commit(noResult: true);
 
-        final progress = (imported / entriesToImport.length * 100).toInt();
+        final progress = (imported / total * 100).toInt();
         if (progress > lastProgress) {
-          stdout.write('\r  进度: $progress% ($imported / ${entriesToImport.length})');
+          stdout.write('\r  进度: $progress% ($imported / $total)');
           lastProgress = progress;
         }
       }
@@ -326,6 +359,130 @@ Future<void> _importCooccurrences(Database db, File file) async {
     // 提交剩余数据
     await batch.commit(noResult: true);
   });
+
+  print('\r  导入完成: $imported 条 Danbooru 标签记录');
+}
+
+/// 解析 CSV 行（简单处理引号）
+List<String> _parseCsvLine(String line) {
+  final result = <String>[];
+  var current = '';
+  var inQuotes = false;
+
+  for (var i = 0; i < line.length; i++) {
+    final char = line[i];
+
+    if (char == '"') {
+      inQuotes = !inQuotes;
+    } else if (char == ',' && !inQuotes) {
+      result.add(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  // 添加最后一个字段
+  result.add(current.trim());
+
+  return result;
+}
+
+/// 导入共现数据（流式处理，高性能版本）
+Future<void> _importCooccurrences(Database db, File file) async {
+  print('  导入共现数据（流式处理）...');
+
+  // 导入前 200 万条高频共现数据（平衡文件大小和覆盖率）
+  const maxCooccurrences = 2000000;
+  const batchSize = 50000; // 增大每批数量
+
+  var imported = 0;
+  var lastProgress = -1;
+  var lineCount = 0;
+
+  // 先统计总行数（快速估算）
+  print('  统计行数...');
+  await for (final _ in file.openRead().transform(utf8.decoder).transform(const LineSplitter())) {
+    lineCount++;
+  }
+  print('  共约 $lineCount 行数据');
+
+  // 流式读取并直接插入（跳过排序，CSV 已是按 count 降序）
+  final stream = file.openRead().transform(utf8.decoder).transform(const LineSplitter());
+
+  // 删除索引以加速插入
+  await db.execute('DROP INDEX IF EXISTS idx_cooccurrences_tag1');
+  await db.execute('DROP INDEX IF EXISTS idx_cooccurrences_count');
+  await db.execute('PRAGMA journal_mode = MEMORY');
+  await db.execute('PRAGMA synchronous = OFF');
+
+  var batch = db.batch();
+  var isFirstLine = true;
+
+  await for (final line in stream) {
+    // 跳过标题行
+    if (isFirstLine) {
+      isFirstLine = false;
+      continue;
+    }
+
+    if (line.isEmpty) continue;
+
+    final parts = line.split(',');
+    if (parts.length >= 3) {
+      final tag1 = parts[0].trim().toLowerCase();
+      final tag2 = parts[1].trim().toLowerCase();
+      final countDouble = double.tryParse(parts[2].trim()) ?? 0.0;
+      final count = countDouble.toInt();
+
+      if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
+        batch.insert(
+          'cooccurrences',
+          {
+            'tag1': tag1,
+            'tag2': tag2,
+            'count': count,
+            'cooccurrence_score': 0.0,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        imported++;
+
+        // 每 batchSize 条提交一次
+        if (imported % batchSize == 0) {
+          await batch.commit(noResult: true);
+          batch = db.batch();
+
+          final progress = (imported / maxCooccurrences * 100).toInt();
+          if (progress > lastProgress) {
+            stdout.write('\r  进度: $progress% ($imported / $maxCooccurrences)');
+            lastProgress = progress;
+          }
+        }
+
+        // 达到上限时停止
+        if (imported >= maxCooccurrences) break;
+      }
+    }
+  }
+
+  // 提交剩余数据
+  if ((batch as dynamic).length > 0) {
+    await batch.commit(noResult: true);
+  }
+
+  // 恢复设置并重建索引
+  await db.execute('PRAGMA synchronous = NORMAL');
+  await db.execute('PRAGMA journal_mode = WAL');
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_cooccurrences_tag1
+    ON cooccurrences(tag1)
+  ''');
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_cooccurrences_count
+    ON cooccurrences(count DESC)
+  ''');
 
   print('\r  导入完成: $imported 条共现记录');
 }
@@ -420,13 +577,4 @@ String _formatDuration(Duration duration) {
   final minutes = duration.inMinutes;
   final seconds = duration.inSeconds % 60;
   return '$minutes分$seconds秒';
-}
-
-/// 共现数据条目
-class _CooccurrenceEntry {
-  final String tag1;
-  final String tag2;
-  final int count;
-
-  _CooccurrenceEntry(this.tag1, this.tag2, this.count);
 }
