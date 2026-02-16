@@ -50,6 +50,16 @@ class VibeLibraryState with _$VibeLibraryState {
 
     /// 错误信息
     String? error,
+
+    /// 是否正在执行批量操作
+    @Default(false) bool isBulkOperating,
+
+    /// 批量操作进度 (0.0 - 1.0)
+    @Default(0.0) double bulkOperationProgress,
+
+    /// 当前批量操作类型
+    @Default(VibeLibraryBulkOperationType.none)
+    VibeLibraryBulkOperationType bulkOperationType,
   }) = _VibeLibraryState;
 
   const VibeLibraryState._();
@@ -92,6 +102,16 @@ enum VibeLibrarySortOrder {
   lastUsed,
   usedCount,
   name,
+}
+
+/// Vibe 库批量操作类型
+enum VibeLibraryBulkOperationType {
+  none,
+  import,
+  export,
+  delete,
+  moveCategory,
+  updateTags,
 }
 
 /// Vibe 库 Notifier
