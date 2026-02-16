@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/shortcuts/shortcut_config.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../widgets/shortcuts/shortcut_help_dialog.dart';
 import '../../../widgets/shortcuts/shortcut_tooltip.dart';
 import '../../animated_favorite_button.dart';
@@ -35,6 +36,7 @@ class DetailTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metadata = currentImage.metadata;
+    final l10n = context.l10n;
 
     return Container(
       padding: EdgeInsets.only(
@@ -57,7 +59,7 @@ class DetailTopBar extends StatelessWidget {
         children: [
           // 关闭按钮
           ShortcutTooltip(
-            message: '关闭',
+            message: l10n.viewer_tooltip_close,
             shortcutId: ShortcutIds.closeViewer,
             child: IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
@@ -68,7 +70,7 @@ class DetailTopBar extends StatelessWidget {
           // 帮助按钮
           IconButton(
             icon: const Icon(Icons.help_outline, color: Colors.white),
-            tooltip: '快捷键帮助',
+            tooltip: l10n.viewer_help_button_tooltip,
             onPressed: () {
               ShortcutHelpDialog.show(
                 context,
@@ -108,7 +110,7 @@ class DetailTopBar extends StatelessWidget {
           // 保存按钮（仅生成图像显示）
           if (currentImage.showSaveButton && onSave != null)
             ShortcutTooltip(
-              message: '保存',
+              message: l10n.viewer_tooltip_save,
               shortcutId: ShortcutIds.saveImage,
               child: IconButton(
                 icon: const Icon(Icons.save_alt, color: Colors.white),
@@ -119,7 +121,7 @@ class DetailTopBar extends StatelessWidget {
           // 复用参数按钮
           if (metadata != null && onReuseMetadata != null)
             ShortcutTooltip(
-              message: '复用参数',
+              message: l10n.viewer_tooltip_reuse_params,
               shortcutId: ShortcutIds.reuseGalleryParams,
               child: IconButton(
                 icon: const Icon(Icons.input, color: Colors.white),
@@ -130,7 +132,7 @@ class DetailTopBar extends StatelessWidget {
           // 复制图像按钮
           if (onCopyImage != null)
             ShortcutTooltip(
-              message: '复制图像',
+              message: l10n.viewer_tooltip_copy_image,
               shortcutId: ShortcutIds.copyImage,
               child: IconButton(
                 icon: const Icon(Icons.copy, color: Colors.white),
@@ -141,7 +143,7 @@ class DetailTopBar extends StatelessWidget {
           // 收藏按钮（仅本地图库显示）
           if (currentImage.showFavoriteButton && onFavoriteToggle != null)
             ShortcutTooltip(
-              message: '收藏',
+              message: l10n.viewer_tooltip_favorite,
               shortcutId: ShortcutIds.toggleFavorite,
               child: AnimatedFavoriteButton(
                 isFavorite: currentImage.isFavorite,
