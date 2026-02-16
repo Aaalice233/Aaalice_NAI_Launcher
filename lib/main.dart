@@ -10,6 +10,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'core/constants/storage_keys.dart';
 import 'core/network/system_proxy_http_overrides.dart';
 import 'core/network/windows_proxy_helper.dart';
+import 'core/storage/crash_recovery_service.dart';
 import 'core/utils/app_logger.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
@@ -137,8 +138,18 @@ void main() async {
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
 
-  // 后台预加载 NAI 标签数据（不阻塞启动）
+  // 创建 ProviderContainer
   final container = ProviderContainer();
+
+  // 记录会话开始（用于崩溃恢复检测）
+  final crashRecoveryService = container.read(crashRecoveryServiceProvider);
+  await crashRecoveryService.logSessionState(
+    type: JournalEntryType.sessionStart,
+    metadata: {'startTime': DateTime.now().toIso8601String()},
+  );
+  AppLogger.i('Session start logged for crash recovery', 'Main');
+
+  // 后台预加载 NAI 标签数据（不阻塞启动）
   Future.microtask(() async {
     try {
       await container.read(naiTagsDataSourceProvider).loadData();
