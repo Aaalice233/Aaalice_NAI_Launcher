@@ -127,6 +127,11 @@ void main() async {
   await Hive.openBox(StorageKeys.localFavoritesBox);
   await Hive.openBox(StorageKeys.tagsBox);
   await Hive.openBox(StorageKeys.searchIndexBox);
+  // Additional Hive boxes
+  await Hive.openBox(StorageKeys.replicationQueueBox);
+  await Hive.openBox(StorageKeys.warmupMetricsBox);
+  await Hive.openBox(StorageKeys.appStateBox);
+  await Hive.openBox(StorageKeys.favoritesBox);
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
