@@ -261,8 +261,6 @@ class AppRoutes {
 | `@HiveType` | Hive 适配器 | `.g.dart` |
 | JSON Serializable | JSON 解析 | `.g.dart` |
 
-**统计**: 163 个 `.g.dart` + 69 个 `.freezed.dart` = 232 个生成文件
-
 ```bash
 # 生成代码
 dart run build_runner build --delete-conflicting-outputs
@@ -335,11 +333,6 @@ dart fix --dry-run
 <type>(<scope>): <subject>
 
 types: feat, fix, docs, style, refactor, test, chore, perf
-
-examples:
-feat(image): add batch image generation support
-fix(auth): resolve token expiration issue
-refactor(widget): extract color picker logic
 ```
 
 ## Key Dependencies
