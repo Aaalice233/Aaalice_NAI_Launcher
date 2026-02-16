@@ -62,6 +62,20 @@ class DanbooruImageCacheManager implements ImageCacheManager {
   /// 获取底层的 MemoryAwareCacheManager
   MemoryAwareCacheManager get cacheManager => _cacheManager;
 
+  /// 使用用户存储的配置初始化缓存管理器
+  ///
+  /// 从 [CacheSettingsNotifier] 加载配置并应用，确保缓存限制符合用户设置。
+  /// 由于底层缓存管理器是单例，此方法主要用于触发清理和记录当前配置。
+  Future<void> initializeFromSettings() async {
+    // 触发一次强制清理以确保配置立即生效
+    await forceCleanup();
+    AppLogger.i(
+      'DanbooruImageCacheManager initialized from settings, '
+      'current memory: ${currentMemoryMB.toStringAsFixed(2)}MB',
+      'DanbooruImageCacheManager',
+    );
+  }
+
   /// 获取当前内存使用量（字节）
   int get currentMemoryBytes => _cacheManager.currentMemoryBytes;
 

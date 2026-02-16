@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
+import '../../core/cache/memory_aware_cache_config.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
@@ -16,6 +17,7 @@ import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
+import 'cache_settings_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import 'auth_provider.dart';
@@ -129,11 +131,22 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   Future<void> _configureImageCache() async {
-    PaintingBinding.instance.imageCache.maximumSize = 500;
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 100 * 1024 * 1024;
-    // ignore: unused_local_variable
+    // 从设置加载缓存配置
+    final settings = ref.read(cacheSettingsNotifierProvider);
+
+    // 配置 Flutter 图片缓存
+    PaintingBinding.instance.imageCache.maximumSize = settings.maxObjectCount;
+    PaintingBinding.instance.imageCache.maximumSizeBytes = settings.maxMemoryBytes;
+
+    // 初始化 Danbooru 图片缓存管理器
     final cacheManager = DanbooruImageCacheManager.instance;
-    AppLogger.i('Image cache configured: max=500, maxBytes=100MB', 'Warmup');
+    await cacheManager.initializeFromSettings();
+
+    AppLogger.i(
+      'Image cache configured: maxObjects=${settings.maxObjectCount}, '
+      'maxMemory=${settings.maxMemoryMB}MB',
+      'Warmup',
+    );
   }
 
   Future<void> _preloadFonts() async {
