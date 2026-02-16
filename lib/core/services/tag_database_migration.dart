@@ -37,7 +37,7 @@ typedef MigrationProgressCallback = void Function(
 /// - CooccurrenceService (CSV/二进制文件)
 /// - TagDataService (CSV文件)
 class TagDatabaseMigration {
-  static const String _migrationVersionKey = 'tag_database_migration_v2';
+  static const String _migrationVersionKey = 'tag_database_migration';
   static const int _currentMigrationVersion = 1;
 
   /// 统一数据库

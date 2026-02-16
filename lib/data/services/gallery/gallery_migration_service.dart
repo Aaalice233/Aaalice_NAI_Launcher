@@ -33,7 +33,7 @@ class GalleryMigrationService {
   final GalleryDatabaseService _db;
 
   /// 迁移状态标记键
-  static const String _migrationCompleteKey = 'gallery_migration_v1_complete';
+  static const String _migrationCompleteKey = 'gallery_migration_complete';
 
   GalleryMigrationService({required GalleryDatabaseService db}) : _db = db;
 
