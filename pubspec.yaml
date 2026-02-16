@@ -56,6 +56,7 @@ dependencies:
   flex_color_scheme: ^7.3.1
   google_fonts: ^6.1.0
   emoji_picker_flutter: ^2.1.1
+  flutter_list_view: ^1.1.18
 
   # 数据模型
   freezed_annotation: ^2.4.1
