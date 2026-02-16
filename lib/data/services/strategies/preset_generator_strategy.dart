@@ -1,7 +1,10 @@
 import 'dart:math';
 
+import '../../models/character/character_prompt.dart';
+import '../../models/prompt/character_count_config.dart';
 import '../../models/prompt/random_category.dart';
 import '../../models/prompt/random_preset.dart';
+import '../../models/prompt/random_prompt_result.dart';
 import '../../models/prompt/random_tag_group.dart';
 import '../../models/prompt/tag_scope.dart';
 import '../../models/prompt/weighted_tag.dart';
@@ -10,7 +13,7 @@ import '../weighted_selector.dart';
 
 /// 预设生成策略
 ///
-/// 负责从 RandomPreset 配置生成标签列表。
+/// 负责从 RandomPreset 配置生成标签列表和多角色提示词。
 /// 支持按作用域（global/character）和性别过滤类别。
 /// 从 RandomPromptGenerator.generateFromPreset 提取。
 ///
@@ -22,6 +25,7 @@ import '../weighted_selector.dart';
 /// - 支持多种词组选择模式（单选/多选/全部）
 /// - 支持多种标签选择模式（单选/多选/全部/随机）
 /// - 应用权重括号到生成的标签
+/// - 生成多角色提示词（V4+ 模型）
 ///
 /// ## 生成流程
 ///
@@ -31,6 +35,13 @@ import '../weighted_selector.dart';
 /// 4. 根据 groupSelectionMode 选择词组
 /// 5. 在每个词组中根据 selectionMode 选择标签
 /// 6. 应用括号权重
+///
+/// ## 多角色生成
+///
+/// 使用 [generateMultiCharacter] 方法生成 V4+ 模型的多角色提示词：
+/// - 生成全局标签（背景、场景等）
+/// - 为每个角色槽位生成独立的角色提示词
+/// - 自动根据性别过滤标签
 ///
 /// ## 选择模式
 ///
@@ -66,6 +77,100 @@ class PresetGeneratorStrategy {
     BracketFormatter? bracketFormatter,
   })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
         _bracketFormatter = bracketFormatter ?? BracketFormatter();
+
+  /// 选择人数类别和标签选项
+  ///
+  /// [config] 人数类别配置
+  /// [random] 随机数生成器
+  ///
+  /// 返回选中的类别和标签选项（标签选项可能为 null）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final config = CharacterCountConfig.naiDefault;
+  /// final (category, tagOption) = strategy.selectCharacterCountAndOption(
+  ///   config: config,
+  ///   random: Random(42),
+  /// );
+  /// ```
+  (CharacterCountCategory, CharacterTagOption?) selectCharacterCountAndOption({
+    required CharacterCountConfig config,
+    required Random random,
+  }) {
+    // 获取启用的类别
+    final enabledCategories = config.enabledCategories;
+    if (enabledCategories.isEmpty) {
+      // 无启用类别，返回默认单人
+      return (CharacterCountConfig.naiDefault.categories.first, null);
+    }
+
+    // 按权重选择类别
+    final category = _selectWeightedCategory(enabledCategories, random);
+
+    // 获取启用的标签选项
+    final enabledOptions = category.enabledTagOptions;
+    if (enabledOptions.isEmpty) {
+      return (category, null);
+    }
+
+    // 按权重选择标签选项
+    final tagOption = _selectWeightedTagOption(enabledOptions, random);
+
+    return (category, tagOption);
+  }
+
+  /// 按权重选择人数类别
+  ///
+  /// [categories] 类别列表
+  /// [random] 随机数生成器
+  CharacterCountCategory _selectWeightedCategory(
+    List<CharacterCountCategory> categories,
+    Random random,
+  ) {
+    if (categories.length == 1) return categories.first;
+
+    final totalWeight = categories.fold<int>(0, (sum, c) => sum + c.weight);
+    if (totalWeight <= 0) return categories[random.nextInt(categories.length)];
+
+    final target = random.nextInt(totalWeight) + 1;
+    var cumulative = 0;
+
+    for (final category in categories) {
+      cumulative += category.weight;
+      if (target <= cumulative) {
+        return category;
+      }
+    }
+
+    return categories.last;
+  }
+
+  /// 按权重选择标签选项
+  ///
+  /// [options] 标签选项列表
+  /// [random] 随机数生成器
+  CharacterTagOption _selectWeightedTagOption(
+    List<CharacterTagOption> options,
+    Random random,
+  ) {
+    if (options.length == 1) return options.first;
+
+    final totalWeight = options.fold<int>(0, (sum, o) => sum + o.weight);
+    if (totalWeight <= 0) return options[random.nextInt(options.length)];
+
+    final target = random.nextInt(totalWeight) + 1;
+    var cumulative = 0;
+
+    for (final option in options) {
+      cumulative += option.weight;
+      if (target <= cumulative) {
+        return option;
+      }
+    }
+
+    return options.last;
+  }
 
   /// 从预设生成标签
   ///
@@ -295,5 +400,312 @@ class PresetGeneratorStrategy {
         // 全选模式：返回所有标签文本
         return tags.map((t) => _weightedSelector.select([t], random: random)).toList();
     }
+  }
+
+  /// 生成多角色结果（V4+ 模型）
+  ///
+  /// [preset] 预设配置
+  /// [random] 随机数生成器
+  /// [tagOption] 角色标签选项（包含人数标签和槽位配置）
+  ///
+  /// 返回多角色生成结果，包含主提示词和角色提示词列表
+  ///
+  /// 生成流程：
+  /// 1. 添加人数标签到主提示词（如 "solo", "2girls"）
+  /// 2. 生成全局标签（scope: global 或 all）
+  /// 3. 为每个角色槽位生成角色提示词（scope: character，按性别过滤）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final tagOption = CharacterTagOption(
+  ///   label: '2 Girls',
+  ///   mainPromptTags: '2girls',
+  ///   slotTags: [CharacterSlotTag(characterTag: 'girl'), CharacterSlotTag(characterTag: 'girl')],
+  /// );
+  /// final result = await strategy.generateMultiCharacter(
+  ///   preset: preset,
+  ///   random: Random(42),
+  ///   tagOption: tagOption,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateMultiCharacter({
+    required RandomPreset preset,
+    required Random random,
+    CharacterTagOption? tagOption,
+  }) async {
+    final mainTags = <String>[];
+    final characters = <GeneratedCharacter>[];
+
+    // 1. 添加人数标签到主提示词（如 "solo", "2girls"）
+    if (tagOption != null && tagOption.mainPromptTags.isNotEmpty) {
+      mainTags.add(tagOption.mainPromptTags);
+    }
+
+    // 2. 生成全局标签（scope: global 或 all）
+    final globalTags = await generate(
+      preset: preset,
+      random: random,
+      targetScope: TagScope.global,
+    );
+    mainTags.addAll(globalTags);
+
+    // 3. 为每个角色槽位生成角色提示词
+    if (tagOption != null && tagOption.slotTags.isNotEmpty) {
+      for (final slotTag in tagOption.slotTags) {
+        final charTags = <String>[];
+
+        // 确定性别标签（如 "1girl" 或 "1boy"）
+        final genderTag = _getGenderTag(slotTag.characterTag);
+        charTags.add(genderTag);
+
+        // 生成角色特征标签（scope: character，按性别过滤）
+        final characterFeatures = await generate(
+          preset: preset,
+          random: random,
+          targetScope: TagScope.character,
+          characterGender: slotTag.characterTag,
+        );
+        charTags.addAll(characterFeatures);
+
+        // 确定角色性别枚举
+        final gender = slotTag.characterTag.contains('girl')
+            ? CharacterGender.female
+            : slotTag.characterTag.contains('boy')
+                ? CharacterGender.male
+                : CharacterGender.other;
+
+        characters.add(
+          GeneratedCharacter(
+            prompt: charTags.join(', '),
+            gender: gender,
+          ),
+        );
+      }
+    } else {
+      // 无槽位配置时，生成单角色（兼容旧配置）
+      final charTags = await generate(
+        preset: preset,
+        random: random,
+        targetScope: TagScope.character,
+      );
+      if (charTags.isNotEmpty) {
+        characters.add(
+          GeneratedCharacter(
+            prompt: charTags.join(', '),
+            gender: CharacterGender.female,
+          ),
+        );
+      }
+    }
+
+    return RandomPromptResult.multiCharacter(
+      mainPrompt: mainTags.join(', '),
+      characters: characters,
+      seed: random is Random ? random.hashCode : null,
+    );
+  }
+
+  /// 根据槽位标签获取性别标签
+  ///
+  /// 例如: "girl" -> "1girl", "boy" -> "1boy"
+  ///
+  /// 如果标签已包含数字前缀（如 "2girls"），则直接返回原标签。
+  String _getGenderTag(String slotTag) {
+    // 如果已经包含数字前缀，直接返回
+    if (RegExp(r'^\d').hasMatch(slotTag)) {
+      return slotTag;
+    }
+    // 添加 "1" 前缀
+    return '1$slotTag';
+  }
+
+  /// 生成无人物场景结果
+  ///
+  /// [preset] 预设配置
+  /// [random] 随机数生成器
+  /// [tagOption] 角色标签选项（包含 "no humans" 标签）
+  /// [seed] 随机种子
+  ///
+  /// 返回无人物场景生成结果
+  ///
+  /// 生成流程：
+  /// 1. 添加 "no humans" 标签（从 tagOption 或默认）
+  /// 2. 生成全局标签（scope: global 或 all）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final result = await strategy.generateNoHuman(
+  ///   preset: preset,
+  ///   random: Random(42),
+  ///   seed: 42,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateNoHuman({
+    required RandomPreset preset,
+    required Random random,
+    CharacterTagOption? tagOption,
+    int? seed,
+  }) async {
+    final mainTags = <String>[];
+
+    // 添加 "no humans" 标签
+    if (tagOption != null && tagOption.mainPromptTags.isNotEmpty) {
+      mainTags.add(tagOption.mainPromptTags);
+    } else {
+      mainTags.add('no humans');
+    }
+
+    // 仅生成全局标签（背景、场景、风格等）
+    final globalTags = await generate(
+      preset: preset,
+      random: random,
+      targetScope: TagScope.global,
+    );
+    mainTags.addAll(globalTags);
+
+    return RandomPromptResult(
+      mainPrompt: mainTags.join(', '),
+      noHumans: true,
+      mode: RandomGenerationMode.naiOfficial,
+      seed: seed,
+    );
+  }
+
+  /// 生成传统单提示词结果（非 V4 模型）
+  ///
+  /// [preset] 预设配置
+  /// [random] 随机数生成器
+  /// [tagOption] 角色标签选项（包含人数标签和槽位配置）
+  /// [seed] 随机种子
+  ///
+  /// 返回传统单提示词生成结果
+  ///
+  /// 生成流程：
+  /// 1. 添加人数标签（如 "solo", "2girls"）
+  /// 2. 添加性别标签（如 "1girl", "1boy"）
+  /// 3. 生成所有类别的标签（不区分 scope）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final tagOption = CharacterTagOption(
+  ///   label: 'Solo',
+  ///   mainPromptTags: 'solo',
+  ///   slotTags: [CharacterSlotTag(characterTag: 'girl')],
+  /// );
+  /// final result = await strategy.generateLegacy(
+  ///   preset: preset,
+  ///   random: Random(42),
+  ///   tagOption: tagOption,
+  ///   seed: 42,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateLegacy({
+    required RandomPreset preset,
+    required Random random,
+    CharacterTagOption? tagOption,
+    int? seed,
+  }) async {
+    final allTags = <String>[];
+
+    // 添加人数标签
+    if (tagOption != null && tagOption.mainPromptTags.isNotEmpty) {
+      allTags.add(tagOption.mainPromptTags);
+    }
+
+    // 添加性别标签
+    if (tagOption != null && tagOption.slotTags.isNotEmpty) {
+      for (final slotTag in tagOption.slotTags) {
+        allTags.add(_getGenderTag(slotTag.characterTag));
+      }
+    }
+
+    // 生成所有类别的标签（不区分 scope）
+    final tags = await generate(
+      preset: preset,
+      random: random,
+    );
+    allTags.addAll(tags);
+
+    return RandomPromptResult(
+      mainPrompt: allTags.join(', '),
+      mode: RandomGenerationMode.naiOfficial,
+      seed: seed,
+    );
+  }
+
+  /// 生成随机提示词（主入口方法）
+  ///
+  /// [preset] 预设配置
+  /// [config] 人数类别配置（用于决定生成模式）
+  /// [random] 随机数生成器
+  /// [seed] 随机种子（可选，用于结果追踪）
+  /// [isV4Model] 是否为 V4+ 模型（支持多角色，默认 true）
+  ///
+  /// 返回生成的提示词结果
+  ///
+  /// 生成流程：
+  /// 1. 使用 [selectCharacterCountAndOption] 选择人数类别和标签选项
+  /// 2. 根据人数决定生成模式：
+  ///    - 0人：调用 [generateNoHuman]
+  ///    - 1人及以上：根据模型版本调用 [generateMultiCharacter] 或 [generateLegacy]
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final config = CharacterCountConfig.naiDefault;
+  /// final result = await strategy.generate(
+  ///   preset: preset,
+  ///   config: config,
+  ///   random: Random(42),
+  ///   isV4Model: true,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateFromPreset({
+    required RandomPreset preset,
+    required CharacterCountConfig config,
+    required Random random,
+    int? seed,
+    bool isV4Model = true,
+  }) async {
+    // 选择人数类别和标签选项
+    final (category, tagOption) = selectCharacterCountAndOption(
+      config: config,
+      random: random,
+    );
+
+    // 根据人数决定生成模式
+    if (category.count == 0) {
+      // 无人物场景
+      return generateNoHuman(
+        preset: preset,
+        random: random,
+        tagOption: tagOption,
+        seed: seed,
+      );
+    }
+
+    if (!isV4Model) {
+      // 传统模式：生成合并的单提示词
+      return generateLegacy(
+        preset: preset,
+        random: random,
+        tagOption: tagOption,
+        seed: seed,
+      );
+    }
+
+    // V4+ 模式：生成主提示词 + 角色提示词
+    return generateMultiCharacter(
+      preset: preset,
+      random: random,
+      tagOption: tagOption,
+    );
   }
 }
