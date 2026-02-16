@@ -168,14 +168,13 @@ lib/
 **编码模式:**
 
 ```dart
-// Controller 模式 - 使用 keepAlive 保持状态
+// Controller 模式 - 谨慎使用 keepAlive
 @Riverpod(keepAlive: true)
-class AuthController extends _$AuthController {
+class AuthNotifier extends _$AuthNotifier {
   @override
-  Future<void> build() async { ... }
-
-  Future<void> login() async {
-    state = await AsyncValue.guard(() => _login());
+  AuthState build() {
+    _checkExistingAuth();
+    return const AuthState(status: AuthStatus.loading);
   }
 }
 
@@ -187,9 +186,63 @@ NaiAuthApiService naiAuthApiService(NaiAuthApiServiceRef ref) {
 }
 
 // 使用方式
-final authState = ref.watch(authControllerProvider);
-ref.read(authControllerProvider.notifier).login();
+final authState = ref.watch(authNotifierProvider);
+ref.read(authNotifierProvider.notifier).login();
 ```
+
+#### keepAlive 使用指南
+
+**默认行为**: Riverpod Provider 默认在不再被监听时自动释放 (`autoDispose`)，这是推荐行为。
+
+**何时使用 `keepAlive: true`:**
+
+| 场景 | 示例 | 原因 |
+|------|------|------|
+| 全局认证状态 | `AuthNotifier` | 应用生命周期内持续需要 |
+| 全局设置/配置 | `ThemeProvider`, `LocaleProvider` | 跨页面共享，随时可能被访问 |
+| 单例服务 | `DioClient`, `SecureStorage` | 昂贵初始化，始终需要 |
+| 后台任务管理 | `BackgroundTaskProvider` | 页面关闭后仍需运行 |
+| 全局缓存 | `DataSourceCacheProvider` | 全局数据缓存，提升性能 |
+
+**何时避免使用 `keepAlive: true`:**
+
+| 场景 | 反例 | 推荐做法 |
+|------|------|----------|
+| 页面级状态 | `TagLibraryPageNotifier` | 使用默认 `@riverpod` 让页面关闭时自动释放 |
+| 列表/分页状态 | `DanbooruPreviewProvider` | 自动清理，返回时重新加载 |
+| 临时 UI 状态 | `SelectionModeProvider` | 无需持久化，用完即走 |
+| 表单/输入状态 | `PromptConfigProvider` | 页面级别，不需要全局保持 |
+
+**示例对比:**
+
+```dart
+// ❌ 不推荐 - 页面级 Provider 使用 keepAlive
+@Riverpod(keepAlive: true)
+class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
+  @override
+  TagLibraryPageState build() => _loadData();
+}
+
+// ✅ 推荐 - 让 Riverpod 自动管理生命周期
+@riverpod
+class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
+  @override
+  TagLibraryPageState build() => _loadData();
+}
+```
+
+**迁移策略:**
+
+1. **识别候选**: 检查页面级 Provider 是否使用了 `keepAlive: true`
+2. **评估影响**: 确认页面返回时重新加载数据是否可接受
+3. **移除 keepAlive**: 改为默认 `@riverpod` 注解
+4. **测试验证**: 确保页面切换后状态正确重置或加载
+
+**性能考虑:**
+
+- 默认 `autoDispose` 行为节省内存，适合大多数场景
+- `keepAlive` 应仅用于真正需要全局持久化的状态
+- 过度使用 `keepAlive` 会导致内存泄漏，尤其是存储大量数据的页面 Provider
 
 ### API 服务架构 (领域拆分)
 
