@@ -69,6 +69,7 @@ class VibeExportDialog extends ConsumerStatefulWidget {
 class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   VibeExportFormat _exportFormat = VibeExportFormat.single;
   bool _includeThumbnails = true;
+  bool _includeFullData = true;
   bool _isExporting = false;
   double _progress = 0;
   String _progressMessage = '';
@@ -182,9 +183,20 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
                 // 选项
                 CheckboxListTile(
+                  title: const Text('包含完整数据'),
+                  subtitle: const Text('包含原始图片数据和完整的 Vibe 编码'),
+                  value: _includeFullData,
+                  onChanged: (value) {
+                    setState(() => _includeFullData = value ?? true);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+                CheckboxListTile(
                   title: Text(context.l10n.vibe_export_include_thumbnails),
                   subtitle: Text(
-                      context.l10n.vibe_export_include_thumbnails_subtitle,),
+                    context.l10n.vibe_export_include_thumbnails_subtitle,
+                  ),
                   value: _includeThumbnails,
                   onChanged: (value) {
                     setState(() => _includeThumbnails = value ?? true);
@@ -825,6 +837,21 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     }
   }
 
+  /// 创建用于导出的 VibeReference，根据选项决定是否包含完整数据
+  VibeReference _createExportReference(VibeLibraryEntry entry) {
+    final baseRef = entry.toVibeReference();
+
+    if (_includeFullData) {
+      // 完整导出：保留所有数据
+      return baseRef;
+    }
+
+    // 非完整导出：移除原始图片数据，仅保留编码
+    return baseRef.copyWith(
+      rawImageData: null,
+    );
+  }
+
   /// 导出为单独文件
   Future<void> _exportAsSingleFiles(List<VibeLibraryEntry> entries) async {
     // 选择保存目录
@@ -848,7 +875,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         _progressMessage = '正在导出: ${entry.displayName}';
       });
 
-      final vibeRef = entry.toVibeReference();
+      // 根据选项创建导出用的 VibeReference
+      final vibeRef = _createExportReference(entry);
 
       // 导出单个 vibe
       final exportedPath = await VibeExportUtils.exportToNaiv4Vibe(
@@ -877,8 +905,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       _progressMessage = '正在打包 ${entries.length} 个 Vibe...';
     });
 
-    // 转换为 VibeReference 列表
-    final vibes = entries.map((e) => e.toVibeReference()).toList();
+    // 根据选项创建导出用的 VibeReference 列表
+    final vibes = entries.map((e) => _createExportReference(e)).toList();
 
     setState(() {
       _progress = 0.6;
