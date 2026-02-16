@@ -145,36 +145,28 @@ class _DataSourceCacheSettingsState
     );
 
     if (confirmed == true && context.mounted) {
-      await Future.delayed(Duration.zero);
-      if (context.mounted) {
-        await _clearAllCaches(context);
-      }
+      await _clearAllCaches(context);
     }
   }
 
-  /// 关闭对话框（如果存在且有效）
   void _closeDialog(BuildContext? ctx) {
-    if (ctx != null && ctx.mounted) {
-      Navigator.of(ctx).pop();
+    if (ctx?.mounted ?? false) {
+      Navigator.of(ctx!).pop();
     }
   }
 
   /// 清除 Danbooru 标签缓存
   Future<void> _clearAllCaches(BuildContext context) async {
-    // 保存根 context，用于显示 Toast
     final rootContext = context;
-
-    // 使用自定义对话框控制器
-    BuildContext? dialogContextOrNull;
+    BuildContext? dialogContext;
 
     if (!context.mounted) return;
 
-    // 显示进度指示器
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogCtx) {
-        dialogContextOrNull = dialogCtx;
+      builder: (ctx) {
+        dialogContext = ctx;
         return PopScope(
           canPop: false,
           child: Center(
@@ -217,34 +209,22 @@ class _DataSourceCacheSettingsState
       },
     );
 
-    // 等待一帧确保对话框已显示
     await Future.delayed(const Duration(milliseconds: 100));
 
     try {
-      // 清空数据库表（不清除文件，避免 Windows 文件锁定问题）
       final dbConnection = ref.read(tagDatabaseConnectionProvider);
       await dbConnection.clearAllTables();
-
-      // 清除内存缓存
       await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
-
-      // 刷新状态
       ref.invalidate(danbooruTagsCacheNotifierProvider);
 
-      // 关闭进度对话框并延迟显示成功提示
-      if (dialogContextOrNull != null && dialogContextOrNull!.mounted) {
-        _closeDialog(dialogContextOrNull);
-      }
+      _closeDialog(dialogContext);
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {
         AppToast.success(rootContext, '标签数据已清除，下次启动时将重新加载');
       }
     } catch (e) {
-      // 关闭进度对话框并延迟显示错误提示
-      if (dialogContextOrNull != null && dialogContextOrNull!.mounted) {
-        _closeDialog(dialogContextOrNull);
-      }
+      _closeDialog(dialogContext);
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {

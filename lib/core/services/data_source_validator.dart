@@ -27,9 +27,13 @@ class DataSourceStatus {
 }
 
 /// 数据源完整性验证器
-///
-/// 用于检测各数据源的完整性，确保数据可用
 class DataSourceValidator {
+  static const _configs = [
+    ('danbooru_tags', 10000),
+    ('translations', 1000),
+    ('cooccurrences', 1000),
+  ];
+
   final TagDatabaseConnection _connection;
 
   DataSourceValidator(this._connection);
@@ -46,62 +50,32 @@ class DataSourceValidator {
     }
 
     final db = _connection.db!;
-
-    final danbooruResult = await _validateDanbooruTags(db);
-    final translationResult = await _validateTranslations(db);
-    final cooccurrenceResult = await _validateCooccurrences(db);
+    final results = await Future.wait([
+      _validateTable(db, _configs[0]),
+      _validateTable(db, _configs[1]),
+      _validateTable(db, _configs[2]),
+    ]);
 
     return DataSourceStatus(
-      danbooruTags: danbooruResult.$1,
-      translations: translationResult.$1,
-      cooccurrences: cooccurrenceResult.$1,
-      danbooruTagCount: danbooruResult.$2,
-      translationCount: translationResult.$2,
-      cooccurrenceCount: cooccurrenceResult.$2,
+      danbooruTags: results[0].$1,
+      translations: results[1].$1,
+      cooccurrences: results[2].$1,
+      danbooruTagCount: results[0].$2,
+      translationCount: results[1].$2,
+      cooccurrenceCount: results[2].$2,
     );
   }
 
-  /// 验证 Danbooru 标签数据
-  /// 阈值：至少 10000 条记录才算完整
-  Future<(bool, int)> _validateDanbooruTags(Database db) async {
+  Future<(bool, int)> _validateTable(Database db, (String, int) config) async {
+    final (tableName, minCount) = config;
     try {
-      final result = await db.rawQuery('SELECT COUNT(*) as count FROM danbooru_tags');
+      final result = await db.rawQuery('SELECT COUNT(*) as count FROM $tableName');
       final count = result.first['count'] as int? ?? 0;
-      final isValid = count >= 10000;
-      AppLogger.i('Danbooru tags count: $count (valid: $isValid)', 'DataSourceValidator');
+      final isValid = count >= minCount;
+      AppLogger.i('$tableName count: $count (valid: $isValid)', 'DataSourceValidator');
       return (isValid, count);
     } catch (e) {
-      AppLogger.w('Failed to validate danbooru_tags: $e', 'DataSourceValidator');
-      return (false, 0);
-    }
-  }
-
-  /// 验证翻译数据
-  /// 阈值：至少 1000 条记录
-  Future<(bool, int)> _validateTranslations(Database db) async {
-    try {
-      final result = await db.rawQuery('SELECT COUNT(*) as count FROM translations');
-      final count = result.first['count'] as int? ?? 0;
-      final isValid = count >= 1000;
-      AppLogger.i('Translations count: $count (valid: $isValid)', 'DataSourceValidator');
-      return (isValid, count);
-    } catch (e) {
-      AppLogger.w('Failed to validate translations: $e', 'DataSourceValidator');
-      return (false, 0);
-    }
-  }
-
-  /// 验证共现数据
-  /// 阈值：至少 1000 条记录（共现数据是可选增强功能）
-  Future<(bool, int)> _validateCooccurrences(Database db) async {
-    try {
-      final result = await db.rawQuery('SELECT COUNT(*) as count FROM cooccurrences');
-      final count = result.first['count'] as int? ?? 0;
-      final isValid = count >= 1000;
-      AppLogger.i('Cooccurrences count: $count (valid: $isValid)', 'DataSourceValidator');
-      return (isValid, count);
-    } catch (e) {
-      AppLogger.w('Failed to validate cooccurrences: $e', 'DataSourceValidator');
+      AppLogger.w('Failed to validate $tableName: $e', 'DataSourceValidator');
       return (false, 0);
     }
   }

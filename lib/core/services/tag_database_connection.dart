@@ -111,6 +111,14 @@ class TagDatabaseConnection {
     AppLogger.i('Database rebuilt successfully', 'TagDatabaseConnection');
   }
 
+  /// 有效的数据表名称集合
+  static const Set<String> _validTables = {
+    'danbooru_tags',
+    'translations',
+    'cooccurrences',
+    'metadata',
+  };
+
   /// 清空所有数据表（用于"清除缓存"功能）
   /// 相比删除文件，此方法避免 Windows 文件锁定问题
   Future<void> clearAllTables() async {
@@ -122,14 +130,11 @@ class TagDatabaseConnection {
     AppLogger.i('Clearing all database tables...', 'TagDatabaseConnection');
 
     await _db!.transaction((txn) async {
-      // 清空数据表（保留表结构）
-      await txn.execute('DELETE FROM danbooru_tags');
-      await txn.execute('DELETE FROM translations');
-      await txn.execute('DELETE FROM cooccurrences');
-      await txn.execute('DELETE FROM metadata');
+      for (final table in _validTables) {
+        await txn.execute('DELETE FROM $table');
+      }
     });
 
-    // 执行 VACUUM 回收空间
     await _db!.execute('VACUUM');
 
     AppLogger.i('All tables cleared successfully', 'TagDatabaseConnection');
@@ -141,9 +146,7 @@ class TagDatabaseConnection {
       throw StateError('Database not connected');
     }
 
-    // 验证表名有效性（防止 SQL 注入）
-    final validTables = {'danbooru_tags', 'translations', 'cooccurrences', 'metadata'};
-    if (!validTables.contains(tableName)) {
+    if (!_validTables.contains(tableName)) {
       throw ArgumentError('Invalid table name: $tableName');
     }
 
@@ -153,14 +156,8 @@ class TagDatabaseConnection {
 
   /// 检查数据库是否存在
   Future<bool> databaseExists() async {
-    final dbPath = await getDatabasePath();
+    final dbPath = await _getDatabasePath();
     return File(dbPath).exists();
-  }
-
-  /// 获取数据库文件路径
-  Future<String> getDatabasePath() async {
-    final appDir = await getApplicationSupportDirectory();
-    return path.join(appDir.path, 'databases', _databaseName);
   }
 
   /// 内部方法：打开数据库
