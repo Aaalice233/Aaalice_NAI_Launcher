@@ -38,6 +38,15 @@ class ImageSaveSettings {
 }
 
 /// 图片保存设置 Notifier
+///
+/// 保留 keepAlive: true 的原因：
+/// 1. 全局功能 - 图片保存设置在整个应用生命周期中需要被访问
+/// 2. 后台使用 - 图像生成完成后的自动保存操作需要访问此设置
+/// 3. 跨页面访问 - 在设置页面、生成页面等多个页面中共享使用
+/// 4. 状态一致性 - 自动保存开关状态需要在整个应用中保持一致
+/// 5. 内存收益 - 仅存储简单配置（路径字符串和布尔值），内存占用极小
+///
+/// 此Provider管理图片保存的全局配置，包括自定义保存路径和自动保存开关。
 @Riverpod(keepAlive: true)
 class ImageSaveSettingsNotifier extends _$ImageSaveSettingsNotifier {
   @override
