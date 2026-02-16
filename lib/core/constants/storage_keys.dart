@@ -187,6 +187,8 @@ class StorageKeys {
       'enable_smart_tag_recommendation';
   static const String enableCooccurrenceRecommendation =
       'enable_cooccurrence_recommendation';
+  static const String enableSmartFolderSuggestion =
+      'enable_smart_folder_suggestion';
 
   // Danbooru 画师同步设置
   static const String danbooruSyncArtists = 'danbooru_sync_artists';
