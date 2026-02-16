@@ -12,12 +12,23 @@ import '../../providers/shortcuts_provider.dart';
 /// 快捷键帮助对话框
 /// 显示所有可用的快捷键
 class ShortcutHelpDialog extends ConsumerStatefulWidget {
-  const ShortcutHelpDialog({super.key});
+  /// 初始选中的上下文（可选）
+  final ShortcutContext? initialContext;
 
-  static Future<void> show(BuildContext context) async {
+  const ShortcutHelpDialog({
+    super.key,
+    this.initialContext,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    ShortcutContext? initialContext,
+  }) async {
     await showDialog(
       context: context,
-      builder: (context) => const ShortcutHelpDialog(),
+      builder: (context) => ShortcutHelpDialog(
+        initialContext: initialContext,
+      ),
     );
   }
 
@@ -28,7 +39,13 @@ class ShortcutHelpDialog extends ConsumerStatefulWidget {
 class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  ShortcutContext? _selectedContext;
+  late ShortcutContext? _selectedContext;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedContext = widget.initialContext;
+  }
 
   @override
   void dispose() {
