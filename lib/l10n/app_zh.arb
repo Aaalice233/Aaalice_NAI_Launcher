@@ -41,6 +41,33 @@
       "days": {}
     }
   },
+  "common_undo": "撤销",
+  "common_redo": "重做",
+  "common_refresh": "刷新",
+  "common_download": "下载",
+  "common_upload": "上传",
+  "common_apply": "应用",
+  "common_preview": "预览",
+  "common_done": "完成",
+  "common_view": "查看",
+  "common_info": "信息",
+  "common_warning": "警告",
+  "common_show": "显示",
+  "common_hide": "隐藏",
+  "common_move": "移动",
+  "common_duplicate": "复制",
+  "common_favorite": "收藏",
+  "common_unfavorite": "取消收藏",
+  "common_share": "分享",
+  "common_open": "打开",
+  "common_ok": "确定",
+  "common_submit": "提交",
+  "common_discard": "放弃",
+  "common_keep": "保留",
+  "common_replace": "替换",
+  "common_skip": "跳过",
+  "common_yes": "是",
+  "common_no": "否",
 
   "nav_canvas": "画布",
   "nav_gallery": "图库",
@@ -176,6 +203,13 @@
   "settings_pathReset": "已重置为默认路径",
   "settings_pathSaved": "保存路径已更新",
   "settings_selectFolder": "选择保存文件夹",
+  "settings_vibeLibraryPath": "Vibe库路径",
+  "settings_hiveStoragePath": "数据存储路径",
+  "settings_selectVibeLibraryFolder": "选择Vibe库文件夹",
+  "settings_selectHiveFolder": "选择数据存储文件夹",
+  "settings_restartRequired": "需要重启",
+  "settings_restartRequiredContent": "应用需要重启才能应用新的存储路径。请手动重启应用。",
+  "settings_pathSavedRestartRequired": "路径已更新，重启后生效",
   "settings_accountProfile": "账号资料",
   "settings_accountType": "账号类型",
   "settings_notLoggedIn": "登录后可设置头像和昵称",
@@ -2873,6 +2907,17 @@
   "queue_noValidTasks": "文件中没有有效任务",
 
   "queue_settings": "队列设置",
+  "settings_queueRetryCount": "重试次数",
+  "settings_queueRetryInterval": "重试间隔",
+  "settings_queueRetryCountSubtitle": "失败任务的最大重试次数",
+  "settings_queueRetryIntervalSubtitle": "重试之间的等待时间",
+  "unit_times": "次",
+  "unit_seconds": "秒",
+  "settings_floatingButtonBackground": "悬浮球背景",
+  "settings_floatingButtonBackgroundCustom": "已设置自定义背景",
+  "settings_floatingButtonBackgroundDefault": "默认样式",
+  "settings_clearBackground": "清除背景",
+  "settings_selectImage": "选择图片",
   "queue_currentQueueInfo": "当前队列包含 {count} 个任务",
   "@queue_currentQueueInfo": {
     "placeholders": {
@@ -3179,6 +3224,35 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "tray_show": "显示窗口",
+  "tray_exit": "退出",
+
+  "settings_shortcutsSubtitle": "自定义键盘快捷键",
+  "settings_openFolder": "打开文件夹",
+  "settings_openFolderFailed": "打开文件夹失败",
+  "settings_dataSourceCacheTitle": "数据源缓存管理",
+  "settings_pleaseLoginFirst": "请先登录",
+  "settings_accountNotFound": "未找到账号信息",
+  "settings_goToLoginPage": "请前往登录页面",
+  "settings_retryCountDisplay": "最多 {count} 次",
+  "@settings_retryCountDisplay": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settings_retryIntervalDisplay": "{interval} 秒",
+  "@settings_retryIntervalDisplay": {
+    "placeholders": {
+      "interval": {"type": "String"}
+    }
+  },
+  "settings_vibePathSaved": "Vibe 库路径已保存",
+  "settings_selectFolderFailed": "选择文件夹失败",
+  "settings_hivePathSaved": "数据存储路径已保存，重启后生效",
+  "settings_restartRequiredTitle": "需要重启应用",
+  "settings_changePathConfirm": "更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？",
+  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？"
 
 }

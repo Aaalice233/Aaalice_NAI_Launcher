@@ -11,6 +11,9 @@ import 'package:window_manager/window_manager.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'core/constants/storage_keys.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/app_localizations_en.dart';
+import 'l10n/app_localizations_zh.dart';
 import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
 import 'core/shortcuts/shortcut_storage.dart';
@@ -20,6 +23,17 @@ import 'core/utils/app_logger.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
+
+/// Get localized strings based on the stored locale setting
+/// Used in main() before the app is initialized
+AppLocalizations _getLocalizedStrings() {
+  final box = Hive.box(StorageKeys.settingsBox);
+  final localeCode = box.get(StorageKeys.locale, defaultValue: 'zh') as String;
+  if (localeCode == 'en') {
+    return AppLocalizationsEn();
+  }
+  return AppLocalizationsZh();
+}
 
 /// 窗口状态观察者，用于保存窗口位置和大小
 class WindowStateObserver extends WidgetsBindingObserver {
@@ -147,7 +161,7 @@ void main() async {
   
   // 初始化日志系统（必须在其他操作之前）
   await AppLogger.initialize(isTestEnvironment: false);
-  AppLogger.i('应用启动', 'Main');
+  AppLogger.i('Application starting', 'Main');
 
   // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
   PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
@@ -266,16 +280,19 @@ void main() async {
         await trayManager.setIcon('assets/icons/app_icon.ico');
         await trayManager.setToolTip('NAI Launcher');
 
+        // 获取本地化字符串
+        final l10n = _getLocalizedStrings();
+
         final menu = Menu(
           items: [
             MenuItem(
               key: 'show',
-              label: '显示窗口',
+              label: l10n.tray_show,
             ),
             MenuItem.separator(),
             MenuItem(
               key: 'exit',
-              label: '退出',
+              label: l10n.tray_exit,
             ),
           ],
         );
