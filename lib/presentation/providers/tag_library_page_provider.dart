@@ -145,7 +145,7 @@ class TagLibraryPageState {
 }
 
 /// 词库页面 Provider
-@Riverpod(keepAlive: true)
+@riverpod
 class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   late LocalStorageService _storage;
 
