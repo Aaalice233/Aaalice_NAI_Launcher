@@ -7,6 +7,7 @@ import '../../models/prompt/random_prompt_result.dart';
 import '../../models/prompt/weighted_tag.dart';
 import '../../models/prompt/wordlist_entry.dart';
 import '../bracket_formatter.dart';
+import '../character_count_resolver.dart';
 import '../weighted_selector.dart';
 import '../wordlist_service.dart';
 
@@ -102,15 +103,101 @@ class WordlistGeneratorStrategy {
   /// 括号格式化器
   final BracketFormatter _bracketFormatter;
 
+  /// 角色数量解析器
+  final CharacterCountResolver _countResolver;
+
+  /// 角色数量权重分布（来自 NAI 官网）
+  /// [[1,70], [2,20], [3,7], [0,5]]
+  static const List<List<int>> characterCountWeights = [
+    [1, 70], // 1人 70%
+    [2, 20], // 2人 20%
+    [3, 7], // 3人 7%
+    [0, 5], // 无人 5%
+  ];
+
   /// 创建词库生成策略
   ///
   /// [weightedSelector] 加权选择器（可选，默认创建新实例）
   /// [bracketFormatter] 括号格式化器（可选，默认创建新实例）
+  /// [countResolver] 角色数量解析器（可选，默认创建新实例）
   WordlistGeneratorStrategy({
     WeightedSelector? weightedSelector,
     BracketFormatter? bracketFormatter,
+    CharacterCountResolver? countResolver,
   })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
-        _bracketFormatter = bracketFormatter ?? BracketFormatter();
+        _bracketFormatter = bracketFormatter ?? BracketFormatter(),
+        _countResolver = countResolver ?? CharacterCountResolver();
+
+  /// 生成随机提示词（主入口方法）
+  ///
+  /// [wordlistService] 词库服务，用于获取词库条目
+  /// [type] 词库类型
+  /// [config] 算法配置
+  /// [random] 随机数生成器
+  /// [seed] 随机种子（可选）
+  /// [isV4Model] 是否为 V4+ 模型（支持多角色，默认 true）
+  ///
+  /// 返回生成的提示词结果
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = WordlistGeneratorStrategy();
+  /// final result = await strategy.generate(
+  ///   wordlistService: wordlistService,
+  ///   type: WordlistType.v4,
+  ///   config: AlgorithmConfig(),
+  ///   random: Random(42),
+  ///   seed: 42,
+  ///   isV4Model: true,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generate({
+    required WordlistService wordlistService,
+    required WordlistType type,
+    required AlgorithmConfig config,
+    required Random random,
+    int? seed,
+    bool isV4Model = true,
+  }) async {
+    // 决定角色数量
+    final characterCount = _countResolver.determineCharacterCountFromWeights(
+      characterCountWeights,
+      random: random,
+    );
+
+    if (characterCount == 0) {
+      // 无人物场景
+      return generateNoHuman(
+        wordlistService: wordlistService,
+        type: type,
+        config: config,
+        random: random,
+        seed: seed,
+      );
+    }
+
+    if (!isV4Model) {
+      // 传统模式：生成合并的单提示词
+      return generateLegacy(
+        wordlistService: wordlistService,
+        type: type,
+        config: config,
+        random: random,
+        characterCount: characterCount,
+        seed: seed,
+      );
+    }
+
+    // V4+ 模式：生成主提示词 + 角色提示词
+    return generateMultiCharacter(
+      wordlistService: wordlistService,
+      type: type,
+      config: config,
+      random: random,
+      characterCount: characterCount,
+      seed: seed,
+    );
+  }
 
   /// 从词库条目列表中选择标签
   ///
