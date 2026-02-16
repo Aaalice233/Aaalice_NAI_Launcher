@@ -93,4 +93,11 @@ class StorageKeys {
   // Queue Settings (队列设置)
   static const String queueRetryCount = 'queue_retry_count';
   static const String queueRetryInterval = 'queue_retry_interval';
+
+  // App State Keys (应用状态相关)
+  static const String appStateBox = 'app_state';
+  static const String lastSessionState = 'last_session_state';
+  static const String backupMetadata = 'backup_metadata';
+  static const String autoBackupEnabled = 'auto_backup_enabled';
+  static const String autoBackupInterval = 'auto_backup_interval';
 }
