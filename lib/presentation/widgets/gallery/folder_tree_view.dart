@@ -13,6 +13,13 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
+/// 拖拽位置枚举
+enum _DragPosition {
+  before,
+  after,
+  into,
+}
+
 /// 文件夹树视图
 ///
 /// 支持：
@@ -59,6 +66,7 @@ class _FolderTreeViewState extends State<FolderTreeView> {
   final Set<String> _expandedIds = {};
   String? _hoveredFolderId;
   Timer? _autoExpandTimer;
+  _DragPosition? _dragPosition;
 
   @override
   void dispose() {
@@ -205,7 +213,7 @@ class _FolderTreeViewState extends State<FolderTreeView> {
       folderItem = _buildDraggableFolder(folder, folderItem);
     }
 
-    // 包装为拖拽目标
+    // 包装为拖拽目标（用于移动到文件夹内）
     if (widget.onFolderMove != null) {
       folderItem = _buildFolderDragTarget(theme, folder, folderItem);
     }
@@ -213,6 +221,11 @@ class _FolderTreeViewState extends State<FolderTreeView> {
     // 包装为图片拖拽目标
     folderItem =
         _buildImageDropTarget(folderId: folder.id, child: folderItem);
+
+    // 包装为排序拖拽目标（前后位置）
+    if (widget.onFolderReorder != null) {
+      folderItem = _buildReorderDragTarget(folder, folderItem, depth);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,6 +351,105 @@ class _FolderTreeViewState extends State<FolderTreeView> {
                       )
                     : null,
             borderRadius: BorderRadius.circular(8),
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
+  /// 构建排序拖拽目标
+  ///
+  /// 用于在同一层级内调整文件夹顺序
+  Widget _buildReorderDragTarget(
+    GalleryFolder targetFolder,
+    Widget child,
+    int depth,
+  ) {
+    if (widget.onFolderReorder == null) return child;
+
+    return DragTarget<GalleryFolder>(
+      onWillAcceptWithDetails: (details) {
+        final draggedFolder = details.data;
+        // 必须是同一父级才能排序
+        if (draggedFolder.parentId != targetFolder.parentId) return false;
+        // 不能是自己
+        if (draggedFolder.id == targetFolder.id) return false;
+        return true;
+      },
+      onAcceptWithDetails: (details) {
+        HapticFeedback.mediumImpact();
+        final draggedFolder = details.data;
+        final siblings = widget.folders
+            .where((f) => f.parentId == targetFolder.parentId)
+            .sortedByOrder()
+            .toList();
+
+        final oldIndex = siblings.indexWhere((f) => f.id == draggedFolder.id);
+        final newIndex = siblings.indexWhere((f) => f.id == targetFolder.id);
+
+        if (oldIndex != -1 && newIndex != -1) {
+          // 根据拖拽位置调整索引
+          final adjustedNewIndex = _dragPosition == _DragPosition.before
+              ? newIndex
+              : newIndex + 1;
+
+          widget.onFolderReorder?.call(
+            targetFolder.parentId,
+            oldIndex,
+            adjustedNewIndex > oldIndex ? adjustedNewIndex - 1 : adjustedNewIndex,
+          );
+        }
+        setState(() {
+          _dragPosition = null;
+          _hoveredFolderId = null;
+        });
+      },
+      onMove: (details) {
+        if (_hoveredFolderId != targetFolder.id) {
+          setState(() => _hoveredFolderId = targetFolder.id);
+        }
+        // 根据相对位置判断是放在前面还是后面
+        final RenderBox? box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final localPosition = box.globalToLocal(details.offset);
+          final isBefore = localPosition.dy < box.size.height / 2;
+          final newPosition = isBefore ? _DragPosition.before : _DragPosition.after;
+          if (_dragPosition != newPosition) {
+            setState(() => _dragPosition = newPosition);
+          }
+        }
+      },
+      onLeave: (_) {
+        if (_hoveredFolderId == targetFolder.id) {
+          setState(() {
+            _dragPosition = null;
+            _hoveredFolderId = null;
+          });
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isAccepting = candidateData.isNotEmpty;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            border: isAccepting && _dragPosition != null
+                ? Border(
+                    top: _dragPosition == _DragPosition.before
+                        ? BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          )
+                        : BorderSide.none,
+                    bottom: _dragPosition == _DragPosition.after
+                        ? BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          )
+                        : BorderSide.none,
+                  )
+                : null,
           ),
           child: child,
         );
