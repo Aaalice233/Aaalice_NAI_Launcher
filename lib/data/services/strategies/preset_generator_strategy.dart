@@ -520,4 +520,122 @@ class PresetGeneratorStrategy {
     // 添加 "1" 前缀
     return '1$slotTag';
   }
+
+  /// 生成无人物场景结果
+  ///
+  /// [preset] 预设配置
+  /// [random] 随机数生成器
+  /// [tagOption] 角色标签选项（包含 "no humans" 标签）
+  /// [seed] 随机种子
+  ///
+  /// 返回无人物场景生成结果
+  ///
+  /// 生成流程：
+  /// 1. 添加 "no humans" 标签（从 tagOption 或默认）
+  /// 2. 生成全局标签（scope: global 或 all）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final result = await strategy.generateNoHuman(
+  ///   preset: preset,
+  ///   random: Random(42),
+  ///   seed: 42,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateNoHuman({
+    required RandomPreset preset,
+    required Random random,
+    CharacterTagOption? tagOption,
+    int? seed,
+  }) async {
+    final mainTags = <String>[];
+
+    // 添加 "no humans" 标签
+    if (tagOption != null && tagOption.mainPromptTags.isNotEmpty) {
+      mainTags.add(tagOption.mainPromptTags);
+    } else {
+      mainTags.add('no humans');
+    }
+
+    // 仅生成全局标签（背景、场景、风格等）
+    final globalTags = await generate(
+      preset: preset,
+      random: random,
+      targetScope: TagScope.global,
+    );
+    mainTags.addAll(globalTags);
+
+    return RandomPromptResult(
+      mainPrompt: mainTags.join(', '),
+      noHumans: true,
+      mode: RandomGenerationMode.naiOfficial,
+      seed: seed,
+    );
+  }
+
+  /// 生成传统单提示词结果（非 V4 模型）
+  ///
+  /// [preset] 预设配置
+  /// [random] 随机数生成器
+  /// [tagOption] 角色标签选项（包含人数标签和槽位配置）
+  /// [seed] 随机种子
+  ///
+  /// 返回传统单提示词生成结果
+  ///
+  /// 生成流程：
+  /// 1. 添加人数标签（如 "solo", "2girls"）
+  /// 2. 添加性别标签（如 "1girl", "1boy"）
+  /// 3. 生成所有类别的标签（不区分 scope）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final tagOption = CharacterTagOption(
+  ///   label: 'Solo',
+  ///   mainPromptTags: 'solo',
+  ///   slotTags: [CharacterSlotTag(characterTag: 'girl')],
+  /// );
+  /// final result = await strategy.generateLegacy(
+  ///   preset: preset,
+  ///   random: Random(42),
+  ///   tagOption: tagOption,
+  ///   seed: 42,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateLegacy({
+    required RandomPreset preset,
+    required Random random,
+    CharacterTagOption? tagOption,
+    int? seed,
+  }) async {
+    final allTags = <String>[];
+
+    // 添加人数标签
+    if (tagOption != null && tagOption.mainPromptTags.isNotEmpty) {
+      allTags.add(tagOption.mainPromptTags);
+    }
+
+    // 添加性别标签
+    if (tagOption != null && tagOption.slotTags.isNotEmpty) {
+      for (final slotTag in tagOption.slotTags) {
+        allTags.add(_getGenderTag(slotTag.characterTag));
+      }
+    }
+
+    // 生成所有类别的标签（不区分 scope）
+    final tags = await generate(
+      preset: preset,
+      random: random,
+    );
+    allTags.addAll(tags);
+
+    return RandomPromptResult(
+      mainPrompt: allTags.join(', '),
+      mode: RandomGenerationMode.naiOfficial,
+      seed: seed,
+    );
+  }
 }
