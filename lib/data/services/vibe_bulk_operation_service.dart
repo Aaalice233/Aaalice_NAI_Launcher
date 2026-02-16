@@ -1,10 +1,16 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_export_format.dart';
 import '../models/vibe/vibe_export_options.dart';
 import '../models/vibe/vibe_library_entry.dart';
+import '../models/vibe/vibe_reference.dart';
 import 'vibe_export_service.dart';
 import 'vibe_library_storage_service.dart';
 
@@ -29,6 +35,9 @@ enum VibeBulkOperationType {
 
   /// 导出条目
   export,
+
+  /// 导入条目
+  import,
 }
 
 /// Vibe 批量操作结果
@@ -110,6 +119,7 @@ typedef VibeBulkProgressCallback = void Function({
 /// - 批量切换收藏
 /// - 批量编辑标签
 /// - 批量导出
+/// - 批量导入
 class VibeBulkOperationService {
   final VibeLibraryStorageService _storageService;
   final VibeExportService _exportService;
@@ -624,6 +634,284 @@ class VibeBulkOperationService {
     }
   }
 
+  /// 批量导入 Vibe 文件
+  ///
+  /// 从文件批量导入 Vibe 到指定分类
+  /// [filePaths] - 要导入的文件路径列表
+  /// [targetCategoryId] - 目标分类 ID（null 表示导入到根级）
+  /// [tags] - 要添加到导入条目的标签列表
+  /// [onProgress] - 进度回调
+  Future<VibeBulkOperationResult> bulkImport(
+    List<String> filePaths, {
+    String? targetCategoryId,
+    List<String>? tags,
+    VibeBulkProgressCallback? onProgress,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    var successCount = 0;
+    var failedCount = 0;
+    final errors = <String>[];
+
+    AppLogger.i(
+      'Starting bulk import: ${filePaths.length} files to category ${targetCategoryId ?? "root"}',
+      _tag,
+    );
+
+    // 获取现有条目用于名称冲突检测
+    final existingEntries = await _storageService.getAllEntries();
+    final nameMap = <String, VibeLibraryEntry>{
+      for (final entry in existingEntries) _normalizeName(entry.name): entry,
+    };
+
+    for (var i = 0; i < filePaths.length; i++) {
+      final filePath = filePaths[i];
+      final fileName = filePath.split(Platform.pathSeparator).last;
+
+      onProgress?.call(
+        current: i,
+        total: filePaths.length,
+        currentItem: fileName,
+        operationType: VibeBulkOperationType.import,
+        isComplete: false,
+      );
+
+      try {
+        final file = File(filePath);
+        if (!await file.exists()) {
+          failedCount++;
+          errors.add('File not found: $fileName');
+          AppLogger.w('Import failed - file not found: $filePath', _tag);
+          continue;
+        }
+
+        // 读取文件内容
+        final bytes = await file.readAsBytes();
+
+        // 解析文件
+        final references = await VibeFileParser.parseFile(fileName, bytes);
+
+        if (references.isEmpty) {
+          failedCount++;
+          errors.add('No valid vibe data found in: $fileName');
+          AppLogger.w('Import failed - no valid vibe data: $filePath', _tag);
+          continue;
+        }
+
+        // 导入解析到的所有 Vibe 引用
+        for (var refIndex = 0; refIndex < references.length; refIndex++) {
+          final reference = references[refIndex];
+          final entryName = _generateUniqueName(
+            reference.displayName.isEmpty ? 'vibe-${i + 1}-${refIndex + 1}' : reference.displayName,
+            nameMap,
+          );
+
+          try {
+            final entry = VibeLibraryEntry.fromVibeReference(
+              name: entryName,
+              vibeData: reference,
+              categoryId: targetCategoryId,
+              tags: tags ?? const <String>[],
+              thumbnail: reference.thumbnail,
+              filePath: filePath,
+            );
+
+            final savedEntry = await _storageService.saveEntry(entry);
+            nameMap[_normalizeName(savedEntry.name)] = savedEntry;
+            successCount++;
+
+            AppLogger.d(
+              'Imported: $entryName from $fileName ($successCount total)',
+              _tag,
+            );
+          } catch (e) {
+            failedCount++;
+            errors.add('Failed to import vibe from $fileName: $e');
+            AppLogger.e('Import failed for vibe in $fileName', e, null, _tag);
+          }
+        }
+      } catch (e, stackTrace) {
+        failedCount++;
+        errors.add('Failed to process file $fileName: $e');
+        AppLogger.e('Import failed for $filePath', e, stackTrace, _tag);
+      }
+    }
+
+    onProgress?.call(
+      current: filePaths.length,
+      total: filePaths.length,
+      currentItem: '',
+      operationType: VibeBulkOperationType.import,
+      isComplete: true,
+    );
+
+    stopwatch.stop();
+    AppLogger.i(
+      'Bulk import completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
+      _tag,
+    );
+
+    return VibeBulkOperationResult.fromResult(
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+    );
+  }
+
+  /// 批量导入 Vibe 文件（从 PlatformFile）
+  ///
+  /// 用于从文件选择器直接导入
+  /// [files] - 选择的文件列表
+  /// [targetCategoryId] - 目标分类 ID（null 表示导入到根级）
+  /// [tags] - 要添加到导入条目的标签列表
+  /// [onProgress] - 进度回调
+  Future<VibeBulkOperationResult> bulkImportFromPlatformFiles(
+    List<PlatformFile> files, {
+    String? targetCategoryId,
+    List<String>? tags,
+    VibeBulkProgressCallback? onProgress,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    var successCount = 0;
+    var failedCount = 0;
+    final errors = <String>[];
+
+    AppLogger.i(
+      'Starting bulk import from platform files: ${files.length} files to category ${targetCategoryId ?? "root"}',
+      _tag,
+    );
+
+    // 获取现有条目用于名称冲突检测
+    final existingEntries = await _storageService.getAllEntries();
+    final nameMap = <String, VibeLibraryEntry>{
+      for (final entry in existingEntries) _normalizeName(entry.name): entry,
+    };
+
+    for (var i = 0; i < files.length; i++) {
+      final file = files[i];
+      final fileName = file.name;
+
+      onProgress?.call(
+        current: i,
+        total: files.length,
+        currentItem: fileName,
+        operationType: VibeBulkOperationType.import,
+        isComplete: false,
+      );
+
+      try {
+        // 读取文件内容
+        final bytes = await _readPlatformFileBytes(file);
+
+        // 解析文件
+        final references = await VibeFileParser.parseFile(fileName, bytes);
+
+        if (references.isEmpty) {
+          failedCount++;
+          errors.add('No valid vibe data found in: $fileName');
+          AppLogger.w('Import failed - no valid vibe data: $fileName', _tag);
+          continue;
+        }
+
+        // 导入解析到的所有 Vibe 引用
+        for (var refIndex = 0; refIndex < references.length; refIndex++) {
+          final reference = references[refIndex];
+          final entryName = _generateUniqueName(
+            reference.displayName.isEmpty ? 'vibe-${i + 1}-${refIndex + 1}' : reference.displayName,
+            nameMap,
+          );
+
+          try {
+            final entry = VibeLibraryEntry.fromVibeReference(
+              name: entryName,
+              vibeData: reference,
+              categoryId: targetCategoryId,
+              tags: tags ?? const <String>[],
+              thumbnail: reference.thumbnail,
+              filePath: file.path,
+            );
+
+            final savedEntry = await _storageService.saveEntry(entry);
+            nameMap[_normalizeName(savedEntry.name)] = savedEntry;
+            successCount++;
+
+            AppLogger.d(
+              'Imported: $entryName from $fileName ($successCount total)',
+              _tag,
+            );
+          } catch (e) {
+            failedCount++;
+            errors.add('Failed to import vibe from $fileName: $e');
+            AppLogger.e('Import failed for vibe in $fileName', e, null, _tag);
+          }
+        }
+      } catch (e, stackTrace) {
+        failedCount++;
+        errors.add('Failed to process file $fileName: $e');
+        AppLogger.e('Import failed for $fileName', e, stackTrace, _tag);
+      }
+    }
+
+    onProgress?.call(
+      current: files.length,
+      total: files.length,
+      currentItem: '',
+      operationType: VibeBulkOperationType.import,
+      isComplete: true,
+    );
+
+    stopwatch.stop();
+    AppLogger.i(
+      'Bulk import from platform files completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
+      _tag,
+    );
+
+    return VibeBulkOperationResult.fromResult(
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+    );
+  }
+
+  /// 读取 PlatformFile 的字节内容
+  Future<Uint8List> _readPlatformFileBytes(PlatformFile file) async {
+    if (file.bytes != null) {
+      return file.bytes!;
+    }
+
+    final path = file.path;
+    if (path == null || path.isEmpty) {
+      throw ArgumentError('File path is empty: ${file.name}');
+    }
+
+    return File(path).readAsBytes();
+  }
+
+  /// 标准化名称（用于冲突检测）
+  String _normalizeName(String name) {
+    return name.trim().toLowerCase();
+  }
+
+  /// 生成唯一名称
+  String _generateUniqueName(
+    String baseName,
+    Map<String, VibeLibraryEntry> existingNameMap,
+  ) {
+    final normalizedBase = _normalizeName(baseName);
+
+    if (!existingNameMap.containsKey(normalizedBase)) {
+      return baseName;
+    }
+
+    var index = 2;
+    var candidate = '$baseName ($index)';
+    while (existingNameMap.containsKey(_normalizeName(candidate))) {
+      index++;
+      candidate = '$baseName ($index)';
+    }
+
+    return candidate;
+  }
+
   /// 组合批量操作
   ///
   /// 在单个方法调用中执行多个批量操作
@@ -658,6 +946,9 @@ class VibeBulkOperationService {
           ),
         VibeBulkOperationType.export => throw UnsupportedError(
             'Export operation is not supported in executeMultiple, use bulkExport instead',
+          ),
+        VibeBulkOperationType.import => throw UnsupportedError(
+            'Import operation is not supported in executeMultiple, use bulkImport or bulkImportFromPlatformFiles instead',
           ),
       };
 
