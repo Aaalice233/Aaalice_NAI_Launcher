@@ -16,7 +16,7 @@ import '../utils/app_logger.dart';
 /// - 自动重建损坏的连接
 /// - 确保所有操作使用有效的连接
 class TagDatabaseConnection {
-  static const String _databaseName = 'tag_data_v2.db';
+  static const String _databaseName = 'tag_data.db';
   static const int _databaseVersion = 2;
   
   Database? _db;
