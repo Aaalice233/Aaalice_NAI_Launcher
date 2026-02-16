@@ -3227,6 +3227,32 @@
   },
 
   "tray_show": "显示窗口",
-  "tray_exit": "退出"
+  "tray_exit": "退出",
+
+  "settings_shortcutsSubtitle": "自定义键盘快捷键",
+  "settings_openFolder": "打开文件夹",
+  "settings_openFolderFailed": "打开文件夹失败",
+  "settings_dataSourceCacheTitle": "数据源缓存管理",
+  "settings_pleaseLoginFirst": "请先登录",
+  "settings_accountNotFound": "未找到账号信息",
+  "settings_goToLoginPage": "请前往登录页面",
+  "settings_retryCountDisplay": "最多 {count} 次",
+  "@settings_retryCountDisplay": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settings_retryIntervalDisplay": "{interval} 秒",
+  "@settings_retryIntervalDisplay": {
+    "placeholders": {
+      "interval": {"type": "String"}
+    }
+  },
+  "settings_vibePathSaved": "Vibe 库路径已保存",
+  "settings_selectFolderFailed": "选择文件夹失败",
+  "settings_hivePathSaved": "数据存储路径已保存，重启后生效",
+  "settings_restartRequiredTitle": "需要重启应用",
+  "settings_changePathConfirm": "更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？",
+  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？"
 
 }

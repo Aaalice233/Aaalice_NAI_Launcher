@@ -6979,4 +6979,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String vibeSelectorItemsCount(int count) {
     return '$count 项';
   }
+
+  @override
+  String get settings_shortcutsSubtitle => '自定义键盘快捷键';
+
+  @override
+  String get settings_openFolder => '打开文件夹';
+
+  @override
+  String get settings_openFolderFailed => '打开文件夹失败';
+
+  @override
+  String get settings_dataSourceCacheTitle => '数据源缓存管理';
+
+  @override
+  String get settings_pleaseLoginFirst => '请先登录';
+
+  @override
+  String get settings_accountNotFound => '未找到账号信息';
+
+  @override
+  String get settings_goToLoginPage => '请前往登录页面';
+
+  @override
+  String settings_retryCountDisplay(int count) {
+    return '最多 $count 次';
+  }
+
+  @override
+  String settings_retryIntervalDisplay(String interval) {
+    return '$interval 秒';
+  }
+
+  @override
+  String get settings_vibePathSaved => 'Vibe 库路径已保存';
+
+  @override
+  String get settings_selectFolderFailed => '选择文件夹失败';
+
+  @override
+  String get settings_hivePathSaved => '数据存储路径已保存，重启后生效';
+
+  @override
+  String get settings_restartRequiredTitle => '需要重启应用';
+
+  @override
+  String get settings_changePathConfirm => '更改数据存储路径后，需要重启应用才能生效。\n\n新路径将在下次启动时生效。是否继续？';
+
+  @override
+  String get settings_resetPathConfirm => '重置数据存储路径后，需要重启应用才能生效。\n\n默认路径将在下次启动时生效。是否继续？';
 }

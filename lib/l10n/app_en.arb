@@ -3574,6 +3574,32 @@
   },
 
   "tray_show": "Show Window",
-  "tray_exit": "Exit"
+  "tray_exit": "Exit",
+
+  "settings_shortcutsSubtitle": "Customize keyboard shortcuts",
+  "settings_openFolder": "Open folder",
+  "settings_openFolderFailed": "Failed to open folder",
+  "settings_dataSourceCacheTitle": "Data source cache management",
+  "settings_pleaseLoginFirst": "Please login first",
+  "settings_accountNotFound": "Account information not found",
+  "settings_goToLoginPage": "Go to login page",
+  "settings_retryCountDisplay": "Max {count} times",
+  "@settings_retryCountDisplay": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settings_retryIntervalDisplay": "{interval} seconds",
+  "@settings_retryIntervalDisplay": {
+    "placeholders": {
+      "interval": {"type": "String"}
+    }
+  },
+  "settings_vibePathSaved": "Vibe library path saved",
+  "settings_selectFolderFailed": "Failed to select folder",
+  "settings_hivePathSaved": "Data storage path saved, effective after restart",
+  "settings_restartRequiredTitle": "Restart Required",
+  "settings_changePathConfirm": "After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?",
+  "settings_resetPathConfirm": "After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?"
 
 }

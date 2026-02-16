@@ -6979,4 +6979,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String vibeSelectorItemsCount(int count) {
     return '$count items';
   }
+
+  @override
+  String get settings_shortcutsSubtitle => 'Customize keyboard shortcuts';
+
+  @override
+  String get settings_openFolder => 'Open folder';
+
+  @override
+  String get settings_openFolderFailed => 'Failed to open folder';
+
+  @override
+  String get settings_dataSourceCacheTitle => 'Data source cache management';
+
+  @override
+  String get settings_pleaseLoginFirst => 'Please login first';
+
+  @override
+  String get settings_accountNotFound => 'Account information not found';
+
+  @override
+  String get settings_goToLoginPage => 'Go to login page';
+
+  @override
+  String settings_retryCountDisplay(int count) {
+    return 'Max $count times';
+  }
+
+  @override
+  String settings_retryIntervalDisplay(String interval) {
+    return '$interval seconds';
+  }
+
+  @override
+  String get settings_vibePathSaved => 'Vibe library path saved';
+
+  @override
+  String get settings_selectFolderFailed => 'Failed to select folder';
+
+  @override
+  String get settings_hivePathSaved => 'Data storage path saved, effective after restart';
+
+  @override
+  String get settings_restartRequiredTitle => 'Restart Required';
+
+  @override
+  String get settings_changePathConfirm => 'After changing the data storage path, the app needs to restart to take effect.\n\nThe new path will take effect on the next startup. Continue?';
+
+  @override
+  String get settings_resetPathConfirm => 'After resetting the data storage path, the app needs to restart to take effect.\n\nThe default path will take effect on the next startup. Continue?';
 }

@@ -158,8 +158,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // 快捷键设置
           ListTile(
             leading: const Icon(Icons.keyboard_outlined),
-            title: const Text('快捷键'),
-            subtitle: const Text('自定义键盘快捷键'),
+            title: Text(context.l10n.editor_shortcuts),
+            subtitle: Text(context.l10n.settings_shortcutsSubtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => ShortcutSettingsPanel.show(context),
           ),
@@ -172,7 +172,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(context.l10n.settings_imageSavePath),
             subtitle: Text(
               saveSettings
-                  .getDisplayPath('默认 (Documents/NAI_Launcher/images/)'),
+                  .getDisplayPath(
+                      '${context.l10n.settings_default} (Documents/NAI_Launcher/images/)'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -181,7 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.folder_open, size: 20),
-                  tooltip: '打开文件夹',
+                  tooltip: context.l10n.settings_openFolder,
                   onPressed: () async {
                     try {
                       String path;
@@ -197,7 +198,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         mode: LaunchMode.externalApplication,
                       );
                     } catch (e) {
-                      AppLogger.e('打开文件夹失败', e);
+                      AppLogger.e(context.l10n.settings_openFolderFailed, e);
                     }
                   },
                 ),
@@ -245,12 +246,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const ThemedDivider(),
 
           // 网络数据缓存
-          _buildSectionHeader(theme, '数据源缓存管理'),
+          _buildSectionHeader(theme, context.l10n.settings_dataSourceCacheTitle),
           const DataSourceCacheSettings(),
           const ThemedDivider(),
 
           // 队列设置
-          _buildSectionHeader(theme, '队列'),
+          _buildSectionHeader(theme, context.l10n.queue_title),
           const _QueueSettingsSection(),
           const ThemedDivider(),
 
@@ -591,7 +592,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final accountId = authState.accountId;
 
     if (accountId == null) {
-      AppToast.info(context, '请先登录');
+      AppToast.info(context, context.l10n.settings_pleaseLoginFirst);
       return;
     }
 
@@ -599,7 +600,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final account = accounts.where((a) => a.id == accountId).firstOrNull;
 
     if (account == null) {
-      AppToast.info(context, '未找到账号信息');
+      AppToast.info(context, context.l10n.settings_accountNotFound);
       return;
     }
 
@@ -611,7 +612,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   /// 导航到登录页面
   void _navigateToLogin(BuildContext context) {
-    AppToast.info(context, '请前往登录页面');
+    AppToast.info(context, context.l10n.settings_goToLoginPage);
   }
 }
 
@@ -709,9 +710,9 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('重试次数'),
+                    Text(context.l10n.settings_queueRetryCount),
                     Text(
-                      '最多 $retryCount 次',
+                      context.l10n.settings_retryCountDisplay(retryCount),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -768,7 +769,7 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                 ),
               ),
               const SizedBox(width: 4),
-              const Text('次'),
+              Text(context.l10n.unit_times),
             ],
           ),
         ),
@@ -787,9 +788,9 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('重试间隔'),
+                    Text(context.l10n.settings_queueRetryInterval),
                     Text(
-                      '${retryInterval.toStringAsFixed(1)} 秒',
+                      context.l10n.settings_retryIntervalDisplay(retryInterval.toStringAsFixed(1)),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -849,7 +850,7 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
                 ),
               ),
               const SizedBox(width: 4),
-              const Text('秒'),
+              Text(context.l10n.unit_seconds),
             ],
           ),
         ),
@@ -858,9 +859,11 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
         const SizedBox(height: 8),
         ListTile(
           leading: const Icon(Icons.image_outlined),
-          title: const Text('悬浮球背景'),
+          title: Text(context.l10n.settings_floatingButtonBackground),
           subtitle: Text(
-            _backgroundImagePath != null ? '已设置自定义背景' : '默认样式',
+            _backgroundImagePath != null
+                ? context.l10n.settings_floatingButtonBackgroundCustom
+                : context.l10n.settings_floatingButtonBackgroundDefault,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -895,13 +898,13 @@ class _QueueSettingsSectionState extends ConsumerState<_QueueSettingsSection> {
               if (_backgroundImagePath != null)
                 IconButton(
                   icon: const Icon(Icons.clear),
-                  tooltip: '清除背景',
+                  tooltip: context.l10n.settings_clearBackground,
                   onPressed: _clearBackgroundImage,
                 ),
               // 选择按钮
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.folder_open, size: 18),
-                label: const Text('选择图片'),
+                label: Text(context.l10n.settings_selectImage),
                 onPressed: _selectBackgroundImage,
               ),
             ],
@@ -1235,7 +1238,7 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
   Future<void> _selectVibeLibraryDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: '选择Vibe库保存文件夹',
+        dialogTitle: context.l10n.settings_selectVibeLibraryFolder,
       );
 
       if (result != null && context.mounted) {
@@ -1244,12 +1247,13 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
         setState(() {});
 
         if (context.mounted) {
-          AppToast.success(context, 'Vibe库路径已保存');
+          AppToast.success(context, context.l10n.settings_vibePathSaved);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '选择文件夹失败: ${e.toString()}');
+        AppToast.error(context,
+            '${context.l10n.settings_selectFolderFailed}: ${e.toString()}');
       }
     }
   }
@@ -1259,7 +1263,7 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
     setState(() {});
 
     if (context.mounted) {
-      AppToast.success(context, '已重置为默认路径');
+      AppToast.success(context, context.l10n.settings_pathReset);
     }
   }
 
@@ -1270,15 +1274,15 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
 
     return ListTile(
       leading: const Icon(Icons.style_outlined),
-      title: const Text('Vibe 库保存路径'),
+      title: Text(context.l10n.settings_vibeLibraryPath),
       subtitle: FutureBuilder<String>(
         future: _pathHelper.getPath(),
         builder: (context, snapshot) {
           final displayPath = hasCustomPath
               ? (customPath ?? '')
               : (snapshot.data != null
-                  ? '${snapshot.data!} (默认)'
-                  : '默认 (Documents/NAI_Launcher/vibes/)');
+                  ? '${snapshot.data!} (${context.l10n.settings_default})'
+                  : '${context.l10n.settings_default} (Documents/NAI_Launcher/vibes/)');
           return Text(
             displayPath,
             maxLines: 1,
@@ -1291,7 +1295,7 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
         children: [
           IconButton(
             icon: const Icon(Icons.folder_open, size: 20),
-            tooltip: '打开文件夹',
+            tooltip: context.l10n.settings_openFolder,
             onPressed: () async {
               try {
                 final path = await _pathHelper.getPath();
@@ -1300,14 +1304,14 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
                   mode: LaunchMode.externalApplication,
                 );
               } catch (e) {
-                AppLogger.e('打开文件夹失败', e);
+                AppLogger.e(context.l10n.settings_openFolderFailed, e);
               }
             },
           ),
           if (hasCustomPath)
             IconButton(
               icon: const Icon(Icons.close, size: 20),
-              tooltip: '重置为默认',
+              tooltip: context.l10n.common_reset,
               onPressed: () => _resetToDefault(context),
             ),
           const Icon(Icons.chevron_right),
@@ -1332,7 +1336,7 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
   Future<void> _selectHiveStorageDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: '选择 Hive 数据存储文件夹',
+        dialogTitle: context.l10n.settings_selectHiveFolder,
       );
 
       if (result != null && context.mounted) {
@@ -1341,19 +1345,16 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            title: const Text('需要重启应用'),
-            content: const Text(
-              '更改 Hive 数据存储路径后，需要重启应用才能生效。\n\n'
-              '新路径将在下次启动时生效。是否继续？',
-            ),
+            title: Text(context.l10n.settings_restartRequiredTitle),
+            content: Text(context.l10n.settings_changePathConfirm),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('取消'),
+                child: Text(context.l10n.common_cancel),
               ),
               FilledButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('确认'),
+                child: Text(context.l10n.common_confirm),
               ),
             ],
           ),
@@ -1364,13 +1365,14 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
           setState(() {});
 
           if (context.mounted) {
-            AppToast.success(context, 'Hive 存储路径已保存，重启后生效');
+            AppToast.success(context, context.l10n.settings_hivePathSaved);
           }
         }
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context, '选择文件夹失败: ${e.toString()}');
+        AppToast.error(context,
+            '${context.l10n.settings_selectFolderFailed}: ${e.toString()}');
       }
     }
   }
@@ -1380,19 +1382,16 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-        title: const Text('需要重启应用'),
-        content: const Text(
-          '重置 Hive 数据存储路径后，需要重启应用才能生效。\n\n'
-          '默认路径将在下次启动时生效。是否继续？',
-        ),
+        title: Text(context.l10n.settings_restartRequiredTitle),
+        content: Text(context.l10n.settings_resetPathConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.common_cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('确认'),
+            child: Text(context.l10n.common_confirm),
           ),
         ],
       ),
@@ -1403,7 +1402,7 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
       setState(() {});
 
       if (context.mounted) {
-        AppToast.success(context, '已重置为默认路径，重启后生效');
+        AppToast.success(context, context.l10n.settings_pathReset);
       }
     }
   }
@@ -1414,7 +1413,7 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
 
     return ListTile(
       leading: const Icon(Icons.storage_outlined),
-      title: const Text('数据存储路径'),
+      title: Text(context.l10n.settings_hiveStoragePath),
       subtitle: Text(
         _hiveHelper.getDisplayPath(),
         maxLines: 1,
@@ -1425,7 +1424,7 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
         children: [
           IconButton(
             icon: const Icon(Icons.folder_open, size: 20),
-            tooltip: '打开文件夹',
+            tooltip: context.l10n.settings_openFolder,
             onPressed: () async {
               try {
                 final path = await _hiveHelper.getPath();
@@ -1434,14 +1433,14 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
                   mode: LaunchMode.externalApplication,
                 );
               } catch (e) {
-                AppLogger.e('打开文件夹失败', e);
+                AppLogger.e(context.l10n.settings_openFolderFailed, e);
               }
             },
           ),
           if (hasCustomPath)
             IconButton(
               icon: const Icon(Icons.close, size: 20),
-              tooltip: '重置为默认',
+              tooltip: context.l10n.common_reset,
               onPressed: () => _resetToDefault(context),
             ),
           const Icon(Icons.chevron_right),
