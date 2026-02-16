@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../widgets/shortcuts/shortcut_tooltip.dart';
 import '../../animated_favorite_button.dart';
 import '../image_detail_data.dart';
 
@@ -52,10 +54,13 @@ class DetailTopBar extends StatelessWidget {
       child: Row(
         children: [
           // 关闭按钮
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: onClose,
-            tooltip: '关闭',
+          ShortcutTooltip(
+            message: '关闭',
+            shortcutId: ShortcutIds.closeViewer,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: onClose,
+            ),
           ),
 
           const SizedBox(width: 16),
@@ -88,37 +93,50 @@ class DetailTopBar extends StatelessWidget {
 
           // 保存按钮（仅生成图像显示）
           if (currentImage.showSaveButton && onSave != null)
-            IconButton(
-              icon: const Icon(Icons.save_alt, color: Colors.white),
-              onPressed: onSave,
-              tooltip: '保存',
+            ShortcutTooltip(
+              message: '保存',
+              shortcutId: ShortcutIds.saveImage,
+              child: IconButton(
+                icon: const Icon(Icons.save_alt, color: Colors.white),
+                onPressed: onSave,
+              ),
             ),
 
           // 复用参数按钮
           if (metadata != null && onReuseMetadata != null)
-            IconButton(
-              icon: const Icon(Icons.input, color: Colors.white),
-              onPressed: onReuseMetadata,
-              tooltip: '复用参数',
+            ShortcutTooltip(
+              message: '复用参数',
+              shortcutId: ShortcutIds.reuseGalleryParams,
+              child: IconButton(
+                icon: const Icon(Icons.input, color: Colors.white),
+                onPressed: onReuseMetadata,
+              ),
             ),
 
           // 复制图像按钮
           if (onCopyImage != null)
-            IconButton(
-              icon: const Icon(Icons.copy, color: Colors.white),
-              onPressed: onCopyImage,
-              tooltip: '复制图像',
+            ShortcutTooltip(
+              message: '复制图像',
+              shortcutId: ShortcutIds.copyImage,
+              child: IconButton(
+                icon: const Icon(Icons.copy, color: Colors.white),
+                onPressed: onCopyImage,
+              ),
             ),
 
           // 收藏按钮（仅本地图库显示）
           if (currentImage.showFavoriteButton && onFavoriteToggle != null)
-            AnimatedFavoriteButton(
-              isFavorite: currentImage.isFavorite,
-              size: 24,
-              inactiveColor: Colors.white,
-              showBackground: true,
-              backgroundColor: Colors.black.withOpacity(0.4),
-              onToggle: onFavoriteToggle,
+            ShortcutTooltip(
+              message: '收藏',
+              shortcutId: ShortcutIds.toggleFavorite,
+              child: AnimatedFavoriteButton(
+                isFavorite: currentImage.isFavorite,
+                size: 24,
+                inactiveColor: Colors.white,
+                showBackground: true,
+                backgroundColor: Colors.black.withOpacity(0.4),
+                onToggle: onFavoriteToggle,
+              ),
             ),
         ],
       ),
