@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/storage/app_state_storage.dart';
+import '../../core/storage/crash_recovery_service.dart';
 import '../../core/utils/localization_extension.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
 import '../providers/download_progress_provider.dart';
+import '../widgets/common/recovery_dialog.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
@@ -18,6 +21,7 @@ import '../screens/image_comparison_screen.dart';
 import '../screens/statistics_screen.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/replication_queue_bar.dart';
+import '../providers/queue_execution_provider.dart';
 import '../providers/replication_queue_provider.dart';
 
 part 'app_router.g.dart';
@@ -327,13 +331,15 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   bool _initialized = false;
+  bool _recoveryChecked = false;
 
   @override
   void initState() {
     super.initState();
-    // 在 Overlay 可用后初始化下载服务
+    // 在 Overlay 可用后初始化下载服务和检查崩溃恢复
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeDownloadServices();
+      _checkCrashRecovery();
     });
   }
 
@@ -355,6 +361,64 @@ class _MainShellState extends ConsumerState<MainShell> {
     // 下载共现标签数据（100MB）
     if (mounted) {
       downloadNotifier.downloadCooccurrenceData();
+    }
+  }
+
+  /// 检查崩溃恢复
+  ///
+  /// 在应用启动后检查是否有可恢复的会话状态，
+  /// 如果有则显示恢复对话框让用户选择
+  Future<void> _checkCrashRecovery() async {
+    if (_recoveryChecked) return;
+    _recoveryChecked = true;
+
+    try {
+      final crashRecoveryService = ref.read(crashRecoveryServiceProvider);
+
+      // 分析崩溃情况
+      final analysis = await crashRecoveryService.analyzeCrash();
+
+      if (!analysis.hasCrashDetected) {
+        return;
+      }
+
+      if (!analysis.canRecover) {
+        // 无法恢复，清理日志
+        await crashRecoveryService.clearJournal();
+        return;
+      }
+
+      if (!mounted) return;
+
+      // 显示恢复对话框
+      final result = await RecoveryDialog.show(
+        context: context,
+        analysisResult: analysis,
+      );
+
+      if (!mounted) return;
+
+      if (result == RecoveryDialogResult.recover) {
+        // 用户选择恢复 - 恢复会话状态
+        await crashRecoveryService.logRecoveryAttempt(
+          success: true,
+          recoveredState: analysis.recoveryPoint?.sessionState,
+        );
+
+        // 触发队列执行恢复
+        final queueExecutionNotifier =
+            ref.read(queueExecutionNotifierProvider.notifier);
+        await queueExecutionNotifier.checkAndRecover();
+      } else {
+        // 用户选择放弃恢复 - 清理状态
+        await crashRecoveryService.clearJournal();
+
+        // 清除应用状态存储
+        final appStateStorage = ref.read(appStateStorageProvider);
+        await appStateStorage.clearQueueExecutionState();
+      }
+    } catch (e) {
+      // 静默处理错误
     }
   }
 

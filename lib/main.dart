@@ -237,10 +237,12 @@ void main() async {
     AppLogger.d('Window state observer registered', 'Main');
   }
 
+  // 运行应用
   runApp(
     UncontrolledProviderScope(
       container: container,
       child: const AppBootstrap(),
     ),
   );
+
 }
