@@ -173,7 +173,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: Text(
               saveSettings
                   .getDisplayPath(
-                      '${context.l10n.settings_default} (Documents/NAI_Launcher/images/)'),
+                      '${context.l10n.settings_default} (Documents/NAI_Launcher/images/)',),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1252,8 +1252,10 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context,
-            '${context.l10n.settings_selectFolderFailed}: ${e.toString()}');
+        AppToast.error(
+          context,
+          '${context.l10n.settings_selectFolderFailed}: ${e.toString()}',
+        );
       }
     }
   }
@@ -1371,8 +1373,10 @@ class _HiveStoragePathTileState extends State<_HiveStoragePathTile> {
       }
     } catch (e) {
       if (context.mounted) {
-        AppToast.error(context,
-            '${context.l10n.settings_selectFolderFailed}: ${e.toString()}');
+        AppToast.error(
+          context,
+          '${context.l10n.settings_selectFolderFailed}: ${e.toString()}',
+        );
       }
     }
   }
