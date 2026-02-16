@@ -368,8 +368,9 @@
             "command": "flutter analyze lib/presentation/providers/generation/reference_panel_notifier.dart",
             "expected": "No issues found"
           },
-          "status": "pending",
-          "notes": "参考面板状态，可考虑移除keepAlive"
+          "status": "completed",
+          "completed_at": "2026-02-16T23:45:00Z",
+          "notes": "成功移除keepAlive:\n1. 修改注解: @Riverpod(keepAlive: true) → @riverpod\n2. 更新生成的provider类型: NotifierProvider → AutoDisposeNotifierProvider\n3. 更新typedef: Notifier → AutoDisposeNotifier\n\n评估理由:\n- 此provider管理引用面板的UI状态（展开/折叠、拖拽悬停、最近条目列表等）\n- 不需要保持存活状态，当没有监听器时可以自动释放以节省内存\n- 状态通过SharedPreferences持久化（如折叠状态），可以在重建时恢复\n- 最近条目列表可以从VibeLibraryStorageService重新加载"
         },
         {
           "id": "subtask-4-5",
@@ -789,7 +790,7 @@
   "executionPhase": "coding",
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-02-16T13:37:29.531Z",
+  "updated_at": "2026-02-16T13:41:42.252Z",
   "xstateState": "backlog",
   "last_updated": "2026-02-16T13:34:50.793719+00:00"
 }

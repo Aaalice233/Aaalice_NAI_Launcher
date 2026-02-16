@@ -50,7 +50,20 @@ class PendingPromptState with _$PendingPromptState {
 /// 3. 主界面调用 `consume()` 获取并清空提示词
 /// 4. 填充到输入框
 ///
-/// 使用 keepAlive: true 确保状态在页面切换时保持
+/// ## keepAlive 策略
+///
+/// **保留 keepAlive: true**，原因如下：
+///
+/// 1. **跨页面状态传递**：核心用途是在页面间传递数据，需要跨越导航过程
+///    - 源页面设置状态 → 导航到目标页面 → 目标页面消费状态
+///    - 导航过程中无监听者，若无keepAlive会被dispose
+///
+/// 2. **用户体验期望**：用户期望从画廊发送的提示词在切换到生成页后仍然可用
+///    - 若状态丢失，用户操作会无声失败，造成困惑
+///
+/// 3. **内存收益微小**：状态仅包含两个字符串和几个标志位，内存占用可忽略
+///
+/// 4. **数据无法恢复**：一旦丢失无法从其他来源重建，属于不可替代的状态
 @Riverpod(keepAlive: true)
 class PendingPromptNotifier extends _$PendingPromptNotifier {
   @override
