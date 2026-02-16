@@ -125,7 +125,7 @@ class DragTargetWrapper extends ConsumerWidget {
             icon: Icons.add_photo_alternate_outlined,
             title: context.l10n.vibe_addFromFileTitle,
             subtitle: context.l10n.vibe_addFromFileSubtitle,
-            onTap: () async => await _addVibe(context, ref),
+            onTap: () async => await _addVibeStatic(context, ref),
           ),
         ),
         const SizedBox(width: 12),
@@ -240,7 +240,7 @@ class DragTargetWrapper extends ConsumerWidget {
                     vibes = encodedVibes;
                     if (autoSaveToLibrary && context.mounted) {
                       await _saveEncodedVibesToLibrary(
-                        context, ref, encodedVibes, fileName);
+                        context, ref, encodedVibes, fileName,);
                     }
                   } else {
                     final continueAnyway = await showDialog<bool>(
@@ -410,11 +410,7 @@ class DragTargetWrapper extends ConsumerWidget {
     );
   }
 
-  Widget _buildEncodingDialog(BuildContext context, String fileName) {
-    return _buildEncodingDialogInternal(context, fileName, context.l10n, Theme.of(context));
-  }
-
-  Future<void> _saveEncodedVibesToLibrary(
+  static Future<void> _saveEncodedVibesToLibrary(
     BuildContext context,
     WidgetRef ref,
     List<VibeReference> vibes,
