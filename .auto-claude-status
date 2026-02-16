@@ -3,23 +3,23 @@
   "spec": "001-",
   "state": "building",
   "subtasks": {
-    "completed": 1,
-    "total": 2,
+    "completed": 2,
+    "total": 10,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Add Missing Localizations",
-    "id": 1,
-    "total": 2
+    "current": "Foundation - Models and Scheduler",
+    "id": null,
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 2,
-    "started_at": "2026-02-15T19:23:28.572020"
+    "number": 4,
+    "started_at": "2026-02-16T16:51:56.694692"
   },
-  "last_update": "2026-02-15T19:24:59.229266"
+  "last_update": "2026-02-16T16:59:07.629814"
 }
