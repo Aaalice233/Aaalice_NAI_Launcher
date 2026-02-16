@@ -1,0 +1,159 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: 优化Riverpod Provider生命周期管理，减少不必要的内存常驻
+Workspace: E:\Aaalice_NAI_Launcher\.auto-claude\worktrees\tasks\008-riverpod-provider
+Started: 2026-02-16
+
+Workflow Type: refactor
+Rationale: 这是一个重构任务，需要逐步审查和修改现有Provider的keepAlive策略，同时确保功能不中断。采用分阶段迁移策略：分析→修改→验证→清理。
+
+Session 1 (Planner):
+- Created implementation_plan.json
+- Phases: 9
+- Total subtasks: 32
+- Created context.json
+- Created init.sh
+
+Phase Summary:
+- Phase 1 (分析阶段 - Provider分类与评估): 3 subtasks, depends on []
+- Phase 2 (页面级Provider优化): 5 subtasks, depends on [phase-1-analysis]
+- Phase 3 (设置类Provider优化): 6 subtasks, depends on [phase-1-analysis]
+- Phase 4 (生成相关Provider优化): 5 subtasks, depends on [phase-1-analysis]
+- Phase 5 (队列相关Provider评估): 3 subtasks, depends on [phase-1-analysis]
+- Phase 6 (核心Provider评估): 5 subtasks, depends on [phase-1-analysis]
+- Phase 7 (Service层Provider优化): 2 subtasks, depends on [phase-1-analysis]
+- Phase 8 (代码生成与验证): 3 subtasks, depends on [phase-2,3,4,5,6,7]
+- Phase 9 (文档与清理): 2 subtasks, depends on [phase-8-generation]
+
+Services Involved:
+- frontend: Flutter application with Riverpod state management
+
+Provider Statistics:
+- Total keepAlive providers found: 63
+- Presentation layer: 42 providers
+- Data/core service layer: 21 providers
+- Planned removals: 12 providers
+- Planned retentions: 51 providers
+
+Parallelism Analysis:
+- Max parallel phases: 3
+- Recommended workers: 2
+- Parallel groups:
+  * phase-2-page-providers, phase-3-settings-providers, phase-6-core-providers
+    (These modify different provider files with no conflicts)
+
+Categorization Strategy:
+1. Core (keep): auth_provider, account_manager_provider, image_generation_provider
+2. PageState (remove): tag_library_page_provider, bulk_operation_provider, character_prompt_provider
+3. Service (keep): All data/services and core/services providers
+4. Cache (conditional): data_source_cache_provider - evaluate case by case
+5. Queue (keep): queue_execution_provider, replication_queue_provider
+
+Verification Strategy:
+- Risk level: medium
+- Test types: static_analysis only
+- No unit/integration/E2E tests required
+- Primary verification: flutter analyze + build_runner
+
+Key Files to Modify:
+1. lib/presentation/providers/tag_library_page_provider.dart
+2. lib/presentation/providers/bulk_operation_provider.dart
+3. lib/presentation/providers/character_prompt_provider.dart
+4. lib/presentation/providers/collection_provider.dart
+5. lib/presentation/providers/notification_settings_provider.dart
+6. lib/presentation/providers/quality_preset_provider.dart
+7. lib/presentation/providers/uc_preset_provider.dart
+8. lib/presentation/providers/random_preset_provider.dart
+9. lib/presentation/providers/generation/reference_panel_notifier.dart
+
+Files to Reference (Patterns):
+- lib/presentation/providers/auth_provider.dart
+- lib/presentation/providers/queue_execution_provider.dart
+- lib/presentation/providers/tag_library_provider.dart
+- lib/presentation/providers/image_generation_provider.dart
+
+=== STARTUP COMMAND ===
+
+To continue building this spec:
+
+1. Run init.sh to setup environment:
+   bash .auto-claude/specs/008-riverpod-provider/init.sh
+
+2. Then start implementation with the coder agent
+
+=== END SESSION 1 ===
+
+---
+
+## Subtask 2-2: 优化tag_library_provider - 评估是否保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true**
+
+理由：
+1. **核心数据 Provider** - 词库数据在多个功能模块中被频繁使用（生成页标签建议、词库管理页等）
+2. **初始化成本高** - 需要加载和解析大型 JSON 文件，重新加载会造成明显延迟
+3. **内存占用合理** - 词库数据是应用核心功能所需，保持常驻内存的收益大于成本
+
+### 修改内容
+- 添加了详细的文档注释，说明保留 keepAlive 的理由
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
+## Subtask 3-2: 优化image_save_settings_provider - 保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true**
+
+理由：
+1. **全局功能** - 图片保存设置在整个应用生命周期中需要被访问
+2. **后台使用** - 图像生成完成后的自动保存操作需要访问此设置
+3. **跨页面访问** - 在设置页面、生成页面等多个页面中共享使用
+4. **状态一致性** - 自动保存开关状态需要在整个应用中保持一致
+5. **内存收益** - 仅存储简单配置（路径字符串和布尔值），内存占用极小
+
+### 修改内容
+- 添加了详细的文档注释（9行），说明保留 keepAlive 的理由和具体场景
+
+### 提交信息
+```
+auto-claude: subtask-3-2 - 优化image_save_settings_provider - 保留keepAlive
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
+## Subtask 3-5: 优化uc_preset_provider - 移除keepAlive
+
+### 修改内容
+**文件**: `lib/presentation/providers/uc_preset_provider.dart`
+
+**变更**:
+- 将 `@Riverpod(keepAlive: true)` 改为 `@Riverpod()`
+- 允许UC预设Provider在页面关闭后自动清理
+
+### 理由
+1. **状态持久化** - 所有状态通过 LocalStorage 持久化存储，无需 keepAlive 保持
+2. **页面级状态** - UC预设主要在设置页面和生成页面使用，不需要全局常驻
+3. **自动恢复** - build() 方法从 LocalStorage 加载状态，重新访问时自动恢复
+4. **内存优化** - 页面关闭后自动释放内存，减少不必要的内存占用
+
+### 提交信息
+```
+auto-claude: subtask-3-5 - 优化uc_preset_provider - 移除keepAlive
+```
+
+### 注意
+- 需要运行 `dart run build_runner build --delete-conflicting-outputs` 重新生成 .g.dart 文件
+- 相关依赖项 `currentUcEntry` 和 `ucCustomEntries` 使用 `@riverpod` 注解，会自动跟随主Provider的生命周期
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
