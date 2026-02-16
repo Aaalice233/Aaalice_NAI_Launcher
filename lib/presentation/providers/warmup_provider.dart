@@ -449,23 +449,19 @@ class WarmupNotifier extends _$WarmupNotifier {
         state = state.copyWith(subTaskMessage: message);
       };
 
+      // 先初始化服务，确保数据库连接就绪
+      await service.initialize();
+
       // 检查数据库中是否已有数据
       final tagCount = await service.getTagCount();
       final isPrebuiltDatabase = tagCount >= 30000;
 
       if (isPrebuiltDatabase) {
-        // 预构建数据库：只需加载热数据
-        AppLogger.i('检测到预构建数据库，跳过下载', 'Warmup');
-        await service.initialize().timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            AppLogger.w('预构建数据库加载超时', 'Warmup');
-            throw TimeoutException('标签数据加载超时');
-          },
-        );
+        // 预构建数据库：数据已加载，无需额外操作
+        AppLogger.i('检测到预构建数据库（$tagCount 条标签），跳过下载', 'Warmup');
       } else {
         // 需要下载：只下载普通标签，画师标签留给后台任务
-        AppLogger.i('数据库为空或数据不足，开始下载普通标签...', 'Warmup');
+        AppLogger.i('数据库为空或数据不足（仅 $tagCount 条），开始下载普通标签...', 'Warmup');
         await service.refreshGeneralOnly().timeout(
           const Duration(seconds: 120),
           onTimeout: () {
