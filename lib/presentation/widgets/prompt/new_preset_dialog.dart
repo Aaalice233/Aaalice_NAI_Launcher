@@ -69,6 +69,14 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
     Navigator.of(context).pop(NewPresetResult(name: name, mode: _selectedMode));
   }
 
+  void _handleImport() {
+    // TODO: 实现导入功能
+  }
+
+  void _handleExport() {
+    // TODO: 实现导出功能
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -181,6 +189,25 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  // 导入按钮
+                  Tooltip(
+                    message: l10n.presetManager_import,
+                    child: IconButton(
+                      onPressed: () => _handleImport(),
+                      icon: const Icon(Icons.file_upload_outlined),
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  // 导出按钮
+                  Tooltip(
+                    message: l10n.presetManager_export,
+                    child: IconButton(
+                      onPressed: () => _handleExport(),
+                      icon: const Icon(Icons.file_download_outlined),
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text(l10n.common_cancel),
