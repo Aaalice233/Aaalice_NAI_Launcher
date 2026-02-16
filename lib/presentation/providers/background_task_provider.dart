@@ -239,7 +239,13 @@ class BackgroundTaskNotifier extends _$BackgroundTaskNotifier {
   }
 
   /// 更新任务进度
-  void updateProgress(String id, double progress, {String? message}) {
+  void updateProgress(
+    String id,
+    double progress, {
+    String? message,
+    int? processedCount,
+    int? totalCount,
+  }) {
     if (state.isPaused) return;
 
     final taskIndex = state.tasks.indexWhere((t) => t.id == id);
@@ -248,6 +254,8 @@ class BackgroundTaskNotifier extends _$BackgroundTaskNotifier {
     final updatedTask = state.tasks[taskIndex].copyWith(
       progress: progress.clamp(0.0, 1.0),
       message: message,
+      processedCount: processedCount,
+      totalCount: totalCount,
     );
 
     final newTasks = [...state.tasks];
