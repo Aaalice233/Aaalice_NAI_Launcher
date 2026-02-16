@@ -162,6 +162,8 @@ class BackgroundTaskNotifier extends _$BackgroundTaskNotifier {
 
   /// 开始执行所有待执行的任务
   Future<void> startAll() async {
+    AppLogger.i('startAll called, executors: ${_taskExecutors.length}, tasks: ${state.tasks.length}', 'BackgroundTask');
+
     if (state.isPaused) {
       AppLogger.d('Background tasks are paused, resuming...', 'BackgroundTask');
       state = state.copyWith(isPaused: false);
