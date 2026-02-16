@@ -397,16 +397,12 @@ class LocalGalleryRepository {
     if (!_initialized) return [];
 
     final result = await _searchService.search(query, limit: limit);
-    
-    // 获取完整记录
-    final records = <LocalImageRecord>[];
-    for (final id in result.imageIds) {
-      final row = await _db.getImageById(id);
-      if (row != null) {
-        records.add(_db.mapToLocalImageRecord(row));
-      }
-    }
-    return records;
+
+    // 批量查询图片记录，避免N+1查询
+    if (result.imageIds.isEmpty) return [];
+
+    final rows = await _db.queryImagesByIds(result.imageIds);
+    return rows.map((row) => _db.mapToLocalImageRecord(row)).toList();
   }
 
   /// 高级搜索
