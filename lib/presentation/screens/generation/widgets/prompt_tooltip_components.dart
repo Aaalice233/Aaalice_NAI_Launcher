@@ -141,6 +141,7 @@ class TooltipFinalPromptSection extends StatelessWidget {
   final String prompt;
   final bool isDark;
   final String label;
+  final bool isNegative;
 
   const TooltipFinalPromptSection({
     super.key,
@@ -148,10 +149,21 @@ class TooltipFinalPromptSection extends StatelessWidget {
     required this.prompt,
     required this.isDark,
     this.label = '最终发送给 NAI 的提示词',
+    this.isNegative = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // 根据是否为负面提示词选择颜色方案
+    final primaryColor =
+        isNegative ? theme.colorScheme.error : theme.colorScheme.primary;
+    final containerColor = isNegative
+        ? theme.colorScheme.errorContainer
+        : theme.colorScheme.primaryContainer;
+    final secondaryContainerColor = isNegative
+        ? theme.colorScheme.errorContainer.withOpacity(isDark ? 0.15 : 0.2)
+        : theme.colorScheme.secondaryContainer;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -160,14 +172,13 @@ class TooltipFinalPromptSection extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.primaryContainer.withOpacity(isDark ? 0.3 : 0.4),
-            theme.colorScheme.secondaryContainer
-                .withOpacity(isDark ? 0.2 : 0.3),
+            containerColor.withOpacity(isDark ? 0.3 : 0.4),
+            secondaryContainerColor.withOpacity(isDark ? 0.2 : 0.3),
           ],
         ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.2),
+          color: primaryColor.withOpacity(0.2),
         ),
       ),
       child: Column(
@@ -179,7 +190,7 @@ class TooltipFinalPromptSection extends StatelessWidget {
               Icon(
                 Icons.output_rounded,
                 size: 12,
-                color: theme.colorScheme.primary,
+                color: primaryColor,
               ),
               const SizedBox(width: 4),
               Text(
@@ -187,7 +198,7 @@ class TooltipFinalPromptSection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
+                  color: primaryColor,
                 ),
               ),
             ],
