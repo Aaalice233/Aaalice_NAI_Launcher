@@ -933,74 +933,12 @@ class _PositivePromptTooltip extends StatelessWidget {
   }
 
   Widget _buildFinalPromptSection(String prompt, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primaryContainer.withOpacity(isDark ? 0.3 : 0.4),
-            theme.colorScheme.secondaryContainer
-                .withOpacity(isDark ? 0.2 : 0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.output_rounded,
-                size: 12,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                l10n.prompt_finalPrompt,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const Spacer(),
-              // 复制按钮
-              _CopyIconButton(
-                content: prompt,
-                color: theme.colorScheme.primary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 150),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  prompt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return TooltipFinalPromptSection(
+      theme: theme,
+      prompt: prompt,
+      isDark: isDark,
+      label: l10n.prompt_finalPrompt,
+      isNegative: false,
     );
   }
 
