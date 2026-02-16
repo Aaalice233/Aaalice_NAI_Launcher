@@ -227,4 +227,5 @@ WINDOWS_*.md
 ROOT_CAUSE_*.md
 SUBTASK_*.md
 VERIFICATION_*.md
-mask_upload_*.md
+mask_upload_*.mdflutter/
+flutter_windows.zip
