@@ -638,4 +638,74 @@ class PresetGeneratorStrategy {
       seed: seed,
     );
   }
+
+  /// 生成随机提示词（主入口方法）
+  ///
+  /// [preset] 预设配置
+  /// [config] 人数类别配置（用于决定生成模式）
+  /// [random] 随机数生成器
+  /// [seed] 随机种子（可选，用于结果追踪）
+  /// [isV4Model] 是否为 V4+ 模型（支持多角色，默认 true）
+  ///
+  /// 返回生成的提示词结果
+  ///
+  /// 生成流程：
+  /// 1. 使用 [selectCharacterCountAndOption] 选择人数类别和标签选项
+  /// 2. 根据人数决定生成模式：
+  ///    - 0人：调用 [generateNoHuman]
+  ///    - 1人及以上：根据模型版本调用 [generateMultiCharacter] 或 [generateLegacy]
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final preset = RandomPreset.create(name: 'My Preset');
+  /// final config = CharacterCountConfig.naiDefault;
+  /// final result = await strategy.generate(
+  ///   preset: preset,
+  ///   config: config,
+  ///   random: Random(42),
+  ///   isV4Model: true,
+  /// );
+  /// ```
+  Future<RandomPromptResult> generateFromPreset({
+    required RandomPreset preset,
+    required CharacterCountConfig config,
+    required Random random,
+    int? seed,
+    bool isV4Model = true,
+  }) async {
+    // 选择人数类别和标签选项
+    final (category, tagOption) = selectCharacterCountAndOption(
+      config: config,
+      random: random,
+    );
+
+    // 根据人数决定生成模式
+    if (category.count == 0) {
+      // 无人物场景
+      return generateNoHuman(
+        preset: preset,
+        random: random,
+        tagOption: tagOption,
+        seed: seed,
+      );
+    }
+
+    if (!isV4Model) {
+      // 传统模式：生成合并的单提示词
+      return generateLegacy(
+        preset: preset,
+        random: random,
+        tagOption: tagOption,
+        seed: seed,
+      );
+    }
+
+    // V4+ 模式：生成主提示词 + 角色提示词
+    return generateMultiCharacter(
+      preset: preset,
+      random: random,
+      tagOption: tagOption,
+    );
+  }
 }
