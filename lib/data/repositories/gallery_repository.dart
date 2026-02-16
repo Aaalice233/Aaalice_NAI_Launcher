@@ -19,7 +19,7 @@ part 'gallery_repository.g.dart';
 ///
 /// 管理生成记录的 CRUD 操作和持久化
 class GalleryRepository {
-  static const String _boxName = '${StorageKeys.galleryBox}_v2';
+  static const String _boxName = StorageKeys.galleryBox;
   static const int maxRecords = 5000;
 
   Box<GenerationRecord>? _box;

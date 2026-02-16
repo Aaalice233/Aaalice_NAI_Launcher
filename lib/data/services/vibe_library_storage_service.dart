@@ -44,8 +44,8 @@ class VibeLibraryStorageService {
   // Fallback box names for recovery scenarios (corrupt data, migration failures)
   // TODO: These can be removed after VibeLibraryMigrationService is verified stable for 2+ releases
   static const String _entriesBoxName = 'vibe_library_entries';
-  static const String _entriesFallbackBoxName = 'vibe_library_entries_v2';
-  static const String _entriesEmergencyBoxName = 'vibe_library_entries_v3';
+  static const String _entriesFallbackBoxName = 'vibe_library_entries_fallback';
+  static const String _entriesEmergencyBoxName = 'vibe_library_entries_emergency';
   static const String _entriesRecoveryBoxName = 'vibe_library_entries_recovery';
   static const String _categoriesBoxName = 'vibe_library_categories';
   static const String _categoriesRecoveryBoxName =
