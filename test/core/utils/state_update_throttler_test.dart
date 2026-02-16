@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/state_update_throttler.dart';
 
@@ -368,7 +367,7 @@ void main() {
         expect(batch, equals([1, 2]));
 
         // 尝试修改应该抛出异常
-        expect(() => (batch as List<int>).add(3), throwsUnsupportedError);
+        expect(() => batch.add(3), throwsUnsupportedError);
 
         throttler.dispose();
       });
@@ -517,7 +516,7 @@ void main() {
       expect(keys, equals(['key1']));
 
       // 尝试修改应该抛出异常
-      expect(() => (keys as List<String>).add('key2'), throwsUnsupportedError);
+      expect(() => keys.add('key2'), throwsUnsupportedError);
     });
   });
 }

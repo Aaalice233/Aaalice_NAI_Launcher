@@ -44,14 +44,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   static const List<int> _retryDelays = [1000, 2000, 4000];
   static const int _maxRetries = 3;
 
-  /// 流式预览更新节流间隔 (毫秒)
-  static const int _streamPreviewThrottleMs = 100;
-
   /// 批量状态更新节流间隔 (毫秒)
   static const int _batchStateThrottleMs = 50;
-
-  /// 流式预览更新节流器
-  late final StateUpdateThrottler<Uint8List> _streamPreviewThrottler;
 
   /// 批量状态更新节流器
   late final StateUpdateThrottler<_BatchStateUpdate> _batchStateThrottler;
@@ -60,14 +54,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   @override
   ImageGenerationState build() {
-    _streamPreviewThrottler = StateUpdateThrottler<Uint8List>(
-      throttleInterval: const Duration(milliseconds: _streamPreviewThrottleMs),
-      leading: true,
-      trailing: true,
-      onUpdate: (value) {
-        state = state.copyWith(streamPreview: value);
-      },
-    );
     _batchStateThrottler = StateUpdateThrottler<_BatchStateUpdate>(
       throttleInterval: const Duration(milliseconds: _batchStateThrottleMs),
       leading: true,
