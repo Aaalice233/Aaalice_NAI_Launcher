@@ -42,12 +42,13 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   int _currentThreshold = 1000;
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
   bool _isCancelled = false;
+  Future<void>? _metaLoadFuture;
 
   @override
   DataSourceProgressCallback? get onProgress => _onProgress;
 
   DanbooruTagsLazyService(this._unifiedDb, this._dio) {
-    unawaited(_loadMeta());
+    _metaLoadFuture = _loadMeta();
   }
 
   @override
@@ -115,6 +116,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         );
         return;
       }
+
+      // 等待元数据加载完成，避免竞争条件
+      await _metaLoadFuture;
 
       // 如果数据库为空，强制下载
       var needsDownload = await shouldRefresh();
