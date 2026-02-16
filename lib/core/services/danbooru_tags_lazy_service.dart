@@ -169,7 +169,25 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   Future<void> _loadHotData() async {
     _onProgress?.call(0.0, '加载热数据...');
 
+    // 诊断：记录热键配置
+    AppLogger.d(
+      '[DanbooruTagsLazy] _loadHotData: '
+      'requestedHotKeys=${hotKeys.length} '
+      'hotKeysSample=${hotKeys.take(5).join(",")}',
+      'DanbooruTagsLazy',
+    );
+
     final records = await _unifiedDb.getDanbooruTags(hotKeys.toList());
+
+    // 诊断：记录数据库返回情况
+    AppLogger.d(
+      '[DanbooruTagsLazy] _loadHotData: '
+      'dbReturned=${records.length} '
+      'requested=${hotKeys.length} '
+      'foundTags=${records.map((r) => r.tag).join(",")}',
+      'DanbooruTagsLazy',
+    );
+
     final tags = records
         .map(
           (r) => LocalTag(
@@ -190,41 +208,111 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         // 统一使用标准化标签作为 key 查找翻译
         final normalizedTag = TagNormalizer.normalize(tag.tag);
         final translation = translations[normalizedTag];
-        AppLogger.d('[_loadHotData] tag="${tag.tag}", normalized="$normalizedTag", translation="$translation"', 'DanbooruTagsLazy');
+        AppLogger.d(
+          '[_loadHotData] tag="${tag.tag}", '
+          'normalized="$normalizedTag", '
+          'translation="$translation"',
+          'DanbooruTagsLazy',
+        );
+
+        // 诊断：记录缓存键存储决策
+        final cacheKey = tag.tag; // 使用原始标签作为缓存键
+        AppLogger.d(
+          '[DanbooruTagsLazy] cacheKeyDecision: '
+          'original="${tag.tag}" '
+          'normalized="$normalizedTag" '
+          'usingKey="$cacheKey" '
+          'hasTranslation=${translation != null}',
+          'DanbooruTagsLazy',
+        );
+
         if (translation != null) {
-          _hotDataCache[tag.tag] = tag.copyWith(translation: translation);
+          _hotDataCache[cacheKey] = tag.copyWith(translation: translation);
         } else {
-          _hotDataCache[tag.tag] = tag;
+          _hotDataCache[cacheKey] = tag;
         }
       }
     }
 
     _onProgress?.call(1.0, '热数据加载完成');
+
+    // 诊断：记录最终缓存状态
     AppLogger.i(
-      'Loaded ${_hotDataCache.length} hot Danbooru tags into memory',
+      'Loaded ${_hotDataCache.length} hot Danbooru tags into memory. '
+      'Cache keys sample: ${_hotDataCache.keys.take(5).join(",")}',
       'DanbooruTagsLazy',
     );
+
+    // 诊断：检查热键匹配情况
+    final loadedKeys = _hotDataCache.keys.toSet();
+    final missingKeys = hotKeys.where((k) => !loadedKeys.contains(k)).toList();
+    if (missingKeys.isNotEmpty) {
+      AppLogger.w(
+        '[DanbooruTagsLazy] _loadHotData: missing hot keys: ${missingKeys.join(",")}',
+        'DanbooruTagsLazy',
+      );
+    }
   }
 
   @override
   Future<LocalTag?> get(String key) async {
     // 统一标准化标签
     final normalizedKey = TagNormalizer.normalize(key);
-    AppLogger.d('[DanbooruTagsLazy] get("$key") -> normalizedKey="$normalizedKey"', 'DanbooruTagsLazy');
+    AppLogger.d(
+      '[DanbooruTagsLazy] get("$key") -> normalizedKey="$normalizedKey"',
+      'DanbooruTagsLazy',
+    );
+
+    // 诊断：记录缓存决策的关键信息
+    AppLogger.d(
+      '[DanbooruTagsLazy] cacheDecision: '
+      'input="$key" '
+      'normalized="$normalizedKey" '
+      'hotCacheSize=${_hotDataCache.length} '
+      'cacheKeysSample=${_hotDataCache.keys.take(5).join(",")}',
+      'DanbooruTagsLazy',
+    );
 
     // 尝试精确匹配
     if (_hotDataCache.containsKey(normalizedKey)) {
       final cached = _hotDataCache[normalizedKey];
-      AppLogger.d('[DanbooruTagsLazy] cache hit: translation="${cached?.translation}"', 'DanbooruTagsLazy');
+      AppLogger.d(
+        '[DanbooruTagsLazy] cache hit: '
+        'key="$normalizedKey" '
+        'translation="${cached?.translation}" '
+        'category=${cached?.category} '
+        'count=${cached?.count}',
+        'DanbooruTagsLazy',
+      );
       return cached;
     }
 
+    // 诊断：缓存未命中，记录可能的原因
+    AppLogger.d(
+      '[DanbooruTagsLazy] cache miss: '
+      'key="$normalizedKey" '
+      'inHotKeys=${hotKeys.contains(normalizedKey)} '
+      'hotCacheHasKey=${_hotDataCache.containsKey(key)}',
+      'DanbooruTagsLazy',
+    );
+
     final record = await _unifiedDb.getDanbooruTag(normalizedKey);
-    AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
+    AppLogger.d(
+      '[DanbooruTagsLazy] DB lookup: '
+      'key="$normalizedKey" '
+      'result=${record != null ? "found" : "not_found"}',
+      'DanbooruTagsLazy',
+    );
+
     if (record != null) {
       // 获取翻译
       final translation = await _unifiedDb.getTranslation(normalizedKey);
-      AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
+      AppLogger.d(
+        '[DanbooruTagsLazy] DB translation: '
+        'key="$normalizedKey" '
+        'translation="$translation"',
+        'DanbooruTagsLazy',
+      );
       return LocalTag(
         tag: record.tag,
         category: record.category,
@@ -233,6 +321,12 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       );
     }
 
+    AppLogger.d(
+      '[DanbooruTagsLazy] tag not found: '
+      'key="$normalizedKey" '
+      'source=both_cache_and_db',
+      'DanbooruTagsLazy',
+    );
     return null;
   }
 
