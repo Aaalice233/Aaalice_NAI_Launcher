@@ -26,6 +26,8 @@ class BackgroundTask {
   final DateTime? startTime;
   final DateTime? endTime;
   final String? error;
+  final int? processedCount;
+  final int? totalCount;
 
   const BackgroundTask({
     required this.id,
@@ -37,6 +39,8 @@ class BackgroundTask {
     this.startTime,
     this.endTime,
     this.error,
+    this.processedCount,
+    this.totalCount,
   });
 
   BackgroundTask copyWith({
@@ -49,6 +53,8 @@ class BackgroundTask {
     DateTime? startTime,
     DateTime? endTime,
     String? error,
+    int? processedCount,
+    int? totalCount,
   }) {
     return BackgroundTask(
       id: id ?? this.id,
@@ -60,6 +66,8 @@ class BackgroundTask {
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       error: error ?? this.error,
+      processedCount: processedCount ?? this.processedCount,
+      totalCount: totalCount ?? this.totalCount,
     );
   }
 
