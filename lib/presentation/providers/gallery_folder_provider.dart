@@ -1,12 +1,23 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_folder.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 
 part 'gallery_folder_provider.freezed.dart';
 part 'gallery_folder_provider.g.dart';
+
+/// 文件夹视图模式
+enum FolderViewMode {
+  /// 标签页视图（水平滚动标签）
+  tabs,
+
+  /// 树形视图（层级结构，支持嵌套）
+  tree,
+}
 
 /// 文件夹状态
 @freezed
@@ -29,6 +40,9 @@ class GalleryFolderState with _$GalleryFolderState {
 
     /// 根目录图片总数
     @Default(0) int totalImageCount,
+
+    /// 文件夹视图模式
+    @Default(FolderViewMode.tree) FolderViewMode viewMode,
   }) = _GalleryFolderState;
 
   const GalleryFolderState._();
@@ -75,6 +89,8 @@ class GalleryFolderNotifier extends _$GalleryFolderNotifier {
   /// 异步初始化
   Future<void> _initAsync() async {
     try {
+      // 加载视图模式
+      await _loadViewMode();
       // 启动文件夹监听
       await _repository.startWatching(onChanged: _onFoldersChanged);
       // 初始加载
@@ -523,4 +539,39 @@ class GalleryFolderNotifier extends _$GalleryFolderNotifier {
       ...state.folders.getDescendantIds(folderId),
     };
   }
+
+  /// 设置文件夹视图模式
+  Future<void> setFolderViewMode(FolderViewMode mode) async {
+    state = state.copyWith(viewMode: mode);
+
+    // 持久化到 SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+        StorageKeys.galleryFolderViewMode,
+        mode == FolderViewMode.tabs ? 0 : 1,
+      );
+    } catch (e) {
+      AppLogger.e('保存文件夹视图模式失败', e);
+    }
+  }
+
+  /// 加载文件夹视图模式
+  Future<void> _loadViewMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getInt(StorageKeys.galleryFolderViewMode);
+      final mode = value == 0 ? FolderViewMode.tabs : FolderViewMode.tree;
+      state = state.copyWith(viewMode: mode);
+    } catch (e) {
+      AppLogger.e('加载文件夹视图模式失败', e);
+    }
+  }
+}
+
+/// 获取当前文件夹视图模式
+@riverpod
+FolderViewMode folderViewMode(Ref ref) {
+  final state = ref.watch(galleryFolderNotifierProvider);
+  return state.viewMode;
 }

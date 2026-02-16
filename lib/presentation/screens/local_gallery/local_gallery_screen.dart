@@ -33,6 +33,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
+import '../../widgets/gallery/folder_tabs.dart';
 import '../../widgets/gallery/folder_tree_view.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
@@ -142,6 +143,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final state = ref.watch(localGalleryNotifierProvider);
     final bulkOpState = ref.watch(bulkOperationNotifierProvider);
     final folderState = ref.watch(galleryFolderNotifierProvider);
+    final folderViewMode = ref.watch(folderViewModeProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
@@ -203,6 +205,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     LocalGalleryState state,
     GalleryFolderState folderState,
   ) {
+    final folderViewMode = ref.watch(folderViewModeProvider);
+
     return Container(
       width: 250,
       decoration: BoxDecoration(
@@ -221,32 +225,41 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             height: 1,
             color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           ),
-          Expanded(
-            child: FolderTreeView(
-              folders: folderState.folders,
-              totalImageCount: state.allFiles.length,
-              favoriteCount: ref
-                  .read(localGalleryNotifierProvider.notifier)
-                  .getTotalFavoriteCount(),
-              selectedFolderId: folderState.selectedFolderId,
-              onFolderSelected: _handleFolderSelected,
-              onFolderRename: (id, newName) => ref
-                  .read(galleryFolderNotifierProvider.notifier)
-                  .renameFolder(id, newName),
-              onFolderDelete: _handleFolderDelete,
-              onAddSubFolder: _handleAddSubFolder,
-              onFolderMove: (folderId, newParentId) => ref
-                  .read(galleryFolderNotifierProvider.notifier)
-                  .moveFolder(folderId, newParentId),
-              onFolderReorder: (parentId, oldIndex, newIndex) => ref
-                  .read(galleryFolderNotifierProvider.notifier)
-                  .reorderFolders(parentId, oldIndex, newIndex),
-              onImageDrop: (imagePath, folderId) =>
-                  _handleImageDrop(imagePath, folderId),
-              onAutoCategorizeAll: _handleAutoCategorizeAll,
-              onAutoCategorizeToFolder: _handleAutoCategorizeToFolder,
+          // Folder tabs (horizontal tabs view)
+          if (folderViewMode == FolderViewMode.tabs)
+            FolderTabs(
+              onFolderSelected: (folderId) {
+                _handleFolderSelected(folderId);
+              },
             ),
-          ),
+          // Folder tree (hierarchical view)
+          if (folderViewMode == FolderViewMode.tree)
+            Expanded(
+              child: FolderTreeView(
+                folders: folderState.folders,
+                totalImageCount: state.allFiles.length,
+                favoriteCount: ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .getTotalFavoriteCount(),
+                selectedFolderId: folderState.selectedFolderId,
+                onFolderSelected: _handleFolderSelected,
+                onFolderRename: (id, newName) => ref
+                    .read(galleryFolderNotifierProvider.notifier)
+                    .renameFolder(id, newName),
+                onFolderDelete: _handleFolderDelete,
+                onAddSubFolder: _handleAddSubFolder,
+                onFolderMove: (folderId, newParentId) => ref
+                    .read(galleryFolderNotifierProvider.notifier)
+                    .moveFolder(folderId, newParentId),
+                onFolderReorder: (parentId, oldIndex, newIndex) => ref
+                    .read(galleryFolderNotifierProvider.notifier)
+                    .reorderFolders(parentId, oldIndex, newIndex),
+                onImageDrop: (imagePath, folderId) =>
+                    _handleImageDrop(imagePath, folderId),
+                onAutoCategorizeAll: _handleAutoCategorizeAll,
+                onAutoCategorizeToFolder: _handleAutoCategorizeToFolder,
+              ),
+            ),
         ],
       ),
     );
@@ -453,7 +466,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       onEditMetadata: _editSelectedMetadata,
       onMoveToFolder: _moveSelectedToFolder,
       showCategoryPanel: _showCategoryPanel,
+      onToggleCategoryPanel: _toggleCategoryPanel,
       onOpenFolder: () => _openGalleryFolder(),
+      folderViewMode: folderViewMode,
+      onToggleFolderViewMode: _toggleFolderViewMode,
     );
   }
 
@@ -1311,6 +1327,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     setState(() {
       _showCategoryPanel = !_showCategoryPanel;
     });
+  }
+
+  /// 切换文件夹视图模式
+  void _toggleFolderViewMode() {
+    final currentMode = ref.read(folderViewModeProvider);
+    final newMode = currentMode == FolderViewMode.tabs
+        ? FolderViewMode.tree
+        : FolderViewMode.tabs;
+    ref.read(galleryFolderNotifierProvider.notifier).setFolderViewMode(newMode);
   }
 
   /// 跳转到日期
