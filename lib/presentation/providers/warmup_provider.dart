@@ -410,9 +410,11 @@ class WarmupNotifier extends _$WarmupNotifier {
       state = WarmupState.complete();
       _completer.complete();
 
-      // 启动后台任务
+      // 启动后台任务（使用 microtask 确保在注册完成后执行）
       await Future.delayed(const Duration(seconds: 1)); // 稍等片刻让UI稳定
-      ref.read(backgroundTaskNotifierProvider.notifier).startAll();
+      Future.microtask(() {
+        ref.read(backgroundTaskNotifierProvider.notifier).startAll();
+      });
     } catch (e, stack) {
       AppLogger.e('Warmup failed', e, stack, 'Warmup');
       state = state.copyWith(
