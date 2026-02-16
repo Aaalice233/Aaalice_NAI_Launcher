@@ -443,6 +443,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     LocalGalleryState state,
     BulkOperationState bulkOpState,
   ) {
+    final folderViewMode = ref.watch(folderViewModeProvider);
+
     // 使用独立的美化工具栏组件
     return LocalGalleryToolbar(
       use3DCardView: _use3DCardView,
