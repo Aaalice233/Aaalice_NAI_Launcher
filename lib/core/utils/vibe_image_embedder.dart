@@ -75,6 +75,18 @@ class VibeImageEmbedder {
     });
   }
 
+  /// 在 isolate 中嵌入 vibe 元数据
+  ///
+  /// 对于大文件或需要避免阻塞 UI 线程的场景，使用此方法
+  static Future<Uint8List> embedVibeToImageInIsolate(
+    Uint8List imageBytes,
+    VibeReference vibeReference,
+  ) async {
+    return Isolate.run(
+      () => embedVibeToImage(imageBytes, vibeReference),
+    ).then((result) => result);
+  }
+
   static Future<VibeReference> extractVibeFromImage(
     Uint8List imageBytes,
   ) async {
