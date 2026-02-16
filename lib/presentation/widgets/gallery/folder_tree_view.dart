@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_folder.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
@@ -346,40 +351,106 @@ class _FolderTreeViewState extends State<FolderTreeView> {
   }) {
     if (widget.onImageDrop == null) return child;
 
-    return DragTarget<LocalImageRecord>(
-      onWillAcceptWithDetails: (details) {
-        // 可以接受任何图片
-        return true;
+    // 使用 DropRegion 处理外部文件拖拽
+    return DropRegion(
+      formats: const [...Formats.standardFormats],
+      hitTestBehavior: HitTestBehavior.translucent,
+      onDropOver: (event) {
+        if (event.session.allowedOperations.contains(DropOperation.copy)) {
+          return DropOperation.copy;
+        }
+        return DropOperation.none;
       },
-      onAcceptWithDetails: (details) {
-        HapticFeedback.heavyImpact();
-        widget.onImageDrop?.call(details.data.path, folderId);
+      onPerformDrop: (event) async {
+        await _handleExternalImageDrop(event, folderId);
       },
-      builder: (context, candidateData, rejectedData) {
-        final isAccepting = candidateData.isNotEmpty;
+      child: DragTarget<LocalImageRecord>(
+        onWillAcceptWithDetails: (details) {
+          // 可以接受任何图片
+          return true;
+        },
+        onAcceptWithDetails: (details) {
+          HapticFeedback.heavyImpact();
+          widget.onImageDrop?.call(details.data.path, folderId);
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isAccepting = candidateData.isNotEmpty;
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            gradient: isAccepting
-                ? LinearGradient(
-                    colors: [
-                      Colors.green.withOpacity(0.15),
-                      Colors.green.withOpacity(0.05),
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  )
-                : null,
-            border: isAccepting
-                ? const Border(left: BorderSide(color: Colors.green, width: 4))
-                : null,
-            borderRadius: isAccepting ? BorderRadius.circular(8) : null,
-          ),
-          child: child,
-        );
-      },
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              gradient: isAccepting
+                  ? LinearGradient(
+                      colors: [
+                        Colors.green.withOpacity(0.15),
+                        Colors.green.withOpacity(0.05),
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    )
+                  : null,
+              border: isAccepting
+                  ? const Border(
+                      left: BorderSide(color: Colors.green, width: 4),
+                    )
+                  : null,
+              borderRadius: isAccepting ? BorderRadius.circular(8) : null,
+            ),
+            child: child,
+          );
+        },
+      ),
     );
+  }
+
+  Future<void> _handleExternalImageDrop(
+    PerformDropEvent event,
+    String? folderId,
+  ) async {
+    for (final item in event.session.items) {
+      final reader = item.dataReader;
+      if (reader == null) continue;
+
+      final filePath = await _readFilePath(reader);
+      if (filePath != null) {
+        // 检查是否为图片文件
+        final lowerPath = filePath.toLowerCase();
+        if (lowerPath.endsWith('.png') ||
+            lowerPath.endsWith('.jpg') ||
+            lowerPath.endsWith('.jpeg') ||
+            lowerPath.endsWith('.gif') ||
+            lowerPath.endsWith('.webp') ||
+            lowerPath.endsWith('.bmp')) {
+          HapticFeedback.heavyImpact();
+          widget.onImageDrop?.call(filePath, folderId);
+        } else {
+          if (kDebugMode) {
+            AppLogger.d('Dropped file is not an image: $filePath', 'FolderTreeView');
+          }
+        }
+      }
+    }
+  }
+
+  Future<String?> _readFilePath(DataReader reader) async {
+    // 尝试获取文件 URI
+    if (reader.canProvide(Formats.fileUri)) {
+      final completer = Completer<Uri?>();
+      reader.getValue(Formats.fileUri, (uri) => completer.complete(uri));
+      final uri = await completer.future;
+      if (uri != null) {
+        try {
+          return uri.toFilePath();
+        } catch (e) {
+          if (kDebugMode) {
+            AppLogger.d('Error converting URI to file path: $e', 'FolderTreeView');
+          }
+        }
+      }
+      return null;
+    }
+
+    return null;
   }
 }
 
