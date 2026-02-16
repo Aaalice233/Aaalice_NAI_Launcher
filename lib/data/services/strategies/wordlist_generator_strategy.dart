@@ -1,8 +1,14 @@
 import 'dart:math';
 
+import '../../../core/utils/app_logger.dart';
+import '../../models/character/character_prompt.dart';
+import '../../models/prompt/algorithm_config.dart';
+import '../../models/prompt/random_prompt_result.dart';
 import '../../models/prompt/weighted_tag.dart';
 import '../../models/prompt/wordlist_entry.dart';
+import '../bracket_formatter.dart';
 import '../weighted_selector.dart';
+import '../wordlist_service.dart';
 
 /// 词库生成策略
 ///
@@ -17,6 +23,7 @@ import '../weighted_selector.dart';
 /// - 支持选择多个不重复的标签
 /// - 应用 exclude/require 规则过滤
 /// - 检查条目在给定上下文中的可用性
+/// - 生成多角色提示词（V4+ 模型）
 ///
 /// ## 规则系统
 ///
@@ -52,6 +59,16 @@ import '../weighted_selector.dart';
 ///   entry,
 ///   context: {'hair_color': ['blonde']},
 /// );
+///
+/// // 生成多角色提示词
+/// final result = strategy.generateMultiCharacter(
+///   wordlistService: wordlistService,
+///   type: WordlistType.v4,
+///   config: AlgorithmConfig(),
+///   random: Random(42),
+///   characterCount: 2,
+///   seed: 42,
+/// );
 /// ```
 ///
 /// ## 性能特性
@@ -63,12 +80,18 @@ class WordlistGeneratorStrategy {
   /// 加权选择器
   final WeightedSelector _weightedSelector;
 
+  /// 括号格式化器
+  final BracketFormatter _bracketFormatter;
+
   /// 创建词库生成策略
   ///
   /// [weightedSelector] 加权选择器（可选，默认创建新实例）
+  /// [bracketFormatter] 括号格式化器（可选，默认创建新实例）
   WordlistGeneratorStrategy({
     WeightedSelector? weightedSelector,
-  }) : _weightedSelector = weightedSelector ?? WeightedSelector();
+    BracketFormatter? bracketFormatter,
+  })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
+        _bracketFormatter = bracketFormatter ?? BracketFormatter();
 
   /// 从词库条目列表中选择标签
   ///
@@ -233,5 +256,253 @@ class WordlistGeneratorStrategy {
     Map<String, List<String>>? context,
   ) {
     return _applyWordlistRules(entries, context).length;
+  }
+
+  // ========== 多角色生成方法 ==========
+
+  /// 从词库生成多角色提示词
+  ///
+  /// [wordlistService] 词库服务，用于获取词库条目
+  /// [type] 词库类型
+  /// [config] 算法配置
+  /// [random] 随机数生成器
+  /// [characterCount] 角色数量
+  /// [seed] 随机种子（可选）
+  ///
+  /// 返回多角色随机提示词结果
+  ///
+  /// 示例：
+  /// ```dart
+  /// final result = strategy.generateMultiCharacter(
+  ///   wordlistService: wordlistService,
+  ///   type: WordlistType.v4,
+  ///   config: AlgorithmConfig(),
+  ///   random: Random(42),
+  ///   characterCount: 2,
+  ///   seed: 42,
+  /// );
+  /// // result.mainPrompt: 主提示词
+  /// // result.characters: 角色列表
+  /// ```
+  RandomPromptResult generateMultiCharacter({
+    required WordlistService wordlistService,
+    required WordlistType type,
+    required AlgorithmConfig config,
+    required Random random,
+    required int characterCount,
+    int? seed,
+  }) {
+    final characters = <GeneratedCharacter>[];
+    final globalContext = <String, List<String>>{};
+
+    for (var i = 0; i < characterCount; i++) {
+      final gender = config.selectGender(() => random.nextInt(1 << 30));
+      final charContext = <String, List<String>>{
+        'gender': [gender],
+      };
+
+      final charTags = _generateCharacterTags(
+        wordlistService: wordlistService,
+        type: type,
+        config: config,
+        random: random,
+        gender: gender,
+        context: charContext,
+      );
+
+      // 应用强调概率
+      final emphasizedTags = _bracketFormatter.applyEmphasis(
+        charTags,
+        probability: config.globalEmphasisProbability,
+        bracketCount: config.globalEmphasisBracketCount,
+        random: random,
+      );
+
+      characters.add(
+        GeneratedCharacter(
+          prompt: emphasizedTags.join(', '),
+          gender: _genderFromString(gender),
+        ),
+      );
+
+      // 合并到全局上下文
+      charContext.forEach((key, value) {
+        globalContext.putIfAbsent(key, () => []).addAll(value);
+      });
+    }
+
+    // 生成主提示词
+    final mainTags = <String>[];
+
+    // 添加背景
+    if (random.nextDouble() < 0.9) {
+      final bg = _selectFromWordlist(
+        wordlistService: wordlistService,
+        type: type,
+        variable: 'tk',
+        category: 'background',
+        random: random,
+        context: globalContext,
+      );
+      if (bg != null) mainTags.add(bg);
+    }
+
+    // 添加场景
+    if (random.nextDouble() < 0.5) {
+      final scene = _selectFromWordlist(
+        wordlistService: wordlistService,
+        type: type,
+        variable: 'tk',
+        category: 'scene',
+        random: random,
+        context: globalContext,
+      );
+      if (scene != null) mainTags.add(scene);
+    }
+
+    return RandomPromptResult(
+      mainPrompt: mainTags.join(', '),
+      characters: characters,
+      seed: seed,
+    );
+  }
+
+  /// 从词库按变量和分类选择标签
+  ///
+  /// [wordlistService] 词库服务
+  /// [type] 词库类型
+  /// [variable] 变量名
+  /// [category] 分类名
+  /// [random] 随机数生成器
+  /// [context] 上下文（用于 exclude/require 规则）
+  ///
+  /// 返回选中的标签，如果没有可用标签则返回 null
+  String? _selectFromWordlist({
+    required WordlistService wordlistService,
+    required WordlistType type,
+    required String variable,
+    required String category,
+    required Random random,
+    Map<String, List<String>>? context,
+  }) {
+    final entries = wordlistService.getEntriesByVariableAndCategory(
+      type,
+      variable,
+      category,
+    );
+
+    if (entries.isEmpty) return null;
+
+    // 使用 select 方法进行选择（包含规则应用和加权随机选择）
+    return select(
+      entries: entries,
+      random: random,
+      context: context,
+    );
+  }
+
+  /// 从词库生成角色标签
+  ///
+  /// [wordlistService] 词库服务
+  /// [type] 词库类型
+  /// [config] 算法配置
+  /// [random] 随机数生成器
+  /// [gender] 性别
+  /// [context] 上下文（会被修改以记录已选标签）
+  ///
+  /// 返回角色标签列表
+  List<String> _generateCharacterTags({
+    required WordlistService wordlistService,
+    required WordlistType type,
+    required AlgorithmConfig config,
+    required Random random,
+    required String gender,
+    required Map<String, List<String>> context,
+  }) {
+    final tags = <String>[];
+
+    // 角色类别列表（按优先级）
+    final categories = [
+      'hair_color',
+      'eye_color',
+      'hair_style',
+      'expression',
+      'pose',
+      'clothing',
+      'accessory',
+    ];
+
+    for (final category in categories) {
+      // 检查全局可见性
+      if (!config.isCategoryGloballyVisible(category, context)) {
+        continue;
+      }
+
+      // 根据类别概率决定是否生成
+      final prob = _getCategoryProbability(category);
+      if (random.nextDouble() >= prob) continue;
+
+      final tag = _selectFromWordlist(
+        wordlistService: wordlistService,
+        type: type,
+        variable: 'char',
+        category: category,
+        random: random,
+        context: context,
+      );
+
+      if (tag != null) {
+        tags.add(tag);
+        context[category] = [tag];
+      }
+    }
+
+    return tags;
+  }
+
+  /// 获取类别生成概率
+  ///
+  /// [category] 类别名称
+  ///
+  /// 返回生成概率 (0.0-1.0)
+  double _getCategoryProbability(String category) {
+    switch (category) {
+      case 'hair_color':
+      case 'eye_color':
+        return 0.95;
+      case 'hair_style':
+      case 'expression':
+        return 0.8;
+      case 'pose':
+        return 0.7;
+      case 'clothing':
+        return 0.9;
+      case 'accessory':
+        return 0.5;
+      default:
+        return 0.8;
+    }
+  }
+
+  /// 从字符串转换性别枚举
+  ///
+  /// [gender] 性别字符串（如 'female', 'male', 'other'）
+  ///
+  /// 返回对应的 CharacterGender 枚举值
+  CharacterGender _genderFromString(String gender) {
+    switch (gender.toLowerCase()) {
+      case 'female':
+      case 'f':
+      case 'girl':
+      case '1girl':
+        return CharacterGender.female;
+      case 'male':
+      case 'm':
+      case 'boy':
+      case '1boy':
+        return CharacterGender.male;
+      default:
+        return CharacterGender.other;
+    }
   }
 }
