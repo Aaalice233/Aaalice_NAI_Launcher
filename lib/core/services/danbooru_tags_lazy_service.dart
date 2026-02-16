@@ -88,6 +88,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     try {
       _onProgress?.call(0.0, '初始化标签数据...');
 
+      // 先加载元数据，确保 shouldRefresh() 有正确的 _lastUpdate
+      await _loadMeta();
+
       // 确保数据库已初始化
       await _unifiedDb.initialize();
       _onProgress?.call(0.2, '数据库已就绪');
