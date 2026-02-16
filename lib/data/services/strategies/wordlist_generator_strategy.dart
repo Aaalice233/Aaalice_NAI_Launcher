@@ -458,7 +458,7 @@ class WordlistGeneratorStrategy {
       }
 
       // 根据类别概率决定是否生成
-      final prob = _getCategoryProbability(category);
+      final prob = _getCategoryProbability(category, config);
       if (random.nextDouble() >= prob) continue;
 
       final tag = _selectFromWordlist(
@@ -482,25 +482,23 @@ class WordlistGeneratorStrategy {
   /// 获取类别生成概率
   ///
   /// [category] 类别名称
+  /// [config] 算法配置（保留参数以匹配原函数签名，供将来扩展使用）
   ///
   /// 返回生成概率 (0.0-1.0)
-  double _getCategoryProbability(String category) {
-    switch (category) {
-      case 'hair_color':
-      case 'eye_color':
-        return 0.95;
-      case 'hair_style':
-      case 'expression':
-        return 0.8;
-      case 'pose':
-        return 0.7;
-      case 'clothing':
-        return 0.9;
-      case 'accessory':
-        return 0.5;
-      default:
-        return 0.8;
-    }
+  double _getCategoryProbability(
+    String category,
+    AlgorithmConfig config,
+  ) {
+    // 注意: config 参数保留供将来支持自定义概率配置时使用
+    // 当前使用默认概率分布
+    return switch (category) {
+      'hair_color' || 'eye_color' => 0.95,
+      'hair_style' || 'expression' => 0.8,
+      'pose' => 0.7,
+      'clothing' => 0.9,
+      'accessory' => 0.5,
+      _ => 0.8,
+    };
   }
 
   /// 从字符串转换性别枚举
