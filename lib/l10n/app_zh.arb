@@ -3161,6 +3161,13 @@
   "shortcut_help_search": "搜索快捷键...",
   "shortcut_help_customize": "自定义快捷键",
 
+  "viewer_help_button_tooltip": "快捷键帮助",
+  "viewer_tooltip_close": "关闭",
+  "viewer_tooltip_save": "保存",
+  "viewer_tooltip_reuse_params": "复用参数",
+  "viewer_tooltip_copy_image": "复制图像",
+  "viewer_tooltip_favorite": "收藏",
+
   "vibeLibrary_title": "Vibe 库",
   "vibeLibrary_save": "保存到库",
   "vibeLibrary_import": "导入 Vibe",
