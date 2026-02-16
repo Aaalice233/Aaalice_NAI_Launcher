@@ -236,7 +236,7 @@ BulkOperationService bulkOperationService(Ref ref) {
 }
 
 /// Bulk operation notifier with undo/redo support
-@Riverpod(keepAlive: true)
+@Riverpod()
 class BulkOperationNotifier extends _$BulkOperationNotifier {
   late final BulkOperationService _service;
   late final LocalGalleryRepository _galleryRepository;
