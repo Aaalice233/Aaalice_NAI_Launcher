@@ -53,7 +53,7 @@ class UcPresetState {
 }
 
 /// 负面词预设 Provider（支持自定义条目）
-@Riverpod(keepAlive: true)
+@Riverpod()
 class UcPresetNotifier extends _$UcPresetNotifier {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
