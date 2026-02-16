@@ -60,13 +60,32 @@ import '../wordlist_service.dart';
 ///   context: {'hair_color': ['blonde']},
 /// );
 ///
-/// // 生成多角色提示词
+/// // 生成多角色提示词（V4+ 模型）
 /// final result = strategy.generateMultiCharacter(
 ///   wordlistService: wordlistService,
 ///   type: WordlistType.v4,
 ///   config: AlgorithmConfig(),
 ///   random: Random(42),
 ///   characterCount: 2,
+///   seed: 42,
+/// );
+///
+/// // 生成传统单提示词（非 V4 模型）
+/// final legacyResult = strategy.generateLegacy(
+///   wordlistService: wordlistService,
+///   type: WordlistType.v4,
+///   config: AlgorithmConfig(),
+///   random: Random(42),
+///   characterCount: 1,
+///   seed: 42,
+/// );
+///
+/// // 生成无人物场景
+/// final noHumanResult = strategy.generateNoHuman(
+///   wordlistService: wordlistService,
+///   type: WordlistType.v4,
+///   config: AlgorithmConfig(),
+///   random: Random(42),
 ///   seed: 42,
 /// );
 /// ```
@@ -504,5 +523,187 @@ class WordlistGeneratorStrategy {
       default:
         return CharacterGender.other;
     }
+  }
+
+  // ========== 传统模式和无人场景生成方法 ==========
+
+  /// 生成无人物场景提示词
+  ///
+  /// [wordlistService] 词库服务
+  /// [type] 词库类型
+  /// [config] 算法配置
+  /// [random] 随机数生成器
+  /// [seed] 随机种子（可选）
+  ///
+  /// 返回无人物场景随机提示词结果
+  ///
+  /// 示例：
+  /// ```dart
+  /// final result = strategy.generateNoHuman(
+  ///   wordlistService: wordlistService,
+  ///   type: WordlistType.v4,
+  ///   config: AlgorithmConfig(),
+  ///   random: Random(42),
+  ///   seed: 42,
+  /// );
+  /// // result.mainPrompt: "no humans, landscape, sunset..."
+  /// ```
+  RandomPromptResult generateNoHuman({
+    required WordlistService wordlistService,
+    required WordlistType type,
+    required AlgorithmConfig config,
+    required Random random,
+    int? seed,
+  }) {
+    final tags = <String>['no humans'];
+    final context = <String, List<String>>{};
+
+    // 添加场景
+    final scene = _selectFromWordlist(
+      wordlistService: wordlistService,
+      type: type,
+      variable: 'tk',
+      category: 'scene',
+      random: random,
+    );
+    if (scene != null) {
+      tags.add(scene);
+      context['scene'] = [scene];
+    }
+
+    // 添加背景 (90%)
+    if (random.nextDouble() < 0.9) {
+      final bg = _selectFromWordlist(
+        wordlistService: wordlistService,
+        type: type,
+        variable: 'tk',
+        category: 'background',
+        random: random,
+        context: context,
+      );
+      if (bg != null) {
+        tags.add(bg);
+        context['background'] = [bg];
+      }
+    }
+
+    // 添加风格 (50%)
+    if (random.nextDouble() < 0.5) {
+      final style = _selectFromWordlist(
+        wordlistService: wordlistService,
+        type: type,
+        variable: 'tk',
+        category: 'style',
+        random: random,
+        context: context,
+      );
+      if (style != null) {
+        tags.add(style);
+        context['style'] = [style];
+      }
+    }
+
+    // 应用全局后处理规则
+    final processedTags = config.applyGlobalPostProcessRules(tags, context);
+
+    return RandomPromptResult.noHuman(
+      prompt: processedTags.join(', '),
+      seed: seed,
+    );
+  }
+
+  /// 生成传统单提示词（用于非 V4 模型）
+  ///
+  /// [wordlistService] 词库服务
+  /// [type] 词库类型
+  /// [config] 算法配置
+  /// [random] 随机数生成器
+  /// [characterCount] 角色数量
+  /// [seed] 随机种子（可选）
+  ///
+  /// 返回传统单提示词结果（所有标签合并到一个提示词中）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final result = strategy.generateLegacy(
+  ///   wordlistService: wordlistService,
+  ///   type: WordlistType.v4,
+  ///   config: AlgorithmConfig(),
+  ///   random: Random(42),
+  ///   characterCount: 1,
+  ///   seed: 42,
+  /// );
+  /// // result.mainPrompt: "solo, 1girl, blonde hair..."
+  /// ```
+  RandomPromptResult generateLegacy({
+    required WordlistService wordlistService,
+    required WordlistType type,
+    required AlgorithmConfig config,
+    required Random random,
+    required int characterCount,
+    int? seed,
+  }) {
+    final tags = <String>[];
+    final context = <String, List<String>>{};
+
+    // 添加人数标签
+    tags.add(_getCountTag(characterCount));
+
+    // 决定性别
+    final gender = config.selectGender(() => random.nextInt(1 << 30));
+    context['gender'] = [gender];
+
+    // 生成角色标签
+    final charTags = _generateCharacterTags(
+      wordlistService: wordlistService,
+      type: type,
+      config: config,
+      random: random,
+      gender: gender,
+      context: context,
+    );
+    tags.addAll(charTags);
+
+    // 添加背景
+    if (random.nextDouble() < 0.9) {
+      final bg = _selectFromWordlist(
+        wordlistService: wordlistService,
+        type: type,
+        variable: 'tk',
+        category: 'background',
+        random: random,
+        context: context,
+      );
+      if (bg != null) {
+        tags.add(bg);
+        context['background'] = [bg];
+      }
+    }
+
+    // 应用全局后处理规则
+    final processedTags = config.applyGlobalPostProcessRules(tags, context);
+
+    return RandomPromptResult(
+      mainPrompt: processedTags.join(', '),
+      seed: seed,
+    );
+  }
+
+  /// 获取人数标签
+  ///
+  /// [count] 角色数量
+  ///
+  /// 返回对应的人数标签
+  ///
+  /// 注意: "duo" 和 "trio" 是 Danbooru 已废弃的标签，不应使用
+  /// 参考: https://danbooru.donmai.us/wiki_pages/duo
+  /// NAI 官网使用具体的角色组合标签如 2girls, 1girl 1boy 等
+  String _getCountTag(int count) {
+    return switch (count) {
+      1 => 'solo',
+      2 => '2girls',
+      3 => 'multiple girls',
+      _ => 'group',
+    };
   }
 }
