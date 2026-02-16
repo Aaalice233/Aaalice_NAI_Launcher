@@ -385,8 +385,9 @@
             "type": "manual",
             "instructions": "Review pending_prompt_provider - manages pending prompts for generation"
           },
-          "status": "pending",
-          "notes": "待处理提示词，与应用生命周期相关，保留keepAlive"
+          "status": "completed",
+          "notes": "评估完成：保留keepAlive: true。已添加详细文档注释说明保留理由：\n1. 跨页面状态传递 - 核心用途是在页面间传递数据，需要跨越导航过程\n2. 用户体验期望 - 用户期望从画廊发送的提示词在切换到生成页后仍然可用\n3. 内存收益微小 - 状态仅包含两个字符串和几个标志位，内存占用可忽略\n4. 数据无法恢复 - 一旦丢失无法从其他来源重建，属于不可替代的状态\n\n无需代码修改，仅增强文档说明。",
+          "updated_at": "2026-02-16T13:42:39.638120+00:00"
         }
       ]
     },
@@ -413,8 +414,9 @@
             "type": "manual",
             "instructions": "Review queue_execution_provider - manages active queue execution state"
           },
-          "status": "pending",
-          "notes": "队列执行引擎，后台运行需要keepAlive"
+          "status": "completed",
+          "completed_at": "2026-02-16T23:50:00Z",
+          "notes": "评估完成：保留keepAlive: true。理由：\n1. 后台执行状态 - 管理队列任务的自动执行，包括填充提示词、监听生成完成、处理下一项等\n2. 长生命周期会话状态 - 维护completedCount, failedCount, skippedCount, currentTaskId, failedTaskIds, totalTasksInSession, sessionStartTime等\n3. 持久化需求 - 通过QueueStateStorage(Hive)保存/加载状态，不应频繁重新加载\n4. 跨页面状态 - 队列执行跨越生成页面和队列悬浮球UI，需要在整个应用会话中保持\n5. 异步操作保护 - 包含_onTaskCompleted, _onTaskError, _handleFailedTask等不应被中断的异步操作\n当前配置正确，无需修改。"
         },
         {
           "id": "subtask-5-2",
@@ -429,8 +431,9 @@
             "type": "manual",
             "instructions": "Review replication_queue_provider - manages replication task queue"
           },
-          "status": "pending",
-          "notes": "复刻队列管理，后台功能保留keepAlive"
+          "status": "completed",
+          "notes": "评估完成：replication_queue_provider 正确使用了 keepAlive: true。该 Provider 管理复刻任务队列，需要跨页面保持状态，支持后台任务执行服务，从多个页面（画廊、生成页、悬浮球）访问。保留 keepAlive 是正确的选择。",
+          "updated_at": "2026-02-16T13:44:13.684531+00:00"
         },
         {
           "id": "subtask-5-3",
@@ -445,8 +448,9 @@
             "type": "manual",
             "instructions": "Review background_task_provider - manages background tasks"
           },
-          "status": "pending",
-          "notes": "后台任务管理，保留keepAlive"
+          "status": "completed",
+          "completed_at": "2026-02-16T14:00:00Z",
+          "notes": "评估完成：保留keepAlive: true - 无需修改。理由：\n1. 后台任务性质 - 管理长运行的异步操作，任务可能在无UI监听时继续执行\n2. 状态持久化需求 - 维护_taskExecutors(任务执行器映射)和_runningTasks(运行中任务订阅)\n3. 用户体验 - 用户启动的后台任务应持续运行，即使离开相关页面\n4. 资源管理 - 已实现onDispose清理机制，确保应用关闭时正确释放资源\n5. 跨页面状态 - 后台任务状态需要在整个应用会话中保持，可从任何地方查看进度\n\n当前配置正确，无需修改。"
         }
       ]
     },
@@ -790,7 +794,7 @@
   "executionPhase": "coding",
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-02-16T13:41:42.252Z",
+  "updated_at": "2026-02-16T13:44:20.615Z",
   "xstateState": "backlog",
-  "last_updated": "2026-02-16T13:34:50.793719+00:00"
+  "last_updated": "2026-02-16T13:44:13.684531+00:00"
 }
