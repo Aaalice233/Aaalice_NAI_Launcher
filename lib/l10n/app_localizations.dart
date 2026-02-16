@@ -13138,6 +13138,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} items'**
   String vibeSelectorItemsCount(int count);
+
+  /// No description provided for @settings_shortcutsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize keyboard shortcuts'**
+  String get settings_shortcutsSubtitle;
+
+  /// No description provided for @settings_openFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get settings_openFolder;
+
+  /// No description provided for @settings_openFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open folder'**
+  String get settings_openFolderFailed;
+
+  /// No description provided for @settings_dataSourceCacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data source cache management'**
+  String get settings_dataSourceCacheTitle;
+
+  /// No description provided for @settings_pleaseLoginFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please login first'**
+  String get settings_pleaseLoginFirst;
+
+  /// No description provided for @settings_accountNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Account information not found'**
+  String get settings_accountNotFound;
+
+  /// No description provided for @settings_goToLoginPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to login page'**
+  String get settings_goToLoginPage;
+
+  /// No description provided for @settings_retryCountDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Max {count} times'**
+  String settings_retryCountDisplay(int count);
+
+  /// No description provided for @settings_retryIntervalDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'{interval} seconds'**
+  String settings_retryIntervalDisplay(String interval);
+
+  /// No description provided for @settings_vibePathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe library path saved'**
+  String get settings_vibePathSaved;
+
+  /// No description provided for @settings_selectFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to select folder'**
+  String get settings_selectFolderFailed;
+
+  /// No description provided for @settings_hivePathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Data storage path saved, effective after restart'**
+  String get settings_hivePathSaved;
+
+  /// No description provided for @settings_restartRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart Required'**
+  String get settings_restartRequiredTitle;
+
+  /// No description provided for @settings_changePathConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?'**
+  String get settings_changePathConfirm;
+
+  /// No description provided for @settings_resetPathConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?'**
+  String get settings_resetPathConfirm;
+
+  /// No description provided for @tray_show.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Window'**
+  String get tray_show;
+
+  /// No description provided for @tray_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get tray_exit;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

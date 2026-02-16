@@ -41,6 +41,33 @@
       "days": {}
     }
   },
+  "common_undo": "Undo",
+  "common_redo": "Redo",
+  "common_refresh": "Refresh",
+  "common_download": "Download",
+  "common_upload": "Upload",
+  "common_apply": "Apply",
+  "common_preview": "Preview",
+  "common_done": "Done",
+  "common_view": "View",
+  "common_info": "Info",
+  "common_warning": "Warning",
+  "common_show": "Show",
+  "common_hide": "Hide",
+  "common_move": "Move",
+  "common_duplicate": "Duplicate",
+  "common_favorite": "Favorite",
+  "common_unfavorite": "Unfavorite",
+  "common_share": "Share",
+  "common_open": "Open",
+  "common_ok": "OK",
+  "common_submit": "Submit",
+  "common_discard": "Discard",
+  "common_keep": "Keep",
+  "common_replace": "Replace",
+  "common_skip": "Skip",
+  "common_yes": "Yes",
+  "common_no": "No",
 
   "nav_canvas": "Canvas",
   "nav_gallery": "Gallery",
@@ -191,6 +218,13 @@
   "settings_pathReset": "Reset to default location",
   "settings_pathSaved": "Save location updated",
   "settings_selectFolder": "Select Save Folder",
+  "settings_vibeLibraryPath": "Vibe Library Path",
+  "settings_hiveStoragePath": "Data Storage Path",
+  "settings_selectVibeLibraryFolder": "Select Vibe Library Folder",
+  "settings_selectHiveFolder": "Select Data Storage Folder",
+  "settings_restartRequired": "Restart Required",
+  "settings_restartRequiredContent": "The app needs to restart to apply the new storage path. Please restart the app manually.",
+  "settings_pathSavedRestartRequired": "Path updated, restart to apply changes",
   "settings_accountProfile": "Account Profile",
   "settings_accountType": "Account Type",
   "settings_notLoggedIn": "Log in to set avatar and nickname",
@@ -3165,6 +3199,17 @@
   "queue_noValidTasks": "No valid tasks in file",
 
   "queue_settings": "Queue Settings",
+  "settings_queueRetryCount": "Retry Count",
+  "settings_queueRetryInterval": "Retry Interval",
+  "settings_queueRetryCountSubtitle": "Maximum retry attempts for failed tasks",
+  "settings_queueRetryIntervalSubtitle": "Time to wait between retries",
+  "unit_times": "times",
+  "unit_seconds": "seconds",
+  "settings_floatingButtonBackground": "Floating Button Background",
+  "settings_floatingButtonBackgroundCustom": "Custom background set",
+  "settings_floatingButtonBackgroundDefault": "Default style",
+  "settings_clearBackground": "Clear background",
+  "settings_selectImage": "Select Image",
   "queue_currentQueueInfo": "Current queue contains {count} tasks",
   "@queue_currentQueueInfo": {
     "placeholders": {
@@ -3526,6 +3571,35 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "tray_show": "Show Window",
+  "tray_exit": "Exit",
+
+  "settings_shortcutsSubtitle": "Customize keyboard shortcuts",
+  "settings_openFolder": "Open folder",
+  "settings_openFolderFailed": "Failed to open folder",
+  "settings_dataSourceCacheTitle": "Data source cache management",
+  "settings_pleaseLoginFirst": "Please login first",
+  "settings_accountNotFound": "Account information not found",
+  "settings_goToLoginPage": "Go to login page",
+  "settings_retryCountDisplay": "Max {count} times",
+  "@settings_retryCountDisplay": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settings_retryIntervalDisplay": "{interval} seconds",
+  "@settings_retryIntervalDisplay": {
+    "placeholders": {
+      "interval": {"type": "String"}
+    }
+  },
+  "settings_vibePathSaved": "Vibe library path saved",
+  "settings_selectFolderFailed": "Failed to select folder",
+  "settings_hivePathSaved": "Data storage path saved, effective after restart",
+  "settings_restartRequiredTitle": "Restart Required",
+  "settings_changePathConfirm": "After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?",
+  "settings_resetPathConfirm": "After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?"
 
 }
