@@ -205,3 +205,133 @@ auto-claude: subtask-4-3 - 评估image_generation_provider - 保留keepAlive
 
 ---
 
+## Subtask 6-1: 评估auth_provider - 保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true** - 无需修改
+
+理由：
+1. **核心认证状态** - 管理全局认证状态(AuthState)，包含status、accountId、subscriptionInfo等，整个应用生命周期都需要
+2. **App启动自动登录** - _checkExistingAuth()在build时异步执行，验证存储的token并尝试自动登录，这是一次性的初始化操作
+3. **跨页面状态** - 认证状态被几乎所有需要API调用的页面和Provider依赖，需要全局保持
+4. **Token管理** - 处理access token的验证、存储和刷新，是安全敏感操作
+5. **多账号支持** - 支持账号切换和多个保存账号的自动登录
+
+### 管理的状态 (AuthState)
+
+- `AuthStatus status` - initial/loading/authenticated/unauthenticated/error
+- `String? accountId` - 当前登录账号ID
+- `String? displayName` - 显示名称
+- `Map<String, dynamic>? subscriptionInfo` - 订阅信息（含Anlas余额）
+- `AuthErrorCode? errorCode` - 错误码（网络/认证/服务器等）
+
+### 关键方法
+
+- `_checkExistingAuth()` - 启动时检查存储的token并尝试自动登录
+- `loginWithToken()` - 使用Persistent Token登录
+- `loginWithCredentials()` - 使用邮箱密码登录
+- `switchAccount()` - 切换已保存的账号
+- `logout()` - 登出并清除认证状态
+- `retryAutoLogin()` - 网络恢复后重试自动登录
+
+### Provider结构
+
+```dart
+@Riverpod(keepAlive: true)  // ✅ 正确，需要全局保持
+class AuthNotifier extends _$AuthNotifier {
+  @override
+  AuthState build() {
+    _checkExistingAuth();  // 异步自动登录检查
+    return const AuthState(status: AuthStatus.loading);
+  }
+  // ...
+}
+```
+
+### 结论
+
+这是Riverpod中`keepAlive`的典型用例：
+- 全局应用状态 - 认证状态需要在整个应用生命周期保持
+- 一次性初始化 - 启动时执行的自动登录检查不应重复
+- 跨页面共享 - 多个页面和Provider依赖此状态
+- 安全敏感 - Token管理和验证需要一致的状态
+
+**状态**: 已验证，当前配置正确，无需代码修改。
+
+### 提交信息
+```
+auto-claude: subtask-6-1 - 评估auth_provider - 保留keepAlive
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
+## Subtask 6-2: 评估account_manager_provider - 保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true** - 无需修改
+
+理由：
+1. **App-wide Core Service** - 账号管理是跨应用的核心服务，多个Provider和UI组件依赖它进行认证
+2. **状态持久化** - 从Hive加载账号列表，管理SecureStorage中的敏感token，频繁的dispose/recreate会造成不必要的I/O开销
+3. **多账号支持** - 管理所有用户账号，包括默认账号设置、最后使用时间跟踪等，需要全局状态保持一致
+4. **Singleton Pattern** - 作为单例服务管理应用级认证状态，需要在整个应用生命周期保持可用
+5. **跨依赖需求** - 其他Provider（如auth_provider）依赖此Provider进行账号相关操作
+
+### 管理的状态 (AccountManagerState)
+
+- `List<SavedAccount> accounts` - 保存的账号列表
+- `bool isLoading` - 加载状态
+- `String? error` - 错误信息
+
+### 关键方法
+
+- `_loadAccounts()` - 从Hive加载账号列表
+- `addAccount()` - 添加新账号（支持Token和Credentials两种类型）
+- `removeAccount()` - 删除账号并清理存储的token
+- `setDefaultAccount()` - 设置默认账号
+- `getAccountToken()` - 从SecureStorage获取账号token
+- `defaultAccount` getter - 获取最近使用的默认账号
+- `sortedAccounts` getter - 按最后使用时间排序的账号列表
+
+### Provider结构
+
+```dart
+@Riverpod(keepAlive: true)  // ✅ 正确，需要全局保持
+class AccountManagerNotifier extends _$AccountManagerNotifier {
+  @override
+  AccountManagerState build() {
+    _loadAccounts();  // 异步加载保存的账号
+    return const AccountManagerState(isLoading: true);
+  }
+  // ...
+}
+```
+
+### 存储架构
+
+- **Hive**: 存储账号列表（非敏感数据）
+- **SecureStorage**: 存储各账号的access token和access key（敏感数据）
+
+### 结论
+
+这是Riverpod中`keepAlive`的典型用例：
+- 核心服务 - 账号管理是应用基础设施，需要全局可用
+- 初始化成本 - 需要从存储加载数据，应保持缓存
+- 跨组件依赖 - 多个页面和Provider共享访问
+- 稳定性要求 - 账号数据相对稳定，dispose收益不明显
+
+**状态**: 已验证，当前配置正确，无需代码修改。
+
+### 提交信息
+```
+auto-claude: subtask-6-2 - 评估account_manager_provider - 保留keepAlive
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
