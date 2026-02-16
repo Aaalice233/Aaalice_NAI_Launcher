@@ -87,6 +87,9 @@ dependencies:
   device_info_plus: ^10.1.0
   timeago: ^3.7.1
 
+  # 并发控制
+  mutex: ^3.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
