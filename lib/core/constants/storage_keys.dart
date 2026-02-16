@@ -194,4 +194,16 @@ class StorageKeys {
 
   // 数据源后台刷新相关
   static const String pendingDataSourceRefresh = 'pending_data_source_refresh';
+
+  // Image Cache Settings (图片缓存设置)
+  static const String imageCacheMaxMemoryBytes = 'image_cache_max_memory_bytes';
+  static const String imageCacheMaxObjectCount = 'image_cache_max_object_count';
+  static const String imageCacheEvictionPolicy = 'image_cache_eviction_policy';
+  static const String imageCacheEnableMemoryMonitoring =
+      'image_cache_enable_memory_monitoring';
+  static const String imageCacheMemoryThresholdPercentage =
+      'image_cache_memory_threshold_percentage';
+  static const String imageCacheAutoCleanupIntervalMs =
+      'image_cache_auto_cleanup_interval_ms';
+  static const String imageCacheConfigVersion = 'image_cache_config_version';
 }
