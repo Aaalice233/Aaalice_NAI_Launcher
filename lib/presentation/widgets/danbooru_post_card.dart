@@ -11,6 +11,7 @@ import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/services/tag_translation_service.dart';
+import '../providers/cache_settings_provider.dart';
 import '../providers/character_prompt_provider.dart';
 import '../providers/pending_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
@@ -24,7 +25,7 @@ import 'common/app_toast.dart';
 /// - 使用 RepaintBoundary 减少不必要的重绘
 /// - memCacheWidth 限制内存占用
 /// - 使用自定义缓存管理器（支持 HTTP/2）
-class DanbooruPostCard extends StatefulWidget {
+class DanbooruPostCard extends ConsumerStatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
   final bool isFavorited;
@@ -58,7 +59,7 @@ class DanbooruPostCard extends StatefulWidget {
   State<DanbooruPostCard> createState() => _DanbooruPostCardState();
 }
 
-class _DanbooruPostCardState extends State<DanbooruPostCard> {
+class _DanbooruPostCardState extends ConsumerState<DanbooruPostCard> {
   bool _isHovering = false;
   OverlayEntry? _overlayEntry;
   final _layerLink = LayerLink();
@@ -114,6 +115,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       final destination = path.join(result, fileName);
 
       await file.copy(destination);
+
+      // 刷新缓存统计信息
+      ref.read(cacheStatisticsNotifierProvider.notifier).refresh();
 
       if (mounted) {
         AppToast.info(context, '已保存到: $destination');
