@@ -10,7 +10,7 @@ part 'collection_provider.freezed.dart';
 part 'collection_provider.g.dart';
 
 /// Provider for CollectionRepository
-@Riverpod(keepAlive: true)
+@riverpod
 CollectionRepository collectionRepository(Ref ref) {
   return CollectionRepository.instance;
 }
@@ -48,7 +48,7 @@ class CollectionState with _$CollectionState {
 }
 
 /// 集合 Notifier
-@Riverpod(keepAlive: true)
+@riverpod
 class CollectionNotifier extends _$CollectionNotifier {
   @override
   CollectionState build() {
