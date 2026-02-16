@@ -2873,6 +2873,12 @@
   "queue_noValidTasks": "文件中没有有效任务",
 
   "queue_settings": "队列设置",
+  "settings_queueRetryCount": "重试次数",
+  "settings_queueRetryInterval": "重试间隔",
+  "settings_queueRetryCountSubtitle": "失败任务的最大重试次数",
+  "settings_queueRetryIntervalSubtitle": "重试之间的等待时间",
+  "unit_times": "次",
+  "unit_seconds": "秒",
   "queue_currentQueueInfo": "当前队列包含 {count} 个任务",
   "@queue_currentQueueInfo": {
     "placeholders": {

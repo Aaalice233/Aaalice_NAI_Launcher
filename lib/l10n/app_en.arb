@@ -3165,6 +3165,12 @@
   "queue_noValidTasks": "No valid tasks in file",
 
   "queue_settings": "Queue Settings",
+  "settings_queueRetryCount": "Retry Count",
+  "settings_queueRetryInterval": "Retry Interval",
+  "settings_queueRetryCountSubtitle": "Maximum retry attempts for failed tasks",
+  "settings_queueRetryIntervalSubtitle": "Time to wait between retries",
+  "unit_times": "times",
+  "unit_seconds": "seconds",
   "queue_currentQueueInfo": "Current queue contains {count} tasks",
   "@queue_currentQueueInfo": {
     "placeholders": {
