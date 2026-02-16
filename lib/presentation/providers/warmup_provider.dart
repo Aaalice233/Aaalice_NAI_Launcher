@@ -246,19 +246,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 2. 数据库轻量级初始化
-    _scheduler.registerTask(
-      PhasedWarmupTask(
-        name: 'warmup_unifiedDbInit',
-        displayName: '初始化数据库',
-        phase: WarmupPhase.critical,
-        weight: 1,
-        timeout: const Duration(seconds: 10),
-        task: _initUnifiedDatabaseLightweight,
-      ),
-    );
-
-    // 3. 基础UI服务（并行）
+    // 2. 基础UI服务（并行）- 移除了数据库初始化，让它在 Quick 阶段异步执行
     _scheduler.registerGroup(
       PhasedTaskGroup(
         name: 'basicUI',
@@ -293,7 +281,19 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   void _registerQuickPhaseTasks() {
-    // 1. 共现数据初始化（轻量级检查）
+    // 1. 数据库初始化（移到 Quick 阶段，允许更长超时）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_unifiedDbInit',
+        displayName: '初始化数据库',
+        phase: WarmupPhase.quick,
+        weight: 2,
+        timeout: const Duration(seconds: 60),
+        task: _initUnifiedDatabaseLightweight,
+      ),
+    );
+
+    // 2. 共现数据初始化（轻量级检查，依赖数据库）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_cooccurrenceInit',
@@ -305,7 +305,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 2. 轻量级网络检测（带超时）
+    // 3. 轻量级网络检测（带超时）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_networkCheck',
@@ -317,7 +317,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 2. 提示词配置
+    // 4. 提示词配置
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_loadingPromptConfig',
@@ -329,7 +329,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 3. 画廊计数
+    // 5. 画廊计数
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_galleryFileCount',
@@ -341,7 +341,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 4. 订阅信息（仅缓存，不强制网络）
+    // 6. 订阅信息（仅缓存，不强制网络）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_subscription',
@@ -423,12 +423,33 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 轻量级初始化统一数据库
+  /// 轻量级初始化统一数据库（带进度反馈和错误处理）
   Future<void> _initUnifiedDatabaseLightweight() async {
     AppLogger.i('Initializing unified tag database (lightweight)...', 'Warmup');
-    final db = ref.read(unifiedTagDatabaseProvider);
-    await db.initialize();
-    AppLogger.i('Unified tag database initialized', 'Warmup');
+
+    try {
+      // 更新进度状态
+      state = state.copyWith(subTaskMessage: '正在准备数据库文件...');
+
+      final db = ref.read(unifiedTagDatabaseProvider);
+
+      // 使用较长的超时，但允许用户看到进度
+      await db.initialize().timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          AppLogger.w('Database initialization timeout', 'Warmup');
+          throw TimeoutException('数据库初始化超时，请检查磁盘空间');
+        },
+      );
+
+      AppLogger.i('Unified tag database initialized', 'Warmup');
+    } on TimeoutException {
+      rethrow;
+    } catch (e, stack) {
+      AppLogger.e('Database initialization failed', e, stack, 'Warmup');
+      // 数据库初始化失败不应阻塞启动，记录错误但继续
+      AppLogger.w('Continuing without database - will retry on first use', 'Warmup');
+    }
   }
 
   /// 加载提示词配置

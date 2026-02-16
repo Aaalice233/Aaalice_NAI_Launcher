@@ -423,13 +423,20 @@ class _TagCompletionDataSection extends ConsumerWidget {
   Widget _buildActionButtons(
       BuildContext context, WidgetRef ref, DanbooruTagsCacheState state,) {
     final isSyncing = state.isRefreshing;
-    final theme = Theme.of(context);
 
     return Row(
       children: [
+        // 同步画师开关（移到左边，宽度紧凑）
+        _ArtistSyncCheckbox(
+          value: state.syncArtists,
+          isSyncing: isSyncing,
+          onChanged: (value) => ref
+              .read(danbooruTagsCacheNotifierProvider.notifier)
+              .setSyncArtists(value),
+        ),
+        const SizedBox(width: 12),
         // 立即同步按钮
         Expanded(
-          flex: 3,
           child: _ActionButton(
             icon: isSyncing ? Icons.stop_circle_outlined : Icons.sync_outlined,
             label: isSyncing ? '取消同步' : '立即同步',
@@ -441,63 +448,6 @@ class _TagCompletionDataSection extends ConsumerWidget {
                 : () => ref
                     .read(danbooruTagsCacheNotifierProvider.notifier)
                     .refresh(),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // 同步画师开关
-        Expanded(
-          flex: 2,
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: isSyncing
-                  ? null
-                  : () => ref
-                      .read(danbooruTagsCacheNotifierProvider.notifier)
-                      .setSyncArtists(!state.syncArtists),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: state.syncArtists
-                        ? theme.colorScheme.primary.withOpacity(0.5)
-                        : theme.colorScheme.outline.withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  color: state.syncArtists
-                      ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-                      : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      state.syncArtists
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                      size: 18,
-                      color: isSyncing
-                          ? theme.colorScheme.outline
-                          : theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '同步画师',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isSyncing
-                            ? theme.colorScheme.outline
-                            : theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ),
       ],
@@ -839,6 +789,69 @@ class _ErrorMessage extends StatelessWidget {
   }
 }
 
+/// 同步画师复选框（紧凑样式）
+class _ArtistSyncCheckbox extends StatelessWidget {
+  final bool value;
+  final bool isSyncing;
+  final ValueChanged<bool> onChanged;
+
+  const _ArtistSyncCheckbox({
+    required this.value,
+    required this.isSyncing,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: value
+          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: isSyncing ? null : () => onChanged(!value),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: value
+                  ? theme.colorScheme.primary.withOpacity(0.5)
+                  : theme.colorScheme.outline.withOpacity(0.2),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                value ? Icons.check_box : Icons.check_box_outline_blank,
+                size: 18,
+                color: isSyncing
+                    ? theme.colorScheme.outline
+                    : theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '同步画师',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isSyncing
+                      ? theme.colorScheme.outline
+                      : theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 操作按钮
 class _ActionButton extends StatelessWidget {
   final IconData icon;
@@ -895,11 +908,18 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-/// 清除所有缓存按钮
-class _ClearAllCacheButton extends StatelessWidget {
+/// 清除所有缓存按钮（实心背景 + 悬停动效）
+class _ClearAllCacheButton extends StatefulWidget {
   final VoidCallback onClearAll;
 
   const _ClearAllCacheButton({required this.onClearAll});
+
+  @override
+  State<_ClearAllCacheButton> createState() => _ClearAllCacheButtonState();
+}
+
+class _ClearAllCacheButtonState extends State<_ClearAllCacheButton> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -907,38 +927,90 @@ class _ClearAllCacheButton extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onClearAll,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: theme.colorScheme.error.withOpacity(0.3),
-                width: 1.5,
-              ),
-              borderRadius: BorderRadius.circular(12),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            // 实心背景：使用 errorContainer 作为基础色
+            color: _isHovered
+                ? theme.colorScheme.errorContainer.withOpacity(0.8)
+                : theme.colorScheme.errorContainer.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            // 边框：悬停时更明显
+            border: Border.all(
+              color: _isHovered
+                  ? theme.colorScheme.error.withOpacity(0.6)
+                  : theme.colorScheme.error.withOpacity(0.3),
+              width: _isHovered ? 2 : 1.5,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.delete_sweep_outlined,
-                  size: 18,
-                  color: theme.colorScheme.error,
+            // 阴影：悬停时添加发光效果
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.error.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: widget.onClearAll,
+              borderRadius: BorderRadius.circular(12),
+              // 自定义涟漪颜色
+              splashColor: theme.colorScheme.error.withOpacity(0.1),
+              highlightColor: theme.colorScheme.error.withOpacity(0.05),
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                padding: EdgeInsets.symmetric(
+                  vertical: _isHovered ? 16 : 14,
+                  horizontal: 20,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '清除所有标签数据',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 图标：悬停时有轻微缩放
+                    AnimatedScale(
+                      scale: _isHovered ? 1.1 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.delete_sweep_outlined,
+                        size: 18,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 文字：悬停时更亮
+                    Text(
+                      '清除所有标签数据',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                        // 悬停时稍微增大字体
+                        fontSize: _isHovered ? 15 : 14,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // 悬停时显示箭头提示
+                    AnimatedOpacity(
+                      opacity: _isHovered ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 12,
+                        color: theme.colorScheme.error.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
