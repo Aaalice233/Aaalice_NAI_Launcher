@@ -3253,6 +3253,45 @@
   "settings_hivePathSaved": "数据存储路径已保存，重启后生效",
   "settings_restartRequiredTitle": "需要重启应用",
   "settings_changePathConfirm": "更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？",
-  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？"
+  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？",
+
+  "settings_imageCacheTitle": "图片缓存",
+  "imageCache_clearCacheTitle": "清除图片缓存",
+  "imageCache_clearCacheMessage": "确定要清除所有图片缓存吗？\n\n这将删除所有已缓存的图片文件，释放存储空间。\n清除后图片将需要重新下载。",
+  "imageCache_cacheCleared": "图片缓存已清除",
+  "imageCache_clearFailed": "清除缓存失败: {error}",
+  "@imageCache_clearFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "imageCache_statisticsReset": "统计信息已重置",
+  "imageCache_resetFailed": "重置统计失败: {error}",
+  "@imageCache_resetFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "imageCache_cacheStatus": "缓存状态",
+  "imageCache_refreshStatistics": "刷新统计",
+  "imageCache_memoryUsage": "内存使用",
+  "imageCache_cachedObjects": "缓存对象",
+  "imageCache_hitRate": "命中率",
+  "imageCache_usageRate": "使用率",
+  "imageCache_cacheConfiguration": "缓存配置",
+  "imageCache_maxMemoryLimit": "最大内存限制",
+  "imageCache_maxCacheCount": "最大缓存数量",
+  "imageCache_evictionPolicy": "淘汰策略",
+  "imageCache_policyLru": "最近最少使用",
+  "imageCache_policyFifo": "先进先出",
+  "imageCache_policyLfu": "最少使用频率",
+  "imageCache_autoMemoryMonitoring": "自动内存监控",
+  "imageCache_autoCleanSubtitle": "自动清理超出阈值的缓存",
+  "imageCache_cleanupThreshold": "清理阈值",
+  "imageCache_thresholdDescription": "当内存使用超过此阈值时自动清理",
+  "imageCache_resetStatistics": "重置统计",
+  "imageCache_clearCache": "清除缓存",
+  "imageCache_cancel": "取消",
+  "imageCache_confirmClear": "确认清除"
 
 }
