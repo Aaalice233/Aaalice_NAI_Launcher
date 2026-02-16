@@ -13228,6 +13228,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?'**
   String get settings_resetPathConfirm;
+
+  /// No description provided for @tray_show.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Window'**
+  String get tray_show;
+
+  /// No description provided for @tray_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get tray_exit;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

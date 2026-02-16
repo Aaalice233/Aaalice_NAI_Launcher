@@ -7028,4 +7028,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_resetPathConfirm => '重置数据存储路径后，需要重启应用才能生效。\n\n默认路径将在下次启动时生效。是否继续？';
+
+  @override
+  String get tray_show => '显示窗口';
+
+  @override
+  String get tray_exit => '退出';
 }

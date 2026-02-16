@@ -7028,4 +7028,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_resetPathConfirm => 'After resetting the data storage path, the app needs to restart to take effect.\n\nThe default path will take effect on the next startup. Continue?';
+
+  @override
+  String get tray_show => 'Show Window';
+
+  @override
+  String get tray_exit => 'Exit';
 }
