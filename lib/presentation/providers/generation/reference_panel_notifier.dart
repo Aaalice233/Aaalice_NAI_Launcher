@@ -17,7 +17,7 @@ import 'generation_params_notifier.dart';
 part 'reference_panel_notifier.g.dart';
 
 /// 引用面板 UI 状态
-@Riverpod(keepAlive: true)
+@riverpod
 class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   VibeLibraryStorageService get _storageService =>
       ref.read(vibeLibraryStorageServiceProvider);

@@ -14,7 +14,7 @@ String _$referencePanelNotifierHash() =>
 /// Copied from [ReferencePanelNotifier].
 @ProviderFor(ReferencePanelNotifier)
 final referencePanelNotifierProvider =
-    NotifierProvider<ReferencePanelNotifier, ReferencePanelState>.internal(
+    AutoDisposeNotifierProvider<ReferencePanelNotifier, ReferencePanelState>.internal(
   ReferencePanelNotifier.new,
   name: r'referencePanelNotifierProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -24,6 +24,6 @@ final referencePanelNotifierProvider =
   allTransitiveDependencies: null,
 );
 
-typedef _$ReferencePanelNotifier = Notifier<ReferencePanelState>;
+typedef _$ReferencePanelNotifier = AutoDisposeNotifier<ReferencePanelState>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
