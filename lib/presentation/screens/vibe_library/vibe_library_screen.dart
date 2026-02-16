@@ -781,6 +781,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           color: theme.colorScheme.secondary,
         ),
         BulkActionItem(
+          icon: Icons.file_upload_outlined,
+          label: '导出',
+          onPressed: () => _batchExport(),
+          color: theme.colorScheme.secondary,
+        ),
+        BulkActionItem(
           icon: Icons.favorite_border,
           label: '收藏',
           onPressed: () => _batchToggleFavorite(),
@@ -1087,6 +1093,26 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (mounted) {
       context.go(AppRoutes.home);
     }
+  }
+
+  /// 批量导出
+  Future<void> _batchExport() async {
+    final selectionState = ref.read(vibeLibrarySelectionNotifierProvider);
+    final ids = selectionState.selectedIds.toList();
+
+    if (ids.isEmpty) return;
+
+    final state = ref.read(vibeLibraryNotifierProvider);
+    final selectedEntries =
+        state.entries.where((e) => ids.contains(e.id)).toList();
+
+    if (selectedEntries.isEmpty) return;
+
+    // 打开导出对话框
+    await _exportVibes(specificEntries: selectedEntries);
+
+    // 退出选择模式
+    ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
   }
 
   /// 批量删除

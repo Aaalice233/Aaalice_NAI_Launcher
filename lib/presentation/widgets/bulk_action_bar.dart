@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 /// 通用批量操作工具栏
 ///
-/// 用于本地画廊和在线画廊的批量操作
+/// 用于本地画廊、在线画廊和Vibe库的批量操作
 class BulkActionBar extends StatelessWidget {
   /// 选中数量
   final int selectedCount;
@@ -21,6 +21,12 @@ class BulkActionBar extends StatelessWidget {
   /// 操作按钮列表
   final List<BulkActionItem> actions;
 
+  /// 是否为Vibe库模式（启用Vibe特有的操作布局）
+  final bool isVibeLibrary;
+
+  /// 项目单位名称（如"项"、"Vibe"、"图片"）
+  final String itemName;
+
   const BulkActionBar({
     super.key,
     required this.selectedCount,
@@ -28,6 +34,8 @@ class BulkActionBar extends StatelessWidget {
     this.onExit,
     this.onSelectAll,
     this.actions = const [],
+    this.isVibeLibrary = false,
+    this.itemName = '项',
   });
 
   @override
@@ -71,7 +79,7 @@ class BulkActionBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '已选择 $selectedCount 项',
+                  '已选择 $selectedCount $itemName',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.w600,
@@ -132,6 +140,9 @@ class BulkActionItem {
   final bool isDanger;
   final bool showDividerBefore;
 
+  /// 选中项的ID列表（用于需要上下文的操作）
+  final List<String>? selectedIds;
+
   const BulkActionItem({
     required this.icon,
     required this.label,
@@ -139,7 +150,92 @@ class BulkActionItem {
     this.color,
     this.isDanger = false,
     this.showDividerBefore = false,
+    this.selectedIds,
   });
+}
+
+/// Vibe库批量操作项预置
+class VibeBulkActions {
+  /// 发送到生成
+  static BulkActionItem sendToGeneration({
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return BulkActionItem(
+      icon: Icons.send,
+      label: '发送到生成',
+      onPressed: onPressed,
+      color: color,
+    );
+  }
+
+  /// 移动到分类
+  static BulkActionItem moveToCategory({
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return BulkActionItem(
+      icon: Icons.drive_file_move_outline,
+      label: '移动',
+      onPressed: onPressed,
+      color: color,
+    );
+  }
+
+  /// 编辑标签
+  static BulkActionItem editTags({
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return BulkActionItem(
+      icon: Icons.edit_note,
+      label: '编辑标签',
+      onPressed: onPressed,
+      color: color,
+    );
+  }
+
+  /// 导出为Bundle
+  static BulkActionItem exportBundle({
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return BulkActionItem(
+      icon: Icons.inventory_2_outlined,
+      label: '导出Bundle',
+      onPressed: onPressed,
+      color: color,
+    );
+  }
+
+  /// 切换收藏
+  static BulkActionItem toggleFavorite({
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return BulkActionItem(
+      icon: Icons.favorite_border,
+      label: '收藏',
+      onPressed: onPressed,
+      color: color,
+    );
+  }
+
+  /// 删除（危险操作）
+  static BulkActionItem delete({
+    required VoidCallback onPressed,
+    Color? color,
+    bool showDividerBefore = true,
+  }) {
+    return BulkActionItem(
+      icon: Icons.delete_outline,
+      label: '删除',
+      onPressed: onPressed,
+      color: color,
+      isDanger: true,
+      showDividerBefore: showDividerBefore,
+    );
+  }
 }
 
 /// Action button with icon and optional label
