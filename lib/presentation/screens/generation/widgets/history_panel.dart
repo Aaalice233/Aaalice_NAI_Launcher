@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/zip_utils.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
@@ -23,6 +24,7 @@ import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
+import 'empty_state_card.dart';
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
@@ -168,24 +170,119 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   Widget _buildEmptyState(ThemeData theme, BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 48,
-            color: theme.colorScheme.onSurface.withOpacity(0.2),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.generation_noHistory,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.4),
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 32),
+            // 图标
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.auto_fix_high,
+                size: 48,
+                color: theme.colorScheme.primary.withOpacity(0.7),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            // 标题
+            Text(
+              context.l10n.generation_startCreating,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 副标题
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                context.l10n.generation_noHistoryGuide,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            // 快速操作卡片
+            Row(
+              children: [
+                Expanded(
+                  child: EmptyStateCard(
+                    icon: Icons.shuffle,
+                    title: context.l10n.generation_randomPrompt,
+                    subtitle: context.l10n.generation_randomPromptSubtitle,
+                    onTap: () => _generateRandomPrompt(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: EmptyStateCard(
+                    icon: Icons.clear_all,
+                    title: context.l10n.generation_clearPrompt,
+                    subtitle: context.l10n.generation_clearPromptSubtitle,
+                    onTap: () => _clearPrompt(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
+    );
+  }
+
+  /// 生成随机提示词
+  Future<void> _generateRandomPrompt(BuildContext context) async {
+    try {
+      // 使用统一的随机提示词生成并应用方法
+      await ref
+          .read(imageGenerationNotifierProvider.notifier)
+          .generateAndApplyRandomPrompt();
+
+      // 检查是否有角色被生成（用于 Toast 提示）
+      final characterConfig = ref.read(characterPromptNotifierProvider);
+      final hasCharacters = characterConfig.characters
+          .any((c) => c.enabled && c.prompt.isNotEmpty);
+
+      if (hasCharacters && context.mounted) {
+        final count = characterConfig.characters
+            .where((c) => c.enabled && c.prompt.isNotEmpty)
+            .length;
+        AppToast.success(
+          context,
+          context.l10n.tagLibrary_generatedCharacters(count.toString()),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.tagLibrary_generateFailed(e.toString()),
+        );
+      }
+    }
+  }
+
+  /// 清空提示词
+  void _clearPrompt() {
+    ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
+    // 同时清空角色提示词
+    ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
+
+    AppToast.success(
+      context,
+      context.l10n.generation_promptCleared,
     );
   }
 
