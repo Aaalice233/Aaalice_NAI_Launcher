@@ -410,8 +410,8 @@ class WarmupNotifier extends _$WarmupNotifier {
       state = WarmupState.complete();
       _completer.complete();
 
-      // 启动后台任务（使用 microtask 确保在注册完成后执行）
-      await Future.delayed(const Duration(seconds: 1)); // 稍等片刻让UI稳定
+      // 延迟1秒后启动后台任务，确保UI稳定和任务注册完成
+      await Future.delayed(const Duration(seconds: 1));
       Future.microtask(() {
         ref.read(backgroundTaskNotifierProvider.notifier).startAll();
       });
