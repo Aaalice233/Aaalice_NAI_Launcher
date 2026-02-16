@@ -819,13 +819,20 @@ class _PositivePromptTooltip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 顶部统计标题
-        _buildHeader(isDark),
+        TooltipHeader(
+          theme: theme,
+          label: l10n.prompt_positivePrompt,
+          icon: Icons.auto_awesome,
+          color: theme.colorScheme.primary,
+          isDark: isDark,
+        ),
 
         const SizedBox(height: 10),
 
         // 固定词（前缀）- 解析别名
         if (hasPrefixes) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.arrow_forward_rounded,
             label: l10n.fixedTags_prefix,
             color: theme.colorScheme.primary,
@@ -839,7 +846,8 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 用户输入 - 解析别名
         if (userPrompt.trim().isNotEmpty) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.edit_rounded,
             label: l10n.prompt_mainPositive,
             color: theme.colorScheme.secondary,
@@ -851,7 +859,8 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 质量词
         if (hasQuality) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.star_rounded,
             label: l10n.qualityTags_positive,
             color: Colors.amber,
@@ -872,7 +881,8 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 固定词（后缀）- 解析别名
         if (hasSuffixes) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.arrow_back_rounded,
             label: l10n.fixedTags_suffix,
             color: theme.colorScheme.tertiary,
@@ -900,45 +910,14 @@ class _PositivePromptTooltip extends StatelessWidget {
         ),
 
         // 最终生效提示词
-        _buildFinalPromptSection(effectivePrompt, isDark),
+        TooltipFinalPromptSection(
+          theme: theme,
+          prompt: effectivePrompt,
+          isDark: isDark,
+          label: l10n.prompt_finalPrompt,
+          isNegative: false,
+        ),
       ],
-    );
-  }
-
-  Widget _buildHeader(bool isDark) {
-    return TooltipHeader(
-      theme: theme,
-      label: l10n.prompt_positivePrompt,
-      icon: Icons.auto_awesome,
-      color: theme.colorScheme.primary,
-      isDark: isDark,
-    );
-  }
-
-  Widget _buildSection({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required String content,
-    required bool isDark,
-  }) {
-    return TooltipSection(
-      theme: theme,
-      icon: icon,
-      label: label,
-      color: color,
-      content: content,
-      isDark: isDark,
-    );
-  }
-
-  Widget _buildFinalPromptSection(String prompt, bool isDark) {
-    return TooltipFinalPromptSection(
-      theme: theme,
-      prompt: prompt,
-      isDark: isDark,
-      label: l10n.prompt_finalPrompt,
-      isNegative: false,
     );
   }
 
@@ -1118,13 +1097,20 @@ class _NegativePromptTooltip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 顶部标题
-        _buildHeader(isDark),
+        TooltipHeader(
+          theme: theme,
+          label: l10n.prompt_negativePrompt,
+          icon: Icons.block,
+          color: theme.colorScheme.error,
+          isDark: isDark,
+        ),
 
         const SizedBox(height: 10),
 
         // UC预设
         if (hasPreset) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.shield_rounded,
             label: l10n.qualityTags_negative,
             color: theme.colorScheme.error,
@@ -1136,7 +1122,8 @@ class _NegativePromptTooltip extends StatelessWidget {
 
         // 用户输入 - 解析别名
         if (hasUserInput) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.edit_rounded,
             label: l10n.prompt_mainNegative,
             color: theme.colorScheme.tertiary,
@@ -1162,45 +1149,14 @@ class _NegativePromptTooltip extends StatelessWidget {
         ),
 
         // 最终生效负面提示词
-        _buildFinalSection(effectiveNegative, isDark),
+        TooltipFinalPromptSection(
+          theme: theme,
+          prompt: effectiveNegative,
+          isDark: isDark,
+          label: l10n.prompt_finalNegative,
+          isNegative: true,
+        ),
       ],
-    );
-  }
-
-  Widget _buildHeader(bool isDark) {
-    return TooltipHeader(
-      theme: theme,
-      label: l10n.prompt_negativePrompt,
-      icon: Icons.block,
-      color: theme.colorScheme.error,
-      isDark: isDark,
-    );
-  }
-
-  Widget _buildSection({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required String content,
-    required bool isDark,
-  }) {
-    return TooltipSection(
-      theme: theme,
-      icon: icon,
-      label: label,
-      color: color,
-      content: content,
-      isDark: isDark,
-    );
-  }
-
-  Widget _buildFinalSection(String prompt, bool isDark) {
-    return TooltipFinalPromptSection(
-      theme: theme,
-      prompt: prompt,
-      isDark: isDark,
-      label: l10n.prompt_finalNegative,
-      isNegative: true,
     );
   }
 
