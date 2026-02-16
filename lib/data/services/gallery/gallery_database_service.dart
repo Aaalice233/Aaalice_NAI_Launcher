@@ -425,6 +425,59 @@ class GalleryDatabaseService {
     return await database.rawQuery(sql, args);
   }
 
+  /// 根据文件路径列表批量查询图片
+  Future<List<Map<String, dynamic>>> queryImagesByPaths(List<String> filePaths) async {
+    if (filePaths.isEmpty) return [];
+
+    // 构建IN子句的参数占位符
+    final placeholders = List.filled(filePaths.length, '?').join(',');
+    final args = filePaths.cast<dynamic>();
+
+    final sql = '''
+      SELECT
+        i.id,
+        i.file_path,
+        i.file_name,
+        i.file_size,
+        i.file_hash,
+        i.width,
+        i.height,
+        i.aspect_ratio,
+        i.created_at,
+        i.modified_at,
+        i.date_ymd,
+        i.resolution_key,
+        m.prompt,
+        m.negative_prompt,
+        m.seed,
+        m.steps,
+        m.cfg_scale,
+        m.sampler,
+        m.model,
+        m.smea,
+        m.smea_dyn,
+        m.noise_schedule,
+        m.cfg_rescale,
+        m.character_prompts,
+        m.character_negative_prompts,
+        m.raw_json,
+        m.has_metadata,
+        m.vibe_encoding,
+        m.vibe_strength,
+        m.vibe_info_extracted,
+        m.vibe_source_type,
+        m.has_vibe,
+        (f.image_id IS NOT NULL) AS is_favorite
+      FROM images i
+      LEFT JOIN metadata m ON i.id = m.image_id
+      LEFT JOIN favorites f ON i.id = f.image_id
+      WHERE i.file_path IN ($placeholders) AND i.is_deleted = 0
+      ORDER BY i.modified_at DESC
+    ''';
+
+    return await database.rawQuery(sql, args);
+  }
+
   /// 查询图片总数
   Future<int> countImages({bool includeDeleted = false}) async {
     final where = includeDeleted ? null : 'is_deleted = 0';
