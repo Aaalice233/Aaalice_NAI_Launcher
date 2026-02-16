@@ -30,6 +30,7 @@ import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
 import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
+import 'prompt_tooltip_components.dart';
 
 /// Prompt 输入组件 (带自动补全)
 class PromptInputWidget extends ConsumerStatefulWidget {
@@ -905,39 +906,12 @@ class _PositivePromptTooltip extends StatelessWidget {
   }
 
   Widget _buildHeader(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
-            theme.colorScheme.primary.withOpacity(isDark ? 0.1 : 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.auto_awesome,
-            size: 14,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            l10n.prompt_positivePrompt,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-        ],
-      ),
+    return TooltipHeader(
+      theme: theme,
+      label: l10n.prompt_positivePrompt,
+      icon: Icons.auto_awesome,
+      color: theme.colorScheme.primary,
+      isDark: isDark,
     );
   }
 
