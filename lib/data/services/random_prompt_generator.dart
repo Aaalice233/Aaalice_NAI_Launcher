@@ -19,11 +19,9 @@ import '../models/prompt/tag_group.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
-import '../models/prompt/wordlist_entry.dart';
 import 'bracket_formatter.dart';
 import 'character_count_resolver.dart';
 import 'sequential_state_service.dart';
-import 'strategies/character_tag_generator.dart';
 import 'strategies/nai_style_generator_strategy.dart';
 import 'strategies/preset_generator_strategy.dart';
 import 'strategies/wordlist_generator_strategy.dart';
@@ -48,7 +46,6 @@ class RandomPromptGenerator {
   final BracketFormatter _bracketFormatter;
   final CharacterCountResolver _characterCountResolver;
   final VariableReplacementService _variableReplacementService;
-  final CharacterTagGenerator _characterTagGenerator;
   final NaiStyleGeneratorStrategy _naiStyleGenerator;
   final PresetGeneratorStrategy _presetGeneratorStrategy;
   final WordlistGeneratorStrategy _wordlistGeneratorStrategy;
@@ -63,7 +60,6 @@ class RandomPromptGenerator {
         _bracketFormatter = BracketFormatter(),
         _characterCountResolver = CharacterCountResolver(),
         _variableReplacementService = VariableReplacementService(),
-        _characterTagGenerator = CharacterTagGenerator(),
         _naiStyleGenerator = NaiStyleGeneratorStrategy(),
         _presetGeneratorStrategy = PresetGeneratorStrategy(),
         _wordlistGeneratorStrategy = WordlistGeneratorStrategy();

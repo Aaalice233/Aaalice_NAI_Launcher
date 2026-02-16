@@ -445,7 +445,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       state = state.copyWith(subTaskMessage: '正在检查标签数据...');
 
       // 设置进度回调
-      service.onProgress = (progress, message) {
+      service.onProgress = (progress, message, {processedCount, totalCount}) {
         state = state.copyWith(subTaskMessage: message);
       };
 

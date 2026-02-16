@@ -193,7 +193,7 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
       AppLogger.i('Background refreshing: ${service.serviceName}', 'BackgroundRefresh');
 
       // 设置进度回调
-      service.onProgress = (progress, message) {
+      service.onProgress = (progress, message, {processedCount, totalCount}) {
         state = state.copyWith(
           currentPhase: message ?? '正在更新 ${service.serviceName}...',
         );

@@ -128,7 +128,7 @@ class UnifiedDataSourceManager {
     final futures = _services.map((service) async {
       try {
         // 设置进度回调
-        service.onProgress = (progress, message) {
+        service.onProgress = (progress, message, {processedCount, totalCount}) {
           progressMap[service.serviceName] = DataSourceInitProgress(
             sourceName: service.serviceName,
             overallProgress: progress,
