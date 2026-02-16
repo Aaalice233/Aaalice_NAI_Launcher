@@ -107,11 +107,11 @@ class _DataSourceCacheSettingsState
         title: const Text('清除标签数据源'),
         content: Text(
           '确定要清除所有标签数据源吗？\n\n'
-          '这将删除以下数据：\n'
+          '这将清空以下数据：\n'
           '• Danbooru 标签补全数据\n'
           '• 中英文标签翻译\n'
           '• 标签共现关系\n\n'
-          '清除后下次启动时将自动重建数据库并恢复内置数据。',
+          '清除后下次启动时将自动重新加载数据。',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -204,7 +204,7 @@ class _DataSourceCacheSettingsState
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    '正在清除缓存...',
+                    '正在清除数据...',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -221,11 +221,11 @@ class _DataSourceCacheSettingsState
     await Future.delayed(const Duration(milliseconds: 100));
 
     try {
-      // 关闭数据库连接并删除数据库文件
+      // 清空数据库表（不清除文件，避免 Windows 文件锁定问题）
       final dbConnection = ref.read(tagDatabaseConnectionProvider);
-      await dbConnection.deleteDatabase();
+      await dbConnection.clearAllTables();
 
-      // 清除 Danbooru 标签缓存
+      // 清除内存缓存
       await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
 
       // 刷新状态
@@ -238,7 +238,7 @@ class _DataSourceCacheSettingsState
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {
-        AppToast.success(rootContext, '数据库已重置，下次启动时将重新导入');
+        AppToast.success(rootContext, '标签数据已清除，下次启动时将重新加载');
       }
     } catch (e) {
       // 关闭进度对话框并延迟显示错误提示

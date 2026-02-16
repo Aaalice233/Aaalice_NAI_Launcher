@@ -111,29 +111,44 @@ class TagDatabaseConnection {
     AppLogger.i('Database rebuilt successfully', 'TagDatabaseConnection');
   }
 
-  /// 删除整个数据库文件（用于"清除缓存"功能）
-  Future<void> deleteDatabase() async {
-    if (_db != null) {
-      await _db!.close();
-      _db = null;
+  /// 清空所有数据表（用于"清除缓存"功能）
+  /// 相比删除文件，此方法避免 Windows 文件锁定问题
+  Future<void> clearAllTables() async {
+    if (_db == null) {
+      AppLogger.w('Database not connected, nothing to clear', 'TagDatabaseConnection');
+      return;
     }
 
-    final dbPath = await getDatabasePath();
-    final dbFile = File(dbPath);
-    final walFile = File('$dbPath-wal');
-    final shmFile = File('$dbPath-shm');
+    AppLogger.i('Clearing all database tables...', 'TagDatabaseConnection');
 
-    if (await dbFile.exists()) {
-      await dbFile.delete();
-    }
-    if (await walFile.exists()) {
-      await walFile.delete();
-    }
-    if (await shmFile.exists()) {
-      await shmFile.delete();
+    await _db!.transaction((txn) async {
+      // 清空数据表（保留表结构）
+      await txn.execute('DELETE FROM danbooru_tags');
+      await txn.execute('DELETE FROM translations');
+      await txn.execute('DELETE FROM cooccurrences');
+      await txn.execute('DELETE FROM metadata');
+    });
+
+    // 执行 VACUUM 回收空间
+    await _db!.execute('VACUUM');
+
+    AppLogger.i('All tables cleared successfully', 'TagDatabaseConnection');
+  }
+
+  /// 清空指定数据源的表
+  Future<void> clearTable(String tableName) async {
+    if (_db == null) {
+      throw StateError('Database not connected');
     }
 
-    AppLogger.i('Database deleted', 'TagDatabaseConnection');
+    // 验证表名有效性（防止 SQL 注入）
+    final validTables = {'danbooru_tags', 'translations', 'cooccurrences', 'metadata'};
+    if (!validTables.contains(tableName)) {
+      throw ArgumentError('Invalid table name: $tableName');
+    }
+
+    await _db!.execute('DELETE FROM $tableName');
+    AppLogger.i('Table $tableName cleared', 'TagDatabaseConnection');
   }
 
   /// 检查数据库是否存在
