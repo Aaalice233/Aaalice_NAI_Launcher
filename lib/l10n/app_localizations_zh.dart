@@ -699,6 +699,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_noHistory => '暂无历史记录';
 
   @override
+  String get generation_emptyHistoryHint => '开始你的第一次创作，生成历史将在这里显示';
+
+  @override
+  String get generation_quickActions => '快速操作';
+
+  @override
+  String get generation_startCreating => '开始创作';
+
+  @override
+  String get generation_noHistoryGuide => '输入提示词并点击生成按钮，你的作品将在这里显示';
+
+  @override
+  String get generation_randomPrompt => '随机提示词';
+
+  @override
+  String get generation_randomPromptSubtitle => '生成随机提示词';
+
+  @override
+  String get generation_clearPrompt => '清空提示词';
+
+  @override
+  String get generation_clearPromptSubtitle => '清空当前提示词';
+
+  @override
+  String get generation_promptCleared => '提示词已清空';
+
+  @override
   String get generation_clearHistory => '清除历史记录';
 
   @override

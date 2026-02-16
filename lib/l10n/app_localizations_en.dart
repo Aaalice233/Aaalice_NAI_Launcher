@@ -699,6 +699,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_noHistory => 'No history records';
 
   @override
+  String get generation_emptyHistoryHint => 'Start your first creation, generation history will appear here';
+
+  @override
+  String get generation_quickActions => 'Quick Actions';
+
+  @override
+  String get generation_startCreating => 'Start Creating';
+
+  @override
+  String get generation_noHistoryGuide => 'Enter prompt and click generate button, your creations will appear here';
+
+  @override
+  String get generation_randomPrompt => 'Random Prompt';
+
+  @override
+  String get generation_randomPromptSubtitle => 'Generate random prompt';
+
+  @override
+  String get generation_clearPrompt => 'Clear Prompt';
+
+  @override
+  String get generation_clearPromptSubtitle => 'Clear current prompt';
+
+  @override
+  String get generation_promptCleared => 'Prompt cleared';
+
+  @override
   String get generation_clearHistory => 'Clear History';
 
   @override

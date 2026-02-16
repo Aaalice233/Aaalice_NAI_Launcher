@@ -1439,6 +1439,60 @@ abstract class AppLocalizations {
   /// **'No history records'**
   String get generation_noHistory;
 
+  /// No description provided for @generation_emptyHistoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start your first creation, generation history will appear here'**
+  String get generation_emptyHistoryHint;
+
+  /// No description provided for @generation_quickActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Actions'**
+  String get generation_quickActions;
+
+  /// No description provided for @generation_startCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Creating'**
+  String get generation_startCreating;
+
+  /// No description provided for @generation_noHistoryGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter prompt and click generate button, your creations will appear here'**
+  String get generation_noHistoryGuide;
+
+  /// No description provided for @generation_randomPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Random Prompt'**
+  String get generation_randomPrompt;
+
+  /// No description provided for @generation_randomPromptSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate random prompt'**
+  String get generation_randomPromptSubtitle;
+
+  /// No description provided for @generation_clearPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Prompt'**
+  String get generation_clearPrompt;
+
+  /// No description provided for @generation_clearPromptSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear current prompt'**
+  String get generation_clearPromptSubtitle;
+
+  /// No description provided for @generation_promptCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt cleared'**
+  String get generation_promptCleared;
+
   /// No description provided for @generation_clearHistory.
   ///
   /// In en, this message translates to:
