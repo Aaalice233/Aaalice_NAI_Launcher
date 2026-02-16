@@ -83,6 +83,22 @@ class FixedTagsState {
 ///
 /// 管理固定词列表，支持增删改查、排序、状态切换
 /// 自动持久化到 LocalStorage
+///
+/// ## keepAlive 策略说明
+///
+/// **保留 keepAlive: true 的理由：**
+/// 1. **核心功能**：Fixed tags 是图像生成的核心功能，在 [image_generation_provider.dart]
+///    的生成过程中被频繁访问，用于自动应用固定提示词前缀/后缀
+/// 2. **后台使用**：队列执行 [queue_execution_provider.dart] 在后台执行时需要访问
+///    固定词来填充任务提示词，无法依赖页面生命周期
+/// 3. **全局访问**：在生成页面的多个组件中被使用（prompt_input、fixed_tags_button、
+///    fixed_tags_dialog），使用频率高
+/// 4. **初始化成本**：需要从 [LocalStorageService] 加载并解析 JSON 数据，重新初始化
+///    会有 I/O 开销
+/// 5. **内存收益**：仅存储固定词列表，内存占用小，清理带来的收益有限
+///
+/// 结论：这是一个全局设置类 Provider，需要跨页面和后台任务保持状态，
+/// 保留 keepAlive 是合理的选择。
 @Riverpod(keepAlive: true)
 class FixedTagsNotifier extends _$FixedTagsNotifier {
   /// 存储服务
