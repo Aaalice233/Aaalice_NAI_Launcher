@@ -1,56 +1,29 @@
-# ===========================================================================
-# FLUTTER/DART 构建产物
-# ===========================================================================
-
-# Dart 工具目录
+# Flutter/Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .pub-cache/
 .pub/
-
-# 构建输出
 build/
 *.dart.js
 *.info.json
 *.js.deps
 *.js.map
 
-# 生成的插件注册文件
-lib/generated_plugin_registrant.dart
-
-
-# ===========================================================================
-# 代码生成输出
-# ===========================================================================
-
-# Freezed 和 json_serializable 生成的文件
+# Generated files
 *.g.dart
 *.freezed.dart
 *.mocks.dart
+lib/generated_plugin_registrant.dart
 
-
-# ===========================================================================
-# IDE 和编辑器文件
-# ===========================================================================
-
-# IntelliJ IDEA
+# IDE
 .idea/
 *.iml
-
-# Visual Studio Code
 .vscode/
-
-# Vim 交换文件
 *.swp
 *.swo
 *~
-
-
-# ===========================================================================
-# 操作系统产物
-# ===========================================================================
 
 # macOS
 .DS_Store
@@ -63,14 +36,6 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Linux（占位符）
-# 无需特定条目
-
-
-# ===========================================================================
-# 移动平台构建文件
-# ===========================================================================
-
 # Android
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
@@ -81,7 +46,6 @@ Desktop.ini
 **/android/**/GeneratedPluginRegistrant.*
 **/android/key.properties
 *.jks
-*.keystore
 
 # iOS
 **/ios/**/*.mode1v3
@@ -111,122 +75,46 @@ Desktop.ini
 # Linux
 **/linux/flutter/ephemeral
 
-# Windows（Flutter 特定）
+# Windows
 **/windows/flutter/ephemeral
 
-
-# ===========================================================================
-# 忽略模式例外
-# ===========================================================================
-
-# 允许默认的 Xcode 项目文件
+# Exceptions
 !**/ios/**/default.mode1v3
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 
-# 允许仪表板源文件（非生成结果）
-!test_results/dashboard/
-!test_results/dashboard/*.html
-!test_results/dashboard/*.css
-!test_results/dashboard/*.js
-
-
-# ===========================================================================
-# 环境和配置
-# ===========================================================================
-
-# 环境文件
+# Environment files
 .env
 .env.*
 *.env
 nul
 
-# 代码签名证书
-*.pfx
-*.p12
-*.cer
-cert_thumbprint.txt
-
-
-# ===========================================================================
-# 日志和临时文件
-# ===========================================================================
-
-# 日志文件
+# Logs
 *.log
 
-# 临时目录
-logs/
-logs/security/
-
-
-# ===========================================================================
-# AI 助手和测试产物
-# ===========================================================================
-
-# AI 编程助手
+# AI Assistant & Testing
 .serena/
 .playwright-mcp/
 .spec-workflow/
 .qoder/
 .kiro
+.sisyphus/
+CLAUDE.md
+AGENTS.md
 .claude/
-.gemini/
 
-# Auto-Claude 文件
+# Local folders
+logs/
+nai_web_copy/
+
+# Auto Claude data directory
 .auto-claude/
+
+# Auto Claude generated files
 .auto-claude-security.json
 .auto-claude-status
 .claude_settings.json
 .worktrees/
 .security-key
-
-# 测试产物
-.sisyphus/
-.opencode/
-test/
-test_results/
-test_hive/
-
-# 但保留测试夹具
-!test/fixtures/
-
-# 项目管理文件
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-
-
-# ===========================================================================
-# 本地开发产物
-# ===========================================================================
-
-# 本地文件夹
-nai_web_copy/
-NAI COPY/
-.shared/
-
-# 构建和分析报告
-analyze_report.txt
-install-log.txt
-
-
-# ===========================================================================
-# 工作文档（应该在 .auto-claude/specs/ 目录下）
-# ===========================================================================
-
-BUILD_*.md
-HOW_TO_*.md
-PERFORMANCE_*.md
-QA_*.md
-REDUCED_*.md
-WINDOWS_*.md
-.subtask-*.md
-.verification_*.md
-ROOT_CAUSE_*.md
-SUBTASK_*.md
-VERIFICATION_*.md
-mask_upload_*.mdflutter/
-flutter_windows.zip
-.claude_settings.json
+logs/security/
