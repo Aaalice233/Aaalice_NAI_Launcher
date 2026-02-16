@@ -3621,14 +3621,14 @@
   "backgroundTask_downloadedCount": "Downloaded {count} tags",
   "@backgroundTask_downloadedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {"type": "int", "format": "decimalPattern"}
     }
   },
   "backgroundTask_downloadedCountWithTotal": "Downloaded {count}/{total} tags",
   "@backgroundTask_downloadedCountWithTotal": {
     "placeholders": {
-      "count": {"type": "int"},
-      "total": {"type": "int"}
+      "count": {"type": "int", "format": "decimalPattern"},
+      "total": {"type": "int", "format": "decimalPattern"}
     }
   }
 

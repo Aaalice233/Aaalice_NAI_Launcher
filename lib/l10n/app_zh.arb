@@ -3274,14 +3274,14 @@
   "backgroundTask_downloadedCount": "已下载 {count} 个标签",
   "@backgroundTask_downloadedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {"type": "int", "format": "decimalPattern"}
     }
   },
   "backgroundTask_downloadedCountWithTotal": "已下载 {count}/{total} 个标签",
   "@backgroundTask_downloadedCountWithTotal": {
     "placeholders": {
-      "count": {"type": "int"},
-      "total": {"type": "int"}
+      "count": {"type": "int", "format": "decimalPattern"},
+      "total": {"type": "int", "format": "decimalPattern"}
     }
   }
 
